@@ -1,0 +1,8 @@
+{
+  "name": "Plajah- Global Content Archive",
+  "description": "A high-fidelity Multi-Media microsite with social features, global feed, artist search, site-wide radio, TV channels, game library, and other incredible experiences.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

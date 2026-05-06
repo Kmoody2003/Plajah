@@ -1,0 +1,10 @@
+const recharts = require('recharts');
+console.log('AreaChart undefined?:', recharts.AreaChart === undefined);
+console.log('Area undefined?:', recharts.Area === undefined);
+console.log('ResponsiveContainer undefined?:', recharts.ResponsiveContainer === undefined);
+console.log('LineChart undefined?:', recharts.LineChart === undefined);
+console.log('Line undefined?:', recharts.Line === undefined);
+console.log('XAxis undefined?:', recharts.XAxis === undefined);
+console.log('YAxis undefined?:', recharts.YAxis === undefined);
+console.log('Tooltip undefined?:', recharts.Tooltip === undefined);
+console.log('Cell undefined?:', recharts.Cell === undefined);

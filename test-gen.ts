@@ -1,0 +1,11 @@
+
+import * as lucide from 'lucide-react';
+const icons = ["Plus","Music2","Layers","Play","Trash2","User","Share2","Check","Box","Globe","ShieldCheck","ShieldAlert","LogOut","LogIn","Search","Rss","Sun","Moon","Palette","Radio","Sparkles","Database","Tv","Gamepad2","MessageSquare","GraduationCap","Ticket","Video","BookOpen","ChevronLeft","ChevronRight","Camera","Settings","Heart","PenTool","Newspaper","Megaphone","HelpCircle","ChevronDown","ChevronUp","Home","Film","Users","AppWindow","Mail","X","Trophy","Star","Zap","Target","Award","Filter","TrendingUp","BarChart3","ArrowLeft","Save","Settings2","Activity","Shield","HardDrive","FolderTree","FileAudio","FileVideo","Image","MoreVertical","CheckCircle2","AlertCircle","ExternalLink","Lock","Eye","Loader2","Maximize2","Notebook","RefreshCw","Calendar","LibraryBig","Music","CloudDownload","Clock","History","Monitor","Upload","List","Info","Minimize2","Twitter","Instagram","Youtube","Download","Cpu","Tag","ArrowRight","Smartphone","Type","Quote","Heading1","MoveUp","MoveDown","Layout","AlignLeft","AlignCenter","AlignRight","Maximize","Bookmark","Pause","Volume2","UserPlus","MoreHorizontal","Hash","Mic","Gift","DollarSign","ZoomIn","ZoomOut","Grid","Edit3","Link","Highlighter","Book","Coffee","Columns","Square","Library","ShoppingCart","Building2","Phone","MicOff","VideoOff","PhoneOff","Bell","Pin","PinOff","Send","CheckCheck","FileText","CheckCircle","PlayCircle","MousePointer2","Pencil","Circle","Smile","Reply","Brain","QrCode","VolumeX","UserMinus","Disc","Cloud","UploadCloud","SkipBack","SkipForward","Cast","Repeat","Repeat1","RotateCcw","ShoppingBag","Package","Truck","Minus","MessageCircle","Subtitles","Rocket","CloudLightning","Ghost","Menu","CreditCard","Map","Mic2","ListMusic","Headphones","VideoIcon","LayoutGrid","ArrowUpDown","Archive","FolderSync","FileMusic","PlusCircle","Folder","Inbox","Banknote","FolderPlus","Leaf","Wind","Droplets","BarChart2","Copy","Facebook","Linkedin","HeartHandshake","Edit2","Sticker","AtSign","Wallet","ArrowUpRight","ArrowDownRight","Bitcoin","PieChart","Telescope","Compass","EyeOff","CheckSquare","Share","Scroll","Unlock","DraftingCompass","Network"];
+let hasError = false;
+for (const icon of icons) {
+  if (!lucide[icon]) {
+    console.error('Undefined icon:', icon);
+    hasError = true;
+  }
+}
+if (!hasError) console.log('All icons exist!');

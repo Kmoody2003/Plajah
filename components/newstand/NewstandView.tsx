@@ -1,0 +1,477 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
+import { fetchNewsFromRSS } from '../../services/rssService';
+import ArticlesFeed from '../ArticlesFeed';
+import { PodcastsView } from '../PodcastsView';
+import { UserProfile, Article, LiveFeed } from '../../types';
+import { fetchAllLiveFeeds } from '../../services/backendService';
+import { callGemini } from '../../services/geminiService';
+import The411 from '../The411';
+
+type NewsItem = {
+  id: string;
+  title: string;
+  content: string;
+  source: string;
+  url: string;
+  imageUrl?: string;
+  timestamp: string;
+  category: string;
+};
+
+const CATEGORIES = [
+  { id: 'COMMUNITY_ARTICLES', label: 'Community Articles', icon: Newspaper },
+  { id: 'PODCASTS', label: 'Podcasts', icon: Mic },
+  { id: 'LIVE_NEWS', label: 'Live News', icon: Radio },
+  { id: 'GENERAL', label: 'Global News', icon: Globe },
+  { id: 'SPORTS_ALL', label: 'Sports Center', icon: Zap },
+  { id: 'SCIENCE', label: 'Science & Research', icon: Radio },
+  { id: 'FINANCE', label: 'Markets & Finance', icon: TrendingUp }
+];
+
+const SPORTS_TABS = [
+  { id: 'SPORTS_ALL', label: 'All Sports' },
+  { id: 'SPORTS_NFL', label: 'NFL' },
+  { id: 'SPORTS_NBA', label: 'NBA' },
+  { id: 'SPORTS_MLB', label: 'MLB' },
+  { id: 'SPORTS_NHL', label: 'NHL' },
+  { id: 'SPORTS_NCAA', label: 'NCAA' },
+  { id: 'SPORTS_NASCAR', label: 'NASCAR' },
+  { id: 'SPORTS_INDYCAR', label: 'IndyCar' },
+  { id: 'SPORTS_F1', label: 'Formula 1' },
+];
+
+interface NewstandViewProps {
+  onVisitUser: (uid: string) => void;
+  onSelectArticle: (article: Article) => void;
+  onNewArticle: () => void;
+  currentUser: UserProfile | null;
+}
+
+interface SavedTeam {
+  id: string;
+  name: string;
+  logo: string;
+  league: string;
+}
+
+export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser }) => {
+  const [activeCategory, setActiveCategory] = useState('COMMUNITY_ARTICLES');
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [scores, setScores] = useState<any[]>([]);
+  const [markets, setMarkets] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [bgFeed, setBgFeed] = useState<LiveFeed | null>(null);
+  const [liveNewsFeeds, setLiveNewsFeeds] = useState<LiveFeed[]>([]);
+  const [activeSportsTab, setActiveSportsTab] = useState('SPORTS_ALL');
+  const [favoriteTeams, setFavoriteTeams] = useState<SavedTeam[]>([]);
+  const [newTeam, setNewTeam] = useState('');
+  const [isSearchingTeam, setIsSearchingTeam] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('vibestream_favorite_teams_v2');
+    if (saved) {
+      setFavoriteTeams(JSON.parse(saved));
+    } else {
+       // fallback for old strings if they updated
+       const oldSaved = localStorage.getItem('vibestream_favorite_teams');
+       if (oldSaved) {
+           const parsed = JSON.parse(oldSaved);
+           if (parsed.length > 0 && typeof parsed[0] === 'string') {
+               const mapped = parsed.map((t: string) => ({ id: t, name: t, logo: `https://picsum.photos/seed/${t}/24/24`, league: 'UNKNOWN' }));
+               setFavoriteTeams(mapped);
+               localStorage.setItem('vibestream_favorite_teams_v2', JSON.stringify(mapped));
+           }
+       }
+    }
+  }, []);
+
+  const addTeam = async () => {
+    if (!newTeam.trim() || isSearchingTeam) return;
+    setIsSearchingTeam(true);
+    try {
+      const resolutionPrompt = `
+      Identify the sports team matching "${newTeam.trim()}".
+      Return a JSON response with:
+      - leaguePath: The ESPN API path for the league (e.g. 'basketball/nba', 'football/nfl', 'baseball/mlb', 'hockey/nhl', 'racing/f1', 'soccer/eng.1', 'basketball/mens-college-basketball').
+      - teamId: The ESPN numerical ID or string ID used in their API for this team.
+      - league: The common abbreviation for the league (e.g. 'NBA', 'NFL', 'EPL').
+      - name: the formal name of the team
+      `;
+      
+      const responseText = await callGemini(resolutionPrompt, { responseMimeType: 'application/json', tools: [{ googleSearch: {} }] }, "gemini-3-flash-preview");
+      const info = JSON.parse(responseText || '{}');
+      
+      let finalName = info.name || newTeam.trim();
+      let finalLogo = `https://picsum.photos/seed/${finalName}/24/24`;
+      let finalLeague = info.league || 'UNKNOWN';
+      let finalId = info.teamId || finalName;
+
+      if (info.leaguePath && info.teamId) {
+          try {
+              const teamRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${info.leaguePath}/teams/${info.teamId}`);
+              if (teamRes.ok) {
+                 const tData = await teamRes.json();
+                 if (tData.team) {
+                    finalName = tData.team.displayName || finalName;
+                    finalLogo = tData.team.logos?.[0]?.href || finalLogo;
+                 }
+              }
+          } catch(e) {
+              console.log("ESPN API fetch failed for team search", e);
+          }
+      }
+
+      if (!favoriteTeams.find(t => t.name === finalName)) {
+         const newSavedTeam: SavedTeam = { id: finalId, name: finalName, logo: finalLogo, league: finalLeague };
+         const updated = [...favoriteTeams, newSavedTeam];
+         setFavoriteTeams(updated);
+         localStorage.setItem('vibestream_favorite_teams_v2', JSON.stringify(updated));
+      }
+      setNewTeam('');
+    } catch(e) {
+      console.error(e);
+      if (!favoriteTeams.find(t => t.name.toLowerCase() === newTeam.trim().toLowerCase())) {
+        const fallT: SavedTeam = { id: newTeam, name: newTeam.trim(), logo: `https://picsum.photos/seed/${newTeam.trim()}/24/24`, league: 'UNKNOWN' };
+        const updated = [...favoriteTeams, fallT];
+        setFavoriteTeams(updated);
+        localStorage.setItem('vibestream_favorite_teams_v2', JSON.stringify(updated));
+      }
+      setNewTeam('');
+    } finally {
+      setIsSearchingTeam(false);
+    }
+  };
+
+  const removeTeam = (teamName: string) => {
+    const updated = favoriteTeams.filter(t => t.name !== teamName);
+    setFavoriteTeams(updated);
+    localStorage.setItem('vibestream_favorite_teams_v2', JSON.stringify(updated));
+  };
+
+  useEffect(() => {
+    const unsub = fetchAllLiveFeeds((feeds) => {
+      const newsFeeds = feeds.filter(f => f.tags?.map(t => t.toLowerCase()).includes('news'));
+      setLiveNewsFeeds(newsFeeds);
+      if (newsFeeds.length > 0 && !bgFeed) {
+        setBgFeed(newsFeeds[Math.floor(Math.random() * newsFeeds.length)]);
+      }
+    });
+    return () => unsub();
+  }, [bgFeed]);
+
+  const loadData = async (category: string) => {
+    if (category === 'COMMUNITY_ARTICLES' || category === 'PODCASTS' || category === 'LIVE_NEWS') return;
+    setLoading(true);
+    try {
+      // 1. Fetch News
+      const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab : category;
+      const rssItems = await fetchNewsFromRSS(queryCategory);
+      setItems(rssItems.map((n: any) => ({
+        id: n.id,
+        title: n.headline,
+        content: n.summary,
+        source: n.source,
+        url: n.url,
+        imageUrl: n.imageUrl,
+        timestamp: n.date,
+        category: queryCategory
+      })));
+
+      // 2. Fetch Supporting Data
+      if (category.startsWith('SPORTS')) {
+        let endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+        if (activeSportsTab === 'SPORTS_NFL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+        else if (activeSportsTab === 'SPORTS_MLB') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
+        else if (activeSportsTab === 'SPORTS_NHL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard';
+        else if (activeSportsTab === 'SPORTS_NCAA') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
+        else if (activeSportsTab === 'SPORTS_F1') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard';
+        else if (activeSportsTab === 'SPORTS_NASCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/nascar/scoreboard';
+        else if (activeSportsTab === 'SPORTS_INDYCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/irl/scoreboard';
+
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        setScores(Array.isArray(data.events) ? data.events : []);
+      } else if (category === 'FINANCE') {
+        const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1`);
+        const data = await res.json();
+        setMarkets(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error("Dashboard data load error", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData(activeCategory);
+  }, [activeCategory, activeSportsTab]);
+
+  return (
+    <div className="h-full flex flex-col bg-transparent text-white font-sans overflow-hidden">
+      <header className="relative p-8 lg:p-12 border-b border-white/5 bg-black/80 backdrop-blur-3xl shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+        {bgFeed && (
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-30">
+            <iframe 
+              src={`${bgFeed.url}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1`} 
+              className="w-full h-full object-cover scale-[1.5]"
+              allow="autoplay; encrypted-media"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" />
+          </div>
+        )}
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <Pen size={20} className="text-small-orange" />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Writers Platform</span>
+            </div>
+            <h1 className="text-6xl md:text-[10rem] lg:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
+              News Stand
+            </h1>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="relative w-full lg:w-96">
+              <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" />
+              <input 
+                type="text" 
+                placeholder="Search authors, articles, topics..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-full py-4 pl-16 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-small-orange/50 transition-all text-inherit placeholder:opacity-30"
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={onNewArticle}
+                className="px-8 py-3 bg-[var(--text-primary)] text-[var(--bg-color)] rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
+              >
+                <Pen size={14} /> Start Writing
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex gap-2 p-6 overflow-x-auto no-scrollbar border-b border-white/5 shrink-0 z-10 relative bg-black/60 backdrop-blur-xl">
+        {CATEGORIES.map(cat => {
+          const Icon = cat.icon;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`flex items-center gap-3 px-8 py-4 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                activeCategory === cat.id ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'
+              }`}
+            >
+              <Icon size={16} />
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeCategory === 'COMMUNITY_ARTICLES' ? (
+        <ArticlesFeed 
+          onVisitUser={onVisitUser} 
+          onSelectArticle={onSelectArticle} 
+          onNewArticle={onNewArticle} 
+          currentUser={currentUser}
+          searchQuery={searchQuery}
+        />
+      ) : activeCategory === 'PODCASTS' ? (
+        <div className="flex-1 overflow-y-auto h-full w-full">
+          <PodcastsView />
+        </div>
+      ) : activeCategory === 'LIVE_NEWS' ? (
+        <main className="flex-1 overflow-y-auto p-8 max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {liveNewsFeeds.map(feed => (
+              <div key={feed.id} className="bg-white/5 border border-white/5 rounded-3xl overflow-hidden group">
+                <div className="aspect-video relative">
+                  <iframe 
+                    src={`${feed.url}?autoplay=0&controls=1`} 
+                    className="w-full h-full object-cover"
+                    allowFullScreen
+                  />
+                  {feed.status === 'LIVE' && (
+                    <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">
+                      Live
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <h3 className="font-bold text-lg mb-2">{feed.title}</h3>
+                  <div className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                    {feed.ownerName}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {liveNewsFeeds.length === 0 && (
+              <div className="col-span-full py-20 text-center opacity-30 text-sm font-black uppercase tracking-[0.3em]">
+                No Live News Feeds Found
+              </div>
+            )}
+          </div>
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto p-8 space-y-12">
+          {activeCategory.startsWith('SPORTS') && (
+            <div className="flex flex-col gap-6">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                {SPORTS_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveSportsTab(tab.id)}
+                    className={`px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-xl ${
+                      activeSportsTab === tab.id ? 'bg-small-orange text-white transform -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="bg-gradient-to-r from-white/10 to-transparent border border-white/10 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-small-orange/10 rounded-full blur-[80px] -z-10 group-hover:bg-small-orange/20 transition-all duration-700"></div>
+                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-6 flex items-center gap-3">
+                    <Zap size={24} className="text-small-orange" /> My Teams
+                </h3>
+                <div className="flex flex-wrap items-center gap-4">
+                  {favoriteTeams.map(t => (
+                    <button 
+                        key={t.name} 
+                        onClick={() => {
+                            const event = new CustomEvent('NAVIGATE', { detail: { target: 'TEAM_DETAIL', params: { teamName: t.name } } });
+                            window.dispatchEvent(event);
+                        }}
+                        className="flex items-center gap-3 bg-black/40 hover:bg-black/60 border border-white/10 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95 group/team relative"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
+                          <img src={t.logo} className="w-full h-full object-contain p-1" alt={t.name} />
+                      </div>
+                      <div className="flex flex-col items-start gap-1">
+                         <span className="text-[10px] uppercase text-small-orange tracking-widest leading-none">{t.league}</span>
+                         <span className="leading-none">{t.name}</span>
+                      </div>
+                      <span onClick={(e) => { e.stopPropagation(); removeTeam(t.name); }} className="text-white/20 hover:text-red-500 ml-2 p-1 bg-white/5 rounded-full z-10"><X size={12} /></span>
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-2 bg-black/40 rounded-2xl border border-white/10 overflow-hidden focus-within:border-small-orange transition-colors">
+                    <input 
+                      type="text" 
+                      value={newTeam}
+                      onChange={e => setNewTeam(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addTeam()}
+                      placeholder="Find Team..."
+                      disabled={isSearchingTeam}
+                      className="bg-transparent px-6 py-3 text-xs font-bold text-white focus:outline-none w-48 uppercase tracking-widest placeholder:text-white/20 disabled:opacity-50"
+                    />
+                    <button onClick={addTeam} disabled={isSearchingTeam} className="p-3 bg-small-orange text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:bg-gray-600">
+                      {isSearchingTeam ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Plus size={16}/>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeCategory.startsWith('SPORTS') && scores.length > 0 && (
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {scores.map((s: any) => (
+                  <div key={s.id} className="p-6 bg-white/5 rounded-3xl border border-white/5 underline-offset-4">
+                   <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-4">{s.name}</p>
+                   <div className="text-xl font-black tracking-tighter italic">
+                     {s.competitions?.[0]?.competitors?.[0]?.score || 0} - {s.competitions?.[0]?.competitors?.[1]?.score || 0}
+                   </div>
+                 </div>
+              ))}
+            </section>
+          )}
+          
+          {activeCategory === 'FINANCE' && markets.length > 0 && (
+            <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
+               {markets.map((m: any) => (
+                  <div key={m.id} className="p-6 bg-white/5 rounded-2xl flex flex-col items-center justify-center gap-2">
+                     <img src={m.image || ''} className="w-8 h-8 rounded-full" />
+                     <div className="text-sm font-black">${m.current_price?.toLocaleString() || 'N/A'}</div>
+                  </div>
+               ))}
+            </section>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {items.map((item, idx) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.05 }}
+                className="p-8 bg-white/5 border border-white/5 rounded-[2rem] hover:border-white/20 transition-all flex flex-col group overflow-hidden relative"
+              >
+                {item.imageUrl && (
+                  <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
+                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                  </div>
+                )}
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="text-[10px] font-black uppercase mb-4 text-small-orange">{item.source}</div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight mb-4 group-hover:text-small-orange transition-colors">{item.title}</h3>
+                  <p className="text-sm opacity-50 mb-6 flex-1 line-clamp-3 leading-relaxed">{item.content}</p>
+                  
+                  <div className="flex flex-col gap-6 mt-auto">
+                    <div className="flex items-center justify-between">
+                      <a href={item.url} target="_blank" rel="noreferrer" className="text-xs font-black uppercase tracking-widest opacity-80 hover:text-small-orange flex items-center gap-2">
+                        <ExternalLink size={14} /> Read Article
+                      </a>
+                      <button 
+                        onClick={async () => {
+                          if (!currentUser) {
+                             alert("Please log in to post.");
+                             return;
+                          }
+                          try {
+                            const { postToFeed } = await import('../../services/backendService');
+                            await postToFeed({
+                              authorId: currentUser.uid,
+                              authorName: currentUser.displayName || 'Anonymous',
+                              authorPhoto: currentUser.photoURL || '',
+                              type: 'NEWS',
+                              title: item.title,
+                              content: item.content,
+                              url: item.url,
+                              imageUrl: item.imageUrl || '',
+                              likesCount: 0,
+                              commentCount: 0,
+                              shareCount: 0
+                            });
+                            alert('Article posted to your social feed!');
+                          } catch (e) {
+                            console.error('Failed to post article', e);
+                          }
+                        }}
+                        className="p-3 bg-white/10 hover:bg-small-orange rounded-full transition-colors text-white"
+                        title="Post to Social Feed"
+                      >
+                        <Share2 size={16} />
+                      </button>
+                    </div>
+                    
+                    <div className="pt-6 border-t border-white/10">
+                      <The411 itemId={item.id} itemType="ARTICLE" title={item.title} author={item.source} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </main>
+      )}
+    </div>
+  );
+};
