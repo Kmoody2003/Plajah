@@ -997,8 +997,8 @@ const App: React.FC = () => {
             </aside>
           )}
 
-          {(!isPublicView) && (
-            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : 'w-80')} border-r border-theme flex flex-col p-4 lg:p-6 sticky top-0 h-screen bg-theme-card/85 backdrop-blur-3xl transition-all duration-500 group/sidebar z-50 overflow-x-hidden shrink-0`}>
+          {(!isPublicView && !isMobile && theme !== 'PHONE') && (
+            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : 'w-80')} border-r border-theme hidden lg:flex flex-col p-4 lg:p-6 sticky top-0 h-screen bg-theme-card/85 backdrop-blur-3xl transition-all duration-500 group/sidebar z-50 overflow-x-hidden shrink-0`}>
               <div className={`flex items-center gap-4 mb-10 px-1 h-14 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -1232,72 +1232,122 @@ const App: React.FC = () => {
             </aside>
           )}
 
-          {/* Top Section Collapse (Mobile Only) */}
+          {/* Mobile Bottom Tab Bar */}
           {(isMobile || theme === 'PHONE') && (
-            <div className="fixed top-0 left-0 right-0 z-[140]">
-              <button 
-                onClick={() => setIsBottomSectionExpanded(!isBottomSectionExpanded)}
-                className="w-full py-3 bg-theme-card/95 backdrop-blur-3xl border-b border-theme flex items-center justify-center text-white/40 hover:text-white transition-all shadow-xl"
-              >
-                {isBottomSectionExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                <span className="text-[10px] font-black uppercase tracking-widest ml-2">
-                  {isBottomSectionExpanded ? 'Collapse Navigation' : 'Expand Navigation'}
-                </span>
-              </button>
+            <>
+              {/* Fixed bottom tab bar — 5 primary destinations */}
+              <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-black/90 backdrop-blur-3xl border-t border-white/10 safe-area-inset-bottom">
+                <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                  {[
+                    { id: 'MUSIC', icon: Music2, label: 'Music' },
+                    { id: 'ARTICLES', icon: Newspaper, label: 'News' },
+                    { id: 'DASHBOARD', icon: Home, label: 'Home' },
+                    { id: 'SEARCH', icon: Search, label: 'Search' },
+                    { id: '__MORE__', icon: ChevronUp, label: 'More' },
+                  ].map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = tab.id !== '__MORE__' && view === tab.id;
+                    const isMore = tab.id === '__MORE__';
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          if (isMore) {
+                            setIsBottomSectionExpanded(v => !v);
+                          } else if (tab.id === 'USER_PROFILE') {
+                            if (user) handleVisitUser(user.uid);
+                            else loginWithGoogle();
+                          } else {
+                            setView(tab.id as any);
+                            setIsBottomSectionExpanded(false);
+                          }
+                        }}
+                        className="flex flex-col items-center gap-1 min-w-[56px] py-1 transition-all active:scale-90"
+                      >
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
+                          <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />
+                        </div>
+                        <span className={`text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
+
+              {/* Full app drawer — slides up from bottom tab bar */}
               <AnimatePresence>
                 {isBottomSectionExpanded && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="bg-theme-card/95 backdrop-blur-3xl border-b border-theme overflow-hidden"
+                  <motion.div
+                    initial={{ y: '100%', opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: '100%', opacity: 0 }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] bg-black/95 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl max-h-[70vh] overflow-y-auto"
                   >
-                    <div className="p-4 flex items-center gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                    <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b border-white/5 bg-black/80 backdrop-blur-xl rounded-t-3xl">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">All Sections</span>
+                      <button onClick={() => setIsBottomSectionExpanded(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        <ChevronDown size={16} className="text-white/60" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 p-4">
                       {[
-                        { id: 'DASHBOARD', icon: Home, label: 'Home' },
-                        { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
-                        { id: 'CREATOR', icon: Settings, label: 'Creator' },
+                        { id: 'DASHBOARD', icon: Home, label: 'Home' },
                         { id: 'MUSIC', icon: Music2, label: 'Music' },
                         { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
-                        { id: 'MOVIES_TV', icon: Film, label: 'Movies & TV' },
+                        { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
                         { id: 'BOOKS', icon: BookOpen, label: 'Books' },
                         { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
+                        { id: 'RADIO', icon: Radio, label: 'Radio' },
+                        { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
                         { id: 'GAMES', icon: Gamepad2, label: 'Games' },
                         { id: 'APPS', icon: AppWindow, label: 'Apps' },
-                        { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
                         { id: 'CLUBS', icon: Users, label: 'Clubs' },
-                        { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classrooms' },
+                        { id: 'CHAT', icon: MessageSquare, label: 'Messages' },
+                        { id: 'FEED', icon: Rss, label: 'Feed' },
+                        { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classes' },
                         { id: 'GLOBAL_PHOTOS', icon: Camera, label: 'Photos' },
-                        { id: 'ART_GALLERY', icon: Sparkles, label: 'Art Gallery' }
+                        { id: 'SEARCH', icon: Search, label: 'Search' },
+                        { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
                       ].map(section => {
                         const Icon = section.icon;
+                        const isActive = view === section.id;
                         return (
-                        <button 
-                          key={section.id}
-                          onClick={() => {
-                            if (section.id === 'USER_PROFILE') {
-                              if (user) handleVisitUser(user.uid);
-                              else loginWithGoogle();
-                            } else {
-                              setView(section.id as any);
-                            }
-                            setIsBottomSectionExpanded(false);
-                          }}
-                          className="flex flex-col items-center gap-2 min-w-[80px] p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all"
-                        >
-                          <Icon size={24} className="text-small-orange" />
-                          <span className="text-[8px] font-black uppercase tracking-widest">{section.label}</span>
-                        </button>
-                      )})}
+                          <button
+                            key={section.id}
+                            onClick={() => {
+                              if (section.id === 'USER_PROFILE') {
+                                if (user) handleVisitUser(user.uid);
+                                else loginWithGoogle();
+                              } else {
+                                setView(section.id as any);
+                              }
+                              setIsBottomSectionExpanded(false);
+                            }}
+                            className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'bg-white/5 hover:bg-white/10'}`}
+                          >
+                            <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
+                            <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
+                    {/* Auth row at bottom of drawer */}
+                    {!user && (
+                      <div className="flex gap-3 px-4 pb-4">
+                        <button onClick={() => { loginWithGoogle(); setIsBottomSectionExpanded(false); }} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
+                          <LogIn size={14} /> Sign In
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </>
           )}
 
-          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-10 pb-12 transition-all duration-500' : 'pt-20 pb-32 transition-all duration-500') : (isLandscape ? 'pt-10 pb-20 transition-all duration-500' : 'pt-20 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-24 transition-all duration-500') : (isLandscape ? 'pt-2 pb-28 transition-all duration-500' : 'pt-2 pb-48 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (

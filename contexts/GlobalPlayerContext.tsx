@@ -84,7 +84,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [nanoPosition, setNanoPosition] = useState({ x: 20, y: window.innerHeight - 300 });
   const [theme, setTheme] = useState<'LIGHT' | 'DARK' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS'>('DARK');
   const [view, setView] = useState('DASHBOARD');
-  const [audioElement, setAudioElement] = useState(() => new Audio());
+  const [audioElement, setAudioElement] = useState(() => {
+    const a = new Audio();
+    a.setAttribute('x-webkit-airplay', 'allow');
+    a.setAttribute('playsinline', '');
+    a.preload = 'auto';
+    return a;
+  });
   const [isTVMode, setIsTVMode] = useState(false);
   const [isMiniPlayerActive, setIsMiniPlayerActive] = useState(false);
   const [isPhoneMode, setIsPhoneMode] = useState(false);
@@ -101,10 +107,49 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const contextRef = useRef<GlobalPlayerContextType | null>(null);
+  const wakeLockRef = useRef<any>(null);
 
   useEffect(() => {
     audioRef.current = audioElement;
+    // Keep audio element in the DOM so mobile browsers don't garbage-collect it
+    if (!document.getElementById('__plajah_audio__')) {
+      audioElement.id = '__plajah_audio__';
+      audioElement.style.display = 'none';
+      document.body.appendChild(audioElement);
+    }
   }, [audioElement]);
+
+  // Request wake lock while playing so the OS doesn't suspend the tab
+  useEffect(() => {
+    const acquireWakeLock = async () => {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      } catch (_) {}
+    };
+    const releaseWakeLock = () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+    // Re-acquire on visibility change (lock screen releases wake lock)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isPlaying) {
+        acquireWakeLock();
+      }
+    };
+    if (isPlaying) {
+      acquireWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [isPlaying]);
 
   const initAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
