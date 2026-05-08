@@ -892,68 +892,46 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               </div>
 
               {/* Balanced Controls Hub at Bottom */}
-              <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-2 gap-1' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
-                {/* Left Side: Layout & Mode Toggles */}
+              <div className={`flex items-center justify-between ${isLandscape ? 'flex-1 gap-2' : 'w-full'} ${isShrunk ? 'px-1 gap-2' : (isLandscape ? 'px-0' : 'px-3 gap-2')}`}>
+                {/* Left Side: repeat toggle always visible in portrait */}
                 <div className={`flex items-center justify-start shrink-0 ${isLandscape ? 'hidden' : ''}`}>
-                  <button 
-                    onClick={() => setIsEssentialMode(!isEssentialMode)}
-                    className={`p-2 transition-all ${isEssentialMode ? 'text-small-orange' : 'text-white/20'} ${isShrunk ? 'hidden' : ''}`}
-                    title="Toggle Essential Mode"
+                  <button
+                    onClick={() => {
+                      if (repeatMode === 'OFF') setRepeatMode('ALL');
+                      else if (repeatMode === 'ALL') setRepeatMode('ONE');
+                      else setRepeatMode('OFF');
+                    }}
+                    className={`p-2 transition-all rounded-full android-press ${repeatMode !== 'OFF' ? 'text-small-orange' : 'text-white/20'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title="Repeat Mode"
                   >
-                    <Layers size={18} />
+                    {repeatMode === 'ONE' ? <Repeat1 size={16} /> : <Repeat size={16} />}
                   </button>
                 </div>
 
-                {/* Center Block: Playback Hub (Perfectly Centered) */}
-              <div className={`flex items-center justify-center shrink-0 ${isShrunk ? 'gap-1' : (isLandscape ? 'gap-1' : 'gap-3')} bg-white/5 backdrop-blur-3xl ${isLandscape ? 'px-1 py-0.5' : 'px-2 py-1.5'} rounded-full border border-white/10`}>
-                <button 
-                  onClick={() => {
-                    if (repeatMode === 'OFF') setRepeatMode('ALL');
-                    else if (repeatMode === 'ALL') setRepeatMode('ONE');
-                    else setRepeatMode('OFF');
-                  }}
-                  className={`p-1 transition-all flex items-center justify-center rounded-full ${repeatMode !== 'OFF' ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white'}`}
-                  title="Repeat Mode"
-                >
-                  {repeatMode === 'ONE' ? <Repeat1 size={12} /> : <Repeat size={12} />}
-                </button>
-                
-                <div className="flex items-center gap-1">
-                  <button onClick={prev} className={`p-1 text-white/40 active:text-white transition-colors ${isShrunk || isLandscape ? 'hidden' : 'block'}`}><SkipBack size={16} /></button>
-                  
-                  <button 
+                {/* Center Block: Prev / Play / Next pill */}
+              <div className={`flex items-center justify-center gap-1 bg-white/5 backdrop-blur-3xl ${isLandscape ? 'px-1 py-0.5' : 'px-3 py-1.5'} rounded-full border border-white/10`}>
+                  <button onClick={prev} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipBack size={18} /></button>
+
+                  <button
                     onClick={isPlaying ? pause : resume}
-                    className={`${isShrunk || isLandscape ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-90 transition-all z-20`}
+                    className={`${isLandscape ? 'w-8 h-8' : 'w-11 h-11'} rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-90 android-press transition-all z-20`}
                   >
-                    {isPlaying ? <Pause size={isShrunk || isLandscape ? 12 : 20} fill="black" /> : <Play size={isShrunk || isLandscape ? 12 : 20} className={isShrunk || isLandscape ? 'ml-0.5' : 'ml-1'} fill="black" />}
+                    {isPlaying ? <Pause size={isLandscape ? 12 : 20} fill="black" /> : <Play size={isLandscape ? 12 : 20} className={isLandscape ? 'ml-0.5' : 'ml-1'} fill="black" />}
                   </button>
-                  
-                  <button onClick={next} className={`p-1 text-white/40 active:text-white transition-colors ${isShrunk || isLandscape ? 'hidden' : 'block'}`}><SkipForward size={16} /></button>
-                </div>
-                
-                <button 
-                  onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}
-                  className={`p-1 transition-all rounded-full ${isSpillOverOpen ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white'}`}
-                  title="Toggle Menu"
-                >
-                  <List size={14} />
-                </button>
+
+                  <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>
               </div>
 
-                {/* Right Side: Info & Fullscreen */}
-                <div className={`flex items-center justify-end shrink-0 min-w-0 ${isLandscape ? 'hidden' : ''}`}>
-                  {isShrunk && (
-                    <div className="flex flex-col items-end mr-2 min-w-0 max-w-[80px]">
-                      <span className="text-[7px] font-black uppercase text-white truncate w-full text-right leading-tight">{currentTrack?.title || currentVideo?.title || 'No Media'}</span>
-                      <span className="text-[6px] font-bold text-small-orange uppercase truncate w-full text-right opacity-40">Archive</span>
-                    </div>
-                  )}
-                  <button 
-                    onClick={toggleAppFullScreen}
-                    className="p-2 text-white/20 hover:text-small-orange active:scale-90 transition-all"
-                    title="App Fullscreen"
+                {/* Right Side: queue button */}
+                <div className={`flex items-center justify-end shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                  <button
+                    onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}
+                    className={`p-2 android-press transition-all rounded-full ${isSpillOverOpen ? 'text-small-orange' : 'text-white/30'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title="Queue & Menu"
                   >
-                    <Maximize2 size={16} />
+                    <List size={18} />
                   </button>
                 </div>
               </div>
