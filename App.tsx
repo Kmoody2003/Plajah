@@ -1347,7 +1347,7 @@ const App: React.FC = () => {
             </>
           )}
 
-          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-24 transition-all duration-500') : (isLandscape ? 'pt-2 pb-28 transition-all duration-500' : 'pt-2 pb-48 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (

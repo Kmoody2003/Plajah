@@ -680,12 +680,13 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         )}
       </AnimatePresence> */}
 
-      <motion.div 
+      <motion.div
         initial={{ y: 100 }}
         animate={{ y: isMinimized ? (isBigScreen ? 120 : (isPhoneMode ? (isLandscape ? 60 : 40) : 60)) : 0 }}
-        className={`fixed bottom-0 left-0 right-0 z-[1000] w-full bg-theme-card/80 backdrop-blur-3xl border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2 pb-safe-bottom')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-3' : 'px-4 lg:px-6 py-2'))}`}
+        className={`fixed left-0 right-0 z-[1000] w-full bg-theme-card/80 backdrop-blur-3xl border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-3' : 'px-4 lg:px-6 py-2'))}`}
         style={{
-          paddingBottom: isPhoneMode && !isLandscape ? "calc(1.5rem + env(safe-area-inset-bottom))" : isPhoneMode && isLandscape ? "4px" : undefined,
+          bottom: isPhoneMode && !isLandscape ? 'calc(4rem + env(safe-area-inset-bottom))' : '0px',
+          paddingBottom: isPhoneMode && !isLandscape ? '0.75rem' : isPhoneMode && isLandscape ? '4px' : undefined,
           maxHeight: isLandscape ? '70px' : undefined,
         }}
       >
