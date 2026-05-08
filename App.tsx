@@ -877,7 +877,7 @@ const App: React.FC = () => {
             onVisitUser={handleVisitUser}
           />
         ) : (
-          <div className={`h-screen h-[100dvh] w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+          <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer */}
             <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-theme" id="universal-background">
               <AnimatePresence mode="wait">
@@ -1236,8 +1236,8 @@ const App: React.FC = () => {
           {(isMobile || theme === 'PHONE') && (
             <>
               {/* Fixed bottom tab bar — 5 primary destinations */}
-              <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-black/90 backdrop-blur-3xl border-t border-white/10 safe-area-inset-bottom">
-                <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-black/95 backdrop-blur-3xl border-t border-white/10 gpu">
+                <div className="flex items-center justify-around px-1 pt-1 pb-android-nav">
                   {[
                     { id: 'MUSIC', icon: Music2, label: 'Music' },
                     { id: 'ARTICLES', icon: Newspaper, label: 'News' },
@@ -1262,9 +1262,10 @@ const App: React.FC = () => {
                             setIsBottomSectionExpanded(false);
                           }
                         }}
-                        className="flex flex-col items-center gap-1 min-w-[56px] py-1 transition-all active:scale-90"
+                        className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"
+                        style={{ minHeight: 48, minWidth: 48 }}
                       >
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
+                        <div className={`w-12 h-8 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
                           <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />
                         </div>
                         <span className={`text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
@@ -1282,7 +1283,7 @@ const App: React.FC = () => {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: '100%', opacity: 0 }}
                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] bg-black/95 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl max-h-[70vh] overflow-y-auto"
+                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] bg-black/95 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl max-h-[65vh] overflow-y-auto gpu"
                   >
                     <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b border-white/5 bg-black/80 backdrop-blur-xl rounded-t-3xl">
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/40">All Sections</span>

@@ -489,6 +489,40 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   .pb-safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Real viewport height — won't jump when Android URL bar shows/hides */
+  .h-real-screen {
+    height: calc(var(--real-vh, 1dvh) * 100);
+  }
+  .min-h-real-screen {
+    min-height: calc(var(--real-vh, 1dvh) * 100);
+  }
+
+  /* Android gesture nav safe bottom */
+  .pb-android-nav {
+    padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  }
+
+  /* GPU-accelerate for smooth Android animations */
+  .gpu {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Prevent text selection on UI chrome */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Active press state for Android (no hover) */
+  .android-press:active {
+    transform: scale(0.93);
+    opacity: 0.85;
+    transition: transform 0.08s, opacity 0.08s;
+  }
 }
 
 html, body {

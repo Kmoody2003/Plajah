@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#131314">
+    <meta name="theme-color" content="#020202" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#020202" media="(prefers-color-scheme: light)">
+    <meta name="color-scheme" content="dark">
+    <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
     <meta name="android-tv-app" content="true">
     <title>Plajah</title>
     
@@ -32,16 +35,53 @@
             --bg-primary: #020202;
             --accent: #ffffff;
         }
+        html {
+            height: 100%;
+            /* Real viewport height updated by JS — fixes Android URL bar jump */
+            --real-vh: 1dvh;
+        }
         html, body {
+            overscroll-behavior: none;
             overscroll-behavior-y: none;
-            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
         }
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-primary);
             color: #ffffff;
             overflow-x: hidden;
+            overflow-y: hidden;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            /* Kill tap highlight flash on Android */
+            -webkit-tap-highlight-color: transparent;
+            /* Prevent text size adjust on orientation change */
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        /* Remove 300ms tap delay on all interactive elements */
+        a, button, [role="button"], input, select, textarea, label {
+            touch-action: manipulation;
+        }
+        /* Prevent input zoom on Android (requires font-size >= 16px) */
+        input, select, textarea {
+            font-size: 16px !important;
+        }
+        /* Hide scrollbars on Android WebView */
+        * {
+            scrollbar-width: none;
+        }
+        *::-webkit-scrollbar {
+            display: none;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            display: block;
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
         .font-display {
             font-family: 'Space Grotesk', sans-serif;
@@ -82,6 +122,23 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+      // Fix Android Chrome URL bar causing layout jumps.
+      // Sets --real-vh so components can use calc(var(--real-vh) * 100)
+      // instead of 100dvh, which reflows on every scroll.
+      (function() {
+        function setVh() {
+          var vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.01;
+          document.documentElement.style.setProperty('--real-vh', vh + 'px');
+        }
+        setVh();
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', setVh);
+        } else {
+          window.addEventListener('resize', setVh);
+        }
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
