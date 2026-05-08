@@ -881,16 +881,44 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack }) => {
                   </div>
                 </div>
 
-                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 mb-8">
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 mb-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-1">Custom Background</h3>
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Show your frosted photo / video background across the app</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProfile({ ...profile, customBgEnabled: profile.customBgEnabled === false ? true : false })}
+                      className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${profile.customBgEnabled !== false ? 'bg-small-orange' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.customBgEnabled !== false ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-1">Custom Theme Slideshow</h3>
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Use your active theme preset photos &amp; videos as the background</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProfile({ ...profile, customThemeEnabled: profile.customThemeEnabled === false ? true : false })}
+                      className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${profile.customThemeEnabled !== false ? 'bg-small-orange' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.customThemeEnabled !== false ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-1">Help Tooltips</h3>
                       <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Show detailed help when hovering for 4 seconds</p>
                     </div>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setProfile({ ...profile, tooltipsEnabled: !profile.tooltipsEnabled })}
-                      className={`w-14 h-8 rounded-full transition-all relative ${profile.tooltipsEnabled ? 'bg-small-orange' : 'bg-white/10'}`}
+                      className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${profile.tooltipsEnabled ? 'bg-small-orange' : 'bg-white/10'}`}
                     >
                       <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.tooltipsEnabled ? 'left-7' : 'left-1'}`} />
                     </button>

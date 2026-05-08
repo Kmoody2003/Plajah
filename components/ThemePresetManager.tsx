@@ -144,12 +144,23 @@ export const ThemePresetManager: React.FC<ThemePresetManagerProps> = ({ currentU
   };
 
   const handleActivateTheme = async (preset: ProfileThemePreset) => {
+    if (isAdmin) {
+      try {
+        await updateThemePreset(preset.id, { isPublic: true });
+        loadPresets();
+      } catch (e) {
+        console.error('Failed to publish theme', e);
+        alert('Failed to publish theme.');
+      }
+      return;
+    }
+
     const videoAsset = preset.assets?.find(a => a.type === 'VIDEO');
     const photoAsset = preset.assets?.find(a => a.type === 'PHOTO');
-    
+
     const vUrl = videoAsset ? videoAsset.url : null;
     const fUrl = photoAsset ? photoAsset.url : (preset.coverImage || null);
-    
+
     try {
         await updateUserProfile(currentUser.uid, {
             videoBackgroundUrl: vUrl || null,
@@ -285,14 +296,22 @@ export const ThemePresetManager: React.FC<ThemePresetManagerProps> = ({ currentU
                 </div>
                 
                 <div className="mt-6">
-                   {activeThemeId === preset.id ? (
-                      <button 
+                   {isAdmin ? (
+                      <button
+                        onClick={() => handleActivateTheme(preset)}
+                        className={`w-full px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${preset.isPublic ? 'bg-green-500/20 text-green-400 cursor-default' : 'bg-white/10 hover:bg-white text-white hover:text-black'}`}
+                        disabled={preset.isPublic}
+                      >
+                        {preset.isPublic ? 'Published' : 'Publish to Library'}
+                      </button>
+                   ) : activeThemeId === preset.id ? (
+                      <button
                          className="w-full px-4 py-2 bg-green-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
                       >
                         Active
                       </button>
                    ) : (
-                      <button 
+                      <button
                          onClick={() => handleActivateTheme(preset)}
                          className="w-full px-4 py-2 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
                       >

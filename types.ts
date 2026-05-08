@@ -706,10 +706,12 @@ export interface UserProfile {
   onboardingStartTimestamp?: number;
   tooltipsEnabled?: boolean;
   frostedBackground?: string;
-  themeBackgrounds?: { [theme: string]: string }; // theme -> backgroundId
+  themeBackgrounds?: { [theme: string]: string };
   videoBackgroundUrl?: string;
   videoBackgroundFrosted?: boolean;
   videoBackgroundBlur?: boolean;
+  customBgEnabled?: boolean;      // false = hide frostedBackground/videoBackgroundUrl
+  customThemeEnabled?: boolean;   // false = hide activeThemePreset slideshow
   defaultProfileTab?: 'FEED' | 'CONTENT' | 'ARTICLES' | 'PHOTOS' | 'VIDEOS' | 'TV' | 'GAMES' | 'LIVE_CHAT' | 'MERCH' | 'FOLLOWING' | 'FRIENDS' | 'INTERESTS' | 'LIBRARY' | 'MEMBERS';
   xHandle?: string;
   xUrl?: string;

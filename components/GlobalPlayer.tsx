@@ -26,21 +26,25 @@ interface GlobalPlayerProps {
   onOpenAchievements?: () => void;
   view?: string;
   isMobile?: boolean;
+  userProfile?: UserProfile | null;
+  onUpdateUserProfile?: (updates: Partial<UserProfile>) => void;
 }
 
-const GlobalPlayer: React.FC<GlobalPlayerProps> = ({ 
-  onNavigate, 
-  bottomOffset = '0px', 
-  topOffset, 
-  theme, 
-  setTheme, 
-  currentUser, 
-  onLogout, 
-  onUpload, 
-  onOpenChat, 
-  onOpenAchievements, 
+const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
+  onNavigate,
+  bottomOffset = '0px',
+  topOffset,
+  theme,
+  setTheme,
+  currentUser,
+  onLogout,
+  onUpload,
+  onOpenChat,
+  onOpenAchievements,
   view,
-  isMobile = false
+  isMobile = false,
+  userProfile,
+  onUpdateUserProfile
 }) => {
   const isBigScreen = theme === 'BIG_SCREEN';
   const isPhoneMode = theme === 'PHONE' || isMobile;
@@ -779,8 +783,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     </button>
                   </div>
                   
-                  <div className="p-4 bg-white/5 rounded-2xl">
-                    <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 text-center">Interface Themes</p>
+                  <div className="p-4 bg-white/5 rounded-2xl space-y-4">
+                    <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 text-center">Interface Themes</p>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={() => setTheme?.('DARK')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'DARK' ? 'bg-white text-black' : 'bg-white/5 text-white/40'}`}><Moon size={16} className="mx-auto" /></button>
                       <button onClick={() => setTheme?.('LIGHT')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'LIGHT' ? 'bg-black text-white' : 'bg-white/5 text-white/40'}`}><Sun size={16} className="mx-auto" /></button>
@@ -788,6 +792,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <button onClick={() => setTheme?.('CITRUS')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'CITRUS' ? 'bg-[#FF3B00] text-white' : 'bg-white/5 text-white/40'}`}><Palette size={16} className="mx-auto" /></button>
                       <button onClick={() => setTheme?.('PLAJAH')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'PLAJAH' ? 'bg-gradient-to-br from-[#6B0099] to-[#FF8C00] text-white' : 'bg-white/5 text-white/40'}`}><Sparkles size={16} className="mx-auto" /></button>
                     </div>
+                    {currentUser && onUpdateUserProfile && (
+                      <button
+                        onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <span className="text-[8px] font-black uppercase tracking-widest">Custom Theme</span>
+                        <Sparkles size={14} />
+                      </button>
+                    )}
                   </div>
 
                   {currentUser && (
@@ -1010,6 +1023,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     <button onClick={toggleFullScreen} className="text-white/20 hover:text-white transition-all"><Maximize2 size={16} /></button>
                  )}
                  <button onClick={onOpenChat} className="text-white/20 hover:text-white transition-all"><MessageSquare size={16} /></button>
+                 {currentUser && onUpdateUserProfile && (
+                    <button
+                      onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                      className={`transition-all ${userProfile?.customThemeEnabled !== false ? 'text-small-orange' : 'text-white/20 hover:text-white'}`}
+                      title={userProfile?.customThemeEnabled !== false ? 'Custom Theme On' : 'Custom Theme Off'}
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                 )}
                  <button onClick={() => isNanoView ? setIsNanoView(false) : setIsNanoView(true)} className="text-white/20 hover:text-white transition-all">
                     {isNanoView ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                  </button>
@@ -1326,14 +1348,14 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {/* Enhancement Toggles (Grouped) */}
                 {!isEssentialMode && (
                   <div className="flex items-center gap-1.5 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                     <button 
+                     <button
                       onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
                       className={`p-2 rounded-xl transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
                       title="FX"
                     >
                       <Activity size={16} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                       className={`p-2 rounded-xl transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
                       title="3D"
@@ -1341,12 +1363,21 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <Box size={16} />
                     </button>
                     {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
-                      <button 
+                      <button
                         onClick={() => setIsSlideshowActive(!isSlideshowActive)}
                         className={`p-2 rounded-xl transition-all ${isSlideshowActive ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
                         title="Slideshow"
                       >
                         <Layers size={16} />
+                      </button>
+                    )}
+                    {currentUser && onUpdateUserProfile && (
+                      <button
+                        onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                        className={`p-2 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
+                        title={userProfile?.customThemeEnabled !== false ? 'Custom Theme On' : 'Custom Theme Off'}
+                      >
+                        <Sparkles size={16} />
                       </button>
                     )}
                   </div>

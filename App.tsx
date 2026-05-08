@@ -885,18 +885,23 @@ const App: React.FC = () => {
                   const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
                   if (!activeProfile) return null;
 
-                  const { 
-                    videoBackgroundUrl, 
-                    frostedBackground, 
-                    videoBackgroundBlur = true, 
-                    videoBackgroundFrosted = true 
+                  const {
+                    videoBackgroundUrl,
+                    frostedBackground,
+                    videoBackgroundBlur = true,
+                    videoBackgroundFrosted = true,
+                    customBgEnabled,
+                    customThemeEnabled
                   } = activeProfile;
 
-                  let finalVideoUrl = videoBackgroundUrl;
-                  let finalPhotoUrl = frostedBackground;
+                  const bgAllowed = customBgEnabled !== false;
+                  const themeAllowed = customThemeEnabled !== false;
+
+                  let finalVideoUrl = bgAllowed ? videoBackgroundUrl : null;
+                  let finalPhotoUrl = bgAllowed ? frostedBackground : null;
 
                   // Evaluate active theme assets
-                  if (activeTheme && activeTheme.assets && activeTheme.assets.length > 0) {
+                  if (themeAllowed && activeTheme && activeTheme.assets && activeTheme.assets.length > 0) {
                       const asset = activeTheme.assets[themeAssetIndex % activeTheme.assets.length];
                       if (asset.type === 'VIDEO') {
                           finalVideoUrl = asset.url;
@@ -1772,6 +1777,12 @@ const App: React.FC = () => {
             setShowCreator(true);
           }}
           onOpenChat={() => setView('CHAT')}
+          userProfile={userProfile}
+          onUpdateUserProfile={async (updates) => {
+            if (!user) return;
+            await updateUserProfile(user.uid, updates);
+            setUserProfile(prev => prev ? { ...prev, ...updates } : prev);
+          }}
         />
 
          {/* Custom Delete Confirmation Modal */}
