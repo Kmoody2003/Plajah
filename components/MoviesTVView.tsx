@@ -1,0 +1,802 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Play, Info, ChevronRight, ChevronLeft, Star, Clock, 
+  Plus, Share2, Volume2, VolumeX, Users, Rocket, 
+  BookOpen, Moon, CloudLightning, Ghost, Zap, Sparkles, 
+  Calendar, Film, Bookmark, Settings, Search, Menu, Globe,
+  Monitor, Shield, Bell, CreditCard, Home, Map as ExploreIcon, 
+  Library, User as PersonIcon, TrendingUp, History, Maximize2,
+  MoreHorizontal
+} from 'lucide-react';
+import { Album, Video, Universe, VideoPlaylist } from '../types';
+import { fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds } from '../services/backendService';
+import { fetchArchiveVideos, ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
+import { TelevisionView } from './TelevisionView';
+import { ExploreView } from './ExploreView';
+import { MoviesSpecificView } from './MoviesSpecificView';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+
+interface MoviesTVViewProps {
+  onBack: () => void;
+  onSelectMovie: (item: any) => void;
+}
+
+type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE';
+
+const HomeView: React.FC<{
+  universes: Universe[];
+  movies: ArchiveVideo[];
+  tvSeries: ArchiveVideo[];
+  curatedPlaylists: VideoPlaylist[];
+  featuredItem: ArchiveVideo | Album | null;
+  onSelectArchiveItem: (item: ArchiveVideo) => void;
+  onSelectMovie: (item: any) => void;
+  setCurrentSubView: (view: SubView) => void;
+  setActiveAllyUrl: (url: string | null) => void;
+  onSelectCuratedPlaylist: (playlist: VideoPlaylist) => void;
+}> = ({ universes, movies, tvSeries, curatedPlaylists, featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView, setActiveAllyUrl, onSelectCuratedPlaylist }) => {
+  const genres = [
+    { name: 'Feature Films', query: 'collection:feature_films', icon: Film },
+    { name: 'Sci-Fi', query: 'subject:sci-fi', icon: Zap },
+    { name: 'Comedy', query: 'subject:comedy', icon: Sparkles },
+    { name: 'Horror', query: 'subject:horror', icon: Ghost },
+    { name: 'Classic TV', query: 'collection:classic_tv', icon: Monitor },
+    { name: 'Cartoons', query: 'collection:animationandcartoons', icon: Rocket }
+  ];
+
+  return (
+    <div className="space-y-16">
+      {/* Universes Bar */}
+      <section className="px-8 md:px-16 pt-8 flex gap-8 border-b border-white/5 pb-6">
+        {universes.map(u => (
+            <button key={u.id} 
+                onClick={() => {
+                    if (u.type === 'ALLY') {
+                        setActiveAllyUrl(u.url || null);
+                        setCurrentSubView('ALLY_VIEW');
+                    }
+                }}
+                className='font-black uppercase tracking-[0.3em] text-[10px] text-white/50 hover:text-white transition-colors'>
+                {u.name}
+            </button>
+        ))}
+      </section>
+
+      {/* Hero Section */}
+      <section className="relative h-[75vh] w-full overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${featuredItem && 'thumbnailUrl' in featuredItem ? featuredItem.thumbnailUrl : (featuredItem as Album)?.headerImage || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80'})` }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/40 to-background"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/20 to-transparent"></div>
+        </div>
+
+        <div className="relative h-full container mx-auto px-8 flex flex-col justify-center items-start pt-20">
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="max-w-2xl space-y-6"
+          >
+            <div className="flex items-center gap-3">
+              <span className="bg-tertiary/20 text-tertiary px-3 py-1 rounded-md font-label text-xs tracking-tighter uppercase border border-tertiary/30 backdrop-blur-md">Feature Presentation</span>
+              <span className="text-on-surface-variant font-label text-xs uppercase tracking-widest">{('genre' in (featuredItem || {})) ? (featuredItem as any).genre : 'Classic Cinema'}</span>
+            </div>
+            <h2 className="font-black text-5xl sm:text-7xl md:text-9xl text-on-surface leading-[0.85] tracking-widest drop-shadow-2xl uppercase break-words w-full">
+              {featuredItem?.title?.split(' ').slice(0, 2).join(' ')} <br/> 
+              <span className="text-primary italic">{featuredItem?.title?.split(' ').slice(2).join(' ') || ''}</span>
+            </h2>
+            <p className="text-on-surface-variant text-sm md:text-lg max-w-md font-light leading-relaxed line-clamp-3 w-full">
+              {('description' in (featuredItem || {})) ? (featuredItem as any).description : ''}
+            </p>
+            <div className="flex items-center gap-6 pt-4">
+              <button 
+                onClick={() => featuredItem && ('identifier' in featuredItem ? onSelectArchiveItem(featuredItem as ArchiveVideo) : onSelectMovie(featuredItem))}
+                className="aurora-bg text-on-primary px-10 py-4 rounded-full font-bebas text-xl flex items-center gap-3 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(208,188,255,0.4)] tracking-[0.1em]"
+              >
+                <Play fill="currentColor" size={24} /> PLAY NOW
+              </button>
+              <button className="glass px-8 py-4 rounded-full border border-white/10 hover:bg-white/5 transition-all">
+                <Plus size={24} className="text-primary" />
+              </button>
+            </div>
+          </motion.div>
+
+          <div className="absolute right-20 top-1/2 -translate-y-1/2 hidden lg:block">
+            <motion.div 
+              initial={{ opacity: 0, rotate: 10, y: 50 }}
+              animate={{ opacity: 1, rotate: 3, y: 0 }}
+              className="glass p-6 rounded-2xl border border-white/10 shadow-2xl space-y-4 max-w-[200px] hover:rotate-0 transition-transform duration-500"
+            >
+              <div className="w-12 h-12 rounded-full aurora-bg flex items-center justify-center mb-4">
+                <TrendingUp size={24} className="text-on-primary-fixed" />
+              </div>
+              <p className="font-bebas text-3xl leading-tight uppercase">Trending in Galaxy</p>
+              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Top #1 this week</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Genres Row */}
+      <section className="px-8 md:px-16 flex gap-6 overflow-x-auto pb-4 mask-fade-edges">
+         {genres.map(g => (
+             <button key={g.name} className="flex flex-col items-center gap-2 group p-4 border border-white/5 rounded-xl hover:bg-white/5 transition-all">
+                <g.icon size={20} className="text-white/40 group-hover:text-primary transition-colors" />
+                <span className="font-black uppercase tracking-widest text-[8px] text-white/60">{g.name}</span>
+             </button>
+         ))}
+      </section>
+
+      {/* Curated Playlists */}
+      {curatedPlaylists.length > 0 && (
+        <section className="px-8 md:px-16 pt-12">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Sparkles size={16} className="text-small-orange" />
+                <span className="font-label text-[10px] uppercase tracking-widest text-small-orange">Staff Picks</span>
+              </div>
+              <h3 className="font-bebas text-5xl uppercase tracking-tighter text-white">Curated Collections</h3>
+            </div>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar mask-fade-edges pb-8">
+            {curatedPlaylists.map(pl => (
+              <motion.div 
+                key={pl.id}
+                whileHover={{ scale: 1.02 }}
+                className="group min-w-[280px] md:min-w-[320px] aspect-[16/9] relative rounded-[2rem] overflow-hidden glass border border-white/5 hover:border-small-orange/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
+                onClick={() => {
+                  onSelectCuratedPlaylist(pl);
+                }}
+              >
+                 <img src={pl.thumbnailUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={pl.title} />
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-16 h-16 rounded-full bg-small-orange/20 border border-small-orange/50 flex items-center justify-center">
+                      <Play fill="currentColor" className="text-small-orange ml-1" size={24} />
+                    </div>
+                 </div>
+                 <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-none">
+                    <h4 className="font-bold text-xl uppercase tracking-tight line-clamp-1 mb-1">{pl.title}</h4>
+                    <p className="text-[10px] text-white/60 uppercase tracking-widest">{pl.videoIds?.length || 0} Videos</p>
+                 </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Categories Rails */}
+      <section className="px-8 md:px-16 pb-40 space-y-20 pt-12">
+        {Array.from(new Set(movies.map(m => m.genre))).filter(Boolean).map(genre => {
+          const categoryMovies = movies.filter(m => m.genre === genre);
+          if (categoryMovies.length < 2) return null;
+          return (
+            <div key={genre}>
+              <div className="mb-8 flex items-end justify-between">
+                <div>
+                  <h3 className="font-bebas text-5xl uppercase tracking-tighter">{genre}</h3>
+                </div>
+                <button className="text-on-surface-variant hover:text-primary transition-colors font-label text-[10px] uppercase tracking-widest">Explore All</button>
+              </div>
+              <div className="flex gap-6 overflow-x-auto no-scrollbar mask-fade-edges pb-8">
+                {categoryMovies.map((item, i) => (
+                  <motion.div 
+                    key={item.identifier}
+                    whileHover={{ scale: 1.05 }}
+                    className="group min-w-[280px] md:min-w-[320px] aspect-video relative rounded-xl overflow-hidden glass border border-white/5 hover:border-primary/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
+                    onClick={() => onSelectArchiveItem(item)}
+                  >
+                    <img src={item.thumbnailUrl || null} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt={item.title} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 right-0 p-5">
+                      <h4 className="font-bold text-lg uppercase tracking-tight line-clamp-2">{item.title}</h4>
+                      <p className="text-xs text-on-surface-variant mt-2 uppercase tracking-widest">{item.year || 'Classic'}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+};
+
+const HiveView: React.FC<{
+  universes: Universe[];
+  setCurrentSubView: (view: SubView) => void;
+  setActiveAllyUrl: (url: string | null) => void;
+}> = ({ universes, setCurrentSubView, setActiveAllyUrl }) => (
+  <main className="pt-32 pb-40 px-8 md:px-16 container mx-auto">
+    <div className="mb-20">
+      <span className="font-bebas text-xs uppercase tracking-[0.4em] text-tertiary mb-3 block">Infinite Realms</span>
+      <h2 className="font-bebas text-6xl md:text-9xl font-black leading-[0.85] uppercase tracking-tighter">
+        The Discovery <br/>
+        <span className="text-primary italic">Hive.</span>
+      </h2>
+      <p className="mt-8 text-on-surface-variant max-w-lg font-light text-lg leading-relaxed">
+        Step into the ethereal collective. Every bubble is a doorway to a new emotional dimension and a distinct cinematic mood.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 items-start">
+      {universes.map((u) => (
+        <motion.div 
+          key={u.id}
+          whileHover={{ scale: 1.05 }}
+          className={`relative group cursor-pointer`}
+          onClick={() => {
+              if (u.type === 'ALLY') {
+                  setActiveAllyUrl(u.url || null);
+                  setCurrentSubView('ALLY_VIEW');
+              } else {
+                  console.log('Loading ON_PLATFORM universe:', u.name);
+                  alert(`Loading mainstream world: ${u.name}`);
+              }
+          }}
+        >
+          <div className="glass-bubble bg-surface-variant/20 rounded-full aspect-square flex flex-col items-center justify-center p-8 transition-all duration-500 hover:bg-surface-variant/40 hover:shadow-[0_0_40px_rgba(208,188,255,0.15)]">
+            <div className={`w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-opacity-20 transition-all`}>
+              <ExploreIcon className="text-primary" size={32} />
+            </div>
+            <span className="font-bebas text-xs uppercase tracking-widest text-on-surface text-center px-2">{u.name}</span>
+          </div>
+        </motion.div>
+      ))}
+      {[
+        { label: 'Cosmic Action', icon: Rocket, color: 'text-primary' },
+        { label: 'Whimsical Tales', icon: BookOpen, color: 'text-secondary' },
+        { label: 'Noir Nights', icon: Moon, color: 'text-tertiary' },
+        { label: 'Abstract Storm', icon: CloudLightning, color: 'text-primary' },
+        { label: 'Ethereal Nature', icon: Film, color: 'text-secondary' },
+        { label: 'Neon Pulse', icon: Zap, color: 'text-tertiary' },
+        { label: 'Cyber Neural', icon: Monitor, color: 'text-primary' },
+        { label: 'Digital Solitude', icon: Ghost, color: 'text-secondary' }
+      ].map((item, i) => (
+        <motion.div 
+          key={item.label}
+          whileHover={{ scale: 1.05 }}
+          className={`relative group cursor-pointer ${i % 2 === 0 ? 'mt-12' : ''}`}
+        >
+          <div className="glass-bubble bg-surface-variant/20 rounded-full aspect-square flex flex-col items-center justify-center p-8 transition-all duration-500 hover:bg-surface-variant/40 hover:shadow-[0_0_40px_rgba(208,188,255,0.15)]">
+            <div className={`w-16 h-16 rounded-full ${item.color.replace('text', 'bg')}/10 flex items-center justify-center mb-4 group-hover:bg-opacity-20 transition-all`}>
+              <item.icon className={item.color} size={32} />
+            </div>
+            <span className="font-bebas text-xs uppercase tracking-widest text-on-surface text-center px-2">{item.label}</span>
+          </div>
+        </motion.div>
+      ))}
+      
+      {/* Featured Hive Card */}
+      <div className="relative group cursor-pointer col-span-2 md:col-start-3 md:row-start-2 md:mt-24">
+        <div className="glass-bubble bg-surface-variant/30 rounded-[3rem] p-10 h-72 flex items-center gap-10 transition-all duration-500 hover:shadow-[0_0_60px_rgba(208,188,255,0.2)]">
+          <div className="relative w-40 h-40 shrink-0">
+            <img src="https://picsum.photos/seed/nebula2/300/300" className="w-full h-full object-cover rounded-full rotate-inner" />
+            <div className="absolute inset-0 rounded-full border-2 border-primary/30"></div>
+          </div>
+          <div>
+            <span className="font-bebas text-xs text-tertiary tracking-[0.3em] uppercase font-bold">Special Curated</span>
+            <h3 className="font-bebas text-4xl mt-2 uppercase tracking-tighter">Stellar Collections</h3>
+            <p className="text-on-surface-variant text-sm mt-4 line-clamp-2 leading-relaxed font-light">Hand-picked cinematic journeys through the outer rim of imagination.</p>
+            <div className="mt-8 flex items-center gap-3 text-primary font-bebas text-xs tracking-widest group-hover:translate-x-3 transition-transform uppercase font-black">
+              Explore Now <ChevronRight size={14} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+);
+
+const NebulaView: React.FC<{
+    movies: ArchiveVideo[];
+    localContent: Album[];
+    onSelectArchiveItem: (item: ArchiveVideo) => void;
+    onSelectMovie: (item: Album) => void;
+}> = ({ movies, localContent, onSelectArchiveItem, onSelectMovie }) => (
+  <div className="pt-32 pb-40 px-8 md:px-16 container mx-auto">
+    {/* Profile Header */}
+    <section className="relative mb-24">
+      <div className="flex flex-col md:flex-row items-center md:items-end gap-10 md:gap-16">
+        <div className="relative group">
+          <div className="absolute -inset-1 aurora-bg blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+          <div className="relative glass p-2 rounded-[2.5rem] border border-white/10">
+            <div className="w-48 h-48 md:w-64 md:h-64 rounded-[2rem] overflow-hidden">
+              <img src="https://picsum.photos/seed/lyra/500/500" className="w-full h-full object-cover" />
+            </div>
+          </div>
+          <div className="absolute -bottom-4 -right-4 bg-[#00DAF3] p-4 rounded-full shadow-2xl text-black">
+            <Sparkles size={24} />
+          </div>
+        </div>
+        
+        <div className="flex-1 text-center md:text-left space-y-6">
+          <span className="text-tertiary font-bebas text-xs uppercase tracking-[0.3em] font-black underline underline-offset-8">Premium Voyager</span>
+          <h2 className="text-6xl md:text-9xl font-bebas transition-all duration-700 tracking-tighter uppercase leading-[0.85]">Lyra Nebula</h2>
+          <p className="text-on-surface-variant max-w-md font-body leading-relaxed text-lg">
+            Architect of dreams and curator of celestial cinema. Your journey through the <span className="italic text-primary">ethereal expanse</span> continues here.
+          </p>
+          <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
+            <button className="rounded-full aurora-bg px-10 py-4 text-on-primary font-bebas text-sm flex items-center gap-3 hover:scale-105 transition-transform ambient-glow uppercase tracking-widest shadow-2xl">
+              Edit Persona
+            </button>
+            <button className="rounded-full glass px-8 py-4 text-on-surface border border-white/10 font-bebas text-sm flex items-center gap-3 hover:bg-white/5 transition-all uppercase tracking-widest">
+              Preferences
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 w-full md:w-auto">
+          <div className="glass p-8 rounded-3xl border border-white/5 text-center min-w-[160px] hover:border-primary/30 transition-all">
+            <div className="text-4xl font-bebas text-primary mb-1">124</div>
+            <div className="text-[10px] uppercase tracking-widest text-on-surface-variant font-black">Voyages</div>
+          </div>
+          <div className="glass p-8 rounded-3xl border border-white/5 text-center min-w-[160px] hover:border-secondary/30 transition-all">
+            <div className="text-4xl font-bebas text-secondary mb-1">3.2k</div>
+            <div className="text-[10px] uppercase tracking-widest text-on-surface-variant font-black">Minutes</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* User Uploaded Videos Gallery */}
+    <section className="mb-24 space-y-8">
+      <div className="flex items-end justify-between px-4">
+        <div>
+          <span className="text-secondary font-label text-[10px] uppercase tracking-[0.3em] font-bold">Your Creations</span>
+          <h3 className="text-5xl font-display uppercase leading-none mt-2 tracking-tighter">Your Videos</h3>
+        </div>
+        <button className="text-secondary font-label text-xs uppercase tracking-widest flex items-center gap-3 hover:gap-5 transition-all duration-300 font-black">
+          Manage Collection <ChevronRight size={18} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        {localContent.length > 0 ? (
+          localContent.map((video) => (
+            <motion.div 
+              key={video.id}
+              whileHover={{ scale: 1.05 }}
+              className="group relative aspect-[9/16] rounded-2xl overflow-hidden glass border border-white/10 shadow-2xl cursor-pointer"
+              onClick={() => onSelectMovie(video)}
+            >
+              <img src={video.coverImage || null} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 p-4 w-full">
+                <h4 className="text-sm font-bold truncate uppercase tracking-tight">{video.title}</h4>
+                <p className="text-[10px] text-white/60 uppercase tracking-widest mt-1">{video.artist}</p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="col-span-full py-20 flex flex-col items-center justify-center glass rounded-3xl border border-dashed border-white/20">
+            <Film className="text-white/20 mb-4" size={48} />
+            <p className="text-white/40 font-bebas text-xl uppercase tracking-widest">No uploaded videos yet</p>
+            <button className="mt-6 px-8 py-3 aurora-bg rounded-full font-bebas text-xs tracking-widest uppercase">Upload First Movie</button>
+          </div>
+        )}
+      </div>
+    </section>
+
+    {/* Watchlist Timeline */}
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-16">
+      <section className="md:col-span-8 space-y-12">
+        <div className="flex items-end justify-between">
+          <div>
+            <span className="text-tertiary font-label text-[10px] uppercase tracking-[0.3em] font-bold">The Collection</span>
+            <h3 className="text-5xl font-display uppercase leading-none mt-2 tracking-tighter">My Watchlist</h3>
+          </div>
+          <button className="text-primary font-label text-xs uppercase tracking-widest flex items-center gap-3 hover:gap-5 transition-all duration-300 font-black">
+            View All <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {movies.slice(6, 10).map((movie, i) => (
+            <motion.div 
+              key={movie.identifier}
+              whileHover={{ scale: 1.02 }}
+              className="group relative rounded-2xl overflow-hidden aspect-[16/10] bg-surface-variant/20 transition-all duration-500 shadow-xl border border-white/5"
+              onClick={() => onSelectArchiveItem(movie)}
+            >
+              <img src={movie.thumbnailUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-90"></div>
+              <div className="absolute bottom-0 p-8 w-full space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="bg-secondary/20 text-secondary px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest backdrop-blur-md border border-secondary/30">{movie.genre || 'Classic'}</span>
+                  <Star className="text-tertiary fill-tertiary" size={16} />
+                </div>
+                <h4 className="text-2xl font-headline text-on-surface uppercase tracking-tight line-clamp-1">{movie.title}</h4>
+                <div className="flex items-center gap-6 text-on-surface-variant text-[10px] font-black uppercase tracking-widest">
+                  <span>{movie.year || 'N/A'}</span>
+                  <span className="w-1 h-1 bg-white/20 rounded-full"></span>
+                  <span>HD</span>
+                </div>
+              </div>
+              <button className="absolute top-4 right-4 w-12 h-12 rounded-full glass border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10">
+                <Bookmark size={20} />
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Recently Played */}
+      <section className="md:col-span-4 space-y-12">
+        <div className="flex flex-col gap-2">
+          <span className="text-tertiary font-label text-[10px] uppercase tracking-[0.3em] font-bold">The Journey</span>
+          <h3 className="text-4xl font-headline uppercase leading-none">Activity</h3>
+        </div>
+        <div className="relative pl-8 space-y-12 before:content-[''] before:absolute before:left-0 before:top-4 before:bottom-4 before:w-[2px] before:bg-gradient-to-b before:from-primary/50 before:via-secondary/50 before:to-transparent">
+          {[
+            { title: 'Across the Multiverse', meta: 'Episode 4', time: '2 hours ago', progress: 85 },
+            { title: 'The Silent Forest', meta: 'Feature Film', time: 'Yesterday', progress: 100 },
+            { title: 'Nebula Whispers', meta: 'Archive', time: '2 days ago', progress: 40 }
+          ].map((activity, i) => (
+            <div key={i} className="relative group cursor-pointer">
+              <div className={`absolute -left-[37px] top-4 w-4 h-4 rounded-full ring-4 ring-background shadow-2xl transition-all ${i === 0 ? 'aurora-bg shadow-primary/40 scale-125' : 'bg-surface-variant border-2 border-white/20 opacity-60 group-hover:opacity-100'}`}></div>
+              <div className="glass p-6 rounded-2xl border border-white/5 group-hover:border-primary/30 transition-all duration-300">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h5 className="text-lg font-headline text-on-surface uppercase tracking-tight">{activity.title}</h5>
+                    <p className="text-on-surface-variant text-[10px] font-black uppercase tracking-widest mt-1">{activity.meta}</p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#00DAF3]">{activity.time}</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-white/40">
+                    <span>{activity.progress}% Completed</span>
+                    <span>Synced</span>
+                  </div>
+                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full ${i === 0 ? 'aurora-bg' : 'bg-tertiary opacity-40'} rounded-full`} style={{ width: `${activity.progress}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+
+    {/* Orbit Controls (Settings) */}
+    <section className="mt-40 space-y-12">
+      <div className="flex flex-col gap-2">
+        <span className="text-tertiary font-label text-[10px] uppercase tracking-[0.3em] font-bold">Orbit Controls</span>
+        <h3 className="text-4xl font-headline uppercase leading-none">Account Nebula</h3>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Personal Info', desc: 'Manage your identity and avatar across nebula.', icon: PersonIcon, color: 'text-primary' },
+          { label: 'Security Vault', desc: 'Two-factor pulse and device orbit monitoring.', icon: Shield, color: 'text-secondary' },
+          { label: 'Visual Alerts', desc: 'Configure how you receive cosmic transmissions.', icon: Bell, color: 'text-tertiary' },
+          { label: 'Billing Stream', desc: 'Control your subscription and data essence.', icon: CreditCard, color: 'text-on-surface' }
+        ].map((item, i) => (
+          <div key={item.label} className="group glass p-10 rounded-3xl border border-white/5 hover:border-primary/40 transition-all duration-500 cursor-pointer hover:-translate-y-2 shadow-xl">
+            <item.icon className={`${item.color} mb-8 block transition-all duration-500 group-hover:scale-125 group-hover:drop-shadow-[0_0_10px_currentColor]`} size={40} />
+            <h5 className="text-xl font-headline text-on-surface uppercase tracking-tight mb-3">{item.label}</h5>
+            <p className="text-[11px] text-on-surface-variant font-medium leading-relaxed uppercase tracking-wider">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+);
+
+const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie }) => {
+  const [movies, setMovies] = useState<ArchiveVideo[]>([]);
+  const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>([]);
+  const [curatedPlaylists, setCuratedPlaylists] = useState<VideoPlaylist[]>([]);
+  const [localContent, setLocalContent] = useState<Album[]>([]);
+  const [universes, setUniverses] = useState<Universe[]>([]);
+  const [activeAllyUrl, setActiveAllyUrl] = useState<string | null>(null);
+  const [featuredItem, setFeaturedItem] = useState<ArchiveVideo | Album | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [currentSubView, setCurrentSubView] = useState<SubView>('HOME');
+  const [activePlaylistItem, setActivePlaylistItem] = useState<any | null>(null);
+  const { playVideo, setTheme } = useGlobalPlayerState();
+
+  useEffect(() => {
+    setTheme('ETHEREAL');
+    loadContent();
+    return () => setTheme('DARK');
+  }, []);
+
+  const loadContent = async () => {
+    try {
+      setIsLoading(true);
+      const [all, unis, archiveFilms, archiveTV, settings] = await Promise.all([
+        fetchAllPublicAlbums(), 
+        fetchUniverses(),
+        fetchArchiveVideos('collection:feature_films', 40),
+        fetchArchiveVideos('collection:classic_tv', 40),
+        fetchSystemSettingsConfig()
+      ]);
+      
+      setLocalContent(all.filter(a => a.type === 'VIDEO'));
+      setMovies(archiveFilms);
+      setTvSeries(archiveTV);
+      setUniverses(unis);
+
+      if (settings?.curatedVideoPlaylists?.length > 0) {
+        const curPls = await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists);
+        setCuratedPlaylists(curPls);
+      }
+      
+      if (archiveFilms.length > 0) {
+        setFeaturedItem(archiveFilms[0]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectCuratedPlaylist = (pl: VideoPlaylist) => {
+    setActivePlaylistItem({
+      id: pl.id,
+      ownerId: pl.ownerId,
+      title: pl.title,
+      artist: 'Staff Curated',
+      description: pl.description,
+      coverImage: pl.thumbnailUrl || '',
+      thumbnailUrl: pl.thumbnailUrl || '',
+      type: 'VIDEO',
+      subType: 'TV_SERIES',
+      seasons: [{
+          seasonNumber: 1,
+          episodes: (pl.videos || []).map((v: any, i: number) => ({
+            id: v.id,
+            title: v.title,
+            description: v.description || '',
+            episodeNumber: i + 1,
+            url: v.url,
+            thumbnailUrl: v.thumbnail || pl.thumbnailUrl
+          }))
+      }],
+      createdAt: pl.timestamp,
+      isPublic: pl.isPublic
+    });
+    setCurrentSubView('TV');
+  };
+
+  const handleSelectArchiveItem = async (item: ArchiveVideo) => {
+    // Show a small toast or loading state if needed, but for now we fetch files for better performance
+    const files = await getArchiveItemFiles(item.identifier);
+    const videoUrl = getBestVideoUrl(item.identifier, files);
+
+    if (videoUrl) {
+      syncPublicDomainAsset(item, videoUrl, 'VIDEO');
+    }
+
+    // Transform ArchiveVideo to Album-like structure for the player
+    const transformed: Album = {
+      id: item.identifier,
+      title: item.title,
+      artist: item.genre || 'Classic Cinema',
+      coverImage: item.thumbnailUrl || '',
+      headerImage: item.thumbnailUrl,
+      description: item.description,
+      type: 'VIDEO',
+      subType: 'MOVIE',
+      ownerId: 'internet-archive',
+      createdAt: parseInt(item.year || '0'),
+      themeColor: '#000000',
+      tracks: videoUrl ? [{
+        id: item.identifier,
+        title: item.title,
+        artist: item.genre || 'Classic Cinema',
+        url: videoUrl,
+        albumCover: item.thumbnailUrl || ''
+      }] : [],
+      customVideoUrl: videoUrl || undefined
+    };
+    onSelectMovie(transformed);
+  };
+
+  const TopAppBar = () => (
+    <header className="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-transparent backdrop-blur-xl border-b border-white/5">
+      <div className="flex items-center gap-4">
+        <button className="text-[#D0BCFF] hover:text-[#00DAF3] transition-colors p-2" onClick={onBack}>
+          <Menu size={24} />
+        </button>
+        <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">STORYTIME</h1>
+      </div>
+      <div className="flex items-center gap-6">
+        <nav className="hidden md:flex gap-8 items-center text-[#CBC3D7] font-black uppercase tracking-[0.3em] text-[10px]">
+          <button 
+            onClick={() => setCurrentSubView('HOME')}
+            className={`${currentSubView === 'HOME' ? 'text-[#D0BCFF]' : 'hover:text-[#00DAF3]'} transition-colors uppercase`}
+          >
+            Movies
+          </button>
+          <button 
+            onClick={() => setCurrentSubView('TV')}
+            className={`${currentSubView === 'TV' ? 'text-[#D0BCFF]' : 'hover:text-[#00DAF3]'} transition-colors uppercase`}
+          >
+            TV
+          </button>
+          <button 
+            onClick={() => setCurrentSubView('HIVE')}
+            className={`${currentSubView === 'HIVE' ? 'text-[#D0BCFF]' : 'hover:text-[#00DAF3]'} transition-colors uppercase`}
+          >
+            Universe
+          </button>
+          <button 
+            onClick={() => setCurrentSubView('MY_NEBULA')}
+            className={`${currentSubView === 'MY_NEBULA' ? 'text-[#D0BCFF]' : 'hover:text-[#00DAF3]'} transition-colors uppercase`}
+          >
+            Archives
+          </button>
+        </nav>
+        <div className="flex items-center gap-4">
+          <button className="text-[#D0BCFF] hover:text-[#00DAF3] transition-colors p-2">
+            <Search size={22} />
+          </button>
+          <div className="w-10 h-10 rounded-full border-2 border-primary/30 overflow-hidden cursor-pointer" onClick={() => setCurrentSubView('MY_NEBULA')}>
+            <img src="https://picsum.photos/seed/nebula/100/100" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+
+  const BottomNavBar = () => (
+    <nav className="fixed bottom-32 left-0 right-0 z-[60] flex justify-around items-center px-4 pb-6 pointer-events-none group">
+      <div className="bg-[#2A2A2B]/40 backdrop-blur-[20px] rounded-full mx-auto w-[95%] max-w-2xl flex justify-around items-center py-2 px-4 shadow-[0px_20px_40px_rgba(0,0,0,0.4)] pointer-events-auto transition-transform duration-300">
+        <button 
+          onClick={() => setCurrentSubView('HOME')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'HOME' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <Home size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Home</span>
+        </button>
+        <button 
+          onClick={() => setCurrentSubView('MOVIES')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'MOVIES' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <Film size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Movies</span>
+        </button>
+        <button 
+          onClick={() => setCurrentSubView('TV')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'TV' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <Monitor size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">TV</span>
+        </button>
+        <button 
+          onClick={() => setCurrentSubView('UNIVERSE')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'UNIVERSE' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <Globe size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Universe</span>
+        </button>
+        <button 
+          onClick={() => setCurrentSubView('HIVE')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'HIVE' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <ExploreIcon size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Explore</span>
+        </button>
+        <button className="flex flex-col items-center justify-center text-[#CBC3D7] p-3 hover:scale-110 hover:text-[#FFB68D] transition-transform duration-300">
+          <Library size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Library</span>
+        </button>
+        <button 
+          onClick={() => setCurrentSubView('MY_NEBULA')}
+          className={`flex flex-col items-center justify-center p-3 transition-all duration-300 ${currentSubView === 'MY_NEBULA' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] rounded-full scale-110 shadow-[0_0_15px_rgba(208,188,255,0.3)]' : 'text-[#CBC3D7] hover:scale-110 hover:text-[#FFB68D]'}`}
+        >
+          <PersonIcon size={20} />
+          <span className="text-[8px] font-label uppercase tracking-tighter mt-1">Profile</span>
+        </button>
+      </div>
+    </nav>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen theme-ethereal bg-[#131314] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-8">
+          <div className="w-24 h-24 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <p className="font-headline text-[10px] uppercase tracking-[0.6em] text-primary">Syncing Galaxy...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen theme-ethereal bg-transparent text-[#E5E2E3] overflow-x-hidden selection:bg-primary selection:text-white font-body pb-32">
+      <TopAppBar />
+      
+      {/* Decorative Blur Backgrounds */}
+      <div className="fixed top-1/4 -left-20 w-[40rem] h-[40rem] aurora-bg blur-[150px] opacity-10 pointer-events-none -z-10" />
+      <div className="fixed bottom-1/4 -right-20 w-[50rem] h-[50rem] bg-tertiary blur-[180px] opacity-5 pointer-events-none -z-10" />
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentSubView}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {currentSubView === 'HOME' && (
+            <HomeView 
+              universes={universes}
+              movies={movies}
+              tvSeries={tvSeries}
+              curatedPlaylists={curatedPlaylists}
+              featuredItem={featuredItem}
+              onSelectArchiveItem={handleSelectArchiveItem}
+              onSelectMovie={onSelectMovie}
+              setCurrentSubView={setCurrentSubView}
+              setActiveAllyUrl={setActiveAllyUrl}
+              onSelectCuratedPlaylist={handleSelectCuratedPlaylist}
+            />
+          )}
+          {currentSubView === 'TV' && <TelevisionView series={[...tvSeries, ...localContent.filter(c => c.subType === 'TV_SERIES' || c.tags?.includes('tv'))]} initialSelectedSeries={activePlaylistItem} onSelect={onSelectMovie} />}
+          {currentSubView === 'MOVIES' && <MoviesSpecificView movies={movies} localContent={localContent} onSelect={onSelectMovie} />}
+          {currentSubView === 'UNIVERSE' && (
+            <HiveView 
+                universes={universes}
+                setCurrentSubView={setCurrentSubView}
+                setActiveAllyUrl={setActiveAllyUrl}
+            />
+          )}
+          {currentSubView === 'HIVE' && (
+            <ExploreView 
+                movies={movies}
+                tvSeries={tvSeries}
+                localContent={localContent}
+                onSelect={onSelectMovie}
+            />
+          )}
+          {currentSubView === 'MY_NEBULA' && (
+            <NebulaView 
+                movies={movies}
+                localContent={localContent}
+                onSelectArchiveItem={handleSelectArchiveItem}
+                onSelectMovie={onSelectMovie}
+            />
+          )}
+          {currentSubView === 'ALLY_VIEW' && activeAllyUrl && (
+            <div className="pt-24 h-screen w-full">
+                <iframe src={activeAllyUrl} className="w-full h-full border-none" />
+                <div className="fixed top-24 left-8 flex gap-4">
+                  <button 
+                    className="bg-white text-black px-4 py-2 rounded-full font-bold"
+                    onClick={() => setCurrentSubView('HIVE')}
+                  >Back to Hive</button>
+                  <a 
+                    href={activeAllyUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="bg-primary/20 text-white px-4 py-2 rounded-full font-bold backdrop-blur-sm"
+                  >Open in New Tab</a>
+                </div>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      <BottomNavBar />
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-32 right-12 z-[60] hidden lg:block">
+        <motion.button 
+          whileHover={{ scale: 1.1, rotate: 90 }}
+          whileTap={{ scale: 0.9 }}
+          className="w-20 h-20 rounded-full aurora-bg shadow-[0_15px_40px_rgba(208,188,255,0.4)] flex items-center justify-center text-white border border-white/20"
+        >
+          <Plus size={32} />
+        </motion.button>
+      </div>
+    </div>
+  );
+};
+
+export default MoviesTVView;

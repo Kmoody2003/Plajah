@@ -1,0 +1,965 @@
+{
+  "entities": {
+    "Album": {
+      "title": "Album",
+      "description": "A music album microsite project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the album" },
+        "ownerId": { "type": "string", "description": "UID of the user who created the album" },
+        "title": { "type": "string", "description": "Title of the album" },
+        "artist": { "type": "string", "description": "Name of the artist" },
+        "artistBio": { "type": "string", "description": "Short biography of the artist" },
+        "artistImage": { "type": "string", "description": "URL to the artist's profile image" },
+        "coverImage": { "type": "string", "description": "URL to the album cover image" },
+        "headerImage": { "type": "string", "description": "URL to a large header image" },
+        "description": { "type": "string", "description": "Description of the album" },
+        "isPrivate": { "type": "boolean", "description": "Whether the album is private to the owner" },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "artist": { "type": "string" },
+              "url": { "type": "string" },
+              "duration": { "type": "number" },
+              "playCount": { "type": "number", "description": "Public play count" },
+              "images": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "slideshow": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" },
+        "themeColor": { "type": "string", "description": "Primary theme color for the microsite" },
+        "isPublic": { "type": "boolean", "description": "Whether the album is visible in the global archive" },
+        "galleryUrl": { "type": "string", "description": "Optional URL to a custom gallery experience" },
+        "socialLinks": {
+          "type": "object",
+          "properties": {
+            "twitter": { "type": "string" },
+            "instagram": { "type": "string" },
+            "spotify": { "type": "string" },
+            "youtube": { "type": "string" },
+            "website": { "type": "string" }
+          }
+        },
+        "musicVideos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "liveFeedUrl": { "type": "string", "description": "Optional URL to a live video feed for this album" },
+        "donationGoal": { "type": "number", "description": "Fundraising goal for this album" },
+        "donationCurrent": { "type": "number", "description": "Current amount raised for this album" }
+      },
+      "required": ["id", "title", "artist", "coverImage", "tracks", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public profile for an artist/user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "featuredPhotoURL": { "type": "string", "description": "High quality photo for featured artist carousels" },
+        "email": { "type": "string" },
+        "followerCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "acceptsTips": { "type": "boolean" },
+        "tipGoal": { "type": "number" },
+        "tipCurrent": { "type": "number" },
+        "payItForwardOptIn": { "type": "boolean", "description": "Whether the user participates in the Pay It Forward pool" },
+        "payItForwardWinsMonth": { "type": "number", "description": "Number of wins in the current 30-day cycle" },
+        "payItForwardWinsYear": { "type": "number", "description": "Number of wins in the current year" },
+        "lastPayItForwardWinTimestamp": { "type": "number", "description": "Timestamp of the last win" },
+        "liveStreamConfig": {
+          "type": "object",
+          "properties": {
+            "streamUrl": { "type": "string" },
+            "title": { "type": "string" },
+            "isActive": { "type": "boolean" },
+            "source": { "type": "string" }
+          }
+        },
+        "revenue": {
+          "type": "object",
+          "properties": {
+            "donations": { "type": "number" },
+            "merch": { "type": "number" },
+            "adRevenue": { "type": "number" },
+            "subscriptions": { "type": "number" },
+            "cryptoWallet": {
+              "type": "object",
+              "properties": {
+                "bitcoin": { "type": "string" },
+                "ethereum": { "type": "string" },
+                "solana": { "type": "string" }
+              }
+            }
+          }
+        },
+        "storeSettings": {
+          "type": "object",
+          "properties": {
+            "isEnabled": { "type": "boolean" },
+            "useExternalStore": { "type": "boolean" },
+            "externalStoreUrl": { "type": "string" },
+            "showDemoContent": { "type": "boolean" }
+          }
+        },
+        "xHandle": { "type": "string", "description": "X (Twitter) handle for timeline display" },
+        "xUrl": { "type": "string", "description": "Full URL to the user's X profile" },
+        "xEmbedHtml": { "type": "string", "description": "Raw HTML for Twitter Publish embeds" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "FeedItem": {
+      "title": "FeedItem",
+      "description": "An item in the global social feed.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "type": { "type": "string", "enum": ["SONG", "PICTURE", "COMMENT"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "albumId": { "type": "string" },
+        "songUrl": { "type": "string" },
+        "songTitle": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "authorId", "type", "content", "timestamp"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A user comment on an album or track",
+      "type": "object",
+      "properties": {
+        "author": { "type": "string", "description": "Name of the commenter" },
+        "text": { "type": "string", "description": "Content of the comment" },
+        "timestamp": { "type": "number", "description": "Timestamp of the comment" },
+        "mediaTimestamp": { "type": "number", "description": "Timestamp in the media for time-stamped comments" },
+        "trackId": { "type": "string", "description": "ID of the track, or 'album' for general comments" },
+        "videoId": { "type": "string", "description": "ID of the video if commenting on a video" }
+      },
+      "required": ["author", "text", "timestamp"]
+    },
+    "LiveFeed": {
+      "title": "LiveFeed",
+      "description": "A live video broadcast from a studio.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerPhoto": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "ownerId", "title", "url", "timestamp"]
+    },
+    "MerchItem": {
+      "title": "MerchItem",
+      "description": "A merchandise item for sale by an artist.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "artistId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "salePrice": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "category": { "type": "string", "enum": ["APPAREL", "MUSIC", "ACCESSORY", "DIGITAL", "COLLECTIBLES", "MEDIA"] },
+        "stock": { "type": "number" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "isDigitalAsset": { "type": "boolean" },
+        "linkedAssetId": { "type": "string" }
+      },
+      "required": ["id", "artistId", "title", "price", "imageUrl", "category"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A customer review for a store item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "productId", "userId", "rating", "comment", "timestamp"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "A financial contribution to an artist or album.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fromId": { "type": "string" },
+        "fromName": { "type": "string" },
+        "toId": { "type": "string" },
+        "albumId": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "fromId", "fromName", "toId", "amount", "timestamp"]
+    },
+    "PPVEvent": {
+      "title": "PPVEvent",
+      "description": "A pay-per-view live streaming event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "streamUrl": { "type": "string" },
+        "price": { "type": "number" },
+        "isExclusive": { "type": "boolean" },
+        "startTime": { "type": "number" },
+        "duration": { "type": "number" },
+        "status": { "type": "string", "enum": ["UPCOMING", "LIVE", "ENDED"] },
+        "purchasedBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "ownerId", "ownerName", "title", "description", "thumbnailUrl", "streamUrl", "price", "isExclusive", "startTime", "duration", "status"]
+    },
+    "ProfileThemePreset": {
+      "title": "ProfileThemePreset",
+      "description": "A customized visual theme preset including background and elements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "mode": { "type": "string", "enum": ["PHOTO_ONLY", "VIDEO_ONLY", "MIX"] },
+        "assets": { "type": "array", "items": { "type": "object" } },
+        "coverImage": { "type": "string" },
+        "isPublic": { "type": "boolean" },
+        "downloads": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "creatorId", "title", "description", "mode", "assets", "isPublic", "timestamp"]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "A virtual classroom for online learning.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "price": { "type": "number" },
+        "syllabus": { "type": "string" },
+        "lessons": { "type": "array", "items": { "$ref": "Lesson" } },
+        "assignments": { "type": "array", "items": { "$ref": "Assignment" } },
+        "enrolledStudents": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "ownerId", "ownerName", "title", "description", "thumbnailUrl", "price", "syllabus", "lessons", "assignments", "enrolledStudents", "category"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "A student's submission for an assignment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "contentUrl": { "type": "string" },
+        "textContent": { "type": "string" },
+        "grade": { "type": "number" },
+        "feedback": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "assignmentId", "studentId", "studentName", "timestamp"]
+    },
+    "ProgressReport": {
+      "title": "ProgressReport",
+      "description": "A student's progress in a classroom.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "classId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "overallGrade": { "type": "number" },
+        "completedLessons": { "type": "array", "items": { "type": "string" } },
+        "lastAccessed": { "type": "number" }
+      },
+      "required": ["id", "classId", "studentId", "overallGrade", "completedLessons", "lastAccessed"]
+    },
+    "VideoChatSession": {
+      "title": "VideoChatSession",
+      "description": "A multi-participant video chat session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "object" } },
+        "startTime": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "roomId", "participants", "startTime", "isActive"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A social post with rich media.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "media": { "type": "array", "items": { "type": "object" } },
+        "isPrivate": { "type": "boolean", "description": "Whether the post is private" },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "isPublic": { "type": "boolean" },
+        "albumEmbed": { "$ref": "Album" },
+        "autoPlayEmbed": { "type": "boolean" }
+      },
+      "required": ["id", "authorId", "text", "timestamp"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "A video uploaded by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["VIDEO", "MOVIE", "TV_SHOW"], "description": "Type of video content" },
+        "isPrivate": { "type": "boolean", "description": "Whether the video is private" },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "playCount": { "type": "number", "description": "Public play count" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "ownerId", "title", "url", "timestamp"]
+    },
+    "VideoLike": {
+      "title": "VideoLike",
+      "description": "A like on a video.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "videoId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "videoId", "userId", "timestamp"]
+    },
+    "VideoComment": {
+      "title": "VideoComment",
+      "description": "A comment on a video.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "videoId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "mediaTimestamp": { "type": "number", "description": "Timestamp in the video for time-stamped comments" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "videoId", "userId", "text", "timestamp"]
+    },
+    "VideoPlaylist": {
+      "title": "VideoPlaylist",
+      "description": "A playlist of videos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "videoIds": { "type": "array", "items": { "type": "string" } },
+        "isPublic": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "ownerId", "title", "videoIds", "timestamp"]
+    },
+    "PayItForwardPool": {
+      "title": "PayItForwardPool",
+      "description": "Public status of the Pay It Forward pool.",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["ACTIVE", "PASSED"] },
+        "lastWinnerId": { "type": "string" },
+        "lastWinTimestamp": { "type": "number" },
+        "totalGivenOutMonth": { "type": "number" },
+        "totalGivenOutYear": { "type": "number" },
+        "resetMonthTimestamp": { "type": "number" },
+        "resetYearTimestamp": { "type": "number" }
+      }
+    },
+    "PayItForwardVault": {
+      "title": "PayItForwardVault",
+      "description": "Private vault for the Pay It Forward pool amount.",
+      "type": "object",
+      "properties": {
+        "currentPot": { "type": "number" }
+      }
+    },
+    "PayItForwardWinner": {
+      "title": "PayItForwardWinner",
+      "description": "Record of a Pay It Forward winner.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "amount": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "CLAIMED", "PASSED"] }
+      },
+      "required": ["uid", "amount", "timestamp", "status"]
+    },
+    "PayItForwardDonation": {
+      "title": "PayItForwardDonation",
+      "description": "A donation to the Pay It Forward pool.",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "donorId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["amount", "donorId", "timestamp"]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "A long-form article or newsletter.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["TEXT", "IMAGE", "AUDIO", "VIDEO", "QUOTE", "HEADING"] },
+              "content": { "type": "string" },
+              "layout": { "type": "string", "enum": ["FULL", "LEFT", "RIGHT", "CENTER"] },
+              "caption": { "type": "string" },
+              "assetId": { "type": "string" }
+            }
+          }
+        },
+        "timestamp": { "type": "number" },
+        "isPublic": { "type": "boolean" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "readTime": { "type": "number" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "authorId", "title", "blocks", "timestamp"]
+    },
+    "BrandAccount": {
+      "title": "BrandAccount",
+      "description": "A brand account managing multiple artists and pages.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "adminId": { "type": "string" },
+        "managers": { "type": "array", "items": { "type": "string" } },
+        "brandPages": { "type": "array", "items": { "type": "string" } },
+        "managedArtistIds": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "name", "adminId", "timestamp"]
+    },
+    "FanPage": {
+      "title": "FanPage",
+      "description": "A micro-community created by a fan.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "ownerId", "name", "timestamp"]
+    },
+    "PostThemeBackground": {
+      "title": "PostThemeBackground",
+      "description": "A background image for a themeable post with interactive zones.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "theme": { "type": "string", "enum": ["SCRAPBOOK", "PHOTO_ALBUM", "MUSIC_PLAYER", "NEWSPAPER", "ARCADE"] },
+        "imageUrl": { "type": "string" },
+        "zones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["PHOTO", "TEXT", "VINYL", "GAME_SCREEN"] },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": { "type": "number" },
+              "height": { "type": "number" },
+              "rotation": { "type": "number" }
+            }
+          }
+        },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "theme", "imageUrl", "zones", "createdAt"]
+    },
+    "ClassroomModule": {
+      "title": "ClassroomModule",
+      "description": "An interactive classroom module experience",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string", "description": "The experience ID or route" },
+        "coverArt": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "description", "url", "coverArt", "createdAt"]
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "A chat room for communication.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "type": { "type": "string", "enum": ["PRIVATE", "GROUP", "PUBLIC_LIVE"] },
+        "name": { "type": "string" },
+        "updatedAt": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "typingUsers": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["participants", "type", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A message within a chat room.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "type": { "type": "string", "enum": ["TEXT", "MEDIA", "VOICE"] },
+        "mediaId": { "type": "string" },
+        "voiceUrl": { "type": "string" },
+        "seenBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["senderId", "senderName", "timestamp", "type"]
+    },
+    "WebApp": {
+      "title": "WebApp",
+      "description": "A web application asset that can be installed or run in-browser.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "developerName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "screenshots": { "type": "array", "items": { "type": "string" } },
+        "videoTrailerUrl": { "type": "string" },
+        "category": { "type": "string" },
+        "version": { "type": "string" },
+        "size": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "installCount": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "isGlobalArchive": { "type": "boolean" }
+      },
+      "required": ["id", "ownerId", "title", "url", "thumbnailUrl", "timestamp"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "An in-app notification for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "type": { "type": "string", "enum": ["MESSAGE", "COMMENT", "CONTENT", "SYSTEM", "LIKE", "FOLLOW"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "link": { "type": "string" },
+        "targetId": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "senderId", "senderName", "type", "title", "message", "isRead", "timestamp"]
+    },
+    "Episode": {
+      "title": "Episode",
+      "description": "An episode of a TV series.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "duration": { "type": "number" }
+      },
+      "required": ["id", "title", "duration"]
+    },
+    "Season": {
+      "title": "Season",
+      "description": "A season of a TV series.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "number" },
+        "episodes": { "type": "array", "items": { "$ref": "Episode" } }
+      },
+      "required": ["id", "number", "episodes"]
+    },
+    "TVSeries": {
+      "title": "TVSeries",
+      "description": "A TV series.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "genre": { "type": "string" },
+        "universeId": { "type": "string" },
+        "seasons": { "type": "array", "items": { "$ref": "Season" } }
+      },
+      "required": ["id", "title", "genre", "universeId", "seasons"]
+    },
+    "IPWorld": {
+      "title": "IPWorld",
+      "description": "An interactive world project with lore, characters, and multimedia.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "status": { "type": "string", "enum": ["DRAFT", "PUBLISHED"] },
+        "publishedAt": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "themeConfig": {
+          "type": "object",
+          "properties": {
+            "primaryColor": { "type": "string" },
+            "secondaryColor": { "type": "string" },
+            "backgroundId": { "type": "string" },
+            "customBackgroundImage": { "type": "string" },
+            "useFrostedGlassDefault": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["id", "creatorId", "name", "createdAt"]
+    },
+    "Character": {
+      "title": "Character",
+      "description": "A character belonging to a world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "worldId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["id", "worldId", "name"]
+    },
+    "LoreEntry": {
+      "title": "LoreEntry",
+      "description": "A lore entry (location, event, object) in a world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "worldId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["id", "worldId", "title", "content"]
+    },
+    "TimelineEvent": {
+      "title": "TimelineEvent",
+      "description": "An event in the history of a world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "worldId": { "type": "string" },
+        "year": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["id", "worldId", "year", "title"]
+    },
+    "LiveTalk": {
+      "title": "LiveTalk",
+      "description": "An audio-only live discussion space.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hostId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "hostPhoto": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "topic": { "type": "string" },
+        "category": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "speakers": { "type": "array", "items": { "type": "string" } },
+        "listeners": { "type": "array", "items": { "type": "string" } },
+        "sharedAssets": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "title": { "type": "string" },
+              "url": { "type": "string" },
+              "sharedBy": { "type": "string" },
+              "timestamp": { "type": "number" },
+              "mediaId": { "type": "string" }
+            }
+          } 
+        },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "hostId", "title", "isActive", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/themePresets/{presetId}": {
+      "schema": "ProfileThemePreset",
+      "description": "Collection of theme presets"
+    },
+    "/liveTalks/{talkId}": {
+      "schema": "LiveTalk",
+      "description": "Collection of active and archived live audio talks"
+    },
+    "/tv_series/{seriesId}": {
+      "schema": "TVSeries",
+      "description": "Collection of TV series"
+    },
+    "/notifications/{notifId}": {
+      "schema": "AppNotification",
+      "description": "Collection of user notifications"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Collection of social posts"
+    },
+    "/videos/{videoId}": {
+      "schema": "Video",
+      "description": "Collection of user videos"
+    },
+    "/videos/{videoId}/likes/{likeId}": {
+      "schema": "VideoLike",
+      "description": "Subcollection of likes for a video"
+    },
+    "/videos/{videoId}/comments/{commentId}": {
+      "schema": "VideoComment",
+      "description": "Subcollection of comments for a video"
+    },
+    "/video_playlists/{playlistId}": {
+      "schema": "VideoPlaylist",
+      "description": "Collection of video playlists"
+    },
+    "/albums/{albumId}": {
+      "schema": "Album",
+      "description": "Collection of music albums"
+    },
+    "/albums/{albumId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Subcollection of comments for a specific album"
+    },
+    "/systemConfig/{configId}": {
+      "schema": { "type": "object", "properties": { "lastSync": { "type": "number" }, "status": { "type": "string" }, "autoSync": { "type": "boolean" }, "lastError": { "type": "string" } } },
+      "description": "Global system configurations and statuses"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles"
+    },
+    "/follows/{followId}": {
+      "schema": { "type": "object", "properties": { "followerId": { "type": "string" }, "followingId": { "type": "string" }, "timestamp": { "type": "number" } } },
+      "description": "Collection of follow relationships"
+    },
+    "/feed/{itemId}": {
+      "schema": "FeedItem",
+      "description": "Collection of global feed items"
+    },
+    "/live_feeds/{feedId}": {
+      "schema": "LiveFeed",
+      "description": "Collection of global live broadcasts"
+    },
+    "/merch/{merchId}": {
+      "schema": "MerchItem",
+      "description": "Collection of artist merchandise"
+    },
+    "/merch/{merchId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Subcollection of reviews for a merch item"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Collection of fan donations"
+    },
+    "/ppv_events/{eventId}": {
+      "schema": "PPVEvent",
+      "description": "Collection of pay-per-view events"
+    },
+    "/classrooms/{classId}": {
+      "schema": "Classroom",
+      "description": "Collection of virtual classrooms"
+    },
+    "/submissions/{subId}": {
+      "schema": "Submission",
+      "description": "Collection of student submissions"
+    },
+    "/progress_reports/{reportId}": {
+      "schema": "ProgressReport",
+      "description": "Collection of student progress reports"
+    },
+    "/worlds/{worldId}": {
+      "schema": "IPWorld",
+      "description": "Collection of interactive world projects"
+    },
+    "/worlds/{worldId}/characters/{characterId}": {
+      "schema": "Character",
+      "description": "Subcollection of characters for a specific world"
+    },
+    "/worlds/{worldId}/lore/{loreId}": {
+      "schema": "LoreEntry",
+      "description": "Subcollection of lore entries for a specific world"
+    },
+    "/worlds/{worldId}/timeline/{eventId}": {
+      "schema": "TimelineEvent",
+      "description": "Subcollection of timeline events for a specific world"
+    },
+    "/video_chats/{chatId}": {
+      "schema": "VideoChatSession",
+      "description": "Collection of video chat sessions"
+    },
+    "/pay_it_forward/status": {
+      "schema": "PayItForwardPool",
+      "description": "Public Pay It Forward pool status"
+    },
+    "/pay_it_forward/vault": {
+      "schema": "PayItForwardVault",
+      "description": "Private Pay It Forward pool amount (locked)"
+    },
+    "/pay_it_forward_winners/{winnerId}": {
+      "schema": "PayItForwardWinner",
+      "description": "History of Pay It Forward winners"
+    },
+    "/pay_it_forward_donations/{donationId}": {
+      "schema": "PayItForwardDonation",
+      "description": "History of Pay It Forward donations"
+    },
+    "/articles/{articleId}": {
+      "schema": "Article",
+      "description": "Collection of long-form articles"
+    },
+    "/articles/{articleId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Subcollection of comments for a specific article"
+    },
+    "/brand_accounts/{brandId}": {
+      "schema": "BrandAccount",
+      "description": "Collection of brand accounts"
+    },
+    "/fan_pages/{pageId}": {
+      "schema": "FanPage",
+      "description": "Collection of fan pages"
+    },
+    "/postThemeBackgrounds/{bgId}": {
+      "schema": "PostThemeBackground",
+      "description": "Collection of themeable post backgrounds"
+    },
+    "/worlds/{worldId}": {
+      "schema": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "creatorId": { "type": "string" }, "createdAt": { "type": "number" } } },
+      "description": "Collection of user-created worlds"
+    },
+    "/classroom_modules/{moduleId}": {
+      "schema": "ClassroomModule",
+      "description": "Collection of interactive classroom modules"
+    },
+    "/chat_rooms/{roomId}": {
+      "schema": "ChatRoom",
+      "description": "Collection of chat rooms"
+    },
+    "/chat_rooms/{roomId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Subcollection of messages in a room"
+    },
+    "/web_apps/{appId}": {
+      "schema": "WebApp",
+      "description": "Collection of web applications"
+    },
+    "/web_apps/{appId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Subcollection of reviews for a web app"
+    }
+  }
+}
