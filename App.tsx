@@ -998,7 +998,7 @@ const App: React.FC = () => {
           )}
 
           {(!isPublicView && !isMobile && theme !== 'PHONE') && (
-            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : 'w-80')} border-r border-theme hidden lg:flex flex-col p-4 lg:p-6 sticky top-0 h-screen bg-theme-card/85 backdrop-blur-3xl transition-all duration-500 group/sidebar z-50 overflow-x-hidden shrink-0`}>
+            <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col p-4 lg:p-6 sticky top-0 h-screen glass-high transition-all duration-500 group/sidebar z-50 overflow-x-hidden shrink-0`}>
               <div className={`flex items-center gap-4 mb-10 px-1 h-14 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -1236,7 +1236,7 @@ const App: React.FC = () => {
           {(isMobile || theme === 'PHONE') && (
             <>
               {/* Fixed bottom tab bar — 5 primary destinations */}
-              <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-black/95 backdrop-blur-3xl border-t border-white/10 gpu">
+              <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
                 <div className="flex items-center justify-around px-1 pt-1 pb-android-nav">
                   {[
                     { id: 'MUSIC', icon: Music2, label: 'Music' },
@@ -1283,9 +1283,9 @@ const App: React.FC = () => {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: '100%', opacity: 0 }}
                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] bg-black/95 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl max-h-[65vh] overflow-y-auto gpu"
+                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] overflow-y-auto gpu"
                   >
-                    <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b border-white/5 bg-black/80 backdrop-blur-xl rounded-t-3xl">
+                    <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b border-white/5 glass-nav rounded-t-m3-2xl">
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/40">All Sections</span>
                       <button onClick={() => setIsBottomSectionExpanded(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                         <ChevronDown size={16} className="text-white/60" />
@@ -1326,7 +1326,7 @@ const App: React.FC = () => {
                               }
                               setIsBottomSectionExpanded(false);
                             }}
-                            className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'bg-white/5 hover:bg-white/10'}`}
+                            className={`flex flex-col items-center gap-2 p-3 rounded-m3-lg transition-all android-press ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'glass-low m3-state-hover'}`}
                           >
                             <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
                             <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>

@@ -485,39 +485,115 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
 }
 
+/* ─── Material You 3 + Frosted Glass Design System ─────────────────────────
+   Surface hierarchy follows M3 tonal surface stacking.
+   All surfaces are translucent so the background art bleeds through.
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* M3 Shape tokens */
+  --m3-shape-xs:   8px;
+  --m3-shape-sm:   12px;
+  --m3-shape-md:   16px;
+  --m3-shape-lg:   24px;
+  --m3-shape-xl:   28px;
+  --m3-shape-2xl:  32px;
+  --m3-shape-full: 9999px;
+
+  /* Frosted glass layers — progressively more opaque as elevation rises */
+  --glass-0:   rgba(255,255,255,0.00);   /* scrim / no fill             */
+  --glass-1:   rgba(255,255,255,0.04);   /* M3 surface                  */
+  --glass-2:   rgba(255,255,255,0.07);   /* surface-container-low       */
+  --glass-3:   rgba(255,255,255,0.10);   /* surface-container           */
+  --glass-4:   rgba(255,255,255,0.14);   /* surface-container-high      */
+  --glass-5:   rgba(255,255,255,0.18);   /* surface-container-highest   */
+
+  /* Accent-tinted glass (orange brand) */
+  --glass-accent: rgba(255,140,0,0.08);
+
+  /* Blur levels */
+  --blur-sm:  blur(8px)  saturate(160%);
+  --blur-md:  blur(20px) saturate(180%);
+  --blur-lg:  blur(32px) saturate(200%);
+  --blur-xl:  blur(48px) saturate(200%);
+
+  /* M3 border */
+  --m3-border: rgba(255,255,255,0.09);
+  --m3-border-strong: rgba(255,255,255,0.15);
+}
+
+/* ─── Frosted glass utility classes ──────────────────────────────────────── */
 @layer utilities {
-  .pb-safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+  /* Base glass surfaces */
+  .glass {
+    background: var(--glass-2);
+    -webkit-backdrop-filter: var(--blur-md);
+    backdrop-filter: var(--blur-md);
+    border: 1px solid var(--m3-border);
+  }
+  .glass-low {
+    background: var(--glass-1);
+    -webkit-backdrop-filter: var(--blur-sm);
+    backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--m3-border);
+  }
+  .glass-high {
+    background: var(--glass-4);
+    -webkit-backdrop-filter: var(--blur-lg);
+    backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--m3-border-strong);
+  }
+  .glass-highest {
+    background: var(--glass-5);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border: 1px solid var(--m3-border-strong);
   }
 
-  /* Real viewport height — won't jump when Android URL bar shows/hides */
-  .h-real-screen {
-    height: calc(var(--real-vh, 1dvh) * 100);
-  }
-  .min-h-real-screen {
-    min-height: calc(var(--real-vh, 1dvh) * 100);
-  }
-
-  /* Android gesture nav safe bottom */
-  .pb-android-nav {
-    padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  /* Navigation bar glass (bottom tab bar, player) */
+  .glass-nav {
+    background: rgba(10,10,12,0.55);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border-top: 1px solid var(--m3-border);
   }
 
-  /* GPU-accelerate for smooth Android animations */
+  /* Sheet / drawer glass */
+  .glass-sheet {
+    background: rgba(14,14,18,0.72);
+    -webkit-backdrop-filter: var(--blur-xl);
+    backdrop-filter: var(--blur-xl);
+    border-top: 1px solid var(--m3-border-strong);
+  }
+
+  /* M3 shape utilities */
+  .rounded-m3-sm   { border-radius: var(--m3-shape-sm); }
+  .rounded-m3-md   { border-radius: var(--m3-shape-md); }
+  .rounded-m3-lg   { border-radius: var(--m3-shape-lg); }
+  .rounded-m3-xl   { border-radius: var(--m3-shape-xl); }
+  .rounded-m3-2xl  { border-radius: var(--m3-shape-2xl); }
+  .rounded-m3-full { border-radius: var(--m3-shape-full); }
+
+  /* M3 state layers */
+  .m3-state-hover:hover  { background: rgba(255,255,255,0.08); }
+  .m3-state-press:active { background: rgba(255,255,255,0.12); transform: scale(0.96); }
+  .m3-ripple { position: relative; overflow: hidden; }
+
+  /* Utility classes */
+  .pb-safe-bottom   { padding-bottom: env(safe-area-inset-bottom); }
+  .pb-android-nav   { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+  .h-real-screen    { height: calc(var(--real-vh, 1dvh) * 100); }
+  .min-h-real-screen{ min-height: calc(var(--real-vh, 1dvh) * 100); }
+
   .gpu {
     transform: translateZ(0);
     will-change: transform;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
   }
-
-  /* Prevent text selection on UI chrome */
   .no-select {
     -webkit-user-select: none;
     user-select: none;
   }
-
-  /* Active press state for Android (no hover) */
   .android-press:active {
     transform: scale(0.93);
     opacity: 0.85;
@@ -537,6 +613,10 @@ html, body {
 
 body {
   background-color: var(--bg-color);
+  /* Ambient frosted noise layer — visible on mobile where no profile art is set */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(255,140,0,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%,  rgba(107,0,153,0.06) 0%, transparent 60%);
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
   font-family: var(--font-body);

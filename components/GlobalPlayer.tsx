@@ -683,7 +683,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
       <motion.div
         initial={{ y: 100 }}
         animate={{ y: isMinimized ? (isBigScreen ? 120 : (isPhoneMode ? (isLandscape ? 60 : 40) : 60)) : 0 }}
-        className={`fixed left-0 right-0 z-[1000] w-full bg-theme-card/80 backdrop-blur-3xl border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-3' : 'px-4 lg:px-6 py-2'))}`}
+        className={`fixed left-0 right-0 z-[1000] w-full glass-nav shadow-[0_-8px_40px_rgba(0,0,0,0.6)] transition-all ${isPhoneMode ? (isShrunk ? 'px-4 pt-0.5' : (isLandscape ? 'px-4 py-0.5' : 'px-4 pt-2')) : (isShrunk ? 'px-6 py-1' : (isBigScreen ? 'px-12 py-3' : 'px-4 lg:px-6 py-2'))}`}
         style={{
           bottom: isPhoneMode && !isLandscape ? 'calc(4rem + env(safe-area-inset-bottom))' : '0px',
           paddingBottom: isPhoneMode && !isLandscape ? '0.75rem' : isPhoneMode && isLandscape ? '4px' : undefined,
@@ -722,7 +722,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className={`overflow-hidden bg-black/60 backdrop-blur-3xl border-white/5 mb-2 ${topOffset ? 'border-t rounded-b-[2.5rem]' : 'border-b rounded-t-[2.5rem]'}`}
+                className={`overflow-hidden glass-sheet mb-2 ${topOffset ? 'border-t rounded-b-m3-2xl' : 'border-b rounded-t-m3-2xl'}`}
               >
                 <div className="p-6 flex flex-col gap-6">
                   {/* Unified Menu: Playlist + Navigation */}
@@ -910,7 +910,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 </div>
 
                 {/* Center Block: Prev / Play / Next pill */}
-              <div className={`flex items-center justify-center gap-1 bg-white/5 backdrop-blur-3xl ${isLandscape ? 'px-1 py-0.5' : 'px-3 py-1.5'} rounded-full border border-white/10`}>
+              <div className={`flex items-center justify-center gap-1 glass rounded-m3-full ${isLandscape ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
                   <button onClick={prev} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipBack size={18} /></button>
 
                   <button
