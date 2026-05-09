@@ -2715,18 +2715,21 @@ export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
   const path = 'albums';
   try {
     const now = Date.now();
-    const q = query(collection(db, path), where("isPublic", "==", true));
+    // Query by isPrivate==false to catch all uploaded content regardless of whether
+    // isPublic was explicitly set (older uploads may have isPublic missing/false from
+    // the isDraft default that was previously true).
+    const q = query(collection(db, path), where("isPrivate", "==", false));
     const snapshot = await getDocs(q);
-    
+
     let albums = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Album));
     albums.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    
-    return albums
-      .filter(album => {
-        if (album.isPrivate) return false;
-        if (album.isScheduled && album.releaseDate && album.releaseDate > now) return false;
-        return true;
-      });
+
+    return albums.filter(album => {
+      if (album.isPrivate) return false;
+      if (album.isDraft) return false;
+      if (album.isScheduled && album.releaseDate && album.releaseDate > now) return false;
+      return true;
+    });
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];

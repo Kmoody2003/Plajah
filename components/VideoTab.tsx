@@ -16,7 +16,7 @@ import YoutubeImportModal from './YoutubeImportModal';
 import { LiveStreamModal } from './LiveStreamModal';
 
 interface VideoTabProps {
-  profile: UserProfile;
+  profile: UserProfile | null;
   isOwner: boolean;
   onSelectVideo?: (item: Video | Album) => void;
   mode?: 'VIDEOS' | 'MOVIES_TV';
@@ -67,13 +67,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
   useEffect(() => {
     loadData();
-  }, [profile.uid]);
+  }, [profile?.uid]);
 
   const loadData = async () => {
     const [vids, pls, uVids, allAlbums, settings] = await Promise.all([
       fetchAllVideos(),
       fetchVideoPlaylists(),
-      fetchUserVideos(profile.uid),
+      profile?.uid ? fetchUserVideos(profile.uid) : Promise.resolve([]),
       fetchAllPublicAlbums(),
       fetchSystemSettingsConfig()
     ]);
@@ -116,7 +116,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         const albumData: any = {
           id: albumId,
           title: newVideo.title,
-          artist: profile.displayName,
+          artist: profile?.displayName || 'Unknown',
           type: 'VIDEO',
           subType: 'MOVIE',
           description: newVideo.description,
@@ -145,7 +145,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         const albumData: any = {
           id: albumId,
           title: newVideo.title,
-          artist: profile.displayName,
+          artist: profile?.displayName || 'Unknown',
           type: 'VIDEO',
           subType: 'TV_SERIES',
           description: newVideo.description,

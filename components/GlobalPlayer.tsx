@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box } from 'lucide-react';
+import Logo from './Logo';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
@@ -201,9 +202,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }, [radioStats.songCount, audioSource]);
 
   useEffect(() => {
-    // Auto-collapse when on social/non-music pages
+    // Only auto-collapse when nothing is playing — never hide an active session
     const nonMusicViews = ['CHAT', 'USER_PROFILE', 'SEARCH', 'FEED', 'DASHBOARD', 'SETTINGS', 'HELP_CENTER'];
-    if (nonMusicViews.includes(view)) {
+    if (nonMusicViews.includes(view) && !isPlaying) {
         setIsMinimized(true);
     } else if (isPlaying) {
         setIsMinimized(false);
@@ -683,6 +684,29 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           </motion.div>
         )}
       </AnimatePresence> */}
+
+      {/* Persistent Plajah restore button — always visible, never slides with the bar */}
+      {isMinimized && (
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="fixed z-[1010] flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_0_20px_rgba(107,0,153,0.4)] hover:scale-105 active:scale-95 transition-all"
+          style={{
+            bottom: isPhoneMode && !isLandscape
+              ? 'calc(4rem + env(safe-area-inset-bottom) + 0.5rem)'
+              : '0.5rem',
+            right: isPhoneMode ? '50%' : '5rem',
+            transform: isPhoneMode ? 'translateX(50%)' : undefined,
+          }}
+          title="Show Player"
+        >
+          <Logo size={18} />
+          {(currentTrack || currentVideo) && (
+            <span className="text-[8px] font-black uppercase tracking-widest text-white/60 max-w-[120px] truncate">
+              {currentTrack?.title || currentVideo?.title}
+            </span>
+          )}
+        </button>
+      )}
 
       <motion.div
         initial={{ y: 100 }}
@@ -1358,9 +1382,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     <button
                       onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                       className={`p-2 rounded-xl transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
-                      title="3D"
+                      title="3D Mode"
                     >
                       <Box size={16} />
+                    </button>
+                    <button
+                      onClick={() => setIsMinimized(!isMinimized)}
+                      className={`p-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${isMinimized ? 'opacity-50' : 'opacity-100'}`}
+                      title={isMinimized ? 'Show Player Controls' : 'Hide Player Controls'}
+                    >
+                      <Logo size={16} />
                     </button>
                     {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
                       <button
