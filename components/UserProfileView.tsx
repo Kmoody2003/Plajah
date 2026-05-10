@@ -210,6 +210,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES'>(initialTab || 'FEED');
+  const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>('PERSONAL');
+  const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
@@ -772,12 +774,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
                       {(profile.xUrl || profile.xHandle) && (
                       <div className="relative">
-                        <button 
-                          className="p-4 rounded-full transition-all flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white/30 cursor-not-allowed"
-                          title="X Social Signal - Coming Soon"
+                        <button
+                          onClick={() => {
+                            setFeedInitialType('X_FEED');
+                            setFeedKey(k => k + 1);
+                            setActiveTab('FEED');
+                          }}
+                          className="p-4 rounded-full transition-all flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                          title="View X Feed"
                         >
                           <X size={18} />
-                          <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Soon</span>
                         </button>
                       </div>
                     )}
@@ -1017,16 +1023,18 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <ProfileFeed 
-                  uid={uid} 
-                  profileName={profile.displayName} 
-                  onVisitUser={onVisitUser} 
+                <ProfileFeed
+                  key={feedKey}
+                  uid={uid}
+                  profileName={profile.displayName}
+                  onVisitUser={onVisitUser}
                   xHandle={profile.xHandle}
                   xEmbedHtml={profile.xEmbedHtml}
                   mastodonHandle={profile.mastodonHandle}
                   mastodonInstance={profile.mastodonInstance}
                   blueskyHandle={profile.blueskyHandle}
                   threadsHandle={profile.threadsHandle}
+                  initialFeedType={feedInitialType}
                   onUpdateXHandle={async (handle) => {
                     if (!auth.currentUser || auth.currentUser.uid !== uid) return;
                     try {

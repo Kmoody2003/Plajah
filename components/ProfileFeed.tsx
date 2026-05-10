@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Post, UserProfile, Album, Video } from '../types';
-import { 
-  listenToUserPosts, 
-  listenToFollowedPosts, 
-  listenToGlobalPosts, 
-  createPost, 
+import {
+  listenToUserPosts,
+  listenToFollowedPosts,
+  listenToGlobalPosts,
+  createPost,
   auth,
   fetchUserContent,
   fetchUserVideos,
-  searchUserProfiles
+  searchUserProfiles,
+  linkXAccount
 } from '../services/backendService';
 import PostCard from './PostCard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -229,6 +230,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   const [autoPlayEmbed, setAutoPlayEmbed] = useState(false);
   const [tempXHandle, setTempXHandle] = useState('');
   const [showXLinkModal, setShowXLinkModal] = useState(false);
+  const [isLinkingX, setIsLinkingX] = useState(false);
 
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -814,6 +816,141 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       );
     }
 
+    if (feedType === 'THREADS') {
+      return (
+        <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-4 lg:p-8 min-h-[600px] flex flex-col items-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <MessageSquare size={400} className="text-white" strokeWidth={0.5} />
+            </div>
+          </div>
+
+          <div className="relative z-10 w-full max-w-2xl space-y-8">
+            <div className="flex flex-col items-center text-center space-y-4 mb-8">
+              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                <MessageSquare size={32} className="text-white" />
+              </div>
+              <h3 className="text-2xl font-black uppercase tracking-tightest">Threads Signal</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                @{threadsHandle}
+              </p>
+              {!mastodonAuth && (
+                <div className="text-center">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-3">
+                    Connect Mastodon to load Threads via Fediverse bridge
+                  </p>
+                  <button
+                    onClick={connectMastodon}
+                    className="px-4 py-2 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 mx-auto"
+                  >
+                    <AtSign size={10} />
+                    Connect Mastodon Bridge
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isLoadingThirdParty ? (
+              <div className="py-20 flex flex-col items-center gap-4 text-white/20">
+                <Loader2 size={40} className="animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Intercepting Signal...</p>
+              </div>
+            ) : thirdPartyError ? (
+              <div className="py-20 flex flex-col items-center gap-4 text-center">
+                <MessageSquare size={40} className="text-white/20 mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500/60">{thirdPartyError}</p>
+                {!mastodonAuth && (
+                  <button
+                    onClick={connectMastodon}
+                    className="mt-4 px-6 py-3 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                  >
+                    Connect Mastodon Bridge
+                  </button>
+                )}
+              </div>
+            ) : threadsPosts.length > 0 ? (
+              <div className="space-y-6">
+                {threadsPosts.map((status: any) => (
+                  <motion.div
+                    key={status.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/[0.07] transition-all"
+                  >
+                    <div dangerouslySetInnerHTML={{ __html: status.content }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
+                    {status.media_attachments?.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        {status.media_attachments.map((media: any) => (
+                          <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/20">
+                          {new Date(status.created_at).toLocaleDateString()}
+                        </span>
+                        {mastodonAuth && (
+                          <button
+                            onClick={() => setReplyingTo({ id: status.id, platform: 'THREADS' })}
+                            className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all"
+                          >
+                            <MessageSquare size={10} />
+                            Reply
+                          </button>
+                        )}
+                      </div>
+                      {status.url && (
+                        <a href={status.url} target="_blank" rel="noopener noreferrer" className="text-white/20 hover:text-white transition-all">
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                    <AnimatePresence>
+                      {replyingTo?.id === status.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-4 space-y-3"
+                        >
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write your reply..."
+                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-white/20 resize-none h-20 outline-none focus:border-white/20 transition-all font-sans"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setReplyingTo(null)}
+                              className="px-4 py-2 text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={submitReply}
+                              disabled={isReplying || !replyText.trim()}
+                              className="px-4 py-2 bg-white text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all disabled:opacity-50"
+                            >
+                              {isReplying ? <Loader2 size={10} className="animate-spin" /> : 'Signal Reply'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-20 text-center text-white/20">
+                <p className="text-[10px] font-black uppercase tracking-widest">No signals found from this frequency</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (feedType === 'X_FEED') {
       return (
         <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-8 min-h-[600px] flex flex-col items-center justify-center relative overflow-hidden">
@@ -1231,7 +1368,25 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
               </div>
 
               <div className="flex flex-col gap-4">
-                <button 
+                {auth.currentUser && (
+                  <button
+                    onClick={async () => {
+                      setIsLinkingX(true);
+                      const screenName = await linkXAccount();
+                      setIsLinkingX(false);
+                      if (screenName) {
+                        if (onUpdateXHandle) onUpdateXHandle(screenName);
+                        setShowXLinkModal(false);
+                      }
+                    }}
+                    disabled={isLinkingX}
+                    className="w-full py-5 bg-black border border-white/20 text-white font-black uppercase tracking-widest text-xs rounded-full hover:bg-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isLinkingX ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                    {isLinkingX ? 'Connecting...' : 'Auto-Link via X OAuth'}
+                  </button>
+                )}
+                <button
                   onClick={() => {
                     if (onUpdateXHandle) onUpdateXHandle(tempXHandle);
                     setShowXLinkModal(false);
@@ -1240,7 +1395,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 >
                   Confirm Signal Link
                 </button>
-                <button 
+                <button
                   onClick={() => setShowXLinkModal(false)}
                   className="w-full py-5 bg-white/5 text-white/40 font-black uppercase tracking-widest text-[10px] rounded-full hover:bg-white/10 transition-all"
                 >

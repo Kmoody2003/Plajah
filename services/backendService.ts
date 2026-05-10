@@ -9,11 +9,13 @@ import {
   query, where, orderBy, limit, onSnapshot, Timestamp, increment,
   arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer
 } from 'firebase/firestore';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+import {
+  signInWithPopup,
+  linkWithPopup,
+  getAdditionalUserInfo,
+  GoogleAuthProvider,
   TwitterAuthProvider,
-  signOut, 
+  signOut,
   onAuthStateChanged,
   User
 } from 'firebase/auth';
@@ -2877,17 +2879,23 @@ export const loginWithGoogle = async () => {
   }
 };
 
-export const loginWithTwitter = async () => {
+export const loginWithTwitter = async (): Promise<string | null> => {
   const provider = new TwitterAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
       await syncUserProfile(result.user);
+      const info = getAdditionalUserInfo(result);
+      const screenName = info?.username as string | undefined;
+      if (screenName) {
+        await updateDoc(doc(db, 'users', result.user.uid), { xHandle: screenName });
+        return screenName;
+      }
     }
+    return null;
   } catch (error: any) {
     console.error("Twitter login failed:", error);
     const errorCode = error?.code || "";
-    
     if (errorCode === 'auth/operation-not-allowed') {
       alert("Twitter sign-in is not enabled in the Firebase Console. Please go to Authentication > Sign-in method and enable Twitter.");
     } else if (errorCode === 'auth/invalid-credential') {
@@ -2897,6 +2905,29 @@ export const loginWithTwitter = async () => {
     } else {
       alert(`Twitter sign-in failed: ${error.message || "Unknown error"}. Please check your connection or try Google sign-in.`);
     }
+    return null;
+  }
+};
+
+export const linkXAccount = async (): Promise<string | null> => {
+  if (!auth.currentUser) return null;
+  const provider = new TwitterAuthProvider();
+  try {
+    const result = await linkWithPopup(auth.currentUser, provider);
+    const info = getAdditionalUserInfo(result);
+    const screenName = info?.username as string | undefined;
+    if (screenName) {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { xHandle: screenName });
+      return screenName;
+    }
+    return null;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/provider-already-linked' || code === 'auth/credential-already-in-use') {
+      return loginWithTwitter();
+    }
+    console.error('X account link failed:', error);
+    return null;
   }
 };
 

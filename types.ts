@@ -249,7 +249,7 @@ export interface Album {
   genre?: string;
   price?: number; // Price for full album
   isPaywalled?: boolean;
-  type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO';
+  type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' | 'GAME';
   subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST';
   donationGoal?: number;
   donationCurrent?: number;
