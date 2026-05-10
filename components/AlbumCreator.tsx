@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason } from '../types';
+import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
@@ -31,13 +31,7 @@ const TYPE_OPTIONS: { id: AssetType; label: string; desc: string; icon: React.Re
 const MUSIC_SUBTYPES = ['ALBUM', 'SINGLE', 'EP', 'PODCAST'] as const;
 const VIDEO_SUBTYPES = ['MOVIE', 'TV_SERIES', 'PODCAST'] as const;
 
-const STEP_LABELS: Record<AssetType, string[]> = {
-  MUSIC:  ['Type', 'Format', 'Content', 'Details', 'Settings'],
-  VIDEO:  ['Type', 'Format', 'Content', 'Details', 'Settings'],
-  BOOK:   ['Type', 'Content', 'Details', 'Settings'],
-  PHOTO:  ['Type', 'Content', 'Details', 'Settings'],
-  GAME:   ['Type', 'Content', 'Details', 'Settings'],
-};
+// Step labels are computed dynamically in the component based on type + subType.
 
 const hasSubtype = (t: AssetType) => t === 'MUSIC' || t === 'VIDEO';
 
@@ -92,6 +86,27 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     cast: [], crew: [], trailerUrl: '', releaseYear: new Date().getFullYear(), specialFeatures: []
   });
 
+  // World & universe state
+  const [worldAssignment, setWorldAssignment] = useState<'NEW' | 'EXISTING' | 'STANDALONE'>(initialAlbum?.worldId ? 'EXISTING' : 'STANDALONE');
+  const [worldId, setWorldId] = useState<string | undefined>(initialAlbum?.worldId);
+  const [newWorldName, setNewWorldName] = useState('');
+  const [availableWorlds, setAvailableWorlds] = useState<{ id: string; name: string; coverImage?: string }[]>([]);
+
+  // Characters (draft — created in Firestore on publish)
+  const [draftCharacters, setDraftCharacters] = useState<{ id: string; name: string; role: string }[]>([]);
+  const [newCharName, setNewCharName] = useState('');
+  const [newCharRole, setNewCharRole] = useState('');
+
+  // Cast & production credits (Movie / TV)
+  const [castMembers, setCastMembers] = useState<CastMember[]>(initialAlbum?.movieMetadata?.castMembers || []);
+  const [productionCredits, setProductionCredits] = useState<ProductionCredit[]>(initialAlbum?.movieMetadata?.productionCredits || []);
+  const [newCastActor, setNewCastActor] = useState('');
+  const [newCastChar, setNewCastChar] = useState('');
+  const [newCastRole, setNewCastRole] = useState('Lead');
+  const [newCredName, setNewCredName] = useState('');
+  const [newCredRole, setNewCredRole] = useState('');
+  const [newCredDept, setNewCredDept] = useState('Directing');
+
   const { uploadFile } = useUpload();
 
   useEffect(() => {
@@ -111,30 +126,56 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     loadAvailable();
   }, [initialAlbum?.id]);
 
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    fetchUserWorlds(auth.currentUser.uid)
+      .then(worlds => setAvailableWorlds(worlds.map(w => ({ id: w.id, name: w.name, coverImage: w.coverImage }))))
+      .catch(() => {});
+  }, []);
+
   // ── Navigation ──────────────────────────────────────────────────────────────
-  const labels = STEP_LABELS[type];
-  // Map logical step index to display step (skip subtype row for non-music/video)
-  const toLogical = (display: number) => {
-    if (!hasSubtype(type) && display >= 1) return display + 1; // skip step 1
-    return display;
-  };
+  // Logical steps: 0=Type 1=Format 2=Content 3=World 4=Cast 5=Details 6=Settings
+  // step 1 skipped for BOOK/PHOTO/GAME; step 4 skipped unless VIDEO MOVIE/TV_SERIES
+  const hasCastStep = type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES');
+  const skipStep1 = !hasSubtype(type);
+  const skipStep4 = !hasCastStep;
+
+  const labels = (() => {
+    if (skipStep1) return ['Type', 'Content', 'World', 'Details', 'Settings'];
+    if (hasCastStep) return ['Type', 'Format', 'Content', 'World', 'Cast', 'Details', 'Settings'];
+    return ['Type', 'Format', 'Content', 'World', 'Details', 'Settings'];
+  })();
+
   const toDisplay = (logical: number) => {
-    if (!hasSubtype(type) && logical >= 2) return logical - 1;
-    return logical;
+    let d = logical;
+    if (skipStep1 && logical >= 2) d--;
+    if (skipStep4 && logical >= 5) d--;
+    return d;
   };
+  const toLogical = (display: number) => {
+    let l = display;
+    if (skipStep1 && display >= 1) l++;
+    if (skipStep4 && l >= 4) l++;
+    return l;
+  };
+
   const totalDisplaySteps = labels.length;
   const displayStep = toDisplay(step);
 
   const goNext = () => {
     if (step === 0) {
-      setStep(hasSubtype(type) ? 1 : 2);
+      setStep(skipStep1 ? 2 : 1);
     } else {
-      setStep(s => Math.min(s + 1, 4));
+      const next = step + 1;
+      setStep(next === 4 && skipStep4 ? 5 : Math.min(next, 6));
     }
   };
   const goBack = () => {
-    if (step === 2 && !hasSubtype(type)) {
+    if (step === 0) return;
+    if (step === 2 && skipStep1) {
       setStep(0);
+    } else if (step === 5 && skipStep4) {
+      setStep(3);
     } else {
       setStep(s => Math.max(s - 1, 0));
     }
@@ -247,6 +288,49 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         if (!linerNotes) setLinerNotes(metadata.linerNotes);
       }
       const albumId = initialAlbum?.id || `album_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+      // ── World & character creation ─────────────────────────────────────────
+      let finalWorldId = worldId;
+      if (worldAssignment === 'NEW' && newWorldName.trim() && auth.currentUser) {
+        setStatus({ text: 'Creating World...', percent: 8 });
+        const newWorld = await createIPWorld({
+          creatorId: auth.currentUser.uid,
+          name: newWorldName.trim(),
+          assetIds: [albumId],
+        });
+        finalWorldId = newWorld?.id;
+      } else if (worldAssignment === 'EXISTING' && worldId) {
+        setStatus({ text: 'Linking to World...', percent: 8 });
+        await addAssetToWorld(worldId, albumId);
+      }
+
+      const createdCharacterIds: string[] = [];
+      if (finalWorldId && draftCharacters.length > 0) {
+        setStatus({ text: 'Creating Characters...', percent: 12 });
+        for (const char of draftCharacters) {
+          const created = await createCharacter({
+            worldId: finalWorldId,
+            name: char.name,
+            role: char.role,
+            bio: '',
+            tags: [],
+            appearanceAt: [{ projectId: albumId, timestamp: Date.now() }],
+          });
+          if (created) {
+            createdCharacterIds.push(created.id);
+          }
+        }
+        // Add all new character IDs to the world in one write
+        await addCharactersToWorld(finalWorldId, createdCharacterIds);
+      }
+      const finalMovieMetadata: MovieMetadata = {
+        ...movieMetadata,
+        castMembers,
+        productionCredits,
+        cast: castMembers.map(m => m.actorName + (m.characterName ? ` as ${m.characterName}` : '')),
+        crew: productionCredits.map(c => `${c.name} (${c.role})`),
+      };
+
       const newAlbum: Album = {
         ...initialAlbum,
         id: albumId, title,
@@ -258,14 +342,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         artistImage: artistImage || coverImage,
         artistFile, coverImage, coverFile, description, themeColor,
         tracks, slideshow, slideshowFiles, galleryUrl, socialLinks,
-        musicVideos: type === 'VIDEO' && subType === 'MOVIE' ? musicVideos.map(v => ({ ...v, movieMetadata })) : musicVideos,
+        musicVideos: type === 'VIDEO' && subType === 'MOVIE' ? musicVideos.map(v => ({ ...v, movieMetadata: finalMovieMetadata })) : musicVideos,
         videoPlaylists,
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
+        movieMetadata: (type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES')) ? finalMovieMetadata : undefined,
         bookChapters, bookPreviewConfig, liveFeedUrl, donationGoal, tags, relatedProjectIds,
         createdAt: initialAlbum?.createdAt || Date.now(),
         isPublic: !isPrivate && !isDraft,
         isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
-        releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined
+        releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
+        worldId: finalWorldId,
+        characterIds: createdCharacterIds.length > 0 ? createdCharacterIds : initialAlbum?.characterIds,
       };
       const publishedAlbum = await publishToCloud(newAlbum, (text, percent) => setStatus({ text, percent }));
       onCreated(typeof publishedAlbum === 'string' ? newAlbum : publishedAlbum);
@@ -390,16 +477,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   <input type="url" value={movieMetadata.trailerUrl} onChange={(e) => setMovieMetadata({ ...movieMetadata, trailerUrl: e.target.value })} placeholder="YouTube/Vimeo" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold outline-none text-white placeholder:text-white/10" />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Cast (comma separated)</label>
-                  <input type="text" value={movieMetadata.cast?.join(', ')} onChange={(e) => setMovieMetadata({ ...movieMetadata, cast: e.target.value.split(',').map(s => s.trim()) })} placeholder="Actor 1, Actor 2..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold outline-none text-white placeholder:text-white/10" />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Crew (comma separated)</label>
-                  <input type="text" value={movieMetadata.crew?.join(', ')} onChange={(e) => setMovieMetadata({ ...movieMetadata, crew: e.target.value.split(',').map(s => s.trim()) })} placeholder="Director, Producer..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold outline-none text-white placeholder:text-white/10" />
-                </div>
-              </div>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">Cast &amp; crew are added in the next steps.</p>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -694,6 +772,199 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const renderStep3 = () => (
     <div className="space-y-10 animate-in fade-in duration-300">
       <div>
+        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Connect to a World</h2>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Link this project to a world or universe — all optional</p>
+      </div>
+
+      {/* World assignment */}
+      <div className="grid grid-cols-1 gap-4">
+        <button type="button" onClick={() => { setWorldAssignment('STANDALONE'); setWorldId(undefined); }}
+          className={`flex items-start gap-6 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'STANDALONE' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'STANDALONE' ? 'bg-black/10' : 'bg-white/5'}`}><Globe size={26} /></div>
+          <div>
+            <p className="text-sm font-black uppercase tracking-widest mb-1">Standalone</p>
+            <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${worldAssignment === 'STANDALONE' ? 'text-black/50' : 'text-white/30'}`}>No world connection. This project stands on its own.</p>
+          </div>
+          {worldAssignment === 'STANDALONE' && <Check size={20} className="ml-auto shrink-0 mt-1" />}
+        </button>
+
+        <button type="button" onClick={() => setWorldAssignment('NEW')}
+          className={`flex flex-col gap-5 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'NEW' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          <div className="flex items-start gap-6 w-full">
+            <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'NEW' ? 'bg-black/10' : 'bg-white/5'}`}><Plus size={26} /></div>
+            <div className="flex-1">
+              <p className="text-sm font-black uppercase tracking-widest mb-1">Create New World</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${worldAssignment === 'NEW' ? 'text-black/50' : 'text-white/30'}`}>Start a new universe for this project.</p>
+            </div>
+            {worldAssignment === 'NEW' && <Check size={20} className="shrink-0 mt-1" />}
+          </div>
+          {worldAssignment === 'NEW' && (
+            <input type="text" value={newWorldName} onChange={(e) => setNewWorldName(e.target.value)}
+              placeholder="World name..." onClick={(e) => e.stopPropagation()}
+              className="w-full bg-black/10 border border-black/20 rounded-2xl px-6 py-4 text-black font-bold text-sm focus:outline-none placeholder:text-black/30" />
+          )}
+        </button>
+
+        <button type="button" onClick={() => setWorldAssignment('EXISTING')}
+          className={`flex flex-col gap-5 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'EXISTING' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          <div className="flex items-start gap-6 w-full">
+            <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'EXISTING' ? 'bg-black/10' : 'bg-white/5'}`}><Layers size={26} /></div>
+            <div className="flex-1">
+              <p className="text-sm font-black uppercase tracking-widest mb-1">Add to Existing World</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${worldAssignment === 'EXISTING' ? 'text-black/50' : 'text-white/30'}`}>Connect to one of your existing worlds.</p>
+            </div>
+            {worldAssignment === 'EXISTING' && <Check size={20} className="shrink-0 mt-1" />}
+          </div>
+          {worldAssignment === 'EXISTING' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto custom-scrollbar pr-1" onClick={(e) => e.stopPropagation()}>
+              {availableWorlds.length === 0 && <p className="text-[10px] text-black/40 font-black uppercase tracking-widest col-span-full py-4">No worlds yet — create one first.</p>}
+              {availableWorlds.map(w => (
+                <button key={w.id} type="button" onClick={() => setWorldId(w.id)}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${worldId === w.id ? 'bg-black text-white border-black' : 'bg-black/5 border-black/10 hover:bg-black/10 text-black'}`}>
+                  <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-black/10 flex items-center justify-center">
+                    {w.coverImage ? <img src={w.coverImage} alt="" className="w-full h-full object-cover" /> : <Globe size={16} />}
+                  </div>
+                  <p className="flex-1 text-[10px] font-black uppercase tracking-widest truncate">{w.name}</p>
+                  {worldId === w.id && <Check size={14} className="shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Characters */}
+      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+        <div>
+          <h3 className="text-base font-black uppercase tracking-widest">Characters</h3>
+          <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Define characters that appear in this project — they'll be added to the world</p>
+        </div>
+        <div className="flex gap-3">
+          <input type="text" value={newCharName} onChange={(e) => setNewCharName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (newCharName.trim()) { setDraftCharacters(p => [...p, { id: Math.random().toString(36).substr(2,9), name: newCharName.trim(), role: newCharRole.trim() }]); setNewCharName(''); setNewCharRole(''); } } }}
+            placeholder="Character name..." className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" />
+          <input type="text" value={newCharRole} onChange={(e) => setNewCharRole(e.target.value)}
+            placeholder="Role (e.g. Protagonist)" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" />
+          <button type="button" onClick={() => { if (!newCharName.trim()) return; setDraftCharacters(p => [...p, { id: Math.random().toString(36).substr(2,9), name: newCharName.trim(), role: newCharRole.trim() }]); setNewCharName(''); setNewCharRole(''); }}
+            className="px-6 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shrink-0">Add</button>
+        </div>
+        {draftCharacters.length > 0 && (
+          <div className="space-y-3">
+            {draftCharacters.map(char => (
+              <div key={char.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-tight text-white">{char.name}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">{char.role || 'Role not set'}</p>
+                </div>
+                <button type="button" onClick={() => setDraftCharacters(p => p.filter(c => c.id !== char.id))} className="text-white/20 hover:text-red-500 transition-colors p-2"><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        {draftCharacters.length === 0 && (
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 py-4 text-center border-2 border-dashed border-white/5 rounded-2xl">No characters added yet</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="space-y-10 animate-in fade-in duration-300">
+      <div>
+        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Cast & Production</h2>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Add actors, link them to characters, and credit production talent</p>
+      </div>
+
+      {/* Cast */}
+      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><User size={18} className="text-blue-400" /></div>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest">Cast</h3>
+            <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Actors and the characters they play</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" value={newCastActor} onChange={(e) => setNewCastActor(e.target.value)} placeholder="Actor name..." className="bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" />
+          <input type="text" value={newCastChar} onChange={(e) => setNewCastChar(e.target.value)} placeholder="Character name..." className="bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" list="draft-char-list" />
+          <datalist id="draft-char-list">{draftCharacters.map(c => <option key={c.id} value={c.name} />)}</datalist>
+          <div className="flex gap-3">
+            <select value={newCastRole} onChange={(e) => setNewCastRole(e.target.value)} className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold text-sm focus:outline-none appearance-none">
+              {['Lead','Supporting','Cameo','Voice'].map(r => <option key={r} className="bg-[#0a0a0a]">{r}</option>)}
+            </select>
+            <button type="button" onClick={() => {
+              if (!newCastActor.trim()) return;
+              const linked = draftCharacters.find(c => c.name.toLowerCase() === newCastChar.trim().toLowerCase());
+              setCastMembers(p => [...p, { id: Math.random().toString(36).substr(2,9), actorName: newCastActor.trim(), characterName: newCastChar.trim() || undefined, characterId: linked?.id, role: newCastRole }]);
+              setNewCastActor(''); setNewCastChar(''); setNewCastRole('Lead');
+            }} className="px-6 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shrink-0">Add</button>
+          </div>
+        </div>
+        {castMembers.length > 0 ? (
+          <div className="space-y-3">
+            {castMembers.map(m => (
+              <div key={m.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><User size={16} className="text-blue-400" /></div>
+                  <div>
+                    <p className="text-sm font-black text-white">{m.actorName}</p>
+                    {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName} · {m.role}</p>}
+                  </div>
+                </div>
+                <button type="button" onClick={() => setCastMembers(p => p.filter(c => c.id !== m.id))} className="text-white/20 hover:text-red-500 transition-colors p-2"><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 py-4 text-center border-2 border-dashed border-white/5 rounded-2xl">No cast added yet</p>
+        )}
+      </div>
+
+      {/* Production Credits */}
+      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center"><Settings size={18} className="text-purple-400" /></div>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest">Production Talent</h3>
+            <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Directors, producers, cinematographers &amp; more</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" value={newCredName} onChange={(e) => setNewCredName(e.target.value)} placeholder="Name..." className="bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" />
+          <input type="text" value={newCredRole} onChange={(e) => setNewCredRole(e.target.value)} placeholder="Role (e.g. Director)" className="bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:outline-none placeholder:text-white/10" />
+          <div className="flex gap-3">
+            <select value={newCredDept} onChange={(e) => setNewCredDept(e.target.value)} className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-4 text-white font-bold text-sm focus:outline-none appearance-none">
+              {['Directing','Production','Writing','Camera','Sound','Editing','Visual Effects','Costume','Makeup','Production Design'].map(d => <option key={d} className="bg-[#0a0a0a]">{d}</option>)}
+            </select>
+            <button type="button" onClick={() => {
+              if (!newCredName.trim() || !newCredRole.trim()) return;
+              setProductionCredits(p => [...p, { id: Math.random().toString(36).substr(2,9), name: newCredName.trim(), role: newCredRole.trim(), department: newCredDept }]);
+              setNewCredName(''); setNewCredRole('');
+            }} className="px-6 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shrink-0">Add</button>
+          </div>
+        </div>
+        {productionCredits.length > 0 ? (
+          <div className="space-y-3">
+            {productionCredits.map(c => (
+              <div key={c.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div>
+                  <p className="text-sm font-black text-white">{c.name}</p>
+                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{c.role} · {c.department}</p>
+                </div>
+                <button type="button" onClick={() => setProductionCredits(p => p.filter(x => x.id !== c.id))} className="text-white/20 hover:text-red-500 transition-colors p-2"><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 py-4 text-center border-2 border-dashed border-white/5 rounded-2xl">No production credits added yet</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStep5 = () => (
+    <div className="space-y-10 animate-in fade-in duration-300">
+      <div>
         <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Project Details</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Name your project and tell your story</p>
       </div>
@@ -776,7 +1047,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep6 = () => (
     <div className="space-y-10 animate-in fade-in duration-300">
       <div>
         <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Settings & Publishing</h2>
@@ -926,7 +1197,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     </div>
   );
 
-  const stepContent = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4];
+  const stepContent = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6];
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl flex items-center justify-center z-[200] p-4 md:p-8">
@@ -1019,7 +1290,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 <ChevronLeft size={16} /> Back
               </button>
             )}
-            {step < 4 ? (
+            {step < 6 ? (
               <button type="button" onClick={goNext} className="flex-1 flex items-center justify-center gap-2 py-5 bg-white text-black font-black uppercase tracking-[0.3em] text-sm rounded-full hover:scale-[1.02] transition-all shadow-2xl active:scale-95">
                 {step === 0 ? (type ? `Continue with ${TYPE_OPTIONS.find(t => t.id === type)?.label}` : 'Select a Type') : 'Continue'} <ChevronRight size={18} />
               </button>

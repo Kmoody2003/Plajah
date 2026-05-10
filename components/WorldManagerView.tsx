@@ -24,11 +24,11 @@ import {
   Link as LinkIcon,
   Network
 } from 'lucide-react';
-import { IPWorld, Character, LoreEntry, TimelineEvent, Album, Video, GraphNodeConnection } from '../types';
-import { 
-  fetchWorldCharacters, 
-  fetchWorldLore, 
-  updateCharacter, 
+import { IPWorld, Character, LoreEntry, TimelineEvent, Timeline, Album, Video, GraphNodeConnection } from '../types';
+import {
+  fetchWorldCharacters,
+  fetchWorldLore,
+  updateCharacter,
   updateLore,
   createCharacter,
   createLore,
@@ -36,6 +36,11 @@ import {
   fetchUserVideos,
   fetchUserWorlds,
   fetchWorldTimeline,
+  fetchWorldTimelines,
+  createTimeline,
+  updateTimeline,
+  deleteTimeline,
+  setAssetTimeline,
   fetchAllPublicAlbums,
   auth,
   updateTimelineEvent,
@@ -73,10 +78,18 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loreEntries, setLoreEntries] = useState<LoreEntry[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [activeTimelineId, setActiveTimelineId] = useState<string | 'ALL'>('ALL');
+  const [newTimelineName, setNewTimelineName] = useState('');
+  const [newTimelineColor, setNewTimelineColor] = useState('#a855f7');
+  const [showNewTimeline, setShowNewTimeline] = useState(false);
+  const [pendingBranchTl, setPendingBranchTl] = useState<Timeline | null>(null);
+  const [branchFromId, setBranchFromId] = useState('');
+  const [branchAtYear, setBranchAtYear] = useState(0);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
   const [userWorlds, setUserWorlds] = useState<IPWorld[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'IDENTITY' | 'CONTENT' | 'TIMELINE' | 'CONNECTIONS' | 'ASSETS'>('IDENTITY');
   const [activeEditor, setActiveEditor] = useState<{ type: 'CHARACTER' | 'LORE' | 'TIMELINE' | 'CONNECTION', item?: any } | null>(null);
@@ -108,14 +121,16 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const loadContent = async (id: string) => {
     setLoading(true);
     try {
-      const [chars, lore, timeline] = await Promise.all([
+      const [chars, lore, timeline, tls] = await Promise.all([
         fetchWorldCharacters(id, false),
         fetchWorldLore(id, false),
-        fetchWorldTimeline(id, false)
+        fetchWorldTimeline(id, false),
+        fetchWorldTimelines(id)
       ]);
       setCharacters(chars);
       setLoreEntries(lore);
       setTimelineEvents(timeline);
+      setTimelines(tls);
     } catch (e) {
       console.error(e);
     } finally {
@@ -139,10 +154,11 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
           await createLore({ ...data, worldId: world.id });
         }
       } else if (activeEditor?.type === 'TIMELINE') {
+        const tId = data.timelineId || (activeTimelineId !== 'ALL' ? activeTimelineId : timelines[0]?.id) || '';
         if (data.id) {
-          await updateTimelineEvent(data.id, data);
+          await updateTimelineEvent(data.id, { ...data, worldId: world.id, timelineId: tId });
         } else {
-          await createTimelineEvent({ ...data, worldId: world.id });
+          await createTimelineEvent({ ...data, worldId: world.id, timelineId: tId });
         }
       } else if (activeEditor?.type === 'CONNECTION') {
         const newConns = [...(world.graphConnections || [])];
@@ -379,46 +395,220 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
             )}
 
             {activeTab === 'TIMELINE' && (
-              <motion.div 
+              <motion.div
                 key="timeline"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-8"
+                className="space-y-6"
               >
+                {/* Timeline selector bar */}
+                <section className="glass p-5 rounded-[2rem] border border-white/10">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={() => setActiveTimelineId('ALL')}
+                      className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${activeTimelineId === 'ALL' ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                    >All</button>
+                    {timelines.map(tl => (
+                      <button
+                        key={tl.id}
+                        onClick={() => setActiveTimelineId(tl.id)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${activeTimelineId === tl.id ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tl.color || '#a855f7' }} />
+                        {tl.name}
+                        {activeTimelineId === tl.id && (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete timeline "${tl.name}"?`)) { deleteTimeline(world.id!, tl.id).then(() => setTimelines(p => p.filter(t => t.id !== tl.id))); if (activeTimelineId === tl.id) setActiveTimelineId('ALL'); } }} className="ml-1 opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"><X size={10} /></button>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setShowNewTimeline(v => !v)}
+                      className="px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-dashed border-white/20 hover:border-white/40 transition-all flex items-center gap-2 text-white/40 hover:text-white"
+                    ><Plus size={12} /> New Timeline</button>
+                  </div>
+
+                  {/* Inline new timeline form */}
+                  {showNewTimeline && (
+                    <div className="mt-5 pt-5 border-t border-white/5">
+                      {pendingBranchTl ? (
+                        /* Step 2: Branch origin */
+                        <div className="space-y-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                            Does{' '}
+                            <span className="font-black" style={{ color: pendingBranchTl.color || '#a855f7' }}>
+                              {pendingBranchTl.name}
+                            </span>{' '}
+                            branch from an existing timeline?
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <select
+                              value={branchFromId}
+                              onChange={e => setBranchFromId(e.target.value)}
+                              className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-sm font-bold focus:outline-none text-white"
+                            >
+                              <option value="">Independent — starts at origin</option>
+                              {timelines.filter(t => t.id !== pendingBranchTl.id).map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              value={branchAtYear}
+                              onChange={e => setBranchAtYear(parseInt(e.target.value) || 0)}
+                              placeholder="Year"
+                              className="w-28 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none text-white"
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-30 shrink-0">
+                              {world.timelineConfig?.unitName || 'yr'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={async () => {
+                                if (!world.id || !pendingBranchTl) return;
+                                try {
+                                  const parentName = timelines.find(t => t.id === branchFromId)?.name;
+                                  const isOrigin = !branchFromId || branchAtYear === 0;
+                                  const title = isOrigin ? 'Origin' : `Branch from ${parentName}`;
+                                  const description = branchFromId
+                                    ? `Branches from "${parentName}" at ${world.timelineConfig?.unitName || 'year'} ${branchAtYear}`
+                                    : 'Beginning of this timeline.';
+                                  const ev = await createTimelineEvent({
+                                    worldId: world.id,
+                                    timelineId: pendingBranchTl.id,
+                                    title,
+                                    description,
+                                    year: branchAtYear,
+                                  });
+                                  if (ev) setTimelineEvents(p => [...p, ev]);
+                                } catch (err) {
+                                  console.error('Failed to set origin point', err);
+                                }
+                                setPendingBranchTl(null);
+                                setShowNewTimeline(false);
+                              }}
+                              className="flex-1 px-6 py-3 bg-primary rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                            >Set Origin Point</button>
+                            <button
+                              onClick={() => { setPendingBranchTl(null); setShowNewTimeline(false); }}
+                              className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                            >Skip</button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Step 1: Name + color */
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={newTimelineColor}
+                            onChange={e => setNewTimelineColor(e.target.value)}
+                            className="w-10 h-10 rounded-xl border-none cursor-pointer bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={newTimelineName}
+                            onChange={e => setNewTimelineName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                            placeholder="Timeline name…"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-sm font-bold focus:outline-none placeholder:text-white/20"
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!newTimelineName.trim()) return;
+                              if (!world.id) {
+                                alert('Save the world first before adding timelines.');
+                                return;
+                              }
+                              try {
+                                console.log('[Timeline] Creating for world:', world.id);
+                                const existingCount = timelines.length;
+                                const tl = await createTimeline({ worldId: world.id, name: newTimelineName.trim(), color: newTimelineColor });
+                                setTimelines(p => [...p, tl]);
+                                setActiveTimelineId(tl.id);
+                                setNewTimelineName('');
+
+                                if (existingCount === 0) {
+                                  const ev = await createTimelineEvent({
+                                    worldId: world.id,
+                                    timelineId: tl.id,
+                                    title: 'Origin',
+                                    description: 'Beginning of this timeline.',
+                                    year: 0,
+                                  });
+                                  if (ev) setTimelineEvents(p => [...p, ev]);
+                                  setShowNewTimeline(false);
+                                } else {
+                                  setPendingBranchTl(tl);
+                                  setBranchFromId('');
+                                  setBranchAtYear(0);
+                                }
+                              } catch (err: any) {
+                                console.error('[Timeline] Create failed:', err);
+                                let msg = err?.message || String(err);
+                                try { msg = JSON.parse(msg).error; } catch {}
+                                alert(`Timeline error: ${msg}\n\nWorld ID: ${world.id}`);
+                              }
+                            }}
+                            className="px-6 py-3 bg-primary rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                          >Create</button>
+                          <button onClick={() => setShowNewTimeline(false)} className="p-3 text-white/30 hover:text-white transition-colors"><X size={16} /></button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* Events for active timeline */}
                 <section className="glass p-8 rounded-[2.5rem] border border-white/10">
                   <div className="flex items-center justify-between mb-8">
                     <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3">
                       <Clock className="text-primary" size={20} />
-                      Nexus Events
+                      {activeTimelineId === 'ALL' ? 'All Events' : (timelines.find(t => t.id === activeTimelineId)?.name ?? 'Events')}
                     </h3>
-                    <button 
+                    <button
                       onClick={() => setActiveEditor({ type: 'TIMELINE' })}
                       className="px-6 py-3 bg-primary rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2"
-                    >
-                      <Plus size={14} /> Add Nexus Point
-                    </button>
+                    ><Plus size={14} /> Add Event</button>
                   </div>
 
-                  <div className="relative pl-12 space-y-12 before:content-[''] before:absolute before:left-5 before:top-4 before:bottom-4 before:w-px before:bg-white/10">
-                    {timelineEvents
-                      .sort((a, b) => a.year - b.year)
-                      .map(event => (
-                        <div key={event.id} className="relative cursor-pointer" onClick={() => setActiveEditor({ type: 'TIMELINE', item: event })}>
-                          <div className="absolute -left-12 top-0 w-10 h-10 bg-[#111] border border-white/10 rounded-full flex items-center justify-center z-10">
-                            <div className="w-2 h-2 bg-primary rounded-full" />
+                  {(() => {
+                    const filtered = timelineEvents
+                      .filter(e => activeTimelineId === 'ALL' || e.timelineId === activeTimelineId)
+                      .sort((a, b) => a.year - b.year);
+                    const tlColor = (id: string) => timelines.find(t => t.id === id)?.color || '#a855f7';
+
+                    if (filtered.length === 0) return (
+                      <p className="text-center text-[10px] font-black uppercase tracking-widest text-white/20 py-16 border-2 border-dashed border-white/5 rounded-2xl">
+                        {timelines.length === 0 ? 'Create a timeline first, then add events.' : 'No events on this timeline yet.'}
+                      </p>
+                    );
+
+                    return (
+                      <div className="relative pl-12 space-y-10 before:content-[''] before:absolute before:left-5 before:top-4 before:bottom-4 before:w-px before:bg-white/10">
+                        {filtered.map(event => (
+                          <div key={event.id} className="relative cursor-pointer" onClick={() => setActiveEditor({ type: 'TIMELINE', item: event })}>
+                            <div className="absolute -left-12 top-0 w-10 h-10 bg-[#111] border border-white/10 rounded-full flex items-center justify-center z-10">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ background: tlColor(event.timelineId) }} />
+                            </div>
+                            <div className="glass p-6 rounded-2xl border border-white/5 hover:border-white/20 transition-all">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: tlColor(event.timelineId) }}>
+                                  {event.year} {world.timelineConfig?.unitName}
+                                  {activeTimelineId === 'ALL' && timelines.find(t => t.id === event.timelineId) && (
+                                    <span className="ml-3 opacity-50">· {timelines.find(t => t.id === event.timelineId)?.name}</span>
+                                  )}
+                                </span>
+                                <span className="text-[8px] font-bold opacity-20 uppercase tracking-widest">#{event.id.slice(-4)}</span>
+                              </div>
+                              <h4 className="text-sm font-black uppercase tracking-tight mb-2">{event.title}</h4>
+                              <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{event.description}</p>
+                            </div>
                           </div>
-                          <div className="glass p-6 rounded-2xl border border-white/5 hover:border-white/20 transition-all">
-                             <div className="flex items-center justify-between mb-2">
-                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">{event.year} {world.timelineConfig?.unitName}</span>
-                               <span className="text-[8px] font-bold opacity-20 uppercase tracking-widest">#{event.id.slice(-4)}</span>
-                             </div>
-                             <h4 className="text-sm font-black uppercase tracking-tight mb-2">{event.title}</h4>
-                             <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{event.description}</p>
-                          </div>
-                        </div>
-                    ))}
-                  </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </section>
               </motion.div>
             )}
@@ -489,45 +679,89 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Link Albums</label>
                         <div className="space-y-2">
-                           {userAlbums.map(album => (
-                             <button 
-                               key={album.id}
-                               onClick={() => {
-                                 const ids = [...(world.assetIds || [])];
-                                 if (ids.includes(album.id)) {
-                                   setWorld({ ...world, assetIds: ids.filter(i => i !== album.id) });
-                                 } else {
-                                   setWorld({ ...world, assetIds: [...ids, album.id] });
-                                 }
-                               }}
-                               className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${world.assetIds?.includes(album.id) ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
-                             >
-                                <span className="text-xs font-bold">{album.title}</span>
-                                {world.assetIds?.includes(album.id) ? <Check size={14} className="text-primary" /> : <Plus size={14} className="opacity-20" />}
-                             </button>
-                           ))}
+                           {userAlbums.map(album => {
+                             const linked = world.assetIds?.includes(album.id);
+                             return (
+                               <div
+                                 key={album.id}
+                                 className={`w-full rounded-xl border transition-all ${linked ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
+                               >
+                                 <button
+                                   onClick={() => {
+                                     const ids = [...(world.assetIds || [])];
+                                     if (ids.includes(album.id)) {
+                                       setWorld({ ...world, assetIds: ids.filter(i => i !== album.id) });
+                                     } else {
+                                       setWorld({ ...world, assetIds: [...ids, album.id] });
+                                     }
+                                   }}
+                                   className="w-full flex items-center justify-between p-4"
+                                 >
+                                   <span className="text-xs font-bold">{album.title}</span>
+                                   {linked ? <Check size={14} className="text-primary" /> : <Plus size={14} className="opacity-20" />}
+                                 </button>
+                                 {linked && timelines.length > 0 && (
+                                   <div className="px-4 pb-3">
+                                     <select
+                                       value={album.timelineId || ''}
+                                       onChange={e => setAssetTimeline(album.id, e.target.value || null)}
+                                       onClick={e => e.stopPropagation()}
+                                       className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 focus:outline-none focus:border-primary"
+                                     >
+                                       <option value="">No timeline</option>
+                                       {timelines.map(tl => (
+                                         <option key={tl.id} value={tl.id}>{tl.name}</option>
+                                       ))}
+                                     </select>
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })}
                         </div>
                       </div>
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Link Videos</label>
                         <div className="space-y-2">
-                           {userVideos.map(video => (
-                             <button 
-                               key={video.id}
-                               onClick={() => {
-                                 const ids = [...(world.assetIds || [])];
-                                 if (ids.includes(video.id)) {
-                                   setWorld({ ...world, assetIds: ids.filter(i => i !== video.id) });
-                                 } else {
-                                   setWorld({ ...world, assetIds: [...ids, video.id] });
-                                 }
-                               }}
-                               className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${world.assetIds?.includes(video.id) ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
-                             >
-                                <span className="text-xs font-bold">{video.title}</span>
-                                {world.assetIds?.includes(video.id) ? <Check size={14} className="text-primary" /> : <Plus size={14} className="opacity-20" />}
-                             </button>
-                           ))}
+                           {userVideos.map(video => {
+                             const linked = world.assetIds?.includes(video.id);
+                             return (
+                               <div
+                                 key={video.id}
+                                 className={`w-full rounded-xl border transition-all ${linked ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
+                               >
+                                 <button
+                                   onClick={() => {
+                                     const ids = [...(world.assetIds || [])];
+                                     if (ids.includes(video.id)) {
+                                       setWorld({ ...world, assetIds: ids.filter(i => i !== video.id) });
+                                     } else {
+                                       setWorld({ ...world, assetIds: [...ids, video.id] });
+                                     }
+                                   }}
+                                   className="w-full flex items-center justify-between p-4"
+                                 >
+                                   <span className="text-xs font-bold">{video.title}</span>
+                                   {linked ? <Check size={14} className="text-primary" /> : <Plus size={14} className="opacity-20" />}
+                                 </button>
+                                 {linked && timelines.length > 0 && (
+                                   <div className="px-4 pb-3">
+                                     <select
+                                       value={(video as any).timelineId || ''}
+                                       onChange={e => setAssetTimeline(video.id, e.target.value || null)}
+                                       onClick={e => e.stopPropagation()}
+                                       className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 focus:outline-none focus:border-primary"
+                                     >
+                                       <option value="">No timeline</option>
+                                       {timelines.map(tl => (
+                                         <option key={tl.id} value={tl.id}>{tl.name}</option>
+                                       ))}
+                                     </select>
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })}
                         </div>
                       </div>
                     </div>
@@ -715,29 +949,36 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                              id="char-stats"
                            />
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
-                            const statsRaw = (document.getElementById('char-stats') as HTMLTextAreaElement).value;
-                            const stats: Record<string, any> = {};
-                            statsRaw.split(',').forEach(pair => {
-                              const [k, v] = pair.split(':').map(s => s.trim());
-                              if (k && v) stats[k] = isNaN(Number(v)) ? v : Number(v);
-                            });
+                            const name = (document.getElementById('char-name') as HTMLInputElement).value.trim();
+                            const role = (document.getElementById('char-role') as HTMLInputElement).value.trim();
+                            const imageUrl = (document.getElementById('char-img') as HTMLInputElement).value.trim();
+                            const bio = (document.getElementById('char-bio') as HTMLTextAreaElement).value.trim();
+                            const statsRaw = (document.getElementById('char-stats') as HTMLTextAreaElement).value.trim();
 
-                            const data = {
+                            const data: Record<string, any> = {
                               id: activeEditor.item?.id,
-                              name: (document.getElementById('char-name') as HTMLInputElement).value,
-                              role: (document.getElementById('char-role') as HTMLInputElement).value,
-                              imageUrl: (document.getElementById('char-img') as HTMLInputElement).value,
-                              bio: (document.getElementById('char-bio') as HTMLTextAreaElement).value,
-                              stats: stats,
-                              isPublished: true
+                              worldId: activeEditor.item?.worldId || world.id,
                             };
+                            // Only include fields the user has actually filled in
+                            if (name) data.name = name;
+                            if (role) data.role = role;
+                            if (imageUrl) data.imageUrl = imageUrl;
+                            if (bio) data.bio = bio;
+                            if (statsRaw) {
+                              const stats: Record<string, any> = {};
+                              statsRaw.split(',').forEach(pair => {
+                                const [k, v] = pair.split(':').map(s => s.trim());
+                                if (k && v) stats[k] = isNaN(Number(v)) ? v : Number(v);
+                              });
+                              if (Object.keys(stats).length > 0) data.stats = stats;
+                            }
                             handleSaveEditor(data);
                           }}
                           className="w-full py-6 bg-primary rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl"
                         >
-                          Seal Personal Archive
+                          Save Progress
                         </button>
                      </div>
                    )}
@@ -796,9 +1037,22 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
 
                    {activeEditor.type === 'TIMELINE' && (
                      <div className="space-y-6">
+                        {/* Timeline assignment */}
                         <div className="space-y-2">
-                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Nexus Moment Title</label>
-                           <input 
+                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Timeline</label>
+                           {timelines.length === 0 ? (
+                             <p className="text-[10px] font-bold text-white/30 p-4 bg-white/5 rounded-2xl border border-white/5">No timelines yet — create one in the Timeline tab first.</p>
+                           ) : (
+                             <select id="time-timeline" defaultValue={activeEditor.item?.timelineId || (activeTimelineId !== 'ALL' ? activeTimelineId : timelines[0]?.id)} className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm text-white">
+                               {timelines.map(tl => (
+                                 <option key={tl.id} value={tl.id} className="bg-[#111]">{tl.name}</option>
+                               ))}
+                             </select>
+                           )}
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Event Title</label>
+                           <input
                              type="text"
                              placeholder="E.g. The Great Shattering"
                              defaultValue={activeEditor.item?.title}
@@ -808,36 +1062,38 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                         </div>
                         <div className="space-y-2">
                            <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Temporal Point ({world.timelineConfig?.unitName})</label>
-                           <input 
+                           <input
                              type="number"
-                             defaultValue={activeEditor.item?.year || 0}
+                             defaultValue={activeEditor.item?.year ?? 0}
                              className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm"
                              id="time-year"
                            />
                         </div>
                         <div className="space-y-2">
-                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Moment Chronicle</label>
-                           <textarea 
-                             placeholder="Describe the convergence..."
+                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Description</label>
+                           <textarea
+                             placeholder="Describe what happened..."
                              defaultValue={activeEditor.item?.description}
-                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-40 text-sm leading-relaxed"
+                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-32 text-sm leading-relaxed"
                              id="time-desc"
                            />
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
-                            const data = {
-                              id: activeEditor.item?.id,
-                              title: (document.getElementById('time-title') as HTMLInputElement).value,
-                              year: parseInt((document.getElementById('time-year') as HTMLInputElement).value),
-                              description: (document.getElementById('time-desc') as HTMLTextAreaElement).value,
-                              isPublished: true
-                            };
+                            const tlSel = document.getElementById('time-timeline') as HTMLSelectElement | null;
+                            const title = (document.getElementById('time-title') as HTMLInputElement).value.trim();
+                            const yearRaw = (document.getElementById('time-year') as HTMLInputElement).value;
+                            const desc = (document.getElementById('time-desc') as HTMLTextAreaElement).value.trim();
+                            const data: Record<string, any> = { id: activeEditor.item?.id };
+                            if (tlSel?.value) data.timelineId = tlSel.value;
+                            if (title) data.title = title;
+                            if (yearRaw !== '') data.year = parseInt(yearRaw);
+                            if (desc) data.description = desc;
                             handleSaveEditor(data);
                           }}
                           className="w-full py-6 bg-primary rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl"
                         >
-                          Lock Nexus Point
+                          Save Event
                         </button>
                      </div>
                    )}

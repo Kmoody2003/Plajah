@@ -408,6 +408,23 @@ export const updateIPWorld = async (worldId: string, updates: Partial<IPWorld>) 
   }
 };
 
+export const addAssetToWorld = async (worldId: string, assetId: string) => {
+  try {
+    await updateDoc(doc(db, 'worlds', worldId), { assetIds: arrayUnion(assetId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}`);
+  }
+};
+
+export const addCharactersToWorld = async (worldId: string, characterIds: string[]) => {
+  if (!characterIds.length) return;
+  try {
+    await updateDoc(doc(db, 'worlds', worldId), { characterIds: arrayUnion(...characterIds) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}`);
+  }
+};
+
 export const publishWorld = async (worldId: string) => {
   const path = `worlds/${worldId}`;
   try {
@@ -554,7 +571,11 @@ export const updateCharacter = async (id: string, char: Partial<Character>) => {
   const path = `worlds/${char.worldId}/characters/${id}`;
   try {
     const ref = doc(db, 'worlds', char.worldId, 'characters', id);
-    await updateDoc(ref, { ...char });
+    // Only write fields that are actually set — never overwrite existing data with empty strings
+    const updates = Object.fromEntries(
+      Object.entries(char).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -587,7 +608,10 @@ export const updateLore = async (id: string, lore: Partial<LoreEntry>) => {
   const path = `worlds/${lore.worldId}/lore/${id}`;
   try {
     const ref = doc(db, 'worlds', lore.worldId, 'lore', id);
-    await updateDoc(ref, { ...lore });
+    const updates = Object.fromEntries(
+      Object.entries(lore).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -622,9 +646,71 @@ export const updateTimelineEvent = async (id: string, event: Partial<TimelineEve
   const path = `worlds/${event.worldId}/timeline/${id}`;
   try {
     const ref = doc(db, 'worlds', event.worldId, 'timeline', id);
-    await updateDoc(ref, { ...event });
+    const updates = Object.fromEntries(
+      Object.entries(event).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    await updateDoc(ref, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+// --- TIMELINES ---
+
+export const fetchWorldTimelines = async (worldId: string) => {
+  try {
+    const snap = await getDocs(collection(db, 'worlds', worldId, 'timelines'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').Timeline));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `worlds/${worldId}/timelines`);
+    return [];
+  }
+};
+
+export const createTimeline = async (timeline: { worldId: string; name: string; description?: string; color?: string }) => {
+  const path = `worlds/${timeline.worldId}/timelines`;
+  try {
+    const docRef = doc(collection(db, 'worlds', timeline.worldId, 'timelines'));
+    const newTimeline = {
+      id: docRef.id,
+      worldId: timeline.worldId,
+      name: timeline.name,
+      description: timeline.description || '',
+      color: timeline.color || '#a855f7',
+      createdAt: Date.now(),
+    };
+    await setDoc(docRef, newTimeline);
+    await updateDoc(doc(db, 'worlds', timeline.worldId), { timelineIds: arrayUnion(docRef.id) });
+    return newTimeline;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, path);
+    throw e;
+  }
+};
+
+export const updateTimeline = async (worldId: string, timelineId: string, updates: { name?: string; description?: string; color?: string }) => {
+  try {
+    const filtered = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined && v !== ''));
+    await updateDoc(doc(db, 'worlds', worldId, 'timelines', timelineId), filtered);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `worlds/${worldId}/timelines/${timelineId}`);
+  }
+};
+
+export const deleteTimeline = async (worldId: string, timelineId: string) => {
+  try {
+    await deleteDoc(doc(db, 'worlds', worldId, 'timelines', timelineId));
+    await updateDoc(doc(db, 'worlds', worldId), { timelineIds: arrayRemove(timelineId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `worlds/${worldId}/timelines/${timelineId}`);
+  }
+};
+
+export const setAssetTimeline = async (albumId: string, timelineId: string | null) => {
+  try {
+    await updateDoc(doc(db, 'albums', albumId), { timelineId: timelineId ?? null });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
   }
 };
 

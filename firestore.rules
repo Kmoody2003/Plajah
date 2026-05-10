@@ -362,6 +362,16 @@ service cloud.firestore {
              (!('isPublished' in data) || data.isPublished is bool);
     }
 
+    function isValidTimeline(data) {
+      return hasRequiredFields(['id', 'worldId', 'name', 'createdAt']) &&
+             data.id is string &&
+             data.worldId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.createdAt is number &&
+             (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
+             (!('color' in data) || (data.color is string && data.color.size() < 50));
+    }
+
     function isValidTimelineEvent(data) {
       return hasRequiredFields(['id', 'worldId', 'timelineId', 'title', 'year']) &&
              data.id is string &&
@@ -903,7 +913,10 @@ service cloud.firestore {
     match /worlds/{worldId} {
       allow read: if true;
       allow create: if isAuthenticated() && isValidWorld(request.resource.data) && request.resource.data.creatorId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin()) && isValidWorld(request.resource.data);
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.creatorId == request.auth.uid && (
+                       isValidWorld(request.resource.data) ||
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timelineIds', 'assetIds', 'characterIds', 'loreIds'])
+                     ));
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
 
       match /characters/{characterId} {
@@ -925,6 +938,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && isValidTimelineEvent(request.resource.data) && (get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid || isAdmin());
         allow update: if isAuthenticated() && (get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid || isAdmin()) && isValidTimelineEvent(request.resource.data);
         allow delete: if isAuthenticated() && (get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid || isAdmin());
+      }
+
+      match /timelines/{timelineId} {
+        allow read: if true;
+        allow create: if isAdmin() || (isAuthenticated() && isValidTimeline(request.resource.data) && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid);
+        allow update: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid && isValidTimeline(request.resource.data));
+        allow delete: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/worlds/$(worldId)).data.creatorId == request.auth.uid);
       }
     }
 

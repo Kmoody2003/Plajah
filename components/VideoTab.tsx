@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track } from '../types';
+import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character } from '../types';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
   fetchVideosByInterests, fetchUserVideos, auth, fetchAllPublicAlbums,
   publishToCloud, fetchAllLiveFeeds, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds,
-  fetchVideosByIds, fetchUserWorlds
+  fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters
 } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
@@ -230,6 +230,15 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [movieMetadata, setMovieMetadata] = useState<MovieMetadata>({ cast: [], crew: [], trailerUrl: '', releaseYear: new Date().getFullYear(), specialFeatures: [] });
   const [tvEpisodes, setTvEpisodes] = useState<{ title: string; file?: File; description: string; episodeNumber?: number }[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [selectedMovie, setSelectedMovie] = useState<Album | null>(null);
+  const [movieCharacters, setMovieCharacters] = useState<Character[]>([]);
+
+  useEffect(() => {
+    if (!selectedMovie?.worldId) { setMovieCharacters([]); return; }
+    fetchWorldCharacters(selectedMovie.worldId, false)
+      .then(chars => setMovieCharacters(chars))
+      .catch(() => setMovieCharacters([]));
+  }, [selectedMovie?.worldId]);
 
   useEffect(() => { loadData(); }, [profile?.uid]);
 
@@ -514,9 +523,98 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {/* Movies / TV (in MOVIES_TV mode) */}
               {mode === 'MOVIES_TV' && (
                 <>
-                  {mustWatchMovies.length > 0 && <VideoRow title="Must Watch Cinema" icon={Monitor} videos={mustWatchMovies} onSelect={handlePlay} />}
-                  <VideoRow title="Movies" icon={Film} videos={movies} onSelect={handlePlay} />
-                  <VideoRow title="TV Series" icon={Tv} videos={tvSeries} onSelect={handlePlay} />
+                  {mustWatchMovies.length > 0 && <VideoRow title="Must Watch Cinema" icon={Monitor} videos={mustWatchMovies} onSelect={(item) => { setSelectedMovie(item as Album); handlePlay(item); }} />}
+                  <VideoRow title="Movies" icon={Film} videos={movies} onSelect={(item) => { setSelectedMovie(item as Album); handlePlay(item); }} />
+                  <VideoRow title="TV Series" icon={Tv} videos={tvSeries} onSelect={(item) => { setSelectedMovie(item as Album); handlePlay(item); }} />
+
+                  {/* Movie / TV detail panel */}
+                  {selectedMovie && (
+                    <div className="mt-6 p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-8 animate-in fade-in duration-300">
+                      {/* Header */}
+                      <div className="flex items-start gap-6">
+                        <div className="w-28 h-40 rounded-2xl overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/10">
+                          <img src={selectedMovie.coverImage} alt={selectedMovie.title} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} · {selectedMovie.movieMetadata?.releaseYear}</p>
+                          <h3 className="text-3xl font-display font-black tracking-tight uppercase mb-2 leading-tight">{selectedMovie.title}</h3>
+                          <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{selectedMovie.description}</p>
+                          <button type="button" onClick={() => setSelectedMovie(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Dismiss</button>
+                        </div>
+                      </div>
+
+                      {/* Characters */}
+                      {movieCharacters.length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                            <span className="w-4 h-px bg-white/20" /> Characters
+                          </h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {movieCharacters.map(char => (
+                              <div key={char.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
+                                <div className="w-10 h-10 rounded-xl bg-white/10 overflow-hidden">
+                                  {char.imageUrl ? <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20 text-lg font-black">{char.name[0]}</div>}
+                                </div>
+                                <p className="text-xs font-black uppercase tracking-tight text-white leading-tight">{char.name}</p>
+                                {char.role && <p className="text-[8px] font-bold uppercase tracking-widest text-white/30">{char.role}</p>}
+                                {char.actorName && <p className="text-[8px] font-bold text-white/40">played by {char.actorName}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cast */}
+                      {(selectedMovie.movieMetadata?.castMembers?.length ?? 0) > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                            <span className="w-4 h-px bg-white/20" /> Cast
+                          </h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {selectedMovie.movieMetadata!.castMembers!.map(m => (
+                              <div key={m.id} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-sm font-black text-blue-300">{m.actorName[0]}</div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-black text-white truncate">{m.actorName}</p>
+                                  {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName}{m.role ? ` · ${m.role}` : ''}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Production Credits */}
+                      {(selectedMovie.movieMetadata?.productionCredits?.length ?? 0) > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                            <span className="w-4 h-px bg-white/20" /> Production
+                          </h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            {selectedMovie.movieMetadata!.productionCredits!.map(c => (
+                              <div key={c.id} className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                                <p className="text-sm font-black text-white">{c.name}</p>
+                                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{c.role}</p>
+                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{c.department}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fallback for legacy cast/crew strings */}
+                      {!(selectedMovie.movieMetadata?.castMembers?.length) && (selectedMovie.movieMetadata?.cast?.length ?? 0) > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Cast</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedMovie.movieMetadata!.cast!.filter(Boolean).map((name, i) => (
+                              <span key={i} className="px-4 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 border border-white/5">{name}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 

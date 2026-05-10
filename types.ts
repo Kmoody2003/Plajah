@@ -25,11 +25,28 @@ export interface MovieSpecialFeature {
   type?: 'BEHIND_THE_SCENES' | 'DELETED_SCENE' | 'INTERVIEW' | 'TRAILER' | 'OTHER';
 }
 
+export interface CastMember {
+  id: string;
+  actorName: string;
+  characterName?: string;
+  characterId?: string;
+  role?: string;
+}
+
+export interface ProductionCredit {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+}
+
 export interface MovieMetadata {
   trailerUrl?: string;
   tagline?: string;
   cast?: string[];
   crew?: string[];
+  castMembers?: CastMember[];
+  productionCredits?: ProductionCredit[];
   releaseYear?: number;
   specialFeatures?: MovieSpecialFeature[];
 }
@@ -284,6 +301,8 @@ export interface Album {
   };
   relatedProjectIds?: string[]; // IDs of other albums/projects connected to the same IP
   worldId?: string;
+  timelineId?: string;
+  characterIds?: string[];
   isSlideshowEnabled?: boolean; // Toggle for slideshow experience in player
 }
 
@@ -379,10 +398,13 @@ export interface Character {
   bio: string;
   imageUrl: string;
   role: string;
-  stats?: Record<string, string | number>; // Added stats field
+  stats?: Record<string, string | number>;
   tags: string[];
-  appearanceAt: { projectId: string; timestamp: number }[]; // Connections to other projects
+  appearanceAt: { projectId: string; timestamp: number }[];
   isPublished?: boolean;
+  themeAlbumId?: string;
+  themeTrackId?: string;
+  actorName?: string;
 }
 
 export interface LoreEntry {
@@ -394,6 +416,15 @@ export interface LoreEntry {
   type: 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY';
   conflictsDetected: string[]; // Intelligent conflict warnings
   isPublished?: boolean;
+}
+
+export interface Timeline {
+  id: string;
+  worldId: string;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: number;
 }
 
 export interface TimelineEvent {
