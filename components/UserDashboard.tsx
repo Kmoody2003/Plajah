@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld } from '../types';
 import { 
-  fetchUserProfile, updateUserProfile, updateLiveStreamConfig, 
-  fetchAllPublicAlbums, deleteCloudAlbum, fetchUserPhotos, deletePhoto,
+  fetchUserProfile, updateUserProfile, updateLiveStreamConfig,
+  fetchUserAlbums, deleteCloudAlbum, fetchUserPhotos, deletePhoto,
   bulkDeletePhotos, addPhotosToAlbum, updateAccountType, fetchArtistMerch,
   fetchUserWorlds, createIPWorld
 } from '../services/backendService';
@@ -60,8 +60,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack }) => {
   };
 
   const loadUserAlbums = async () => {
-    const all = await fetchAllPublicAlbums();
-    setUserAlbums(all.filter(a => a.ownerId === user.uid));
+    const albums = await fetchUserAlbums(user.uid);
+    setUserAlbums(albums);
   };
 
   const loadUserPhotos = async () => {
