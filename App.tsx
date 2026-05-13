@@ -1394,7 +1394,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-4 gap-2 p-4">
                       {[
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
-                        { id: 'DASHBOARD', icon: Home, label: 'Home' },
+                        { id: 'DASHBOARD', icon: null, label: 'Home' },
                         { id: 'MUSIC', icon: Music2, label: 'Music' },
                         { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
                         { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
@@ -1412,8 +1412,9 @@ const App: React.FC = () => {
                         { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
                       ].map(section => {
-                        const Icon = section.icon;
+                        const Icon = section.icon as any;
                         const isActive = view === section.id;
+                        const isDashboard = section.id === 'DASHBOARD';
                         return (
                           <button
                             key={section.id}
@@ -1428,7 +1429,9 @@ const App: React.FC = () => {
                             }}
                             className={`flex flex-col items-center gap-2 p-3 rounded-m3-lg transition-all android-press ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'glass-low m3-state-hover'}`}
                           >
-                            <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
+                            {isDashboard
+                              ? <Logo size={22} className={isActive ? 'opacity-100' : 'opacity-50'} />
+                              : <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />}
                             <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>
                           </button>
                         );
