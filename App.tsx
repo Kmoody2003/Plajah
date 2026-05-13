@@ -1427,9 +1427,9 @@ const App: React.FC = () => {
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <Logo size={56} />
+                      <div className="flex items-center gap-6 mb-4">
                         <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Global Archive</h1>
+                        <Logo size={160} className="shrink-0 opacity-90" />
                       </div>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
