@@ -1325,7 +1325,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </header>
 
         <div className="flex flex-col gap-6 lg:w-[50%] lg:ml-[44%] lg:mr-auto flex-1 overflow-hidden">
-          <div className="w-full bg-theme-card backdrop-blur-3xl border border-white/10 p-6 lg:p-8 rounded-[2.5rem] shadow-3xl">
+          <div className="w-full bg-theme-card backdrop-blur-3xl p-6 lg:p-8 rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)]">
              <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
                    <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>
@@ -1373,7 +1373,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
           <div className="w-full flex-1 flex flex-col gap-6 overflow-hidden">
               {activeHUD === 'ABOUT' && (
-               <div className="flex-1 bg-black/80 backdrop-blur-3xl border border-white/10 p-8 lg:p-16 rounded-[3rem] animate-in zoom-in-95 duration-700 flex flex-col lg:flex-row gap-10 overflow-y-auto">
+               <div className="flex-1 bg-black/80 backdrop-blur-3xl p-8 lg:p-16 rounded-[3rem] animate-in zoom-in-95 duration-700 flex flex-col lg:flex-row gap-10 overflow-y-auto shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.3)]">
                   <div className="lg:w-1/3 shrink-0">
                     <img src={album.artistImage || album.coverImage || undefined} alt={album.artist} className="w-full aspect-square object-cover rounded-[2rem] shadow-2xl ring-1 ring-white/10" />
                   </div>
@@ -1420,7 +1420,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
              {activeHUD !== 'ABOUT' && (
                <div className="flex-1 animate-in slide-in-from-right-20 duration-1000 overflow-hidden flex flex-col">
-                  <div className="w-full h-full bg-gradient-to-br from-[#6B0099]/30 via-black/40 to-[#FF8C00]/30 backdrop-blur-3xl border border-white/10 p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_50px_rgba(107,0,153,0.1)] overflow-hidden flex flex-col">
+                  <div className="w-full h-full bg-gradient-to-br from-[#6B0099]/30 via-black/40 to-[#FF8C00]/30 backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col">
                     {activeHUD === 'LYRICS' && (
                       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
                         <div className="flex items-center justify-between mb-4">
