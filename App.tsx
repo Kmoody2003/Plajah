@@ -1257,6 +1257,7 @@ const App: React.FC = () => {
                     const Icon = tab.icon;
                     const isActive = tab.id !== '__MORE__' && view === tab.id;
                     const isMore = tab.id === '__MORE__';
+                    const isDashboard = tab.id === 'DASHBOARD';
                     return (
                       <button
                         key={tab.id}
@@ -1275,7 +1276,9 @@ const App: React.FC = () => {
                         style={{ minHeight: 48, minWidth: 48 }}
                       >
                         <div className={`w-12 h-8 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
-                          <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />
+                          {isDashboard
+                            ? <Logo size={22} className={isActive ? 'opacity-100' : 'opacity-50'} />
+                            : <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />}
                         </div>
                         <span className={`text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
@@ -1424,7 +1427,10 @@ const App: React.FC = () => {
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">Global Archive</h1>
+                      <div className="flex items-center gap-4 mb-4">
+                        <Logo size={56} />
+                        <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Global Archive</h1>
+                      </div>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">

@@ -89,7 +89,9 @@ export interface Track {
   tags?: string[];
   adMarkers?: AdMarker[]; // Time codes for ad insertion
   podcastMetadata?: PodcastMetadata;
-  artistNotes?: string[]; // Sticky notes from the artist for this specific track
+  artistNotes?: string[];
+  hnsSlot1?: { url: string; title: string; uploadedAt: number };
+  hnsSlot2?: { url: string; title: string; uploadedAt: number };
 }
 
 export interface Photo {

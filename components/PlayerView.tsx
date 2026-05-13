@@ -3,7 +3,7 @@ import { Album, Track, Comment } from '../types';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile } from '../services/backendService';
 import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,7 +13,7 @@ import {
   Twitter, Facebook, Linkedin, ExternalLink, Zap,
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
-  AlertCircle, Video, Radio, List, HeartHandshake, Heart, Pen, Maximize2
+  AlertCircle, Video, Radio, List, HeartHandshake, Heart, Pen, Maximize2, GripVertical, Upload, EyeOff, Eye
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -363,6 +363,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
+  // Tracklist drag-to-reorder
+  const dragTrackIndexRef = useRef<number | null>(null);
+  const [dragOverTrackIndex, setDragOverTrackIndex] = useState<number | null>(null);
+  const [localTracks, setLocalTracks] = useState<Track[]>(album.tracks);
+  // HnS per-track dropdown
+  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null); // "{trackId}_slot{1|2}"
+
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
     const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 1024), 150); };
@@ -370,8 +378,37 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
 
-  const currentTrack = album?.tracks?.[currentTrackIndex] || null;
+  // Keep localTracks in sync if album prop changes
+  useEffect(() => { setLocalTracks(album.tracks); }, [album.tracks]);
+
+  const currentTrack = localTracks?.[currentTrackIndex] || null;
   const isOwner = user && album.ownerId === user.uid;
+
+  const reorderTracks = async (from: number, to: number) => {
+    const reordered = [...localTracks];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setLocalTracks(reordered);
+    if (isOwner) {
+      try { await updateAlbum(album.id, { tracks: reordered }); } catch { /* non-critical */ }
+    }
+  };
+
+  const handleHnsSlotUpload = async (track: Track, slot: 1 | 2, file: File) => {
+    const key = `${track.id}_slot${slot}`;
+    setUploadingSlot(key);
+    try {
+      const url = await uploadFile(`albums/${album.id}/hns/${track.id}_slot${slot}_${Date.now()}`, file);
+      const updatedTrack: Track = {
+        ...track,
+        [`hnsSlot${slot}`]: { url, title: file.name.replace(/\.[^/.]+$/, ''), uploadedAt: Date.now() },
+      };
+      const updatedTracks = localTracks.map(t => t.id === track.id ? updatedTrack : t);
+      setLocalTracks(updatedTracks);
+      await updateAlbum(album.id, { tracks: updatedTracks });
+    } catch (e) { console.error('HnS slot upload failed', e); }
+    finally { setUploadingSlot(null); }
+  };
 
   useEffect(() => {
     const unsubscribe = subscribeToComments(album.id, currentTrack?.id || null, null, setComments);
@@ -763,25 +800,84 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 z-10 relative">
           {activeHUD === 'TRACKS' && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-              {album.tracks.map((t, i) => (
-                <div key={t.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${currentTrackIndex === i ? 'bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/30 to-[#FF8C00]/30 backdrop-blur-2xl border-[#FF8C00]/50 shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-br from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl border-white/5 hover:border-white/20 hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'}`}>
-                  <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-4 text-left flex-1 min-w-0">
-                    <span className="text-[10px] font-black text-small-orange w-4">{i + 1}</span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-widest truncate">{t.title}</p>
-                      <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>
+            <div className="space-y-2 animate-in slide-in-from-bottom-4 duration-500">
+              {localTracks.map((t, i) => {
+                const isActive = currentTrackIndex === i;
+                const isExpanded = expandedTrackId === t.id;
+                const hnsOn = !!album.hideNSeekConfig?.isEnabled;
+                return (
+                  <div
+                    key={t.id}
+                    draggable={!!isOwner}
+                    onDragStart={() => { dragTrackIndexRef.current = i; }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverTrackIndex(i); }}
+                    onDragLeave={() => setDragOverTrackIndex(null)}
+                    onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
+                    onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
+                    className={`rounded-2xl border transition-all ${dragOverTrackIndex === i ? 'scale-[1.02] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                  >
+                    <div className={`flex items-center gap-3 p-4 ${isActive ? 'bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/30 to-[#FF8C00]/30 backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)] rounded-t-2xl' : 'bg-gradient-to-br from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl rounded-2xl'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                      {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
+                      <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-3 text-left flex-1 min-w-0">
+                        <span className="text-[10px] font-black text-small-orange w-4 shrink-0">{i + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-widest truncate">{t.title}</p>
+                          <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isActive && globalIsPlaying && isCurrentTrackGlobal
+                          ? <Activity size={14} className="text-small-orange" />
+                          : <Play size={14} className="text-white/20" fill="currentColor" />}
+                        {isOwner && (
+                          <button
+                            onClick={() => setExpandedTrackId(isExpanded ? null : t.id)}
+                            className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}
+                          >
+                            <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    {currentTrackIndex === i && globalIsPlaying && isCurrentTrackGlobal ? (
-                      <Activity size={14} className="text-small-orange" />
-                    ) : (
-                      <Play size={14} className="text-white/20" fill="currentColor" />
+
+                    {/* HnS Slot Drawer */}
+                    {isOwner && isExpanded && (
+                      <div className="bg-black/40 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          {hnsOn ? <Eye size={12} className="text-small-orange" /> : <EyeOff size={12} className="text-white/30" />}
+                          <span className="text-[9px] font-black uppercase tracking-widest text-white/30">
+                            Hide & Seek Alternates — {hnsOn ? 'Active' : 'Hidden from public'}
+                          </span>
+                        </div>
+                        {([1, 2] as const).map(slot => {
+                          const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
+                          const existing = t[slotKey];
+                          const uploading = uploadingSlot === `${t.id}_slot${slot}`;
+                          return (
+                            <label key={slot} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/20'}`}>
+                                {uploading ? <Loader2 size={12} className="animate-spin" /> : `S${slot}`}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
+                                <p className="text-[10px] font-bold truncate">{existing ? existing.title : 'Upload alternate track…'}</p>
+                              </div>
+                              {!uploading && <Upload size={12} className="text-white/20 shrink-0" />}
+                              <input
+                                type="file"
+                                accept="audio/*,video/*"
+                                className="hidden"
+                                disabled={uploading}
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHnsSlotUpload(t, slot, f); }}
+                              />
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -991,27 +1087,37 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <div className={`transition-all duration-700 overflow-hidden bg-gradient-to-br from-[#6B0099]/20 via-[#D40055]/10 to-[#FF8C00]/20 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-10 flex flex-col shadow-[0_0_50px_rgba(107,0,153,0.15)] ${activeHUD === 'TRACKS' ? 'flex-1' : 'h-48 shrink-0'}`}>
                 <div className="flex items-center justify-between mb-6">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/50">Operational Tracks</h4>
-                  <span className="text-[10px] font-bold text-small-orange/40 uppercase tracking-widest">{currentTrackIndex + 1} / {album.tracks.length}</span>
+                  <span className="text-[10px] font-bold text-small-orange/40 uppercase tracking-widest">{currentTrackIndex + 1} / {localTracks.length}</span>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-3">
-                  {album.tracks.map((t, i) => (
-                    <button 
-                      key={t.id} 
-                      onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
-                      className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all group scale-active ${currentTrackIndex === i ? 'bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/40 to-[#FF8C00]/40 text-white border-white/30 shadow-[0_0_30px_rgba(107,0,153,0.3)] backdrop-blur-3xl' : 'bg-gradient-to-br from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-2xl border-white/5 hover:border-white/20'}`}
+                  {localTracks.map((t, i) => (
+                    <div
+                      key={t.id}
+                      draggable={isOwner}
+                      onDragStart={() => { dragTrackIndexRef.current = i; }}
+                      onDragOver={e => { e.preventDefault(); setDragOverTrackIndex(i); }}
+                      onDrop={() => { if (dragTrackIndexRef.current !== null && dragTrackIndexRef.current !== i) reorderTracks(dragTrackIndexRef.current, i); setDragOverTrackIndex(null); dragTrackIndexRef.current = null; }}
+                      onDragEnd={() => { setDragOverTrackIndex(null); dragTrackIndexRef.current = null; }}
+                      className={`flex items-center gap-2 rounded-2xl border transition-all ${dragOverTrackIndex === i ? 'border-small-orange/60 bg-small-orange/10' : 'border-transparent'}`}
                     >
-                      <div className="flex items-center gap-6 min-w-0">
-                        <span className={`text-[10px] font-black w-4 ${currentTrackIndex === i ? 'text-white' : 'text-white/20'}`}>{i + 1}</span>
-                        <p className={`text-sm font-black uppercase tracking-widest truncate ${currentTrackIndex === i ? 'text-white' : 'text-white/80'}`}>{t.title}</p>
-                      </div>
-                      {currentTrackIndex === i && globalIsPlaying ? (
-                        <div className="flex gap-1 items-end h-3">
-                          {[0, 1, 2].map(b => <motion.div key={b} animate={{ height: [4, 12, 6, 12, 4] }} transition={{ duration: 1, repeat: Infinity, delay: b * 0.2 }} className={`w-1 rounded-full ${currentTrackIndex === i ? 'bg-small-orange' : 'bg-small-orange'}`} />)}
+                      {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab ml-2" />}
+                      <button
+                        onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+                        className={`flex-1 flex items-center justify-between p-5 rounded-2xl border transition-all group scale-active ${currentTrackIndex === i ? 'bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/40 to-[#FF8C00]/40 text-white border-white/30 shadow-[0_0_30px_rgba(107,0,153,0.3)] backdrop-blur-3xl' : 'bg-gradient-to-br from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-2xl border-white/5 hover:border-white/20'}`}
+                      >
+                        <div className="flex items-center gap-6 min-w-0">
+                          <span className={`text-[10px] font-black w-4 ${currentTrackIndex === i ? 'text-white' : 'text-white/20'}`}>{i + 1}</span>
+                          <p className={`text-sm font-black uppercase tracking-widest truncate ${currentTrackIndex === i ? 'text-white' : 'text-white/80'}`}>{t.title}</p>
                         </div>
-                      ) : (
-                        <Play size={14} className={currentTrackIndex === i ? 'text-white' : 'text-white/20'} fill="currentColor" />
-                      )}
-                    </button>
+                        {currentTrackIndex === i && globalIsPlaying ? (
+                          <div className="flex gap-1 items-end h-3">
+                            {[0, 1, 2].map(b => <motion.div key={b} animate={{ height: [4, 12, 6, 12, 4] }} transition={{ duration: 1, repeat: Infinity, delay: b * 0.2 }} className="w-1 rounded-full bg-small-orange" />)}
+                          </div>
+                        ) : (
+                          <Play size={14} className={currentTrackIndex === i ? 'text-white' : 'text-white/20'} fill="currentColor" />
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1482,83 +1588,105 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       </div>
                     )}
                     {activeHUD === 'TRACKS' && (
-                      <div className="flex-1 flex flex-col gap-6 overflow-hidden">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             {album.type === 'BOOK' ? <BookOpen size={16} className="text-small-orange" /> : <List size={16} className="text-small-orange" />}
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List')}</span>
                           </div>
-                          <button 
-                            onClick={() => setIsTracksCollapsed(!isTracksCollapsed)}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white"
-                          >
-                            {isTracksCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {isOwner && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
+                            <button onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white">
+                              {isTracksCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </button>
+                          </div>
                         </div>
-                        
+
                         {!isTracksCollapsed && (
-                          <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-4 custom-scrollbar animate-in slide-in-from-top-2 duration-300">
-                            {album.tracks.map((t, i) => (
-                              <div key={t.id} className="flex flex-col gap-2">
-                                <div className={`flex items-center justify-between px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-2xl border transition-all group outline-none relative overflow-hidden ${currentTrackIndex === i ? 'border-[#FF8C00]/50 bg-gradient-to-r from-[#6B0099]/30 via-[#D40055]/30 to-[#FF8C00]/30 shadow-[0_0_50px_rgba(107,0,153,0.4)] backdrop-blur-2xl scale-[1.02]' : 'border-white/5 bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20 hover:shadow-[0_0_25px_rgba(107,0,153,0.15)] hover:border-white/20'}`}>
-                                  {currentTrackIndex === i && (
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#6B0099]/40 via-[#D40055]/20 to-transparent pointer-events-none" />
-                                  )}
-                                  <button 
-                                    onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} 
-                                    className="flex items-center gap-6 text-left flex-1 outline-none relative z-10"
-                                  >
-                                    <span className={`text-[10px] font-black w-4 transition-colors ${currentTrackIndex === i ? 'text-small-orange' : 'text-white/20 group-hover:text-white/40'}`}>{i + 1}</span>
-                                    <span className={`text-sm font-bold uppercase tracking-widest truncate transition-all ${currentTrackIndex === i ? 'text-white drop-shadow-[0_0_15px_rgba(255,140,0,0.8)]' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled Track'}</span>
-                                  </button>
-                                  <div className="flex items-center gap-3">
-                                    {t.isExclusive && (
-                                      <div className="px-2 py-1 bg-small-orange/20 border border-small-orange/30 rounded-md flex items-center gap-1">
-                                        <Sparkles size={10} className="text-small-orange" />
-                                        <span className="text-[8px] font-black text-small-orange uppercase">Exclusive</span>
-                                      </div>
-                                    )}
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); alert(`Redirecting to payment for: ${t.title}. Price: $${t.price || '0.99'}`); }}
-                                      className="px-3 py-1.5 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg text-[8px] font-black uppercase tracking-widest transition-all outline-none"
-                                    >
-                                      Buy ${t.price || '0.99'}
+                          <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto pr-2 custom-scrollbar animate-in slide-in-from-top-2 duration-300">
+                            {localTracks.map((t, i) => {
+                              const isActive = currentTrackIndex === i;
+                              const isExpanded = expandedTrackId === t.id;
+                              const hnsOn = !!album.hideNSeekConfig?.isEnabled;
+                              return (
+                                <div
+                                  key={t.id}
+                                  draggable={!!isOwner}
+                                  onDragStart={() => { dragTrackIndexRef.current = i; }}
+                                  onDragOver={(e) => { e.preventDefault(); setDragOverTrackIndex(i); }}
+                                  onDragLeave={() => setDragOverTrackIndex(null)}
+                                  onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
+                                  onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
+                                  className={`rounded-2xl border transition-all ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : 'border-white/5'}`}
+                                >
+                                  <div className={`flex items-center gap-3 px-3 py-2 relative overflow-hidden rounded-2xl group ${isActive ? 'bg-gradient-to-r from-[#6B0099]/30 via-[#D40055]/30 to-[#FF8C00]/30 backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                                    {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
+                                    <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-4 text-left flex-1 min-w-0 relative z-10">
+                                      <span className={`text-[10px] font-black w-4 shrink-0 ${isActive ? 'text-small-orange' : 'text-white/20'}`}>{i + 1}</span>
+                                      <span className={`text-sm font-bold uppercase tracking-widest truncate ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
                                     </button>
-                                    {currentTrackIndex === i && globalIsPlaying && isCurrentTrackGlobal ? (
-                                      <div className="flex gap-0.5 items-end h-3">
-                                        {[0, 1, 2].map(bar => (
-                                          <motion.div 
-                                            key={bar}
-                                            animate={{ height: [4, 12, 6, 10, 4] }}
-                                            transition={{ duration: 1, repeat: Infinity, delay: bar * 0.2 }}
-                                            className="w-0.5 bg-small-orange rounded-full"
-                                          />
-                                        ))}
+                                    <div className="flex items-center gap-2 shrink-0 relative z-10">
+                                      {t.isExclusive && <span className="text-[8px] font-black text-small-orange uppercase">Excl.</span>}
+                                      {isActive && globalIsPlaying && isCurrentTrackGlobal
+                                        ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
+                                        : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
+                                      {isOwner && (
+                                        <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
+                                          <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* HnS Slot Drawer */}
+                                  {isOwner && isExpanded && (
+                                    <div className="bg-black/50 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-2">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        {hnsOn ? <Eye size={11} className="text-small-orange" /> : <EyeOff size={11} className="text-white/30" />}
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-white/30">
+                                          Hide &amp; Seek Alternates — {hnsOn ? 'Feature active' : 'Hidden from public when feature is off'}
+                                        </span>
                                       </div>
-                                    ) : (
-                                      <Play size={14} className="text-white/10 group-hover:text-white/40 transition-colors" fill="currentColor" />
-                                    )}
-                                  </div>
+                                      {([1, 2] as const).map(slot => {
+                                        const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
+                                        const existing = t[slotKey];
+                                        const uploading = uploadingSlot === `${t.id}_slot${slot}`;
+                                        return (
+                                          <label key={slot} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5 hover:bg-small-orange/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/30'}`}>
+                                              {uploading ? <Loader2 size={11} className="animate-spin" /> : `S${slot}`}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Alternate Slot {slot}</p>
+                                              <p className="text-[10px] font-bold truncate">{existing ? existing.title : 'Drop or click to upload…'}</p>
+                                            </div>
+                                            {!uploading && <Upload size={11} className="text-white/20 shrink-0" />}
+                                            <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHnsSlotUpload(t, slot, f); }} />
+                                          </label>
+                                        );
+                                      })}
+                                      {isActive && (
+                                        <div className="pt-2 border-t border-white/5">
+                                          <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!isExpanded && isActive && (
+                                    <div className="px-4 pb-2">
+                                      <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
+                                    </div>
+                                  )}
                                 </div>
-                                {currentTrackIndex === i && (
-                                  <div className="px-4 pb-2">
-                                    <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
-                        
+
                         {isTracksCollapsed && (
                           <div className="flex items-center justify-center py-20 border border-dashed border-white/5 rounded-[2rem] bg-white/[0.02]">
-                            <button 
-                              onClick={() => setIsTracksCollapsed(false)}
-                              className="flex flex-col items-center gap-4 text-white/20 hover:text-white transition-all group"
-                            >
-                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <Plus size={20} />
-                              </div>
+                            <button onClick={() => setIsTracksCollapsed(false)} className="flex flex-col items-center gap-4 text-white/20 hover:text-white transition-all group">
+                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={20} /></div>
                               <span className="text-[10px] font-black uppercase tracking-widest">Expand Registry</span>
                             </button>
                           </div>
