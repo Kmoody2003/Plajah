@@ -703,6 +703,7 @@ export interface UserProfile {
     enabled: boolean;
     items: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[];
   };
+  fcmToken?: string;
   brandColor?: string;
   uiSettings?: {
     chatIconPosition?: { x: number; y: number };

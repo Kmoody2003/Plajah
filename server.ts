@@ -493,6 +493,38 @@ async function startServer() {
 
   // --- Embed & Meta tag Middleware ---
 
+  // Push notification send endpoint — called by the client after creating a Firestore notification
+  app.post('/api/push', express.json(), async (req, res) => {
+    const { token, tokens, title, body, link, icon } = req.body || {};
+    const serverKey = process.env.FCM_SERVER_KEY;
+    if (!serverKey) return res.status(503).json({ error: 'FCM not configured — set FCM_SERVER_KEY in environment' });
+
+    const targets: string[] = tokens || (token ? [token] : []);
+    if (!targets.length) return res.status(400).json({ error: 'No FCM token provided' });
+
+    const payload = {
+      registration_ids: targets,
+      notification: {
+        title: title || 'Plajah',
+        body: body || '',
+        icon: icon || 'https://plajah.com/icons/icon-192.png',
+        click_action: link || 'https://plajah.com',
+      },
+      data: { link: link || '/' },
+    };
+
+    try {
+      const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
+        method: 'POST',
+        headers: { 'Authorization': `key=${serverKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      res.json(await fcmRes.json());
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // oEmbed endpoint — lets Slack, Notion, Mastodon, and other rich-preview platforms embed Plajah links
   app.get('/oembed', async (req, res) => {
     const { url: pageUrl, format = 'json' } = req.query as any;

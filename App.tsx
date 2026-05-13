@@ -83,7 +83,8 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken } from './services/backendService';
+import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -178,6 +179,7 @@ const App: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [pushToast, setPushToast] = useState<{ title: string; body: string; link?: string } | null>(null);
   const [theme, setTheme] = useState<ThemeType>('PLAJAH');
   
   // Theme Asset Cycle
@@ -483,6 +485,11 @@ const App: React.FC = () => {
         // Initialize demo worlds
         seedDemoWorlds();
 
+        // Request push notification permission and save token
+        requestPushPermission().then(token => {
+          if (token) saveFcmToken(u.uid, token);
+        }).catch(() => {});
+
         if (p && !p.hasCompletedOnboarding) {
           setShowOnboarding(true);
         }
@@ -501,6 +508,18 @@ const App: React.FC = () => {
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  // Foreground push message → in-app toast
+  useEffect(() => {
+    const unsub = onForegroundMessage((payload) => {
+      const title = payload.notification?.title || 'Plajah';
+      const body = payload.notification?.body || '';
+      const link = (payload.data as any)?.link;
+      setPushToast({ title, body, link });
+      setTimeout(() => setPushToast(null), 5000);
+    });
+    return unsub;
   }, []);
 
   useEffect(() => {
@@ -883,6 +902,27 @@ const App: React.FC = () => {
           />
         ) : (
           <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+            {/* Push notification foreground toast */}
+            <AnimatePresence>
+              {pushToast && (
+                <motion.div
+                  initial={{ opacity: 0, y: -80 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -80 }}
+                  onClick={() => { if (pushToast.link) window.location.href = pushToast.link; setPushToast(null); }}
+                  className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl cursor-pointer max-w-sm w-[calc(100vw-2rem)]"
+                >
+                  <Logo size={28} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-white truncate">{pushToast.title}</p>
+                    <p className="text-[10px] text-white/50 truncate">{pushToast.body}</p>
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); setPushToast(null); }} className="text-white/30 hover:text-white">
+                    <XIcon size={14} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {/* Universal Background Layer */}
             <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-theme" id="universal-background">
               <AnimatePresence mode="wait">

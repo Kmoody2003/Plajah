@@ -3151,6 +3151,30 @@ export const isFollowing = async (targetUserId: string): Promise<boolean> => {
   return d.exists();
 };
 
+// --- PUSH NOTIFICATIONS ---
+export const saveFcmToken = async (uid: string, token: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { fcmToken: token });
+  } catch {
+    // Non-critical
+  }
+};
+
+const sendPushToUser = async (uid: string, title: string, body: string, link?: string): Promise<void> => {
+  try {
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    const fcmToken = userSnap.data()?.fcmToken as string | undefined;
+    if (!fcmToken) return;
+    await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: fcmToken, title, body, link }),
+    });
+  } catch {
+    // Non-critical — push failures must never break the main flow
+  }
+};
+
 // --- NOTIFICATIONS ---
 export const fetchNotifications = (uid: string, callback: (notifications: AppNotification[]) => void) => {
   const path = 'notifications';
@@ -3179,6 +3203,8 @@ export const createNotification = async (notif: Omit<AppNotification, 'id' | 'ti
       timestamp: serverTimestamp()
     });
     const docRef = await addDoc(collection(db, path), data);
+    // Fire push in background — never await, never block the main flow
+    sendPushToUser(notif.userId, notif.title, notif.message, notif.link).catch(() => {});
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
