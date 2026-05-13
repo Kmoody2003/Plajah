@@ -595,16 +595,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   if (isMobile && !isTVMode) {
     return (
-      <div className="h-[100dvh] bg-black text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans flex flex-col">
-        {/* Mobile App Atmospheric Background */}
+      <div className="h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans flex flex-col">
+        {/* Mobile Atmospheric Background — blurred artwork at 60%, fades into app bg at bottom */}
         <div className="fixed inset-0 z-0 pointer-events-none">
-          <img 
-            src={activeVideo?.coverImageUrl || album.coverImage || undefined} 
-            alt="" 
-            className="w-full h-full object-cover scale-125 blur-[40px] opacity-40 transition-all duration-1000"
+          <img
+            src={activeVideo?.coverImageUrl || album.coverImage || undefined}
+            alt=""
+            className="w-full h-full object-cover scale-110 blur-[40px] opacity-60 transition-all duration-1000"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-black/60" />
+          {/* Fade into background towards the bottom */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
         </div>
 
         {/* Mobile Header */}
@@ -1096,19 +1098,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     <div className="h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans">
       {/* Large Dominant Blurred Background Image */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <img 
-          src={activeVideo?.coverImageUrl || album.coverImage || undefined} 
-          alt="" 
-          className="w-full h-full object-cover scale-125 blur-[60px] opacity-30 transition-all duration-1000"
+        <img
+          src={activeVideo?.coverImageUrl || album.coverImage || undefined}
+          alt=""
+          className="w-full h-full object-cover scale-110 blur-[50px] opacity-60 transition-all duration-1000"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 bg-black/40" />
+        {/* Fade artwork into background towards the bottom */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/20 to-black/80" />
+        <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
 
       <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-      
-      {/* Frosted Glass Overlay */}
-      <div className="fixed inset-0 bg-black/10 backdrop-blur-[2px] pointer-events-none z-[1]" />
+
+      {/* Subtle depth overlay — no blur so background stays visible */}
+      <div className="fixed inset-0 bg-black/5 pointer-events-none z-[1]" />
 
       <div className="fixed inset-0 lg:right-[50%] z-10 flex flex-col p-6 lg:p-12">
          {activeVideoId ? (
