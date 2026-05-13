@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Book, Album } from '../types';
+import PageHeader from './PageHeader';
 import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchAllPublicAlbums, syncPublicDomainAsset } from '../services/backendService';
@@ -179,9 +180,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
              <div className="w-12 h-12 bg-small-orange rounded-3xl flex items-center justify-center shadow-lg shadow-small-orange/20">
                 <LibraryIcon className="text-white" size={24} />
              </div>
-             <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
+             <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
                {activeTab === 'CLASSICS' ? 'The Great Archive' : 'Book Marketplace'}
-             </h1>
+             </PageHeader>
           </div>
           <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] ml-16">
             {activeTab === 'CLASSICS' ? 'Classic Literature & Public Domain Works' : 'Community Uploaded Books & Originals'}

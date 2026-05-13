@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
+import PageHeader from './components/PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Standard lazy loading with retry logic for network stability
@@ -1427,10 +1428,7 @@ const App: React.FC = () => {
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <div className="flex items-center gap-6 mb-4">
-                        <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Global Archive</h1>
-                        <Logo size={160} className="shrink-0 opacity-90" />
-                      </div>
+                      <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Global Archive</PageHeader>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">

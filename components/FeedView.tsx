@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
+import PageHeader from './PageHeader';
 import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, subscribeToComments, postComment, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost } from '../services/backendService';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
@@ -1784,12 +1785,12 @@ const toggleFavoriteTeam = async (team: string) => {
                 </button>
                 <span className="text-[10px] md:text-[12px] font-black uppercase tracking-[1em] text-white/20 block px-4">Connections: The Signal</span>
               </div>
-              <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
-                {activeTab === 'SOCIAL' ? 'Interstellar' : 
-                 activeTab === 'GLOBAL' ? 'Plajah Social' : 
-                 activeTab === 'LIVETALK' ? 'Talks' : 
+              <PageHeader>
+                {activeTab === 'SOCIAL' ? 'Interstellar' :
+                 activeTab === 'GLOBAL' ? 'Plajah Social' :
+                 activeTab === 'LIVETALK' ? 'Talks' :
                  activeTab === 'NEWS' ? 'Broadcast' : 'Signal'}
-              </h1>
+              </PageHeader>
             </div>
             <div className="flex flex-col items-end gap-3 px-4">
                <span className="text-[12px] font-black uppercase tracking-[0.5em] text-small-orange">Uplink: Active</span>

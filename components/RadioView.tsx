@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles } from 'lucide-react';
+import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile } from '../services/backendService';
@@ -200,9 +201,9 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
               <Radio className={activeStationId ? 'text-[#00DAF3]' : 'text-small-orange'} size={24} />
             </div>
             <div>
-              <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
+              <PageHeader>
                 {artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName} Radio` : 'Plajah FM')}
-              </h1>
+              </PageHeader>
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-4">
                 {activeStationId ? `Personalized artist broadcast` : 'Live Site-Wide Broadcast'}
               </p>

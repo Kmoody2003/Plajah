@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import PageHeader from './PageHeader';
 import { 
   Play, Info, ChevronRight, ChevronLeft, Star, Clock, 
   Plus, Share2, Volume2, VolumeX, Users, Rocket, 
@@ -603,7 +604,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie }) =>
         <button className="text-[#D0BCFF] hover:text-[#00DAF3] transition-colors p-2" onClick={onBack}>
           <Menu size={24} />
         </button>
-        <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">STORYTIME</h1>
+        <PageHeader>STORYTIME</PageHeader>
       </div>
       <div className="flex items-center gap-6">
         <nav className="hidden md:flex gap-8 items-center text-[#CBC3D7] font-black uppercase tracking-[0.3em] text-[10px]">

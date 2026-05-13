@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import PageHeader from './PageHeader';
 import { searchUsers, searchLiveChannels, followUser, unfollowUser, isFollowing, fetchUserContent, fetchUserVideos } from '../services/backendService';
 import { Search, UserPlus, UserMinus, ArrowLeft, User, Tv, MapPin, Briefcase, Music, LayoutGrid } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -136,7 +137,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Find</h1>
+          <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Find</PageHeader>
           <p className="text-small-orange text-sm uppercase tracking-[0.2em]">Discover Accounts & Creators</p>
         </div>
       </header>

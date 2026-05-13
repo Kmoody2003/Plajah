@@ -3,16 +3,17 @@ import React from 'react';
 interface LogoProps {
   className?: string;
   size?: number;
+  fluid?: boolean;
 }
 
-const Logo: React.FC<LogoProps> = ({ className = "", size = 40 }) => {
+const Logo: React.FC<LogoProps> = ({ className = "", size = 40, fluid = false }) => {
   return (
-    <div className={`relative flex flex-col items-center justify-center ${className}`}>
-      <svg 
-        width={size} 
-        height={size} 
-        viewBox="0 0 100 100" 
-        fill="none" 
+    <div className={fluid ? `relative flex flex-col items-center justify-center w-full h-full ${className}` : `relative flex flex-col items-center justify-center ${className}`}>
+      <svg
+        width={fluid ? "100%" : size}
+        height={fluid ? "100%" : size}
+        viewBox="0 0 100 100"
+        fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="drop-shadow-2xl"
       >

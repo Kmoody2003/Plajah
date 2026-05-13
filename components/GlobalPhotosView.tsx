@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Photo, UserProfile } from '../types';
+import PageHeader from './PageHeader';
 import { 
   Heart, 
   UserPlus, 
@@ -86,9 +87,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               <Camera size={24} className="text-small-orange" />
               <span className="text-xs font-black uppercase tracking-[0.5em] text-white/40">Visual Signal Archive</span>
             </div>
-            <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">
+            <PageHeader wrapperClassName="mb-4">
               {mode === 'THEMES' ? 'Theme Gallery' : mode === 'GALLERY' ? 'The Art Gallery' : 'Global Waterfall'}
-            </h1>
+            </PageHeader>
             <p className="text-lg font-medium text-white/40 italic max-w-2xl">
               {mode === 'THEMES'
                  ? 'A curated collection of visual aesthetics to transform your space.'

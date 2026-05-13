@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LiveFeed, UserProfile } from '../types';
+import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels } from '../services/backendService';
 import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -136,7 +137,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Live Hub</h1>
+            <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Live Hub</PageHeader>
             <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
               {(['STREAMS', 'LIVE_TV', 'EVENTS'] as const).map(tab => (
                 <button 

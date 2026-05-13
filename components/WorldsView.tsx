@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import PageHeader from './PageHeader';
 import { 
   Plus, 
   Map, 
@@ -143,9 +144,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
               <Globe className="text-small-orange" size={24} />
               <span className="text-xs font-black uppercase tracking-[0.5em] text-white/40">Architectural Archive</span>
             </div>
-            <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
-              Worlds
-            </h1>
+            <PageHeader>Worlds</PageHeader>
             <p className="text-white/40 text-xs font-black uppercase tracking-widest mt-6 max-w-2xl">{isDiscoverMode ? 'Discover universes from all architects.' : 'Explore projects from this architect.'}</p>
           </div>
           <div className="flex items-center gap-4">
@@ -306,9 +305,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
                 </span>
               )}
             </div>
-            <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
-              {selectedWorld?.name}
-            </h1>
+            <PageHeader>{selectedWorld?.name}</PageHeader>
             <p className="text-white/60 text-lg lg:text-xl font-medium max-w-2xl leading-relaxed">
               {selectedWorld?.description}
             </p>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import PageHeader from './PageHeader';
 import { 
   BookOpen, 
   Video, 
@@ -162,7 +163,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Classrooms</h1>
+              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Classrooms</PageHeader>
               <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-40 uppercase tracking-widest">Virtual Learning Sanctuary</p>
             </div>
           </div>
