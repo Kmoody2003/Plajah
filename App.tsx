@@ -195,6 +195,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [albumTransitionImg, setAlbumTransitionImg] = useState<string | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
@@ -374,11 +375,15 @@ const App: React.FC = () => {
       setSelectedAlbum(item);
       setSelectedVideo(null);
       setSelectedGame(null);
+      setAlbumTransitionImg(item.coverImage || null);
+      setIsSidebarCollapsed(true);
       setView('PLAYER');
     } else {
       setSelectedVideo(item);
       setSelectedAlbum(null);
       setSelectedGame(null);
+      setAlbumTransitionImg((item as any).coverImage || null);
+      setIsSidebarCollapsed(true);
       setView('PLAYER');
     }
   };
@@ -521,6 +526,14 @@ const App: React.FC = () => {
     });
     return unsub;
   }, []);
+
+  // Clear album transition overlay after animation completes
+  useEffect(() => {
+    if (albumTransitionImg) {
+      const t = setTimeout(() => setAlbumTransitionImg(null), 900);
+      return () => clearTimeout(t);
+    }
+  }, [albumTransitionImg]);
 
   useEffect(() => {
     const init = async () => {
@@ -920,6 +933,40 @@ const App: React.FC = () => {
                   <button onClick={e => { e.stopPropagation(); setPushToast(null); }} className="text-white/30 hover:text-white">
                     <XIcon size={14} />
                   </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Album cover zoom transition overlay */}
+            <AnimatePresence>
+              {albumTransitionImg && (
+                <motion.div
+                  key="album-transition"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+                  className="fixed inset-0 z-[500] pointer-events-none flex items-center justify-center"
+                >
+                  {/* Blurred full-screen backdrop */}
+                  <motion.img
+                    src={albumTransitionImg}
+                    initial={{ scale: 1.15, opacity: 0 }}
+                    animate={{ scale: 1.25, opacity: 0.55 }}
+                    exit={{ scale: 1.35, opacity: 0 }}
+                    transition={{ duration: 0.85, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="absolute inset-0 w-full h-full object-cover blur-[60px]"
+                    alt=""
+                  />
+                  {/* Cover art hero that grows toward screen */}
+                  <motion.img
+                    src={albumTransitionImg}
+                    initial={{ scale: 0.32, opacity: 1, borderRadius: '1rem' }}
+                    animate={{ scale: 1.08, opacity: 0, borderRadius: '0rem' }}
+                    exit={{ scale: 1.15, opacity: 0 }}
+                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    className="relative z-10 w-64 h-64 md:w-96 md:h-96 object-cover shadow-[0_0_120px_rgba(0,0,0,0.8)]"
+                    alt=""
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1402,6 +1449,15 @@ const App: React.FC = () => {
           )}
 
           <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={view}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              className="flex-1 flex flex-col w-full min-h-0"
+            >
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (
@@ -1786,6 +1842,8 @@ const App: React.FC = () => {
                 currentUser={user} 
               />
             )}
+            </motion.div>
+          </AnimatePresence>
           </SpatialUIRoot>
           {showCreator && (
             <AlbumCreator 
