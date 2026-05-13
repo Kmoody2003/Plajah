@@ -740,7 +740,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         {/* Tabbed Navigation */}
         <div className="flex items-center bg-black/40 backdrop-blur-md border-b border-white/5 sticky top-0 z-40 overflow-x-auto no-scrollbar">
           {[
-            { id: 'TRACKS', label: 'Tracklist', icon: List },
+            { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracklist'), icon: List },
             { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
             { id: 'MEDIA', label: 'Videos & Art', icon: Video },
             { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
@@ -1274,7 +1274,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              )}
              
              {[
-               { id: 'TRACKS', label: album.type === 'BOOK' ? 'Table of Contents' : 'Track List', icon: album.type === 'BOOK' ? BookOpen : List },
+               { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
                { id: 'MEDIA', label: 'Music Videos & Art', icon: Video },
                { id: 'COMMENTS', label: 'The Social Feed', icon: MessageSquare },
@@ -1486,7 +1486,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
                             {album.type === 'BOOK' ? <BookOpen size={16} className="text-small-orange" /> : <List size={16} className="text-small-orange" />}
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{album.type === 'BOOK' ? 'Table of Contents' : 'Track List'}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List')}</span>
                           </div>
                           <button 
                             onClick={() => setIsTracksCollapsed(!isTracksCollapsed)}

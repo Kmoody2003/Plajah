@@ -46,6 +46,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
   const [artistBio, setArtistBio] = useState(initialAlbum?.artistBio || '');
   const [linerNotes, setLinerNotes] = useState(initialAlbum?.linerNotes || '');
+  const [trackListLabel, setTrackListLabel] = useState(initialAlbum?.trackListLabel || '');
   const [artistImage, setArtistImage] = useState<string | undefined>(initialAlbum?.artistImage || undefined);
   const [artistFile, setArtistFile] = useState<File | undefined>(undefined);
   const [tracks, setTracks] = useState<Track[]>(initialAlbum?.tracks || []);
@@ -357,7 +358,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         videoPlaylists,
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
         movieMetadata: (type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES')) ? finalMovieMetadata : undefined,
-        bookChapters, bookPreviewConfig, liveFeedUrl, donationGoal, tags, relatedProjectIds,
+        bookChapters, bookPreviewConfig, liveFeedUrl, donationGoal, tags, relatedProjectIds, trackListLabel: trackListLabel || undefined,
         createdAt: initialAlbum?.createdAt || Date.now(),
         isPublic: !isPrivate && !isDraft,
         isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
@@ -1118,6 +1119,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
         <textarea value={linerNotes} onChange={(e) => setLinerNotes(e.target.value)} placeholder="Deep technical details, recording credits, or full project notes..." className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-32 resize-none placeholder:text-white/10" />
       </div>
+
+      {type !== 'BOOK' && type !== 'PHOTO' && (
+        <div className="space-y-3">
+          <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">
+            Custom Track List Label <span className="text-white/20 normal-case font-medium tracking-normal">(optional — defaults to "Track List")</span>
+          </label>
+          <input
+            type="text"
+            value={trackListLabel}
+            onChange={(e) => setTrackListLabel(e.target.value)}
+            placeholder={type === 'MUSIC' ? 'e.g. Songs, Tracks, Episodes...' : 'e.g. Chapters, Scenes, Levels...'}
+            className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10"
+          />
+        </div>
+      )}
 
       <div className="space-y-3">
         <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Social Media Links</label>

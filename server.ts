@@ -51,7 +51,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
       if (trackObj) {
         title = trackObj.mapValue?.fields?.title?.stringValue + ' - ' + title;
       }
-      image = dbData.fields?.coverImageUrl?.stringValue || '';
+      image = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
       desc = dbData.fields?.description?.stringValue || 'Listen on Plajah';
    } else if (type === 'feed') {
       title = `${dbData.fields?.authorName?.stringValue || 'User'} on Plajah`;
@@ -87,6 +87,8 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      metaTags += `<meta name="twitter:card" content="summary_large_image" />`;
    }
 
+   const oEmbedUrl = `https://${host}/oembed?url=${encodeURIComponent(`https://${host}/?type=${type}&id=${id}`)}&format=json`;
+   metaTags += `\n    <link rel="alternate" type="application/json+oembed" href="${oEmbedUrl}" title="${(title || 'Plajah').replace(/"/g, '&quot;')}" />`;
    return html.replace('</head>', `${metaTags}\n</head>`);
 };
 
@@ -491,6 +493,53 @@ async function startServer() {
 
   // --- Embed & Meta tag Middleware ---
 
+  // oEmbed endpoint — lets Slack, Notion, Mastodon, and other rich-preview platforms embed Plajah links
+  app.get('/oembed', async (req, res) => {
+    const { url: pageUrl, format = 'json' } = req.query as any;
+    if (!pageUrl) return res.status(400).json({ error: 'url required' });
+
+    let type = '', id = '', track = '';
+    try {
+      const parsed = new URL(pageUrl);
+      type = parsed.searchParams.get('type') || '';
+      id = parsed.searchParams.get('id') || '';
+      track = parsed.searchParams.get('track') || '';
+    } catch { return res.status(400).json({ error: 'invalid url' }); }
+
+    if (!type || !id) return res.status(404).json({ error: 'not found' });
+
+    let collection = type === 'video' ? 'videos' : type === 'album' ? 'albums' : '';
+    if (!collection) return res.status(404).json({ error: 'not found' });
+
+    const dbData = await fetchFirebaseDoc(collection, id);
+    if (!dbData?.fields) return res.status(404).json({ error: 'not found' });
+
+    const host = req.get('host') || 'plajah.com';
+    const title = dbData.fields?.title?.stringValue || 'Plajah';
+    const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
+    const embedUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
+
+    const response = {
+      version: '1.0',
+      type: type === 'album' ? 'rich' : 'video',
+      title,
+      provider_name: 'Plajah',
+      provider_url: `https://${host}`,
+      thumbnail_url: cover,
+      thumbnail_width: 1200,
+      thumbnail_height: 630,
+      html: `<iframe src="${embedUrl}" width="560" height="315" style="border:none;border-radius:12px;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`,
+      width: 560,
+      height: 315,
+    };
+
+    if (format === 'xml') {
+      res.set('Content-Type', 'text/xml');
+      return res.send(`<?xml version="1.0" encoding="utf-8"?><oembed>${Object.entries(response).map(([k, v]) => `<${k}>${v}</${k}>`).join('')}</oembed>`);
+    }
+    res.json(response);
+  });
+
   app.get('/embed', async (req, res) => {
     const { type, id, track } = req.query;
     if (!type || !id) return res.status(404).send('Not Found');
@@ -522,7 +571,8 @@ async function startServer() {
         mediaUrl = trackObj.mapValue?.fields?.url?.stringValue || '';
         title = trackObj.mapValue?.fields?.title?.stringValue || 'Track';
       }
-      cover = dbData.fields?.coverImageUrl?.stringValue || '';
+      cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
+      if (!title || title === 'Track') title = (dbData.fields?.title?.stringValue || 'Album') + (title && title !== 'Track' ? ' — ' + title : '');
     } else if (type === 'feed') {
       mediaUrl = dbData.fields?.videoUrl?.stringValue || '';
       title = 'Video Post';
@@ -547,10 +597,17 @@ async function startServer() {
         playerHtml = `<video src="${mediaUrl}" controls width="100%" height="100%" style="background:black" poster="${cover}"></video>`;
     } else {
         playerHtml = `
-        <div style="background: black; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:sans-serif;">
-           <img src="${cover}" style="max-height:50%; max-width:80%; margin-bottom:20px; border-radius:10px; object-fit: cover; box-shadow: 0 10px 20px rgba(0,0,0,0.5);"/>
-           <h3 style="margin-bottom:20px; font-weight:800; text-transform:uppercase; letter-spacing:1px;">${title}</h3>
-           <audio src="${mediaUrl}" controls style="width: 80%"></audio>
+        <div style="position:relative;background:#0a0a0a;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;">
+          ${cover ? `<img src="${cover}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;filter:blur(40px);transform:scale(1.1);" />` : ''}
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.5) 60%,rgba(0,0,0,0.3) 100%);"></div>
+          <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:20px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;">
+            ${cover ? `<img src="${cover}" style="width:140px;height:140px;border-radius:16px;object-fit:cover;box-shadow:0 20px 60px rgba(0,0,0,0.6);" />` : ''}
+            <div style="text-align:center;">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#ff8c00;">Now Playing on Plajah</p>
+              <h3 style="margin:0;font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;">${title}</h3>
+            </div>
+            <audio src="${mediaUrl}" controls autoplay style="width:100%;accent-color:#ff8c00;"></audio>
+          </div>
         </div>`;
     }
 

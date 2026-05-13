@@ -71,7 +71,7 @@
 
 /* Overrides for Light Theme */
 .theme-light .text-white {
-  color: var(--text-primary) !important;
+  color: var(--accent-color) !important; /* Orange for contrast on light backgrounds */
 }
 
 .theme-light .bg-black {
@@ -101,14 +101,14 @@
 .theme-light .text-white\/10,
 .theme-light .text-primary\/5,
 .theme-light .text-primary\/10 {
-  color: rgba(15, 23, 42, 0.1) !important;
+  color: rgba(255, 140, 0, 0.15) !important;
 }
 
 .theme-light .text-white\/20,
 .theme-light .text-white\/30,
 .theme-light .text-primary\/20,
 .theme-light .text-primary\/30 {
-  color: rgba(15, 23, 42, 0.3) !important;
+  color: rgba(255, 140, 0, 0.35) !important;
 }
 
 .theme-light .text-white\/40,
@@ -117,7 +117,7 @@
 .theme-light .text-primary\/40,
 .theme-light .text-primary\/50,
 .theme-light .text-primary\/60 {
-  color: rgba(15, 23, 42, 0.6) !important;
+  color: rgba(255, 140, 0, 0.6) !important;
 }
 
 .theme-light .bg-white\/5,

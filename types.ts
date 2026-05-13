@@ -252,6 +252,7 @@ export interface Album {
   headerImage?: string;
   description: string;
   linerNotes?: string;
+  trackListLabel?: string;
   tracks: Track[];
   slideshow?: string[]; 
   slideshowFiles?: File[]; // For direct upload

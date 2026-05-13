@@ -185,11 +185,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
     >
       {/* Background Hero / Player Area */}
       <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#131314] via-transparent to-transparent z-10"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#131314] via-[#131314]/40 to-[#131314]/10 z-10"></div>
-        
+        {/* Frosted blurred cover art — always visible as backdrop */}
+        <img
+          src={coverImage || undefined}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover scale-110 blur-[60px] opacity-60 transition-all duration-1000 pointer-events-none"
+        />
+        {/* Bottom fade so content area bleeds naturally into background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#131314]/50 to-[#131314]/90 z-10 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#131314]/60 via-transparent to-transparent z-10 pointer-events-none" />
+
         {currentVideo && isPlaying && (currentVideo.id === item.id || currentVideo.id === (item as any)?.tracks?.[0]?.id || (item as any)?.seasons?.[0]?.episodes?.some((e: any) => e.id === currentVideo.id)) ? (
-          <div className="w-full h-full relative">
+          <div className="w-full h-full relative z-20">
             {currentVideo.muxPlaybackId ? (
               <MuxPlayer
                 key={currentVideo.id}
@@ -200,7 +207,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
                 playsInline
               />
             ) : currentVideo.embedUrl ? (
-              <iframe 
+              <iframe
                 key={currentVideo.id}
                 src={`${currentVideo.embedUrl}${currentVideo.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
                 className="w-full h-full border-none"
@@ -208,7 +215,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
                 allowFullScreen
               />
             ) : (
-              <video 
+              <video
                 key={currentVideo.id}
                 ref={setVideoElement}
                 src={currentVideo.url}
@@ -219,7 +226,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
             )}
             {/* Overlay buttons for the on-page video */}
             <div className={`absolute bottom-40 left-8 lg:left-24 z-20 flex gap-4 pointer-events-auto transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`}>
-               <button 
+               <button
                 onClick={() => {
                    const v = document.querySelector('video');
                    if (v) {
@@ -239,9 +246,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
                </button>
             </div>
           </div>
-        ) : (
-          <img src={coverImage || null} className="w-full h-full object-cover opacity-40 transition-all duration-1000 scale-105 blur-sm" />
-        )}
+        ) : null}
       </div>
 
       {/* Detail Content */}
