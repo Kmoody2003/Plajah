@@ -115,8 +115,8 @@ import Tooltip from './components/Tooltip';
 import { UserProfile, PayItForwardWinner, Article, LiveFeed } from './types';
 import { UploadProvider } from './contexts/UploadContext';
 import { AchievementProvider } from './contexts/AchievementContext';
-import { PointsProvider } from './contexts/PointsContext';
-import { BadgeProvider } from './contexts/BadgeContext';
+import { PointsProvider, usePoints } from './contexts/PointsContext';
+import { BadgeProvider, useBadges } from './contexts/BadgeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SpatialProvider } from './contexts/SpatialContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -229,6 +229,8 @@ const App: React.FC = () => {
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
   const { isShrunk, setView: setGlobalView, analyser, isPlaying } = useGlobalPlayerState();
+  const { balance: pointsBalance } = usePoints();
+  const { userBadges } = useBadges();
 
   useEffect(() => {
     setGlobalView(view);
@@ -350,6 +352,11 @@ const App: React.FC = () => {
     } else {
       setView('DASHBOARD');
     }
+
+    // Preload content for guests who haven't yet triggered the init fetch
+    if (albums.length === 0) {
+      fetchAllPublicAlbums().then(setAlbums).catch(() => {});
+    }
   };
 
   const handleSelectItem = (item: any) => {
@@ -391,8 +398,7 @@ const App: React.FC = () => {
   const handleGlobalNavigate = (target: string, params?: any) => {
     if (target === 'LIBRARY') {
       if (!user) {
-        setView('DASHBOARD');
-        alert('Please sign in to access your library');
+        loginWithGoogle();
         return;
       }
       setViewedUserId(user.uid);
@@ -1305,6 +1311,25 @@ const App: React.FC = () => {
                       </span>
                     </div>
                   </div>
+
+                  {user && (
+                    <div className={`mt-4 space-y-2 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Points</span>
+                        <span className="text-[8px] font-black text-small-orange">{(pointsBalance?.totalPoints ?? 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Badges</span>
+                        <span className="text-[8px] font-black text-small-orange">{userBadges.filter(b => b.earnedAt).length}</span>
+                      </div>
+                      <button
+                        onClick={() => setShowAchievements(true)}
+                        className="w-full mt-1 py-2 bg-small-orange/10 hover:bg-small-orange/20 border border-small-orange/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-small-orange transition-all"
+                      >
+                        View Achievements
+                      </button>
+                    </div>
+                  )}
 
                   <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-4">
                     {!user && (

@@ -4,7 +4,7 @@ import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
   fetchVideosByInterests, fetchUserVideos, auth, fetchAllPublicAlbums,
   publishToCloud, fetchAllLiveFeeds, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds,
-  fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters
+  fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters, fetchUserProfile, updateVideo
 } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
@@ -27,6 +27,8 @@ interface VideoTabProps {
   isOwner: boolean;
   onSelectVideo?: (item: Video | Album) => void;
   mode?: 'VIDEOS' | 'MOVIES_TV';
+  currentUser?: UserProfile | null;
+  onVisitUser?: (uid: string) => void;
 }
 
 const CATEGORIES = [
@@ -57,10 +59,29 @@ const VideoCard: React.FC<{
   onPlay: () => void;
   size?: 'default' | 'small' | 'wide';
   showChannel?: boolean;
-}> = ({ video, onPlay, size = 'default', showChannel = true }) => {
+  currentUser?: UserProfile | null;
+}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser }) => {
   const thumb = (video as any).thumbnailUrl || (video as any).coverImage || `https://picsum.photos/seed/${video.id}/800/450`;
   const isLive = (video as any).genre === 'Live';
   const isMV = (video as any).genre === 'Music Video' || (video as any).category === 'MUSIC_VIDEO';
+  const isCardOwner = !!(currentUser?.uid && currentUser.uid === (video as any).ownerId);
+
+  const handleThumbnailChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !video.id) return;
+    try {
+      const { uploadFile: ctxUpload } = (window as any).__uploadCtx__ || {};
+      // Upload via a fresh Firebase storage ref if context not available
+      const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const storage = getStorage();
+      const fileRef = storageRef(storage, `thumbnails/${video.id}_${Date.now()}_${file.name}`);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      await updateVideo(video.id, { thumbnailUrl: url });
+    } catch (err) {
+      console.error('Thumbnail update failed', err);
+    }
+  };
 
   return (
     <motion.div
@@ -98,6 +119,22 @@ const VideoCard: React.FC<{
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
           {(video as any).playsCount ? `${(video as any).playsCount}` : '—'} views
         </div>
+        {/* Change Thumbnail button (owner only) */}
+        {isCardOwner && (
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:bg-small-orange/80 hover:border-small-orange/60"
+            title="Change Thumbnail"
+          >
+            <Camera size={13} className="text-white" />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleThumbnailChange}
+            />
+          </label>
+        )}
       </div>
 
       {/* Info */}
@@ -192,7 +229,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: ()
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
-const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS' }) => {
+const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
 
@@ -219,6 +256,16 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [followingProfiles, setFollowingProfiles] = useState<UserProfile[]>([]);
+
+  // Fetch profiles for users the current user follows
+  useEffect(() => {
+    const ids = currentUser?.following?.slice(0, 20);
+    if (!ids || ids.length === 0) { setFollowingProfiles([]); return; }
+    Promise.all(ids.map(uid => fetchUserProfile(uid)))
+      .then(results => setFollowingProfiles(results.filter(Boolean) as UserProfile[]))
+      .catch(() => setFollowingProfiles([]));
+  }, [currentUser?.following]);
 
   // Upload form
   const [newVideo, setNewVideo] = useState<Partial<Video & { file?: File; thumbnailFile?: File; coverImageFile?: File }>>({
@@ -383,7 +430,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   return (
     <div className="flex-1 min-h-0">
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-40 bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5 px-6 lg:px-12 py-4">
+      <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-6 lg:px-12 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
             {mode === 'MOVIES_TV' ? 'Cinema' : 'Video'}
@@ -660,7 +707,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {userVideos.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {userVideos.map(video => (
-                    <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} />
+                    <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} currentUser={currentUser} />
                   ))}
                 </div>
               ) : (
@@ -702,10 +749,28 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           {/* ── CHANNEL ──────────────────────────────────────────────────── */}
           {activeView === 'channel' && (
             <div className="space-y-6 pt-2">
+              {/* Following section */}
+              {followingProfiles.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4">Following</h3>
+                  <div className="flex gap-4 flex-wrap">
+                    {followingProfiles.map(p => (
+                      <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
+                        <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
+                          {p.photoURL
+                            ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+                        </div>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <h2 className="text-lg font-black uppercase tracking-widest">Channel Archive</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {userVideos.map(video => (
-                  <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} />
+                  <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} currentUser={currentUser} />
                 ))}
                 {userVideos.length === 0 && (
                   <div className="col-span-full py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10">
