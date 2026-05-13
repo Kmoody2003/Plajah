@@ -113,6 +113,8 @@ import Tooltip from './components/Tooltip';
 import { UserProfile, PayItForwardWinner, Article, LiveFeed } from './types';
 import { UploadProvider } from './contexts/UploadContext';
 import { AchievementProvider } from './contexts/AchievementContext';
+import { PointsProvider } from './contexts/PointsContext';
+import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SpatialProvider } from './contexts/SpatialContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -852,10 +854,12 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <AchievementProvider>
-        <UploadProvider>
-          <NotificationProvider>
-            <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
+      <BadgeProvider>
+        <PointsProvider>
+          <AchievementProvider>
+            <UploadProvider>
+              <NotificationProvider>
+                <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <Suspense fallback={
           <div className="fixed inset-0 flex items-center justify-center bg-black z-[200]">
             <div className="flex flex-col items-center gap-4">
@@ -1871,6 +1875,8 @@ const App: React.FC = () => {
           </NotificationProvider>
         </UploadProvider>
       </AchievementProvider>
+        </PointsProvider>
+      </BadgeProvider>
     </ErrorBoundary>
   );
 };

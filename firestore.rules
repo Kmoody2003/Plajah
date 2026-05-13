@@ -948,6 +948,29 @@ service cloud.firestore {
       }
     }
 
+    // ── Hide N Seek ─────────────────────────────────────────────────────────
+
+    // Alternate tracks subcollection — only album owner can write; authenticated users can read
+    // (client enforces H&S window; reading outside a window doesn't expose audio at the platform level)
+    match /albums/{albumId}/hideNSeekAlternates/{altId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/albums/$(albumId)).data.ownerId == request.auth.uid);
+    }
+
+    // Per-user discovery progress — each user reads/writes only their own doc
+    match /hideNSeekProgress/{docId} {
+      allow read: if isAuthenticated() && (docId.matches(request.auth.uid + '_.*') || isAdmin());
+      allow write: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+    }
+
+    // Aggregate stats — readable by anyone; written by any authenticated user (discovery increments)
+    match /hideNSeekStats/{albumId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
     match /universes/{universeId} {
       allow list: if isAdmin();
       allow get: if isAuthenticated();
@@ -981,6 +1004,58 @@ service cloud.firestore {
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&
                       request.resource.data.playCount == resource.data.playCount + 1;
       allow create: if request.resource.data.playCount == 1;
+    }
+
+    // ===============================================================
+    // GAMIFICATION - Achievements, Points, Badges
+    // ===============================================================
+
+    // Achievements (System and Admin-created)
+    match /achievements/{id} {
+      allow read: if true; // Public read
+      allow create: if isAdmin() && hasRequiredFields(['title', 'description', 'category', 'pointsValue']);
+      allow update: if isAdmin();
+      allow delete: if false; // Prevent deletion, use deactivation
+    }
+
+    // User Achievement Progress
+    match /userAchievements/{document=**} {
+      allow read: if isOwner(get(/databases/$(database)/documents/userAchievements/$(document)).data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(get(/databases/$(database)/documents/userAchievements/$(document)).data.userId);
+      allow delete: if false;
+    }
+
+    // User Points Balance
+    match /userPoints/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    // Points Transactions (Audit Trail)
+    match /pointsTransactions/{id} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if false; // Immutable transactions
+      allow delete: if false;
+    }
+
+    // User Badges
+    match /userBadges/{document=**} {
+      allow read: if isOwner(get(/databases/$(database)/documents/userBadges/$(document)).data.userId);
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Badge Definitions
+    match /badges/{id} {
+      allow read: if true; // Public read
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
     }
   }
 }

@@ -304,7 +304,58 @@ export interface Album {
   timelineId?: string;
   characterIds?: string[];
   isSlideshowEnabled?: boolean; // Toggle for slideshow experience in player
+  hideNSeekConfig?: HideNSeekConfig;
 }
+
+// ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
+
+export interface HideNSeekAlternate {
+  id: string;              // "{parentTrackId}_slot{1|2}"
+  albumId: string;
+  parentTrackId: string;
+  slot: 1 | 2;
+  title: string;
+  artist: string;
+  url: string;
+  duration?: number;
+  uploadedAt: number;
+}
+
+export interface HideNSeekTrackConfig {
+  trackId: string;
+  enabled: boolean;
+  slot1Id?: string;        // HideNSeekAlternate.id in slot 1
+  slot2Id?: string;        // HideNSeekAlternate.id in slot 2
+}
+
+export interface HideNSeekWindow {
+  id: string;
+  startTime: string;       // "HH:MM" 24-h local time
+  daysOfWeek: number[];    // 0 = Sun … 6 = Sat
+}
+
+export interface HideNSeekConfig {
+  isEnabled: boolean;
+  globalEnabled: boolean;  // true → every track with alts participates automatically
+  windows: HideNSeekWindow[];   // max 3; each window lasts exactly 3 h, min 1 h apart
+  trackConfigs: HideNSeekTrackConfig[];
+  timezone?: string;       // IANA timezone string of the artist
+}
+
+export interface HideNSeekUserProgress {
+  userId: string;
+  albumId: string;
+  discoveredAlternateIds: string[];
+  updatedAt: number;
+}
+
+export interface HideNSeekStats {
+  albumId: string;
+  discoveryCount: Record<string, number>;   // alternateId → unique discovery count
+  uniqueDiscovererIds: string[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface Universe {
   id: string;
@@ -1354,3 +1405,137 @@ export interface SystemSettingsConfig {
   };
   updatedAt: number;
 }
+
+// ── ACHIEVEMENTS & GAMIFICATION ──────────────────────────────────────────────
+
+export type AchievementCategory = 'USER' | 'ARTIST' | 'ORGANIZATION';
+export type AchievementTriggerType = 
+  | 'FIRST_PLAY' | 'FIRST_ALBUM_LISTEN' | 'FIRST_SONG' | 'FIRST_MOVIE_COMPLETED' 
+  | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION'
+  | 'FIRST_ENGAGEMENT' | 'FIRST_UPLOAD' | 'FIRST_LISTENER' | 'FIRST_FAN'
+  | 'CUSTOM' | 'MANUAL';
+
+export interface AchievementUnlockRequirement {
+  type: 'METRIC' | 'ACTION' | 'CUSTOM';
+  metric?: string; // e.g., 'listener_count', 'song_plays', 'followers'
+  targetValue?: number;
+  actionTrigger?: AchievementTriggerType;
+  customCondition?: string; // For admin-defined complex logic
+}
+
+export interface AchievementReward {
+  pointsBonus: number;
+  platformBoost?: {
+    type: 'FEATURED' | 'PROMOTED' | 'VISIBILITY_BOOST';
+    durationMs: number;
+  };
+  unlocksFeatures?: string[]; // Feature IDs that unlock
+  unlocksContent?: string[]; // Content IDs that unlock
+  unlocksTheme?: string; // Theme ID
+}
+
+export interface AchievementAnimation {
+  animationUrl?: string; // Custom animation file/URL
+  soundEffectUrl?: string; // Custom sound effect
+  animationType?: 'BOUNCE' | 'SLIDE' | 'FADE' | 'ROTATE' | 'SCALE'; // Default types
+  soundType?: 'CHIME' | 'BELL' | 'FANFARE' | 'SPARKLE'; // Default sounds
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: AchievementCategory;
+  triggerType: AchievementTriggerType;
+  icon: string; // Icon name or URL
+  backgroundColor?: string;
+  pointsValue: number;
+  requirements: AchievementUnlockRequirement;
+  rewards?: AchievementReward;
+  animation?: AchievementAnimation;
+  createdBy: 'SYSTEM' | 'ADMIN' | 'CREATOR'; // CREATOR means Plajah+ member
+  creatorId?: string; // If CREATOR, the Plajah+ artist ID
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+  // Linking fields
+  albumId?: string; // For album-specific achievements
+  fandomId?: string; // For fan-fandom-specific achievements
+}
+
+export interface UserAchievementProgress {
+  id: string;
+  userId: string;
+  achievementId: string;
+  achievement?: Achievement; // Denormalized for convenience
+  unlockedAt?: number;
+  progressValue?: number; // For % completion tracking
+  isNew?: boolean; // UI flag for notification
+  viewedAt?: number; // When user last saw this achievement
+  timestamp: number;
+}
+
+// ── POINTS SYSTEM ────────────────────────────────────────────────────────────
+
+export interface PointsTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  type: 'ACHIEVEMENT_UNLOCK' | 'DAILY_ACTIVITY' | 'SHARE' | 'LOGIN' | 'REWARD' | 'MANUAL' | 'REDEMPTION';
+  source?: string; // e.g., achievement ID, activity type
+  description?: string;
+  timestamp: number;
+  relatedEntityId?: string; // e.g., achievementId, eventId
+}
+
+export interface UserPointsBalance {
+  id: string;
+  userId: string;
+  totalPoints: number;
+  availablePlajahBucks: number; // Converted currency for store purchases
+  lifetime: number; // Historical total earned
+  lastEarnedAt?: number;
+  lastRedeemedAt?: number;
+  pointsHistory?: PointsTransaction[];
+}
+
+// ── BADGE SYSTEM ────────────────────────────────────────────────────────────
+
+export type BadgeType = 'PIONEER' | 'PIONEER_ELITE' | 'ARTIST' | 'CUSTOM';
+
+export interface Badge {
+  id: string;
+  type: BadgeType;
+  title: string;
+  description: string;
+  icon: string;
+  backgroundColor?: string;
+  displayPriority: number; // Lower = higher priority on display
+  criteria: {
+    maxUsersEligible?: number; // e.g., 100 for Pioneer
+    createdBeforeDateMs?: number; // Account creation date threshold
+    requiresAccountType?: 'ARTIST' | 'FAN' | 'BRAND' | 'ORGANIZATION';
+    customCondition?: string;
+  };
+  isActive: boolean;
+  createdAt: number;
+}
+
+export interface UserBadge {
+  id: string;
+  userId: string;
+  badgeId: string;
+  badge?: Badge; // Denormalized for convenience
+  earnedAt: number;
+  badgeType: BadgeType;
+}
+
+// ── EXTENDED USER TYPE ADDITIONS ─────────────────────────────────────────────
+// These fields should be added to the User interface:
+//
+// achievementIds?: string[]; // References to UserAchievementProgress docs
+// pointsBalanceId?: string; // Reference to UserPointsBalance doc
+// badgeIds?: string[]; // References to UserBadge docs
+// pointsDisplayName?: 'POINTS' | 'PLAJAH_BUCKS' | 'BOTH'; // User preference
+// gamificationOptOut?: boolean; // User can disable gamification notifications
+// unlockedFeatures?: string[]; // Feature IDs unlocked via achievements

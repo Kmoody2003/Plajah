@@ -41,7 +41,8 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  Shuffle
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -98,6 +99,7 @@ import WorldManagerView from './WorldManagerView';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
+import HideNSeekManager from './HideNSeekManager';
 import { uploadFile } from '../services/backendService';
 
 interface UserProfileViewProps {
@@ -233,6 +235,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
+  const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -942,12 +945,28 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                
+
+                {/* H&S button — owner only, ALBUM/MUSIC releases only */}
+                {isOwnProfile && release.releaseType === 'ALBUM' && (release as any).type === 'MUSIC' && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setHnsAlbum(release as Album); }}
+                    title="Hide N Seek"
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/40 hover:border-primary z-10"
+                  >
+                    <Shuffle size={12} className="text-white" />
+                  </button>
+                )}
+
                 <div className="absolute inset-x-0 bottom-0 p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
                       {release.releaseType}
                     </span>
+                    {(release as any).hideNSeekConfig?.isEnabled && (
+                      <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-primary/30">
+                        H&amp;S
+                      </span>
+                    )}
                   </div>
                   <h4 className="text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
                     {release.title}
@@ -2476,6 +2495,20 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               </form>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hide N Seek Manager modal */}
+      <AnimatePresence>
+        {hnsAlbum && (
+          <HideNSeekManager
+            album={hnsAlbum}
+            onClose={() => setHnsAlbum(null)}
+            onSaved={updated => {
+              setContent(prev => prev.map(a => a.id === updated.id ? updated : a));
+              setHnsAlbum(null);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

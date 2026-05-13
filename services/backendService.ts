@@ -22,7 +22,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -5607,3 +5607,99 @@ export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: str
 };
 
 
+
+
+// ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
+
+export const saveHideNSeekConfig = async (albumId: string, config: HideNSeekConfig) => {
+  const path = `albums/${albumId}`;
+  try {
+    await updateDoc(doc(db, 'albums', albumId), { hideNSeekConfig: config });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+export const fetchHideNSeekAlternates = async (albumId: string): Promise<HideNSeekAlternate[]> => {
+  const path = `albums/${albumId}/hideNSeekAlternates`;
+  try {
+    const snap = await getDocs(collection(db, 'albums', albumId, 'hideNSeekAlternates'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as HideNSeekAlternate));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const uploadHideNSeekAlternate = async (
+  albumId: string,
+  parentTrackId: string,
+  slot: 1 | 2,
+  file: File,
+  title: string,
+  artist: string
+): Promise<HideNSeekAlternate> => {
+  const altId = `${parentTrackId}_slot${slot}`;
+  const storageRef = ref(storage, `hideNSeek/${albumId}/${altId}`);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  const alt: HideNSeekAlternate = {
+    id: altId, albumId, parentTrackId, slot, title, artist, url, uploadedAt: Date.now()
+  };
+  await setDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId), alt);
+  return alt;
+};
+
+export const deleteHideNSeekAlternate = async (albumId: string, altId: string) => {
+  const path = `albums/${albumId}/hideNSeekAlternates/${altId}`;
+  try {
+    await deleteDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+export const fetchHideNSeekProgress = async (albumId: string): Promise<HideNSeekUserProgress | null> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(doc(db, 'hideNSeekProgress', `${uid}_${albumId}`));
+    return snap.exists() ? (snap.data() as HideNSeekUserProgress) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const recordHideNSeekDiscovery = async (albumId: string, alternateIds: string[]): Promise<string[]> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid || alternateIds.length === 0) return [];
+  const progressRef = doc(db, 'hideNSeekProgress', `${uid}_${albumId}`);
+  const statsRef = doc(db, 'hideNSeekStats', albumId);
+  try {
+    const existing = await getDoc(progressRef);
+    const existingIds: string[] = existing.exists() ? (existing.data().discoveredAlternateIds || []) : [];
+    const newIds = alternateIds.filter(id => !existingIds.includes(id));
+    if (newIds.length === 0) return existingIds;
+    await setDoc(progressRef, {
+      userId: uid, albumId,
+      discoveredAlternateIds: arrayUnion(...newIds),
+      updatedAt: Date.now()
+    }, { merge: true });
+    const statsUpdate: Record<string, any> = { uniqueDiscovererIds: arrayUnion(uid) };
+    newIds.forEach(id => { statsUpdate[`discoveryCount.${id}`] = increment(1); });
+    await setDoc(statsRef, statsUpdate, { merge: true });
+    return [...existingIds, ...newIds];
+  } catch (e) {
+    console.error('recordHideNSeekDiscovery error', e);
+    return [];
+  }
+};
+
+export const fetchHideNSeekStats = async (albumId: string): Promise<HideNSeekStats | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'hideNSeekStats', albumId));
+    return snap.exists() ? (snap.data() as HideNSeekStats) : null;
+  } catch (e) {
+    return null;
+  }
+};

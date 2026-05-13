@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter } from '../services/backendService';
@@ -6,7 +6,7 @@ import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
-  ChevronLeft, ChevronRight, Minimize2, BookOpen, Gamepad2, Mic2
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 
@@ -97,6 +97,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newCharName, setNewCharName] = useState('');
   const [newCharRole, setNewCharRole] = useState('');
 
+  // Hide N Seek configuration
+  const [hnsEnabled, setHnsEnabled] = useState<boolean>(initialAlbum?.hideNSeekConfig?.isEnabled || false);
+  const [hnsGlobalMode, setHnsGlobalMode] = useState<boolean>(initialAlbum?.hideNSeekConfig?.globalEnabled || false);
+  const [hnsWindows, setHnsWindows] = useState(initialAlbum?.hideNSeekConfig?.windows || []);
+  const [hnsNewTime, setHnsNewTime] = useState('12:00');
+  const [hnsNewDays, setHnsNewDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [hnsTrackConfigs, setHnsTrackConfigs] = useState(initialAlbum?.hideNSeekConfig?.trackConfigs || []);
+
   // Cast & production credits (Movie / TV)
   const [castMembers, setCastMembers] = useState<CastMember[]>(initialAlbum?.movieMetadata?.castMembers || []);
   const [productionCredits, setProductionCredits] = useState<ProductionCredit[]>(initialAlbum?.movieMetadata?.productionCredits || []);
@@ -108,6 +116,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newCredDept, setNewCredDept] = useState('Directing');
 
   const { uploadFile } = useUpload();
+
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -353,6 +364,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
         worldId: finalWorldId,
         characterIds: createdCharacterIds.length > 0 ? createdCharacterIds : initialAlbum?.characterIds,
+        hideNSeekConfig: hnsEnabled ? {
+          isEnabled: hnsEnabled,
+          globalEnabled: hnsGlobalMode,
+          windows: hnsWindows,
+          trackConfigs: type === 'MUSIC' ? hnsTrackConfigs : undefined
+        } : undefined,
       };
       const publishedAlbum = await publishToCloud(newAlbum, (text, percent) => setStatus({ text, percent }));
       onCreated(typeof publishedAlbum === 'string' ? newAlbum : publishedAlbum);
@@ -675,6 +692,79 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Track Order Arrangement */}
+      {type !== 'BOOK' && tracks.length > 1 && (
+        <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+              <GripVertical size={20} className="text-small-orange" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-widest">Arrange Track Order</h4>
+              <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Drag or use arrows to reorder tracks</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {tracks.map((track, i) => (
+              <div
+                key={track.id}
+                draggable
+                onDragStart={() => { dragIndexRef.current = i; }}
+                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
+                onDragLeave={() => setDragOverIndex(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = dragIndexRef.current;
+                  setDragOverIndex(null);
+                  if (from === null || from === i) return;
+                  const reordered = [...tracks];
+                  const [moved] = reordered.splice(from, 1);
+                  reordered.splice(i, 0, moved);
+                  setTracks(reordered);
+                  dragIndexRef.current = null;
+                }}
+                onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
+                className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-grab active:cursor-grabbing select-none ${
+                  dragOverIndex === i
+                    ? 'bg-small-orange/10 border-small-orange/40 scale-[1.01]'
+                    : 'bg-white/[0.04] border-white/5 hover:bg-white/[0.07]'
+                }`}
+              >
+                <GripVertical size={16} className="text-white/20 shrink-0" />
+                <span className="w-8 text-center text-[10px] font-black text-small-orange shrink-0">{i + 1}</span>
+                <span className="flex-1 text-sm font-black uppercase tracking-wide text-white truncate">{track.title || 'Untitled'}</span>
+                <div className="flex flex-col gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => {
+                      const reordered = [...tracks];
+                      [reordered[i - 1], reordered[i]] = [reordered[i], reordered[i - 1]];
+                      setTracks(reordered);
+                    }}
+                    className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === tracks.length - 1}
+                    onClick={() => {
+                      const reordered = [...tracks];
+                      [reordered[i + 1], reordered[i]] = [reordered[i], reordered[i + 1]];
+                      setTracks(reordered);
+                    }}
+                    className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
