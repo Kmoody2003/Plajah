@@ -130,6 +130,32 @@ import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 
+// Rendered inside the provider tree so hooks have access to their contexts
+const SidebarGamification: React.FC<{ collapsed: boolean; bigScreen: boolean; onOpenAchievements: () => void }> = ({ collapsed, bigScreen, onOpenAchievements }) => {
+  const { balance } = usePoints();
+  const { userBadges } = useBadges();
+  const earnedCount = userBadges.filter((b: any) => b.earnedAt).length;
+  const visClass = collapsed ? 'hidden' : (bigScreen ? 'hidden group-hover/sidebar:block' : 'block');
+  return (
+    <div className={`mt-4 space-y-2 ${visClass}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Points</span>
+        <span className="text-[8px] font-black text-small-orange">{((balance as any)?.totalPoints ?? 0).toLocaleString()}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Badges</span>
+        <span className="text-[8px] font-black text-small-orange">{earnedCount}</span>
+      </div>
+      <button
+        onClick={onOpenAchievements}
+        className="w-full mt-1 py-2 bg-small-orange/10 hover:bg-small-orange/20 border border-small-orange/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-small-orange transition-all"
+      >
+        View Achievements
+      </button>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>('LANDING');
   
@@ -229,8 +255,6 @@ const App: React.FC = () => {
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
   const { isShrunk, setView: setGlobalView, analyser, isPlaying } = useGlobalPlayerState();
-  const { balance: pointsBalance } = usePoints();
-  const { userBadges } = useBadges();
 
   useEffect(() => {
     setGlobalView(view);
@@ -1313,22 +1337,11 @@ const App: React.FC = () => {
                   </div>
 
                   {user && (
-                    <div className={`mt-4 space-y-2 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Points</span>
-                        <span className="text-[8px] font-black text-small-orange">{(pointsBalance?.totalPoints ?? 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Badges</span>
-                        <span className="text-[8px] font-black text-small-orange">{userBadges.filter(b => b.earnedAt).length}</span>
-                      </div>
-                      <button
-                        onClick={() => setShowAchievements(true)}
-                        className="w-full mt-1 py-2 bg-small-orange/10 hover:bg-small-orange/20 border border-small-orange/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-small-orange transition-all"
-                      >
-                        View Achievements
-                      </button>
-                    </div>
+                    <SidebarGamification
+                      collapsed={isSidebarCollapsed}
+                      bigScreen={theme === 'BIG_SCREEN'}
+                      onOpenAchievements={() => setShowAchievements(true)}
+                    />
                   )}
 
                   <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-4">
