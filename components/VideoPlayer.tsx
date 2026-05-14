@@ -507,6 +507,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
         )}
       </AnimatePresence>
     </div>
+  </div>
   );
 };
 
