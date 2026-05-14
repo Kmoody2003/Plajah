@@ -355,19 +355,23 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
 
   const base = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}`;
 
-  const [teamData, newsData, rosterData, scoresData] = await Promise.all([
+  const [teamRes, newsRes, rosterRes, scoresRes] = await Promise.allSettled([
     safeFetch(`${base}?enable=roster,record,stats`),
     safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?team=${teamId}&limit=15`),
     safeFetch(`${base}/roster`),
     safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=2025&seasontype=2&limit=10`),
   ]);
 
+  const teamData   = teamRes.status   === 'fulfilled' ? teamRes.value   : null;
+  const newsData   = newsRes.status   === 'fulfilled' ? newsRes.value   : null;
+  const rosterData = rosterRes.status === 'fulfilled' ? rosterRes.value : null;
+  const scoresData = scoresRes.status === 'fulfilled' ? scoresRes.value : null;
+
   // Normalise roster into position groups
   const rawAthletes: any[] = rosterData?.athletes ?? teamData?.team?.athletes ?? [];
   let roster: { group: string; athletes: any[] }[] = [];
   if (Array.isArray(rawAthletes) && rawAthletes.length > 0) {
     if (rawAthletes[0]?.position) {
-      // Flat list → group by position
       const grouped: Record<string, any[]> = {};
       rawAthletes.forEach((a: any) => {
         const pos = a.position?.abbreviation || a.position?.name || 'Other';
@@ -376,7 +380,6 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
       });
       roster = Object.entries(grouped).map(([group, athletes]) => ({ group, athletes }));
     } else if (rawAthletes[0]?.items) {
-      // Already grouped
       roster = rawAthletes.map((g: any) => ({ group: g.position || g.name || '', athletes: g.items || [] }));
     }
   }
@@ -388,7 +391,9 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
     recentGames: scoresData?.events ?? [],
   };
 
-  toCache(key, page);
+  if (page.team || page.news.length > 0 || page.roster.length > 0) {
+    toCache(key, page);
+  }
   return page;
 }
 
@@ -839,24 +844,74 @@ export const LEAGUE_CHAMPIONS: Record<string, ChampionEntry[]> = {
 
 // ─── RICH TEAM PAGE ──────────────────────────────────────────────────────────
 
+// FIFA/MLS teams carry a TheSportsDB ID, not an ESPN ID.
+// This function builds the team page entirely from TSDB data.
+async function fetchSoccerRichTeamPage(
+  tsdbTeamId: string,
+  fullName: string,
+  nickname: string,
+  location: string,
+  cacheKey: string,
+): Promise<RichTeamPage | null> {
+  const [teamRes, playersRes, wikiRes] = await Promise.allSettled([
+    safeFetch(`${TSDB}/lookupteam.php?id=${tsdbTeamId}`),
+    fetchTheSportsDBPlayers(tsdbTeamId),
+    fetchWikiSummary(fullName),
+  ]);
+
+  const tsdbTeam = teamRes.status === 'fulfilled' ? (teamRes.value?.teams?.[0] ?? null) : null;
+  const legends  = playersRes.status === 'fulfilled' ? playersRes.value : [];
+  const wikiText = wikiRes.status   === 'fulfilled' ? wikiRes.value    : '';
+
+  const rich: RichTeamPage = {
+    team: tsdbTeam ? {
+      id:               tsdbTeamId,
+      displayName:      tsdbTeam.strTeam || fullName,
+      shortDisplayName: tsdbTeam.strTeamShort || nickname,
+      abbreviation:     (tsdbTeam.strTeamShort || nickname || '').substring(0, 3).toUpperCase(),
+      logos:            tsdbTeam.strTeamBadge ? [{ href: tsdbTeam.strTeamBadge }] : [],
+      color:            '1a1a1a',
+      alternateColor:   'ffffff',
+      record:           { items: [] },
+    } : null,
+    news:        [],
+    roster:      [],
+    recentGames: [],
+    description: wikiText || tsdbTeam?.strDescriptionEN || '',
+    founded:     tsdbTeam?.intFormedYear  || '',
+    city:        tsdbTeam?.strCity || tsdbTeam?.strCountry || location || '',
+    stadium:     tsdbTeam?.strStadium     || '',
+    fanart:      tsdbTeam?.strFanart1     || tsdbTeam?.strFanart2 || '',
+    badge:       tsdbTeam?.strTeamBadge   || '',
+    legends,
+  };
+
+  toCache(cacheKey, rich);
+  return rich;
+}
+
 export async function fetchRichTeamPage(
   tab: string,
-  espnTeamId: string,
+  teamId: string,
   nickname: string,
   location: string,
 ): Promise<RichTeamPage | null> {
-  const key = `rich:${tab}:${espnTeamId}`;
+  const key = `rich:${tab}:${teamId}`;
   const c = fromCache(key, TTL.roster);
   if (c !== null) return c;
 
   const fullName = location ? `${location} ${nickname}`.trim() : nickname;
 
+  // FIFA/MLS teams have TheSportsDB IDs — bypass ESPN entirely
+  if (tab === 'FIFA' || tab === 'MLS') {
+    return fetchSoccerRichTeamPage(teamId, fullName, nickname, location, key);
+  }
+
   const [base, tsdbTeam, wikiText] = await Promise.all([
-    fetchTeamPage(tab, espnTeamId),
+    fetchTeamPage(tab, teamId),
     fetchTheSportsDBTeam(fullName),
     fetchWikiSummary(fullName),
   ]);
-  if (!base) return null;
 
   let legends: LegendPlayer[] = [];
   if (tsdbTeam?.idTeam) {
@@ -864,15 +919,19 @@ export async function fetchRichTeamPage(
   }
 
   const rich: RichTeamPage = {
-    ...base,
+    team:        base?.team        ?? null,
+    news:        base?.news        ?? [],
+    roster:      base?.roster      ?? [],
+    recentGames: base?.recentGames ?? [],
     description: wikiText || tsdbTeam?.strDescriptionEN || '',
-    founded: tsdbTeam?.intFormedYear || '',
-    city: tsdbTeam?.strCity || location || '',
-    stadium: tsdbTeam?.strStadium || '',
-    fanart: tsdbTeam?.strFanart1 || tsdbTeam?.strFanart2 || '',
-    badge: tsdbTeam?.strTeamBadge || '',
+    founded:     tsdbTeam?.intFormedYear  || '',
+    city:        tsdbTeam?.strCity || location || '',
+    stadium:     tsdbTeam?.strStadium     || '',
+    fanart:      tsdbTeam?.strFanart1     || tsdbTeam?.strFanart2 || '',
+    badge:       tsdbTeam?.strTeamBadge   || '',
     legends,
   };
+
   toCache(key, rich);
   return rich;
 }
