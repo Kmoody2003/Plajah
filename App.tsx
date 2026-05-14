@@ -1595,9 +1595,9 @@ const App: React.FC = () => {
 
             {view === 'DASHBOARD' && (
               <div className="flex flex-col lg:flex-row w-full h-full">
-                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full relative">
+                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full relative z-[1]">
                   {archiveBgAlbums.length > 0 && (
-                    <div className="absolute top-0 left-0 right-0 h-[60vh] overflow-hidden pointer-events-none z-0 rounded-b-[3rem]">
+                    <div className="fixed top-0 left-0 w-screen h-[60vh] overflow-hidden pointer-events-none rounded-b-[3rem]" style={{ zIndex: 0 }}>
                       <AnimatePresence mode="sync">
                         <motion.img
                           key={archiveBgAlbums[archiveBgIndex]?.id}
