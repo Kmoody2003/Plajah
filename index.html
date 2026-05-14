@@ -10,6 +10,7 @@
     <meta name="theme-color" content="#020202" media="(prefers-color-scheme: light)">
     <meta name="color-scheme" content="dark">
     <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+    <meta name="msapplication-tap-highlight" content="no">
     <meta name="android-tv-app" content="true">
     <title>Plajah</title>
     
@@ -67,6 +68,10 @@
         /* Prevent input zoom on Android (requires font-size >= 16px) */
         input, select, textarea {
             font-size: 16px !important;
+        }
+        /* Smooth momentum scrolling on iOS/Edge iOS */
+        [data-scrollable], .overflow-y-auto, .overflow-y-scroll, .overflow-x-auto, .overflow-x-scroll {
+            -webkit-overflow-scrolling: touch;
         }
         /* Hide scrollbars on Android WebView */
         * {

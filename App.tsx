@@ -156,6 +156,11 @@ const SidebarGamification: React.FC<{ collapsed: boolean; bigScreen: boolean; on
   );
 };
 
+const detectMobile = () =>
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|EdgA|EdgiOS|Mobile/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024)
+  || window.innerWidth < 768;
+
 const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>('LANDING');
   
@@ -314,7 +319,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkDevice = () => {
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+      const mobile = detectMobile();
       setIsMobile(mobile);
       
       // Device-specific defaults for initial load
@@ -363,7 +368,7 @@ const App: React.FC = () => {
   }, [isBottomSectionExpanded]);
 
   const handleEnterApp = () => {
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+    const isMobileDevice = detectMobile();
     const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
     const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
 
@@ -495,7 +500,7 @@ const App: React.FC = () => {
       if (u) {
         setViewInternal(prev => {
           if (prev === 'LANDING') {
-            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+            const isMobileDevice = detectMobile();
             const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
             const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
             if (isMobileDevice) {
