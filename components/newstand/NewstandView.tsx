@@ -458,51 +458,6 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
             </div>
           )}
 
-          {/* Racing sports: simple scores + RSS news */}
-          {['SPORTS_F1', 'SPORTS_NASCAR', 'SPORTS_INDYCAR'].includes(activeSportsTab) && (
-            <>
-              {scores.length > 0 && (
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {scores.map((s: any) => (
-                    <div key={s.id} className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-4">{s.name}</p>
-                      <div className="text-xl font-black tracking-tighter italic">
-                        {s.competitions?.[0]?.competitors?.[0]?.score || 0} - {s.competitions?.[0]?.competitors?.[1]?.score || 0}
-                      </div>
-                    </div>
-                  ))}
-                </section>
-              )}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {items.map((item, idx) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="p-8 bg-white/5 border border-white/5 rounded-[2rem] hover:border-white/20 transition-all flex flex-col group overflow-hidden relative"
-                  >
-                    {item.imageUrl && (
-                      <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
-                        <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-                      </div>
-                    )}
-                    <div className="relative z-10 flex flex-col h-full">
-                      <div className="text-[10px] font-black uppercase mb-4 text-small-orange">{item.source}</div>
-                      <h3 className="text-2xl font-black uppercase tracking-tight mb-4 group-hover:text-small-orange transition-colors">{item.title}</h3>
-                      <p className="text-sm opacity-50 mb-6 flex-1 line-clamp-3 leading-relaxed">{item.content}</p>
-                      <div className="flex items-center justify-between mt-auto">
-                        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs font-black uppercase tracking-widest opacity-80 hover:text-small-orange flex items-center gap-2">
-                          <ExternalLink size={14} /> Read Article
-                        </a>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </>
-          )}
         </main>
       ) : (
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">

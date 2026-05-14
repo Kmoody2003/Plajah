@@ -21,9 +21,11 @@ function toCache(key: string, data: any) { _cache.set(key, { data, ts: Date.now(
 async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<any> {
   if (ttlKey) { const c = fromCache(ttlKey, ttl!); if (c !== null) return c; }
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6000);
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    // Route through server-side proxy to avoid CORS in production
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
     const data = await res.json();

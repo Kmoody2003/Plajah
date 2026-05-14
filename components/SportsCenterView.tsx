@@ -32,7 +32,7 @@ function savePins(ids: string[]) { localStorage.setItem(PINS_KEY, JSON.stringify
 export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [teamSearch, setTeamSearch]       = useState('');
   const [leagueTeams, setLeagueTeams]     = useState<SportsTeam[]>([]);
-  const [leagueLoading, setLeagueLoading] = useState(false);
+  const [leagueLoading, setLeagueLoading] = useState(true);  // true so skeleton shows immediately
   const [leagueError, setLeagueError]     = useState(false);
   const [leagueScores, setLeagueScores]   = useState<any[]>([]);
   const [news, setNews]                   = useState<any[]>([]);
@@ -714,77 +714,82 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       {/* ── STANDARD LEAGUE ── */}
       {!isEsports && (
         <>
-          {/* Today's Scoreboard */}
-          {(leagueScores.length > 0 || leagueLoading) && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                {leagueScores.some((e: any) => e.status?.type?.state === 'in') && (
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
-                )}
-                <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">
-                  {leagueScores.some((e: any) => e.status?.type?.state === 'in') ? 'Live & Today\'s Games' : 'Today\'s Games'}
-                </h4>
-              </div>
-              {leagueLoading ? (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {[...Array(4)].map((_, i) => <div key={i} className="min-w-[200px] h-28 rounded-[1.5rem] bg-white/5 animate-pulse shrink-0" />)}
-                </div>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
-                  {leagueScores.slice(0, 16).map((event: any) => {
-                    const comps  = event.competitions?.[0];
-                    const away   = comps?.competitors?.find((c: any) => c.homeAway === 'away');
-                    const home   = comps?.competitors?.find((c: any) => c.homeAway === 'home');
-                    const isLive = event.status?.type?.state === 'in';
-                    const isPre  = event.status?.type?.state === 'pre';
-                    const isPost = event.status?.type?.state === 'post';
-                    return (
-                      <div key={event.id} className={`min-w-[200px] border rounded-[1.5rem] p-4 flex flex-col gap-2.5 shrink-0 transition-all ${
-                        isLive ? 'bg-red-500/5 border-red-500/25' : 'bg-white/[0.03] border-white/8'
-                      }`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[7px] font-black uppercase tracking-widest text-white/25 truncate">{event.status?.type?.shortDetail}</span>
-                          {isLive && <span className="text-[7px] font-black text-red-400 animate-pulse shrink-0">● Live</span>}
-                          {isPre  && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Upcoming</span>}
-                          {isPost && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Final</span>}
-                        </div>
-                        {[away, home].filter(Boolean).map((team: any) => (
-                          <button key={team?.id}
-                            onClick={() => { const t = leagueTeams.find(lt => lt.id === String(team?.team?.id)); if (t) setSelectedTeam(t); }}
-                            className="flex items-center justify-between gap-2 group/btn"
-                          >
-                            <div className="flex items-center gap-2">
-                              <img src={team?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-80" loading="lazy" />
-                              <div>
-                                <span className={`text-[9px] font-black uppercase group-hover/btn:text-[#FF8C00] transition-colors ${team?.winner ? 'text-white' : 'text-white/50'}`}>{team?.team?.abbreviation}</span>
-                                {team?.records?.[0]?.summary && <p className="text-[6px] text-white/20">{team.records[0].summary}</p>}
-                              </div>
-                            </div>
-                            <span className={`text-xs font-black ${team?.winner ? 'text-[#FF8C00]' : isPost ? 'text-white/40' : isPre ? 'text-white/15' : 'text-white/70'}`}>
-                              {team?.score ?? (isPre ? '' : '–')}
-                            </span>
-                          </button>
-                        ))}
-                        {isPre && comps?.date && (
-                          <p className="text-[7px] font-bold text-white/20 text-right">{new Date(comps.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Today's Scoreboard — always rendered; shows skeleton while loading */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              {leagueScores.some((e: any) => e.status?.type?.state === 'in') && (
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
               )}
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">
+                {leagueScores.some((e: any) => e.status?.type?.state === 'in') ? 'Live & Today\'s Games' : 'Today\'s Games'}
+              </h4>
             </div>
-          )}
+            {leagueLoading ? (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {[...Array(5)].map((_, i) => <div key={i} className="min-w-[200px] h-28 rounded-[1.5rem] bg-white/5 animate-pulse shrink-0" />)}
+              </div>
+            ) : leagueScores.length === 0 ? (
+              <div className="flex items-center justify-center h-20 bg-white/[0.02] border border-white/5 rounded-[1.5rem]">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/20">No games scheduled today</p>
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
+                {leagueScores.slice(0, 16).map((event: any) => {
+                  const comps  = event.competitions?.[0];
+                  const away   = comps?.competitors?.find((c: any) => c.homeAway === 'away');
+                  const home   = comps?.competitors?.find((c: any) => c.homeAway === 'home');
+                  const isLive = event.status?.type?.state === 'in';
+                  const isPre  = event.status?.type?.state === 'pre';
+                  const isPost = event.status?.type?.state === 'post';
+                  return (
+                    <div key={event.id} className={`min-w-[200px] border rounded-[1.5rem] p-4 flex flex-col gap-2.5 shrink-0 transition-all ${
+                      isLive ? 'bg-red-500/5 border-red-500/25' : 'bg-white/[0.03] border-white/8'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[7px] font-black uppercase tracking-widest text-white/25 truncate">{event.status?.type?.shortDetail}</span>
+                        {isLive && <span className="text-[7px] font-black text-red-400 animate-pulse shrink-0">● Live</span>}
+                        {isPre  && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Upcoming</span>}
+                        {isPost && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Final</span>}
+                      </div>
+                      {[away, home].filter(Boolean).map((team: any) => (
+                        <button key={team?.id}
+                          onClick={() => { const t = leagueTeams.find(lt => lt.id === String(team?.team?.id)); if (t) setSelectedTeam(t); }}
+                          className="flex items-center justify-between gap-2 group/btn"
+                        >
+                          <div className="flex items-center gap-2">
+                            <img src={team?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-80" loading="lazy" />
+                            <div>
+                              <span className={`text-[9px] font-black uppercase group-hover/btn:text-[#FF8C00] transition-colors ${team?.winner ? 'text-white' : 'text-white/50'}`}>{team?.team?.abbreviation}</span>
+                              {team?.records?.[0]?.summary && <p className="text-[6px] text-white/20">{team.records[0].summary}</p>}
+                            </div>
+                          </div>
+                          <span className={`text-xs font-black ${team?.winner ? 'text-[#FF8C00]' : isPost ? 'text-white/40' : isPre ? 'text-white/15' : 'text-white/70'}`}>
+                            {team?.score ?? (isPre ? '' : '–')}
+                          </span>
+                        </button>
+                      ))}
+                      {isPre && comps?.date && (
+                        <p className="text-[7px] font-bold text-white/20 text-right">{new Date(comps.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-          {/* Standings */}
-          {(standings.length > 0 || leagueLoading) && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><TrendingUp size={10} /> Standings</h4>
-              {leagueLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[...Array(2)].map((_, i) => <div key={i} className="h-48 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
-                </div>
-              ) : (
+          {/* Standings — always rendered */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><TrendingUp size={10} /> Standings</h4>
+            {leagueLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...Array(2)].map((_, i) => <div key={i} className="h-48 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
+              </div>
+            ) : standings.length === 0 ? (
+              <div className="flex items-center justify-center h-20 bg-white/[0.02] border border-white/5 rounded-[1.5rem]">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Standings unavailable</p>
+              </div>
+            ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {standings.slice(0, 4).map((conference: any, ci: number) => {
                     const entries: any[] = conference.standings?.entries ?? conference.entries ?? [];
@@ -839,7 +844,6 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                 </div>
               )}
             </div>
-          )}
 
           {/* League Leaders */}
           {leagueLeaders.length > 0 && (
