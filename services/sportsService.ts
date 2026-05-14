@@ -451,6 +451,199 @@ export async function fetchRacingNews(tab: string): Promise<any[]> {
   return articles;
 }
 
+// ─── LEAGUE LEADERS ─────────────────────────────────────────────────────────
+
+export interface LeaderEntry {
+  athleteId: string;
+  name: string;
+  photo: string;
+  teamAbbr: string;
+  teamLogo: string;
+  value: number;
+  displayValue: string;
+}
+
+export interface LeaderCategory {
+  name: string;
+  displayName: string;
+  shortName: string;
+  leaders: LeaderEntry[];
+}
+
+export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]> {
+  const cfg = getLeagueCfg(tab);
+  if (!cfg) return [];
+  const key = `leaders:${tab}`;
+  const c = fromCache(key, TTL.standings);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/leaders`);
+  if (!data?.categories) return [];
+
+  const PRIORITY: Record<string, string[]> = {
+    NBA:  ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
+    NFL:  ['passingYards', 'rushingYards', 'receivingYards', 'sacks'],
+    NHL:  ['points', 'goals', 'assists', 'plusMinus'],
+    MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era'],
+    NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
+  };
+  const priority = PRIORITY[tab] ?? [];
+
+  const cats: LeaderCategory[] = (data.categories as any[])
+    .filter((cat: any) => priority.length === 0 || priority.includes(cat.name))
+    .sort((a: any, b: any) => {
+      const ai = priority.indexOf(a.name);
+      const bi = priority.indexOf(b.name);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    })
+    .slice(0, 4)
+    .map((cat: any) => ({
+      name: cat.name,
+      displayName: cat.displayName || cat.name,
+      shortName: cat.shortDisplayName || cat.abbreviation || cat.name,
+      leaders: (cat.leaders ?? []).slice(0, 5).map((l: any) => ({
+        athleteId: String(l.athlete?.id ?? ''),
+        name: l.athlete?.displayName ?? l.athlete?.fullName ?? 'Unknown',
+        photo: l.athlete?.headshot?.href ?? '',
+        teamAbbr: l.athlete?.team?.abbreviation ?? l.team?.abbreviation ?? '',
+        teamLogo: l.athlete?.team?.logos?.[0]?.href ?? '',
+        value: l.value ?? 0,
+        displayValue: l.displayValue ?? String(l.value ?? 0),
+      })),
+    }));
+
+  toCache(key, cats);
+  return cats;
+}
+
+// ─── PLAYER PROFILE ─────────────────────────────────────────────────────────
+
+export async function fetchPlayerProfile(tab: string, athleteId: string): Promise<any | null> {
+  const cfg = getLeagueCfg(tab);
+  if (!cfg) return null;
+  const key = `player:${tab}:${athleteId}`;
+  const c = fromCache(key, TTL.roster);
+  if (c !== null) return c;
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}`);
+  const profile = data?.athlete ?? null;
+  toCache(key, profile);
+  return profile;
+}
+
+// ─── TEAM FULL SCHEDULE ─────────────────────────────────────────────────────
+
+export async function fetchTeamFullSchedule(tab: string, teamId: string): Promise<any[]> {
+  const cfg = getLeagueCfg(tab);
+  if (!cfg) return [];
+  const key = `fullsched:${tab}:${teamId}`;
+  const c = fromCache(key, TTL.scores);
+  if (c) return c;
+  const data = await safeFetch(
+    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=2025&seasontype=2`
+  );
+  const events = data?.events ?? [];
+  toCache(key, events);
+  return events;
+}
+
+// ─── LEAGUE CHAMPIONS HISTORY ────────────────────────────────────────────────
+
+export interface ChampionEntry {
+  year: number;
+  champion: string;
+  opponent?: string;
+  series?: string;
+  note?: string;
+}
+
+export const LEAGUE_CHAMPIONS: Record<string, ChampionEntry[]> = {
+  NBA: [
+    { year: 2024, champion: 'Boston Celtics',        opponent: 'Dallas Mavericks',        series: '4-1' },
+    { year: 2023, champion: 'Denver Nuggets',         opponent: 'Miami Heat',              series: '4-1' },
+    { year: 2022, champion: 'Golden State Warriors',  opponent: 'Boston Celtics',          series: '4-2' },
+    { year: 2021, champion: 'Milwaukee Bucks',        opponent: 'Phoenix Suns',            series: '4-2' },
+    { year: 2020, champion: 'Los Angeles Lakers',     opponent: 'Miami Heat',              series: '4-2' },
+    { year: 2019, champion: 'Toronto Raptors',        opponent: 'Golden State Warriors',   series: '4-2' },
+    { year: 2018, champion: 'Golden State Warriors',  opponent: 'Cleveland Cavaliers',     series: '4-0' },
+    { year: 2017, champion: 'Golden State Warriors',  opponent: 'Cleveland Cavaliers',     series: '4-1' },
+    { year: 2016, champion: 'Cleveland Cavaliers',    opponent: 'Golden State Warriors',   series: '4-3' },
+    { year: 2015, champion: 'Golden State Warriors',  opponent: 'Cleveland Cavaliers',     series: '4-2' },
+    { year: 2014, champion: 'San Antonio Spurs',      opponent: 'Miami Heat',              series: '4-1' },
+    { year: 2013, champion: 'Miami Heat',             opponent: 'San Antonio Spurs',       series: '4-3' },
+    { year: 2012, champion: 'Miami Heat',             opponent: 'Oklahoma City Thunder',   series: '4-1' },
+    { year: 2011, champion: 'Dallas Mavericks',       opponent: 'Miami Heat',              series: '4-2' },
+    { year: 2010, champion: 'Los Angeles Lakers',     opponent: 'Boston Celtics',          series: '4-3' },
+  ],
+  NFL: [
+    { year: 2025, champion: 'Philadelphia Eagles',    opponent: 'Kansas City Chiefs',      series: '40-22',    note: 'Super Bowl LIX' },
+    { year: 2024, champion: 'Kansas City Chiefs',     opponent: 'San Francisco 49ers',     series: '25-22 OT', note: 'Super Bowl LVIII' },
+    { year: 2023, champion: 'Kansas City Chiefs',     opponent: 'Philadelphia Eagles',     series: '38-35',    note: 'Super Bowl LVII' },
+    { year: 2022, champion: 'Los Angeles Rams',       opponent: 'Cincinnati Bengals',      series: '23-20',    note: 'Super Bowl LVI' },
+    { year: 2021, champion: 'Tampa Bay Buccaneers',   opponent: 'Kansas City Chiefs',      series: '31-9',     note: 'Super Bowl LV' },
+    { year: 2020, champion: 'Kansas City Chiefs',     opponent: 'San Francisco 49ers',     series: '31-20',    note: 'Super Bowl LIV' },
+    { year: 2019, champion: 'New England Patriots',   opponent: 'Los Angeles Rams',        series: '13-3',     note: 'Super Bowl LIII' },
+    { year: 2018, champion: 'Philadelphia Eagles',    opponent: 'New England Patriots',    series: '41-33',    note: 'Super Bowl LII' },
+    { year: 2017, champion: 'New England Patriots',   opponent: 'Atlanta Falcons',         series: '34-28 OT', note: 'Super Bowl LI' },
+    { year: 2016, champion: 'Denver Broncos',         opponent: 'Carolina Panthers',       series: '24-10',    note: 'Super Bowl 50' },
+    { year: 2015, champion: 'New England Patriots',   opponent: 'Seattle Seahawks',        series: '28-24',    note: 'Super Bowl XLIX' },
+    { year: 2014, champion: 'Seattle Seahawks',       opponent: 'Denver Broncos',          series: '43-8',     note: 'Super Bowl XLVIII' },
+    { year: 2013, champion: 'Baltimore Ravens',       opponent: 'San Francisco 49ers',     series: '34-31',    note: 'Super Bowl XLVII' },
+    { year: 2012, champion: 'New York Giants',        opponent: 'New England Patriots',    series: '21-17',    note: 'Super Bowl XLVI' },
+    { year: 2011, champion: 'Green Bay Packers',      opponent: 'Pittsburgh Steelers',     series: '31-25',    note: 'Super Bowl XLV' },
+  ],
+  NHL: [
+    { year: 2024, champion: 'Florida Panthers',       opponent: 'Edmonton Oilers',         series: '4-3' },
+    { year: 2023, champion: 'Vegas Golden Knights',   opponent: 'Florida Panthers',        series: '4-1' },
+    { year: 2022, champion: 'Colorado Avalanche',     opponent: 'Tampa Bay Lightning',     series: '4-2' },
+    { year: 2021, champion: 'Tampa Bay Lightning',    opponent: 'Montreal Canadiens',      series: '4-1' },
+    { year: 2020, champion: 'Tampa Bay Lightning',    opponent: 'Dallas Stars',            series: '4-2' },
+    { year: 2019, champion: 'St. Louis Blues',        opponent: 'Boston Bruins',           series: '4-3' },
+    { year: 2018, champion: 'Washington Capitals',    opponent: 'Vegas Golden Knights',    series: '4-1' },
+    { year: 2017, champion: 'Pittsburgh Penguins',    opponent: 'Nashville Predators',     series: '4-2' },
+    { year: 2016, champion: 'Pittsburgh Penguins',    opponent: 'San Jose Sharks',         series: '4-2' },
+    { year: 2015, champion: 'Chicago Blackhawks',     opponent: 'Tampa Bay Lightning',     series: '4-2' },
+    { year: 2014, champion: 'Los Angeles Kings',      opponent: 'New York Rangers',        series: '4-1' },
+    { year: 2013, champion: 'Chicago Blackhawks',     opponent: 'Boston Bruins',           series: '4-2' },
+    { year: 2012, champion: 'Los Angeles Kings',      opponent: 'New Jersey Devils',       series: '4-2' },
+    { year: 2011, champion: 'Boston Bruins',          opponent: 'Vancouver Canucks',       series: '4-3' },
+    { year: 2010, champion: 'Chicago Blackhawks',     opponent: 'Philadelphia Flyers',     series: '4-2' },
+  ],
+  MLB: [
+    { year: 2024, champion: 'Los Angeles Dodgers',    opponent: 'New York Yankees',        series: '4-1' },
+    { year: 2023, champion: 'Texas Rangers',          opponent: 'Arizona Diamondbacks',    series: '4-1' },
+    { year: 2022, champion: 'Houston Astros',         opponent: 'Philadelphia Phillies',   series: '4-2' },
+    { year: 2021, champion: 'Atlanta Braves',         opponent: 'Houston Astros',          series: '4-2' },
+    { year: 2020, champion: 'Los Angeles Dodgers',    opponent: 'Tampa Bay Rays',          series: '4-2' },
+    { year: 2019, champion: 'Washington Nationals',   opponent: 'Houston Astros',          series: '4-3' },
+    { year: 2018, champion: 'Boston Red Sox',         opponent: 'Los Angeles Dodgers',     series: '4-1' },
+    { year: 2017, champion: 'Houston Astros',         opponent: 'Los Angeles Dodgers',     series: '4-3' },
+    { year: 2016, champion: 'Chicago Cubs',           opponent: 'Cleveland Guardians',     series: '4-3' },
+    { year: 2015, champion: 'Kansas City Royals',     opponent: 'New York Mets',           series: '4-1' },
+    { year: 2014, champion: 'San Francisco Giants',   opponent: 'Kansas City Royals',      series: '4-3' },
+    { year: 2013, champion: 'Boston Red Sox',         opponent: 'St. Louis Cardinals',     series: '4-2' },
+    { year: 2012, champion: 'San Francisco Giants',   opponent: 'Detroit Tigers',          series: '4-0' },
+    { year: 2011, champion: 'St. Louis Cardinals',    opponent: 'Texas Rangers',           series: '4-3' },
+    { year: 2010, champion: 'San Francisco Giants',   opponent: 'Texas Rangers',           series: '4-1' },
+  ],
+  NCAA: [
+    { year: 2025, champion: 'Florida Gators',         opponent: 'Houston Cougars',         series: '65-63' },
+    { year: 2024, champion: 'UConn Huskies',          opponent: 'Purdue Boilermakers',     series: '75-60' },
+    { year: 2023, champion: 'UConn Huskies',          opponent: 'San Diego State',         series: '76-59' },
+    { year: 2022, champion: 'Kansas Jayhawks',        opponent: 'North Carolina',          series: '72-69' },
+    { year: 2021, champion: 'Baylor Bears',           opponent: 'Gonzaga Bulldogs',        series: '86-70' },
+    { year: 2020, champion: 'N/A',                    note: 'Tournament cancelled (COVID-19)' },
+    { year: 2019, champion: 'Virginia Cavaliers',     opponent: 'Texas Tech Red Raiders',  series: '85-77 OT' },
+    { year: 2018, champion: 'Villanova Wildcats',     opponent: 'Michigan Wolverines',     series: '79-62' },
+    { year: 2017, champion: 'North Carolina Tar Heels', opponent: 'Gonzaga Bulldogs',     series: '71-65' },
+    { year: 2016, champion: 'Villanova Wildcats',     opponent: 'North Carolina Tar Heels',series: '77-74' },
+    { year: 2015, champion: 'Duke Blue Devils',       opponent: 'Wisconsin Badgers',       series: '68-63' },
+    { year: 2014, champion: 'UConn Huskies',          opponent: 'Florida Gators',          series: '60-54' },
+    { year: 2013, champion: 'Louisville Cardinals',   opponent: 'Michigan Wolverines',     series: '82-76' },
+    { year: 2012, champion: 'Kentucky Wildcats',      opponent: 'Kansas Jayhawks',         series: '67-59' },
+    { year: 2011, champion: 'UConn Huskies',          opponent: 'Butler Bulldogs',         series: '53-41' },
+  ],
+};
+
 // ─── RICH TEAM PAGE ──────────────────────────────────────────────────────────
 
 export async function fetchRichTeamPage(
