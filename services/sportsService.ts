@@ -38,7 +38,7 @@ async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<an
 }
 
 // ---------- league config --------------------------------------------------
-export type LeagueTab = 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS';
+export type LeagueTab = 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS';
 
 const LEAGUES: Record<Exclude<LeagueTab, 'ESPORTS'>, { sport: string; league: string }> = {
   NBA:  { sport: 'basketball', league: 'nba' },
@@ -46,12 +46,24 @@ const LEAGUES: Record<Exclude<LeagueTab, 'ESPORTS'>, { sport: string; league: st
   NHL:  { sport: 'hockey',     league: 'nhl' },
   MLB:  { sport: 'baseball',   league: 'mlb' },
   NCAA: { sport: 'basketball', league: 'mens-college-basketball' },
+  // Soccer — ESPN endpoints for news/scores; TSDB handles teams/standings
+  FIFA: { sport: 'soccer',     league: 'eng.1' },  // Premier League as global soccer feed
+  MLS:  { sport: 'soccer',     league: 'usa.1' },
 };
 
 export function getLeagueCfg(tab: string) {
   if (tab === 'ESPORTS') return null;
   return LEAGUES[tab as Exclude<LeagueTab, 'ESPORTS'>] ?? null;
 }
+
+// ── TheSportsDB Soccer Config ────────────────────────────────────────────────
+// TheSportsDB free tier key = "3" (already set in TSDB const below)
+// FIFA tab shows top-flight global soccer (Premier League + Champions League)
+// MLS tab shows Major League Soccer exclusively
+const TSDB_SOCCER: Record<string, { leagueId: string; leagueName: string; espnNews: string }> = {
+  FIFA: { leagueId: '4328', leagueName: 'English Premier League', espnNews: 'soccer/eng.1' },
+  MLS:  { leagueId: '4346', leagueName: 'Major League Soccer',    espnNews: 'soccer/usa.1' },
+};
 
 // ---------- E-Sports organizations (free, no API key) ----------------------
 export interface EsportsOrg {
@@ -102,6 +114,131 @@ export async function fetchEsportsNews(): Promise<any[]> {
   return articles;
 }
 
+// ── TheSportsDB soccer helpers (no key required, free tier) ─────────────────
+// These are defined before the TSDB const at line ~258 to keep them together
+// with the league functions; the TSDB const is declared later but hoisted as a const.
+
+async function fetchSoccerTeamsFromTSDB(tab: string): Promise<SportsTeam[]> {
+  const cfg = TSDB_SOCCER[tab];
+  if (!cfg) return [];
+  const key = `tsdb:soccer:teams:${tab}`;
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+
+  // TSDB endpoint: search_all_teams by league name
+  const data = await safeFetch(
+    `https://www.thesportsdb.com/api/v1/json/3/search_all_teams.php?l=${encodeURIComponent(cfg.leagueName)}`
+  );
+  const rawTeams: any[] = data?.teams ?? [];
+  if (rawTeams.length === 0) return [];
+
+  const teams: SportsTeam[] = rawTeams.map((t: any) => ({
+    id:           t.idTeam,
+    name:         t.strTeam || '',
+    abbreviation: t.strTeamShort || t.strAlternate || (t.strTeam || '').substring(0, 3).toUpperCase(),
+    location:     t.strCity || t.strCountry || '',
+    nickname:     t.strTeam || '',
+    logo:         t.strTeamBadge || t.strTeamLogo || '',
+    color:        '#1a1a1a',
+    altColor:     '#ffffff',
+    record:       '',
+    tsdbId:       t.idTeam,
+  }));
+
+  toCache(key, teams);
+  return teams;
+}
+
+async function fetchSoccerStandingsFromTSDB(tab: string): Promise<any[]> {
+  const cfg = TSDB_SOCCER[tab];
+  if (!cfg) return [];
+  const key = `tsdb:soccer:standings:${tab}`;
+  const c = fromCache(key, TTL.standings);
+  if (c !== null) return c;
+
+  const season = new Date().getFullYear().toString();
+  const data = await safeFetch(
+    `https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=${cfg.leagueId}&s=${season}`
+  );
+  const table: any[] = data?.table ?? [];
+  if (table.length === 0) return [];
+
+  // Wrap in ESPN-compatible structure so the existing standings renderer works
+  const entries = table.map((row: any) => ({
+    team: {
+      id:           row.idTeam,
+      displayName:  row.strTeam,
+      abbreviation: (row.strTeam || '').substring(0, 3).toUpperCase(),
+      logos: row.strBadge ? [{ href: row.strBadge }] : [],
+    },
+    stats: [
+      { name: 'wins',             value: Number(row.intWin   ?? 0), displayValue: row.intWin   ?? '0' },
+      { name: 'losses',           value: Number(row.intLoss  ?? 0), displayValue: row.intLoss  ?? '0' },
+      { name: 'ties',             value: Number(row.intDraw  ?? 0), displayValue: row.intDraw  ?? '0' },
+      { name: 'points',           value: Number(row.intPoints ?? 0), displayValue: row.intPoints ?? '0' },
+      { name: 'goalsFor',         value: Number(row.intGoalsFor ?? 0), displayValue: row.intGoalsFor ?? '0' },
+      { name: 'goalsAgainst',     value: Number(row.intGoalsAgainst ?? 0), displayValue: row.intGoalsAgainst ?? '0' },
+      { name: 'pointDifferential',value: Number(row.intGoalDifference ?? 0), displayValue: row.intGoalDifference ?? '0' },
+      { name: 'gamesPlayed',      value: Number(row.intPlayed ?? 0), displayValue: row.intPlayed ?? '0' },
+      { name: 'rank',             value: Number(row.intRank  ?? 0), displayValue: row.intRank  ?? '0' },
+    ],
+  }));
+
+  const groups = [{ name: cfg.leagueName, standings: { entries } }];
+  toCache(key, groups);
+  return groups;
+}
+
+async function fetchSoccerScoresFromTSDB(tab: string): Promise<any[]> {
+  const cfg = TSDB_SOCCER[tab];
+  if (!cfg) return [];
+  const key = `tsdb:soccer:scores:${tab}`;
+  const c = fromCache(key, TTL.scores);
+  if (c !== null) return c;
+
+  // Get next + last 5 events for a live-ish scoreboard
+  const [nextData, pastData] = await Promise.allSettled([
+    safeFetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=${cfg.leagueId}`),
+    safeFetch(`https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=${cfg.leagueId}`),
+  ]);
+
+  const nextEvents: any[] = nextData.status === 'fulfilled' ? (nextData.value?.events ?? []) : [];
+  const pastEvents: any[] = pastData.status === 'fulfilled' ? (pastData.value?.events ?? []) : [];
+  const combined = [...nextEvents.slice(0, 8), ...pastEvents.slice(0, 5)];
+
+  // Map to ESPN scoreboard event shape so the existing ScoreCard renderer works
+  const events = combined.map((e: any) => {
+    const isCompleted = !!(e.intHomeScore !== null && e.intHomeScore !== '');
+    return {
+      id: e.idEvent,
+      name: e.strEvent || `${e.strHomeTeam} vs ${e.strAwayTeam}`,
+      shortName: `${(e.strHomeTeam || '').substring(0, 3).toUpperCase()} vs ${(e.strAwayTeam || '').substring(0, 3).toUpperCase()}`,
+      date: `${e.dateEvent || ''}T${e.strTime || '00:00:00'}Z`,
+      status: { type: { state: isCompleted ? 'post' : 'pre', completed: isCompleted, description: isCompleted ? 'Final' : (e.strTime || 'TBD') } },
+      competitions: [{
+        competitors: [
+          {
+            id: e.idHomeTeam || '1',
+            homeAway: 'home',
+            score: String(e.intHomeScore ?? ''),
+            team: { displayName: e.strHomeTeam || '', logos: e.strHomeTeamBadge ? [{ href: e.strHomeTeamBadge }] : [], color: '1a1a1a', alternateColor: 'ffffff' },
+          },
+          {
+            id: e.idAwayTeam || '2',
+            homeAway: 'away',
+            score: String(e.intAwayScore ?? ''),
+            team: { displayName: e.strAwayTeam || '', logos: e.strAwayTeamBadge ? [{ href: e.strAwayTeamBadge }] : [], color: '1a1a1a', alternateColor: 'ffffff' },
+          },
+        ],
+        venue: { fullName: e.strVenue || '', address: { city: e.strCity || '' } },
+      }],
+    };
+  });
+
+  toCache(key, events);
+  return events;
+}
+
 // ---------- types ----------------------------------------------------------
 export interface SportsTeam {
   id: string;
@@ -125,6 +262,9 @@ export interface TeamPageData {
 
 // ---------- teams list -----------------------------------------------------
 export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
+  // Soccer tabs use TheSportsDB (richer metadata, no ESPN key needed)
+  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerTeamsFromTSDB(tab);
+
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
   const key = `teams:${tab}`;
@@ -155,13 +295,18 @@ export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
 
 // ---------- league news (ESPN native JSON) ---------------------------------
 export async function fetchLeagueNews(tab: string): Promise<any[]> {
-  const cfg = getLeagueCfg(tab);
-  if (!cfg) return [];
   const key = `news:${tab}`;
   const cached = fromCache(key, TTL.news);
   if (cached) return cached;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?limit=25`);
+  // Soccer tabs route to the appropriate ESPN soccer feed
+  const soccerCfg = TSDB_SOCCER[tab];
+  const espnPath = soccerCfg
+    ? `${ESPN}/${soccerCfg.espnNews}/news?limit=25`
+    : (() => { const cfg = getLeagueCfg(tab); return cfg ? `${ESPN}/${cfg.sport}/${cfg.league}/news?limit=25` : null; })();
+  if (!espnPath) return [];
+
+  const data = await safeFetch(espnPath);
   const articles = data?.articles ?? [];
   toCache(key, articles);
   return articles;
@@ -169,6 +314,8 @@ export async function fetchLeagueNews(tab: string): Promise<any[]> {
 
 // ---------- league scoreboard (scores) ------------------------------------
 export async function fetchLeagueScores(tab: string): Promise<any[]> {
+  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerScoresFromTSDB(tab);
+
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
   const key = `scores:${tab}`;
@@ -183,6 +330,8 @@ export async function fetchLeagueScores(tab: string): Promise<any[]> {
 
 // ---------- standings ------------------------------------------------------
 export async function fetchLeagueStandings(tab: string): Promise<any[]> {
+  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerStandingsFromTSDB(tab);
+
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
   const key = `standings:${tab}`;
@@ -245,12 +394,12 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
 
 // ---------- prefetch all leagues (warms cache silently) -------------------
 export function prefetchSports(): void {
-  const tabs: LeagueTab[] = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA'];
+  const tabs: LeagueTab[] = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS'];
   tabs.forEach((tab, i) => {
     setTimeout(() => {
       fetchLeagueTeams(tab).catch(() => {});
       fetchLeagueNews(tab).catch(() => {});
-    }, i * 300);
+    }, i * 350);
   });
 }
 
@@ -473,6 +622,9 @@ export interface LeaderCategory {
 }
 
 export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]> {
+  // Soccer leagues have no ESPN /leaders endpoint — skip gracefully
+  if (tab === 'FIFA' || tab === 'MLS') return [];
+
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
   const key = `leaders:${tab}`;
@@ -630,6 +782,41 @@ export const LEAGUE_CHAMPIONS: Record<string, ChampionEntry[]> = {
     { year: 2012, champion: 'San Francisco Giants',   opponent: 'Detroit Tigers',          series: '4-0' },
     { year: 2011, champion: 'St. Louis Cardinals',    opponent: 'Texas Rangers',           series: '4-3' },
     { year: 2010, champion: 'San Francisco Giants',   opponent: 'Texas Rangers',           series: '4-1' },
+  ],
+  FIFA: [
+    { year: 2022, champion: 'Argentina',          opponent: 'France',            series: '3-3 (4-2 pens)', note: 'FIFA World Cup — Qatar' },
+    { year: 2018, champion: 'France',             opponent: 'Croatia',           series: '4-2',            note: 'FIFA World Cup — Russia' },
+    { year: 2014, champion: 'Germany',            opponent: 'Argentina',         series: '1-0 AET',        note: 'FIFA World Cup — Brazil' },
+    { year: 2010, champion: 'Spain',              opponent: 'Netherlands',       series: '1-0 AET',        note: 'FIFA World Cup — South Africa' },
+    { year: 2006, champion: 'Italy',              opponent: 'France',            series: '1-1 (5-3 pens)', note: 'FIFA World Cup — Germany' },
+    { year: 2002, champion: 'Brazil',             opponent: 'Germany',           series: '2-0',            note: 'FIFA World Cup — Korea/Japan' },
+    // UEFA Champions League winners (interspersed for richness)
+    { year: 2024, champion: 'Real Madrid',        opponent: 'Borussia Dortmund', series: '2-0',            note: 'UEFA Champions League Final' },
+    { year: 2023, champion: 'Manchester City',    opponent: 'Inter Milan',       series: '1-0',            note: 'UEFA Champions League Final' },
+    { year: 2022, champion: 'Real Madrid',        opponent: 'Liverpool',         series: '1-0',            note: 'UEFA Champions League Final' },
+    { year: 2021, champion: 'Chelsea',            opponent: 'Manchester City',   series: '1-0',            note: 'UEFA Champions League Final' },
+    { year: 2020, champion: 'Bayern Munich',      opponent: 'Paris SG',          series: '1-0',            note: 'UEFA Champions League Final' },
+    { year: 2019, champion: 'Liverpool',          opponent: 'Tottenham',         series: '2-0',            note: 'UEFA Champions League Final' },
+    { year: 2018, champion: 'Real Madrid',        opponent: 'Liverpool',         series: '3-1',            note: 'UEFA Champions League Final' },
+    { year: 2017, champion: 'Real Madrid',        opponent: 'Juventus',          series: '4-1',            note: 'UEFA Champions League Final' },
+    { year: 2016, champion: 'Real Madrid',        opponent: 'Atlético Madrid',   series: '1-1 (5-3 pens)', note: 'UEFA Champions League Final' },
+  ],
+  MLS: [
+    { year: 2024, champion: 'LA Galaxy',          opponent: 'New York Red Bulls', series: '2-1',           note: 'MLS Cup' },
+    { year: 2023, champion: 'Columbus Crew',      opponent: 'Los Angeles FC',    series: '2-1',            note: 'MLS Cup' },
+    { year: 2022, champion: 'Los Angeles FC',     opponent: 'Philadelphia Union', series: '3-3 (3-0 pens)', note: 'MLS Cup' },
+    { year: 2021, champion: 'New England Revolution', opponent: 'Colorado Rapids', series: 'DNF',          note: 'Supporters Shield' },
+    { year: 2020, champion: 'Columbus Crew',      opponent: 'Seattle Sounders',  series: '3-0',            note: 'MLS Cup' },
+    { year: 2019, champion: 'Seattle Sounders',   opponent: 'Toronto FC',        series: '3-1',            note: 'MLS Cup' },
+    { year: 2018, champion: 'Atlanta United',     opponent: 'Portland Timbers',  series: '2-0',            note: 'MLS Cup' },
+    { year: 2017, champion: 'Toronto FC',         opponent: 'Seattle Sounders',  series: '2-0',            note: 'MLS Cup' },
+    { year: 2016, champion: 'Seattle Sounders',   opponent: 'Toronto FC',        series: '0-0 (5-4 pens)', note: 'MLS Cup' },
+    { year: 2015, champion: 'Portland Timbers',   opponent: 'Columbus Crew',     series: '2-1',            note: 'MLS Cup' },
+    { year: 2014, champion: 'LA Galaxy',          opponent: 'New England Revolution', series: '2-1 AET',   note: 'MLS Cup' },
+    { year: 2013, champion: 'Sporting Kansas City', opponent: 'Real Salt Lake',  series: '1-1 (7-6 pens)', note: 'MLS Cup' },
+    { year: 2012, champion: 'LA Galaxy',          opponent: 'Houston Dynamo',    series: '3-1',            note: 'MLS Cup' },
+    { year: 2011, champion: 'LA Galaxy',          opponent: 'Houston Dynamo',    series: '1-0',            note: 'MLS Cup' },
+    { year: 2010, champion: 'Colorado Rapids',    opponent: 'FC Dallas',         series: '2-1 AET',        note: 'MLS Cup' },
   ],
   NCAA: [
     { year: 2025, champion: 'Florida Gators',         opponent: 'Houston Cougars',         series: '65-63' },

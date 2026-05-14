@@ -41,16 +41,18 @@ const NEWS_SUBCATS = [
 ];
 
 const SPORTS_TABS = [
-  { id: 'SPORTS_ALL', label: 'All Sports' },
-  { id: 'SPORTS_NFL', label: 'NFL' },
-  { id: 'SPORTS_NBA', label: 'NBA' },
-  { id: 'SPORTS_MLB', label: 'MLB' },
-  { id: 'SPORTS_NHL', label: 'NHL' },
-  { id: 'SPORTS_NCAA', label: 'NCAA' },
+  { id: 'SPORTS_ALL',     label: 'All Sports' },
+  { id: 'SPORTS_FIFA',    label: 'FIFA / Soccer' },
+  { id: 'SPORTS_MLS',     label: 'MLS' },
+  { id: 'SPORTS_NFL',     label: 'NFL' },
+  { id: 'SPORTS_NBA',     label: 'NBA' },
+  { id: 'SPORTS_MLB',     label: 'MLB' },
+  { id: 'SPORTS_NHL',     label: 'NHL' },
+  { id: 'SPORTS_NCAA',    label: 'NCAA' },
   { id: 'SPORTS_ESPORTS', label: 'Esports' },
-  { id: 'SPORTS_NASCAR', label: 'NASCAR' },
+  { id: 'SPORTS_NASCAR',  label: 'NASCAR' },
   { id: 'SPORTS_INDYCAR', label: 'IndyCar' },
-  { id: 'SPORTS_F1', label: 'Formula 1' },
+  { id: 'SPORTS_F1',      label: 'Formula 1' },
 ];
 
 interface NewstandViewProps {
@@ -397,7 +399,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
           </div>
 
           {/* Rich Sports Center for major leagues, Esports, and Racing */}
-          {['SPORTS_NBA', 'SPORTS_NFL', 'SPORTS_NHL', 'SPORTS_MLB', 'SPORTS_NCAA', 'SPORTS_ESPORTS', 'SPORTS_F1', 'SPORTS_NASCAR', 'SPORTS_INDYCAR'].includes(activeSportsTab) && (
+          {['SPORTS_NBA', 'SPORTS_NFL', 'SPORTS_NHL', 'SPORTS_MLB', 'SPORTS_NCAA', 'SPORTS_ESPORTS', 'SPORTS_F1', 'SPORTS_NASCAR', 'SPORTS_INDYCAR', 'SPORTS_FIFA', 'SPORTS_MLS'].includes(activeSportsTab) && (
             <SportsCenterView selectedSportsTab={activeSportsTab.replace('SPORTS_', '')} />
           )}
 

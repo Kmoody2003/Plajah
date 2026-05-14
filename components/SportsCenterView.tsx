@@ -21,7 +21,7 @@ interface Props {
 
 type TeamTab = 'overview' | 'roster' | 'schedule' | 'legends' | 'news';
 
-const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'ESPORTS'] as const;
+const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS'] as const;
 const PINS_KEY = 'vibestream_sports_pins_v1';
 
 function loadPins(): string[] {
@@ -804,12 +804,23 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                       <div key={ci} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] overflow-hidden">
                         <div className="px-4 py-2.5 bg-white/5 border-b border-white/5 flex items-center justify-between">
                           <p className="text-[8px] font-black uppercase tracking-widest text-white/40">{confName}</p>
-                          <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest text-white/20">
-                            <span className="w-4 text-right">W</span>
-                            <span className="w-4 text-right">L</span>
-                            <span className="w-6 text-right">PCT</span>
-                            <span className="w-5 text-right">GB</span>
-                          </div>
+                          {/* Soccer leagues use W/D/L/Pts; all others use W/L/PCT/GB */}
+                          {(selectedSportsTab === 'FIFA' || selectedSportsTab === 'MLS') ? (
+                            <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest text-white/20">
+                              <span className="w-4 text-right">W</span>
+                              <span className="w-4 text-right">D</span>
+                              <span className="w-4 text-right">L</span>
+                              <span className="w-6 text-right">GD</span>
+                              <span className="w-6 text-right text-[#FF8C00]">Pts</span>
+                            </div>
+                          ) : (
+                            <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest text-white/20">
+                              <span className="w-4 text-right">W</span>
+                              <span className="w-4 text-right">L</span>
+                              <span className="w-6 text-right">PCT</span>
+                              <span className="w-5 text-right">GB</span>
+                            </div>
+                          )}
                         </div>
                         <div className="divide-y divide-white/5">
                           {entries.slice(0, 10).map((entry: any, ei: number) => {
@@ -821,10 +832,14 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                               }
                               return '';
                             };
+                            const isSoccer = selectedSportsTab === 'FIFA' || selectedSportsTab === 'MLS';
                             const wins  = getV(['wins', 'W', 'w']);
                             const losses= getV(['losses', 'L', 'l']);
+                            const draws = getV(['ties', 'draws', 'D', 'd']);
                             const pct   = getV(['winPercent', 'PCT', 'pct', 'winPercentage']);
                             const gb    = getV(['gamesBehind', 'GB', 'gb', 'pointsBehind']);
+                            const pts   = getV(['points', 'pts', 'Pts']);
+                            const gd    = getV(['pointDifferential', 'goalsFor', 'GD', 'gd']);
                             return (
                               <button key={ei}
                                 onClick={() => { const found = leagueTeams.find(t => t.name.toLowerCase().includes((entry.team?.name || '').toLowerCase()) || t.abbreviation === entry.team?.abbreviation); if (found) setSelectedTeam(found); }}
@@ -833,12 +848,22 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                                 <span className={`text-[8px] font-black w-4 shrink-0 ${ei === 0 ? 'text-[#FF8C00]' : 'text-white/20'}`}>{ei + 1}</span>
                                 <img src={entry.team?.logos?.[0]?.href || ''} alt="" className="w-5 h-5 object-contain opacity-60 shrink-0" loading="lazy" />
                                 <span className="flex-1 text-[9px] font-black uppercase truncate group-hover:text-[#FF8C00] transition-colors text-left">{tName}</span>
-                                <div className="hidden sm:flex items-center gap-3 text-[8px] font-bold text-white/40 shrink-0">
-                                  {wins  !== '' && <span className="w-4 text-right">{wins}</span>}
-                                  {losses!== '' && <span className="w-4 text-right">{losses}</span>}
-                                  {pct   !== '' && <span className="w-6 text-right text-white/25">{typeof pct === 'number' ? Number(pct).toFixed(3) : pct}</span>}
-                                  {gb    !== '' && <span className="w-5 text-right text-white/20">{gb}</span>}
-                                </div>
+                                {isSoccer ? (
+                                  <div className="hidden sm:flex items-center gap-3 text-[8px] font-bold text-white/40 shrink-0">
+                                    {wins  !== '' && <span className="w-4 text-right">{wins}</span>}
+                                    {draws !== '' && <span className="w-4 text-right">{draws}</span>}
+                                    {losses!== '' && <span className="w-4 text-right">{losses}</span>}
+                                    {gd    !== '' && <span className="w-6 text-right text-white/25">{gd}</span>}
+                                    {pts   !== '' && <span className="w-6 text-right text-[#FF8C00] font-black">{pts}</span>}
+                                  </div>
+                                ) : (
+                                  <div className="hidden sm:flex items-center gap-3 text-[8px] font-bold text-white/40 shrink-0">
+                                    {wins  !== '' && <span className="w-4 text-right">{wins}</span>}
+                                    {losses!== '' && <span className="w-4 text-right">{losses}</span>}
+                                    {pct   !== '' && <span className="w-6 text-right text-white/25">{typeof pct === 'number' ? Number(pct).toFixed(3) : pct}</span>}
+                                    {gb    !== '' && <span className="w-5 text-right text-white/20">{gb}</span>}
+                                  </div>
+                                )}
                                 <div className="sm:hidden text-[8px] font-bold text-white/35">{wins && losses ? `${wins}–${losses}` : ''}</div>
                               </button>
                             );
