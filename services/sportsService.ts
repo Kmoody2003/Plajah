@@ -479,43 +479,47 @@ export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]>
   const c = fromCache(key, TTL.standings);
   if (c) return c;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/leaders`);
-  if (!data?.categories) return [];
+  try {
+    const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/leaders`);
+    if (!Array.isArray(data?.categories)) return [];
 
-  const PRIORITY: Record<string, string[]> = {
-    NBA:  ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
-    NFL:  ['passingYards', 'rushingYards', 'receivingYards', 'sacks'],
-    NHL:  ['points', 'goals', 'assists', 'plusMinus'],
-    MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era'],
-    NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
-  };
-  const priority = PRIORITY[tab] ?? [];
+    const PRIORITY: Record<string, string[]> = {
+      NBA:  ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
+      NFL:  ['passingYards', 'rushingYards', 'receivingYards', 'sacks'],
+      NHL:  ['points', 'goals', 'assists', 'plusMinus'],
+      MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era'],
+      NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
+    };
+    const priority = PRIORITY[tab] ?? [];
 
-  const cats: LeaderCategory[] = (data.categories as any[])
-    .filter((cat: any) => priority.length === 0 || priority.includes(cat.name))
-    .sort((a: any, b: any) => {
-      const ai = priority.indexOf(a.name);
-      const bi = priority.indexOf(b.name);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    })
-    .slice(0, 4)
-    .map((cat: any) => ({
-      name: cat.name,
-      displayName: cat.displayName || cat.name,
-      shortName: cat.shortDisplayName || cat.abbreviation || cat.name,
-      leaders: (cat.leaders ?? []).slice(0, 5).map((l: any) => ({
-        athleteId: String(l.athlete?.id ?? ''),
-        name: l.athlete?.displayName ?? l.athlete?.fullName ?? 'Unknown',
-        photo: l.athlete?.headshot?.href ?? '',
-        teamAbbr: l.athlete?.team?.abbreviation ?? l.team?.abbreviation ?? '',
-        teamLogo: l.athlete?.team?.logos?.[0]?.href ?? '',
-        value: l.value ?? 0,
-        displayValue: l.displayValue ?? String(l.value ?? 0),
-      })),
-    }));
+    const cats: LeaderCategory[] = (data.categories as any[])
+      .filter((cat: any) => priority.length === 0 || priority.includes(cat.name))
+      .sort((a: any, b: any) => {
+        const ai = priority.indexOf(a.name);
+        const bi = priority.indexOf(b.name);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      })
+      .slice(0, 4)
+      .map((cat: any) => ({
+        name: cat.name,
+        displayName: cat.displayName || cat.name,
+        shortName: cat.shortDisplayName || cat.abbreviation || cat.name,
+        leaders: (cat.leaders ?? []).slice(0, 5).map((l: any) => ({
+          athleteId: String(l.athlete?.id ?? ''),
+          name: l.athlete?.displayName ?? l.athlete?.fullName ?? 'Unknown',
+          photo: l.athlete?.headshot?.href ?? '',
+          teamAbbr: l.athlete?.team?.abbreviation ?? l.team?.abbreviation ?? '',
+          teamLogo: l.athlete?.team?.logos?.[0]?.href ?? '',
+          value: l.value ?? 0,
+          displayValue: l.displayValue ?? String(l.value ?? 0),
+        })),
+      }));
 
-  toCache(key, cats);
-  return cats;
+    toCache(key, cats);
+    return cats;
+  } catch {
+    return [];
+  }
 }
 
 // ─── PLAYER PROFILE ─────────────────────────────────────────────────────────

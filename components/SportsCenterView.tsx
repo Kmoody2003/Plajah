@@ -96,23 +96,29 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     setLeagueScores([]);
     setLeagueLeaders([]);
 
-    Promise.all([
+    Promise.allSettled([
       fetchLeagueTeams(selectedSportsTab),
       fetchLeagueNews(selectedSportsTab),
       fetchLeagueStandings(selectedSportsTab),
       fetchLeagueScores(selectedSportsTab),
       fetchLeagueLeaders(selectedSportsTab),
-    ]).then(([teams, newsData, standingsData, scoresData, leadersData]) => {
+    ]).then(([teamsR, newsR, standingsR, scoresR, leadersR]) => {
+      const teams        = teamsR.status    === 'fulfilled' ? teamsR.value    : [];
+      const newsData     = newsR.status     === 'fulfilled' ? newsR.value     : [];
+      const standingsData= standingsR.status=== 'fulfilled' ? standingsR.value: [];
+      const scoresData   = scoresR.status   === 'fulfilled' ? scoresR.value   : [];
+      const leadersData  = leadersR.status  === 'fulfilled' ? leadersR.value  : [];
+
       setLeagueTeams(teams);
       setNews(newsData);
       setStandings(standingsData);
       setLeagueScores(scoresData);
       setLeagueLeaders(leadersData);
       setLeagueLoading(false);
-      if (teams.length === 0) setLeagueError(true);
-    }).catch(() => {
-      setLeagueLoading(false);
-      setLeagueError(true);
+      // Only show error if all primary data is empty (true network failure)
+      if (teams.length === 0 && newsData.length === 0 && standingsData.length === 0) {
+        setLeagueError(true);
+      }
     });
   }, [selectedSportsTab, isLeague, isEsports]);
 
