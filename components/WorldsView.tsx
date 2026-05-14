@@ -92,8 +92,8 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
   }, [selectedWorld, viewMode, isPreviewMode]);
 
   const loadWorldContent = async (worldId: string) => {
-    // If owner and in preview mode, we want to see everything (drafts too)
-    const onlyPublished = !isOwner || !isPreviewMode;
+    // Owner always sees everything; guests only see published content
+    const onlyPublished = !isOwner;
     const [chars, loreEntries, events, albums, videos] = await Promise.all([
       fetchWorldCharacters(worldId, onlyPublished),
       fetchWorldLore(worldId, onlyPublished),

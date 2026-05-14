@@ -438,10 +438,10 @@ export const publishWorld = async (worldId: string) => {
     };
     await updateDoc(worldRef, updates);
 
-    // Also publish characters, lore, and timeline events for this world
-    const collections = ['characters', 'lore_entries', 'timeline_events'];
-    for (const collName of collections) {
-      const q = query(collection(db, collName), where('worldId', '==', worldId));
+    // Also publish characters, lore, and timeline events for this world (subcollections)
+    const subCollections = ['characters', 'lore', 'timeline'];
+    for (const collName of subCollections) {
+      const q = collection(db, 'worlds', worldId, collName);
       const snap = await getDocs(q);
       const batchPromises = snap.docs.map(d => updateDoc(d.ref, { isPublished: true }));
       await Promise.all(batchPromises);
@@ -669,6 +669,14 @@ export const fetchWorldTimelines = async (worldId: string) => {
 
 export const createTimeline = async (timeline: { worldId: string; name: string; description?: string; color?: string }) => {
   const path = `worlds/${timeline.worldId}/timelines`;
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  // Pre-flight: verify the world document exists and belongs to this user.
+  // The Firestore rule uses get() to check creatorId — if the doc is missing or
+  // creatorId doesn't match we'd get an opaque PERMISSION_DENIED.  Checking here
+  // surfaces a clear error message instead.
+  const worldSnap = await getDocFromServer(doc(db, 'worlds', timeline.worldId));
+  if (!worldSnap.exists()) throw new Error(`World document not found (id: ${timeline.worldId}). Save the world first.`);
+  if (worldSnap.data()?.creatorId !== auth.currentUser.uid) throw new Error('You are not the creator of this world.');
   try {
     const docRef = doc(collection(db, 'worlds', timeline.worldId, 'timelines'));
     const newTimeline = {
@@ -3297,6 +3305,65 @@ export const uploadPhoto = async (file: File, metadata: Partial<Photo>) => {
   }
 };
 
+export const uploadWorldPhoto = async (
+  file: File,
+  worldId: string,
+  opts: { title?: string; description?: string; addToLibrary?: boolean }
+): Promise<Photo | undefined> => {
+  if (!auth.currentUser) return;
+  const id = `photo_${Date.now()}`;
+  try {
+    // Store under worlds/{worldId}/images in Firebase Storage so assets are world-scoped
+    const storagePath = `worlds/${worldId}/images/${id}`;
+    const url = await uploadFile(storagePath, file);
+    const newPhoto: Photo = {
+      id,
+      url,
+      ownerId: auth.currentUser.uid,
+      timestamp: Date.now(),
+      isPublic: false,
+      isGalleryEligible: false,
+      mediaType: file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO',
+      title: opts.title || file.name,
+      description: opts.description || '',
+      likesCount: 0,
+      favorites: [],
+      worldId,
+      addedToLibrary: opts.addToLibrary ?? false,
+    };
+    await setDoc(doc(db, 'photos', id), newPhoto);
+    return newPhoto;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `photos/${id}`);
+  }
+};
+
+export const fetchWorldPhotos = async (worldId: string): Promise<Photo[]> => {
+  try {
+    const q = query(
+      collection(db, 'photos'),
+      where('worldId', '==', worldId),
+      orderBy('timestamp', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Photo);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'photos');
+    return [];
+  }
+};
+
+export const fetchUserWorldPhotos = async (uid: string): Promise<Photo[]> => {
+  try {
+    const q = query(collection(db, 'photos'), where('ownerId', '==', uid), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Photo).filter(p => !!p.worldId);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'photos');
+    return [];
+  }
+};
+
 export const createPhotoAlbum = async (album: Partial<PhotoAlbum>) => {
   if (!auth.currentUser) return;
   const id = `album_${Date.now()}`;
@@ -3992,6 +4059,40 @@ export const addToLibrary = async (trackId: string) => {
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, path);
   }
+};
+
+export const subscribeToPodcast = async (podcastId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const userRef = doc(db, 'users', auth.currentUser.uid);
+  try {
+    await updateDoc(userRef, { subscribedPodcastIds: arrayUnion(podcastId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const unsubscribeFromPodcast = async (podcastId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const userRef = doc(db, 'users', auth.currentUser.uid);
+  try {
+    await updateDoc(userRef, { subscribedPodcastIds: arrayRemove(podcastId) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const fetchAlbumsByIds = async (ids: string[]): Promise<Album[]> => {
+  if (!ids || ids.length === 0) return [];
+  const results: Album[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const snap = await getDoc(doc(db, 'albums', id));
+        if (snap.exists()) results.push({ id: snap.id, ...snap.data() } as Album);
+      } catch { /* skip missing */ }
+    })
+  );
+  return results;
 };
 
 export const fetchTVChannels = async (): Promise<TVChannel[]> => {

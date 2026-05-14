@@ -108,6 +108,8 @@ export interface Photo {
   likesCount?: number;
   favorites?: string[]; // UIDs
   tags?: string[];
+  worldId?: string;     // Set when uploaded from the Worlds editor
+  addedToLibrary?: boolean; // Whether it also appears in the user's personal library
 }
 
 export interface PhotoAlbum {
@@ -806,6 +808,7 @@ export interface UserProfile {
   mastodonInstance?: string; // e.g., mastodon.social
   blueskyHandle?: string; // e.g., username.bsky.social
   threadsHandle?: string; // e.g., username
+  subscribedPodcastIds?: string[]; // Album IDs of podcasts user has subscribed to from the podcast section
 }
 
 export interface SystemStats {

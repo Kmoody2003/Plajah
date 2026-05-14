@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Plus, 
-  Save, 
-  Upload, 
-  Palette, 
-  Globe, 
-  Box, 
-  Users, 
-  Scroll, 
-  Tv, 
-  Unlock, 
-  X, 
-  Check, 
-  Eye, 
+import {
+  Plus,
+  Save,
+  Upload,
+  Palette,
+  Globe,
+  Box,
+  Users,
+  Scroll,
+  Tv,
+  Unlock,
+  X,
+  Check,
+  Eye,
   DraftingCompass,
   Zap,
   Clock,
@@ -22,9 +22,12 @@ import {
   ChevronRight,
   Database,
   Link as LinkIcon,
-  Network
+  Network,
+  Image,
+  Library,
+  Loader2
 } from 'lucide-react';
-import { IPWorld, Character, LoreEntry, TimelineEvent, Timeline, Album, Video, GraphNodeConnection } from '../types';
+import { IPWorld, Character, LoreEntry, TimelineEvent, Timeline, Album, Video, GraphNodeConnection, Photo } from '../types';
 import {
   fetchWorldCharacters,
   fetchWorldLore,
@@ -44,7 +47,9 @@ import {
   fetchAllPublicAlbums,
   auth,
   updateTimelineEvent,
-  createTimelineEvent
+  createTimelineEvent,
+  uploadWorldPhoto,
+  fetchWorldPhotos
 } from '../services/backendService';
 import WorldGraphView from './WorldGraphView';
 
@@ -89,6 +94,10 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
   const [userWorlds, setUserWorlds] = useState<IPWorld[]>([]);
+  const [worldPhotos, setWorldPhotos] = useState<Photo[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [addPhotoToLibrary, setAddPhotoToLibrary] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'IDENTITY' | 'CONTENT' | 'TIMELINE' | 'CONNECTIONS' | 'ASSETS'>('IDENTITY');
@@ -121,16 +130,18 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const loadContent = async (id: string) => {
     setLoading(true);
     try {
-      const [chars, lore, timeline, tls] = await Promise.all([
+      const [chars, lore, timeline, tls, photos] = await Promise.all([
         fetchWorldCharacters(id, false),
         fetchWorldLore(id, false),
         fetchWorldTimeline(id, false),
-        fetchWorldTimelines(id)
+        fetchWorldTimelines(id),
+        fetchWorldPhotos(id)
       ]);
       setCharacters(chars);
       setLoreEntries(lore);
       setTimelineEvents(timeline);
       setTimelines(tls);
+      setWorldPhotos(photos);
     } catch (e) {
       console.error(e);
     } finally {
@@ -517,20 +528,19 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                             onClick={async () => {
                               if (!newTimelineName.trim()) return;
                               if (!world.id) {
-                                alert('Save the world first before adding timelines.');
+                                alert('This world hasn\'t been saved to the cloud yet.\nClick "Sync Local Snapshot" first, then come back to add timelines.');
                                 return;
                               }
                               try {
-                                console.log('[Timeline] Creating for world:', world.id);
                                 const existingCount = timelines.length;
-                                const tl = await createTimeline({ worldId: world.id, name: newTimelineName.trim(), color: newTimelineColor });
+                                const tl = await createTimeline({ worldId: world.id!, name: newTimelineName.trim(), color: newTimelineColor });
                                 setTimelines(p => [...p, tl]);
                                 setActiveTimelineId(tl.id);
                                 setNewTimelineName('');
 
                                 if (existingCount === 0) {
                                   const ev = await createTimelineEvent({
-                                    worldId: world.id,
+                                    worldId: world.id!,
                                     timelineId: tl.id,
                                     title: 'Origin',
                                     description: 'Beginning of this timeline.',
@@ -545,9 +555,10 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                                 }
                               } catch (err: any) {
                                 console.error('[Timeline] Create failed:', err);
-                                let msg = err?.message || String(err);
-                                try { msg = JSON.parse(msg).error; } catch {}
-                                alert(`Timeline error: ${msg}\n\nWorld ID: ${world.id}`);
+                                // handleFirestoreError wraps the original error in JSON; extract it.
+                                let msg: string = err?.message || String(err);
+                                try { const parsed = JSON.parse(msg); msg = parsed.error || msg; } catch {}
+                                alert(`Could not create timeline:\n\n${msg}`);
                               }
                             }}
                             className="px-6 py-3 bg-primary rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
@@ -787,6 +798,85 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                            ))}
                         </div>
                       </div>
+                 </section>
+
+                 {/* ── World Image Assets ─────────────────────────────── */}
+                 <section className="glass p-8 rounded-[2.5rem] border border-white/10">
+                   <div className="flex items-center justify-between mb-6">
+                     <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3">
+                       <Image className="text-primary" size={20} />
+                       World Images
+                     </h3>
+                     {world.id && (
+                       <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${photoUploading ? 'opacity-50 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                         {photoUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                         {photoUploading ? 'Uploading…' : 'Upload Image'}
+                         <input
+                           ref={photoInputRef}
+                           type="file"
+                           accept="image/*"
+                           className="hidden"
+                           disabled={photoUploading}
+                           onChange={async (e) => {
+                             const file = e.target.files?.[0];
+                             if (!file || !world.id) return;
+                             setPhotoUploading(true);
+                             try {
+                               const photo = await uploadWorldPhoto(file, world.id, {
+                                 title: file.name.replace(/\.[^.]+$/, ''),
+                                 addToLibrary: addPhotoToLibrary
+                               });
+                               if (photo) setWorldPhotos(p => [photo, ...p]);
+                             } finally {
+                               setPhotoUploading(false);
+                               if (photoInputRef.current) photoInputRef.current.value = '';
+                             }
+                           }}
+                         />
+                       </label>
+                     )}
+                   </div>
+
+                   {/* Toggle: also add to personal library */}
+                   <label className="flex items-center gap-3 mb-6 cursor-pointer">
+                     <div
+                       onClick={() => setAddPhotoToLibrary(v => !v)}
+                       className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${addPhotoToLibrary ? 'bg-primary' : 'bg-white/10'}`}
+                     >
+                       <div className={`w-4 h-4 rounded-full bg-white transition-transform ${addPhotoToLibrary ? 'translate-x-4' : 'translate-x-0'}`} />
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <Library size={13} className="text-white/40" />
+                       <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Also add to personal library</span>
+                     </div>
+                   </label>
+
+                   {!world.id && (
+                     <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Save the world first to upload images.</p>
+                   )}
+
+                   {worldPhotos.length > 0 ? (
+                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                       {worldPhotos.map(photo => (
+                         <div key={photo.id} className="group relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10">
+                           <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                           {photo.addedToLibrary && (
+                             <div className="absolute top-1.5 right-1.5">
+                               <Library size={10} className="text-primary" />
+                             </div>
+                           )}
+                           <p className="absolute bottom-0 inset-x-0 bg-black/60 text-[8px] font-bold truncate px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">{photo.title}</p>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     world.id && (
+                       <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                         <Image size={32} className="text-white/10 mx-auto mb-3" />
+                         <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No images uploaded yet</p>
+                       </div>
+                     )
+                   )}
                  </section>
                </motion.div>
             )}

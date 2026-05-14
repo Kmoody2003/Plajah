@@ -42,7 +42,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  Shuffle
+  Shuffle,
+  Bookmark
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -79,7 +80,10 @@ import {
   fetchSystemSettingsConfig,
   seedDemoWorlds,
   fetchUserThemePresets,
-  fetchThemePresetsByIds
+  fetchThemePresetsByIds,
+  subscribeToPodcast,
+  unsubscribeFromPodcast,
+  fetchAlbumsByIds
 } from '../services/backendService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Article, SystemSettingsConfig } from '../types';
@@ -95,6 +99,7 @@ import ArtistMembersArea from './ArtistMembersArea';
 import ProfileFeed from './ProfileFeed';
 import InterestsNotebook from './InterestsNotebook';
 import VideoTab from './VideoTab';
+import ScrollableTabRow from './ScrollableTabRow';
 import WorldManagerView from './WorldManagerView';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
@@ -211,7 +216,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS'>(initialTab || 'FEED');
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>('PERSONAL');
   const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
@@ -234,6 +239,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [podcastSubTab, setPodcastSubTab] = useState<'PUBLISHED' | 'SUBSCRIBED'>('PUBLISHED');
+  const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
+  const [podcastSubscribedIds, setPodcastSubscribedIds] = useState<Set<string>>(new Set());
+  const [tabOrder, setTabOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`plajah-tab-order-${uid}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const dragTabRef = useRef<number | null>(null);
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
   const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
 
@@ -277,6 +292,20 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               setThemes(allThemes);
            }
         }).catch(() => setThemes([]));
+
+        // Load subscribed podcasts for the viewed profile
+        const subIds = (p as any)?.subscribedPodcastIds || [];
+        if (subIds.length > 0) {
+          fetchAlbumsByIds(subIds).then(pods => setSubscribedPodcasts(pods)).catch(() => {});
+        }
+        // Track which podcasts the current user (viewer) is subscribed to
+        if (auth.currentUser) {
+          fetchAlbumsByIds([]).then(() => {}).catch(() => {});
+          const currentUserProfile = await fetchUserProfile(auth.currentUser.uid).catch(() => null);
+          if (currentUserProfile) {
+            setPodcastSubscribedIds(new Set((currentUserProfile as any).subscribedPodcastIds || []));
+          }
+        }
         setFollowing(isF as boolean);
         setIsSubscribed(isS as boolean);
         setSystemSettings(settings as any);
@@ -987,9 +1016,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         </div>
 
         {/* Tabs Container (Sticky & Overflow Scroll) */}
-        <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-theme z-40 border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0`}>
-          <div className="flex items-center gap-6 lg:gap-8 overflow-x-auto scrollbar-hide py-2 translate-y-[1px]">
-          {[
+        {(() => {
+          const allTabs = [
             { id: 'FEED', label: 'Feed' },
             { id: 'CONTENT', label: 'Creations' },
             { id: 'PODCASTS', label: 'Podcasts' },
@@ -1010,27 +1038,105 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             { id: 'FRIENDS', label: 'Friends' },
             { id: 'INTERESTS', label: 'Interests' },
             ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
             ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Sanctuary' }] : [])
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                // Scroll into view on mobile
-                const el = document.getElementById(`tab-${tab.id}`);
-                el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-              }}
-              id={`tab-${tab.id}`}
-              className={`pb-4 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] transition-all border-b-2 whitespace-nowrap flex-shrink-0 ${
-                activeTab === tab.id ? 'text-small-orange border-small-orange' : 'text-white/20 border-transparent hover:text-white/40'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-          </div>
-        </div>
+          ];
+
+          // Apply saved order: put saved-order IDs first, append any new tabs at the end
+          const orderedTabs = tabOrder.length > 0
+            ? [
+                ...tabOrder.map(id => allTabs.find(t => t.id === id)).filter(Boolean) as typeof allTabs,
+                ...allTabs.filter(t => !tabOrder.includes(t.id))
+              ]
+            : allTabs;
+
+          const saveOrder = (order: string[]) => {
+            setTabOrder(order);
+            if (isOwnProfile) {
+              try { localStorage.setItem(`plajah-tab-order-${uid}`, JSON.stringify(order)); } catch {}
+            }
+          };
+
+          const moveTab = (idx: number, dir: -1 | 1) => {
+            const ids = orderedTabs.map(t => t.id);
+            const target = idx + dir;
+            if (target < 0 || target >= ids.length) return;
+            [ids[idx], ids[target]] = [ids[target], ids[idx]];
+            saveOrder(ids);
+          };
+
+          const handleDragStart = (idx: number) => { dragTabRef.current = idx; };
+          const handleDragOver = (e: React.DragEvent, idx: number) => {
+            e.preventDefault();
+            if (dragTabRef.current === null || dragTabRef.current === idx) return;
+            const ids = orderedTabs.map(t => t.id);
+            const [moved] = ids.splice(dragTabRef.current, 1);
+            ids.splice(idx, 0, moved);
+            dragTabRef.current = idx;
+            saveOrder(ids);
+          };
+          const handleDragEnd = () => { dragTabRef.current = null; };
+
+          return (
+            <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-theme z-40 border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0`}>
+              <ScrollableTabRow innerClassName="gap-1 py-2 translate-y-[1px] px-1">
+                {orderedTabs.map((tab, idx) => (
+                  <div
+                    key={tab.id}
+                    className="flex items-center flex-shrink-0 group/tab"
+                    draggable={isOwnProfile}
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    {/* Left arrow — own profile only */}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => moveTab(idx, -1)}
+                        disabled={idx === 0}
+                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                        aria-label="Move tab left"
+                      >
+                        <ChevronLeft size={10} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        const el = document.getElementById(`tab-${tab.id}`);
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                      }}
+                      id={`tab-${tab.id}`}
+                      className={`pb-4 px-2 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] transition-all border-b-2 whitespace-nowrap ${
+                        isOwnProfile ? 'cursor-grab active:cursor-grabbing' : ''
+                      } ${
+                        activeTab === tab.id
+                          ? 'text-small-orange border-small-orange'
+                          : 'text-white/20 border-transparent hover:text-white/40'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+
+                    {/* Right arrow — own profile only */}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => moveTab(idx, 1)}
+                        disabled={idx === orderedTabs.length - 1}
+                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
+                        aria-label="Move tab right"
+                      >
+                        <ChevronRight size={10} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </ScrollableTabRow>
+            </div>
+          );
+        })()}
 
         {/* Tab Content */}
         <div className="mt-12">
@@ -1075,22 +1181,35 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 <InterestsNotebook profile={profile} isOwner={isOwnProfile} onUpdate={setProfile} />
               </motion.div>
             ) : activeTab === 'PODCASTS' ? (
-              <motion.div 
+              <motion.div
                 key="podcasts"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                {isOwnProfile && (
-                  <div className="flex justify-end">
-                    <button 
+                {/* Sub-tab row + action button */}
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex gap-1 p-1 bg-white/5 rounded-full">
+                    {(['PUBLISHED', 'SUBSCRIBED'] as const).map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setPodcastSubTab(tab)}
+                        className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                          podcastSubTab === tab
+                            ? 'bg-small-orange text-white shadow-md'
+                            : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        {tab === 'PUBLISHED' ? 'Published' : 'Subscribed'}
+                      </button>
+                    ))}
+                  </div>
+                  {isOwnProfile && podcastSubTab === 'PUBLISHED' && (
+                    <button
                       onClick={() => {
-                        const event = new CustomEvent('NAVIGATE', { 
-                          detail: { 
-                            target: 'CREATOR', 
-                            params: { editingAlbum: { type: 'MUSIC', subType: 'PODCAST', artist: profile.displayName } } 
-                          } 
+                        const event = new CustomEvent('NAVIGATE', {
+                          detail: { target: 'CREATOR', params: { editingAlbum: { type: 'MUSIC', subType: 'PODCAST', artist: profile.displayName } } }
                         });
                         window.dispatchEvent(event);
                       }}
@@ -1099,32 +1218,109 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <Plus size={14} />
                       Add Podcast
                     </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {content.filter(a => a.subType === 'PODCAST').map(album => (
-                    <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
-                      <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
-                        <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Play size={48} fill="white" className="text-white" />
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
-                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
-                        <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Episodes</span>
-                      </div>
-                    </div>
-                  ))}
-                  {content.filter(a => a.subType === 'PODCAST').length === 0 && (
-                    <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                      <Radio size={48} className="text-white/5 mx-auto mb-4" />
-                      <p className="text-white/20 uppercase font-black tracking-[0.5em]">No podcasts published yet.</p>
-                    </div>
                   )}
                 </div>
+
+                {/* Published tab */}
+                {podcastSubTab === 'PUBLISHED' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {content.filter(a => a.subType === 'PODCAST').map(album => (
+                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
+                          <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={48} fill="white" className="text-white" />
+                          </div>
+                        </div>
+                        <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Eps</span>
+                          </div>
+                          {/* Subscribe button for non-own-profile viewers */}
+                          {!isOwnProfile && auth.currentUser && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const isSubbed = podcastSubscribedIds.has(album.id);
+                                if (isSubbed) {
+                                  await unsubscribeFromPodcast(album.id);
+                                  setPodcastSubscribedIds(prev => { const s = new Set(prev); s.delete(album.id); return s; });
+                                  setSubscribedPodcasts(prev => prev.filter(p => p.id !== album.id));
+                                } else {
+                                  await subscribeToPodcast(album.id);
+                                  setPodcastSubscribedIds(prev => new Set([...prev, album.id]));
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${
+                                podcastSubscribedIds.has(album.id)
+                                  ? 'bg-small-orange/20 text-small-orange border border-small-orange/30'
+                                  : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              {podcastSubscribedIds.has(album.id) ? <Check size={10} /> : <Plus size={10} />}
+                              {podcastSubscribedIds.has(album.id) ? 'Subscribed' : 'Subscribe'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {content.filter(a => a.subType === 'PODCAST').length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                        <Radio size={48} className="text-white/5 mx-auto mb-4" />
+                        <p className="text-white/20 uppercase font-black tracking-[0.5em]">No podcasts published yet.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Subscribed tab */}
+                {podcastSubTab === 'SUBSCRIBED' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {subscribedPodcasts.map(album => (
+                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="p-6 bg-white/[0.03] border border-white/5 rounded-[2.5rem] group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="aspect-square rounded-2xl overflow-hidden mb-6 relative">
+                          <img src={album.coverImage || null} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={album.title} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={48} fill="white" className="text-white" />
+                          </div>
+                        </div>
+                        <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.tracks?.length || 0} Eps</span>
+                          </div>
+                          {isOwnProfile && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await unsubscribeFromPodcast(album.id);
+                                setSubscribedPodcasts(prev => prev.filter(p => p.id !== album.id));
+                                setPodcastSubscribedIds(prev => { const s = new Set(prev); s.delete(album.id); return s; });
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
+                            >
+                              <X size={10} />
+                              Unsubscribe
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {subscribedPodcasts.length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                        <Radio size={48} className="text-white/5 mx-auto mb-4" />
+                        <p className="text-white/20 uppercase font-black tracking-[0.5em]">
+                          {isOwnProfile ? 'No subscribed podcasts yet. Browse the podcast section to subscribe.' : 'No subscribed podcasts.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             ) : activeTab === 'VIDEOS' ? (
               <motion.div 
@@ -1421,6 +1617,278 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <p className="text-white/20 uppercase font-black tracking-[0.5em]">No creations yet.</p>
                   </div>
                 )}
+              </motion.div>
+            ) : activeTab === 'MY_HABITS' && isOwnProfile ? (
+              <motion.div
+                key="my-habits"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-16"
+              >
+                {/* Header */}
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange block mb-2">Your Activity</span>
+                  <h2 className="font-bebas text-5xl md:text-7xl uppercase tracking-tighter leading-[0.85]">My Habits</h2>
+                  <p className="text-white/30 text-sm mt-3 max-w-md">Everything you've been into, right where you left off.</p>
+                </div>
+
+                {/* Pick Up Where You Left Off — Shows & Movies */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-primary block mb-1">In Progress</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Shows &amp; Movies</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                    {[
+                      { title: 'Across the Multiverse', type: 'TV', progress: 68, episode: 'S2 E4', thumb: null },
+                      { title: 'The Silent Forest', type: 'Movie', progress: 42, episode: null, thumb: null },
+                      { title: 'Nebula Whispers', type: 'TV', progress: 15, episode: 'S1 E2', thumb: null },
+                      { title: 'Digital Uprising', type: 'Movie', progress: 91, episode: null, thumb: null },
+                    ].map((item, i) => (
+                      <div key={i} className="flex-shrink-0 min-w-[140px] group cursor-pointer">
+                        <div className="aspect-[2/3] rounded-2xl bg-white/5 border border-white/5 overflow-hidden relative group-hover:border-white/20 transition-all">
+                          {item.thumb ? <img src={item.thumb} className="w-full h-full object-cover" alt="" /> : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-white/0">
+                              <Play size={24} className="text-white/20" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                          {item.episode && (
+                            <span className="absolute top-2 left-2 bg-primary/80 text-white text-[7px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full">{item.episode}</span>
+                          )}
+                          {/* Progress bar */}
+                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                            <div className="h-full bg-small-orange rounded-full" style={{ width: `${item.progress}%` }} />
+                          </div>
+                          <div className="absolute bottom-3 left-2 right-2">
+                            <p className="text-white text-[9px] font-black uppercase tracking-tight truncate">{item.title}</p>
+                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% · {item.type}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex-shrink-0 min-w-[140px] aspect-[2/3] rounded-2xl border-2 border-dashed border-white/5 flex items-center justify-center cursor-pointer hover:border-white/10 transition-colors group">
+                      <span className="text-white/20 group-hover:text-white/40 font-black text-[8px] uppercase tracking-widest text-center px-4">Start<br/>Watching</span>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Books */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-secondary block mb-1">Reading</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Books</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {[
+                      { title: 'The Infinite Garden', author: 'A. Rivers', page: 142, total: 320, progress: 44 },
+                      { title: 'Cosmic Architectures', author: 'M. Okafor', page: 89, total: 210, progress: 42 },
+                      { title: 'Signal & Noise', author: 'J. Park', page: 23, total: 180, progress: 13 },
+                    ].map((book, i) => (
+                      <div key={i} className="flex gap-5 p-5 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <div className="w-14 h-20 rounded-lg bg-white/5 flex-shrink-0 border border-white/10 flex items-center justify-center">
+                          <BookOpen size={20} className="text-white/20" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-black text-[11px] uppercase tracking-tight truncate">{book.title}</h4>
+                            <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">{book.author}</p>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">
+                              <span>Page {book.page} of {book.total}</span>
+                              <span>{book.progress}%</span>
+                            </div>
+                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-secondary rounded-full" style={{ width: `${book.progress}%` }} />
+                            </div>
+                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} →</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Albums & Songs */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-tertiary block mb-1">Listening</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Albums &amp; Songs</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {content.filter(a => a.type === 'MUSIC').slice(0, 8).map((album, i) => (
+                      <div
+                        key={album.id}
+                        className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer"
+                        onClick={() => onSelectAlbum(album)}
+                      >
+                        {/* Thumbnail — small fixed size */}
+                        <div className="w-12 h-12 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden relative border border-white/10">
+                          {album.coverImage
+                            ? <img src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={album.title} />
+                            : <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
+                          }
+                        </div>
+                        {/* Info + progress */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-[10px] uppercase tracking-tight truncate">{album.title}</h4>
+                          <p className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5 truncate">{album.artist}</p>
+                          <div className="mt-1.5 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-tertiary rounded-full" style={{ width: `${Math.floor(20 + i * 13) % 100}%` }} />
+                          </div>
+                        </div>
+                        <Play size={14} className="text-white/20 group-hover:text-white/60 flex-shrink-0 transition-colors" />
+                      </div>
+                    ))}
+                    {content.filter(a => a.type === 'MUSIC').length === 0 && (
+                      <div className="col-span-2 py-10 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No music played yet</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Last Game Played */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-small-orange block mb-1">Gaming</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Last Played</h3>
+                    </div>
+                  </div>
+                  {profile?.games && profile.games.length > 0 ? (
+                    <div className="flex gap-5 p-6 bg-white/[0.03] border border-white/5 rounded-2xl max-w-md group hover:bg-white/[0.06] transition-all cursor-pointer">
+                      <div className="w-16 h-16 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden border border-white/10">
+                        {profile.games[0].thumbnailUrl ? <img src={profile.games[0].thumbnailUrl} className="w-full h-full object-cover" alt="" /> : <Gamepad2 size={24} className="m-auto text-white/20" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-black text-sm uppercase tracking-tight truncate">{profile.games[0].title}</h4>
+                        <p className="text-[9px] text-white/30 uppercase tracking-widest mt-1">Last played recently</p>
+                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume →</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 px-8 border-2 border-dashed border-white/5 rounded-2xl max-w-md text-center">
+                      <Gamepad2 size={32} className="text-white/10 mx-auto mb-3" />
+                      <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No games played yet</p>
+                    </div>
+                  )}
+                </section>
+
+                {/* Articles Reading */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/40 block mb-1">Reading</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Articles</h3>
+                    </div>
+                    <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {articles.slice(0, 6).map((article, i) => (
+                      <div key={article.id} className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer">
+                        <span className="text-[7px] font-black uppercase tracking-widest text-white/20 block mb-2">Article</span>
+                        <h4 className="font-black text-[11px] uppercase tracking-tight line-clamp-2 mb-3">{article.title}</h4>
+                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                          <div className="h-full bg-white/20 rounded-full" style={{ width: `${Math.floor(10 + i * 17) % 90}%` }} />
+                        </div>
+                        <p className="text-[8px] text-white/20 font-black uppercase tracking-widest">{Math.floor(10 + i * 17) % 90}% read</p>
+                      </div>
+                    ))}
+                    {articles.length === 0 && (
+                      <div className="col-span-full py-10 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No articles in progress</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Fav & Likes / Bookmarks / Drafts */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Heart size={16} className="text-small-orange" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Fav &amp; Likes</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts and content you've liked or favorited appear here.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Edit3 size={16} className="text-secondary" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Drafts</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts you started but haven't published yet. Come back and finish them.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                      <button className="w-full h-8 border-2 border-dashed border-white/5 rounded-xl text-white/20 hover:text-white/40 text-[8px] font-black uppercase tracking-widest transition-colors">New Draft</button>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white/[0.03] border border-white/5 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Bookmark size={16} className="text-tertiary" />
+                      <h3 className="font-bebas text-xl uppercase tracking-tighter">Bookmarks</h3>
+                    </div>
+                    <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">Posts you bookmarked from the social section to revisit.</p>
+                    <div className="pt-2 space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-8 bg-white/5 rounded-xl border border-white/5" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Photo Gallery Preview */}
+                <section>
+                  <div className="flex items-end justify-between mb-6">
+                    <div>
+                      <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30 block mb-1">Gallery</span>
+                      <h3 className="font-bebas text-3xl uppercase tracking-tighter">Personal Collection</h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('PHOTOS')}
+                      className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors"
+                    >View Gallery →</button>
+                  </div>
+                  {profile?.photos && profile.photos.length > 0 ? (
+                    <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
+                      {profile.photos.slice(0, 14).map((photo, i) => (
+                        <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
+                          <img src={photo.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                        </div>
+                      ))}
+                      <div
+                        className="aspect-square rounded-xl border-2 border-dashed border-white/5 flex items-center justify-center cursor-pointer hover:border-white/15 transition-colors group"
+                        onClick={() => setActiveTab('PHOTOS')}
+                      >
+                        <span className="text-white/15 group-hover:text-white/30 text-[7px] font-black uppercase tracking-widest text-center">View All</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                      <Camera size={32} className="text-white/10 mx-auto mb-3" />
+                      <p className="text-white/20 text-[9px] font-black uppercase tracking-widest">No photos in your personal collection yet</p>
+                      <button onClick={() => setActiveTab('PHOTOS')} className="mt-4 px-5 py-2 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 transition-colors">Add Photos</button>
+                    </div>
+                  )}
+                </section>
               </motion.div>
             ) : activeTab === 'MANAGE' && isOwnProfile ? (
               <motion.div 

@@ -370,6 +370,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // HnS per-track dropdown
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null); // "{trackId}_slot{1|2}"
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({}); // key -> 0-100
+  const [slotSavedKey, setSlotSavedKey] = useState<string | null>(null); // shows "Saved" flash
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -397,8 +399,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const handleHnsSlotUpload = async (track: Track, slot: 1 | 2, file: File) => {
     const key = `${track.id}_slot${slot}`;
     setUploadingSlot(key);
+    setUploadProgress(prev => ({ ...prev, [key]: 0 }));
     try {
-      const url = await uploadFile(`albums/${album.id}/hns/${track.id}_slot${slot}_${Date.now()}`, file);
+      const url = await uploadFile(
+        `albums/${album.id}/hns/${track.id}_slot${slot}_${Date.now()}`,
+        file,
+        (p) => setUploadProgress(prev => ({ ...prev, [key]: p }))
+      );
       const updatedTrack: Track = {
         ...track,
         [`hnsSlot${slot}`]: { url, title: file.name.replace(/\.[^/.]+$/, ''), uploadedAt: Date.now() },
@@ -406,8 +413,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       const updatedTracks = localTracks.map(t => t.id === track.id ? updatedTrack : t);
       setLocalTracks(updatedTracks);
       await updateAlbum(album.id, { tracks: updatedTracks });
+      setSlotSavedKey(key);
+      setTimeout(() => setSlotSavedKey(null), 2500);
     } catch (e) { console.error('HnS slot upload failed', e); }
-    finally { setUploadingSlot(null); }
+    finally {
+      setUploadingSlot(null);
+      setUploadProgress(prev => { const n = { ...prev }; delete n[key]; return n; });
+    }
   };
 
   useEffect(() => {
@@ -852,17 +864,27 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         {([1, 2] as const).map(slot => {
                           const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
                           const existing = t[slotKey];
-                          const uploading = uploadingSlot === `${t.id}_slot${slot}`;
+                          const key = `${t.id}_slot${slot}`;
+                          const uploading = uploadingSlot === key;
+                          const progress = uploadProgress[key] ?? 0;
+                          const saved = slotSavedKey === key;
                           return (
-                            <label key={slot} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/20'}`}>
-                                {uploading ? <Loader2 size={12} className="animate-spin" /> : `S${slot}`}
+                            <label key={slot} className={`flex flex-col gap-2 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/20'}`}>
+                                  {uploading ? <Loader2 size={12} className="animate-spin" /> : saved ? <Check size={12} className="text-green-400" /> : `S${slot}`}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
+                                  <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'Upload alternate track…'}</p>
+                                </div>
+                                {!uploading && !saved && <Upload size={12} className="text-white/20 shrink-0" />}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
-                                <p className="text-[10px] font-bold truncate">{existing ? existing.title : 'Upload alternate track…'}</p>
-                              </div>
-                              {!uploading && <Upload size={12} className="text-white/20 shrink-0" />}
+                              {uploading && (
+                                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                  <div className="h-full bg-small-orange rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+                                </div>
+                              )}
                               <input
                                 type="file"
                                 accept="audio/*,video/*"
@@ -1650,17 +1672,27 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       {([1, 2] as const).map(slot => {
                                         const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
                                         const existing = t[slotKey];
-                                        const uploading = uploadingSlot === `${t.id}_slot${slot}`;
+                                        const key = `${t.id}_slot${slot}`;
+                                        const uploading = uploadingSlot === key;
+                                        const progress = uploadProgress[key] ?? 0;
+                                        const saved = slotSavedKey === key;
                                         return (
-                                          <label key={slot} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5 hover:bg-small-orange/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/30'}`}>
-                                              {uploading ? <Loader2 size={11} className="animate-spin" /> : `S${slot}`}
+                                          <label key={slot} className={`flex flex-col gap-1.5 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5 hover:bg-small-orange/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                                            <div className="flex items-center gap-3">
+                                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/30'}`}>
+                                                {uploading ? <Loader2 size={11} className="animate-spin" /> : saved ? <Check size={11} className="text-green-400" /> : `S${slot}`}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Alternate Slot {slot}</p>
+                                                <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'Drop or click to upload…'}</p>
+                                              </div>
+                                              {!uploading && !saved && <Upload size={11} className="text-white/20 shrink-0" />}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                              <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Alternate Slot {slot}</p>
-                                              <p className="text-[10px] font-bold truncate">{existing ? existing.title : 'Drop or click to upload…'}</p>
-                                            </div>
-                                            {!uploading && <Upload size={11} className="text-white/20 shrink-0" />}
+                                            {uploading && (
+                                              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                                <div className="h-full bg-small-orange rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+                                              </div>
+                                            )}
                                             <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHnsSlotUpload(t, slot, f); }} />
                                           </label>
                                         );

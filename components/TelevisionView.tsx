@@ -1,8 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album } from '../types';
 import { ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
-import { Play, ChevronLeft, Loader2, Info } from 'lucide-react';
+import { Play, ChevronLeft, Loader2, Info, TrendingUp, Star, Zap, Eye } from 'lucide-react';
+import ScrollableTabRow from './ScrollableTabRow';
+
+const TV_GENRE_CHIPS = ['All', 'Comedy', 'Drama', 'Action', 'Sci-Fi', 'Crime', 'Horror', 'Reality', 'Documentary', 'Animation', 'Classic'];
+
+const SeriesCard: React.FC<{ item: any; onClick: (i: any) => void; width?: string }> = ({ item, onClick, width = 'min-w-[140px] md:min-w-[160px]' }) => {
+  const cover = item.thumbnailUrl || item.coverImage || null;
+  return (
+    <motion.div
+      whileHover={{ y: -6 }}
+      onClick={() => onClick(item)}
+      className={`group relative cursor-pointer flex-shrink-0 ${width}`}
+    >
+      <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 relative border border-white/5 group-hover:border-white/20 transition-all duration-300">
+        <img src={cover} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.title} />
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
+            <Play className="text-white ml-0.5" size={20} fill="white" />
+          </div>
+        </div>
+      </div>
+      <h4 className="font-black text-[10px] uppercase tracking-tight truncate mt-2.5 text-white/80 group-hover:text-white transition-colors">{item.title}</h4>
+    </motion.div>
+  );
+};
+
+const TVRow: React.FC<{ title: string; subtitle: string; Icon: React.FC<{ size?: number; className?: string }>; items: any[]; onSelect: (i: any) => void }> = ({ title, subtitle, Icon, items, onSelect }) => (
+  <section>
+    <div className="mb-5 flex items-end justify-between">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Icon size={13} className="text-primary" />
+          <span className="text-[8px] font-black uppercase tracking-[0.35em] text-primary">{subtitle}</span>
+        </div>
+        <h3 className="font-bebas text-3xl md:text-4xl uppercase tracking-tighter">{title}</h3>
+      </div>
+      <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+    </div>
+    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+      {items.slice(0, 16).map((s, i) => (
+        <SeriesCard key={s.identifier || s.id || i} item={s} onClick={onSelect} />
+      ))}
+    </div>
+  </section>
+);
 
 interface TelevisionViewProps {
   series: (Album | ArchiveVideo)[];
@@ -15,6 +59,7 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState('All');
 
   useEffect(() => {
     if (initialSelectedSeries) {
@@ -252,71 +297,112 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
     );
   }
 
+  const genreFiltered = useMemo(() => {
+    if (selectedGenre === 'All') return series;
+    return series.filter(s => {
+      const g = ('genre' in s ? (s as any).genre : '') || '';
+      return g.toLowerCase().includes(selectedGenre.toLowerCase());
+    });
+  }, [selectedGenre, series]);
+
+  const newShows = useMemo(() => series.slice(0, 20), [series]);
+  const recommended = useMemo(() => series.filter((_, i) => i % 3 === 2).slice(0, 20), [series]);
+  const popular = useMemo(() => [...series].reverse().slice(0, 20), [series]);
+
+  const genreCategories = useMemo(() => {
+    const genres = Array.from(new Set<string>(series.map(s => {
+      if ('genre' in s && (s as any).genre) return (s as any).genre as string;
+      return 'Classic TV';
+    }).filter(Boolean)));
+    return genres.map(genre => ({
+      genre,
+      items: series.filter(s => {
+        const g = 'genre' in s ? (s as any).genre : null;
+        return g === genre || (!g && genre === 'Classic TV');
+      }).slice(0, 16)
+    })).filter(g => g.items.length >= 2).slice(0, 5);
+  }, [series]);
+
   return (
-    <div className="pt-24 px-4 md:px-8 pb-32 max-w-7xl mx-auto">
-      <section className="mb-20">
-        <div className="mb-10">
-            <span className="text-primary font-bebas text-xs uppercase tracking-[0.4em] mb-1 block">The Front Page</span>
-            <h2 className="text-5xl md:text-8xl font-bebas uppercase tracking-tighter leading-none">Featured Series</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            {series.slice(0, 2).map(s => (
-                <div key={getId(s)} onClick={() => handleItemClick(s)} className="relative aspect-video rounded-[2.5rem] overflow-hidden glass border border-white/10 group cursor-pointer shadow-2xl">
-                    <img src={getCover(s) || null} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent flex flex-col justify-end p-10">
-                        <h3 className="text-4xl lg:text-5xl font-bebas tracking-tighter uppercase leading-none">{getTitle(s)}</h3>
-                        <p className="text-sm text-white/40 line-clamp-2 mt-4 font-light leading-relaxed max-w-sm">{getDesc(s).replace(/<[^>]*>?/gm, '')}</p>
-                    </div>
+    <div className="pt-8 px-6 md:px-12 pb-32 max-w-screen-2xl mx-auto space-y-14">
+      {/* Header */}
+      <div>
+        <span className="font-bebas text-[10px] uppercase tracking-[0.4em] text-tertiary mb-2 block">Broadcast Archive</span>
+        <h2 className="font-bebas text-5xl md:text-7xl font-black leading-[0.85] uppercase tracking-tighter">Television</h2>
+      </div>
+
+      {/* Genre Filter Chips */}
+      <ScrollableTabRow innerClassName="gap-2.5 pb-1">
+        {TV_GENRE_CHIPS.map(g => (
+          <button
+            key={g}
+            onClick={() => setSelectedGenre(g)}
+            className={`flex-shrink-0 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-200 ${
+              selectedGenre === g
+                ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70 border border-white/5'
+            }`}
+          >
+            {g}
+          </button>
+        ))}
+      </ScrollableTabRow>
+
+      {selectedGenre === 'All' ? (
+        <>
+          {/* New Shows */}
+          {newShows.length > 0 && (
+            <TVRow title="New Releases" subtitle="Just Added" Icon={Zap} items={newShows} onSelect={handleItemClick} />
+          )}
+
+          {/* Recommended */}
+          {recommended.length > 0 && (
+            <TVRow title="Recommended For You" subtitle="Curated Picks" Icon={Star} items={recommended} onSelect={handleItemClick} />
+          )}
+
+          {/* What People Are Watching */}
+          {popular.length > 0 && (
+            <TVRow title="What People Are Watching" subtitle="Trending Now" Icon={TrendingUp} items={popular} onSelect={handleItemClick} />
+          )}
+
+          {/* Genre Sections */}
+          {genreCategories.map(({ genre, items }) => (
+            <section key={genre}>
+              <div className="mb-5 flex items-end justify-between">
+                <div>
+                  <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30 block mb-1">Category</span>
+                  <h3 className="font-bebas text-3xl md:text-4xl uppercase tracking-tighter">{genre}</h3>
                 </div>
-            ))}
-        </div>
-      </section>
-
-      <section className="space-y-20">
-        {Array.from(new Set<string>(series.map(s => {
-            if ('genre' in s && s.genre) return s.genre as string;
-            if (('artist' in s ? s.artist : ('creator' in s ? s.creator : '')) && typeof ('artist' in s ? s.artist : ('creator' in s ? s.creator : '')) === 'string') return ('artist' in s ? s.artist : ('creator' in s ? s.creator : '')) as string;
-            return 'Classic TV';
-        }))).filter(Boolean).map(genre => {
-            const categorySeries = series.filter(s => {
-                const g = 'genre' in s ? s.genre : ('artist' in s ? s.artist : ('creator' in s ? s.creator : ''));
-                return g === genre || (!g && genre === 'Classic TV');
-            });
-
-            if (categorySeries.length < 2) return null;
-
-            return (
-                <div key={genre}>
-                    <div className="mb-10 flex items-end justify-between">
-                        <h2 className="text-4xl font-bebas uppercase tracking-tighter leading-none">{genre}</h2>
-                        <button className="text-[10px] font-black tracking-widest uppercase text-white/20 hover:text-white transition-colors">Explore All</button>
-                    </div>
-                    <div className="flex gap-8 overflow-x-auto no-scrollbar mask-fade-edges pb-8">
-                        {categorySeries.map(s => (
-                            <motion.div 
-                                key={getId(s)}
-                                onClick={() => handleItemClick(s)}
-                                whileHover={{ y: -8 }}
-                                className="group cursor-pointer space-y-4 min-w-[160px] md:min-w-[200px]"
-                            >
-                                <div className="relative aspect-[2/3] rounded-3xl overflow-hidden glass border border-white/10 shadow-xl group-hover:ring-2 ring-primary/40 transition-all duration-500">
-                                    <img src={getCover(s) || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center p-4 backdrop-blur-[2px] transition-all">
-                                         <div className="w-12 h-12 rounded-full border-2 border-primary flex items-center justify-center bg-primary/20 bg-small-orange">
-                                            <span className="text-white">▶</span>
-                                         </div>
-                                    </div>
-                                </div>
-                                <div className="px-2">
-                                    <h4 className="font-bebas text-lg tracking-tight uppercase line-clamp-1 group-hover:text-primary transition-colors">{getTitle(s)}</h4>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            );
-        })}
-      </section>
+                <button className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors">See All</button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                {items.map((s, i) => (
+                  <SeriesCard key={getId(s) || i} item={s} onClick={handleItemClick} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </>
+      ) : (
+        <section>
+          <div className="mb-5">
+            <span className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30 block mb-1">Genre</span>
+            <h3 className="font-bebas text-4xl uppercase tracking-tighter">{selectedGenre}</h3>
+          </div>
+          {genreFiltered.length > 0 ? (
+            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-4">
+              {genreFiltered.map((s, i) => (
+                <SeriesCard key={getId(s) || i} item={s} onClick={handleItemClick} width="" />
+              ))}
+            </div>
+          ) : (
+            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-3xl">
+              <Eye size={40} className="text-white/10 mx-auto mb-4" />
+              <p className="text-white/20 font-black uppercase tracking-widest text-sm">No shows found for "{selectedGenre}"</p>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };

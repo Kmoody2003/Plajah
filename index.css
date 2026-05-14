@@ -867,8 +867,8 @@ body.has-custom-background::after {
 
 .citrus-water-drop {
   background: rgba(255, 200, 150, 0.05);
-  box-shadow: 
-    inset -2px -2px 4px rgba(255, 100, 0, 0.2), 
+  box-shadow:
+    inset -2px -2px 4px rgba(255, 100, 0, 0.2),
     inset 4px 4px 8px rgba(255, 255, 255, 0.85),
     inset -4px -6px 8px rgba(0, 0, 0, 0.5),
     2px 8px 12px rgba(0, 0, 0, 0.4),
@@ -878,4 +878,122 @@ body.has-custom-background::after {
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 50% 50% 45% 55% / 45% 55% 45% 55%;
   will-change: transform;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UNIVERSAL BACKGROUND — per-theme gradient defaults
+   When no custom image/video is set, each theme shows its characteristic
+   gradient. A frosted glass ::before overlay sits above the gradient and
+   below any custom media content.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Shared setup — needed for ::before positioning */
+#universal-background {
+  position: relative;
+}
+
+#universal-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* rendered behind the AnimatePresence motion.div children */
+}
+
+/* ── DARK (default, no body class) ── */
+#universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 0, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(107, 0, 153, 0.07) 0%, transparent 60%),
+    #020202;
+}
+#universal-background::before {
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+/* ── LIGHT ── */
+body.theme-light #universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 25% 15%, rgba(186, 230, 255, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 75% 80%, rgba(253, 186, 234, 0.40) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 55% 45%, rgba(221, 214, 254, 0.30) 0%, transparent 60%),
+    #f8fafc;
+}
+body.theme-light #universal-background::before {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+/* ── PASTEL ── */
+body.theme-pastel #universal-background {
+  background: #fdf6e3;
+  background-image:
+    linear-gradient(rgba(7, 54, 66, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(211, 54, 130, 0.07) 1px, transparent 1px);
+  background-size: 100% 2.5rem, 100% 100%;
+  background-position: 0 1rem, 4rem 0;
+}
+body.theme-pastel #universal-background::before {
+  background: rgba(253, 246, 227, 0.58);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+/* ── PLAJAH ── */
+body.theme-plajah #universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(107, 0, 153, 0.55) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(212, 0, 85, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 60% 40%, rgba(255, 140, 0, 0.14) 0%, transparent 60%),
+    #0d0015;
+}
+body.theme-plajah #universal-background::before {
+  background: rgba(10, 0, 20, 0.38);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ── CITRUS ── */
+body.theme-citrus #universal-background {
+  background:
+    radial-gradient(ellipse 70% 60% at 80% 15%, rgba(255, 100, 0, 0.50) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 55% at 15% 80%, rgba(200, 40, 0, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 170, 0, 0.14) 0%, transparent 55%),
+    #080200;
+}
+body.theme-citrus #universal-background::before {
+  background: rgba(12, 4, 0, 0.35);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ── ETHEREAL ── */
+body.theme-ethereal #universal-background {
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 20%, rgba(208, 188, 255, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 70% 75%, rgba(0, 218, 243, 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 182, 141, 0.10) 0%, transparent 55%),
+    #0f0f10;
+}
+body.theme-ethereal #universal-background::before {
+  background: rgba(14, 14, 15, 0.42);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+/* ── NEBULA ── */
+body.theme-nebula #universal-background {
+  background:
+    radial-gradient(ellipse 80% 60% at 35% 25%, rgba(99, 102, 241, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 55% at 70% 75%, rgba(139, 92, 246, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 55% 50%, rgba(34, 211, 238, 0.12) 0%, transparent 55%),
+    #050510;
+}
+body.theme-nebula #universal-background::before {
+  background: rgba(5, 5, 16, 0.48);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
 }

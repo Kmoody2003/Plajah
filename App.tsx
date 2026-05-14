@@ -83,7 +83,7 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
 import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -1075,7 +1075,15 @@ const App: React.FC = () => {
                       ) : null}
                       
                       {videoBackgroundFrosted !== false && (
-                        <div className="absolute inset-0 backdrop-blur-[100px] bg-black/30" />
+                        <div className={`absolute inset-0 backdrop-blur-[80px] ${
+                          theme === 'LIGHT'   ? 'bg-white/55' :
+                          theme === 'PASTEL'  ? 'bg-[#fdf6e3]/50' :
+                          theme === 'PLAJAH'  ? 'bg-[#0d0015]/45' :
+                          theme === 'CITRUS'  ? 'bg-[#0a0400]/40' :
+                          theme === 'ETHEREAL'? 'bg-[#131314]/45' :
+                          theme === 'NEBULA'  ? 'bg-[#050510]/50' :
+                                               'bg-black/35'
+                        }`} />
                       )}
                     </motion.div>
                   );
@@ -1759,7 +1767,7 @@ const App: React.FC = () => {
               />
             )}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
-            {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />}
+            {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => { if (v === 'WORLDS') setView('WORLDS'); else if (v === 'USER_PROFILE') setView('USER_PROFILE'); }} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} />}
@@ -1842,15 +1850,20 @@ const App: React.FC = () => {
             {view === 'WORLD_MANAGER' && (
               <WorldManagerView 
                 initialWorld={selectedWorld || undefined}
-                onSave={async (w) => { 
+                onSave={async (w) => {
+                  const uid = firebaseAuth.currentUser?.uid || user?.uid;
                   if (w.id) {
                     await updateIPWorld(w.id, w);
+                    setSelectedWorld(null);
                   } else {
-                    await createIPWorld({ ...w, creatorId: user?.uid });
+                    // createIPWorld returns the world with its new Firestore ID.
+                    // Keep it in selectedWorld so the editor can use the ID immediately
+                    // if the user navigates back to WORLD_MANAGER in this session.
+                    const saved = await createIPWorld({ ...w, creatorId: uid });
+                    setSelectedWorld(saved ?? null);
                   }
-                  setSelectedWorld(null);
-                  setView('USER_PROFILE'); 
-                }} 
+                  setView('USER_PROFILE');
+                }}
                 onPreview={(w) => {
                   setSelectedWorld(w);
                   setView('WORLDS');
