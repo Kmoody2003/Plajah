@@ -21,10 +21,6 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [feeds, setFeeds] = useState<LiveFeed[]>([]);
   const [liveArtists, setLiveArtists] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showPublisher, setShowPublisher] = useState(false);
-  const [newFeedTitle, setNewFeedTitle] = useState('');
-  const [newFeedUrl, setNewFeedUrl] = useState('');
-  const [isPublishing, setIsPublishing] = useState(false);
   const [fullScreenFeed, setFullScreenFeed] = useState<{ id: string, title: string, url: string, ownerName: string } | null>(null);
 
   useEffect(() => {
@@ -41,24 +37,6 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
     return () => unsubscribe();
   }, []);
 
-  const handlePublish = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFeedTitle || !newFeedUrl) return;
-    setIsPublishing(true);
-    try {
-      await publishLiveFeed({
-        title: newFeedTitle,
-        url: newFeedUrl
-      });
-      setShowPublisher(false);
-      setNewFeedTitle('');
-      setNewFeedUrl('');
-    } catch (err) {
-      alert("Failed to publish live feed.");
-    } finally {
-      setIsPublishing(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     if (confirm("Remove this live feed from the hub?")) {
@@ -129,6 +107,69 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
     }
   };
 
+  const isHlsStream = (url: string) => url.toLowerCase().includes('.m3u8');
+  const isEmbeddableUrl = (url: string) => {
+    const lower = url.toLowerCase();
+    return lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('twitch.tv') || lower.includes('vimeo.com') || lower.includes('archive.org');
+  };
+
+  const renderStreamPreview = (url: string | undefined) => {
+    if (!url) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-white/5">
+          <Tv size={48} className="text-white/10" />
+        </div>
+      );
+    }
+
+    if (isHlsStream(url)) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white/40 px-6 text-center">
+          <Tv size={48} className="mb-4 text-white/20" />
+          <p className="text-sm font-bold uppercase tracking-widest">HLS stream detected</p>
+          <p className="mt-2 text-[10px] leading-relaxed">This stream uses an HLS playlist and cannot be previewed in the card view.</p>
+        </div>
+      );
+    }
+
+    if (isEmbeddableUrl(url)) {
+      return (
+        <iframe 
+          src={getAutoplayUrl(url, true)} 
+          className="w-full h-full pointer-events-none" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowFullScreen 
+        />
+      );
+    }
+
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white/5">
+        <Tv size={48} className="text-white/10" />
+      </div>
+    );
+  };
+
+  const renderFullScreenFeed = (feed: { id: string; title: string; url: string; ownerName: string }) => {
+    if (isHlsStream(feed.url)) {
+      return (
+        <video controls autoPlay muted className="w-full h-full bg-black">
+          <source src={feed.url} type="application/x-mpegURL" />
+          <p className="text-white p-6">This HLS stream is not supported by your browser.</p>
+        </video>
+      );
+    }
+
+    return (
+      <iframe 
+        src={getAutoplayUrl(feed.url, false)} 
+        className="w-full h-full border-none" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allowFullScreen 
+      />
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col pt-8 lg:pt-16 pb-24">
       <header className="px-8 lg:px-24 mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 shrink-0">
@@ -170,14 +211,6 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
                 className="bg-white/5 border border-white/10 rounded-full py-3 pl-12 pr-6 text-sm font-bold outline-none focus:ring-2 ring-white/20 transition-all w-64"
               />
             </div>
-            {currentUser && (
-              <button 
-                onClick={() => setShowPublisher(true)}
-                className="flex items-center justify-center gap-3 px-10 py-5 bg-red-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-red-600 transition-all"
-              >
-                <Radio size={18} className="animate-pulse" /> Go Live Now
-              </button>
-            )}
           </div>
         )}
       </header>
@@ -194,18 +227,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           return (
              <div key={artist.uid} className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01]" onClick={() => setFullScreenFeed(streamUrl ? { id: artist.uid, title: artist.liveStreamConfig?.title || 'Live Stream', url: streamUrl, ownerName: artist.displayName } : null)}>
               <div className="relative aspect-video bg-black cursor-pointer">
-                {streamUrl ? (
-                  <iframe 
-                    src={getAutoplayUrl(streamUrl, true)} 
-                    className="w-full h-full pointer-events-none" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowFullScreen 
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-white/5">
-                    <Tv size={48} className="text-white/10" />
-                  </div>
-                )}
+                {renderStreamPreview(streamUrl)}
                 
                 <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button className="bg-black/50 text-white rounded-full p-4 backdrop-blur-md">
@@ -237,12 +259,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         {filteredFeeds.map((feed) => (
           <div key={feed.id} className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01]" onClick={() => setFullScreenFeed(feed)}>
             <div className="relative aspect-video bg-black cursor-pointer">
-              <iframe 
-                src={getAutoplayUrl(feed.url, true)} 
-                className="w-full h-full pointer-events-none" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen 
-              />
+              {renderStreamPreview(feed.url)}
               
               <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button className="bg-black/50 text-white rounded-full p-4 backdrop-blur-md">
@@ -302,57 +319,10 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         )}
       </div>
 
-      {showPublisher && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[300] flex items-center justify-center p-6">
-          <div className="max-w-xl w-full bg-[#0a0a0a] border border-white/10 p-12 rounded-[3rem] shadow-3xl">
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-3xl font-display font-black tracking-tight uppercase">Broadcast Signal</h2>
-              <button onClick={() => setShowPublisher(false)} className="text-white/20 hover:text-white transition-all"><X size={24} /></button>
-            </div>
-            <form onSubmit={handlePublish} className="space-y-8">
-              <div className="space-y-4">
-                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-small-orange">Stream Title</label>
-                <input 
-                  type="text" 
-                  value={newFeedTitle} 
-                  onChange={(e) => setNewFeedTitle(e.target.value)} 
-                  placeholder="Studio Session #42" 
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-8 py-5 text-white font-bold focus:outline-none focus:border-red-500/50 transition-all" 
-                  required 
-                />
-              </div>
-              <div className="space-y-4">
-                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-small-orange">Embed URL</label>
-                <input 
-                  type="url" 
-                  value={newFeedUrl} 
-                  onChange={(e) => setNewFeedUrl(e.target.value)} 
-                  placeholder="https://www.youtube.com/embed/live_id" 
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-8 py-5 text-white font-bold focus:outline-none focus:border-red-500/50 transition-all" 
-                  required 
-                />
-                <p className="text-[8px] text-white/20 uppercase tracking-widest">Use the embed URL from YouTube or Twitch.</p>
-              </div>
-              <button 
-                type="submit" 
-                disabled={isPublishing}
-                className="w-full py-6 bg-red-500 text-white font-black uppercase tracking-widest text-xs rounded-full hover:bg-red-600 transition-all shadow-xl disabled:opacity-50"
-              >
-                {isPublishing ? 'Establishing Uplink...' : 'Start Broadcasting'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {fullScreenFeed && (
         <div className="fixed inset-0 z-[1000] bg-black">
-          <iframe 
-             src={getAutoplayUrl(fullScreenFeed.url, false)} 
-             className="w-full h-full border-none" 
-             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-             allowFullScreen 
-          />
+          {renderFullScreenFeed(fullScreenFeed)}
           <button 
              onClick={() => setFullScreenFeed(null)}
              className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/30 text-white rounded-full backdrop-blur-md transition-colors z-[1010]"
