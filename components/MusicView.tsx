@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Album, Track, UserProfile, Playlist } from '../types';
 import PageHeader from './PageHeader';
-import { 
-  Play, Pause, SkipForward, SkipBack, Heart, Share2, 
-  Radio, Music2, Mic2, Disc, Star, TrendingUp, 
+import {
+  Play, Pause, SkipForward, SkipBack, Heart, Share2,
+  Radio, Music2, Mic2, Disc, Star, TrendingUp,
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
-  Filter, ArrowUpDown, Archive, History, Library, Search
+  Filter, ArrowUpDown, Archive, History, Library, Search,
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats } from '../services/backendService';
+import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
 import FeaturedCarousel from './FeaturedCarousel';
@@ -40,6 +42,34 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
+
+  const [personalPlaylists, setPersonalPlaylists] = useState<Playlist[]>([]);
+  const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
+  const [openPlaylistId, setOpenPlaylistId] = useState<string | null>(null);
+  const [trackStats, setTrackStats] = useState<Record<string, number>>({});
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+
+  const [bgIndex, setBgIndex] = useState(0);
+  const bgAlbums = useMemo(() =>
+    [...albums]
+      .filter(a => !!a.coverImage)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 5),
+    [albums]
+  );
+
+  useEffect(() => {
+    if (bgAlbums.length < 2) return;
+    const id = setInterval(() => {
+      setBgIndex(prev => {
+        let next = Math.floor(Math.random() * bgAlbums.length);
+        if (next === prev) next = (prev + 1) % bgAlbums.length;
+        return next;
+      });
+    }, 6000);
+    return () => clearInterval(id);
+  }, [bgAlbums.length]);
 
   useEffect(() => {
     const loadVault = async () => {
@@ -93,13 +123,20 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [publicAlbums, allUsers, settings] = await Promise.all([
+        const [publicAlbums, allUsers, settings, myPlaylists] = await Promise.all([
           fetchAllPublicAlbums(),
           searchUsers(''),
-          fetchSystemSettingsConfig()
+          fetchSystemSettingsConfig(),
+          fetchPersonalPlaylists(),
         ]);
-        setAlbums(publicAlbums.filter(a => (a.type || 'MUSIC') === 'MUSIC'));
+        const musicAlbums = publicAlbums.filter(a => (a.type || 'MUSIC') === 'MUSIC');
+        setAlbums(musicAlbums);
         setArtists(allUsers.filter(u => u.isArtist));
+        setPersonalPlaylists(myPlaylists);
+
+        // Fetch track stats for all visible tracks
+        const trackIds = musicAlbums.flatMap(a => a.tracks?.map(t => t.id) || []).slice(0, 100);
+        if (trackIds.length) fetchTrackStats(trackIds).then(setTrackStats);
 
         if (settings.curatedMusicPlaylists && settings.curatedMusicPlaylists.length > 0) {
           const playlists = await fetchPlaylistsByIds(settings.curatedMusicPlaylists);
@@ -125,6 +162,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     }
     return sorted;
   };
+
+  const fmtPlays = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : n.toString();
+
+  const trendingAlbums = useMemo(() =>
+    [...albums].filter(a => (a.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 10),
+    [albums]
+  );
 
   const getSortedArtists = () => {
     let sorted = [...artists];
@@ -313,9 +357,25 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
-      <div className="flex flex-col h-full">
+      {bgAlbums.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 h-[65vh] overflow-hidden pointer-events-none z-0">
+          <AnimatePresence mode="sync">
+            <motion.img
+              key={bgAlbums[bgIndex]?.id}
+              src={bgAlbums[bgIndex]?.coverImage}
+              initial={{ opacity: 0, scale: 1.06 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.8, ease: 'easeInOut' }}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/75 to-black" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.92) 70%, #000 100%)' }} />
+        </div>
+      )}
+      <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
-          <div className="px-6 lg:px-12 pt-8 mb-6">
+          <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Music</PageHeader>
           </div>
           <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
@@ -446,13 +506,23 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <h4 className="text-xs font-bold text-white/80 uppercase tracking-widest mb-4">Top Songs</h4>
                   <div className="space-y-4">
                     {albums.flatMap(a => a.tracks || []).slice(0, 5).map((track, idx) => (
-                       <div key={track.id} onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')} className="flex items-center gap-4 group cursor-pointer">
-                         <span className="text-lg font-black text-white/20">{idx + 1}</span>
-                         <img src={track.images?.[0] || track.albumCover || null} className="w-10 h-10 rounded-xl object-cover" />
-                         <div className="flex-1 truncate">
+                       <div key={track.id} className="flex items-center gap-4 group">
+                         <span className="text-lg font-black text-white/20 cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')}>{idx + 1}</span>
+                         <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')} />
+                         <div className="flex-1 truncate cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')}>
                            <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{track.title}</h5>
-                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{track.artist}</span>
+                           <div className="flex items-center gap-2">
+                             <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{track.artist}</span>
+                             <span className="text-[9px] font-bold text-white/40 shrink-0">{fmtPlays(trackStats[track.id] ?? 0)} plays</span>
+                           </div>
                          </div>
+                         <button
+                           onClick={e => { e.stopPropagation(); setPlaylistPickerTrack(track); }}
+                           className="p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all shrink-0"
+                           title="Add to playlist"
+                         >
+                           <Plus size={10} />
+                         </button>
                        </div>
                     ))}
                   </div>
@@ -504,101 +574,297 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'VAULT' && renderVault()}
                 
                 {activeTab === 'PLAYLISTS' && (
-                  <section className="animate-in fade-in duration-500">
-                     <div className="flex items-center justify-between mb-12">
-                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Curated Playlists</h1>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                      {curatedPlaylists.map(pl => (
-                        <div 
-                          key={pl.id} 
-                          onClick={() => {
-                            onSelectAlbum({
-                              id: pl.id,
-                              ownerId: pl.ownerId,
-                              title: pl.title,
-                              artist: pl.authorName || 'Curator',
-                              coverImage: pl.coverImage || '',
-                              tracks: pl.tracks || [],
-                              type: 'MUSIC',
-                              subType: 'PLAYLIST',
-                              createdAt: pl.timestamp,
-                              isPublic: true
-                            } as any);
-                          }}
-                          className="group cursor-pointer p-4 bg-white/[0.03] border border-white/5 rounded-3xl hover:bg-white/[0.08] transition-all text-center"
+                  <section className="animate-in fade-in duration-500 space-y-16">
+                    <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Playlists</h1>
+
+                    {/* My Playlists */}
+                    <div>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">My Playlists</h2>
+                        <button
+                          onClick={() => setCreatingPlaylist(v => !v)}
+                          className="flex items-center gap-2 px-4 py-2 bg-small-orange text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
                         >
-                           <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform">
-                              {pl.coverImage ? (
-                                  <img src={pl.coverImage || null} className="w-full h-full object-cover rounded-xl" />
-                              ) : (
-                                  <ListMusic size={48} className="text-white/10 group-hover:text-small-orange transition-colors" />
-                              )}
-                           </div>
-                           <h4 className="text-sm font-black uppercase tracking-widest truncate mb-2">{pl.title}</h4>
-                           <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">by {pl.authorName}</p>
-                           <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-2">{pl.tracks?.length || 0} Tracks</p>
+                          <Plus size={12} /> New Playlist
+                        </button>
+                      </div>
+
+                      {/* Create form */}
+                      <AnimatePresence>
+                        {creatingPlaylist && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-6 overflow-hidden"
+                          >
+                            <div className="flex items-center gap-3 p-4 bg-white/[0.04] border border-white/10 rounded-2xl">
+                              <input
+                                type="text"
+                                placeholder="Playlist name..."
+                                value={newPlaylistName}
+                                onChange={e => setNewPlaylistName(e.target.value)}
+                                onKeyDown={async e => {
+                                  if (e.key === 'Enter' && newPlaylistName.trim()) {
+                                    const pl = await createPlaylist({ title: newPlaylistName.trim(), trackIds: [] });
+                                    if (pl) setPersonalPlaylists(prev => [pl, ...prev]);
+                                    setNewPlaylistName('');
+                                    setCreatingPlaylist(false);
+                                  }
+                                }}
+                                className="flex-1 bg-transparent border-none outline-none text-xs font-bold placeholder:text-white/20"
+                                autoFocus
+                              />
+                              <button
+                                onClick={async () => {
+                                  if (!newPlaylistName.trim()) return;
+                                  const pl = await createPlaylist({ title: newPlaylistName.trim(), trackIds: [] });
+                                  if (pl) setPersonalPlaylists(prev => [pl, ...prev]);
+                                  setNewPlaylistName('');
+                                  setCreatingPlaylist(false);
+                                }}
+                                className="px-4 py-2 bg-small-orange text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
+                              >
+                                Create
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {personalPlaylists.length === 0 ? (
+                        <div className="p-12 text-center border-dashed border border-white/10 rounded-[2rem]">
+                          <ListMusic size={32} className="mx-auto text-white/10 mb-4" />
+                          <p className="text-xs font-black uppercase tracking-widest text-white/20">No playlists yet — create one above</p>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="space-y-3">
+                          {personalPlaylists.map(pl => (
+                            <div key={pl.id} className="bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
+                              {/* Playlist header row */}
+                              <div className="flex items-center gap-4 p-4">
+                                <div
+                                  className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 flex items-center justify-center shrink-0 cursor-pointer"
+                                  onClick={() => onSelectAlbum({ id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', subType: 'PLAYLIST', createdAt: pl.timestamp, isPublic: false } as any)}
+                                >
+                                  {pl.coverUrl || pl.coverImage
+                                    ? <img src={(pl.coverUrl || pl.coverImage) ?? undefined} className="w-full h-full object-cover" />
+                                    : <ListMusic size={18} className="text-white/20" />
+                                  }
+                                </div>
+                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectAlbum({ id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', subType: 'PLAYLIST', createdAt: pl.timestamp, isPublic: false } as any)}>
+                                  <h4 className="text-sm font-black uppercase tracking-widest truncate">{pl.title}</h4>
+                                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{pl.trackIds?.length || 0} tracks</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      if (pl.tracks?.length) {
+                                        const first = pl.tracks[0];
+                                        playTrack(first, { id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks, type: 'MUSIC', createdAt: pl.timestamp } as any, 'LIBRARY');
+                                      }
+                                    }}
+                                    className="p-2 rounded-full bg-small-orange text-black hover:scale-110 transition-transform"
+                                  >
+                                    <Play size={12} fill="currentColor" />
+                                  </button>
+                                  <button
+                                    onClick={() => setOpenPlaylistId(openPlaylistId === pl.id ? null : pl.id)}
+                                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                  >
+                                    {openPlaylistId === pl.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      await deletePlaylist(pl.id);
+                                      setPersonalPlaylists(prev => prev.filter(p => p.id !== pl.id));
+                                    }}
+                                    className="p-2 rounded-full bg-white/5 hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Expanded track list */}
+                              <AnimatePresence>
+                                {openPlaylistId === pl.id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden border-t border-white/5"
+                                  >
+                                    {(pl.tracks || []).length === 0 ? (
+                                      <p className="px-6 py-4 text-[10px] font-bold text-white/20 uppercase tracking-widest">No tracks yet — add from any song</p>
+                                    ) : (
+                                      (pl.tracks || []).map((track, idx) => (
+                                        <div key={track.id} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.03] transition-colors group border-b border-white/[0.03] last:border-0">
+                                          <span className="text-sm font-black text-white/10 w-6 text-center shrink-0">{idx + 1}</span>
+                                          <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover border border-white/5 shrink-0" />
+                                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => playTrack(track, { id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', createdAt: pl.timestamp } as any, 'LIBRARY')}>
+                                            <h5 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{track.title}</h5>
+                                            <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
+                                          </div>
+                                          <span className="text-[9px] font-bold text-white/40 shrink-0">{fmtPlays(trackStats[track.id] ?? 0)} plays</span>
+                                          <button
+                                            onClick={async () => {
+                                              await removeTrackFromPlaylist(pl.id, track.id);
+                                              setPersonalPlaylists(prev => prev.map(p => p.id === pl.id ? { ...p, tracks: (p.tracks || []).filter(t => t.id !== track.id), trackIds: (p.trackIds || []).filter(id => id !== track.id) } : p));
+                                            }}
+                                            className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all shrink-0"
+                                          >
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+                                      ))
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {curatedPlaylists.length === 0 && (
-                      <div className="p-12 text-center border-dashed border border-white/10 rounded-[2rem] bg-white/5">
-                        <Sparkles size={32} className="mx-auto text-white/20 mb-4" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white/40">No curated playlists yet</h3>
+
+                    {/* Staff Pick Playlists */}
+                    {curatedPlaylists.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-6">
+                          <Sparkles size={14} className="text-small-orange" />
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Staff Picks</h2>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                          {curatedPlaylists.map(pl => (
+                            <div
+                              key={pl.id}
+                              onClick={() => onSelectAlbum({ id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: pl.authorName || 'Curator', coverImage: pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', subType: 'PLAYLIST', createdAt: pl.timestamp, isPublic: true } as any)}
+                              className="group cursor-pointer p-4 bg-white/[0.03] border border-white/5 rounded-3xl hover:bg-white/[0.08] transition-all text-center"
+                            >
+                              <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center group-hover:scale-[1.02] transition-transform">
+                                {pl.coverImage
+                                  ? <img src={pl.coverImage ?? undefined} className="w-full h-full object-cover rounded-xl" />
+                                  : <ListMusic size={48} className="text-white/10 group-hover:text-small-orange transition-colors" />
+                                }
+                              </div>
+                              <h4 className="text-sm font-black uppercase tracking-widest truncate mb-2">{pl.title}</h4>
+                              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">by {pl.authorName}</p>
+                              <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-2">{pl.tracks?.length || 0} Tracks</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </section>
                 )}
 
                 {activeTab === 'ARTISTS' && (
-                  <section className="animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between mb-12">
-                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Artists</h1>
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
-                          <ArrowUpDown size={16} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Recently Joined' : 'Alphabetical'}</span>
-                        </button>
+                  <section className="animate-in fade-in duration-500 space-y-16">
+                    <div className="flex items-center justify-between">
+                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Artists</h1>
+                      <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
+                        <ArrowUpDown size={16} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Recently Joined' : 'Alphabetical'}</span>
+                      </button>
+                    </div>
+
+                    {/* Trending Artists chart */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <Flame size={16} className="text-small-orange" />
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Trending Artists</h2>
+                      </div>
+                      <div className="space-y-2">
+                        {[...artists].sort((a, b) => (b.followerCount || 0) - (a.followerCount || 0)).slice(0, 10).map((artist, idx) => (
+                          <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
+                            <span className="text-2xl font-black text-white/10 w-8 text-center shrink-0">#{idx + 1}</span>
+                            <img src={artist.photoURL || undefined} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
+                              <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{(artist.followerCount || 0).toLocaleString()} Fans</p>
+                            </div>
+                            {idx === 0 && <span className="px-3 py-1 bg-small-orange/20 text-small-orange text-[8px] font-black uppercase tracking-widest rounded-full">Top</span>}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
-                      {getSortedArtists().map(artist => (
-                        <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
-                          <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
-                            <img src={artist.photoURL || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <User size={32} className="text-white" />
+
+                    {/* Full grid */}
+                    <div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Artists</h2>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                        {getSortedArtists().map(artist => (
+                          <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
+                            <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
+                              <img src={artist.photoURL || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <User size={32} className="text-white" />
+                              </div>
                             </div>
+                            <h4 className="text-xs font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
+                            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</p>
                           </div>
-                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
-                          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </section>
                 )}
 
                 {activeTab === 'ALBUMS' && (
-                  <section className="animate-in fade-in duration-500">
-                     <div className="flex items-center justify-between mb-12">
-                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Albums</h1>
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
-                          <ArrowUpDown size={16} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Newest First' : 'Alphabetical'}</span>
-                        </button>
-                      </div>
+                  <section className="animate-in fade-in duration-500 space-y-16">
+                    <div className="flex items-center justify-between">
+                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Albums</h1>
+                      <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
+                        <ArrowUpDown size={16} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Newest First' : 'Alphabetical'}</span>
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                      {getSortedAlbums().map(album => (
-                        <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
-                          <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl border border-white/5">
-                            <ThreeDImage src={album.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                          </div>
-                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h4>
-                          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{album.artist}</p>
+
+                    {/* Top Charts */}
+                    {trendingAlbums.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-6">
+                          <BarChart2 size={16} className="text-small-orange" />
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Top Charts</h2>
                         </div>
-                      ))}
+                        <div className="space-y-2">
+                          {trendingAlbums.map((album, idx) => (
+                            <div key={album.id} onClick={() => onSelectAlbum(album)} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
+                              <span className={`text-2xl font-black w-8 text-center shrink-0 ${idx < 3 ? 'text-small-orange' : 'text-white/10'}`}>#{idx + 1}</span>
+                              <img src={album.coverImage || undefined} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
+                                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest truncate">{album.artist}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-black text-white/80">{fmtPlays(album.playCount ?? 0)}</p>
+                                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">plays</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All albums grid */}
+                    <div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Albums</h2>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                        {getSortedAlbums().map(album => (
+                          <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
+                            <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
+                              <ThreeDImage src={album.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-lg">
+                                <HeadphonesIcon size={9} className="text-white/70" />
+                                <span className="text-[9px] font-black text-white/70">{fmtPlays(album.playCount ?? 0)}</span>
+                              </div>
+                            </div>
+                            <h4 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h4>
+                            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{album.artist}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </section>
                 )}
@@ -608,31 +874,45 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Genres</h1>
                     <div className="space-y-16">
                       {genres.map(genre => {
-                        const genreAlbums = albums.filter(a => a.genre?.toLowerCase() === genre.toLowerCase()).sort((a,b) => b.createdAt - a.createdAt);
+                        const genreAlbums = albums
+                          .filter(a => a.genre?.toLowerCase() === genre.toLowerCase())
+                          .sort((a, b) => (b.playCount || 0) - (a.playCount || 0) || b.createdAt - a.createdAt);
                         const vaultGenre = vaultTracks.filter(t => t.genre?.toLowerCase().includes(genre.toLowerCase())).slice(0, 5);
-                        
+                        const hotAlbum = genreAlbums[0];
                         return (
                           <div key={genre}>
                             <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
-                              <h3 className="text-xl font-black uppercase tracking-tightest">{genre}</h3>
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-xl font-black uppercase tracking-tightest">{genre}</h3>
+                                {hotAlbum && (hotAlbum.playCount || 0) > 0 && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-small-orange/15 border border-small-orange/30 rounded-full">
+                                    <Flame size={9} className="text-small-orange" />
+                                    <span className="text-[8px] font-black text-small-orange uppercase tracking-widest">Hot</span>
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{genreAlbums.length + vaultGenre.length} Items</span>
                             </div>
-                            
                             {(genreAlbums.length > 0 || vaultGenre.length > 0) ? (
                               <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-6 px-6">
-                                {genreAlbums.map(album => (
-                                  <div key={album.id} onClick={() => onSelectAlbum(album)} className="min-w-[150px] group cursor-pointer">
-                                    <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl">
-                                      <img src={album.coverImage || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                {genreAlbums.map((album, idx) => (
+                                  <div key={album.id} onClick={() => onSelectAlbum(album)} className="min-w-[150px] group cursor-pointer relative">
+                                    <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl relative">
+                                      <img src={album.coverImage || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                      {idx === 0 && (album.playCount || 0) > 0 && (
+                                        <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-small-orange text-black rounded-full">
+                                          <Flame size={8} /><span className="text-[7px] font-black uppercase">#1</span>
+                                        </div>
+                                      )}
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</h5>
-                                    <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Platform</p>
+                                    <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest">{fmtPlays(album.playCount ?? 0)} plays</p>
                                   </div>
                                 ))}
                                 {vaultGenre.map(track => (
                                   <div key={track.id} className="min-w-[150px] group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl opacity-60">
-                                      <img src={track.thumbnailUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
                                     <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Vault</p>
@@ -642,8 +922,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             ) : (
                               <div className="p-8 bg-white/[0.02] rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center text-center">
                                 <Sparkles className="text-white/10 mb-4" size={32} />
-                                <p className="text-xs font-black uppercase tracking-widest text-white/20 mb-2">be the first here in that genre</p>
-                                <button className="text-[9px] font-black uppercase tracking-widest text-small-orange hover:underline">Upload your project</button>
+                                <p className="text-xs font-black uppercase tracking-widest text-white/20 mb-2">Be the first here in {genre}</p>
                               </div>
                             )}
                           </div>
@@ -684,6 +963,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           </div>
         </div>
       </div>
+
+      {/* Playlist picker modal */}
+      {playlistPickerTrack && (
+        <PlaylistPickerModal
+          track={playlistPickerTrack}
+          onClose={() => setPlaylistPickerTrack(null)}
+        />
+      )}
     </div>
   );
 };

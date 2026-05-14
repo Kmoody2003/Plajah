@@ -5830,3 +5830,72 @@ export const fetchHideNSeekStats = async (albumId: string): Promise<HideNSeekSta
     return null;
   }
 };
+
+// ── Listen Counts ─────────────────────────────────────────────────────────────
+
+export const incrementTrackPlay = async (trackId: string, albumId?: string): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'track_stats', trackId), {
+      trackId,
+      albumId: albumId || null,
+      playCount: increment(1),
+      lastPlayed: Date.now(),
+    }, { merge: true });
+    if (albumId) {
+      await updateDoc(doc(db, 'albums', albumId), { playCount: increment(1) });
+    }
+  } catch (_) {}
+};
+
+export const fetchTrackStats = async (trackIds: string[]): Promise<Record<string, number>> => {
+  if (!trackIds.length) return {};
+  try {
+    const snaps = await Promise.all(trackIds.map(id => getDoc(doc(db, 'track_stats', id))));
+    const result: Record<string, number> = {};
+    snaps.forEach((snap, i) => {
+      result[trackIds[i]] = snap.exists() ? (snap.data()?.playCount || 0) : 0;
+    });
+    return result;
+  } catch (_) { return {}; }
+};
+
+// ── Playlist Track Management ─────────────────────────────────────────────────
+
+export const addTrackToPlaylist = async (playlistId: string, track: Track): Promise<void> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() as Playlist;
+    const existing = data.tracks || [];
+    if (existing.some((t: Track) => t.id === track.id)) return;
+    await updateDoc(ref, {
+      tracks: [...existing, track],
+      trackIds: arrayUnion(track.id),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+  }
+};
+
+export const removeTrackFromPlaylist = async (playlistId: string, trackId: string): Promise<void> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() as Playlist;
+    await updateDoc(ref, {
+      tracks: (data.tracks || []).filter((t: Track) => t.id !== trackId),
+      trackIds: arrayRemove(trackId),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+  }
+};
+
+export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlist | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'personal_playlists', playlistId));
+    return snap.exists() ? (snap.data() as Playlist) : null;
+  } catch (_) { return null; }
+};

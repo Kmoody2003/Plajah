@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
 import PageHeader from './components/PageHeader';
@@ -818,6 +818,26 @@ const App: React.FC = () => {
     setView('CHAT');
   };
 
+  const [archiveBgIndex, setArchiveBgIndex] = useState(0);
+  const archiveBgAlbums = useMemo(() =>
+    [...albums]
+      .filter(a => !!a.coverImage)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 5),
+    [albums]
+  );
+  useEffect(() => {
+    if (archiveBgAlbums.length < 2) return;
+    const id = setInterval(() => {
+      setArchiveBgIndex(prev => {
+        let next = Math.floor(Math.random() * archiveBgAlbums.length);
+        if (next === prev) next = (prev + 1) % archiveBgAlbums.length;
+        return next;
+      });
+    }, 6000);
+    return () => clearInterval(id);
+  }, [archiveBgAlbums.length]);
+
   const sortedItems = [...albums]
     .filter(album => (album.type || 'MUSIC') === archiveTab)
     .sort((a, b) => {
@@ -1570,10 +1590,28 @@ const App: React.FC = () => {
 
             {view === 'DASHBOARD' && (
               <div className="flex flex-col lg:flex-row w-full h-full">
-                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
-                  <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full relative">
+                  {archiveBgAlbums.length > 0 && (
+                    <div className="absolute top-0 left-0 right-0 h-[60vh] overflow-hidden pointer-events-none z-0 rounded-b-[3rem]">
+                      <AnimatePresence mode="sync">
+                        <motion.img
+                          key={archiveBgAlbums[archiveBgIndex]?.id}
+                          src={archiveBgAlbums[archiveBgIndex]?.coverImage}
+                          initial={{ opacity: 0, scale: 1.06 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 1.8, ease: 'easeInOut' }}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      </AnimatePresence>
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/70 to-black" />
+                    </div>
+                  )}
+                  <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 relative z-10">
                     <div>
-                      <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Global Archive</PageHeader>
+                      <div style={{ mixBlendMode: 'overlay' }}>
+                        <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Global Archive</PageHeader>
+                      </div>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Track, Album, Video } from '../types';
-import { doc, increment, runTransaction } from 'firebase/firestore';
+import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/backendService';
 
 interface GlobalPlayerProgressContextType {
@@ -99,6 +99,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isThreeDEnabled, setIsThreeDEnabled] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playCountedTrackRef = useRef<string | null>(null);
   const ytPlayerRef = useRef<any | null>(null);
   const stateRef = useRef({ repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
   const audioRef = useRef<HTMLAudioElement>(audioElement);
@@ -451,8 +452,33 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
+  // Count a play after 15 s of continuous listening to avoid inflating skips
+  useEffect(() => {
+    if (!currentTrack || audioSource === 'VIDEO') return;
+    const trackId = currentTrack.id;
+    if (playCountedTrackRef.current === trackId) return;
+
+    const timer = setTimeout(() => {
+      if (stateRef.current.currentTrack?.id === trackId && stateRef.current.isPlaying) {
+        playCountedTrackRef.current = trackId;
+        const albumId = stateRef.current.currentAlbum?.id;
+        setDoc(doc(db, 'track_stats', trackId), {
+          trackId,
+          albumId: albumId || null,
+          playCount: increment(1),
+          lastPlayed: Date.now(),
+        }, { merge: true }).catch(() => {});
+        if (albumId) {
+          updateDoc(doc(db, 'albums', albumId), { playCount: increment(1) }).catch(() => {});
+        }
+      }
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [currentTrack?.id, audioSource]);
+
   const incrementPlayCount = async (id: string, type: 'TRACK' | 'VIDEO') => {
-    // ... implementation ...
+    // Delegated to the 15-second effect above; kept for API compatibility
   };
 
   const seek = useCallback((time: number) => {
