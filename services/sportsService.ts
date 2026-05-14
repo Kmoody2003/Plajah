@@ -325,6 +325,134 @@ async function fetchWikiSummary(title: string): Promise<string> {
   return text;
 }
 
+// ─── RACING SPORTS (F1 / NASCAR / IndyCar) ──────────────────────────────────
+
+export type RacingTab = 'F1' | 'NASCAR' | 'INDYCAR';
+
+const RACING: Record<RacingTab, { sport: string; league: string; label: string }> = {
+  F1:      { sport: 'racing', league: 'f1',                label: 'Formula 1' },
+  NASCAR:  { sport: 'racing', league: 'nascar-cup-series', label: 'NASCAR Cup' },
+  INDYCAR: { sport: 'racing', league: 'irl',               label: 'IndyCar' },
+};
+
+export function getRacingCfg(tab: string) {
+  return RACING[tab as RacingTab] ?? null;
+}
+
+export interface RaceEvent {
+  id: string;
+  name: string;
+  shortName: string;
+  date: string;
+  venue: string;
+  city: string;
+  status: string; // 'pre' | 'in' | 'post'
+  results: RaceResult[];
+}
+
+export interface RaceResult {
+  pos: number;
+  driverName: string;
+  teamName: string;
+  driverLogo: string;
+  points?: number;
+  time?: string;
+  laps?: number;
+}
+
+export interface RacingStanding {
+  rank: number;
+  driverName: string;
+  teamName: string;
+  driverLogo: string;
+  points: number;
+  wins: number;
+}
+
+export async function fetchRacingSchedule(tab: string): Promise<RaceEvent[]> {
+  const cfg = getRacingCfg(tab);
+  if (!cfg) return [];
+  const key = `racing:schedule:${tab}`;
+  const c = fromCache(key, TTL.scores);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/scoreboard`);
+  const events: RaceEvent[] = (data?.events ?? []).slice(0, 12).map((e: any) => {
+    const comp = e.competitions?.[0];
+    const competitors: any[] = comp?.competitors ?? [];
+    const results: RaceResult[] = competitors
+      .sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99))
+      .slice(0, 10)
+      .map((c: any, i: number) => ({
+        pos: c.order ?? i + 1,
+        driverName: c.athlete?.displayName ?? c.displayName ?? 'Driver',
+        teamName: c.team?.displayName ?? c.team?.shortDisplayName ?? '',
+        driverLogo: c.athlete?.headshot?.href ?? c.athlete?.flag?.href ?? '',
+        points: c.statistics?.find((s: any) => s.name === 'points')?.value,
+        time: c.time ?? c.statistics?.find((s: any) => s.name === 'time')?.displayValue,
+        laps: c.laps,
+      }));
+
+    return {
+      id: e.id,
+      name: e.name ?? e.shortName ?? 'Race',
+      shortName: e.shortName ?? e.name ?? 'Race',
+      date: e.date ?? '',
+      venue: comp?.venue?.fullName ?? '',
+      city: [comp?.venue?.address?.city, comp?.venue?.address?.country].filter(Boolean).join(', '),
+      status: e.status?.type?.state ?? 'pre',
+      results,
+    };
+  });
+
+  toCache(key, events);
+  return events;
+}
+
+export async function fetchRacingStandings(tab: string): Promise<RacingStanding[]> {
+  const cfg = getRacingCfg(tab);
+  if (!cfg) return [];
+  const key = `racing:standings:${tab}`;
+  const c = fromCache(key, TTL.standings);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/standings`);
+  const entries: any[] = data?.children?.[0]?.standings?.entries
+    ?? data?.standings?.entries
+    ?? [];
+
+  const standings: RacingStanding[] = entries.slice(0, 20).map((e: any, i: number) => {
+    const stats = e.stats ?? [];
+    const get = (name: string) => stats.find((s: any) => s.name === name)?.value ?? 0;
+    return {
+      rank: (e.stats?.find((s: any) => s.name === 'rank')?.value ?? i + 1),
+      driverName: e.athlete?.displayName ?? e.team?.displayName ?? `Driver ${i + 1}`,
+      teamName: e.team?.displayName ?? e.team?.shortDisplayName ?? '',
+      driverLogo: e.athlete?.headshot?.href ?? '',
+      points: get('points') || get('pointsFor') || 0,
+      wins: get('wins') || 0,
+    };
+  });
+
+  toCache(key, standings);
+  return standings;
+}
+
+export async function fetchRacingNews(tab: string): Promise<any[]> {
+  const cfg = getRacingCfg(tab);
+  if (!cfg) return [];
+  const key = `racing:news:${tab}`;
+  const c = fromCache(key, TTL.news);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?limit=20`);
+  const articles = data?.articles ?? [];
+  toCache(key, articles);
+  return articles;
+}
+
+// ─── RICH TEAM PAGE ──────────────────────────────────────────────────────────
+
 export async function fetchRichTeamPage(
   tab: string,
   espnTeamId: string,

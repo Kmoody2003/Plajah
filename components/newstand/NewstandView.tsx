@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
-import { fetchNewsFromRSS } from '../../services/rssService';
+import { fetchNewsFromRSS, prefetchNewsCategories } from '../../services/rssService';
 import ArticlesFeed from '../ArticlesFeed';
 import { PodcastsView } from '../PodcastsView';
 import { UserProfile, Article, LiveFeed } from '../../types';
@@ -29,6 +29,15 @@ const CATEGORIES = [
   { id: 'SPORTS_ALL', label: 'Sports Center', icon: Zap },
   { id: 'SCIENCE', label: 'Science & Research', icon: Radio },
   { id: 'FINANCE', label: 'Markets & Finance', icon: TrendingUp }
+];
+
+const NEWS_SUBCATS = [
+  { id: 'GENERAL_WORLD',         label: 'World' },
+  { id: 'GENERAL_POLITICS',      label: 'Politics' },
+  { id: 'GENERAL_TECH',          label: 'Technology' },
+  { id: 'GENERAL_ENTERTAINMENT', label: 'Entertainment' },
+  { id: 'GENERAL_HEALTH',        label: 'Health' },
+  { id: 'GENERAL_BUSINESS',      label: 'Business' },
 ];
 
 const SPORTS_TABS = [
@@ -60,6 +69,7 @@ interface SavedTeam {
 
 export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser }) => {
   const [activeCategory, setActiveCategory] = useState('COMMUNITY_ARTICLES');
+  const [newsSubcat, setNewsSubcat] = useState('GENERAL_WORLD');
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [scores, setScores] = useState<any[]>([]);
@@ -89,6 +99,9 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
        }
     }
   }, []);
+
+  // Background warm-up so tabs load instantly on first click
+  useEffect(() => { prefetchNewsCategories(); }, []);
 
   const addTeam = async () => {
     if (!newTeam.trim() || isSearchingTeam) return;
@@ -169,7 +182,9 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
     setLoading(true);
     try {
       // 1. Fetch News
-      const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab : category;
+      const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab
+        : category === 'GENERAL' ? newsSubcat
+        : category;
       const rssItems = await fetchNewsFromRSS(queryCategory);
       setItems(rssItems.map((n: any) => ({
         id: n.id,
@@ -210,7 +225,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
 
   useEffect(() => {
     loadData(activeCategory);
-  }, [activeCategory, activeSportsTab]);
+  }, [activeCategory, activeSportsTab, newsSubcat]);
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white font-sans overflow-hidden">
@@ -381,8 +396,8 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
             </div>
           </div>
 
-          {/* Rich Sports Center for the five major leagues + Esports */}
-          {['SPORTS_NBA', 'SPORTS_NFL', 'SPORTS_NHL', 'SPORTS_MLB', 'SPORTS_NCAA', 'SPORTS_ESPORTS'].includes(activeSportsTab) && (
+          {/* Rich Sports Center for major leagues, Esports, and Racing */}
+          {['SPORTS_NBA', 'SPORTS_NFL', 'SPORTS_NHL', 'SPORTS_MLB', 'SPORTS_NCAA', 'SPORTS_ESPORTS', 'SPORTS_F1', 'SPORTS_NASCAR', 'SPORTS_INDYCAR'].includes(activeSportsTab) && (
             <SportsCenterView selectedSportsTab={activeSportsTab.replace('SPORTS_', '')} />
           )}
 
@@ -490,7 +505,24 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
           )}
         </main>
       ) : (
-        <main className="flex-1 overflow-y-auto p-8 space-y-12">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+          {/* Global News sub-category pills */}
+          {activeCategory === 'GENERAL' && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {NEWS_SUBCATS.map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setNewsSubcat(sub.id)}
+                  className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                    newsSubcat === sub.id ? 'bg-small-orange text-white shadow-lg shadow-small-orange/30' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {activeCategory === 'FINANCE' && markets.length > 0 && (
             <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {markets.map((m: any) => (
@@ -501,70 +533,77 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
               ))}
             </section>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="p-8 bg-white/5 border border-white/5 rounded-[2rem] hover:border-white/20 transition-all flex flex-col group overflow-hidden relative"
-              >
-                {item.imageUrl && (
-                  <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
-                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-                  </div>
-                )}
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="text-[10px] font-black uppercase mb-4 text-small-orange">{item.source}</div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight mb-4 group-hover:text-small-orange transition-colors">{item.title}</h3>
-                  <p className="text-sm opacity-50 mb-6 flex-1 line-clamp-3 leading-relaxed">{item.content}</p>
-                  <div className="flex flex-col gap-6 mt-auto">
-                    <div className="flex items-center justify-between">
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-xs font-black uppercase tracking-widest opacity-80 hover:text-small-orange flex items-center gap-2">
-                        <ExternalLink size={14} /> Read Article
-                      </a>
-                      <button
-                        onClick={async () => {
-                          if (!currentUser) {
-                            alert("Please log in to post.");
-                            return;
-                          }
-                          try {
-                            const { postToFeed } = await import('../../services/backendService');
-                            await postToFeed({
-                              authorId: currentUser.uid,
-                              authorName: currentUser.displayName || 'Anonymous',
-                              authorPhoto: currentUser.photoURL || '',
-                              type: 'NEWS',
-                              title: item.title,
-                              content: item.content,
-                              url: item.url,
-                              imageUrl: item.imageUrl || '',
-                              likesCount: 0,
-                              commentCount: 0,
-                              shareCount: 0
-                            });
-                            alert('Article posted to your social feed!');
-                          } catch (e) {
-                            console.error('Failed to post article', e);
-                          }
-                        }}
-                        className="p-3 bg-white/10 hover:bg-small-orange rounded-full transition-colors text-white"
-                        title="Post to Social Feed"
-                      >
-                        <Share2 size={16} />
-                      </button>
-                    </div>
-                    <div className="pt-6 border-t border-white/10">
-                      <The411 itemId={item.id} itemType="ARTICLE" title={item.title} author={item.source} />
-                    </div>
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex gap-4 p-5 bg-white/5 rounded-[1.5rem] animate-pulse">
+                  <div className="w-24 h-20 rounded-xl bg-white/10 shrink-0" />
+                  <div className="flex-1 space-y-3 py-1">
+                    <div className="h-2.5 bg-white/10 rounded w-1/4" />
+                    <div className="h-3 bg-white/10 rounded w-full" />
+                    <div className="h-3 bg-white/10 rounded w-5/6" />
+                    <div className="h-2 bg-white/5 rounded w-2/3" />
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && (
+            <div className={`grid gap-4 ${activeCategory === 'GENERAL' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'}`}>
+              {/* Hero card — first article gets a full-width feature treatment */}
+              {activeCategory === 'GENERAL' && items[0] && (
+                <a
+                  href={items[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lg:col-span-2 group relative rounded-[2rem] overflow-hidden border border-white/5 hover:border-white/20 transition-all block"
+                  style={{ minHeight: 280 }}
+                >
+                  {items[0].imageUrl
+                    ? <img src={items[0].imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity" loading="lazy" />
+                    : <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                  }
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                  <div className="relative z-10 p-8 flex flex-col justify-end h-full">
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} · {items[0].date}</p>
+                    <h2 className="text-2xl lg:text-4xl font-black uppercase tracking-tight leading-tight mb-3 group-hover:text-small-orange transition-colors max-w-3xl">{items[0].title}</h2>
+                    <p className="text-sm text-white/50 line-clamp-2 max-w-2xl">{items[0].content}</p>
+                  </div>
+                </a>
+              )}
+
+              {/* Rest of articles — side-by-side thumbnail layout */}
+              {(activeCategory === 'GENERAL' ? items.slice(1) : items).map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex gap-4 p-5 bg-white/5 border border-white/5 rounded-[1.5rem] hover:border-white/20 hover:bg-white/[0.08] transition-all group"
+                >
+                  {item.imageUrl && (
+                    <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0 bg-white/5">
+                      <img src={item.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-1">{item.source} · {item.date}</p>
+                      <h3 className="text-[11px] font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
+                    </div>
+                    <p className="text-[9px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>
+                  </div>
+                  <ExternalLink size={12} className="text-white/20 group-hover:text-small-orange transition-colors shrink-0 mt-1" />
+                </a>
+              ))}
+
+              {!loading && items.length === 0 && (
+                <div className="lg:col-span-2 py-20 text-center text-white/20 text-[10px] font-black uppercase tracking-widest">No articles found</div>
+              )}
+            </div>
+          )}
         </main>
       )}
     </div>

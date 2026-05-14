@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
-  fetchRichTeamPage, fetchEsportsNews,
+  fetchRichTeamPage, fetchEsportsNews, fetchRacingSchedule, fetchRacingStandings, fetchRacingNews, getRacingCfg,
   ESPORTS_ORGS,
-  type SportsTeam, type RichTeamPage, type EsportsOrg,
+  type SportsTeam, type RichTeamPage, type EsportsOrg, type RaceEvent, type RacingStanding,
 } from '../services/sportsService';
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
-  Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe,
+  Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
 } from 'lucide-react';
 
 interface Props {
@@ -47,6 +47,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   const isLeague = (LEAGUE_TABS as readonly string[]).includes(selectedSportsTab);
   const isEsports = selectedSportsTab === 'ESPORTS';
+  const isRacing = !!getRacingCfg(selectedSportsTab);
 
   // Filtered teams/orgs based on search
   const filteredTeams = useMemo(() => {
@@ -139,6 +140,9 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       .then(data => { setRichData(data); setTeamLoading(false); })
       .catch(() => setTeamLoading(false));
   }, [selectedTeam, selectedSportsTab]);
+
+  // ─── RACING VIEW (F1 / NASCAR / IndyCar) ─────────────────────────────────
+  if (isRacing) return <RacingCenterView tab={selectedSportsTab} />;
 
   if (!isLeague) return null;
 
@@ -768,3 +772,214 @@ const OrgCard: React.FC<{
     </button>
   </div>
 );
+
+// ─── Racing Center View (F1 / NASCAR / IndyCar) ───────────────────────────────
+
+const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
+  const cfg = getRacingCfg(tab)!;
+  const [schedule, setSchedule] = useState<RaceEvent[]>([]);
+  const [standings, setStandings] = useState<RacingStanding[]>([]);
+  const [news, setNews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+    setSchedule([]);
+    setStandings([]);
+    setNews([]);
+
+    Promise.all([
+      fetchRacingSchedule(tab),
+      fetchRacingStandings(tab),
+      fetchRacingNews(tab),
+    ]).then(([sched, stand, articles]) => {
+      setSchedule(sched);
+      setStandings(stand);
+      setNews(articles);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+      setError(true);
+    });
+  }, [tab]);
+
+  const upcoming = schedule.filter(e => e.status === 'pre');
+  const recent   = schedule.filter(e => e.status === 'post');
+  const live     = schedule.filter(e => e.status === 'in');
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Flag size={14} className="text-[#FF8C00]" />
+        <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/60">{cfg.label}</h3>
+      </div>
+
+      {loading && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[...Array(8)].map((_, i) => <div key={i} className="h-20 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
+          </div>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="py-16 text-center space-y-4">
+          <AlertCircle size={32} className="mx-auto text-white/15" />
+          <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Could not load {cfg.label} data</p>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {/* Live race */}
+          {live.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-red-400 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Live Now
+              </h4>
+              {live.map(race => (
+                <div key={race.id} className="bg-red-500/5 border border-red-500/20 rounded-[1.5rem] p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black">{race.name}</p>
+                      <p className="text-[8px] font-bold text-white/35 mt-1 flex items-center gap-1"><MapPin size={8} />{race.venue}{race.city ? ` · ${race.city}` : ''}</p>
+                    </div>
+                    <span className="text-[7px] font-black uppercase tracking-widest text-red-400 animate-pulse shrink-0">● Live</span>
+                  </div>
+                  {race.results.length > 0 && (
+                    <div className="space-y-1.5">
+                      {race.results.slice(0, 5).map((r, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-[8px] font-black text-white/30 w-4">{r.pos}</span>
+                          {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-80" loading="lazy" />}
+                          <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
+                          <span className="text-[7px] font-bold text-white/35 truncate">{r.teamName}</span>
+                          {r.time && <span className="text-[8px] font-black text-white/50 shrink-0">{r.time}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Driver standings */}
+          {standings.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Trophy size={10} /> Championship Standings</h4>
+              <div className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                <div className="divide-y divide-white/5">
+                  {standings.slice(0, 20).map((s, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all">
+                      <span className={`text-[9px] font-black w-5 shrink-0 ${i === 0 ? 'text-[#FF8C00]' : i < 3 ? 'text-white/60' : 'text-white/20'}`}>{s.rank || i + 1}</span>
+                      {s.driverLogo
+                        ? <img src={s.driverLogo} alt="" className="w-6 h-6 rounded-full object-cover opacity-80 shrink-0" loading="lazy" />
+                        : <div className="w-6 h-6 rounded-full bg-white/10 shrink-0 flex items-center justify-center"><User size={10} className="text-white/30" /></div>
+                      }
+                      <span className="flex-1 text-[9px] font-bold truncate">{s.driverName}</span>
+                      <span className="text-[8px] font-bold text-white/30 truncate max-w-[90px] hidden md:block">{s.teamName}</span>
+                      {s.wins > 0 && <span className="text-[7px] font-black text-[#FF8C00] shrink-0">{s.wins}W</span>}
+                      <span className={`text-[9px] font-black shrink-0 ${i === 0 ? 'text-[#FF8C00]' : 'text-white/60'}`}>{s.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming races */}
+          {upcoming.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Calendar size={10} /> Upcoming Races</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {upcoming.slice(0, 6).map(race => (
+                  <div key={race.id} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] p-4 space-y-2 hover:bg-white/[0.06] hover:border-white/15 transition-all">
+                    <p className="text-[9px] font-black leading-snug">{race.name}</p>
+                    <p className="text-[7px] font-bold text-white/30 flex items-center gap-1"><MapPin size={7} />{race.venue || race.city}</p>
+                    <p className="text-[7px] font-black text-[#FF8C00] flex items-center gap-1"><Clock size={7} />
+                      {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent results */}
+          {recent.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Clock size={10} /> Recent Results</h4>
+              <div className="space-y-3">
+                {recent.slice(0, 4).map(race => (
+                  <div key={race.id} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[9px] font-black">{race.name}</p>
+                        <p className="text-[7px] font-bold text-white/30 mt-0.5">{race.city || race.venue}</p>
+                      </div>
+                      <span className="text-[7px] font-black uppercase tracking-widest text-white/20 shrink-0">
+                        {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                      </span>
+                    </div>
+                    {race.results.length > 0 && (
+                      <div className="space-y-1.5">
+                        {race.results.slice(0, 3).map((r, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <span className={`text-[8px] font-black w-4 shrink-0 ${i === 0 ? 'text-[#FF8C00]' : 'text-white/20'}`}>{r.pos}</span>
+                            {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-75" loading="lazy" />}
+                            <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
+                            <span className="text-[7px] text-white/30 truncate">{r.teamName}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* News */}
+          {news.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Newspaper size={10} /> {cfg.label} News</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {news.slice(0, 8).map((article: any, i: number) => (
+                  <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
+                    className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group"
+                  >
+                    {article.images?.[0]?.url && (
+                      <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
+                      <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-1">
+                        {article.published ? new Date(article.published).toLocaleDateString() : ''}
+                      </p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {schedule.length === 0 && standings.length === 0 && news.length === 0 && (
+            <div className="py-16 text-center space-y-4">
+              <Flag size={32} className="mx-auto text-white/10" />
+              <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">No {cfg.label} data available right now</p>
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+};

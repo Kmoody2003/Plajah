@@ -1,102 +1,97 @@
 const RSS_FEEDS: Record<string, string[]> = {
-  'GENERAL': [
-    'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-    'https://feeds.bbci.co.uk/news/world/rss.xml',
-    'https://www.theguardian.com/world/rss'
-  ],
-  'SPORTS_ALL': [
-    'https://www.espn.com/espn/rss/news',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml'
-  ],
-  'SPORTS_NBA': ['https://www.espn.com/espn/rss/nba/news'],
-  'SPORTS_NFL': ['https://www.espn.com/espn/rss/nfl/news'],
-  'SPORTS_NHL': ['https://www.espn.com/espn/rss/nhl/news'],
-  'SPORTS_MLB': ['https://www.espn.com/espn/rss/mlb/news'],
-  'SPORTS_NCAA': ['https://www.espn.com/espn/rss/ncb/news'],
-  'SCIENCE': [
-    'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
-    'https://www.wired.com/feed/category/science/latest/rss'
-  ],
-  'FINANCE': [
-    'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml'
-  ]
+  // Global News sub-categories
+  'GENERAL':              ['https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'https://feeds.bbci.co.uk/news/world/rss.xml'],
+  'GENERAL_WORLD':        ['https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'https://feeds.bbci.co.uk/news/world/rss.xml', 'https://www.theguardian.com/world/rss'],
+  'GENERAL_POLITICS':     ['https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml', 'https://feeds.bbci.co.uk/news/politics/rss.xml'],
+  'GENERAL_TECH':         ['https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', 'https://www.wired.com/feed/rss', 'https://feeds.arstechnica.com/arstechnica/index'],
+  'GENERAL_ENTERTAINMENT':['https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml', 'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml'],
+  'GENERAL_HEALTH':       ['https://rss.nytimes.com/services/xml/rss/nyt/Health.xml', 'https://feeds.bbci.co.uk/news/health/rss.xml'],
+  'GENERAL_BUSINESS':     ['https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
+
+  // Sports
+  'SPORTS_ALL':    ['https://www.espn.com/espn/rss/news', 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml'],
+  'SPORTS_NBA':    ['https://www.espn.com/espn/rss/nba/news'],
+  'SPORTS_NFL':    ['https://www.espn.com/espn/rss/nfl/news'],
+  'SPORTS_NHL':    ['https://www.espn.com/espn/rss/nhl/news'],
+  'SPORTS_MLB':    ['https://www.espn.com/espn/rss/mlb/news'],
+  'SPORTS_NCAA':   ['https://www.espn.com/espn/rss/ncb/news'],
+  'SPORTS_F1':     ['https://www.espn.com/espn/rss/rpm/news', 'https://www.motorsport.com/rss/f1/news/'],
+  'SPORTS_NASCAR': ['https://www.espn.com/espn/rss/rpm/news'],
+  'SPORTS_INDYCAR':['https://www.espn.com/espn/rss/rpm/news'],
+
+  // Other
+  'SCIENCE': ['https://rss.nytimes.com/services/xml/rss/nyt/Science.xml', 'https://www.wired.com/feed/category/science/latest/rss'],
+  'FINANCE': ['https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml'],
 };
 
-const cache: Record<string, any> = {};
+// In-memory cache: category → { timestamp, data }
+const cache: Record<string, { timestamp: number; data: any[] }> = {};
+const TTL = 1000 * 60 * 15; // 15 min
 
-export const fetchNewsFromRSS = async (category: string) => {
-  if (cache[category] && Date.now() - cache[category].timestamp < 1000 * 60 * 15) {
-    return cache[category].data; // Return cached if < 15 mins
-  }
+function parseRSS(text: string): any[] {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const feedTitle = doc.querySelector('channel > title')?.textContent || 'News';
+  return Array.from(doc.querySelectorAll('item')).map((item) => {
+    const title    = item.querySelector('title')?.textContent || '';
+    const link     = item.querySelector('link')?.textContent || '';
+    const guid     = item.querySelector('guid')?.textContent || link;
+    const pubDate  = item.querySelector('pubDate')?.textContent || new Date().toISOString();
+    const desc     = item.querySelector('description')?.textContent || '';
 
-  const feeds = RSS_FEEDS[category] || RSS_FEEDS['GENERAL'];
-  let allItems: any[] = [];
-
-  await Promise.all(feeds.map(async (feedUrl) => {
-    try {
-      // Proxy needed to bypass CORS
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(feedUrl)}`;
-      const response = await fetch(proxyUrl);
-      const text = await response.text();
-      
-      const domParser = new DOMParser();
-      const doc = domParser.parseFromString(text, 'text/xml');
-      const items = Array.from(doc.querySelectorAll('item'));
-      const feedTitle = doc.querySelector('channel > title')?.textContent || 'News';
-      
-      allItems = allItems.concat(items.map((item: any) => {
-        const title = item.querySelector('title')?.textContent || '';
-        const link = item.querySelector('link')?.textContent || '';
-        const guid = item.querySelector('guid')?.textContent || link;
-        const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString();
-        let contentSnippet = item.querySelector('description')?.textContent || '';
-        
-        let imageUrl = '';
-        const mediaContent = item.querySelector('media\\:content, content');
-        if (mediaContent && mediaContent.getAttribute('url')) {
-          imageUrl = mediaContent.getAttribute('url');
-        } else if (item.querySelector('enclosure[type^="image"]')) {
-          imageUrl = item.querySelector('enclosure[type^="image"]')?.getAttribute('url') || '';
-        } else {
-          const imgMatch = contentSnippet.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch && imgMatch[1]) {
-             imageUrl = imgMatch[1];
-          }
-        }
-        
-        // clean up html from description
-        const textContent = new DOMParser().parseFromString(contentSnippet, 'text/html').body.textContent || '';
-        
-        return {
-          id: guid || link,
-          headline: title,
-          source: feedTitle,
-          url: link,
-          summary: textContent.substring(0, 200) + (textContent.length > 200 ? '...' : ''),
-          imageUrl,
-          pubDate: pubDate,
-          date: new Date(pubDate).toLocaleDateString()
-        };
-      }));
-    } catch (e) {
-      console.error(`Error fetching RSS feed ${feedUrl}:`, e);
+    let imageUrl = '';
+    const mc = item.querySelector('media\\:content, content');
+    if (mc?.getAttribute('url')) imageUrl = mc.getAttribute('url')!;
+    else if (item.querySelector('enclosure[type^="image"]'))
+      imageUrl = item.querySelector('enclosure[type^="image"]')!.getAttribute('url') || '';
+    else {
+      const m = desc.match(/<img[^>]+src="([^">]+)"/);
+      if (m) imageUrl = m[1];
     }
-  }));
 
-  // Sort by date DESC
-  allItems.sort((a, b) => {
-    const dateA = new Date(a.pubDate).getTime();
-    const dateB = new Date(b.pubDate).getTime();
-    return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
-  });
-  
-  const result = allItems.slice(0, 20); // Return top 20
-  if (result.length > 0) {
-    cache[category] = {
-      timestamp: Date.now(),
-      data: result
+    const textContent = new DOMParser().parseFromString(desc, 'text/html').body.textContent || '';
+    return {
+      id: guid || link,
+      headline: title,
+      source: feedTitle,
+      url: link,
+      summary: textContent.substring(0, 220) + (textContent.length > 220 ? '…' : ''),
+      imageUrl,
+      pubDate,
+      date: new Date(pubDate).toLocaleDateString(),
     };
+  });
+}
+
+export const fetchNewsFromRSS = async (category: string): Promise<any[]> => {
+  if (cache[category] && Date.now() - cache[category].timestamp < TTL)
+    return cache[category].data;
+
+  const feeds = RSS_FEEDS[category] || RSS_FEEDS['GENERAL_WORLD'];
+  const results = await Promise.allSettled(
+    feeds.map(url =>
+      fetch(`/api/proxy?url=${encodeURIComponent(url)}`)
+        .then(r => r.text())
+        .then(parseRSS)
+    )
+  );
+
+  let allItems: any[] = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled') allItems = allItems.concat(r.value);
   }
+
+  allItems.sort((a, b) =>
+    (isNaN(new Date(b.pubDate).getTime()) ? 0 : new Date(b.pubDate).getTime()) -
+    (isNaN(new Date(a.pubDate).getTime()) ? 0 : new Date(a.pubDate).getTime())
+  );
+
+  const result = allItems.slice(0, 24);
+  if (result.length > 0) cache[category] = { timestamp: Date.now(), data: result };
   return result;
+};
+
+/** Fire-and-forget background warm-up for common tabs */
+export const prefetchNewsCategories = () => {
+  const hot = ['GENERAL_WORLD', 'GENERAL_TECH', 'GENERAL_POLITICS', 'SPORTS_ALL', 'SCIENCE', 'FINANCE'];
+  hot.forEach(cat => fetchNewsFromRSS(cat).catch(() => {}));
 };
