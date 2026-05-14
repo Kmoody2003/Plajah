@@ -1,12 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Video, VideoComment, UserProfile, Track } from '../types';
-import { likeVideo, unlikeVideo, postVideoComment, listenToVideoComments, fetchUserProfile, checkIfLiked } from '../services/backendService';
-import { Heart, MessageCircle, Share2, Plus, X, Send, User, ChevronDown, ChevronUp, Maximize2, Minimize2, ChevronRight, Info, Volume2, VolumeX, Play, Pause, ArrowLeft, Zap } from 'lucide-react';
-import { MessageSquare } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Video, VideoComment, UserProfile } from '../types';
+import {
+  likeVideo, unlikeVideo, postVideoComment, listenToVideoComments,
+  fetchUserProfile, checkIfLiked, updateVideo, auth,
+} from '../services/backendService';
+import {
+  Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
+  Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
+  Lock, Check, Upload, Eye, EyeOff, ChevronDown, ChevronUp,
+  UserPlus, MoreVertical, Bookmark, Flag,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import CommentSection from './CommentSection';
 import MuxPlayer from '@mux/mux-player-react';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface VideoPlayerProps {
   video: Video;
@@ -14,240 +22,396 @@ interface VideoPlayerProps {
   currentUser: any;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser }) => {
-  const { isPlaying, pause, resume, setVideoElement, setYtPlayer, playVideo, currentVideo, clearMedia, togglePlay: globalTogglePlay, volume } = useGlobalPlayerState();
-  const { currentTime, duration, seek } = useGlobalPlayerProgress();
+// ── helpers ───────────────────────────────────────────────────────────────────
+function fmt(time: number) {
+  if (isNaN(time)) return '0:00';
+  const h = Math.floor(time / 3600);
+  const m = Math.floor((time % 3600) / 60);
+  const s = Math.floor(time % 60);
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
 
-  const [comments, setComments] = useState<VideoComment[]>([]);
-  const [videoError, setVideoError] = useState(false);
-  
-  const formatTime = (time: number) => {
-    if (isNaN(time)) return '0:00';
-    const hrs = Math.floor(time / 3600);
-    const mins = Math.floor((time % 3600) / 60);
-    const secs = Math.floor(time % 60);
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+function fmtCount(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+// ── VideoEditModal ────────────────────────────────────────────────────────────
+interface EditModalProps {
+  video: Video;
+  onClose: () => void;
+  onSaved: (updated: Partial<Video>) => void;
+}
+
+const GENRES = ['General', 'Music Video', 'Short Film', 'Documentary', 'Vlog', 'Tutorial', 'Gaming', 'Education', 'Podcast', 'Live Stream', 'Comedy', 'News', 'Sports', 'Fitness'];
+
+const VideoEditModal: React.FC<EditModalProps> = ({ video, onClose, onSaved }) => {
+  const [title, setTitle]             = useState(video.title);
+  const [description, setDescription] = useState(video.description || '');
+  const [genre, setGenre]             = useState(video.genre || 'General');
+  const [isPrivate, setIsPrivate]     = useState(video.isPrivate ?? false);
+  const [tags, setTags]               = useState<string[]>(video.tags || []);
+  const [tagInput, setTagInput]       = useState('');
+  const [thumbnailUrl, setThumbnailUrl] = useState(video.thumbnailUrl || '');
+  const [coverUrl, setCoverUrl]         = useState(video.coverImageUrl || '');
+  const [thumbFile, setThumbFile]       = useState<File | null>(null);
+  const [coverFile, setCoverFile]       = useState<File | null>(null);
+  const [thumbPreview, setThumbPreview] = useState(video.thumbnailUrl || '');
+  const [coverPreview, setCoverPreview] = useState(video.coverImageUrl || '');
+  const [saving, setSaving]           = useState(false);
+  const [activeSection, setActiveSection] = useState<'details' | 'media' | 'distribution'>('details');
+
+  const handleThumbChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setThumbFile(f);
+    setThumbPreview(URL.createObjectURL(f));
   };
 
-  const [isLiked, setIsLiked] = useState(false);
-  const [showComments, setShowComments] = useState(true);
-  const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showExitFullscreenOnly, setShowExitFullscreenOnly] = useState(false);
-  
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const ytPlayerRef = useRef<any>(null);
-  const ytContainerId = useRef(`yt-video-player-${Math.random().toString(36).substr(2, 9)}`);
-  const mousePos = useRef({ x: 0, y: 0 });
-  const introHandledRef = useRef(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const showExitTimer = useRef<NodeJS.Timeout | null>(null);
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  };
 
+  const addTag = () => {
+    const t = tagInput.trim().toLowerCase();
+    if (t && !tags.includes(t)) { setTags(p => [...p, t]); setTagInput(''); }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates: Partial<Video> = { title, description, genre, isPrivate, tags };
+      const storage = getStorage();
+
+      if (thumbFile) {
+        const ref = storageRef(storage, `thumbnails/${video.id}_thumb_${Date.now()}`);
+        await uploadBytes(ref, thumbFile);
+        updates.thumbnailUrl = await getDownloadURL(ref);
+      }
+      if (coverFile) {
+        const ref = storageRef(storage, `thumbnails/${video.id}_cover_${Date.now()}`);
+        await uploadBytes(ref, coverFile);
+        updates.coverImageUrl = await getDownloadURL(ref);
+      }
+
+      await updateVideo(video.id, updates);
+      onSaved(updates);
+      onClose();
+    } catch (err) {
+      console.error('Save failed', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sections = [
+    { id: 'details', label: 'Details' },
+    { id: 'media', label: 'Thumbnail & Cover' },
+    { id: 'distribution', label: 'Distribution' },
+  ] as const;
+
+  return (
+    <div className="fixed inset-0 z-[500] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-3xl max-h-[90vh] bg-[#0a0a0a] border border-white/10 rounded-[2rem] overflow-hidden flex flex-col shadow-[0_40px_80px_rgba(0,0,0,0.8)]"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-white/5 shrink-0">
+          <div>
+            <h2 className="text-xl font-display font-black uppercase tracking-tight">Video Settings</h2>
+            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mt-0.5">Edit details for this video</p>
+          </div>
+          <button onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={18} /></button>
+        </div>
+
+        {/* Section tabs */}
+        <div className="flex gap-1 px-8 pt-4 shrink-0">
+          {sections.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setActiveSection(s.id)}
+              className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeSection === s.id ? 'bg-white text-black' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+            >{s.label}</button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
+
+          {/* ── DETAILS ── */}
+          {activeSection === 'details' && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Title</label>
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all"
+                  placeholder="Video title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Description</label>
+                <textarea
+                  rows={5}
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all resize-none"
+                  placeholder="Tell viewers about your video..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Genre / Category</label>
+                <select
+                  value={genre}
+                  onChange={e => setGenre(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all appearance-none text-white"
+                >
+                  {GENRES.map(g => <option key={g} value={g} className="bg-[#0a0a0a]">{g}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Tags</label>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    placeholder="Add tag and press Enter..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-white/20"
+                  />
+                  <button type="button" onClick={addTag} className="px-5 bg-white/10 hover:bg-white/20 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all">Add</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <span key={tag} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest">
+                      <Tag size={9} className="text-white/40" /> {tag}
+                      <button onClick={() => setTags(t => t.filter(x => x !== tag))} className="text-white/30 hover:text-red-400 transition-colors"><X size={9} /></button>
+                    </span>
+                  ))}
+                  {tags.length === 0 && <p className="text-[9px] text-white/20 uppercase tracking-widest">No tags yet</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── MEDIA ── */}
+          {activeSection === 'media' && (
+            <div className="space-y-6">
+              {/* Thumbnail */}
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Thumbnail</label>
+                <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/5 border border-white/10 group">
+                  {thumbPreview
+                    ? <img src={thumbPreview} alt="thumbnail" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-white/20"><Camera size={32} /></div>}
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/50 transition-all cursor-pointer">
+                    <div className="opacity-0 group-hover:opacity-100 flex flex-col items-center gap-2 transition-all">
+                      <div className="p-3 bg-white/20 rounded-full"><Upload size={20} /></div>
+                      <span className="text-[9px] font-black uppercase tracking-widest">Change Thumbnail</span>
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleThumbChange} />
+                  </label>
+                </div>
+                <p className="text-[8px] text-white/20 uppercase tracking-widest mt-2">Recommended: 1280×720 (16:9)</p>
+              </div>
+
+              {/* Cover */}
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Cover / Background Image</label>
+                <div className="relative h-40 rounded-2xl overflow-hidden bg-white/5 border border-white/10 group">
+                  {coverPreview
+                    ? <img src={coverPreview} alt="cover" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-white/20"><Camera size={32} /></div>}
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/50 transition-all cursor-pointer">
+                    <div className="opacity-0 group-hover:opacity-100 flex flex-col items-center gap-2 transition-all">
+                      <div className="p-3 bg-white/20 rounded-full"><Upload size={20} /></div>
+                      <span className="text-[9px] font-black uppercase tracking-widest">Change Cover</span>
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
+                  </label>
+                </div>
+                <p className="text-[8px] text-white/20 uppercase tracking-widest mt-2">Used as blurred background on the player page</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── DISTRIBUTION ── */}
+          {activeSection === 'distribution' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-5 bg-white/[0.03] rounded-2xl border border-white/5">
+                <div className="flex items-center gap-4">
+                  {isPrivate ? <Lock size={18} className="text-white/30" /> : <Globe size={18} className="text-green-400" />}
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-tight">{isPrivate ? 'Private' : 'Public'}</p>
+                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-0.5">
+                      {isPrivate ? 'Only you can see this video' : 'Visible to everyone on the platform'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPrivate(p => !p)}
+                  className={`w-12 h-7 rounded-full relative transition-all ${!isPrivate ? 'bg-green-500' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all shadow-lg ${!isPrivate ? 'left-5' : 'left-0.5'}`} />
+                </button>
+              </div>
+
+              <div className="p-5 bg-white/[0.03] rounded-2xl border border-white/5 space-y-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Sharing</p>
+                <p className="text-xs font-bold text-white/50 leading-relaxed">
+                  Anyone with the link can view this video, regardless of the visibility setting above.
+                  Share the URL to distribute your content directly.
+                </p>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(window.location.href); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest"
+                >
+                  <Share2 size={13} /> Copy Video Link
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-8 pb-8 pt-5 border-t border-white/5 shrink-0">
+          <button onClick={onClose} className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all">Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-8 py-3 bg-white text-black hover:bg-[#FF8C00] hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving ? <><div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" /> Saving…</> : <><Check size={14} /> Save Changes</>}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// ── Main VideoPlayer ──────────────────────────────────────────────────────────
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser }) => {
+  const {
+    isPlaying, pause, resume, setVideoElement, setYtPlayer,
+    playVideo, currentVideo, clearMedia, volume,
+  } = useGlobalPlayerState();
+  const { currentTime, duration, seek } = useGlobalPlayerProgress();
+
+  const [video, setVideo]           = useState(initialVideo);
+  const [comments, setComments]     = useState<VideoComment[]>([]);
+  const [videoError, setVideoError] = useState(false);
+  const [isLiked, setIsLiked]       = useState(false);
+  const [isMuted, setIsMuted]       = useState(false);
+  const [isFullscreen, setIsFullscreen]     = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [descExpanded, setDescExpanded]       = useState(false);
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [ownerProfile, setOwnerProfile]       = useState<UserProfile | null>(null);
+  const [showMobileComments, setShowMobileComments] = useState(false);
+
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const videoWrapRef       = useRef<HTMLDivElement>(null);
+  const localVideoRef      = useRef<HTMLVideoElement | null>(null);
+  const ytPlayerRef        = useRef<any>(null);
+  const ytContainerId      = useRef(`yt-${Math.random().toString(36).substr(2, 9)}`);
+  const controlsTimer      = useRef<NodeJS.Timeout | null>(null);
+  const introHandled       = useRef(false);
+
+  const isOwner = !!(currentUser?.uid && currentUser.uid === video.ownerId);
+  const thumbnail = video.thumbnailUrl || video.coverImageUrl || '';
+  const progress  = (currentTime / duration) * 100 || 0;
+
+  // Fullscreen listener
   useEffect(() => {
-    const handleFullscreenChange = () => {
+    const onFsChange = () =>
       setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
     };
   }, []);
 
+  // Auto-hide controls while playing
   useEffect(() => {
-    let fadeOutTimer: NodeJS.Timeout;
-    let fullscreenTimer: NodeJS.Timeout;
-
-    if (isPlaying && !introHandledRef.current) {
-      introHandledRef.current = true;
-      // 1. Fade out controls after 4s
-      fadeOutTimer = setTimeout(() => {
-        setControlsVisible(false);
-        
-        // 2. Auto-fullscreen after additional 2s (if not already fullscreen)
-        fullscreenTimer = setTimeout(() => {
-          if (playerContainerRef.current && document.fullscreenElement === null) {
-            playerContainerRef.current.requestFullscreen().catch((err) => {
-              console.log("Auto fullscreen prevented by browser", err);
-            });
-          }
-        }, 2000);
-      }, 4000);
+    if (isPlaying && !introHandled.current) {
+      introHandled.current = true;
+      controlsTimer.current = setTimeout(() => setControlsVisible(false), 4000);
     }
-
-    return () => {
-      clearTimeout(fadeOutTimer);
-      clearTimeout(fullscreenTimer);
-    };
+    return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const deltaX = Math.abs(e.clientX - mousePos.current.x);
-    const deltaY = Math.abs(e.clientY - mousePos.current.y);
-
-    if (isFullscreen && !controlsVisible) {
-      setShowExitFullscreenOnly(true);
-      clearTimeout(showExitTimer.current);
-      showExitTimer.current = setTimeout(() => setShowExitFullscreenOnly(false), 2000);
-    }
-
-    // Require significant movement to bring back full controls
-    if (deltaX > 150 || deltaY > 150) {
-      setControlsVisible(true);
-      setShowExitFullscreenOnly(false);
-      mousePos.current = { x: e.clientX, y: e.clientY };
-      
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setControlsVisible(false), 4000);
-    }
+  const handleMouseMove = () => {
+    setControlsVisible(true);
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    if (isPlaying) controlsTimer.current = setTimeout(() => setControlsVisible(false), 3000);
   };
 
+  // YouTube player setup
   useEffect(() => {
     const isYoutube = video.url.includes('youtube.com') || video.url.includes('youtu.be');
-    if (!isYoutube) {
-      setYtPlayer(null);
-      return;
-    }
+    if (!isYoutube) { setYtPlayer(null); return; }
 
     let vId = '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = video.url.match(regExp);
-    if (match && match[2].length === 11) {
-      vId = match[2];
-    } else {
-      vId = video.url.split('/').pop()?.split('?')[0] || '';
-    }
+    const m = video.url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+    if (m?.[2]?.length === 11) vId = m[2];
+    else vId = video.url.split('/').pop()?.split('?')[0] || '';
+    if (!vId || vId.length < 5) return;
 
-    if (!vId || vId.length < 5) {
-      console.warn("Invalid YouTube ID in VideoPlayer:", vId);
-      return;
-    }
-
-    const initPlayer = () => {
-      if (document.getElementById(ytContainerId.current)) {
-        try {
-          if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
-            ytPlayerRef.current.loadVideoById(vId);
-          } else {
-            if (ytPlayerRef.current && typeof ytPlayerRef.current.destroy === 'function') {
-              ytPlayerRef.current.destroy();
-              ytPlayerRef.current = null;
-            }
-
-            ytPlayerRef.current = new (window as any).YT.Player(ytContainerId.current, {
-              height: '100%',
-              width: '100%',
-              videoId: vId,
-              playerVars: {
-                autoplay: 1,
-                controls: 0,
-                modestbranding: 1,
-                rel: 0,
-                showinfo: 0,
-                iv_load_policy: 3,
-                fs: 0
-              },
-              events: {
-                onReady: (event: any) => {
-                  setYtPlayer(event.target);
-                  event.target.playVideo();
-                }
-              }
-            });
-          }
-        } catch (e) {
-          console.error("YouTube Player initialization failed in VideoPlayer:", e);
+    const init = () => {
+      if (!document.getElementById(ytContainerId.current)) return;
+      try {
+        if (ytPlayerRef.current?.loadVideoById) {
+          ytPlayerRef.current.loadVideoById(vId);
+        } else {
+          ytPlayerRef.current?.destroy?.();
+          ytPlayerRef.current = new (window as any).YT.Player(ytContainerId.current, {
+            height: '100%', width: '100%', videoId: vId,
+            playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, showinfo: 0, iv_load_policy: 3, fs: 0 },
+            events: { onReady: (e: any) => { setYtPlayer(e.target); e.target.playVideo(); } },
+          });
         }
-      } else {
-        console.warn("YT container not found in VideoPlayer for init:", ytContainerId.current);
-      }
+      } catch (e) { console.error('YT init failed', e); }
     };
 
-    if (!(window as any).YT || !(window as any).YT.Player) {
+    if ((window as any).YT?.Player) { init(); }
+    else {
       if (!document.getElementById('youtube-api-script')) {
         const tag = document.createElement('script');
         tag.id = 'youtube-api-script';
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
       }
-      
-      const checkYt = setInterval(() => {
-        if ((window as any).YT && (window as any).YT.Player) {
-          clearInterval(checkYt);
-          initPlayer();
-        }
-      }, 100);
-      
-      return () => clearInterval(checkYt);
-    } else {
-      initPlayer();
+      const iv = setInterval(() => { if ((window as any).YT?.Player) { clearInterval(iv); init(); } }, 100);
+      return () => clearInterval(iv);
     }
-
-    return () => {
-      if (ytPlayerRef.current) {
-        ytPlayerRef.current.destroy();
-        ytPlayerRef.current = null;
-        setYtPlayer(null);
-      }
-    };
+    return () => { ytPlayerRef.current?.destroy?.(); ytPlayerRef.current = null; setYtPlayer(null); };
   }, [video.url, setYtPlayer]);
 
+  // Load initial data + start playback
   useEffect(() => {
     const unsub = listenToVideoComments(video.id, setComments);
-    loadOwnerProfile();
-    checkInitialLike();
-    
-    // Auto-play via global player context
-    if (currentVideo?.id !== video.id) {
-      playVideo(video);
-    }
-
-    return () => {
-      unsub();
-      clearMedia();
-    };
+    fetchUserProfile(video.ownerId).then(p => setOwnerProfile(p));
+    checkIfLiked(video.id).then(l => setIsLiked(l));
+    if (currentVideo?.id !== video.id) playVideo(video);
+    return () => { unsub(); clearMedia(); };
   }, [video.id]);
 
-  const loadOwnerProfile = async () => {
-    const p = await fetchUserProfile(video.ownerId);
-    setOwnerProfile(p);
-  };
-
-  const checkInitialLike = async () => {
-    const liked = await checkIfLiked(video.id);
-    setIsLiked(liked);
-  };
-
-  const handleLike = async () => {
-    if (!currentUser) return;
-    if (isLiked) {
-      await unlikeVideo(video.id);
-      setIsLiked(false);
-    } else {
-      await likeVideo(video.id);
-      setIsLiked(true);
-    }
-  };
-
-  const handlePostComment = async (text: string, parentId?: string) => {
-    if (!currentUser) return;
-    await postVideoComment(video.id, text, parentId);
-  };
-
-  const togglePlay = () => {
-    if (isPlaying) pause();
-    else resume();
-  };
-
+  // Mute / volume sync
   useEffect(() => {
     if (localVideoRef.current) {
       localVideoRef.current.muted = isMuted;
@@ -255,259 +419,342 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
     }
   }, [isMuted, volume]);
 
-  const progress = (currentTime / duration) * 100 || 0;
+  const togglePlay = useCallback(() => { isPlaying ? pause() : resume(); }, [isPlaying, pause, resume]);
+
+  const handleLike = async () => {
+    if (!currentUser) return;
+    if (isLiked) { await unlikeVideo(video.id); setIsLiked(false); setVideo(v => ({ ...v, likesCount: Math.max(0, (v.likesCount || 1) - 1) })); }
+    else { await likeVideo(video.id); setIsLiked(true); setVideo(v => ({ ...v, likesCount: (v.likesCount || 0) + 1 })); }
+  };
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) navigator.share({ title: video.title, url }).catch(() => {});
+    else { navigator.clipboard.writeText(url); }
+  };
+
+  const toggleFullscreen = () => {
+    if (isFullscreen) {
+      document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.();
+    } else {
+      const el = videoWrapRef.current as any;
+      el?.requestFullscreen?.() ?? el?.webkitRequestFullscreen?.();
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    seek(((e.clientX - rect.left) / rect.width) * duration);
+  };
+
+  const handleSaved = (updates: Partial<Video>) => {
+    setVideo(v => ({ ...v, ...updates }));
+  };
+
+  // ── Render video element ─────────────────────────────────────────────────
+  const renderVideo = () => {
+    const isYoutube = video.url.includes('youtube.com') || video.url.includes('youtu.be');
+    const isVimeo   = video.url.includes('vimeo.com');
+    const isArchiveEmbed = video.url.includes('archive.org/embed/');
+
+    if (isYoutube) return <div className="w-full h-full"><div id={ytContainerId.current} className="w-full h-full" /></div>;
+
+    if (isVimeo) {
+      const vid = video.url.split('/').pop();
+      return <iframe src={`https://player.vimeo.com/video/${vid}?autoplay=1`} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
+    }
+
+    if (isArchiveEmbed) return <iframe src={video.url} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
+
+    if (video.url.includes('archive.org') && videoError) {
+      const parts = video.url.split('/');
+      const idx = parts.indexOf('download');
+      const id  = idx !== -1 ? parts[idx + 1] : '';
+      return <iframe src={`https://archive.org/embed/${id}?autoplay=1`} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
+    }
+
+    if (video.muxPlaybackId) {
+      return (
+        <MuxPlayer
+          ref={setVideoElement as any}
+          playbackId={video.muxPlaybackId}
+          autoPlay="any"
+          className="w-full h-full object-contain"
+        />
+      );
+    }
+
+    return (
+      <video
+        ref={el => { setVideoElement(el); localVideoRef.current = el; }}
+        src={video.url || undefined}
+        playsInline
+        crossOrigin="anonymous"
+        className="w-full h-full object-contain cursor-pointer"
+        onClick={togglePlay}
+        autoPlay
+        muted={isMuted}
+        onError={() => setVideoError(true)}
+      />
+    );
+  };
 
   return (
-    <div ref={playerContainerRef} className="fixed inset-0 bg-black z-[200] flex flex-col lg:flex-row overflow-hidden" onMouseMove={handleMouseMove}>
-      {/* Video Section */}
-      <div className="flex-1 relative bg-black flex items-center justify-center group" onClick={togglePlay}>
-        {(() => {
-          const isYoutube = video.url.includes('youtube.com') || video.url.includes('youtu.be');
-          const isVimeo = video.url.includes('vimeo.com');
-          
-          if (isYoutube) {
-            return (
-              <div className="w-full h-full relative">
-                <div id={ytContainerId.current} className="w-full h-full" />
-              </div>
-            );
-          }
+    <div ref={playerContainerRef} className="fixed inset-0 z-[200] overflow-hidden flex flex-col lg:flex-row bg-[#050505]">
+      {/* Blurred thumbnail background (non-fullscreen only) */}
+      {!isFullscreen && thumbnail && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${thumbnail})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(60px) brightness(0.18) saturate(1.4)',
+            transform: 'scale(1.15)',
+          }}
+        />
+      )}
+      <div className="absolute inset-0 bg-black/60 pointer-events-none" />
 
-          if (isVimeo) {
-            const vid = video.url.split('/').pop();
-            const embedUrl = `https://player.vimeo.com/video/${vid}?autoplay=1`;
-            return (
-              <iframe 
-                src={embedUrl} 
-                className="w-full h-full" 
-                allow="autoplay; fullscreen" 
-                allowFullScreen 
-              />
-            );
-          }
+      {/* ── LEFT: Video + Info ─────────────────────────────────────────────── */}
+      <div className="relative flex-1 flex flex-col overflow-y-auto min-h-0">
 
-          const isArchiveEmbed = video.url.includes('archive.org/embed/');
-          
-          if (isArchiveEmbed) {
-            return (
-              <iframe 
-                src={video.url} 
-                className="w-full h-full" 
-                allow="autoplay; fullscreen" 
-                allowFullScreen 
-              />
-            );
-          }
-
-          const isArchive = video.url.includes('archive.org');
-
-          if (isArchive && videoError) {
-            // Get identifier from URL
-            const parts = video.url.split('/');
-            const downloadIndex = parts.indexOf('download');
-            const id = downloadIndex !== -1 ? parts[downloadIndex + 1] : '';
-            return (
-              <iframe 
-                src={`https://archive.org/embed/${id}?autoplay=1`} 
-                className="w-full h-full" 
-                allow="autoplay; fullscreen" 
-                allowFullScreen 
-              />
-            );
-          }
-
-          if (video.muxPlaybackId) {
-            return (
-              <div className="w-full h-full" onClick={togglePlay}>
-                <MuxPlayer
-                  ref={setVideoElement as any}
-                  playbackId={video.muxPlaybackId}
-                  autoPlay="any"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            );
-          }
-
-          return (
-            <video 
-              ref={(el) => { setVideoElement(el); localVideoRef.current = el; }}
-              src={video.url || undefined}
-              playsInline
-              crossOrigin="anonymous"
-              className="w-full h-full object-contain cursor-pointer"
-              onClick={togglePlay}
-              autoPlay
-              muted={isMuted}
-              volume={volume}
-              onError={() => {
-                console.error("Video streaming failed, switching to archive embed.");
-                setVideoError(true);
-              }}
-            />
-          );
-        })()}
-        
-        {/* Isolated Exit Fullscreen Button (Minor Mouse Move) */}
-        <AnimatePresence>
-          {isFullscreen && showExitFullscreenOnly && !controlsVisible && (
-            <motion.button 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                if (document.exitFullscreen) {
-                  document.exitFullscreen();
-                } else if ((document as any).webkitExitFullscreen) {
-                  (document as any).webkitExitFullscreen();
-                }
-              }}
-              className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all z-[300]"
-            >
-              <Minimize2 size={24} />
-            </motion.button>
-          )}
-        </AnimatePresence>
-        
-        {/* Custom Controls Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/95 transition-all duration-500 ease-in-out z-10 pointer-events-none">
-          <button 
+        {/* Header bar */}
+        <div className="relative z-10 flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
+          <button
             onClick={onBack}
-            className="absolute top-4 left-4 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all shadow-xl pointer-events-auto"
+            className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all shrink-0"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
-          
-          <button 
-             onClick={() => setShowComments(!showComments)}
-             className="absolute top-4 right-4 px-3 py-2 bg-white/10 backdrop-blur-md rounded-full inline-flex items-center gap-2 text-white hover:bg-white/20 transition-all shadow-xl font-bold uppercase tracking-widest text-[10px] pointer-events-auto"
-          >
-             {showComments ? 'Hide Details' : 'Show Details'}
-             {showComments ? <ChevronRight size={14}/> : <Info size={14}/>}
-          </button>
+          <h1 className="text-sm font-black uppercase tracking-widest text-white line-clamp-1 flex-1 min-w-0">{video.title}</h1>
+          <div className="flex items-center gap-2 shrink-0">
+            {isOwner && (
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-all"
+                title="Video Settings"
+              >
+                <Settings size={16} />
+              </button>
+            )}
+            {/* Mobile: toggle comments */}
+            <button
+              onClick={() => setShowMobileComments(v => !v)}
+              className="lg:hidden p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-all"
+            >
+              <MessageCircle size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── VIDEO PLAYER ──────────────────────────────────────────────── */}
+        <div
+          ref={videoWrapRef}
+          className="relative w-full bg-black aspect-video shrink-0"
+          onMouseMove={handleMouseMove}
+          onClick={togglePlay}
+        >
+          <div className="absolute inset-0">{renderVideo()}</div>
+
+          {/* Controls overlay */}
+          <AnimatePresence>
+            {controlsVisible && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-0 flex flex-col justify-end pointer-events-none"
+                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 40%)' }}
+              >
+                {/* Progress bar */}
+                <div
+                  className="mx-4 mb-2 h-1 bg-white/20 rounded-full cursor-pointer pointer-events-auto group/bar"
+                  onClick={e => { e.stopPropagation(); handleSeek(e); }}
+                >
+                  <div
+                    className="h-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] rounded-full relative"
+                    style={{ width: `${progress}%` }}
+                  >
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/bar:opacity-100 transition-opacity shadow-lg" />
+                  </div>
+                </div>
+
+                {/* Controls row */}
+                <div className="flex items-center gap-3 px-4 pb-3 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                  <button onClick={togglePlay} className="p-2 text-white hover:text-white/80 transition-colors">
+                    {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" />}
+                  </button>
+
+                  <span className="text-[10px] font-black text-white/70 tabular-nums">
+                    {fmt(currentTime)} / {fmt(duration)}
+                  </span>
+
+                  <div className="flex-1" />
+
+                  <button onClick={() => setIsMuted(m => !m)} className="p-2 text-white hover:text-white/80 transition-colors">
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </button>
+                  <button onClick={toggleFullscreen} className="p-2 text-white hover:text-white/80 transition-colors">
+                    {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Fullscreen exit on small move */}
+          {isFullscreen && !controlsVisible && (
+            <button
+              onClick={toggleFullscreen}
+              className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition-all"
+            >
+              <Minimize2 size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* ── INFO BELOW VIDEO ──────────────────────────────────────────── */}
+        <div className="relative z-10 flex-1 px-5 py-5 space-y-5">
+
+          {/* Title */}
+          <h2 className="text-xl font-display font-black uppercase tracking-tight leading-tight text-white">
+            {video.title}
+          </h2>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-white/30">
+            <span>{fmtCount(video.playsCount || 0)} views</span>
+            <span>·</span>
+            <span>{video.genre || 'General'}</span>
+            {video.tags?.length ? <><span>·</span><span>{video.tags.slice(0, 3).join(', ')}</span></> : null}
+          </div>
+
+          {/* Channel + action buttons */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Channel */}
+            {ownerProfile && (
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/10 shrink-0">
+                  <img src={ownerProfile.photoURL || ''} alt={ownerProfile.displayName} className="w-full h-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-white truncate">{ownerProfile.displayName}</p>
+                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Creator</p>
+                </div>
+                {!isOwner && (
+                  <button className="ml-2 px-5 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#FF8C00] hover:text-white transition-all shrink-0">
+                    Follow
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full border font-black text-[9px] uppercase tracking-widest transition-all ${isLiked ? 'bg-red-500/15 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+              >
+                <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} />
+                {fmtCount(video.likesCount || 0)}
+              </button>
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
+              >
+                <Share2 size={15} /> Share
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all">
+                <Bookmark size={15} /> Save
+              </button>
+              <button className="p-2.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
+                <MoreVertical size={15} />
+              </button>
+            </div>
+          </div>
+
+          {/* Description (expandable) */}
+          {video.description && (
+            <div className="bg-white/[0.04] rounded-2xl p-5 border border-white/5">
+              <p className={`text-sm text-white/60 leading-relaxed ${descExpanded ? '' : 'line-clamp-3'}`}>
+                {video.description}
+              </p>
+              <button
+                onClick={() => setDescExpanded(v => !v)}
+                className="mt-3 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+              >
+                {descExpanded ? <><ChevronUp size={12} /> Show less</> : <><ChevronDown size={12} /> Show more</>}
+              </button>
+            </div>
+          )}
+
+          {/* Comments on mobile */}
+          <div className="lg:hidden">
+            <button
+              onClick={() => setShowMobileComments(v => !v)}
+              className="w-full flex items-center justify-between p-4 bg-white/[0.04] rounded-2xl border border-white/5"
+            >
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                <MessageCircle size={14} className="text-white/40" /> {comments.length} Comments
+              </span>
+              {showMobileComments ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
+            </button>
+            <AnimatePresence>
+              {showMobileComments && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 bg-white/[0.03] rounded-2xl border border-white/5 overflow-hidden" style={{ maxHeight: 500 }}>
+                    <CommentSection
+                      comments={comments}
+                      onPostComment={(text, parentId) => postVideoComment(video.id, text, parentId)}
+                      currentUser={currentUser}
+                      title="Comments"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      <div className="w-full border-t border-white/10 bg-[#050505] text-white lg:w-[calc(100%-450px)]">
-        <div className="mx-auto max-w-[1200px] px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-lg sm:text-2xl font-display font-black uppercase tracking-tight text-white">{video.title}</h2>
-              <p className="text-sm text-white/70 mt-1">{video.artist || ownerProfile?.displayName || 'Untitled Creator'}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 items-center">
-              <button onClick={handleLike} className={`flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black transition-all ${isLiked ? 'bg-red-500/10 text-red-400' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
-                <span>{video.likesCount || 0}</span>
-              </button>
-              <button onClick={() => setShowComments(true)} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black text-white/80 hover:bg-white/10 hover:text-white transition-all">
-                <MessageCircle size={18} />
-                <span>{comments.length}</span>
-              </button>
-              <button onClick={() => { const shareUrl = window.location.href; if (navigator.share) { navigator.share({ title: video.title, text: video.description || 'Watch this video on Plajah', url: shareUrl }).catch(console.error); } else { navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); } }} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black text-white/80 hover:bg-white/10 hover:text-white transition-all">
-                <Share2 size={18} />
-                <span>Share</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button onClick={togglePlay} className="flex items-center justify-center rounded-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] p-3 text-white transition-transform hover:scale-[1.02] sm:p-4">
-                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-              </button>
-
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-[11px] font-black text-white/70 w-12 text-right">{formatTime(currentTime)}</span>
-                <div 
-                  className="h-2 flex-1 bg-white/10 rounded-full overflow-hidden cursor-pointer"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const pct = x / rect.width;
-                    seek(pct * duration);
-                  }}
-                >
-                  <div className="h-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] transition-all duration-200" style={{ width: `${progress}%` }} />
-                </div>
-                <span className="text-[11px] font-black text-white/70 w-12">{formatTime(duration)}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button onClick={() => setIsMuted(!isMuted)} className="rounded-full p-2 bg-white/5 text-white/80 hover:bg-white/10 transition-colors">
-                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
-                <button onClick={() => {
-                  if (isFullscreen) {
-                    if (document.exitFullscreen) document.exitFullscreen();
-                    else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
-                  } else if (playerContainerRef.current) {
-                    const container = playerContainerRef.current as any;
-                    if (container.requestFullscreen) container.requestFullscreen().catch((err: any) => console.log(err));
-                    else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
-                  }
-                }} className="rounded-full p-2 bg-white/5 text-white/80 hover:bg-white/10 transition-colors">
-                  {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Genre: {video.genre || 'Unknown'}</span>
-              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Views: {video.playsCount || 0}</span>
-              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Released: {video.uploadedAt ? new Date(video.uploadedAt).toLocaleDateString() : 'Unknown'}</span>
-            </div>
-          </div>
+      {/* ── RIGHT: Sidebar (desktop comments) ─────────────────────────────── */}
+      <div className="hidden lg:flex flex-col w-[400px] shrink-0 border-l border-white/10 relative z-10">
+        {/* Sidebar header */}
+        <div className="px-6 py-5 border-b border-white/5 shrink-0">
+          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+            <MessageCircle size={15} className="text-white/30" />
+            Comments
+            <span className="text-white/20 ml-1">{comments.length}</span>
+          </h3>
         </div>
-      {/* Sidebar Section (Comments & Info) */}
+        <div className="flex-1 overflow-hidden">
+          <CommentSection
+            comments={comments}
+            onPostComment={(text, parentId) => postVideoComment(video.id, text, parentId)}
+            currentUser={currentUser}
+            title=""
+          />
+        </div>
+      </div>
+
+      {/* Edit modal */}
       <AnimatePresence>
-        {showComments && (
-          <motion.aside 
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-full lg:w-[450px] bg-[#050505] border-l border-white/10 flex flex-col h-full z-50 relative"
-          >
-            <div className="p-8 border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Details</h3>
-                <button onClick={() => setShowComments(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-full text-white/60 transition-colors"><X size={20} /></button>
-              </div>
-
-              {ownerProfile && (
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-3xl mb-6 border border-white/5">
-                  <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-[#00DAF3]/30">
-                    <img src={ownerProfile.photoURL || null} alt={ownerProfile.displayName} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black uppercase tracking-tight text-white">{ownerProfile.displayName}</h4>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-[#00DAF3]">Creator</p>
-                  </div>
-                  <button className="ml-auto px-6 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all">Follow</button>
-                </div>
-              )}
-
-              <p className="text-xs font-medium text-white/50 leading-relaxed uppercase tracking-wider">
-                {video.description || "No description provided for this visual deployment."}
-              </p>
-            </div>
-
-            {/* Comments List */}
-            <div className="flex-1 overflow-hidden bg-[#0A0A0A]">
-              <CommentSection 
-                comments={comments}
-                onPostComment={handlePostComment}
-                currentUser={currentUser}
-                title="Sourced Insights"
-              />
-            </div>
-          </motion.aside>
+        {showEditModal && (
+          <VideoEditModal
+            video={video}
+            onClose={() => setShowEditModal(false)}
+            onSaved={handleSaved}
+          />
         )}
       </AnimatePresence>
     </div>
-  </div>
   );
 };
 

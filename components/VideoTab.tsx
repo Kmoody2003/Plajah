@@ -11,7 +11,7 @@ import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
-  BookOpen, List, Layers
+  BookOpen, List, Layers, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -250,6 +250,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel'>('discover');
   const [showUpload, setShowUpload] = useState(false);
+  const [uploadStep, setUploadStep] = useState(1);
+  const [thumbPreview, setThumbPreview] = useState('');
+  const [coverPreview, setCoverPreview] = useState('');
   const [showYoutubeImport, setShowYoutubeImport] = useState(false);
   const [showGoLiveModal, setShowGoLiveModal] = useState(false);
   const [isLiveStreamActive, setIsLiveStreamActive] = useState(false);
@@ -411,6 +414,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         } as any, (p) => setUploadProgress(p));
       }
       setShowUpload(false);
+      setUploadStep(1);
+      setThumbPreview('');
+      setCoverPreview('');
       setNewVideo({ title: '', description: '', genre: 'General', isPrivate: false, tags: [] });
       setLinkedTrackId(''); setLinkedAlbumId(''); setTrackSearch('');
       setTvEpisodes([]);
@@ -783,281 +789,454 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* ── Upload Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Upload Wizard ────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showUpload && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-2xl z-[200] flex items-center justify-center p-4 lg:p-8">
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-2xl z-[200] flex items-center justify-center p-4 lg:p-8">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="max-w-5xl w-full max-h-[90vh] bg-[#0a0a0a]/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.06)] flex flex-col"
+              className="max-w-4xl w-full max-h-[92vh] bg-[#0a0a0a]/98 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.06)] flex flex-col"
             >
-              {/* Modal header */}
-              <div className="flex items-center justify-between px-10 pt-10 pb-6 border-b border-white/5 shrink-0">
+              {/* Header */}
+              <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-white/5 shrink-0">
                 <div>
                   <h2 className="text-2xl font-display font-black tracking-tight uppercase">Upload Video</h2>
-                  <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mt-1">Share your vision with the world</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mt-1">Step {uploadStep} of 3</p>
                 </div>
-                <button onClick={() => !uploading && setShowUpload(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/40 hover:text-white transition-all">
+                <button onClick={() => { if (!uploading) { setShowUpload(false); setUploadStep(1); } }} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/40 hover:text-white transition-all">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="overflow-y-auto custom-scrollbar flex-1">
-                <form onSubmit={handleUpload} className="p-10 space-y-8">
-                  {/* Video type selector */}
-                  <div>
-                    <label className="block text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-4">Video Type</label>
-                    <div className="flex flex-wrap gap-3">
-                      {[
-                        { label: 'Video', value: 'VIDEO', icon: Film },
-                        { label: 'Music Video', value: 'MUSIC_VIDEO', icon: Music2 },
-                        { label: 'Movie', value: 'MOVIE', icon: Monitor },
-                        { label: 'TV Series', value: 'TV_SERIES', icon: Tv },
-                      ].map(({ label, value, icon: Icon }) => {
-                        const isActive = value === 'MUSIC_VIDEO'
-                          ? newVideo.genre === 'Music Video'
-                          : value === 'VIDEO'
-                          ? !newVideo.subType && newVideo.genre !== 'Music Video'
-                          : newVideo.subType === value;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => {
-                              if (value === 'MUSIC_VIDEO') {
-                                setNewVideo(v => ({ ...v, subType: undefined, genre: 'Music Video', category: 'MUSIC_VIDEO' }));
-                              } else if (value === 'VIDEO') {
-                                setNewVideo(v => ({ ...v, subType: undefined, genre: 'General', category: undefined }));
-                              } else {
-                                setNewVideo(v => ({ ...v, subType: value as any, genre: 'General', category: undefined }));
-                              }
-                            }}
-                            className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${isActive ? 'bg-white text-black border-white shadow-lg' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}
-                          >
-                            <Icon size={14} /> {label}
-                          </button>
-                        );
-                      })}
+              {/* Step indicator */}
+              <div className="flex px-8 py-4 gap-3 shrink-0">
+                {[
+                  { n: 1, label: 'Select' },
+                  { n: 2, label: 'Details' },
+                  { n: 3, label: 'Publish' },
+                ].map(({ n, label }) => (
+                  <div key={n} className="flex items-center gap-2 flex-1">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black transition-all shrink-0 ${uploadStep >= n ? 'bg-white text-black' : 'bg-white/10 text-white/30'}`}>
+                      {uploadStep > n ? <Check size={12} /> : n}
                     </div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest transition-all ${uploadStep >= n ? 'text-white' : 'text-white/25'}`}>{label}</span>
+                    {n < 3 && <div className={`h-px flex-1 transition-all ${uploadStep > n ? 'bg-white/40' : 'bg-white/10'}`} />}
                   </div>
+                ))}
+              </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    {/* Left column */}
-                    <div className="space-y-6">
-                      <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Title</label>
-                        <input type="text" required value={newVideo.title} onChange={(e) => setNewVideo(v => ({ ...v, title: e.target.value }))} placeholder="Give your video a title" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-white/30 transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Description</label>
-                        <textarea rows={3} value={newVideo.description} onChange={(e) => setNewVideo(v => ({ ...v, description: e.target.value }))} placeholder="What's this video about?" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-white/30 transition-all resize-none" />
-                      </div>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <AnimatePresence mode="wait">
 
-                      {/* Music Video — song linker */}
-                      {isMusicVideoMode && (
-                        <div className="p-6 bg-small-orange/10 border border-small-orange/20 rounded-2xl space-y-4">
-                          <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange flex items-center gap-2"><Music2 size={14} /> Link to a Song</h3>
-                          <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">When published, this video will auto-appear on the linked song's album page.</p>
-                          <input
-                            type="text"
-                            placeholder="Search your songs..."
-                            value={trackSearch}
-                            onChange={(e) => setTrackSearch(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-xs font-bold outline-none placeholder:text-white/20"
-                          />
-                          <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2">
-                            {filteredTracks.length === 0 && (
-                              <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest py-4 text-center">No songs found. Upload music first.</p>
-                            )}
-                            {filteredTracks.map(track => (
+                  {/* ── STEP 1: SELECT ── */}
+                  {uploadStep === 1 && (
+                    <motion.div
+                      key="step1"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="p-8 space-y-8"
+                    >
+                      {/* Video type */}
+                      <div>
+                        <label className="block text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-5">What are you uploading?</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                            { label: 'Video', value: 'VIDEO', icon: Film, desc: 'General content, vlogs, tutorials' },
+                            { label: 'Music Video', value: 'MUSIC_VIDEO', icon: Music2, desc: 'Link to a song on your profile' },
+                            { label: 'Movie', value: 'MOVIE', icon: Monitor, desc: 'Feature film or short film' },
+                            { label: 'TV Series', value: 'TV_SERIES', icon: Tv, desc: 'Multi-episode series' },
+                          ].map(({ label, value, icon: Icon, desc }) => {
+                            const isActive = value === 'MUSIC_VIDEO'
+                              ? newVideo.genre === 'Music Video'
+                              : value === 'VIDEO'
+                              ? !newVideo.subType && newVideo.genre !== 'Music Video'
+                              : newVideo.subType === value;
+                            return (
                               <button
-                                key={track.id}
+                                key={value}
                                 type="button"
-                                onClick={() => { setLinkedTrackId(track.id); setLinkedAlbumId(track.albumId); }}
-                                className={`w-full flex items-center gap-4 p-3 rounded-xl text-left transition-all border ${linkedTrackId === track.id ? 'bg-small-orange/20 border-small-orange/50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                onClick={() => {
+                                  if (value === 'MUSIC_VIDEO') setNewVideo(v => ({ ...v, subType: undefined, genre: 'Music Video', category: 'MUSIC_VIDEO' }));
+                                  else if (value === 'VIDEO') setNewVideo(v => ({ ...v, subType: undefined, genre: 'General', category: undefined }));
+                                  else setNewVideo(v => ({ ...v, subType: value as any, genre: 'General', category: undefined }));
+                                }}
+                                className={`flex flex-col items-center gap-3 p-5 rounded-2xl transition-all border text-center ${isActive ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
                               >
-                                <Music2 size={14} className={linkedTrackId === track.id ? 'text-small-orange' : 'text-white/30'} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</p>
-                                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.albumTitle}</p>
+                                <Icon size={24} />
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest leading-tight">{label}</p>
+                                  <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 leading-tight ${isActive ? 'text-black/50' : 'text-white/25'}`}>{desc}</p>
                                 </div>
-                                {linkedTrackId === track.id && <Check size={14} className="text-small-orange shrink-0" />}
                               </button>
-                            ))}
-                          </div>
-                          {linkedTrackId && (
-                            <div className="flex items-center justify-between p-3 bg-small-orange/10 rounded-xl border border-small-orange/20">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-small-orange">Linked: {userTracks.find(t => t.id === linkedTrackId)?.title}</span>
-                              <button type="button" onClick={() => { setLinkedTrackId(''); setLinkedAlbumId(''); }} className="text-white/30 hover:text-white"><X size={12} /></button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* File drop zone */}
+                      <div>
+                        <label className="block text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-3">
+                          {newVideo.subType === 'TV_SERIES' ? 'Primary Episode File' : 'Video File'}
+                        </label>
+                        <label className={`relative flex flex-col items-center justify-center rounded-[2rem] border-2 border-dashed transition-all cursor-pointer overflow-hidden ${newVideo.file ? 'border-green-500/50 bg-green-500/5' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'}`} style={{ minHeight: 220 }}>
+                          {newVideo.file ? (
+                            <div className="flex flex-col items-center gap-4 p-8">
+                              <div className="w-16 h-16 rounded-2xl bg-green-500/20 flex items-center justify-center">
+                                <Check size={28} className="text-green-400" />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm font-black uppercase tracking-tight text-green-400 max-w-xs truncate">{newVideo.file.name}</p>
+                                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">{(newVideo.file.size / 1024 / 1024).toFixed(1)} MB</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={e => { e.preventDefault(); setNewVideo(v => ({ ...v, file: undefined })); }}
+                                className="text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors"
+                              >
+                                Change File
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-4 p-12">
+                              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                                <Upload size={28} className="text-white/30" />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm font-black uppercase tracking-widest text-white/40">Drop your video here</p>
+                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse — MP4, MOV, AVI, MKV supported</p>
+                              </div>
                             </div>
                           )}
-                        </div>
-                      )}
-
-                      {/* Movie metadata */}
-                      {newVideo.subType === 'MOVIE' && (
-                        <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-5">
-                          <h3 className="text-[10px] font-black uppercase tracking-widest">Movie Details</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Release Year</label>
-                              <input type="number" value={movieMetadata.releaseYear} onChange={(e) => setMovieMetadata(m => ({ ...m, releaseYear: parseInt(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white" />
-                            </div>
-                            <div>
-                              <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Trailer URL</label>
-                              <input type="url" value={movieMetadata.trailerUrl} onChange={(e) => setMovieMetadata(m => ({ ...m, trailerUrl: e.target.value }))} placeholder="YouTube/Vimeo" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white placeholder:text-white/20" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Cast (comma separated)</label>
-                            <input type="text" value={movieMetadata.cast?.join(', ')} onChange={(e) => setMovieMetadata(m => ({ ...m, cast: e.target.value.split(',').map(s => s.trim()) }))} placeholder="Actor 1, Actor 2..." className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white placeholder:text-white/20" />
-                          </div>
-                        </div>
-                      )}
+                          <input
+                            type="file"
+                            accept="video/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={e => { const f = e.target.files?.[0]; if (f) setNewVideo(v => ({ ...v, file: f })); }}
+                          />
+                        </label>
+                      </div>
 
                       {/* TV Episodes */}
                       {newVideo.subType === 'TV_SERIES' && (
                         <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-4">
                           <div className="flex items-center justify-between">
                             <h3 className="text-[10px] font-black uppercase tracking-widest">Episodes</h3>
-                            <button type="button" onClick={() => setTvEpisodes(eps => [...eps, { title: `Episode ${eps.length + 1}`, description: '' }])} className="text-[8px] font-black uppercase tracking-widest text-small-orange hover:scale-105 transition-all">+ Add</button>
+                            <button type="button" onClick={() => setTvEpisodes(eps => [...eps, { title: `Episode ${eps.length + 1}`, description: '' }])} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all text-small-orange">+ Add Episode</button>
                           </div>
                           <div className="space-y-3 max-h-52 overflow-y-auto custom-scrollbar pr-1">
                             {tvEpisodes.map((ep, idx) => (
                               <div key={idx} className="p-4 bg-black/40 rounded-xl border border-white/5 space-y-3">
                                 <div className="flex items-center gap-3">
-                                  <input type="text" value={ep.title} onChange={(e) => { const eps = [...tvEpisodes]; eps[idx].title = e.target.value; setTvEpisodes(eps); }} className="flex-1 bg-transparent text-[10px] font-black uppercase tracking-widest outline-none" placeholder="Episode Title" />
-                                  <input type="number" value={ep.episodeNumber} placeholder="#" onChange={(e) => { const eps = [...tvEpisodes]; eps[idx].episodeNumber = parseInt(e.target.value); setTvEpisodes(eps); }} className="w-10 bg-white/5 border border-white/10 rounded-lg p-1 text-[8px] font-bold text-center outline-none" />
+                                  <input type="text" value={ep.title} onChange={e => { const eps = [...tvEpisodes]; eps[idx].title = e.target.value; setTvEpisodes(eps); }} className="flex-1 bg-transparent text-[10px] font-black uppercase tracking-widest outline-none" placeholder="Episode Title" />
+                                  <input type="number" value={ep.episodeNumber || ''} placeholder="#" onChange={e => { const eps = [...tvEpisodes]; eps[idx].episodeNumber = parseInt(e.target.value); setTvEpisodes(eps); }} className="w-10 bg-white/5 border border-white/10 rounded-lg p-1 text-[8px] font-bold text-center outline-none" />
                                   <button type="button" onClick={() => setTvEpisodes(eps => eps.filter((_, i) => i !== idx))} className="text-white/20 hover:text-red-500"><X size={12} /></button>
                                 </div>
                                 <label className="block p-2 bg-white/5 border border-dashed border-white/10 rounded-lg cursor-pointer hover:bg-white/10 text-center">
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-white/30">{ep.file ? ep.file.name : 'Select Video File'}</span>
-                                  <input type="file" className="hidden" accept="video/*" onChange={(e) => { const eps = [...tvEpisodes]; eps[idx].file = e.target.files?.[0]; setTvEpisodes(eps); }} />
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-white/30">{ep.file ? ep.file.name : 'Select Episode File'}</span>
+                                  <input type="file" className="hidden" accept="video/*" onChange={e => { const eps = [...tvEpisodes]; eps[idx].file = e.target.files?.[0]; setTvEpisodes(eps); }} />
                                 </label>
                               </div>
                             ))}
+                            {tvEpisodes.length === 0 && <p className="text-[9px] text-white/20 uppercase tracking-widest text-center py-4">Add episodes above</p>}
                           </div>
                         </div>
                       )}
+                    </motion.div>
+                  )}
 
-                      {/* Tags */}
-                      <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Tags</label>
-                        <div className="flex gap-2 mb-3">
-                          <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Add a tag..." className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none placeholder:text-white/20" />
-                          <button type="button" onClick={addTag} className="px-5 bg-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white/20 transition-all">Add</button>
+                  {/* ── STEP 2: DETAILS ── */}
+                  {uploadStep === 2 && (
+                    <motion.div
+                      key="step2"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="p-8"
+                    >
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Left: text fields */}
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Title <span className="text-red-400">*</span></label>
+                            <input
+                              type="text"
+                              required
+                              value={newVideo.title}
+                              onChange={e => setNewVideo(v => ({ ...v, title: e.target.value }))}
+                              placeholder="Give your video a title"
+                              className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Description</label>
+                            <textarea
+                              rows={4}
+                              value={newVideo.description}
+                              onChange={e => setNewVideo(v => ({ ...v, description: e.target.value }))}
+                              placeholder="Tell viewers what this video is about..."
+                              className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all resize-none"
+                            />
+                          </div>
+
+                          {/* Genre */}
+                          {!isMusicVideoMode && !newVideo.subType && (
+                            <div>
+                              <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Genre</label>
+                              <select value={newVideo.genre} onChange={e => setNewVideo(v => ({ ...v, genre: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 text-sm font-bold outline-none appearance-none text-white">
+                                {['General', 'Short Film', 'Tutorial', 'Vlog', 'Documentary', 'Gaming', 'Education', 'Podcast', 'Comedy', 'News', 'Sports', 'Fitness'].map(g => <option key={g} value={g} className="bg-[#0a0a0a]">{g}</option>)}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Tags */}
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Tags</label>
+                            <div className="flex gap-2 mb-3">
+                              <input
+                                type="text"
+                                value={tagInput}
+                                onChange={e => setTagInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                placeholder="Add tag..."
+                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-white/20"
+                              />
+                              <button type="button" onClick={addTag} className="px-5 bg-white/10 hover:bg-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Add</button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {(newVideo.tags || []).map(tag => (
+                                <span key={tag} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest">
+                                  {tag}
+                                  <button type="button" onClick={() => setNewVideo(v => ({ ...v, tags: v.tags?.filter(t => t !== tag) }))} className="text-white/30 hover:text-red-400"><X size={9} /></button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Music Video track linker */}
+                          {isMusicVideoMode && (
+                            <div className="p-5 bg-small-orange/10 border border-small-orange/20 rounded-2xl space-y-4">
+                              <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange flex items-center gap-2"><Music2 size={13} /> Link to a Song</h3>
+                              <input type="text" placeholder="Search your songs..." value={trackSearch} onChange={e => setTrackSearch(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-white/20" />
+                              <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-2">
+                                {filteredTracks.length === 0 && <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest py-2 text-center">No songs found.</p>}
+                                {filteredTracks.map(track => (
+                                  <button key={track.id} type="button" onClick={() => { setLinkedTrackId(track.id); setLinkedAlbumId(track.albumId); }} className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all border ${linkedTrackId === track.id ? 'bg-small-orange/20 border-small-orange/50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                                    <Music2 size={13} className={linkedTrackId === track.id ? 'text-small-orange' : 'text-white/30'} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</p>
+                                      <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.albumTitle}</p>
+                                    </div>
+                                    {linkedTrackId === track.id && <Check size={13} className="text-small-orange shrink-0" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Movie metadata */}
+                          {newVideo.subType === 'MOVIE' && (
+                            <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-4">
+                              <h3 className="text-[10px] font-black uppercase tracking-widest">Movie Details</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Release Year</label>
+                                  <input type="number" value={movieMetadata.releaseYear} onChange={e => setMovieMetadata(m => ({ ...m, releaseYear: parseInt(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white" />
+                                </div>
+                                <div>
+                                  <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Trailer URL</label>
+                                  <input type="url" value={movieMetadata.trailerUrl} onChange={e => setMovieMetadata(m => ({ ...m, trailerUrl: e.target.value }))} placeholder="YouTube/Vimeo" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white placeholder:text-white/20" />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Cast (comma separated)</label>
+                                <input type="text" value={movieMetadata.cast?.join(', ')} onChange={e => setMovieMetadata(m => ({ ...m, cast: e.target.value.split(',').map(s => s.trim()) }))} placeholder="Actor 1, Actor 2..." className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs font-bold outline-none text-white placeholder:text-white/20" />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(newVideo.tags || []).map(tag => (
-                            <span key={tag} className="px-3 py-1.5 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                              {tag} <button type="button" onClick={() => setNewVideo(v => ({ ...v, tags: v.tags?.filter(t => t !== tag) }))} className="text-white/40 hover:text-white"><X size={9} /></button>
-                            </span>
-                          ))}
+
+                        {/* Right: thumbnail / cover */}
+                        <div className="space-y-5">
+                          {/* Thumbnail preview */}
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Thumbnail <span className="text-white/20">(16:9 recommended)</span></label>
+                            <label className="relative aspect-video flex items-center justify-center rounded-2xl overflow-hidden bg-white/5 border border-dashed border-white/10 cursor-pointer group hover:border-white/25 transition-all">
+                              {thumbPreview
+                                ? <img src={thumbPreview} alt="thumb" className="w-full h-full object-cover" />
+                                : <div className="flex flex-col items-center gap-2 text-white/25">
+                                    <ImageIcon size={28} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Upload Thumbnail</span>
+                                  </div>}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full">
+                                  <Camera size={14} />
+                                  <span className="text-[9px] font-black uppercase tracking-widest">Change</span>
+                                </div>
+                              </div>
+                              <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) { setNewVideo(v => ({ ...v, thumbnailFile: f })); setThumbPreview(URL.createObjectURL(f)); }
+                              }} />
+                            </label>
+                          </div>
+
+                          {/* Cover image */}
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Cover / Background Image</label>
+                            <label className="relative h-28 flex items-center justify-center rounded-2xl overflow-hidden bg-white/5 border border-dashed border-white/10 cursor-pointer group hover:border-white/25 transition-all">
+                              {coverPreview
+                                ? <img src={coverPreview} alt="cover" className="w-full h-full object-cover" />
+                                : <div className="flex items-center gap-2 text-white/25">
+                                    <ImageIcon size={18} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Upload Cover</span>
+                                  </div>}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-full">
+                                  <Camera size={12} /><span className="text-[8px] font-black uppercase tracking-widest">Change</span>
+                                </div>
+                              </div>
+                              <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) { setNewVideo(v => ({ ...v, coverImageFile: f })); setCoverPreview(URL.createObjectURL(f)); }
+                              }} />
+                            </label>
+                          </div>
+
+                          {/* Auto-capture */}
+                          <button
+                            type="button"
+                            disabled={!newVideo.file || isCapturing}
+                            onClick={async () => {
+                              if (!newVideo.file) return;
+                              setIsCapturing(true);
+                              try {
+                                const [b1, b2] = await Promise.all([captureVideoFrame(newVideo.file), captureVideoFrame(newVideo.file)]);
+                                const f1 = new File([b1], 'thumb.jpg', { type: 'image/jpeg' });
+                                const f2 = new File([b2], 'cover.jpg', { type: 'image/jpeg' });
+                                setNewVideo(v => ({ ...v, thumbnailFile: f1, coverImageFile: f2 }));
+                                setThumbPreview(URL.createObjectURL(f1));
+                                setCoverPreview(URL.createObjectURL(f2));
+                              } catch {} finally { setIsCapturing(false); }
+                            }}
+                            className="w-full py-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30"
+                          >
+                            <Camera size={14} /> {isCapturing ? 'Capturing frame…' : 'Auto-generate from video'}
+                          </button>
+
+                          {/* World link */}
+                          {userWorlds.length > 0 && (
+                            <div>
+                              <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Link to World (Optional)</label>
+                              <select value={newVideo.worldId || ''} onChange={e => setNewVideo(v => ({ ...v, worldId: e.target.value || undefined }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-sm font-bold outline-none appearance-none text-white">
+                                <option value="" className="bg-[#0a0a0a]">No World</option>
+                                {userWorlds.map(w => <option key={w.id} value={w.id} className="bg-[#0a0a0a]">{w.name}</option>)}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ── STEP 3: PUBLISH ── */}
+                  {uploadStep === 3 && (
+                    <motion.div
+                      key="step3"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="p-8 space-y-6"
+                    >
+                      {/* Summary card */}
+                      <div className="flex gap-5 p-5 bg-white/[0.04] rounded-2xl border border-white/5">
+                        <div className="w-32 aspect-video rounded-xl overflow-hidden bg-white/5 shrink-0">
+                          {thumbPreview
+                            ? <img src={thumbPreview} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center"><Film size={20} className="text-white/20" /></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black uppercase tracking-tight text-white leading-tight">{newVideo.title || 'Untitled'}</p>
+                          <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">{newVideo.genre || 'General'}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {(newVideo.tags || []).slice(0, 4).map(t => <span key={t} className="px-2 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase tracking-widest">{t}</span>)}
+                          </div>
+                          {newVideo.file && <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-2">{newVideo.file.name}</p>}
                         </div>
                       </div>
 
-                      {/* World selector */}
-                      {userWorlds.length > 0 && (
-                        <div>
-                          <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Link to World (Optional)</label>
-                          <select value={newVideo.worldId || ''} onChange={(e) => setNewVideo(v => ({ ...v, worldId: e.target.value || undefined }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-xs font-bold outline-none appearance-none text-white">
-                            <option value="" className="bg-[#0a0a0a]">No World</option>
-                            {userWorlds.map(w => <option key={w.id} value={w.id} className="bg-[#0a0a0a]">{w.name}</option>)}
-                          </select>
-                        </div>
-                      )}
-
-                      {/* Privacy */}
+                      {/* Visibility */}
                       <div className="flex items-center justify-between p-5 bg-white/[0.03] rounded-2xl border border-white/5">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest">Visibility</p>
-                          <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest mt-1">{newVideo.isPrivate ? 'Private — only you' : 'Public — visible to everyone'}</p>
+                        <div className="flex items-center gap-4">
+                          {newVideo.isPrivate
+                            ? <Lock size={18} className="text-white/30" />
+                            : <Globe size={18} className="text-green-400" />}
+                          <div>
+                            <p className="text-sm font-black uppercase tracking-tight">{newVideo.isPrivate ? 'Private' : 'Public'}</p>
+                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-0.5">
+                              {newVideo.isPrivate ? 'Only you can see this' : 'Visible to everyone on the platform'}
+                            </p>
+                          </div>
                         </div>
-                        <button type="button" onClick={() => setNewVideo(v => ({ ...v, isPrivate: !v.isPrivate }))} className={`w-12 h-7 rounded-full transition-all relative ${!newVideo.isPrivate ? 'bg-green-500' : 'bg-white/10'}`}>
+                        <button
+                          type="button"
+                          onClick={() => setNewVideo(v => ({ ...v, isPrivate: !v.isPrivate }))}
+                          className={`w-12 h-7 rounded-full relative transition-all shrink-0 ${!newVideo.isPrivate ? 'bg-green-500' : 'bg-white/10'}`}
+                        >
                           <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all shadow-lg ${!newVideo.isPrivate ? 'left-5' : 'left-0.5'}`} />
                         </button>
                       </div>
-                    </div>
 
-                    {/* Right column — file upload */}
-                    <div className="space-y-5">
-                      {/* Video file drop */}
-                      <div className="relative aspect-video bg-white/[0.03] border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center group hover:border-white/20 transition-all overflow-hidden">
-                        {newVideo.file ? (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/10">
-                            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mb-4"><Check size={32} className="text-green-400" /></div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-green-400 px-4 text-center truncate max-w-full">{newVideo.file.name}</p>
-                            <button type="button" onClick={() => setNewVideo(v => ({ ...v, file: undefined }))} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white">Change File</button>
+                      {/* Upload progress / submit */}
+                      {uploading ? (
+                        <div className="space-y-4 pt-4">
+                          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                            <motion.div className="h-full bg-gradient-to-r from-purple-600 to-small-orange rounded-full" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
                           </div>
-                        ) : (
-                          <>
-                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-all"><Upload size={28} className="text-white/30 group-hover:text-white transition-colors" /></div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Drop video file here</p>
-                            <p className="text-[8px] font-bold text-white/20 mt-1 uppercase tracking-widest">or click to browse</p>
-                            <input type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) setNewVideo(v => ({ ...v, file: f })); }} className="absolute inset-0 opacity-0 cursor-pointer" />
-                          </>
-                        )}
-                      </div>
-
-                      {/* Thumbnail + Cover */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="flex flex-col gap-2 p-4 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
-                          <div className="flex items-center gap-2"><ImageIcon size={13} className="text-white/30" /><span className="text-[9px] font-black uppercase tracking-widest text-white/30">Thumbnail</span></div>
-                          <span className="text-[8px] font-bold text-white/20 truncate">{newVideo.thumbnailFile ? newVideo.thumbnailFile.name : 'Optional'}</span>
-                          <input type="file" className="hidden" accept="image/*" onChange={(e) => setNewVideo(v => ({ ...v, thumbnailFile: e.target.files?.[0] }))} />
-                        </label>
-                        <label className="flex flex-col gap-2 p-4 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
-                          <div className="flex items-center gap-2"><ImageIcon size={13} className="text-white/30" /><span className="text-[9px] font-black uppercase tracking-widest text-white/30">Cover</span></div>
-                          <span className="text-[8px] font-bold text-white/20 truncate">{newVideo.coverImageFile ? newVideo.coverImageFile.name : 'Optional'}</span>
-                          <input type="file" className="hidden" accept="image/*" onChange={(e) => setNewVideo(v => ({ ...v, coverImageFile: e.target.files?.[0] }))} />
-                        </label>
-                      </div>
-
-                      {/* Auto-capture */}
-                      <button type="button" disabled={!newVideo.file || isCapturing} onClick={async () => {
-                        if (!newVideo.file) return;
-                        setIsCapturing(true);
-                        try {
-                          const b1 = await captureVideoFrame(newVideo.file);
-                          const b2 = await captureVideoFrame(newVideo.file);
-                          setNewVideo(v => ({ ...v, thumbnailFile: new File([b1], 'thumb.jpg', { type: 'image/jpeg' }), coverImageFile: new File([b2], 'cover.jpg', { type: 'image/jpeg' }) }));
-                        } catch {} finally { setIsCapturing(false); }
-                      }} className="w-full py-3.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30">
-                        <Camera size={16} /> {isCapturing ? 'Capturing...' : 'Auto-generate Visuals from Video'}
-                      </button>
-
-                      {/* Genre (only for non-music-video, non-movie) */}
-                      {!isMusicVideoMode && !newVideo.subType && (
-                        <div>
-                          <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Genre</label>
-                          <select value={newVideo.genre} onChange={(e) => setNewVideo(v => ({ ...v, genre: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-xs font-bold outline-none appearance-none text-white">
-                            {['General', 'Short Film', 'Tutorial', 'Vlog', 'Live Stream', 'Documentary', 'Gaming', 'Education', 'Podcast'].map(g => <option key={g} value={g} className="bg-[#0a0a0a]">{g}</option>)}
-                          </select>
+                          <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploading… {Math.round(uploadProgress)}%</p>
+                          <button type="button" onClick={() => setShowUpload(false)} className="w-full py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-all">Run in Background</button>
                         </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={e => handleUpload(e as any)}
+                          disabled={!newVideo.title?.trim() || (!newVideo.file && newVideo.subType !== 'TV_SERIES' && newVideo.subType !== 'MOVIE')}
+                          className="w-full py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-small-orange hover:text-white transition-all active:scale-95 shadow-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Publish to Platform
+                        </button>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Submit */}
-                  <div className="pt-6 border-t border-white/5">
-                    {uploading ? (
-                      <div className="space-y-4">
-                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                          <motion.div className="h-full bg-gradient-to-r from-purple-600 to-small-orange" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
-                        </div>
-                        <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploading to cloud... {Math.round(uploadProgress)}%</p>
-                        <button type="button" onClick={() => setShowUpload(false)} className="w-full py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white">Minimize to Background</button>
-                      </div>
-                    ) : (
-                      <button type="submit" className="w-full py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:scale-[1.02] transition-all active:scale-95 shadow-2xl hover:bg-small-orange hover:text-white">
-                        Deploy to Cloud
-                      </button>
-                    )}
-                  </div>
-                </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+
+              {/* Footer nav */}
+              {!uploading && (
+                <div className="flex items-center justify-between px-8 pb-8 pt-5 border-t border-white/5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => uploadStep === 1 ? (setShowUpload(false), setUploadStep(1)) : setUploadStep(s => s - 1)}
+                    className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all"
+                  >
+                    {uploadStep === 1 ? 'Cancel' : 'Back'}
+                  </button>
+                  {uploadStep < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadStep(s => s + 1)}
+                      disabled={uploadStep === 1 && !newVideo.file && newVideo.subType !== 'TV_SERIES' && newVideo.subType !== 'MOVIE'}
+                      className="px-8 py-3 bg-white text-black hover:bg-small-orange hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Continue →
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           </div>
         )}
