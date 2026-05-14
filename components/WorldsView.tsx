@@ -144,7 +144,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
               <Globe className="text-small-orange" size={24} />
               <span className="text-xs font-black uppercase tracking-[0.5em] text-white/40">Architectural Archive</span>
             </div>
-            <PageHeader>Worlds</PageHeader>
+            <PageHeader>Plajah Worlds</PageHeader>
             <p className="text-white/40 text-xs font-black uppercase tracking-widest mt-6 max-w-2xl">{isDiscoverMode ? 'Discover universes from all architects.' : 'Explore projects from this architect.'}</p>
           </div>
           <div className="flex items-center gap-4">

@@ -254,6 +254,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     videoRef.current = el;
   }, []);
 
+  const fadeOutAudio = React.useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || audio.paused) return;
+    const startVolume = audio.volume;
+    const steps = 10;
+    for (let i = 0; i <= steps; i += 1) {
+      audio.volume = startVolume * (1 - i / steps);
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    audio.pause();
+    audio.volume = startVolume;
+  }, []);
+
   const playTrack = React.useCallback((track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO') => {
     let audio = audioRef.current;
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
@@ -372,12 +385,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const playVideo = React.useCallback((video: Video) => {
     initAudioContext();
-    setCurrentVideo(video);
-    setCurrentTrack(null);
-    setCurrentAlbum(null);
-    setAudioSource('VIDEO');
-    setIsPlaying(true);
-  }, []);
+    const startVideo = async () => {
+      if (stateRef.current.audioSource !== 'VIDEO' && stateRef.current.isPlaying) {
+        await fadeOutAudio().catch(console.error);
+      }
+      if (stateRef.current.audioSource === 'VIDEO' && videoRef.current) {
+        videoRef.current.pause();
+      }
+      setCurrentVideo(video);
+      setCurrentTrack(null);
+      setCurrentAlbum(null);
+      setAudioSource('VIDEO');
+      setIsPlaying(true);
+    };
+    startVideo();
+  }, [fadeOutAudio, initAudioContext]);
 
   const snapReset = () => {};
   

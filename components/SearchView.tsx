@@ -137,7 +137,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
           <ArrowLeft size={20} />
         </button>
         <div>
-          <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Find</PageHeader>
+          <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Find</PageHeader>
           <p className="text-small-orange text-sm uppercase tracking-[0.2em]">Discover Accounts & Creators</p>
         </div>
       </header>

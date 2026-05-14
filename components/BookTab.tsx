@@ -181,7 +181,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
                 <LibraryIcon className="text-white" size={24} />
              </div>
              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
-               {activeTab === 'CLASSICS' ? 'The Great Archive' : 'Book Marketplace'}
+               {activeTab === 'CLASSICS' ? 'Plajah The Great Archive' : 'Plajah Book Marketplace'}
              </PageHeader>
           </div>
           <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] ml-16">

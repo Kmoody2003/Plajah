@@ -211,7 +211,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 py-1 bg-small-orange rounded-md text-[10px] font-black uppercase tracking-widest text-white">App Store</div>
-              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Web Apps</PageHeader>
+              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Web Apps</PageHeader>
             </div>
             <p className="text-white/40 font-bold uppercase tracking-[0.2em] text-xs max-w-xl">
               A global library of community-built web experiences. Install natively or run instantly in the Plajah Bridge.

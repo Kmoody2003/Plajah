@@ -163,7 +163,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Classrooms</PageHeader>
+              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Classrooms</PageHeader>
               <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-40 uppercase tracking-widest">Virtual Learning Sanctuary</p>
             </div>
           </div>

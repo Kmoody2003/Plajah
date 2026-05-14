@@ -1193,13 +1193,13 @@ const App: React.FC = () => {
                     .map(config => {
                       const items = {
                         USER_PROFILE: { label: 'My Profile', icon: User },
-                        DASHBOARD: { label: 'Global Archive', icon: Settings },
+                        DASHBOARD: { label: 'Home', icon: Settings },
                         MUSIC: { label: 'Music', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
                         VIDEOS: { label: 'Videos', icon: VideoIcon },
                         MOVIES_TV: { label: 'Movies & TV', icon: Film },
-                        ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                        BOOKS: { label: 'The Book Shelf', icon: BookOpen },
+                        ARTICLES: { label: 'News Stand', icon: Newspaper },
+                        BOOKS: { label: 'Books', icon: BookOpen },
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
                         APPS: { label: 'Apps', icon: AppWindow },
@@ -1445,7 +1445,7 @@ const App: React.FC = () => {
                         { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
                         { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
                         { id: 'BOOKS', icon: BookOpen, label: 'Books' },
-                        { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
+                        { id: 'ARTICLES', icon: Newspaper, label: 'News Stand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },
                         { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
                         { id: 'GAMES', icon: Gamepad2, label: 'Games' },
@@ -1573,7 +1573,7 @@ const App: React.FC = () => {
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Global Archive</PageHeader>
+                      <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Global Archive</PageHeader>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">

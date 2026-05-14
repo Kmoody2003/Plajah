@@ -187,7 +187,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="shrink-0">
-            <PageHeader wrapperClassName="mb-12">The Vault</PageHeader>
+            <PageHeader wrapperClassName="mb-12">Plajah Vault</PageHeader>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 px-1">Public Domain & Historical Archives</p>
           </div>
 
@@ -316,7 +316,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <div className="flex flex-col h-full">
         <div className="flex-1 min-w-0">
           <div className="px-6 lg:px-12 pt-8 mb-6">
-            <PageHeader>Music</PageHeader>
+            <PageHeader>Plajah Music</PageHeader>
           </div>
           <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
             <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">

@@ -137,7 +137,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
             <ArrowLeft size={24} />
           </button>
           <div>
-            <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Live Hub</PageHeader>
+            <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Live Hub</PageHeader>
             <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
               {(['STREAMS', 'LIVE_TV', 'EVENTS'] as const).map(tab => (
                 <button 

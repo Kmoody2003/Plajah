@@ -88,7 +88,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               <span className="text-xs font-black uppercase tracking-[0.5em] text-white/40">Visual Signal Archive</span>
             </div>
             <PageHeader wrapperClassName="mb-4">
-              {mode === 'THEMES' ? 'Theme Gallery' : mode === 'GALLERY' ? 'The Art Gallery' : 'Global Waterfall'}
+              {mode === 'THEMES' ? 'Plajah Theme Gallery' : mode === 'GALLERY' ? 'Plajah Art Gallery' : 'Plajah Global Waterfall'}
             </PageHeader>
             <p className="text-lg font-medium text-white/40 italic max-w-2xl">
               {mode === 'THEMES'

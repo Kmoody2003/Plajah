@@ -15,7 +15,7 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser }) => {
-  const { isPlaying, pause, resume, setVideoElement, setYtPlayer, playVideo, currentVideo, clearMedia, togglePlay: globalTogglePlay } = useGlobalPlayerState();
+  const { isPlaying, pause, resume, setVideoElement, setYtPlayer, playVideo, currentVideo, clearMedia, togglePlay: globalTogglePlay, volume } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   const [comments, setComments] = useState<VideoComment[]>([]);
@@ -36,6 +36,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
   const [showComments, setShowComments] = useState(true);
   const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -247,6 +248,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
     else resume();
   };
 
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.muted = isMuted;
+      localVideoRef.current.volume = isMuted ? 0 : volume;
+    }
+  }, [isMuted, volume]);
+
   const progress = (currentTime / duration) * 100 || 0;
 
   return (
@@ -259,7 +267,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
           
           if (isYoutube) {
             return (
-              <div className="w-full h-full relative pointer-events-none">
+              <div className="w-full h-full relative">
                 <div id={ytContainerId.current} className="w-full h-full" />
               </div>
             );
@@ -310,12 +318,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
 
           if (video.muxPlaybackId) {
             return (
-              <div className="w-full h-full cursor-pointer" onClick={togglePlay}>
+              <div className="w-full h-full" onClick={togglePlay}>
                 <MuxPlayer
                   ref={setVideoElement as any}
                   playbackId={video.muxPlaybackId}
                   autoPlay="any"
-                  className="w-full h-full object-contain pointer-events-none"
+                  className="w-full h-full object-contain"
                 />
               </div>
             );
@@ -323,13 +331,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
 
           return (
             <video 
-              ref={setVideoElement}
+              ref={(el) => { setVideoElement(el); localVideoRef.current = el; }}
               src={video.url || undefined}
               playsInline
               crossOrigin="anonymous"
               className="w-full h-full object-contain cursor-pointer"
               onClick={togglePlay}
               autoPlay
+              muted={isMuted}
+              volume={volume}
               onError={() => {
                 console.error("Video streaming failed, switching to archive embed.");
                 setVideoError(true);
@@ -360,134 +370,96 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
         </AnimatePresence>
         
         {/* Custom Controls Overlay */}
-        <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 transition-all duration-500 ease-in-out z-10 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/95 transition-all duration-500 ease-in-out z-10 pointer-events-none">
           <button 
             onClick={onBack}
-            className="absolute top-8 left-8 p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all shadow-xl"
+            className="absolute top-4 left-4 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all shadow-xl pointer-events-auto"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={20} />
           </button>
           
           <button 
              onClick={() => setShowComments(!showComments)}
-             className="absolute top-8 right-8 px-6 py-4 bg-white/10 backdrop-blur-md rounded-full inline-flex items-center gap-2 text-white hover:bg-white/20 transition-all shadow-xl font-bold uppercase tracking-widest text-xs"
+             className="absolute top-4 right-4 px-3 py-2 bg-white/10 backdrop-blur-md rounded-full inline-flex items-center gap-2 text-white hover:bg-white/20 transition-all shadow-xl font-bold uppercase tracking-widest text-[10px] pointer-events-auto"
           >
              {showComments ? 'Hide Details' : 'Show Details'}
-             {showComments ? <ChevronRight size={16}/> : <Info size={16}/>}
+             {showComments ? <ChevronRight size={14}/> : <Info size={14}/>}
           </button>
-
-          <div className="absolute bottom-0 left-0 right-0 p-8 space-y-6 bg-gradient-to-t from-black/60 to-transparent pt-32">
-            <button className="px-6 py-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full text-xs font-black uppercase tracking-widest transition-colors w-fit mb-4">Highlight</button>
-            
-            {/* Progress Bar */}
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black text-white/60 w-10 text-right">{formatTime(currentTime)}</span>
-              <div 
-                className="h-2 flex-1 bg-white/20 rounded-full overflow-hidden cursor-pointer group/progress relative"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  const pct = x / rect.width;
-                  seek(pct * duration);
-                }}
-              >
-                <div 
-                  className="h-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] relative drop-shadow-md"
-                  style={{ width: `${progress}%` }}
-                >
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] scale-0 group-hover/progress:scale-100 transition-transform" />
-                </div>
-              </div>
-              <span className="text-[10px] font-black text-white/60 w-10">{formatTime(duration)}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-8">
-                <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform">
-                  {isPlaying ? <Pause size={32} fill="white" /> : <Play size={32} fill="white" />}
-                </button>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsMuted(!isMuted)} className="text-white/60 hover:text-white transition-colors">
-                    {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                  </button>
-                  <div className="hidden lg:block">
-                    <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white drop-shadow-md">{video.title}</h2>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00DAF3]">{video.artist}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-8">
-                <button onClick={handleLike} className={`flex flex-col items-center gap-1 transition-all ${isLiked ? 'text-red-500 scale-110' : 'text-white/60 hover:text-white'}`}>
-                  <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
-                  <span className="text-[10px] font-black">{video.likesCount || 0}</span>
-                </button>
-                <button onClick={() => setShowComments(true)} className={`flex flex-col items-center gap-1 transition-all ${showComments ? 'text-[#00DAF3]' : 'text-white/60 hover:text-white'}`}>
-                  <MessageCircle size={24} />
-                  <span className="text-[10px] font-black">{comments.length}</span>
-                </button>
-                <button className="text-white/60 hover:text-white transition-colors flex flex-col items-center gap-1">
-                  <Share2 size={24} />
-                  <span className="text-[10px] font-black">Share</span>
-                </button>
-                {currentUser?.uid === video.ownerId && (
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const { fetchUserProfile, updateUserProfile } = await import('../services/backendService');
-                        const profile = await fetchUserProfile(currentUser.uid);
-                        if (profile) {
-                          const pinnedItems = profile.pinnedItems || [];
-                          const newPin: { id: string; type: 'VIDEO'; refId: string } = { id: Date.now().toString(), type: 'VIDEO', refId: video.id };
-                          if (!pinnedItems.find((p: any) => p.refId === video.id)) {
-                            await updateUserProfile(currentUser.uid, { pinnedItems: [...pinnedItems, newPin] });
-                            alert('Video Pinned to Profile!');
-                          } else {
-                            alert('Video is already pinned.');
-                          }
-                        }
-                      } catch (e) { console.error(e); }
-                    }}
-                    className="text-small-orange/80 hover:text-small-orange transition-colors flex flex-col items-center gap-1"
-                  >
-                    <Zap size={24} />
-                    <span className="text-[10px] font-black">Pin</span>
-                  </button>
-                )}
-                <button 
-                  onClick={() => {
-                    if (isFullscreen) {
-                      if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                      } else if ((document as any).webkitExitFullscreen) {
-                        (document as any).webkitExitFullscreen();
-                      }
-                    } else {
-                      const container = playerContainerRef.current as any;
-                      if (container) {
-                        if (container.requestFullscreen) {
-                          container.requestFullscreen().catch((err: any) => console.log(err));
-                        } else if (container.webkitRequestFullscreen) {
-                          container.webkitRequestFullscreen();
-                        } else {
-                          const videoElement = container.querySelector('video');
-                          if (videoElement && videoElement.webkitEnterFullscreen) {
-                            videoElement.webkitEnterFullscreen();
-                          }
-                        }
-                      }
-                    }
-                  }}
-                  className="text-white/60 hover:text-white transition-colors flex flex-col items-center gap-1 ml-4"
-                >
-                  {isFullscreen ? <Minimize2 size={28} /> : <Maximize2 size={28} />}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
+      <div className="w-full border-t border-white/10 bg-[#050505] text-white lg:w-[calc(100%-450px)]">
+        <div className="mx-auto max-w-[1200px] px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-display font-black uppercase tracking-tight text-white">{video.title}</h2>
+              <p className="text-sm text-white/70 mt-1">{video.artist || ownerProfile?.displayName || 'Untitled Creator'}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
+              <button onClick={handleLike} className={`flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black transition-all ${isLiked ? 'bg-red-500/10 text-red-400' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
+                <span>{video.likesCount || 0}</span>
+              </button>
+              <button onClick={() => setShowComments(true)} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black text-white/80 hover:bg-white/10 hover:text-white transition-all">
+                <MessageCircle size={18} />
+                <span>{comments.length}</span>
+              </button>
+              <button onClick={() => { const shareUrl = window.location.href; if (navigator.share) { navigator.share({ title: video.title, text: video.description || 'Watch this video on Plajah', url: shareUrl }).catch(console.error); } else { navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); } }} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm font-black text-white/80 hover:bg-white/10 hover:text-white transition-all">
+                <Share2 size={18} />
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button onClick={togglePlay} className="flex items-center justify-center rounded-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] p-3 text-white transition-transform hover:scale-[1.02] sm:p-4">
+                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+              </button>
+
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-[11px] font-black text-white/70 w-12 text-right">{formatTime(currentTime)}</span>
+                <div 
+                  className="h-2 flex-1 bg-white/10 rounded-full overflow-hidden cursor-pointer"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const pct = x / rect.width;
+                    seek(pct * duration);
+                  }}
+                >
+                  <div className="h-full bg-gradient-to-r from-[#6B0099] to-[#FF8C00] transition-all duration-200" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-[11px] font-black text-white/70 w-12">{formatTime(duration)}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsMuted(!isMuted)} className="rounded-full p-2 bg-white/5 text-white/80 hover:bg-white/10 transition-colors">
+                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
+                <button onClick={() => {
+                  if (isFullscreen) {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+                  } else if (playerContainerRef.current) {
+                    const container = playerContainerRef.current as any;
+                    if (container.requestFullscreen) container.requestFullscreen().catch((err: any) => console.log(err));
+                    else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+                  }
+                }} className="rounded-full p-2 bg-white/5 text-white/80 hover:bg-white/10 transition-colors">
+                  {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Genre: {video.genre || 'Unknown'}</span>
+              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Views: {video.playsCount || 0}</span>
+              <span className="text-[11px] text-white/50 uppercase tracking-[0.2em]">Released: {video.uploadedAt ? new Date(video.uploadedAt).toLocaleDateString() : 'Unknown'}</span>
+            </div>
+          </div>
+        </div>
       {/* Sidebar Section (Comments & Info) */}
       <AnimatePresence>
         {showComments && (
