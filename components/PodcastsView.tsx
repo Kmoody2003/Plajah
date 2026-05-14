@@ -34,6 +34,51 @@ const CATEGORIES = [
     { id: '1323', name: 'Music', icon: '🎵' },
 ];
 
+// Defined at module scope so React never unmounts/remounts it on parent re-renders
+const PodcastGrid = React.memo(({ title, podcasts, icon: Icon, onOpen }: {
+    title: string;
+    podcasts: ITunesPodcast[];
+    icon?: any;
+    onOpen: (p: ITunesPodcast) => void;
+}) => (
+    <section className="space-y-8">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                {Icon && <Icon className="text-small-orange" size={24} />}
+                <h3 className="text-2xl font-black uppercase tracking-tighter">{title}</h3>
+            </div>
+            <div className="h-px flex-1 bg-white/5 mx-8 hidden lg:block" />
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-30 whitespace-nowrap">Global Top 10</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-4 md:gap-6 xl:gap-8">
+            {podcasts.slice(0, 10).map((p, idx) => (
+                <div
+                    key={p.id}
+                    onClick={() => onOpen(p)}
+                    className="group cursor-pointer"
+                >
+                    <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-6 shadow-2xl border border-white/5 group-hover:border-small-orange/40 transition-all duration-500">
+                        <img
+                            src={p.coverImage || undefined}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                            alt={p.title}
+                            loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
+                            <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-transform duration-500"><Play size={24} className="ml-1" fill="currentColor" /></div>
+                        </div>
+                        <div className="absolute top-4 left-4 w-8 h-8 rounded-xl bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-xs font-black text-white/40">
+                            {idx + 1}
+                        </div>
+                    </div>
+                    <h4 className="font-black text-sm uppercase tracking-tight truncate mb-1 group-hover:text-small-orange transition-colors">{p.title}</h4>
+                    <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em] truncate">{p.artist}</p>
+                </div>
+            ))}
+        </div>
+    </section>
+));
+
 export const PodcastsView: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<ITunesPodcast[]>([]);
@@ -314,47 +359,6 @@ export const PodcastsView: React.FC = () => {
         );
     }
 
-    const PodcastGrid = ({ title, podcasts, icon: Icon }: { title: string, podcasts: ITunesPodcast[], icon?: any }) => (
-        <section className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    {Icon && <Icon className="text-small-orange" size={24} />}
-                    <h3 className="text-2xl font-black uppercase tracking-tighter">{title}</h3>
-                </div>
-                <div className="h-px flex-1 bg-white/5 mx-8 hidden lg:block" />
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-30 whitespace-nowrap">Global Top 10</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-4 md:gap-6 xl:gap-8">
-                {podcasts.slice(0, 10).map((p, idx) => (
-                    <motion.div 
-                        key={p.id} 
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: idx * 0.05 }}
-                        onClick={() => openPodcast(p)} 
-                        className="group cursor-pointer"
-                    >
-                        <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-6 shadow-2xl border border-white/5 group-hover:border-small-orange/40 transition-all duration-500">
-                            <img
-                                src={p.coverImage || undefined}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                                alt={p.title}
-                            />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
-                                <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-transform duration-500"><Play size={24} className="ml-1" fill="currentColor"/></div>
-                            </div>
-                            <div className="absolute top-4 left-4 w-8 h-8 rounded-xl bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-xs font-black text-white/40">
-                                {idx + 1}
-                            </div>
-                        </div>
-                        <h4 className="font-black text-sm uppercase tracking-tight truncate mb-1 group-hover:text-small-orange transition-colors">{p.title}</h4>
-                        <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em] truncate">{p.artist}</p>
-                    </motion.div>
-                ))}
-            </div>
-        </section>
-    );
 
     return (
         <div className="flex flex-col xl:flex-row h-full relative overflow-hidden bg-transparent">
@@ -438,7 +442,7 @@ export const PodcastsView: React.FC = () => {
                         {/* Results Section */}
                         <AnimatePresence>
                             {searchResults.length > 0 && (
-                                <PodcastGrid title="Search Results" podcasts={searchResults} icon={Globe} />
+                                <PodcastGrid title="Search Results" podcasts={searchResults} icon={Globe} onOpen={openPodcast} />
                             )}
                         </AnimatePresence>
 
@@ -449,7 +453,7 @@ export const PodcastsView: React.FC = () => {
                                 <p className="text-[10px] font-black uppercase tracking-[0.6em] opacity-20">Establishing Connection...</p>
                              </div>
                         ) : (
-                            <PodcastGrid title="Top Frequencies" podcasts={topPodcasts} icon={TrendingUp} />
+                            <PodcastGrid title="Top Frequencies" podcasts={topPodcasts} icon={TrendingUp} onOpen={openPodcast} />
                         )}
                         
                         {nativePodcasts.length > 0 && (
@@ -463,35 +467,31 @@ export const PodcastsView: React.FC = () => {
                                     <span className="text-[10px] font-black uppercase tracking-widest opacity-30 whitespace-nowrap">Community Voice</span>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-4 md:gap-6 xl:gap-8">
-                                    {nativePodcasts.map((p, idx) => (
-                                        <motion.div 
-                                            key={p.id} 
-                                            initial={{ opacity: 0, y: 20 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: idx * 0.05 }}
+                                    {nativePodcasts.map((p) => (
+                                        <div
+                                            key={p.id}
                                             onClick={() => {
-                                                // Handle opening native podcast
-                                                const event = new CustomEvent('NAVIGATE', { 
-                                                    detail: { target: 'SANCTUARY', params: { artistId: p.id } } 
+                                                const event = new CustomEvent('NAVIGATE', {
+                                                    detail: { target: 'SANCTUARY', params: { artistId: p.id } }
                                                 });
                                                 window.dispatchEvent(event);
-                                            }} 
+                                            }}
                                             className="group cursor-pointer"
                                         >
                                             <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-6 shadow-2xl border border-white/5 group-hover:border-small-orange/40 transition-all duration-500">
-                                                <img 
-                                                    src={p.coverImage} 
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
-                                                    alt={p.title} 
+                                                <img
+                                                    src={p.coverImage || undefined}
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                                                    alt={p.title}
+                                                    loading="lazy"
                                                 />
                                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
-                                                    <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-transform duration-500"><Play size={24} className="ml-1" fill="currentColor"/></div>
+                                                    <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-transform duration-500"><Play size={24} className="ml-1" fill="currentColor" /></div>
                                                 </div>
                                             </div>
                                             <h4 className="font-black text-sm uppercase tracking-tight truncate mb-1 group-hover:text-small-orange transition-colors">{p.title}</h4>
                                             <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em] truncate">{p.artist}</p>
-                                        </motion.div>
+                                        </div>
                                     ))}
                                 </div>
                             </section>
@@ -500,7 +500,7 @@ export const PodcastsView: React.FC = () => {
                         {/* Category Discovery Categories List */}
                         <div className="space-y-32">
                             {Object.entries(categoryPodcasts).map(([catName, pods]) => (
-                                <PodcastGrid key={catName} title={catName} podcasts={pods} icon={Grid} />
+                                <PodcastGrid key={catName} title={catName} podcasts={pods} icon={Grid} onOpen={openPodcast} />
                             ))}
                         </div>
                     </div>
