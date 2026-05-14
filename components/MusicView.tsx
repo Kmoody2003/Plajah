@@ -282,7 +282,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               className="group bg-white/[0.03] border border-white/5 rounded-3xl p-4 transition-all hover:bg-white/[0.08]"
             >
               <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative" onClick={() => handlePlayVaultTrack(track)}>
-                <img src={track.thumbnailUrl || null} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                   <div className="w-12 h-12 rounded-full bg-small-orange flex items-center justify-center text-black">
                     <Play size={24} fill="currentColor" className="ml-1" />
@@ -323,7 +323,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
         <div className="flex flex-col md:flex-row gap-12 items-center md:items-end p-12 bg-white/[0.03] rounded-[3rem] border border-white/5">
           <div className="w-64 h-64 rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl shrink-0 bg-black">
-            <img src={artistTracks[0]?.thumbnailUrl || null} className="w-full h-full object-cover opacity-50" />
+            <img src={artistTracks[0]?.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-50" />
           </div>
           <div className="text-center md:text-left">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
@@ -343,7 +343,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {artistTracks.map(track => (
               <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                 <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/5 bg-black">
-                  <img src={track.thumbnailUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                  <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                 </div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h4>
                 <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Public Domain</p>
@@ -358,7 +358,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
       {bgAlbums.length > 0 && (
-        <div className="absolute top-0 left-0 right-0 h-[65vh] overflow-hidden pointer-events-none z-0">
+        <div className="fixed top-0 left-0 w-screen h-[65vh] overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
           <AnimatePresence mode="sync">
             <motion.img
               key={bgAlbums[bgIndex]?.id}
@@ -370,7 +370,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               className="absolute inset-0 w-full h-full object-cover"
             />
           </AnimatePresence>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/75 to-black" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.92) 70%, #000 100%)' }} />
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.92) 70%, #000 100%)' }} />
         </div>
       )}
       <div className="flex flex-col h-full relative z-[1]">
@@ -453,7 +453,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         >
                            <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform">
                               {pl.coverImage ? (
-                                  <img src={pl.coverImage || null} className="w-full h-full object-cover rounded-xl pointer-events-none" />
+                                  <img src={pl.coverImage || undefined} className="w-full h-full object-cover rounded-xl pointer-events-none" />
                               ) : (
                                   <ListMusic size={32} className="text-white/10 group-hover:text-small-orange transition-colors" />
                               )}
@@ -494,7 +494,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {getSortedArtists().slice(0, 3).map((artist, idx) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
                         <span className="text-lg font-black text-white/20">{idx + 1}</span>
-                        <img src={artist.photoURL || null} className="w-10 h-10 rounded-full object-cover" />
+                        <img src={artist.photoURL || undefined} className="w-10 h-10 rounded-full object-cover" />
                         <div className="flex-1 truncate">
                           <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h5>
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</span>
@@ -556,7 +556,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
-                            <img src={artist.photoURL || null} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" />
+                            <img src={artist.photoURL || undefined} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" />
                          </div>
                          <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
                          <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Recommended</span>
@@ -944,7 +944,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                       {vaultTracks.filter(t => t.genre === 'Audiobook').map(track => (
                         <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                           <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
-                            <img src={track.thumbnailUrl || null} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                               <PlayCircle size={48} className="text-small-orange" />
                             </div>
