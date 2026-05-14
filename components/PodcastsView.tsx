@@ -230,9 +230,9 @@ export const PodcastsView: React.FC = () => {
                 </button>
                 
                 <div className="flex flex-col md:flex-row gap-8 bg-white/5 backdrop-blur-xl p-8 lg:p-12 rounded-[3.5rem] border border-white/10 items-center md:items-start text-center md:text-left">
-                    <motion.img 
-                        src={selectedPodcast.coverImage || null} 
-                        className="w-48 md:w-64 aspect-square rounded-[3rem] shadow-2xl border border-white/10" 
+                    <img
+                        src={selectedPodcast.coverImage || undefined}
+                        className="w-48 md:w-64 aspect-square rounded-[3rem] shadow-2xl border border-white/10"
                         alt={selectedPodcast.title}
                         referrerPolicy="no-referrer"
                     />
@@ -336,10 +336,10 @@ export const PodcastsView: React.FC = () => {
                         className="group cursor-pointer"
                     >
                         <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-6 shadow-2xl border border-white/5 group-hover:border-small-orange/40 transition-all duration-500">
-                            <motion.img 
-                                src={p.coverImage || null} 
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
-                                alt={p.title} 
+                            <img
+                                src={p.coverImage || undefined}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                                alt={p.title}
                             />
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
                                 <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-transform duration-500"><Play size={24} className="ml-1" fill="currentColor"/></div>

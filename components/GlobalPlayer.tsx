@@ -110,6 +110,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const [isPlaylistExpanded, setIsPlaylistExpanded] = useState(false);
   const [isEssentialMode, setIsEssentialMode] = useState(false);
   const [pulse, setPulse] = useState(1);
+  const [isMobileSlideshowOpen, setIsMobileSlideshowOpen] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPreview, setShowPreview] = useState(true);
@@ -630,10 +631,79 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }
 
   return (
-    <div 
-      className={`fixed left-0 right-0 z-[100] flex flex-col transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`} 
+    <div
+      className={`fixed left-0 right-0 z-[100] flex flex-col transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
       style={{ bottom: topOffset ? 'auto' : bottomOffset, top: topOffset || 'auto' }}
     >
+
+      {/* Mobile Slideshow Overlay */}
+      <AnimatePresence>
+        {isMobileSlideshowOpen && isPhoneMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[998] bg-black flex flex-col"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            {/* Slideshow fills the main area */}
+            <div className="flex-1 relative overflow-hidden">
+              <AnimatedSlideshow
+                images={
+                  (currentTrack?.images && currentTrack.images.length > 0)
+                    ? currentTrack.images
+                    : (currentAlbum?.slideshow && currentAlbum.slideshow.length > 0)
+                    ? currentAlbum.slideshow
+                    : [currentAlbum?.coverImage || '']
+                }
+                isPlaying={isPlaying}
+                themeColor={currentAlbum?.themeColor || '#FF8C00'}
+                artistNotes={currentTrack?.artistNotes || []}
+              />
+              {/* Track info gradient overlay */}
+              <div className="absolute bottom-0 left-0 right-0 px-5 pt-16 pb-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
+                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-small-orange mb-1">{currentAlbum?.artist}</p>
+                <h3 className="text-sm font-black uppercase tracking-widest truncate text-white">{currentTrack?.title}</h3>
+              </div>
+              {/* Close button */}
+              <button
+                onClick={() => setIsMobileSlideshowOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2.5 bg-black/50 border border-white/10 rounded-full text-white/60 hover:text-white backdrop-blur-md"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Track thumbnail strip */}
+            {(currentAlbum?.tracks?.length ?? 0) > 1 && (
+              <div className="flex gap-2.5 px-4 py-3 overflow-x-auto bg-black/60 border-t border-white/5" style={{ scrollbarWidth: 'none' }}>
+                {currentAlbum!.tracks.map(track => (
+                  <button
+                    key={track.id}
+                    onClick={() => playTrack(track, currentAlbum!, 'LIBRARY')}
+                    className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${track.id === currentTrack?.id ? 'border-small-orange shadow-[0_0_10px_rgba(255,140,0,0.5)]' : 'border-transparent opacity-50'}`}
+                  >
+                    <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Playback controls bar */}
+            <div className="flex items-center justify-between px-8 py-5 bg-black/80 border-t border-white/5">
+              <button onClick={prev} className="p-2 text-white/40 active:text-white"><SkipBack size={20} /></button>
+              <button
+                onClick={togglePlay}
+                className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+              >
+                {isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />}
+              </button>
+              <button onClick={next} className="p-2 text-white/40 active:text-white"><SkipForward size={20} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
 
       {/* Message/Notification Preview Bar - DISABLED as per request */}
@@ -902,6 +972,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
                     <button onClick={handleShare} className="text-white/20 hover:text-white"><Share2 size={14} /></button>
+                    {currentTrack && (
+                      <button
+                        onClick={() => setIsMobileSlideshowOpen(true)}
+                        className={`${isMobileSlideshowOpen ? 'text-small-orange' : 'text-white/20 hover:text-white'} transition-colors`}
+                        title="Slideshow"
+                      >
+                        <Tv size={14} />
+                      </button>
+                    )}
                     <button onClick={() => setIsSpillOverOpen(!isSpillOverOpen)} className="text-small-orange">
                       {topOffset ? (
                         <ChevronDown size={18} className={`transition-transform duration-500 ${isSpillOverOpen ? 'rotate-180' : ''}`} />
