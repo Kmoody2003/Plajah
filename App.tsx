@@ -1597,7 +1597,7 @@ const App: React.FC = () => {
               <div className="flex flex-col lg:flex-row w-full h-full">
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full relative z-[1]">
                   {archiveBgAlbums.length > 0 && (
-                    <div className="fixed top-0 left-0 w-screen h-[75vh] overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+                    <div className="fixed top-0 left-0 w-screen h-[75vh] pointer-events-none" style={{ zIndex: 0, WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)' }}>
                       <AnimatePresence mode="sync">
                         <motion.img
                           key={archiveBgAlbums[archiveBgIndex]?.id}
@@ -1609,7 +1609,7 @@ const App: React.FC = () => {
                           className="absolute inset-0 w-full h-full object-cover"
                         />
                       </AnimatePresence>
-                      <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(2,2,2,0.15) 0%, rgba(2,2,2,0.35) 25%, rgba(2,2,2,0.65) 50%, rgba(2,2,2,0.88) 70%, rgba(2,2,2,0.97) 85%, #020202 100%)' }} />
+                      <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(2,2,2,0.2) 0%, rgba(2,2,2,0.5) 40%, rgba(2,2,2,0.75) 70%)' }} />
                     </div>
                   )}
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 relative z-10">

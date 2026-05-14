@@ -358,7 +358,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
       {bgAlbums.length > 0 && (
-        <div className="fixed top-0 left-0 w-screen h-[80vh] overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        <div className="fixed top-0 left-0 w-screen h-[80vh] pointer-events-none" style={{ zIndex: 0, WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)' }}>
           <AnimatePresence mode="sync">
             <motion.img
               key={bgAlbums[bgIndex]?.id}
@@ -370,7 +370,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               className="absolute inset-0 w-full h-full object-cover"
             />
           </AnimatePresence>
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 25%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.88) 70%, rgba(0,0,0,0.97) 85%, #000 100%)' }} />
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.7) 70%)' }} />
         </div>
       )}
       <div className="flex flex-col h-full relative z-[1]">
