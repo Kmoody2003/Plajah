@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useCallback, useEffect, useState } from 'react'
 import ForceGraph3D, { ForceGraphMethods } from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { IPWorld, Character, LoreEntry, TimelineEvent, Album, Video } from '../types';
-import { X, Zap } from 'lucide-react';
+import { X, Zap, Volume2, VolumeX } from 'lucide-react';
 
 interface WorldGraphViewProps {
   world: IPWorld;
@@ -29,11 +29,17 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
 }) => {
   const fgRef = useRef<ForceGraphMethods>(null);
   const nebulaAdded = useRef(false);
-  const [hoveredNode, setHoveredNode] = useState<any>(null);
-  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  const hasExploded = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [hoveredNode, setHoveredNode] = useState<any>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  const [previewNode, setPreviewNode] = useState<any>(null);
+  const [audioMuted, setAudioMuted] = useState(false);
+
+  // ── Graph data ─────────────────────────────────────────────────────────────
   const graphData = useMemo(() => {
     const nodes: any[] = [];
     const links: any[] = [];
@@ -43,18 +49,18 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       name: world.name,
       type: 'WORLD',
       color: '#ff8c00',
-      size: 20,
+      size: 18,
       val: 30,
       img: world.coverImage,
     });
 
     characters.forEach(char => {
-      nodes.push({ id: char.id, name: char.name, type: 'CHARACTER', color: '#4A90E2', size: 10, img: char.imageUrl });
+      nodes.push({ id: char.id, name: char.name, type: 'CHARACTER', color: '#4A90E2', size: 9, img: char.imageUrl });
       links.push({ source: world.id, target: char.id, label: 'INHABITANT' });
     });
 
     loreEntries.forEach(entry => {
-      nodes.push({ id: entry.id, name: entry.title, type: 'LORE', color: '#9b59b6', size: 8 });
+      nodes.push({ id: entry.id, name: entry.title, type: 'LORE', color: '#9b59b6', size: 7 });
       links.push({ source: world.id, target: entry.id, label: 'KNOWLEDGE' });
     });
 
@@ -80,7 +86,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           name: album.title,
           type: 'ALBUM',
           color: '#f1c40f',
-          size: 7,
+          size: 8,
           img: album.coverImage,
           previewUrl: album.tracks?.[0]?.url,
         });
@@ -95,9 +101,10 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           name: video.title,
           type: 'VIDEO',
           color: '#e74c3c',
-          size: 7,
+          size: 8,
           img: video.thumbnailUrl,
           mediaUrl: video.url,
+          embedUrl: video.embedUrl,
         });
         links.push({ source: world.id, target: video.id, label: 'VISUAL' });
       }
@@ -110,13 +117,25 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     return { nodes, links };
   }, [world, characters, loreEntries, timelineEvents, albums, videos]);
 
-  // Add space nebula to Three.js scene (once, after engine stops)
+  // ── Force configuration: push nodes far apart ──────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const fg = fgRef.current as any;
+      if (!fg) return;
+      fg.d3Force('charge')?.strength(-500).distanceMax(600);
+      fg.d3Force('link')?.distance(130).strength(0.4);
+      fg.d3Force('center')?.strength(0.05);
+      fg.d3ReheatSimulation();
+    }, 80);
+    return () => clearTimeout(t);
+  }, [graphData]);
+
+  // ── Nebula background ──────────────────────────────────────────────────────
   const setupNebula = useCallback(() => {
     const fg = fgRef.current as any;
     if (!fg?.scene || nebulaAdded.current) return;
     nebulaAdded.current = true;
     const scene: THREE.Scene = fg.scene();
-
     const group = new THREE.Group();
 
     // Star field
@@ -132,119 +151,190 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, transparent: true, opacity: 0.65, sizeAttenuation: false });
-    group.add(new THREE.Points(starGeo, starMat));
+    group.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, transparent: true, opacity: 0.65, sizeAttenuation: false })));
 
     // Colored nebula blobs
-    const clouds = [
+    [
       { color: 0x3d1a8a, x: 350, y: -180, z: -350, r: 360 },
       { color: 0x1a2a7a, x: -380, y: 280, z: 220, r: 300 },
       { color: 0x6a1a3a, x: 180, y: 380, z: -280, r: 330 },
       { color: 0x1a5a4a, x: -280, y: -320, z: 380, r: 260 },
-    ];
-    clouds.forEach(({ color, x, y, z, r }) => {
-      const geo = new THREE.SphereGeometry(r, 8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, side: THREE.BackSide });
-      const mesh = new THREE.Mesh(geo, mat);
+    ].forEach(({ color, x, y, z, r }) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 8, 8),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, side: THREE.BackSide }),
+      );
       mesh.position.set(x, y, z);
       group.add(mesh);
     });
 
-    // Dark outer shell (replaces plain black bg)
-    const shellGeo = new THREE.SphereGeometry(1600, 32, 32);
-    const shellMat = new THREE.MeshBasicMaterial({ color: 0x00000d, side: THREE.BackSide });
-    group.add(new THREE.Mesh(shellGeo, shellMat));
+    // Dark outer shell
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1600, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00000d, side: THREE.BackSide }),
+    ));
 
     scene.add(group);
   }, []);
 
-  // Build a Three.js node object with glowing orb + cover art sprite
+  // ── Node objects: glow halo + canvas sprite (tint baked in) ───────────────
   const nodeThreeObject = useCallback((node: any) => {
-    const r = (node.size || 6) * 1.8;
+    const r = (node.size || 6) * 2;
     const group = new THREE.Group();
 
-    // Outer glow halo
-    const glowGeo = new THREE.SphereGeometry(r * 1.7, 16, 16);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: node.color || '#ffffff',
-      transparent: true,
-      opacity: 0.07,
-      side: THREE.BackSide,
-    });
-    group.add(new THREE.Mesh(glowGeo, glowMat));
+    // Always: outer glow halo
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(r * 1.9, 16, 16),
+      new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.07, side: THREE.BackSide }),
+    ));
 
-    // Core translucent sphere
-    const coreGeo = new THREE.SphereGeometry(r, 16, 16);
-    const coreMat = new THREE.MeshBasicMaterial({
-      color: node.color || '#ffffff',
-      transparent: true,
-      opacity: 0.55,
-    });
-    group.add(new THREE.Mesh(coreGeo, coreMat));
-
-    // Cover art sprite with radial gradient fade
     if (node.img) {
-      const size = 128;
+      // Artwork sprite — color tint baked in, faded at edges
+      const size = 256;
       const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d')!;
       const tex = new THREE.CanvasTexture(canvas);
+
+      const drawFallback = () => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = node.color || '#ffffff';
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        tex.needsUpdate = true;
+      };
 
       const image = new Image();
       image.crossOrigin = 'anonymous';
       image.onload = () => {
         ctx.clearRect(0, 0, size, size);
-        // Circular clip
+
+        // 1. Draw artwork clipped to circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
         ctx.clip();
         ctx.drawImage(image, 0, 0, size, size);
         ctx.restore();
-        // Radial fade out (destination-out erases toward edges)
-        const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.22, size / 2, size / 2, size / 2);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, 'rgba(0,0,0,1)');
+
+        // 2. Color tint overlay at 50% — source-atop paints only over existing pixels
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = node.color || '#ffffff';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // 3. Soft radial fade — destination-out erases toward the rim
         ctx.globalCompositeOperation = 'destination-out';
+        const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.2, size / 2, size / 2, size / 2);
+        grad.addColorStop(0,   'rgba(0,0,0,0)');
+        grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+        grad.addColorStop(1,   'rgba(0,0,0,1)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, size);
+        ctx.globalCompositeOperation = 'source-over';
+
         tex.needsUpdate = true;
       };
-      image.onerror = () => {};
+      image.onerror = drawFallback;
       image.src = node.img;
 
-      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.85 });
-      const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(r * 2.5, r * 2.5, 1);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.92 }));
+      sprite.scale.set(r * 3.2, r * 3.2, 1);
       group.add(sprite);
+    } else {
+      // No artwork: plain colored sphere
+      group.add(new THREE.Mesh(
+        new THREE.SphereGeometry(r, 16, 16),
+        new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.65 }),
+      ));
     }
 
     return group;
   }, []);
 
-  // Click: smooth camera zoom-to-node center, then call parent handler
+  // ── Click: explosion burst on first touch, then camera center ──────────────
   const handleNodeClick = useCallback((node: any) => {
+    const fg = fgRef.current as any;
+
+    // One-time "explode" burst on first interaction
+    if (!hasExploded.current && fg) {
+      hasExploded.current = true;
+      fg.d3Force('charge')?.strength(-1400).distanceMax(800);
+      fg.d3ReheatSimulation();
+      // Settle back to comfortable spread after burst
+      setTimeout(() => {
+        fg.d3Force('charge')?.strength(-450).distanceMax(600);
+        fg.d3ReheatSimulation();
+      }, 2500);
+    }
+
+    // Smooth camera zoom to node
     if (fgRef.current && node.x != null) {
-      const dist = 80;
       fgRef.current.cameraPosition(
-        { x: node.x, y: node.y, z: (node.z ?? 0) + dist },
+        { x: node.x, y: node.y, z: (node.z ?? 0) + 90 },
         { x: node.x, y: node.y, z: node.z ?? 0 },
         2000,
       );
     }
+
     onNodeClick?.(node);
   }, [onNodeClick]);
 
-  // Hover: show tooltip, queue song/video preview after 2 s
+  // ── Hover: tooltip + 2-second preview trigger ──────────────────────────────
+  const stopPreview = useCallback(() => {
+    setPreviewNode(null);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, []);
+
   const handleNodeHover = useCallback((node: any) => {
     if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
     setHoveredNode(node ?? null);
+
+    if (!node) { stopPreview(); return; }
+
+    const hasMedia = node.previewUrl || node.mediaUrl;
+    if (!hasMedia) return;
+
+    hoverTimerRef.current = setTimeout(() => {
+      setPreviewNode(node);
+
+      // Audio preview for albums
+      if (node.type === 'ALBUM' && node.previewUrl) {
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.src = node.previewUrl;
+        audioRef.current.volume = audioMuted ? 0 : 0.55;
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+    }, 2000);
+  }, [audioMuted, stopPreview]);
+
+  // Toggle mute on the live audio element
+  const toggleMute = () => {
+    setAudioMuted(m => {
+      if (audioRef.current) audioRef.current.volume = m ? 0.55 : 0;
+      return !m;
+    });
+  };
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
   }, []);
 
-  // Cleanup hover timer on unmount
-  useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }, []);
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const isYouTubeOrVimeo = (url?: string) =>
+    !!url && (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com'));
 
   return (
     <div
@@ -252,23 +342,16 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       className={`${isEmbedded ? 'relative h-full w-full' : 'fixed inset-0 z-[2000]'} bg-[#00000d] overflow-hidden`}
       onMouseMove={e => setHoverPos({ x: e.clientX, y: e.clientY })}
     >
-      {/* Header overlay */}
+      {/* Header */}
       <div className={`absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-20 pointer-events-none ${isEmbedded ? 'opacity-0 hover:opacity-100 transition-opacity' : ''}`}>
         {!isEmbedded && (
           <div>
-            <h2 className="text-3xl font-black uppercase tracking-widest text-primary italic leading-none mb-2">
-              Universe Topology
-            </h2>
-            <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
-              Interactive 3D Connection Mapping: {world.name}
-            </p>
+            <h2 className="text-3xl font-black uppercase tracking-widest text-primary italic leading-none mb-2">Universe Topology</h2>
+            <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Interactive 3D Connection Mapping: {world.name}</p>
           </div>
         )}
         {onClose && (
-          <button
-            onClick={onClose}
-            className="pointer-events-auto p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white ml-auto"
-          >
+          <button onClick={onClose} className="pointer-events-auto p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white ml-auto">
             <X size={24} />
           </button>
         )}
@@ -276,9 +359,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
 
       {/* Legend */}
       <div className={`absolute bottom-8 left-8 p-6 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 z-20 max-w-xs pointer-events-none ${isEmbedded ? 'scale-75 origin-bottom-left' : ''}`}>
-        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
-          <Zap size={14} /> Legend
-        </h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2"><Zap size={14} /> Legend</h3>
         <div className="space-y-2">
           <LegendItem color="#ff8c00" label="Cosmic Seed (World)" />
           <LegendItem color="#4A90E2" label="Inhabitants" />
@@ -292,14 +373,81 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       {/* Hover tooltip */}
       {hoveredNode && !isEmbedded && (
         <div
-          className="fixed z-30 pointer-events-none bg-black/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 max-w-[220px] shadow-xl"
-          style={{ left: hoverPos.x + 18, top: hoverPos.y - 48 }}
+          className="fixed z-40 pointer-events-none bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 max-w-[220px] shadow-xl"
+          style={{ left: Math.min(hoverPos.x + 18, window.innerWidth - 240), top: Math.max(hoverPos.y - 56, 8) }}
         >
           <p className="text-white font-black text-xs uppercase tracking-wider truncate">{hoveredNode.name}</p>
           <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-0.5">{hoveredNode.type}</p>
-          {(hoveredNode.type === 'ALBUM' || hoveredNode.type === 'VIDEO') && (
-            <p className="text-white/25 text-[9px] mt-1.5">Click to navigate · hover 2s to preview</p>
+          {(hoveredNode.previewUrl || hoveredNode.mediaUrl) && !previewNode && (
+            <p className="text-white/25 text-[9px] mt-1.5 italic">Hold to preview…</p>
           )}
+        </div>
+      )}
+
+      {/* Video preview panel */}
+      {previewNode?.type === 'VIDEO' && previewNode.mediaUrl && !isYouTubeOrVimeo(previewNode.mediaUrl) && (
+        <div
+          className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
+          style={{
+            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
+            top: Math.max(hoverPos.y - 145, 8),
+            width: 200,
+          }}
+        >
+          <video
+            key={previewNode.id}
+            src={previewNode.mediaUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-28 object-cover"
+          />
+          <div className="bg-black/80 px-3 py-2">
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate">{previewNode.name}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Video thumbnail panel (YouTube/Vimeo or no direct URL) */}
+      {previewNode?.type === 'VIDEO' && (previewNode.img && (isYouTubeOrVimeo(previewNode.mediaUrl) || !previewNode.mediaUrl)) && (
+        <div
+          className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
+          style={{
+            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
+            top: Math.max(hoverPos.y - 145, 8),
+            width: 200,
+          }}
+        >
+          <img src={previewNode.img} alt="" className="w-full h-28 object-cover" />
+          <div className="bg-black/80 px-3 py-2">
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate">{previewNode.name}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Album audio preview indicator */}
+      {previewNode?.type === 'ALBUM' && previewNode.previewUrl && (
+        <div
+          className="fixed z-40 pointer-events-auto shadow-2xl rounded-2xl overflow-hidden border border-white/15 bg-black/80 backdrop-blur-md"
+          style={{
+            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
+            top: Math.max(hoverPos.y - 110, 8),
+            width: 200,
+          }}
+        >
+          {previewNode.img && <img src={previewNode.img} alt="" className="w-full h-20 object-cover" />}
+          <div className="px-3 py-2 flex items-center gap-2">
+            <div className="flex gap-0.5 items-end h-4">
+              {[3, 5, 4, 6, 3, 5].map((h, i) => (
+                <div key={i} className="w-1 rounded-full bg-yellow-400" style={{ height: h * 2, animation: `pulse ${0.4 + i * 0.1}s ease-in-out infinite alternate` }} />
+              ))}
+            </div>
+            <p className="text-white text-[9px] font-black uppercase tracking-widest truncate flex-1">{previewNode.name}</p>
+            <button onClick={toggleMute} className="text-white/50 hover:text-white shrink-0">
+              {audioMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+            </button>
+          </div>
         </div>
       )}
 
@@ -315,6 +463,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         linkCurvature={0.25}
         linkColor={() => 'rgba(255,255,255,0.12)'}
         linkLabel="label"
+        warmupTicks={120}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
         onEngineStop={() => {
