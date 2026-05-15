@@ -211,7 +211,16 @@ const App: React.FC = () => {
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [pushToast, setPushToast] = useState<{ title: string; body: string; link?: string } | null>(null);
-  const [theme, setTheme] = useState<ThemeType>('PLAJAH');
+
+  // ── Theme: read from localStorage immediately so there's no flash on refresh ──
+  const [theme, setTheme] = useState<ThemeType>(() => {
+    try {
+      const saved = localStorage.getItem('plajah_theme') as ThemeType | null;
+      const valid: ThemeType[] = ['DARK','LIGHT','PASTEL','PLAJAH','BIG_SCREEN','PHONE','ETHEREAL','NEBULA','CITRUS'];
+      if (saved && valid.includes(saved)) return saved;
+    } catch {}
+    return 'PLAJAH';
+  });
   
   // Theme Asset Cycle
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
@@ -318,24 +327,25 @@ const App: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
+    const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
     const checkDevice = () => {
       const mobile = detectMobile();
       setIsMobile(mobile);
-      
-      // Device-specific defaults for initial load
+
+      // Only apply device layout theme when on the LANDING screen AND the user
+      // has not already saved an explicit visual theme preference.
       if (view === 'LANDING') {
-        const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-        const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
-        
-        if (mobile) {
-          setTheme('PHONE');
-        } else if (isTV) {
-          setTheme('BIG_SCREEN');
+        const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
+        const hasExplicitTheme = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
+        if (!hasExplicitTheme) {
+          const isTV = tvKeywords.some(kw => navigator.userAgent.toLowerCase().includes(kw));
+          if (mobile) setTheme('PHONE');
+          else if (isTV) setTheme('BIG_SCREEN');
         }
       }
     };
     checkDevice();
-    window.addEventListener('resize', checkDevice);
+    window.addEventListener('resize', checkDevice, { passive: true });
     return () => window.removeEventListener('resize', checkDevice);
   }, [view]);
 
@@ -371,13 +381,16 @@ const App: React.FC = () => {
     const isMobileDevice = detectMobile();
     const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
     const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+    // Only apply device layout theme if the user has no explicit visual preference saved
+    const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
+    const hasExplicitTheme = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
 
     if (isMobileDevice) {
       setView('MUSIC');
-      setTheme('PHONE');
+      if (!hasExplicitTheme) setTheme('PHONE');
     } else if (isTV) {
       setView('LIVE_HUB');
-      setTheme('BIG_SCREEN');
+      if (!hasExplicitTheme) setTheme('BIG_SCREEN');
     } else {
       setView('DASHBOARD');
     }
@@ -503,11 +516,14 @@ const App: React.FC = () => {
             const isMobileDevice = detectMobile();
             const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
             const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+            // Only apply device layout theme if the user has no explicit visual preference
+            const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
+            const hasExplicit = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
             if (isMobileDevice) {
-              setTheme('PHONE');
+              if (!hasExplicit) setTheme('PHONE');
               return 'MUSIC';
             } else if (isTV) {
-              setTheme('BIG_SCREEN');
+              if (!hasExplicit) setTheme('BIG_SCREEN');
               return 'LIVE_HUB';
             }
             return 'DASHBOARD';
@@ -517,9 +533,13 @@ const App: React.FC = () => {
 
         const p = await fetchUserProfile(u.uid);
         setUserProfile(p);
-        
+
         if (p?.uiSettings?.lastTheme) {
-          setTheme(p.uiSettings.lastTheme);
+          const savedTheme = p.uiSettings.lastTheme;
+          // Always restore user's theme from profile — it's the most authoritative source.
+          // Also write back to localStorage so it's available on the next load.
+          try { localStorage.setItem('plajah_theme', savedTheme); } catch {}
+          setTheme(savedTheme);
         }
 
         // Initialize demo worlds
@@ -647,19 +667,30 @@ const App: React.FC = () => {
     init();
   }, []);
 
+  // All possible theme classes — we remove them all before adding the active one
+  // so we never wipe unrelated body classes (e.g. has-custom-background)
+  const ALL_THEME_CLASSES = [
+    'theme-dark','theme-light','theme-pastel','theme-plajah',
+    'theme-big-screen','theme-phone','theme-ethereal','theme-nebula','theme-citrus',
+  ];
+  const THEME_CLASS_MAP: Record<ThemeType, string> = {
+    'DARK':       'theme-dark',
+    'LIGHT':      'theme-light',
+    'PASTEL':     'theme-pastel',
+    'PLAJAH':     'theme-plajah',
+    'BIG_SCREEN': 'theme-big-screen',
+    'PHONE':      'theme-phone',
+    'ETHEREAL':   'theme-ethereal',
+    'NEBULA':     'theme-nebula',
+    'CITRUS':     'theme-citrus',
+  };
+
   useEffect(() => {
-    const themeClasses: Record<ThemeType, string> = {
-      'DARK': '',
-      'LIGHT': 'theme-light',
-      'PASTEL': 'theme-pastel',
-      'PLAJAH': 'theme-plajah',
-      'BIG_SCREEN': 'theme-big-screen',
-      'PHONE': 'theme-phone',
-      'ETHEREAL': 'theme-ethereal',
-      'NEBULA': 'theme-nebula',
-      'CITRUS': 'theme-citrus'
-    };
-    document.body.className = themeClasses[theme];
+    // Persist immediately so a refresh restores the theme before auth resolves
+    try { localStorage.setItem('plajah_theme', theme); } catch {}
+    // Swap body class without touching anything else (e.g. has-custom-background)
+    document.body.classList.remove(...ALL_THEME_CLASSES);
+    document.body.classList.add(THEME_CLASS_MAP[theme]);
   }, [theme]);
 
   useEffect(() => {
@@ -929,13 +960,15 @@ const App: React.FC = () => {
   }
 
   const handleSetTheme = (newTheme: ThemeType) => {
+    // Write localStorage first — instant persistence even if Firestore lags or fails
+    try { localStorage.setItem('plajah_theme', newTheme); } catch {}
     setTheme(newTheme);
     if (userProfile?.uid) {
       updateUserProfile(userProfile.uid, {
         uiSettings: {
           ...userProfile.uiSettings,
-          lastTheme: newTheme
-        }
+          lastTheme: newTheme,
+        },
       });
     }
   };

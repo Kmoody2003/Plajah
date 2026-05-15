@@ -41,6 +41,21 @@
   --chat-bubble-text: #ffffff;
 }
 
+/* DARK is the same as :root defaults — explicit class so body.classList.add works
+   consistently and doesn't accidentally wipe other body classes */
+.theme-dark {
+  --bg-color: #020202;
+  --text-primary: #ffffff;
+  --text-secondary: #ff8c00;
+  --accent-color: #ffffff;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --surface-variant: rgba(255, 255, 255, 0.05);
+  --on-surface-variant: rgba(255, 255, 255, 0.6);
+  --chat-bubble-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-text: #ffffff;
+}
+
 .theme-light {
   --bg-color: #f8fafc;
   --text-primary: #0f172a;
