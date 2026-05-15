@@ -6,7 +6,12 @@
       "Bash(git commit -m ' *)",
       "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" diff --stat)",
       "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx index.html)",
-      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" push origin master)"
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" push origin master)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" branch -a)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add App.tsx components/MusicView.tsx)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" log --oneline -3)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Kenne\\\\plajah\" add components/GlobalPlayer.tsx components/PodcastsView.tsx)"
     ]
   }
 }

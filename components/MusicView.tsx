@@ -376,7 +376,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
           <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
-            <PageHeader>Plajah Music</PageHeader>
+            <PageHeader>Plajah Chora</PageHeader>
           </div>
           <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
             <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">

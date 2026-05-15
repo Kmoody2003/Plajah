@@ -4,7 +4,8 @@ import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
   fetchVideosByInterests, fetchUserVideos, auth, fetchAllPublicAlbums,
   publishToCloud, fetchAllLiveFeeds, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds,
-  fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters, fetchUserProfile, updateVideo
+  fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters, fetchUserProfile, updateVideo,
+  fetchAllUsers, fetchFollowedArtists, followUser, unfollowUser
 } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
@@ -260,15 +261,61 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
   const [followingProfiles, setFollowingProfiles] = useState<UserProfile[]>([]);
+  const [recommendedProfiles, setRecommendedProfiles] = useState<UserProfile[]>([]);
+  const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
 
-  // Fetch profiles for users the current user follows
+  // Fetch discoverable channels and current following
   useEffect(() => {
-    const ids = currentUser?.following?.slice(0, 20);
-    if (!ids || ids.length === 0) { setFollowingProfiles([]); return; }
-    Promise.all(ids.map(uid => fetchUserProfile(uid)))
-      .then(results => setFollowingProfiles(results.filter(Boolean) as UserProfile[]))
-      .catch(() => setFollowingProfiles([]));
-  }, [currentUser?.following]);
+    const loadChannels = async () => {
+      const userId = currentUser?.uid || auth.currentUser?.uid;
+      if (!userId) {
+        setFollowingProfiles([]);
+        setRecommendedProfiles([]);
+        setFollowedIds(new Set());
+        return;
+      }
+
+      try {
+        const followed = await fetchFollowedArtists(userId);
+        const ids = new Set(followed.map(u => u.uid));
+        ids.add(userId);
+        setFollowingProfiles(followed);
+        setFollowedIds(ids);
+
+        const allUsers = await fetchAllUsers();
+        const recommendations = allUsers
+          .filter(u => u.uid !== userId && !ids.has(u.uid))
+          .slice(0, 18);
+        setRecommendedProfiles(recommendations);
+      } catch (err) {
+        setFollowingProfiles([]);
+        setRecommendedProfiles([]);
+        setFollowedIds(new Set());
+      }
+    };
+
+    loadChannels();
+  }, [currentUser?.uid]);
+
+  const handleToggleFollow = async (profile: UserProfile) => {
+    if (!auth.currentUser) return;
+    const isFollowed = followedIds.has(profile.uid);
+    if (isFollowed) {
+      await unfollowUser(profile.uid);
+      setFollowingProfiles(prev => prev.filter(p => p.uid !== profile.uid));
+      setRecommendedProfiles(prev => [profile, ...prev]);
+      setFollowedIds(prev => {
+        const next = new Set(prev);
+        next.delete(profile.uid);
+        return next;
+      });
+    } else {
+      await followUser(profile.uid);
+      setFollowingProfiles(prev => [...prev, profile]);
+      setRecommendedProfiles(prev => prev.filter(p => p.uid !== profile.uid));
+      setFollowedIds(prev => new Set(prev).add(profile.uid));
+    }
+  };
 
   // Upload form
   const [newVideo, setNewVideo] = useState<Partial<Video & { file?: File; thumbnailFile?: File; coverImageFile?: File }>>({
@@ -439,7 +486,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-6 lg:px-12 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
-            {mode === 'MOVIES_TV' ? 'Cinema' : 'Video'}
+            {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
           </h1>
 
           {/* Search */}
@@ -752,38 +799,79 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             <VideoRow title="My Playlists" icon={List} videos={playlists} onSelect={handlePlay} emptyMessage="No playlists found." />
           )}
 
-          {/* ── CHANNEL ──────────────────────────────────────────────────── */}
+          {/* ── CHANNELS ──────────────────────────────────────────────────── */}
           {activeView === 'channel' && (
-            <div className="space-y-6 pt-2">
-              {/* Following section */}
-              {followingProfiles.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4">Following</h3>
-                  <div className="flex gap-4 flex-wrap">
-                    {followingProfiles.map(p => (
-                      <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
-                          {p.photoURL
-                            ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+            <div className="space-y-8 pt-2">
+              <div>
+                <h2 className="text-lg font-black uppercase tracking-widest">Channels</h2>
+                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mt-2 max-w-2xl">
+                  Discover creators to follow and build your channel network with fresh accounts.
+                </p>
+              </div>
+
+              {followingProfiles.length > 0 ? (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4">Following</h3>
+                    <div className="flex gap-4 flex-wrap">
+                      {followingProfiles.map(p => (
+                        <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
+                          <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
+                            {p.photoURL
+                              ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+                          </div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/20">You aren't following any channels yet</p>
+                </div>
+              )}
+
+              {recommendedProfiles.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-2">Discover</h3>
+                      <p className="text-[9px] text-white/30 uppercase tracking-widest">Suggested accounts you can follow.</p>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{recommendedProfiles.length} suggestions</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {recommendedProfiles.map(p => {
+                      const isFollowed = followedIds.has(p.uid);
+                      return (
+                        <div key={p.uid} className="p-4 bg-white/5 border border-white/5 rounded-3xl">
+                          <button onClick={() => onVisitUser?.(p.uid)} className="w-full text-left">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10">
+                                {p.photoURL
+                                  ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-black uppercase tracking-widest text-white truncate">{p.displayName}</p>
+                                <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{p.bio || p.email || 'Creator'}</p>
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => handleToggleFollow(p)}
+                            className={`w-full px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isFollowed ? 'bg-white/10 border border-white/10 text-white/70 hover:bg-white/15' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}
+                          >
+                            {isFollowed ? 'Following' : 'Follow'}
+                          </button>
                         </div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
-              <h2 className="text-lg font-black uppercase tracking-widest">Channel Archive</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {userVideos.map(video => (
-                  <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} currentUser={currentUser} />
-                ))}
-                {userVideos.length === 0 && (
-                  <div className="col-span-full py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Archive is empty</p>
-                  </div>
-                )}
-              </div>
             </div>
           )}
         </div>

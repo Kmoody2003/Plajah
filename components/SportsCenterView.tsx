@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
-  fetchRichTeamPage, fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile,
-  fetchTeamFullSchedule, fetchRacingSchedule, fetchRacingStandings, fetchRacingNews,
+  fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile,
+  fetchRacingSchedule, fetchRacingStandings, fetchRacingNews,
   getRacingCfg, ESPORTS_ORGS, LEAGUE_CHAMPIONS,
-  type SportsTeam, type RichTeamPage, type EsportsOrg, type LeaderCategory,
+  type SportsTeam, type EsportsOrg, type LeaderCategory,
   type RaceEvent, type RacingStanding, type ChampionEntry,
 } from '../services/sportsService';
+import { TeamPageView } from './sports/TeamPageView';
+import { getLeagueStaticTeams, findStaticTeam } from '../data/leagueTeams';
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
@@ -18,8 +20,6 @@ import {
 interface Props {
   selectedSportsTab: string;
 }
-
-type TeamTab = 'overview' | 'roster' | 'schedule' | 'legends' | 'news';
 
 const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS'] as const;
 const PINS_KEY = 'vibestream_sports_pins_v1';
@@ -42,12 +42,6 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
-  const [richData, setRichData]           = useState<RichTeamPage | null>(null);
-  const [teamLoading, setTeamLoading]     = useState(false);
-  const [teamTab, setTeamTab]             = useState<TeamTab>('overview');
-
-  const [teamSchedule, setTeamSchedule]       = useState<any[]>([]);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   const [selectedPlayer, setSelectedPlayer]   = useState<{ id: string; name: string } | null>(null);
   const [playerProfile, setPlayerProfile]     = useState<any>(null);
@@ -56,8 +50,6 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const isLeague  = (LEAGUE_TABS as readonly string[]).includes(selectedSportsTab);
   const isEsports = selectedSportsTab === 'ESPORTS';
   const isRacing  = !!getRacingCfg(selectedSportsTab);
-
-  const champions: ChampionEntry[] = LEAGUE_CHAMPIONS[selectedSportsTab] ?? [];
 
   const filteredTeams = useMemo(() => {
     const q = teamSearch.trim().toLowerCase();
@@ -88,13 +80,28 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   const loadLeague = useCallback(() => {
     if (!isLeague || isEsports) return;
-    setLeagueLoading(true);
     setLeagueError(false);
-    setLeagueTeams([]);
-    setNews([]);
-    setStandings([]);
-    setLeagueScores([]);
-    setLeagueLeaders([]);
+
+    // Pre-populate teams grid from static data immediately (no API wait)
+    const staticTeams = getLeagueStaticTeams(selectedSportsTab).map(s => ({
+      id: s.espnId || s.id,
+      name: s.name,
+      location: s.location,
+      nickname: s.nickname,
+      abbreviation: s.abbreviation,
+      logo: s.logo,
+      color: s.color,
+      altColor: s.altColor,
+      record: '',
+      tsdbId: s.tsdbId,
+    } as SportsTeam));
+    if (staticTeams.length > 0) {
+      setLeagueTeams(staticTeams);
+      setLeagueLoading(false);
+    } else {
+      setLeagueLoading(true);
+      setLeagueTeams([]);
+    }
 
     Promise.allSettled([
       fetchLeagueTeams(selectedSportsTab),
@@ -103,20 +110,25 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       fetchLeagueScores(selectedSportsTab),
       fetchLeagueLeaders(selectedSportsTab),
     ]).then(([teamsR, newsR, standingsR, scoresR, leadersR]) => {
-      const teams        = teamsR.status    === 'fulfilled' ? teamsR.value    : [];
+      const apiTeams     = teamsR.status    === 'fulfilled' ? teamsR.value    : [];
       const newsData     = newsR.status     === 'fulfilled' ? newsR.value     : [];
       const standingsData= standingsR.status=== 'fulfilled' ? standingsR.value: [];
       const scoresData   = scoresR.status   === 'fulfilled' ? scoresR.value   : [];
       const leadersData  = leadersR.status  === 'fulfilled' ? leadersR.value  : [];
 
-      setLeagueTeams(teams);
+      // Merge API teams with static data: static provides logo/colors, API provides live record
+      const merged: SportsTeam[] = apiTeams.length > 0 ? apiTeams.map(t => {
+        const s = findStaticTeam(selectedSportsTab, t.name) ?? findStaticTeam(selectedSportsTab, t.abbreviation);
+        return s ? { ...t, logo: s.logo || t.logo, color: s.color || t.color, altColor: s.altColor || t.altColor } : t;
+      }) : staticTeams;
+
+      setLeagueTeams(merged);
       setNews(newsData);
       setStandings(standingsData);
       setLeagueScores(scoresData);
       setLeagueLeaders(leadersData);
       setLeagueLoading(false);
-      // Only show error if all primary data is empty (true network failure)
-      if (teams.length === 0 && newsData.length === 0 && standingsData.length === 0) {
+      if (merged.length === 0 && newsData.length === 0 && standingsData.length === 0) {
         setLeagueError(true);
       }
     });
@@ -126,10 +138,13 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     if (!isLeague) return;
     setSelectedTeam(null);
     setSelectedOrg(null);
-    setRichData(null);
     setTeamSearch('');
     setSelectedPlayer(null);
     setPlayerProfile(null);
+    setNews([]);
+    setStandings([]);
+    setLeagueScores([]);
+    setLeagueLeaders([]);
     if (isEsports) {
       setLeagueLoading(true);
       fetchEsportsNews().then(a => { setNews(a); setLeagueLoading(false); }).catch(() => setLeagueLoading(false));
@@ -137,25 +152,6 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       loadLeague();
     }
   }, [selectedSportsTab]);
-
-  useEffect(() => {
-    if (!selectedTeam) return;
-    setTeamLoading(true);
-    setRichData(null);
-    setTeamTab('overview');
-    setTeamSchedule([]);
-    fetchRichTeamPage(selectedSportsTab, selectedTeam.id, selectedTeam.nickname, selectedTeam.location)
-      .then(data => { setRichData(data); setTeamLoading(false); })
-      .catch(() => setTeamLoading(false));
-  }, [selectedTeam, selectedSportsTab]);
-
-  useEffect(() => {
-    if (teamTab !== 'schedule' || !selectedTeam) return;
-    setScheduleLoading(true);
-    fetchTeamFullSchedule(selectedSportsTab, selectedTeam.id)
-      .then(evts => { setTeamSchedule(evts); setScheduleLoading(false); })
-      .catch(() => setScheduleLoading(false));
-  }, [teamTab, selectedTeam, selectedSportsTab]);
 
   useEffect(() => {
     if (!selectedPlayer) return;
@@ -296,54 +292,44 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   }
 
   // ─── TEAM PAGE ─────────────────────────────────────────────────────────────
-  if (selectedTeam || selectedOrg) {
+  if (selectedTeam) {
+    const staticData = findStaticTeam(selectedSportsTab, selectedTeam.name)
+      ?? findStaticTeam(selectedSportsTab, selectedTeam.abbreviation);
+    return (
+      <TeamPageView
+        team={selectedTeam}
+        tab={selectedSportsTab}
+        staticData={staticData}
+        pinnedIds={pinnedIds}
+        onBack={() => setSelectedTeam(null)}
+        onTogglePin={togglePin}
+        onSelectPlayer={(p) => { setSelectedPlayer(p); setPlayerProfile(null); }}
+        leagueNews={news}
+      />
+    );
+  }
+
+  if (selectedOrg) {
     const org = selectedOrg;
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         {/* Back + Pin */}
         <div className="flex items-center gap-3">
-          <button onClick={() => { setSelectedTeam(null); setSelectedOrg(null); setRichData(null); }}
+          <button onClick={() => { setSelectedOrg(null); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
-            <ChevronLeft size={12} /> All {selectedSportsTab} {isEsports ? 'Orgs' : 'Teams'}
+            <ChevronLeft size={12} /> All ESPORTS Orgs
           </button>
-          {(selectedTeam || org) && (
-            <button onClick={() => togglePin(selectedTeam?.id || org!.id)}
+          {org && (
+            <button onClick={() => togglePin(org.id)}
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${
-                pinnedIds.includes(selectedTeam?.id || org!.id)
+                pinnedIds.includes(org.id)
                   ? 'bg-[#FF8C00]/20 border-[#FF8C00]/40 text-[#FF8C00]'
                   : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
               }`}>
-              {pinnedIds.includes(selectedTeam?.id || org!.id) ? <><PinOff size={10} /> Unpin</> : <><Pin size={10} /> Pin</>}
+              {pinnedIds.includes(org.id) ? <><PinOff size={10} /> Unpin</> : <><Pin size={10} /> Pin</>}
             </button>
           )}
         </div>
-
-        {/* Fanart */}
-        {richData?.fanart && (
-          <div className="relative h-44 rounded-[2.5rem] overflow-hidden border border-white/10">
-            <img src={richData.fanart} alt="" className="w-full h-full object-cover opacity-40" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-          </div>
-        )}
-
-        {/* Team header */}
-        {selectedTeam && (
-          <div className="flex items-center gap-5 p-6 rounded-[2.5rem] border border-white/10 relative overflow-hidden"
-            style={{ background: `linear-gradient(135deg, ${selectedTeam.color}22, transparent)` }}>
-            <div className="absolute inset-0 opacity-5" style={{ background: selectedTeam.color }} />
-            <img src={richData?.badge || selectedTeam.logo} alt={selectedTeam.name} className="w-20 h-20 object-contain drop-shadow-2xl relative z-10" />
-            <div className="flex-1 relative z-10">
-              <h2 className="text-3xl font-black uppercase tracking-tight leading-none">{selectedTeam.location}</h2>
-              <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: selectedTeam.altColor !== '#ffffff' ? selectedTeam.altColor : '#FF8C00' }}>{selectedTeam.nickname}</h3>
-              <div className="flex flex-wrap items-center gap-3 mt-2">
-                {selectedTeam.record && <span className="text-[9px] font-bold text-white/40 uppercase">{selectedTeam.record}</span>}
-                {richData?.city && <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase"><MapPin size={9} />{richData.city}</span>}
-                {richData?.founded && <span className="text-[9px] font-bold text-white/30 uppercase">Est. {richData.founded}</span>}
-                {richData?.stadium && <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase"><Building2 size={9} />{richData.stadium}</span>}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Esports org header */}
         {org && (
@@ -370,291 +356,6 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
         {org?.description && (
           <div className="p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/8">
             <p className="text-sm text-white/60 leading-relaxed">{org.description}</p>
-          </div>
-        )}
-
-        {/* Tab strip */}
-        {selectedTeam && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            {(['overview', 'roster', 'schedule', 'legends', 'news'] as TeamTab[]).map(tab => (
-              <button key={tab} onClick={() => setTeamTab(tab)}
-                className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                  teamTab === tab
-                    ? 'bg-[#FF8C00] text-black shadow-[0_0_20px_rgba(255,140,0,0.35)]'
-                    : 'bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10'
-                }`}>
-                {tab === 'overview' ? 'Overview' : tab === 'roster' ? 'Roster' : tab === 'schedule' ? 'Schedule' : tab === 'legends' ? 'Legends' : 'Headlines'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {teamLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-28 rounded-[2rem] bg-white/5 animate-pulse" />)}
-          </div>
-        )}
-
-        {!teamLoading && richData && selectedTeam && (
-          <AnimatePresence mode="wait">
-            <motion.div key={teamTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-
-              {/* OVERVIEW */}
-              {teamTab === 'overview' && (
-                <div className="space-y-6">
-                  {richData.description && (
-                    <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/8 space-y-3">
-                      <h4 className="text-[8px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2"><Newspaper size={10} /> Team History</h4>
-                      <p className="text-sm text-white/65 leading-relaxed">{richData.description}</p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {richData.city && (
-                      <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/8 text-center space-y-1.5">
-                        <MapPin size={18} className="mx-auto text-[#FF8C00]" />
-                        <p className="text-[7px] font-black uppercase tracking-widest text-white/25">City</p>
-                        <p className="text-[10px] font-black uppercase">{richData.city}</p>
-                      </div>
-                    )}
-                    {richData.founded && (
-                      <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/8 text-center space-y-1.5">
-                        <Calendar size={18} className="mx-auto text-[#FF8C00]" />
-                        <p className="text-[7px] font-black uppercase tracking-widest text-white/25">Founded</p>
-                        <p className="text-[10px] font-black uppercase">{richData.founded}</p>
-                      </div>
-                    )}
-                    {richData.stadium && (
-                      <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/8 text-center space-y-1.5">
-                        <Building2 size={18} className="mx-auto text-[#FF8C00]" />
-                        <p className="text-[7px] font-black uppercase tracking-widest text-white/25">Venue</p>
-                        <p className="text-[10px] font-black uppercase leading-tight">{richData.stadium}</p>
-                      </div>
-                    )}
-                    {selectedTeam.record && (
-                      <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/8 text-center space-y-1.5">
-                        <Trophy size={18} className="mx-auto text-[#FF8C00]" />
-                        <p className="text-[7px] font-black uppercase tracking-widest text-white/25">Record</p>
-                        <p className="text-[10px] font-black uppercase">{selectedTeam.record}</p>
-                      </div>
-                    )}
-                  </div>
-                  {richData.recentGames.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[8px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2"><Calendar size={10} /> Recent Games</h4>
-                        <button onClick={() => setTeamTab('schedule')} className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00]/60 hover:text-[#FF8C00] transition-colors flex items-center gap-1">Full Schedule <ChevronRight size={10} /></button>
-                      </div>
-                      <div className="space-y-2">
-                        {richData.recentGames.slice(0, 6).map((game: any, i: number) => {
-                          const comps = game.competitions?.[0];
-                          const away  = comps?.competitors?.find((c: any) => c.homeAway === 'away');
-                          const home  = comps?.competitors?.find((c: any) => c.homeAway === 'home');
-                          const done  = comps?.status?.type?.completed;
-                          const isTeamHome = home?.team?.id === selectedTeam.id;
-                          const myComp = isTeamHome ? home : away;
-                          const won = done && myComp?.winner;
-                          return (
-                            <div key={i} className="flex items-center justify-between px-5 py-3 bg-white/[0.03] rounded-2xl border border-white/5 hover:bg-white/[0.06] transition-all">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[7px] font-black uppercase text-white/20">{isTeamHome ? 'vs' : '@'}</span>
-                                <img src={isTeamHome ? away?.team?.logo : home?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-70" />
-                                <span className="text-[9px] font-black uppercase">{isTeamHome ? away?.team?.abbreviation : home?.team?.abbreviation}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-[8px] font-bold text-white/35">{game.status?.type?.shortDetail || ''}</span>
-                                {done && (
-                                  <>
-                                    <span className="text-[9px] font-black text-white">{away?.score} – {home?.score}</span>
-                                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{won ? 'W' : 'L'}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ROSTER */}
-              {teamTab === 'roster' && (
-                <div className="space-y-6">
-                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Tap a player for profile &amp; stats</p>
-                  {richData.roster.length === 0 && (
-                    <div className="py-12 text-center">
-                      <Users size={32} className="mx-auto text-white/10 mb-3" />
-                      <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Roster unavailable</p>
-                    </div>
-                  )}
-                  {richData.roster.map((group, gi) => (
-                    <div key={gi} className="space-y-2">
-                      <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 px-1">{group.group}</p>
-                      <div className="grid gap-2">
-                        {group.athletes.map((a: any, ai: number) => (
-                          <button key={ai}
-                            onClick={() => a.id && setSelectedPlayer({ id: String(a.id), name: a.fullName || a.displayName })}
-                            className="flex items-center gap-4 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.07] rounded-2xl border border-white/5 hover:border-[#FF8C00]/20 transition-all group text-left w-full"
-                          >
-                            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-white/10 border border-white/10">
-                              {a.headshot?.href
-                                ? <img src={a.headshot.href} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
-                                : <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-white/20" /></div>
-                              }
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-black uppercase tracking-tight truncate group-hover:text-[#FF8C00] transition-colors">{a.fullName || a.displayName}</p>
-                                {a.status?.type?.name && a.status.type.name !== 'active' && (
-                                  <span className="text-[7px] font-black uppercase px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded-full shrink-0">{a.status.type.abbreviation || a.status.type.name}</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                                {(a.position?.displayName || a.position?.abbreviation) && <span className="text-[8px] font-bold text-white/40 uppercase">{a.position.displayName || a.position.abbreviation}</span>}
-                                {a.jersey && <span className="text-[8px] font-bold text-white/25">#{a.jersey}</span>}
-                                {a.age && <span className="text-[8px] font-bold text-white/20">{a.age} yrs</span>}
-                              </div>
-                            </div>
-                            {a.jersey && (
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 border border-white/10" style={{ background: `${selectedTeam.color}40` }}>{a.jersey}</div>
-                            )}
-                            <ChevronRight size={12} className="text-white/15 group-hover:text-[#FF8C00]/50 transition-colors shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* SCHEDULE */}
-              {teamTab === 'schedule' && (
-                <div className="space-y-3">
-                  {scheduleLoading && (
-                    <div className="space-y-2">{[...Array(10)].map((_, i) => <div key={i} className="h-14 rounded-2xl bg-white/5 animate-pulse" />)}</div>
-                  )}
-                  {!scheduleLoading && teamSchedule.length === 0 && (
-                    <div className="py-16 text-center space-y-3">
-                      <Calendar size={36} className="mx-auto text-white/10" />
-                      <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Schedule unavailable</p>
-                    </div>
-                  )}
-                  {!scheduleLoading && teamSchedule.length > 0 && (
-                    <>
-                      {['pre', 'in', 'post'].map(state => {
-                        const games = teamSchedule.filter((g: any) => {
-                          const s = g.competitions?.[0]?.status?.type?.state ?? g.status?.type?.state;
-                          return state === 'post' ? (s === 'post' || !s) : s === state;
-                        });
-                        if (games.length === 0) return null;
-                        const label = state === 'pre' ? 'Upcoming' : state === 'in' ? '● Live' : 'Results';
-                        return (
-                          <div key={state} className="space-y-2">
-                            <p className={`text-[8px] font-black uppercase tracking-[0.4em] ${state === 'in' ? 'text-red-400' : 'text-white/30'}`}>{label}</p>
-                            {games.map((game: any, i: number) => {
-                              const comps = game.competitions?.[0];
-                              const away  = comps?.competitors?.find((c: any) => c.homeAway === 'away');
-                              const home  = comps?.competitors?.find((c: any) => c.homeAway === 'home');
-                              const done  = comps?.status?.type?.completed;
-                              const isTeamHome = home?.team?.id === selectedTeam.id;
-                              const myComp = isTeamHome ? home : away;
-                              const opp    = isTeamHome ? away : home;
-                              const won    = done && myComp?.winner;
-                              return (
-                                <div key={i} className={`flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${state === 'in' ? 'bg-red-500/5 border-red-500/20' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06]'}`}>
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    {done && (
-                                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{won ? 'W' : 'L'}</span>
-                                    )}
-                                    <span className="text-[7px] font-black uppercase text-white/20 shrink-0">{isTeamHome ? 'vs' : '@'}</span>
-                                    <img src={opp?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-70 shrink-0" loading="lazy" />
-                                    <span className="text-[9px] font-black uppercase truncate">{opp?.team?.displayName || opp?.team?.abbreviation}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3 shrink-0">
-                                    {done && <span className="text-[9px] font-black">{myComp?.score} – {opp?.score}</span>}
-                                    {state === 'in' && <span className="text-[7px] font-black text-red-400 animate-pulse">{comps?.status?.type?.shortDetail}</span>}
-                                    {state === 'pre' && comps?.date && (
-                                      <span className="text-[8px] font-bold text-white/30">{new Date(comps.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* LEGENDS */}
-              {teamTab === 'legends' && (
-                <div className="space-y-4">
-                  {richData.legends.length === 0 && (
-                    <div className="py-16 text-center space-y-3">
-                      <Star size={36} className="mx-auto text-white/10" />
-                      <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Building sports archive...</p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {richData.legends.map((player, i) => (
-                      <motion.div key={player.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.025 }}
-                        className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] overflow-hidden hover:border-white/20 hover:bg-white/[0.06] transition-all group cursor-pointer"
-                        onClick={() => player.id && setSelectedPlayer({ id: player.id, name: player.name })}
-                      >
-                        <div className="aspect-[3/4] overflow-hidden bg-white/5 relative">
-                          {player.thumb
-                            ? <img src={player.thumb} alt={player.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                            : <div className="w-full h-full flex items-center justify-center"><Star size={28} className="text-white/10" /></div>
-                          }
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                          <div className="absolute bottom-2 left-2 right-2">
-                            <p className="text-[9px] font-black uppercase tracking-tight text-white line-clamp-1">{player.name}</p>
-                            {player.position && <p className="text-[7px] font-bold text-[#FF8C00]/80 uppercase">{player.position}</p>}
-                          </div>
-                        </div>
-                        {(player.description || player.nationality || player.birthDate) && (
-                          <div className="p-3 space-y-1">
-                            {player.description && <p className="text-[8px] text-white/40 leading-relaxed line-clamp-3">{player.description}</p>}
-                            <p className="text-[7px] font-black uppercase tracking-widest text-white/20">
-                              {[player.nationality, player.birthDate ? new Date(player.birthDate).getFullYear().toString() : ''].filter(Boolean).join(' · ')}
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* NEWS */}
-              {teamTab === 'news' && (
-                <div className="space-y-3">
-                  {(richData.news.length > 0 ? richData.news : news).slice(0, 15).map((article: any, i: number) => (
-                    <a key={i} href={article.links?.web?.href || article.url || '#'} target="_blank" rel="noopener noreferrer"
-                      className="flex gap-4 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
-                      {article.images?.[0]?.url && <img src={article.images[0].url} alt="" className="w-20 h-14 object-cover rounded-xl shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
-                        <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mt-1.5">{article.published ? new Date(article.published).toLocaleDateString() : ''}{article.byline ? ` · ${article.byline}` : ''}</p>
-                      </div>
-                      <ExternalLink size={12} className="text-white/20 shrink-0 group-hover:text-white/60 transition-colors mt-0.5" />
-                    </a>
-                  ))}
-                  {richData.news.length === 0 && news.length === 0 && <p className="text-[9px] font-black uppercase text-white/20 tracking-widest py-8 text-center">No headlines available</p>}
-                </div>
-              )}
-
-            </motion.div>
-          </AnimatePresence>
-        )}
-
-        {!teamLoading && !richData && selectedTeam && (
-          <div className="py-12 text-center space-y-3">
-            <AlertCircle size={32} className="mx-auto text-white/10" />
-            <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Could not load team details</p>
           </div>
         )}
       </motion.div>
@@ -909,11 +610,11 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           )}
 
           {/* Champions History */}
-          {champions.length > 0 && (
+          {(LEAGUE_CHAMPIONS[selectedSportsTab] ?? []).length > 0 && (
             <div className="space-y-3">
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Award size={10} /> Championship History</h4>
               <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
-                {champions.map((c, i) => (
+                {(LEAGUE_CHAMPIONS[selectedSportsTab] ?? []).map((c: ChampionEntry, i: number) => (
                   <div key={c.year} className={`min-w-[150px] shrink-0 p-4 rounded-[1.5rem] border transition-all ${
                     i === 0 ? 'bg-[#FF8C00]/10 border-[#FF8C00]/30' : 'bg-white/[0.02] border-white/8'
                   }`}>

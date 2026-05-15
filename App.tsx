@@ -1219,12 +1219,12 @@ const App: React.FC = () => {
                       const items = {
                         USER_PROFILE: { label: 'My Profile', icon: User },
                         DASHBOARD: { label: 'Home', icon: Settings },
-                        MUSIC: { label: 'Music', icon: Music2 },
+                        MUSIC: { label: 'Plajah Chora', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
-                        VIDEOS: { label: 'Videos', icon: VideoIcon },
-                        MOVIES_TV: { label: 'Movies & TV', icon: Film },
+                        VIDEOS: { label: 'Plajah Reello', icon: VideoIcon },
+                        MOVIES_TV: { label: 'Plajah Taleo', icon: Film },
                         ARTICLES: { label: 'News Stand', icon: Newspaper },
-                        BOOKS: { label: 'Books', icon: BookOpen },
+                        BOOKS: { label: 'Plajah Lorea', icon: BookOpen },
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
                         APPS: { label: 'Apps', icon: AppWindow },
@@ -1407,7 +1407,7 @@ const App: React.FC = () => {
               <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
                 <div className="flex items-center justify-around px-1 pt-1 pb-android-nav">
                   {[
-                    { id: 'MUSIC', icon: Music2, label: 'Music' },
+                    { id: 'MUSIC', icon: Music2, label: 'Plajah Chora' },
                     { id: 'ARTICLES', icon: Newspaper, label: 'News' },
                     { id: 'DASHBOARD', icon: Home, label: 'Home' },
                     { id: 'SEARCH', icon: Search, label: 'Search' },
@@ -1466,10 +1466,10 @@ const App: React.FC = () => {
                       {[
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
                         { id: 'DASHBOARD', icon: null, label: 'Home' },
-                        { id: 'MUSIC', icon: Music2, label: 'Music' },
-                        { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
-                        { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
-                        { id: 'BOOKS', icon: BookOpen, label: 'Books' },
+                        { id: 'MUSIC', icon: Music2, label: 'Plajah Chora' },
+                        { id: 'VIDEOS', icon: VideoIcon, label: 'Plajah Reello' },
+                        { id: 'MOVIES_TV', icon: Film, label: 'Plajah Taleo' },
+                        { id: 'BOOKS', icon: BookOpen, label: 'Plajah Lorea' },
                         { id: 'ARTICLES', icon: Newspaper, label: 'News Stand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },
                         { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
@@ -1648,7 +1648,7 @@ const App: React.FC = () => {
                             }}
                             className={`text-sm font-black uppercase tracking-[0.3em] transition-all pb-2 border-b-2 whitespace-nowrap shrink-0 ${archiveTab === tab ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                           >
-                            {tab === 'MY_ARCHIVE' ? 'My Archive' : tab === 'MOVIES_TV' ? 'Movies & TV' : tab === 'VIDEO' ? 'Videos' : tab === 'LIVE_HUB' ? 'Live' : tab}
+                            {tab === 'MY_ARCHIVE' ? 'My Archive' : tab === 'MOVIES_TV' ? 'Plajah Taleo' : tab === 'VIDEO' ? 'Plajah Reello' : tab === 'LIVE_HUB' ? 'Live' : tab === 'MUSIC' ? 'Plajah Chora' : tab === 'BOOK' ? 'Plajah Lorea' : tab}
                           </button>
                         ))}
                       </div>

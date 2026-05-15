@@ -514,7 +514,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           }}
         />
       )}
-      <div className="absolute inset-0 bg-black/60 pointer-events-none" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at top center, rgba(0,0,0,0.9), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.45) 18%, rgba(0,0,0,0.15) 42%, rgba(0,0,0,0.65) 100%)'
+        }}
+      />
 
       {/* ── LEFT: Video + Info ─────────────────────────────────────────────── */}
       <div className="relative flex-1 flex flex-col overflow-y-auto min-h-0">
