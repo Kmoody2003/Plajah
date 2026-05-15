@@ -51,22 +51,6 @@ const HomeView: React.FC<{
 
   return (
     <div className="space-y-16">
-      {/* Universes Bar */}
-      <section className="px-8 md:px-16 pt-8 flex gap-8 border-b border-white/5 pb-6">
-        {universes.map(u => (
-            <button key={u.id} 
-                onClick={() => {
-                    if (u.type === 'ALLY') {
-                        setActiveAllyUrl(u.url || null);
-                        setCurrentSubView('ALLY_VIEW');
-                    }
-                }}
-                className='font-black uppercase tracking-[0.3em] text-[10px] text-white/50 hover:text-white transition-colors'>
-                {u.name}
-            </button>
-        ))}
-      </section>
-
       {/* Hero Section */}
       <section className="relative h-[75vh] w-full overflow-hidden">
         <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${featuredItem && 'thumbnailUrl' in featuredItem ? featuredItem.thumbnailUrl : (featuredItem as Album)?.headerImage || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80'})` }}>
@@ -628,7 +612,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         <button className="text-white/60 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5" onClick={onBack}>
           <ChevronLeft size={22} />
         </button>
-        <span className="text-sm font-black uppercase tracking-[0.3em] text-white/80">Storytime</span>
+        <span className="text-sm font-black uppercase tracking-[0.3em] text-white/80">Taleo</span>
       </div>
       <button className="text-white/60 hover:text-white transition-colors p-2">
         <Search size={20} />
