@@ -1,4 +1,21 @@
 
+export interface Story {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhoto?: string;
+  mediaUrl: string;
+  mediaType: 'PHOTO' | 'VIDEO';
+  caption?: string;
+  photoDisplayDuration?: number; // seconds (default 5)
+  timestamp: number;
+  expiresAt: number; // timestamp + 24h
+  viewerIds?: string[];
+  isPublic?: boolean;
+  link?: string;
+  backgroundColor?: string;
+}
+
 export interface InteractiveZone {
   id: string;
   type: 'PHOTO' | 'TEXT' | 'VINYL' | 'GAME_SCREEN';

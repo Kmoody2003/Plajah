@@ -17,6 +17,8 @@ import ProfileFeed from './ProfileFeed';
 import PayItForwardButton from './PayItForwardButton';
 import PostCard from './PostCard';
 import MiniMusicPlayer from './MiniMusicPlayer';
+import StoriesBar from './StoriesBar';
+import StoryCreator from './StoryCreator';
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -1126,6 +1128,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [userGames, setUserGames] = useState<Game[]>([]);
   const [userSongs, setUserSongs] = useState<any[]>([]);
   const [isPosting, setIsPosting] = useState(false);
+  const [showStoryCreator, setShowStoryCreator] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<'VERTICAL' | 'HORIZONTAL' | 'SQUARE'>('HORIZONTAL');
   const [autoCrop, setAutoCrop] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -2802,6 +2805,19 @@ const toggleFavoriteTeam = async (team: string) => {
         /* ── Plajah Social Canvas ───────────────────────────── */
         <div className="w-full max-w-2xl mx-auto flex flex-col flex-1 overflow-hidden">
 
+          {/* ── Stories Bar ── */}
+          {currentUser && (
+            <div className="shrink-0 border-b border-white/5">
+              <StoriesBar
+                currentUserId={currentUser.uid}
+                currentUserName={currentUser.displayName || 'Me'}
+                currentUserPhoto={currentUser.photoURL || undefined}
+                followedUids={userProfile?.following ?? []}
+                onVisitUser={onVisitUser}
+              />
+            </div>
+          )}
+
           {/* ── Composer + Timeline (pinned, does not scroll) ── */}
           <div className="shrink-0">
             {/* Frosted glass panel */}
@@ -3139,6 +3155,14 @@ const toggleFavoriteTeam = async (team: string) => {
                   title="From Platform">
                   <Music2 size={16} />
                 </button>
+                {/* Story */}
+                {currentUser && (
+                  <button onClick={() => setShowStoryCreator(true)}
+                    className="p-2 rounded-xl text-white/30 hover:text-small-orange hover:bg-white/5 transition-all"
+                    title="Share to Story">
+                    <Plus size={16} />
+                  </button>
+                )}
 
                 <div className="ml-auto flex items-center gap-2">
                   {(simplePostText.length > 0 || composerMedia.length > 0) && (
@@ -3332,6 +3356,18 @@ const toggleFavoriteTeam = async (team: string) => {
       )}
     </div>
    </div>
+
+   {/* Global Story Creator modal */}
+   <AnimatePresence>
+     {showStoryCreator && currentUser && (
+       <StoryCreator
+         currentUserId={currentUser.uid}
+         currentUserName={currentUser.displayName || 'Me'}
+         currentUserPhoto={currentUser.photoURL || undefined}
+         onClose={() => setShowStoryCreator(false)}
+       />
+     )}
+   </AnimatePresence>
   );
 };
 

@@ -22,7 +22,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -5898,4 +5898,61 @@ export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlis
     const snap = await getDoc(doc(db, 'personal_playlists', playlistId));
     return snap.exists() ? (snap.data() as Playlist) : null;
   } catch (_) { return null; }
+};
+
+// ─── Stories ─────────────────────────────────────────────────────────────────
+const STORIES_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'timestamp' | 'expiresAt'>): Promise<string | null> => {
+  try {
+    const now = Date.now();
+    const ref = doc(collection(db, 'stories'));
+    const story: Story = { ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS };
+    await setDoc(ref, story);
+    return ref.id;
+  } catch (e) { console.error('createStory', e); return null; }
+};
+
+export const listenToFollowedStories = (followedUids: string[], callback: (stories: Story[]) => void) => {
+  if (followedUids.length === 0) { callback([]); return () => {}; }
+  const now = Date.now();
+  const q = query(
+    collection(db, 'stories'),
+    where('ownerId', 'in', followedUids.slice(0, 30)),
+    where('expiresAt', '>', now),
+    orderBy('expiresAt'),
+    orderBy('timestamp', 'desc'),
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+};
+
+export const listenToUserStories = (uid: string, callback: (stories: Story[]) => void) => {
+  const now = Date.now();
+  const q = query(
+    collection(db, 'stories'),
+    where('ownerId', '==', uid),
+    where('expiresAt', '>', now),
+    orderBy('expiresAt'),
+    orderBy('timestamp', 'desc'),
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+};
+
+export const markStoryViewed = async (storyId: string, viewerId: string) => {
+  try {
+    await updateDoc(doc(db, 'stories', storyId), { viewerIds: arrayUnion(viewerId) });
+  } catch (_) {}
+};
+
+export const deleteStory = async (storyId: string) => {
+  try { await deleteDoc(doc(db, 'stories', storyId)); } catch (_) {}
+};
+
+export const uploadStoryMedia = async (file: File, ownerId: string): Promise<string | null> => {
+  try {
+    const path = `stories/${ownerId}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  } catch (e) { console.error('uploadStoryMedia', e); return null; }
 };

@@ -149,7 +149,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   // Settings State
   const [fontSize, setFontSize] = useState(100);
-  const [readingTheme, setReadingTheme] = useState<'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER'>('DEFAULT');
+  const [readingTheme, setReadingTheme] = useState<'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER'>('SEPIA');
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif' | 'mono'>('sans');
 
   // Read Along (Book Club) State
@@ -214,7 +214,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const pages = currentChapter?.pages || [];
   const isEpub = currentChapter?.url?.toLowerCase().endsWith('.epub') || currentChapter?.url?.includes('epub');
   const isPdf = currentChapter?.url?.toLowerCase().endsWith('.pdf') || currentChapter?.url?.includes('pdf');
-  const isTxt = currentChapter?.url?.toLowerCase().endsWith('.txt') || currentChapter?.url?.includes('txt') || currentChapter?.url?.includes('text/plain');
+  const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
+    currentChapter?.url?.toLowerCase().endsWith('.txt') ||
+    currentChapter?.url?.includes('/txt') ||
+    currentChapter?.url?.includes('text%2Fplain') ||
+    currentChapter?.url?.includes('text/plain') ||
+    (currentChapter?.url?.includes('archive.org') && !currentChapter?.url?.includes('.epub') && !currentChapter?.url?.includes('.pdf'))
+  );
   const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
 
   useEffect(() => {
@@ -238,11 +244,19 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const response = await fetch(fetchUrl);
       if (!response.ok) throw new Error(`Signal loss: ${response.status} ${response.statusText}`);
       
-      const text = await response.text();
+      let text = await response.text();
       if (!text || text.trim().length === 0) {
         throw new Error("Empty frequency captured (Zero length content)");
       }
-      
+      // Strip HTML tags that archive.org sometimes includes in plain-text responses
+      if (text.trimStart().startsWith('<')) {
+        text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                   .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                   .replace(/<[^>]+>/g, ' ')
+                   .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+                   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+                   .replace(/\s{3,}/g, '\n\n').trim();
+      }
       setChapterContent(text);
     } catch (error) {
       console.error('Error loading full text:', error);
@@ -426,9 +440,27 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   const toggleReadAlong = () => {
     setIsReadAlongActive(!isReadAlongActive);
-    // For demo purposes, we'll randomly assign host or participant
-    setIsHost(Math.random() > 0.5); 
+    setIsHost(Math.random() > 0.5);
   };
+
+  // Plain-text reading card derived styles
+  const txtCardBg =
+    readingTheme === 'SEPIA' ? 'bg-[#f4ecd8] border border-[#d9c9a3]' :
+    readingTheme === 'PAPER' ? 'bg-[#fafaf8] border border-black/10' :
+    readingTheme === 'DARK'  ? 'bg-[#111111] border border-white/5' :
+                               'bg-[#1c1c1f] border border-white/5';
+  const txtColor =
+    readingTheme === 'SEPIA' ? 'text-[#4a3728]' :
+    readingTheme === 'PAPER' ? 'text-[#1a1a1a]' :
+    readingTheme === 'DARK'  ? 'text-[#c8c8c8]' :
+                               'text-white/85';
+  const txtHdColor =
+    readingTheme === 'SEPIA' ? 'text-[#7a4f2b]' :
+    readingTheme === 'PAPER' ? 'text-black' :
+                               'text-small-orange';
+  const txtFontFamily =
+    fontFamily === 'serif' ? 'font-serif' :
+    fontFamily === 'mono'  ? 'font-mono'  : 'font-sans';
 
   return (
     <div className={`fixed inset-0 ${s.bg} z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 transition-colors duration-500`}>
@@ -668,16 +700,25 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Decrypting neural transcript...</p>
               </div>
             ) : chapterContent ? (
-              <div className={`max-w-3xl w-full ${s.card} p-12 lg:p-20 rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
-                <h3 className={`text-3xl font-display font-black uppercase tracking-tight mb-12 text-center ${theme === 'LIGHT' ? 'text-black' : 'text-small-orange'}`}>
-                  {currentChapter?.title}
-                </h3>
-                <div className={`prose ${theme === 'LIGHT' ? 'prose-neutral' : 'prose-invert'} prose-lg max-w-none`}>
-                  {chapterContent.split('\n').filter(p => p.trim()).map((para, i) => (
-                    <p key={i} className={`mb-6 ${theme === 'LIGHT' ? 'text-black/80' : 'text-white/80'} leading-relaxed font-medium text-lg`}>
-                      {para}
-                    </p>
-                  ))}
+              <div className={`max-w-3xl w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
+                {book.coverImage && (
+                  <div className="relative h-40 overflow-hidden rounded-t-3xl">
+                    <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter:'blur(24px) brightness(0.5) saturate(1.3)' }} />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
+                    <div className="absolute inset-0 flex items-end p-8">
+                      <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{currentChapter?.title}</h3>
+                    </div>
+                  </div>
+                )}
+                <div className="p-10 lg:p-16">
+                  {!book.coverImage && (
+                    <h3 className={`text-2xl font-black uppercase tracking-tight mb-10 text-center ${txtHdColor}`}>{currentChapter?.title}</h3>
+                  )}
+                  <div className={`${txtFontFamily} text-lg leading-[1.9] ${txtColor} space-y-0`} style={{ fontSize: `${fontSize}%` }}>
+                    {chapterContent.split('\n').filter(p => p.trim()).map((para, i) => (
+                      <p key={i} className="mb-5">{para}</p>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

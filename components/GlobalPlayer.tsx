@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
-import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box } from 'lucide-react';
+import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon } from 'lucide-react';
 import Logo from './Logo';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
@@ -96,6 +96,52 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   const [isSpillOverOpen, setIsSpillOverOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+
+  // ── Music Video Sync ────────────────────────────────────────────────────────
+  const musicVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [showMusicVideo, setShowMusicVideo] = useState(false);
+  const [musicVideoReady, setMusicVideoReady] = useState(false);
+
+  // Preload the linked music video whenever the track changes
+  useEffect(() => {
+    const videoUrl = currentTrack?.videoUrl;
+    setShowMusicVideo(false);
+    setMusicVideoReady(false);
+    if (!videoUrl) return;
+    const vid = document.createElement('video');
+    vid.src = videoUrl;
+    vid.preload = 'auto';
+    vid.muted = false;
+    vid.oncanplaythrough = () => setMusicVideoReady(true);
+    musicVideoRef.current = vid;
+    return () => { vid.pause(); vid.src = ''; };
+  }, [currentTrack?.id, currentTrack?.videoUrl]);
+
+  const switchToMusicVideo = () => {
+    const vid = musicVideoRef.current;
+    if (!vid || !currentTrack?.videoUrl) return;
+    const videoDuration = vid.duration || 0;
+    if (duration > 0 && videoDuration > 0) {
+      const lyrics = currentTrack.lyrics || '';
+      const words = lyrics.trim() ? lyrics.split(/\s+/).filter(Boolean) : [];
+      let syncTime: number;
+      if (words.length > 0) {
+        const wordIdx = Math.round((currentTime / duration) * words.length);
+        syncTime = (wordIdx / words.length) * videoDuration;
+      } else {
+        syncTime = (currentTime / duration) * videoDuration;
+      }
+      vid.currentTime = Math.max(0, Math.min(syncTime, videoDuration - 0.5));
+    }
+    vid.volume = volume;
+    setShowMusicVideo(true);
+    vid.play().catch(() => {});
+  };
+
+  const closeMusicVideo = () => {
+    musicVideoRef.current?.pause();
+    setShowMusicVideo(false);
+  };
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -1039,8 +1085,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>
               </div>
 
-                {/* Right Side: queue button */}
-                <div className={`flex items-center justify-end shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                {/* Right Side: music video + queue buttons */}
+                <div className={`flex items-center justify-end gap-1 shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                  {currentTrack?.videoUrl && (
+                    <button
+                      onClick={switchToMusicVideo}
+                      disabled={!musicVideoReady}
+                      className={`p-2 android-press transition-all rounded-full ${musicVideoReady ? 'text-small-orange hover:bg-small-orange/10' : 'text-white/15'}`}
+                      style={{ minWidth: 36, minHeight: 36 }}
+                      title={musicVideoReady ? 'Switch to Music Video' : 'Loading video…'}
+                    >
+                      <VideoIcon size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}
                     className={`p-2 android-press transition-all rounded-full ${isSpillOverOpen ? 'text-small-orange' : 'text-white/30'}`}
@@ -1631,6 +1688,47 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               </div>
             </div>
           </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ── Music Video Overlay ────────────────────────────────────────────── */}
+    <AnimatePresence>
+      {showMusicVideo && currentTrack?.videoUrl && (
+        <motion.div
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          className="fixed inset-0 z-[120] bg-black flex flex-col"
+        >
+          {/* Header bar */}
+          <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 bg-gradient-to-b from-black/80 to-transparent">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">Music Video</p>
+              <h3 className="text-sm font-black uppercase tracking-tight text-white">{currentTrack.title}</h3>
+            </div>
+            <button onClick={closeMusicVideo} className="p-2 rounded-full bg-black/40 text-white/60 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Video */}
+          <video
+            ref={el => {
+              if (el && musicVideoRef.current && el !== musicVideoRef.current) {
+                el.src = currentTrack.videoUrl!;
+                el.currentTime = musicVideoRef.current.currentTime;
+                el.play().catch(() => {});
+              }
+              if (el) musicVideoRef.current = el;
+            }}
+            className="w-full h-full object-contain"
+            controls
+            playsInline
+            autoPlay
+            onEnded={closeMusicVideo}
+          />
         </motion.div>
       )}
     </AnimatePresence>
