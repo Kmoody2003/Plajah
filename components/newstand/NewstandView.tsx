@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
 import { fetchNewsFromRSS, prefetchNewsCategories } from '../../services/rssService';
@@ -372,7 +372,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   className="flex items-center gap-3 bg-black/40 hover:bg-black/60 border border-white/10 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95"
                 >
                   <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
-                    <img src={t.logo} className="w-full h-full object-contain p-1" alt={t.name} />
+                    <img loading="lazy" decoding="async" src={t.logo} className="w-full h-full object-contain p-1" alt={t.name} />
                   </div>
                   <div className="flex flex-col items-start gap-0.5">
                     <span className="text-[9px] uppercase text-small-orange tracking-widest leading-none">{t.league}</span>
@@ -409,12 +409,12 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
               {/* League tiles */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
-                  { id: 'SPORTS_NBA', label: 'NBA', icon: '🏀' },
-                  { id: 'SPORTS_NFL', label: 'NFL', icon: '🏈' },
-                  { id: 'SPORTS_NHL', label: 'NHL', icon: '🏒' },
-                  { id: 'SPORTS_MLB', label: 'MLB', icon: '⚾' },
-                  { id: 'SPORTS_NCAA', label: 'NCAA', icon: '🎓' },
-                  { id: 'SPORTS_ESPORTS', label: 'Esports', icon: '🎮' },
+                  { id: 'SPORTS_NBA', label: 'NBA', icon: 'ðŸ€' },
+                  { id: 'SPORTS_NFL', label: 'NFL', icon: 'ðŸˆ' },
+                  { id: 'SPORTS_NHL', label: 'NHL', icon: 'ðŸ’' },
+                  { id: 'SPORTS_MLB', label: 'MLB', icon: 'âš¾' },
+                  { id: 'SPORTS_NCAA', label: 'NCAA', icon: 'ðŸŽ“' },
+                  { id: 'SPORTS_ESPORTS', label: 'Esports', icon: 'ðŸŽ®' },
                 ].map(l => (
                   <button
                     key={l.id}
@@ -445,7 +445,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                       >
                         {item.imageUrl && (
                           <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
-                            <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={item.imageUrl} alt="" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -484,7 +484,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
             <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {markets.map((m: any) => (
                 <div key={m.id} className="p-6 bg-white/5 rounded-2xl flex flex-col items-center justify-center gap-2">
-                  <img src={m.image || ''} className="w-8 h-8 rounded-full" />
+                  <img loading="lazy" decoding="async" src={m.image || ''} className="w-8 h-8 rounded-full" />
                   <div className="text-sm font-black">${m.current_price?.toLocaleString() || 'N/A'}</div>
                 </div>
               ))}
@@ -509,7 +509,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
 
           {!loading && (
             <div className={`grid gap-4 ${activeCategory === 'GENERAL' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'}`}>
-              {/* Hero card — first article gets a full-width feature treatment */}
+              {/* Hero card â€” first article gets a full-width feature treatment */}
               {activeCategory === 'GENERAL' && items[0] && (
                 <a
                   href={items[0].url}
@@ -524,14 +524,14 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   }
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
                   <div className="relative z-10 p-8 flex flex-col justify-end h-full">
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} · {items[0].date}</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} Â· {items[0].date}</p>
                     <h2 className="text-2xl lg:text-4xl font-black uppercase tracking-tight leading-tight mb-3 group-hover:text-small-orange transition-colors max-w-3xl">{items[0].title}</h2>
                     <p className="text-sm text-white/50 line-clamp-2 max-w-2xl">{items[0].content}</p>
                   </div>
                 </a>
               )}
 
-              {/* Rest of articles — side-by-side thumbnail layout */}
+              {/* Rest of articles â€” side-by-side thumbnail layout */}
               {(activeCategory === 'GENERAL' ? items.slice(1) : items).map((item) => (
                 <a
                   key={item.id}
@@ -547,7 +547,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   )}
                   <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
                     <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-1">{item.source} · {item.date}</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-1">{item.source} Â· {item.date}</p>
                       <h3 className="text-[11px] font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
                     </div>
                     <p className="text-[9px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>

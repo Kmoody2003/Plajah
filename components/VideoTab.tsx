@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character } from '../types';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
@@ -54,7 +54,7 @@ function timeAgo(ts: number) {
   return `${Math.floor(d / 2592000000)}mo ago`;
 }
 
-// ── Video Card ────────────────────────────────────────────────────────────────
+// â”€â”€ Video Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VideoCard: React.FC<{
   video: Video | Album | any;
   onPlay: () => void;
@@ -118,7 +118,7 @@ const VideoCard: React.FC<{
         )}
         {/* Duration / views pill */}
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
-          {(video as any).playsCount ? `${(video as any).playsCount}` : '—'} views
+          {(video as any).playsCount ? `${(video as any).playsCount}` : 'â€”'} views
         </div>
         {/* Change Thumbnail button (owner only) */}
         {isCardOwner && (
@@ -142,7 +142,7 @@ const VideoCard: React.FC<{
       <div className="flex gap-3">
         {showChannel && (
           <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-0.5 overflow-hidden ring-1 ring-white/10">
-            <img src={(video as any).ownerPhoto || `https://picsum.photos/seed/${(video as any).ownerId}/64/64`} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={(video as any).ownerPhoto || `https://picsum.photos/seed/${(video as any).ownerId}/64/64`} alt="" className="w-full h-full object-cover" />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -154,7 +154,7 @@ const VideoCard: React.FC<{
           </p>
           <div className="flex items-center gap-2 mt-1 text-[8px] font-bold text-white/25 uppercase tracking-widest">
             <span>{timeAgo((video as any).timestamp || (video as any).createdAt || Date.now())}</span>
-            {(video as any).genre && <><span>·</span><span>{(video as any).genre}</span></>}
+            {(video as any).genre && <><span>Â·</span><span>{(video as any).genre}</span></>}
           </div>
         </div>
         <button className="p-1 text-white/20 hover:text-white transition-colors opacity-0 group-hover:opacity-100 shrink-0">
@@ -165,7 +165,7 @@ const VideoCard: React.FC<{
   );
 };
 
-// ── Section Row ───────────────────────────────────────────────────────────────
+// â”€â”€ Section Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VideoRow: React.FC<{
   title: string;
   icon: React.ComponentType<any>;
@@ -204,7 +204,7 @@ const VideoRow: React.FC<{
   </section>
 );
 
-// ── Live Feed Card (extracted to avoid hook-in-map) ───────────────────────────
+// â”€â”€ Live Feed Card (extracted to avoid hook-in-map) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: () => void }> = ({ feed, autoplayUrl, onSelect }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -229,7 +229,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: ()
   );
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
@@ -479,10 +479,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
   const isMusicVideoMode = newVideo.genre === 'Music Video';
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="flex-1 min-h-0">
-      {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Top Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-6 lg:px-12 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
@@ -537,7 +537,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* ── Content ──────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex max-w-7xl mx-auto">
         {/* Sidebar nav (desktop) */}
         <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">
@@ -568,7 +568,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             ))}
           </div>
 
-          {/* ── DISCOVER ──────────────────────────────────────────────────── */}
+          {/* â”€â”€ DISCOVER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {activeView === 'discover' && (
             <div className="space-y-2">
               {/* Featured hero */}
@@ -633,10 +633,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       {/* Header */}
                       <div className="flex items-start gap-6">
                         <div className="w-28 h-40 rounded-2xl overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/10">
-                          <img src={selectedMovie.coverImage} alt={selectedMovie.title} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={selectedMovie.coverImage} alt={selectedMovie.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} · {selectedMovie.movieMetadata?.releaseYear}</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} Â· {selectedMovie.movieMetadata?.releaseYear}</p>
                           <h3 className="text-3xl font-display font-black tracking-tight uppercase mb-2 leading-tight">{selectedMovie.title}</h3>
                           <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{selectedMovie.description}</p>
                           <button type="button" onClick={() => setSelectedMovie(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Dismiss</button>
@@ -653,7 +653,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             {movieCharacters.map(char => (
                               <div key={char.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
                                 <div className="w-10 h-10 rounded-xl bg-white/10 overflow-hidden">
-                                  {char.imageUrl ? <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20 text-lg font-black">{char.name[0]}</div>}
+                                  {char.imageUrl ? <img loading="lazy" decoding="async" src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20 text-lg font-black">{char.name[0]}</div>}
                                 </div>
                                 <p className="text-xs font-black uppercase tracking-tight text-white leading-tight">{char.name}</p>
                                 {char.role && <p className="text-[8px] font-bold uppercase tracking-widest text-white/30">{char.role}</p>}
@@ -676,7 +676,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-sm font-black text-blue-300">{m.actorName[0]}</div>
                                 <div className="min-w-0">
                                   <p className="text-sm font-black text-white truncate">{m.actorName}</p>
-                                  {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName}{m.role ? ` · ${m.role}` : ''}</p>}
+                                  {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName}{m.role ? ` Â· ${m.role}` : ''}</p>}
                                 </div>
                               </div>
                             ))}
@@ -750,7 +750,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* ── MY VIDEOS ────────────────────────────────────────────────── */}
+          {/* â”€â”€ MY VIDEOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {activeView === 'uploads' && (
             <div className="space-y-6 pt-2">
               <div className="flex items-center justify-between">
@@ -773,7 +773,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* ── LIVE ─────────────────────────────────────────────────────── */}
+          {/* â”€â”€ LIVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {activeView === 'live' && (
             <div className="space-y-8 pt-2">
               <div className="flex items-center justify-between">
@@ -794,12 +794,12 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* ── PLAYLISTS ────────────────────────────────────────────────── */}
+          {/* â”€â”€ PLAYLISTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {activeView === 'playlists' && (
             <VideoRow title="My Playlists" icon={List} videos={playlists} onSelect={handlePlay} emptyMessage="No playlists found." />
           )}
 
-          {/* ── CHANNELS ──────────────────────────────────────────────────── */}
+          {/* â”€â”€ CHANNELS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {activeView === 'channel' && (
             <div className="space-y-8 pt-2">
               <div>
@@ -818,7 +818,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
                           <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
                             {p.photoURL
-                              ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                              ? <img loading="lazy" decoding="async" src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
                               : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
                           </div>
                           <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
@@ -851,7 +851,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             <div className="flex items-center gap-3 mb-4">
                               <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10">
                                 {p.photoURL
-                                  ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                                  ? <img loading="lazy" decoding="async" src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
                                   : <div className="w-full h-full flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
                               </div>
                               <div className="min-w-0">
@@ -877,7 +877,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* ── Upload Wizard ────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Upload Wizard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <AnimatePresence>
         {showUpload && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-2xl z-[200] flex items-center justify-center p-4 lg:p-8">
@@ -919,7 +919,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <AnimatePresence mode="wait">
 
-                  {/* ── STEP 1: SELECT ── */}
+                  {/* â”€â”€ STEP 1: SELECT â”€â”€ */}
                   {uploadStep === 1 && (
                     <motion.div
                       key="step1"
@@ -995,7 +995,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                               </div>
                               <div className="text-center">
                                 <p className="text-sm font-black uppercase tracking-widest text-white/40">Drop your video here</p>
-                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse — MP4, MOV, AVI, MKV supported</p>
+                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse â€” MP4, MOV, AVI, MKV supported</p>
                               </div>
                             </div>
                           )}
@@ -1036,7 +1036,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     </motion.div>
                   )}
 
-                  {/* ── STEP 2: DETAILS ── */}
+                  {/* â”€â”€ STEP 2: DETAILS â”€â”€ */}
                   {uploadStep === 2 && (
                     <motion.div
                       key="step2"
@@ -1155,7 +1155,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Thumbnail <span className="text-white/20">(16:9 recommended)</span></label>
                             <label className="relative aspect-video flex items-center justify-center rounded-2xl overflow-hidden bg-white/5 border border-dashed border-white/10 cursor-pointer group hover:border-white/25 transition-all">
                               {thumbPreview
-                                ? <img src={thumbPreview} alt="thumb" className="w-full h-full object-cover" />
+                                ? <img loading="lazy" decoding="async" src={thumbPreview} alt="thumb" className="w-full h-full object-cover" />
                                 : <div className="flex flex-col items-center gap-2 text-white/25">
                                     <ImageIcon size={28} />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Upload Thumbnail</span>
@@ -1178,7 +1178,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Cover / Background Image</label>
                             <label className="relative h-28 flex items-center justify-center rounded-2xl overflow-hidden bg-white/5 border border-dashed border-white/10 cursor-pointer group hover:border-white/25 transition-all">
                               {coverPreview
-                                ? <img src={coverPreview} alt="cover" className="w-full h-full object-cover" />
+                                ? <img loading="lazy" decoding="async" src={coverPreview} alt="cover" className="w-full h-full object-cover" />
                                 : <div className="flex items-center gap-2 text-white/25">
                                     <ImageIcon size={18} />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Upload Cover</span>
@@ -1213,7 +1213,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             }}
                             className="w-full py-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30"
                           >
-                            <Camera size={14} /> {isCapturing ? 'Capturing frame…' : 'Auto-generate from video'}
+                            <Camera size={14} /> {isCapturing ? 'Capturing frameâ€¦' : 'Auto-generate from video'}
                           </button>
 
                           {/* World link */}
@@ -1231,7 +1231,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     </motion.div>
                   )}
 
-                  {/* ── STEP 3: PUBLISH ── */}
+                  {/* â”€â”€ STEP 3: PUBLISH â”€â”€ */}
                   {uploadStep === 3 && (
                     <motion.div
                       key="step3"
@@ -1244,7 +1244,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <div className="flex gap-5 p-5 bg-white/[0.04] rounded-2xl border border-white/5">
                         <div className="w-32 aspect-video rounded-xl overflow-hidden bg-white/5 shrink-0">
                           {thumbPreview
-                            ? <img src={thumbPreview} alt="" className="w-full h-full object-cover" />
+                            ? <img loading="lazy" decoding="async" src={thumbPreview} alt="" className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center"><Film size={20} className="text-white/20" /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1285,7 +1285,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
                             <motion.div className="h-full bg-gradient-to-r from-purple-600 to-small-orange rounded-full" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
                           </div>
-                          <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploading… {Math.round(uploadProgress)}%</p>
+                          <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploadingâ€¦ {Math.round(uploadProgress)}%</p>
                           <button type="button" onClick={() => setShowUpload(false)} className="w-full py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-all">Run in Background</button>
                         </div>
                       ) : (
@@ -1320,7 +1320,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       disabled={uploadStep === 1 && !newVideo.file && newVideo.subType !== 'TV_SERIES' && newVideo.subType !== 'MOVIE'}
                       className="px-8 py-3 bg-white text-black hover:bg-small-orange hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Continue →
+                      Continue â†’
                     </button>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon } from 'lucide-react';
@@ -102,12 +102,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const [showMusicVideo, setShowMusicVideo] = useState(false);
   const [musicVideoReady, setMusicVideoReady] = useState(false);
 
-  // Preload the linked music video whenever the track changes
+  const isPlatformVideoUrl = (url?: string) =>
+    !!url && url.includes('firebasestorage.googleapis.com');
+
+  // Preload the linked music video whenever the track changes (platform uploads only)
   useEffect(() => {
     const videoUrl = currentTrack?.videoUrl;
     setShowMusicVideo(false);
     setMusicVideoReady(false);
-    if (!videoUrl) return;
+    if (!videoUrl || !isPlatformVideoUrl(videoUrl)) return;
     const vid = document.createElement('video');
     vid.src = videoUrl;
     vid.preload = 'auto';
@@ -119,7 +122,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   const switchToMusicVideo = () => {
     const vid = musicVideoRef.current;
-    if (!vid || !currentTrack?.videoUrl) return;
+    if (!vid || !currentTrack?.videoUrl || !isPlatformVideoUrl(currentTrack.videoUrl)) return;
     const videoDuration = vid.duration || 0;
     if (duration > 0 && videoDuration > 0) {
       const lyrics = currentTrack.lyrics || '';
@@ -1087,7 +1090,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
                 {/* Right Side: music video + queue buttons */}
                 <div className={`flex items-center justify-end gap-1 shrink-0 ${isLandscape ? 'hidden' : ''}`}>
-                  {currentTrack?.videoUrl && (
+                  {currentTrack?.videoUrl && isPlatformVideoUrl(currentTrack.videoUrl) && (
                     <button
                       onClick={switchToMusicVideo}
                       disabled={!musicVideoReady}

@@ -212,6 +212,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     }
   };
   const pages = currentChapter?.pages || [];
+  const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
   const isEpub = currentChapter?.url?.toLowerCase().endsWith('.epub') || currentChapter?.url?.includes('epub');
   const isPdf = currentChapter?.url?.toLowerCase().endsWith('.pdf') || currentChapter?.url?.includes('pdf');
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
@@ -221,7 +222,6 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     currentChapter?.url?.includes('text/plain') ||
     (currentChapter?.url?.includes('archive.org') && !currentChapter?.url?.includes('.epub') && !currentChapter?.url?.includes('.pdf'))
   );
-  const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
 
   useEffect(() => {
     if (currentChapter?.content) {

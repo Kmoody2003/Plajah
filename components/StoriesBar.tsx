@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Camera } from 'lucide-react';
 import { Story } from '../types';
@@ -58,7 +58,7 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
               <div className={`w-16 h-16 rounded-full p-[2px] ${myStories.length > 0 ? 'bg-gradient-to-tr from-small-orange via-pink-500 to-purple-600' : 'bg-white/10'}`}>
                 <div className="w-full h-full rounded-full overflow-hidden bg-black flex items-center justify-center">
                   {currentUserPhoto
-                    ? <img src={currentUserPhoto} className="w-full h-full object-cover" alt="" />
+                    ? <img loading="lazy" decoding="async" src={currentUserPhoto} className="w-full h-full object-cover" alt="" />
                     : <Camera size={22} className="text-white/40" />
                   }
                 </div>
@@ -78,7 +78,7 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
               <motion.div whileTap={{ scale: 0.92 }} className={`w-16 h-16 rounded-full p-[2.5px] ${g.hasUnviewed ? 'bg-gradient-to-tr from-small-orange via-pink-500 to-purple-600' : 'bg-white/20'}`}>
                 <div className="w-full h-full rounded-full overflow-hidden bg-[#111] border-[2px] border-black">
                   {g.photo
-                    ? <img src={g.photo} className="w-full h-full object-cover" alt={g.name} />
+                    ? <img loading="lazy" decoding="async" src={g.photo} className="w-full h-full object-cover" alt={g.name} />
                     : <div className="w-full h-full flex items-center justify-center text-white font-black text-xl">{g.name[0]}</div>
                   }
                 </div>

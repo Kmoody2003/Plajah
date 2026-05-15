@@ -125,7 +125,7 @@ const LiveTalkDiscovery: React.FC<{
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-3">
                       <div className="relative">
-                         <img src={talk.hostPhoto || null} className="w-12 h-12 rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                         <img loading="lazy" decoding="async" src={talk.hostPhoto || null} className="w-12 h-12 rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-black border border-white/10 rounded-full flex items-center justify-center">
                             <Mic size={10} className="text-primary" />
                          </div>
@@ -305,7 +305,7 @@ const ScrapbookPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgro
     <div className="relative bg-[#f4f1ea] rounded-[2rem] shadow-inner border-8 border-[#e8e4d9] text-[#4a3f35] font-serif min-h-[500px] flex flex-col overflow-hidden">
       {background ? (
         <div className="absolute inset-0 z-0">
-          <img src={background.imageUrl || null} className="w-full h-full object-cover opacity-40" alt="" />
+          <img loading="lazy" decoding="async" src={background.imageUrl || null} className="w-full h-full object-cover opacity-40" alt="" />
           {/* Render User Content in AI Zones */}
           {photoZones.map((zone, idx) => (
             <div 
@@ -321,7 +321,7 @@ const ScrapbookPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgro
               }}
             >
               {page.type === 'IMAGE' && page.url && (
-                <img src={page.url || null} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={page.url || null} className="w-full h-full object-cover" alt="" />
               )}
               {page.type === 'VIDEO' && page.url && (
                 <video src={page.url || null} className="w-full h-full object-cover" autoPlay muted loop playsInline />
@@ -382,7 +382,7 @@ const ScrapbookPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgro
                 {page.type === 'IMAGE' && page.url && (
                   <div className="relative mb-6 rotate-1">
                     <div className="absolute inset-0 bg-white shadow-lg -rotate-2" />
-                    <img src={page.url || null} className="relative w-full h-64 object-cover border-4 border-white shadow-sm" />
+                    <img loading="lazy" decoding="async" src={page.url || null} className="relative w-full h-64 object-cover border-4 border-white shadow-sm" />
                   </div>
                 )}
                 {page.type === 'VIDEO' && page.url && (
@@ -422,7 +422,7 @@ const PhotoAlbumPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgr
     <div className="bg-white/5 rounded-[3rem] p-8 border border-white/10 overflow-hidden relative min-h-[400px]">
       {background && (
         <div className="absolute inset-0 z-0">
-          <img src={background.imageUrl || null} className="w-full h-full object-cover opacity-60" alt="" />
+          <img loading="lazy" decoding="async" src={background.imageUrl || null} className="w-full h-full object-cover opacity-60" alt="" />
           {photoZones.map((zone, idx) => {
             const mediaItem = page.media?.[idx % (page.media?.length || 1)];
             return (
@@ -438,7 +438,7 @@ const PhotoAlbumPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgr
                   zIndex: 1
                 }}
               >
-                {mediaItem && <img src={mediaItem.url || null} className="w-full h-full object-cover" alt="" />}
+                {mediaItem && <img loading="lazy" decoding="async" src={mediaItem.url || null} className="w-full h-full object-cover" alt="" />}
               </div>
             );
           })}
@@ -477,7 +477,7 @@ const PhotoAlbumPost: React.FC<{ pages: FeedPage[]; background?: PostThemeBackgr
             >
               {page.media?.map((m, i) => (
                 <div key={i} className="relative aspect-square rounded-2xl overflow-hidden group">
-                  <img src={m.url || null} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img loading="lazy" decoding="async" src={m.url || null} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 </div>
               ))}
             </motion.div>
@@ -503,7 +503,7 @@ const MusicPlayerPost: React.FC<{ songTitle: string; songUrl: string; authorName
     <div className="bg-black/40 rounded-[3rem] p-10 border border-white/10 flex flex-col items-center text-center relative overflow-hidden group min-h-[400px]">
       {background && (
         <div className="absolute inset-0 z-0">
-          <img src={background.imageUrl || null} className="w-full h-full object-cover opacity-60" alt="" />
+          <img loading="lazy" decoding="async" src={background.imageUrl || null} className="w-full h-full object-cover opacity-60" alt="" />
           {vinylZone && (
             <motion.div 
               animate={isCurrent && isPlaying ? { rotate: 360 } : {}}
@@ -517,7 +517,7 @@ const MusicPlayerPost: React.FC<{ songTitle: string; songUrl: string; authorName
                 zIndex: 1
               }}
             >
-              <img src={imageUrl || `https://picsum.photos/seed/${songTitle}/400/400`} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={imageUrl || `https://picsum.photos/seed/${songTitle}/400/400`} className="w-full h-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-1/4 h-1/4 bg-black rounded-full border-2 border-white/10" />
               </div>
@@ -535,7 +535,7 @@ const MusicPlayerPost: React.FC<{ songTitle: string; songUrl: string; authorName
             transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
             className="w-48 h-48 rounded-full border-8 border-white/5 shadow-2xl overflow-hidden relative"
           >
-            <img src={imageUrl || `https://picsum.photos/seed/${songTitle}/400/400`} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={imageUrl || `https://picsum.photos/seed/${songTitle}/400/400`} className="w-full h-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-12 h-12 bg-black rounded-full border-4 border-white/10" />
             </div>
@@ -577,7 +577,7 @@ const ArcadePost: React.FC<{ gameId: string; onExpand?: () => void; background?:
     <div className="bg-[#1a1a1a] rounded-[2.5rem] border-4 border-[#333] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group min-h-[400px]">
       {background && (
         <div className="absolute inset-0 z-0">
-          <img src={background.imageUrl || null} className="w-full h-full object-cover opacity-80" alt="" />
+          <img loading="lazy" decoding="async" src={background.imageUrl || null} className="w-full h-full object-cover opacity-80" alt="" />
           {screenZone && (
             <div 
               className="absolute bg-black rounded-sm overflow-hidden"
@@ -643,7 +643,7 @@ const NewspaperPost: React.FC<{ articleIds: string[]; content: string; imageUrl?
     <div className="bg-[#fdfcf0] rounded-xl p-10 shadow-xl border border-[#e5e1c9] text-[#2c2c2c] font-serif relative overflow-hidden min-h-[500px]">
       {background && (
         <div className="absolute inset-0 z-0">
-          <img src={background.imageUrl || null} className="w-full h-full object-cover opacity-50 grayscale" alt="" />
+          <img loading="lazy" decoding="async" src={background.imageUrl || null} className="w-full h-full object-cover opacity-50 grayscale" alt="" />
           {photoZones.map((zone, idx) => (
             <div 
               key={zone.id}
@@ -657,7 +657,7 @@ const NewspaperPost: React.FC<{ articleIds: string[]; content: string; imageUrl?
                 zIndex: 1
               }}
             >
-              <img src={imageUrl || null || `https://picsum.photos/seed/${idx}/400/400`} className="w-full h-full object-cover" alt="" />
+              <img loading="lazy" decoding="async" src={imageUrl || null || `https://picsum.photos/seed/${idx}/400/400`} className="w-full h-full object-cover" alt="" />
             </div>
           ))}
           {textZones.map((zone, idx) => (
@@ -875,7 +875,7 @@ const FeedItemComponent: React.FC<{
             onMouseLeave={() => setHoveredUserId(null)}
           >
             {item.authorPhoto ? (
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={item.authorPhoto || null} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110" 
                 referrerPolicy="no-referrer"
@@ -1773,6 +1773,7 @@ const toggleFavoriteTeam = async (team: string) => {
   ];
 
   return (
+    <>
     <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-transparent`}>
       <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-4 md:p-12 max-w-full mx-auto w-full`}>
         {/* BOLDER HEADER */}
@@ -2096,7 +2097,7 @@ const toggleFavoriteTeam = async (team: string) => {
                         <div className="relative z-10 flex flex-col gap-8">
                            <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
-                                 <img src={asset.image || null} alt="" className="w-10 h-10 object-contain" />
+                                 <img loading="lazy" decoding="async" src={asset.image || null} alt="" className="w-10 h-10 object-contain" />
                                  <div>
                                     <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none">{asset.symbol}</h3>
                                     <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{asset.name}</p>
@@ -2191,7 +2192,7 @@ const toggleFavoriteTeam = async (team: string) => {
                            {event.competitions?.[0]?.competitors?.map((team: any) => (
                              <div key={team.id} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                   <img src={team.team?.logo || null} alt="" className="w-7 h-7 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                                   <img loading="lazy" decoding="async" src={team.team?.logo || null} alt="" className="w-7 h-7 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
                                    <span className={`text-sm font-black uppercase tracking-tight ${team.winner ? 'text-white' : 'text-white/40'}`}>{team.team?.abbreviation}</span>
                                 </div>
                                 <span className={`text-xl font-black italic ${team.winner ? 'text-small-orange' : 'text-white'}`}>{team.score}</span>
@@ -2228,7 +2229,7 @@ const toggleFavoriteTeam = async (team: string) => {
                           <div className="flex items-center justify-between">
                              <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center font-black text-xs text-small-orange overflow-hidden">
-                                  <img src={item.authorPhoto || null} className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={item.authorPhoto || null} className="w-full h-full object-cover" />
                                </div>
                                <div>
                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">{item.authorName}</h4>
@@ -2288,7 +2289,7 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10">
-              <img src={suggestedArtist.photoURL || `https://picsum.photos/seed/${suggestedArtist.uid}/100/100`} alt={suggestedArtist.displayName} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={suggestedArtist.photoURL || `https://picsum.photos/seed/${suggestedArtist.uid}/100/100`} alt={suggestedArtist.displayName} className="w-full h-full object-cover" />
             </div>
             <div>
               <h3 className="font-bold text-lg">{suggestedArtist.displayName}</h3>
@@ -2337,7 +2338,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     >
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/5 group-hover:ring-small-orange transition-all">
                         {user.photoURL ? (
-                          <img src={user.photoURL || null} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={user.photoURL || null} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white/20">
                             <User size={16} />
@@ -2374,7 +2375,7 @@ const toggleFavoriteTeam = async (team: string) => {
                         onClick={() => setSelectedBackgroundId(bg.id)}
                         className={`aspect-video rounded-2xl overflow-hidden border-2 transition-all relative group ${selectedBackgroundId === bg.id ? 'border-small-orange shadow-lg scale-105' : 'border-white/5 hover:border-white/20'}`}
                       >
-                        <img src={bg.imageUrl || null} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={bg.imageUrl || null} className="w-full h-full object-cover" alt="" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <p className="text-[8px] font-black uppercase tracking-widest text-white">{bg.name}</p>
                         </div>
@@ -2556,7 +2557,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${selectedSong?.url === s.url ? 'bg-small-orange/20 border-small-orange shadow-lg' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                     >
                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 shrink-0">
-                        <img src={s.albumCover || null} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={s.albumCover || null} className="w-full h-full object-cover" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-black uppercase tracking-tight truncate">{s.title}</p>
@@ -2635,7 +2636,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${selectedGameId === g.id ? 'bg-small-orange/20 border-small-orange shadow-lg' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                     >
                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 shrink-0">
-                        <img src={g.thumbnailUrl || null} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={g.thumbnailUrl || null} className="w-full h-full object-cover" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-black uppercase tracking-tight truncate">{g.title}</p>
@@ -2769,7 +2770,7 @@ const toggleFavoriteTeam = async (team: string) => {
                         onClick={() => { setNewPost(prev => prev + '\n' + gif); setShowGifPicker(false); }}
                         className="aspect-video rounded-lg overflow-hidden border border-white/10 hover:scale-105 transition-all"
                       >
-                        <img src={gif || null} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                        <img loading="lazy" decoding="async" src={gif || null} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                       </button>
                     ))}
                   </motion.div>
@@ -2891,7 +2892,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <div className="flex items-start gap-4 p-5">
                 <button onClick={() => onVisitUser?.(currentUser.uid)} className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 shrink-0 ring-1 ring-white/10 hover:ring-small-orange transition-all">
                   {currentUser.photoURL
-                    ? <img src={currentUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ? <img loading="lazy" decoding="async" src={currentUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     : <User size={18} className="text-white/30 m-auto mt-2.5" />}
                 </button>
                 <div className="flex-1 min-w-0">
@@ -2944,7 +2945,7 @@ const toggleFavoriteTeam = async (team: string) => {
                               onClick={() => setSelectedBackgroundId(selectedBackgroundId === bg.id ? '' : bg.id)}
                               className={`shrink-0 w-16 h-10 rounded-xl overflow-hidden border-2 transition-all ${selectedBackgroundId === bg.id ? 'border-small-orange' : 'border-white/10 hover:border-white/30'}`}
                             >
-                              <img src={bg.imageUrl || undefined} alt={bg.name} className="w-full h-full object-cover" />
+                              <img loading="lazy" decoding="async" src={bg.imageUrl || undefined} alt={bg.name} className="w-full h-full object-cover" />
                             </button>
                           ))}
                         </div>
@@ -2964,7 +2965,7 @@ const toggleFavoriteTeam = async (team: string) => {
                         <div className="flex gap-2 overflow-x-auto pb-1">
                           {pages.map((p, i) => (
                             <div key={p.id} className="shrink-0 w-16 h-16 rounded-xl border border-white/10 bg-white/5 relative overflow-hidden group">
-                              {p.url ? <img src={p.url} alt="" className="w-full h-full object-cover" /> : (
+                              {p.url ? <img loading="lazy" decoding="async" src={p.url} alt="" className="w-full h-full object-cover" /> : (
                                 <label className="w-full h-full flex items-center justify-center cursor-pointer text-white/20 hover:text-white transition-colors">
                                   <Plus size={14} />
                                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
@@ -2998,7 +2999,7 @@ const toggleFavoriteTeam = async (team: string) => {
                                   className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all
                                     ${selectedSong?.url === s.url ? 'bg-small-orange/20 border-small-orange' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
                                   <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 shrink-0">
-                                    {s.albumCover && <img src={s.albumCover} className="w-full h-full object-cover" alt="" />}
+                                    {s.albumCover && <img loading="lazy" decoding="async" src={s.albumCover} className="w-full h-full object-cover" alt="" />}
                                   </div>
                                   <span className="text-[8px] font-black uppercase truncate max-w-[60px]">{s.title}</span>
                                   {selectedSong?.url === s.url && <Check size={10} className="text-small-orange shrink-0" />}
@@ -3036,7 +3037,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     {composerMedia.map((m, i) => (
                       <div key={i} className="relative group">
                         {m.type === 'PHOTO' || m.type === 'GIF' ? (
-                          <img src={m.url} alt="" className="h-24 w-24 object-cover rounded-2xl border border-white/10" />
+                          <img loading="lazy" decoding="async" src={m.url} alt="" className="h-24 w-24 object-cover rounded-2xl border border-white/10" />
                         ) : m.type === 'VIDEO' ? (
                           <video src={m.url} className="h-24 w-24 object-cover rounded-2xl border border-white/10" />
                         ) : (
@@ -3108,7 +3109,7 @@ const toggleFavoriteTeam = async (team: string) => {
                               setShowPlatformPicker(false);
                             }} className={`relative rounded-2xl overflow-hidden border transition-all group
                               ${composerAlbumEmbed?.id === a.id ? 'border-small-orange' : 'border-white/10 hover:border-small-orange/50'}`}>
-                              <img src={a.coverImage || ''} alt={a.title} className="w-full h-20 object-cover opacity-70 group-hover:opacity-100 transition-all" />
+                              <img loading="lazy" decoding="async" src={a.coverImage || ''} alt={a.title} className="w-full h-20 object-cover opacity-70 group-hover:opacity-100 transition-all" />
                               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                                 <p className="text-[8px] font-black uppercase text-white truncate">{a.title}</p>
                                 <p className="text-[7px] text-white/40 font-bold uppercase">{a.tracks?.length || 0} tracks</p>
@@ -3303,7 +3304,7 @@ const toggleFavoriteTeam = async (team: string) => {
                                     {event.competitions[0].competitors.map((team: any) => (
                                        <div key={team.id} className="flex items-center justify-between">
                                           <div className="flex items-center gap-3">
-                                             <img src={team.team.logo || null} alt="" className="w-6 h-6 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                                             <img loading="lazy" decoding="async" src={team.team.logo || null} alt="" className="w-6 h-6 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
                                              <span className={`text-xs font-black uppercase tracking-tight ${team.winner ? 'text-white' : 'text-white/60'}`}>
                                                 {team.team.abbreviation}
                                              </span>
@@ -3337,7 +3338,7 @@ const toggleFavoriteTeam = async (team: string) => {
                              <div key={i} className="flex gap-4 group cursor-pointer">
                                 <div className="w-16 h-16 rounded-2xl bg-white/10 shrink-0 overflow-hidden relative">
                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10" />
-                                   <img src={`https://picsum.photos/seed/article${i}/150`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                   <img loading="lazy" decoding="async" src={`https://picsum.photos/seed/article${i}/150`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                 </div>
                                 <div className="flex-1 flex flex-col justify-center">
                                    <p className="text-xs font-bold leading-snug group-hover:text-small-orange transition-colors line-clamp-2">The Evolution of Sound Design in Virtual Spaces</p>
@@ -3368,6 +3369,7 @@ const toggleFavoriteTeam = async (team: string) => {
        />
      )}
    </AnimatePresence>
+   </>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight, ExternalLink, Trash2, Eye } from 'lucide-react';
 import { Story } from '../types';
@@ -57,7 +57,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
     return () => clearInterval(intervalRef.current!);
   }, [story?.id, paused, advance]);
 
-  // Video ended → advance
+  // Video ended â†’ advance
   const onVideoEnded = () => advance();
 
   if (!story) return null;
@@ -89,7 +89,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
         <div className="absolute top-6 inset-x-0 z-10 flex items-center justify-between px-4 pt-2">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => { onVisitUser?.(group.uid); onClose(); }}>
             {group.photo
-              ? <img src={group.photo} className="w-8 h-8 rounded-full object-cover ring-1 ring-white/30" alt="" />
+              ? <img loading="lazy" decoding="async" src={group.photo} className="w-8 h-8 rounded-full object-cover ring-1 ring-white/30" alt="" />
               : <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-sm">{group.name[0]}</div>
             }
             <div>
@@ -124,7 +124,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
               className="w-full h-full object-cover"
             />
           ) : (
-            <img src={story.mediaUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+            <img loading="lazy" decoding="async" src={story.mediaUrl} alt="" className="w-full h-full object-cover" draggable={false} />
           )}
 
           {/* Dim overlay when paused */}

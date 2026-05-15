@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Tv,
@@ -184,7 +184,7 @@ const UserProfileSlideshow: React.FC<{ items: { id: string; url: string; type: '
           {items[index].type === 'VIDEO' ? (
             <video ref={videoRef} src={items[index].url} className="w-full h-full object-cover" autoPlay loop muted playsInline />
           ) : (
-            <img src={items[index].url} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={items[index].url} className="w-full h-full object-cover" />
           )}
         </motion.div>
       </AnimatePresence>
@@ -901,7 +901,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                  
                  return (
                    <div key={pin.id} className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-                     <img 
+                     <img loading="lazy" decoding="async" 
                        src={displayItem?.cover}
                        alt={displayItem?.title}
                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -967,7 +967,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 }}
                 className="group relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all"
               >
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={release.coverImage || `https://picsum.photos/seed/${release.id}/400/500`} 
                   alt={release.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -975,7 +975,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
-                {/* H&S button — owner only, ALBUM/MUSIC releases only */}
+                {/* H&S button â€” owner only, ALBUM/MUSIC releases only */}
                 {isOwnProfile && release.releaseType === 'ALBUM' && (release as any).type === 'MUSIC' && (
                   <button
                     onClick={e => { e.stopPropagation(); setHnsAlbum(release as Album); }}
@@ -1090,7 +1090,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
                   >
-                    {/* Left arrow — own profile only */}
+                    {/* Left arrow â€” own profile only */}
                     {isOwnProfile && (
                       <button
                         onClick={() => moveTab(idx, -1)}
@@ -1120,7 +1120,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       {tab.label}
                     </button>
 
-                    {/* Right arrow — own profile only */}
+                    {/* Right arrow â€” own profile only */}
                     {isOwnProfile && (
                       <button
                         onClick={() => moveTab(idx, 1)}
@@ -1342,9 +1342,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                        <div key={theme.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group cursor-pointer hover:border-white/30 transition-all">
                           <div className="aspect-video relative bg-black/50 overflow-hidden">
                              {theme.coverImage ? (
-                                <img src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
+                                <img loading="lazy" decoding="async" src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
                              ) : theme.assets && theme.assets.length > 0 ? (
-                                theme.assets[0].type === 'PHOTO' ? <img src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
+                                theme.assets[0].type === 'PHOTO' ? <img loading="lazy" decoding="async" src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
                              ) : (
                                <div className="w-full h-full flex items-center justify-center text-white/10">
                                  <ImageIcon size={48} />
@@ -1559,11 +1559,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             <div className="flex items-center gap-6">
                               <span className="text-2xl font-black text-white/10 group-hover:text-small-orange transition-colors">0{idx + 1}</span>
                               <div className="w-16 h-16 rounded-2xl overflow-hidden">
-                                <img src={album.coverImage || null} className="w-full h-full object-cover" alt={album.title} />
+                                <img loading="lazy" decoding="async" src={album.coverImage || null} className="w-full h-full object-cover" alt={album.title} />
                               </div>
                               <div>
                                 <h4 className="text-sm font-black uppercase tracking-widest mb-1">{album.title}</h4>
-                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} • {album.type}</p>
+                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} â€¢ {album.type}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-8">
@@ -1593,7 +1593,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             className="group cursor-pointer"
                           >
                             <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white/5 transition-all group-hover:scale-[1.02] group-hover:shadow-2xl">
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={album.coverImage || null} 
                                 alt={album.title} 
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -1633,7 +1633,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   <p className="text-white/30 text-sm mt-3 max-w-md">Everything you've been into, right where you left off.</p>
                 </div>
 
-                {/* Pick Up Where You Left Off — Shows & Movies */}
+                {/* Pick Up Where You Left Off â€” Shows & Movies */}
                 <section>
                   <div className="flex items-end justify-between mb-6">
                     <div>
@@ -1651,7 +1651,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     ].map((item, i) => (
                       <div key={i} className="flex-shrink-0 min-w-[140px] group cursor-pointer">
                         <div className="aspect-[2/3] rounded-2xl bg-white/5 border border-white/5 overflow-hidden relative group-hover:border-white/20 transition-all">
-                          {item.thumb ? <img src={item.thumb} className="w-full h-full object-cover" alt="" /> : (
+                          {item.thumb ? <img loading="lazy" decoding="async" src={item.thumb} className="w-full h-full object-cover" alt="" /> : (
                             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-white/0">
                               <Play size={24} className="text-white/20" />
                             </div>
@@ -1666,7 +1666,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           </div>
                           <div className="absolute bottom-3 left-2 right-2">
                             <p className="text-white text-[9px] font-black uppercase tracking-tight truncate">{item.title}</p>
-                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% · {item.type}</p>
+                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% Â· {item.type}</p>
                           </div>
                         </div>
                       </div>
@@ -1709,7 +1709,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                               <div className="h-full bg-secondary rounded-full" style={{ width: `${book.progress}%` }} />
                             </div>
-                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} →</button>
+                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} â†’</button>
                           </div>
                         </div>
                       </div>
@@ -1733,10 +1733,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                         className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer"
                         onClick={() => onSelectAlbum(album)}
                       >
-                        {/* Thumbnail — small fixed size */}
+                        {/* Thumbnail â€” small fixed size */}
                         <div className="w-12 h-12 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden relative border border-white/10">
                           {album.coverImage
-                            ? <img src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={album.title} />
+                            ? <img loading="lazy" decoding="async" src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={album.title} />
                             : <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
                           }
                         </div>
@@ -1770,12 +1770,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   {profile?.games && profile.games.length > 0 ? (
                     <div className="flex gap-5 p-6 bg-white/[0.03] border border-white/5 rounded-2xl max-w-md group hover:bg-white/[0.06] transition-all cursor-pointer">
                       <div className="w-16 h-16 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden border border-white/10">
-                        {profile.games[0].thumbnailUrl ? <img src={profile.games[0].thumbnailUrl} className="w-full h-full object-cover" alt="" /> : <Gamepad2 size={24} className="m-auto text-white/20" />}
+                        {profile.games[0].thumbnailUrl ? <img loading="lazy" decoding="async" src={profile.games[0].thumbnailUrl} className="w-full h-full object-cover" alt="" /> : <Gamepad2 size={24} className="m-auto text-white/20" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-black text-sm uppercase tracking-tight truncate">{profile.games[0].title}</h4>
                         <p className="text-[9px] text-white/30 uppercase tracking-widest mt-1">Last played recently</p>
-                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume →</button>
+                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume â†’</button>
                       </div>
                     </div>
                   ) : (
@@ -1865,13 +1865,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <button
                       onClick={() => setActiveTab('PHOTOS')}
                       className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors"
-                    >View Gallery →</button>
+                    >View Gallery â†’</button>
                   </div>
                   {profile?.photos && profile.photos.length > 0 ? (
                     <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
                       {profile.photos.slice(0, 14).map((photo, i) => (
                         <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
-                          <img src={photo.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                          <img loading="lazy" decoding="async" src={photo.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
                         </div>
                       ))}
                       <div
@@ -1975,7 +1975,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                               className={`p-4 rounded-xl flex items-center justify-between transition-all ${profile.radioSettings?.otherCreators?.includes(artist.uid) ? 'bg-small-orange/20 border-small-orange/40 border' : 'bg-white/5 border border-transparent'}`}
                              >
                                 <div className="flex items-center gap-3">
-                                  <img src={artist.photoURL || null} className="w-8 h-8 rounded-lg object-cover" />
+                                  <img loading="lazy" decoding="async" src={artist.photoURL || null} className="w-8 h-8 rounded-lg object-cover" />
                                   <span className="text-[10px] font-black uppercase tracking-tight">{artist.displayName}</span>
                                 </div>
                                 {profile.radioSettings?.otherCreators?.includes(artist.uid) ? <Check size={14} className="text-small-orange" /> : <Plus size={14} className="text-white/20" />}
@@ -2052,7 +2052,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             {item.type === 'VIDEO' ? (
                               <video src={item.url} className="w-full h-full object-cover opacity-50" muted playsInline />
                             ) : (
-                              <img src={item.url} className="w-full h-full object-cover opacity-50" />
+                              <img loading="lazy" decoding="async" src={item.url} className="w-full h-full object-cover opacity-50" />
                             )}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 gap-2">
                               {index > 0 && (
@@ -2304,7 +2304,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           className={`p-4 rounded-3xl border transition-all text-left flex flex-col gap-4 group ${profile.radioSettings?.exclusiveContentIds?.includes(item.id) ? 'bg-purple-500/10 border-purple-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
                         >
                            <div className="relative aspect-square rounded-2xl overflow-hidden grayscale group-hover:grayscale-0 transition-all">
-                              <img src={item.coverImage || null} className="w-full h-full object-cover" />
+                              <img loading="lazy" decoding="async" src={item.coverImage || null} className="w-full h-full object-cover" />
                               {profile.radioSettings?.exclusiveContentIds?.includes(item.id) && (
                                 <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center">
                                    <div className="px-3 py-1 bg-purple-500 rounded-full text-[8px] font-black text-white uppercase tracking-widest">EXCLUSIVE</div>
@@ -2644,7 +2644,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               >
                   {/* Hero Image / Cover */}
                   <div className="relative h-64 md:h-96 rounded-[3rem] overflow-hidden">
-                    <img src={profile.coverArt || profile.photoURL || null} className="w-full h-full object-cover" alt="Hero banner" />
+                    <img loading="lazy" decoding="async" src={profile.coverArt || profile.photoURL || null} className="w-full h-full object-cover" alt="Hero banner" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
                     <div className="absolute bottom-8 left-8">
                        <h2 className="text-5xl font-black uppercase tracking-widest">{profile.displayName}</h2>
@@ -2712,7 +2712,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <div className="flex items-center gap-5">
                         <div className="relative">
                           <div className="absolute -inset-1 bg-gradient-to-r from-small-orange to-transparent rounded-2xl blur opacity-0 group-hover:opacity-30 transition-opacity" />
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={artist.photoURL || `https://picsum.photos/seed/${artist.uid}/200/200`} 
                             alt={artist.displayName} 
                             className="w-16 h-16 rounded-2xl object-cover relative border border-white/10"
@@ -2756,7 +2756,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <div className="flex items-center gap-5">
                         <div className="relative">
                           <div className="absolute -inset-1 bg-gradient-to-r from-small-orange to-transparent rounded-2xl blur opacity-0 group-hover:opacity-30 transition-opacity" />
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={friend.photoURL || `https://picsum.photos/seed/${friend.uid}/200/200`} 
                             alt={friend.displayName} 
                             className="w-16 h-16 rounded-2xl object-cover relative border border-white/10"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft, Pin, PinOff, MapPin, Building2, Calendar, Trophy,
@@ -47,7 +47,7 @@ export const TeamPageView: React.FC<Props> = ({
   const champions = LEAGUE_CHAMPIONS[tab] ?? [];
   const isPinned  = pinnedIds.includes(team.id);
 
-  // ── load rich data ──────────────────────────────────────────────────────────
+  // â”€â”€ load rich data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     setLoading(true);
     setRichData(null);
@@ -56,7 +56,7 @@ export const TeamPageView: React.FC<Props> = ({
       .catch(() => setLoading(false));
   }, [team.id, tab]);
 
-  // ── schedule lazy-load ───────────────────────────────────────────────────────
+  // â”€â”€ schedule lazy-load â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (activeTab !== 'schedule') return;
     setSchLoading(true);
@@ -65,7 +65,7 @@ export const TeamPageView: React.FC<Props> = ({
       .catch(() => setSchLoading(false));
   }, [activeTab, team.id, tab]);
 
-  // ── history news ─────────────────────────────────────────────────────────────
+  // â”€â”€ history news â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (activeTab !== 'history') return;
     // use league news filtered for team if rich news empty
@@ -88,11 +88,11 @@ export const TeamPageView: React.FC<Props> = ({
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative min-h-screen">
 
-      {/* ── HERO HEADER ─ music-page fade style ─────────────────────────────── */}
+      {/* â”€â”€ HERO HEADER â”€ music-page fade style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="relative w-full overflow-hidden" style={{ height: '420px' }}>
         {/* blurred cover layer */}
         <div className="absolute inset-0 z-0">
-          <img
+          <img loading="lazy" decoding="async"
             src={fanart || badge || logo}
             alt=""
             aria-hidden
@@ -136,11 +136,11 @@ export const TeamPageView: React.FC<Props> = ({
         <div className="absolute bottom-0 left-0 right-0 z-20 px-6 pb-8 flex items-end gap-6">
           <div className="shrink-0 w-28 h-28 rounded-[2rem] flex items-center justify-center overflow-hidden"
             style={{ background: `${color}30`, border: `1px solid ${color}40` }}>
-            <img src={badge} alt={team.name} className="w-full h-full object-contain p-2 drop-shadow-2xl"
+            <img loading="lazy" decoding="async" src={badge} alt={team.name} className="w-full h-full object-contain p-2 drop-shadow-2xl"
               onError={e => { (e.target as HTMLImageElement).src = logo; }} />
           </div>
           <div className="flex-1 pb-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.45em] text-white/35 mb-1">{tab} · {staticData?.conference ?? ''}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.45em] text-white/35 mb-1">{tab} Â· {staticData?.conference ?? ''}</p>
             <h1 className="text-5xl font-black uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
               {team.location}
             </h1>
@@ -169,7 +169,7 @@ export const TeamPageView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── TAB STRIP ──────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ TAB STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl border-b border-white/8 px-5 py-3">
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {tabs.map(t => (
@@ -185,7 +185,7 @@ export const TeamPageView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── TAB CONTENT ────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ TAB CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="px-5 py-6">
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -197,7 +197,7 @@ export const TeamPageView: React.FC<Props> = ({
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
 
-              {/* ── OVERVIEW ─────────────────────────────────────────────────── */}
+              {/* â”€â”€ OVERVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
                   {desc && (
@@ -244,14 +244,14 @@ export const TeamPageView: React.FC<Props> = ({
                             <div key={i} className="flex items-center justify-between px-5 py-3 bg-white/[0.03] rounded-2xl border border-white/5 hover:bg-white/[0.06] transition-all">
                               <div className="flex items-center gap-2">
                                 <span className="text-[7px] font-black uppercase text-white/20">{isHome ? 'vs' : '@'}</span>
-                                <img src={opp?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-70" />
+                                <img loading="lazy" decoding="async" src={opp?.team?.logo} alt="" className="w-5 h-5 object-contain opacity-70" />
                                 <span className="text-[9px] font-black uppercase">{opp?.team?.abbreviation}</span>
                               </div>
                               <div className="flex items-center gap-3">
                                 <span className="text-[8px] font-bold text-white/35">{game.status?.type?.shortDetail || ''}</span>
                                 {done && (
                                   <>
-                                    <span className="text-[9px] font-black text-white">{away?.score} – {home?.score}</span>
+                                    <span className="text-[9px] font-black text-white">{away?.score} â€“ {home?.score}</span>
                                     <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{won ? 'W' : 'L'}</span>
                                   </>
                                 )}
@@ -265,7 +265,7 @@ export const TeamPageView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* ── ROSTER ───────────────────────────────────────────────────── */}
+              {/* â”€â”€ ROSTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'roster' && (
                 <div className="space-y-6">
                   <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Tap a player to view profile & stats</p>
@@ -308,7 +308,7 @@ export const TeamPageView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* ── SCHEDULE ─────────────────────────────────────────────────── */}
+              {/* â”€â”€ SCHEDULE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'schedule' && (
                 <div className="space-y-3">
                   {scheduleLoading && (
@@ -328,7 +328,7 @@ export const TeamPageView: React.FC<Props> = ({
                           return state === 'post' ? (s === 'post' || !s) : s === state;
                         });
                         if (games.length === 0) return null;
-                        const label = state === 'pre' ? 'Upcoming' : state === 'in' ? '● Live Now' : 'Results';
+                        const label = state === 'pre' ? 'Upcoming' : state === 'in' ? 'â— Live Now' : 'Results';
                         return (
                           <div key={state} className="space-y-2">
                             <p className={`text-[8px] font-black uppercase tracking-[0.4em] ${state === 'in' ? 'text-red-400' : 'text-white/30'}`}>{label}</p>
@@ -350,7 +350,7 @@ export const TeamPageView: React.FC<Props> = ({
                                     <span className="text-[9px] font-black uppercase truncate">{opp?.team?.displayName || opp?.team?.abbreviation}</span>
                                   </div>
                                   <div className="flex items-center gap-3 shrink-0">
-                                    {done && <span className="text-[9px] font-black">{mine?.score} – {opp?.score}</span>}
+                                    {done && <span className="text-[9px] font-black">{mine?.score} â€“ {opp?.score}</span>}
                                     {state === 'in' && <span className="text-[7px] font-black text-red-400 animate-pulse">{comps?.status?.type?.shortDetail}</span>}
                                     {state === 'pre' && comps?.date && <span className="text-[8px] font-bold text-white/30">{new Date(comps.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                                   </div>
@@ -365,7 +365,7 @@ export const TeamPageView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* ── LEGENDS ──────────────────────────────────────────────────── */}
+              {/* â”€â”€ LEGENDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'legends' && (
                 <div className="space-y-4">
                   {(!richData?.legends || richData.legends.length === 0) && (
@@ -393,7 +393,7 @@ export const TeamPageView: React.FC<Props> = ({
                           <div className="p-3 space-y-1">
                             {player.description && <p className="text-[8px] text-white/40 leading-relaxed line-clamp-3">{player.description}</p>}
                             <p className="text-[7px] font-black uppercase tracking-widest text-white/20">
-                              {[player.nationality, player.birthDate ? new Date(player.birthDate).getFullYear().toString() : ''].filter(Boolean).join(' · ')}
+                              {[player.nationality, player.birthDate ? new Date(player.birthDate).getFullYear().toString() : ''].filter(Boolean).join(' Â· ')}
                             </p>
                           </div>
                         )}
@@ -403,7 +403,7 @@ export const TeamPageView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* ── NEWS ─────────────────────────────────────────────────────── */}
+              {/* â”€â”€ NEWS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'news' && (
                 <div className="space-y-3">
                   {(richData?.news?.length ? richData.news : leagueNews).slice(0, 20).map((article: any, i: number) => (
@@ -415,7 +415,7 @@ export const TeamPageView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* ── HISTORY ──────────────────────────────────────────────────── */}
+              {/* â”€â”€ HISTORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'history' && (
                 <div className="space-y-8">
                   {/* Championships */}
@@ -432,7 +432,7 @@ export const TeamPageView: React.FC<Props> = ({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-xs font-black uppercase tracking-tight ${isChamp ? 'text-yellow-400' : 'text-white/80'}`}>{c.champion}</p>
-                                {c.opponent && <p className="text-[8px] font-bold text-white/30 mt-0.5">vs {c.opponent} {c.series ? `· ${c.series}` : ''}</p>}
+                                {c.opponent && <p className="text-[8px] font-bold text-white/30 mt-0.5">vs {c.opponent} {c.series ? `Â· ${c.series}` : ''}</p>}
                                 {c.note && <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-0.5">{c.note}</p>}
                               </div>
                               {isChamp && <Trophy size={14} className="text-yellow-400 shrink-0" />}
@@ -446,7 +446,7 @@ export const TeamPageView: React.FC<Props> = ({
                   {/* Archive news */}
                   <div className="space-y-3">
                     <h4 className="text-[8px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2">
-                      <Clock size={10} /> Team Archives — Trades, Contracts, Moves
+                      <Clock size={10} /> Team Archives â€” Trades, Contracts, Moves
                     </h4>
                     {historyNews.slice(0, 30).map((article: any, i: number) => (
                       <NewsCard key={i} article={article} />
@@ -469,7 +469,7 @@ export const TeamPageView: React.FC<Props> = ({
   );
 };
 
-// ── Small reusable components ─────────────────────────────────────────────────
+// â”€â”€ Small reusable components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -492,7 +492,7 @@ function NewsCard({ article }: { article: any }) {
         <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
         <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mt-1.5">
           {article.published ? new Date(article.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-          {article.byline ? ` · ${article.byline}` : ''}
+          {article.byline ? ` Â· ${article.byline}` : ''}
         </p>
       </div>
       <ExternalLink size={12} className="text-white/20 shrink-0 group-hover:text-white/60 transition-colors mt-0.5" />

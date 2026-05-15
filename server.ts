@@ -7,6 +7,23 @@ import cors from 'cors';
 import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
+import { readFileSync } from 'fs';
+
+// Load .env.local (development) or .env (production) — no dotenv dependency needed
+for (const envFile of ['.env.local', '.env']) {
+  try {
+    readFileSync(envFile, 'utf8').split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) return;
+      const key = trimmed.slice(0, eq).trim();
+      const val = trimmed.slice(eq + 1).trim();
+      if (key && !(key in process.env)) process.env[key] = val;
+    });
+    break;
+  } catch {}
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

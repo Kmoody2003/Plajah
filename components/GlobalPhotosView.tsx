@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Photo, UserProfile } from '../types';
 import PageHeader from './PageHeader';
 import { 
@@ -130,9 +130,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                  <div key={theme.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group cursor-pointer hover:border-white/30 transition-all" onClick={() => setSelectedTheme(theme)}>
                     <div className="aspect-video relative bg-black/50 overflow-hidden">
                        {theme.coverImage ? (
-                          <img src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
+                          <img loading="lazy" decoding="async" src={theme.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
                        ) : theme.assets && theme.assets.length > 0 ? (
-                          theme.assets[0].type === 'PHOTO' ? <img src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
+                          theme.assets[0].type === 'PHOTO' ? <img loading="lazy" decoding="async" src={theme.assets[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" /> : <video src={theme.assets[0].url} className="w-full h-full object-cover" muted loop autoPlay />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center text-white/10">
                            <ImageIcon size={48} />
@@ -258,7 +258,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                            {asset.type === 'VIDEO' ? (
                              <video src={asset.url} className="w-full h-full object-cover" autoPlay muted loop />
                            ) : (
-                             <img src={asset.url} className="w-full h-full object-cover" alt="" />
+                             <img loading="lazy" decoding="async" src={asset.url} className="w-full h-full object-cover" alt="" />
                            )}
                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-[10px] font-black uppercase tracking-widest text-white">{asset.type}</span>
@@ -333,7 +333,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                       className="w-12 h-12 rounded-full overflow-hidden border-2 border-small-orange cursor-pointer"
                       onClick={() => onVisitUser(selectedPhoto.ownerId)}
                     >
-                      <img src={`https://picsum.photos/seed/${selectedPhoto.ownerId}/200/200`} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={`https://picsum.photos/seed/${selectedPhoto.ownerId}/200/200`} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-widest">Artist Archive</h3>

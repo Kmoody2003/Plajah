@@ -5720,6 +5720,30 @@ export const getMuxPlaybackId = async (assetId: string): Promise<string | null> 
   return data.playbackId || null;
 };
 
+// Poll Mux upload status until the asset is ready, then return the playback ID
+export const pollMuxUploadUntilReady = async (
+  uploadId: string,
+  onReady: (playbackId: string, assetId: string) => void,
+  maxAttempts = 30,
+  intervalMs = 3000,
+): Promise<void> => {
+  let attempts = 0;
+  const poll = async () => {
+    try {
+      const res = await fetch(`/api/mux/asset?uploadId=${uploadId}`);
+      if (!res.ok) return;
+      const { status, assetId } = await res.json();
+      if (status === 'asset_created' && assetId) {
+        const playbackId = await getMuxPlaybackId(assetId);
+        if (playbackId) { onReady(playbackId, assetId); return; }
+      }
+    } catch {}
+    attempts++;
+    if (attempts < maxAttempts) setTimeout(poll, intervalMs);
+  };
+  setTimeout(poll, intervalMs);
+};
+
 export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
   const res = await fetch('/api/mux/create-asset-from-url', {
     method: 'POST',
@@ -5903,7 +5927,7 @@ export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlis
 // ─── Stories ─────────────────────────────────────────────────────────────────
 const STORIES_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'timestamp' | 'expiresAt'>): Promise<string | null> => {
+export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt'>): Promise<string | null> => {
   try {
     const now = Date.now();
     const ref = doc(collection(db, 'stories'));
