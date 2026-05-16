@@ -16,7 +16,7 @@ interface FileUploaderProps {
 const ACCEPT: Record<FileUploaderProps['type'], string> = {
   PHOTO: 'image/*',
   VIDEO: 'video/*',
-  MUSIC: 'audio/*',
+  MUSIC: 'audio/*,.iamf',
   BOOK: '.pdf,.epub,.txt',
 };
 

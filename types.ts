@@ -109,6 +109,7 @@ export interface Track {
   artistNotes?: string[];
   hnsSlot1?: { url: string; title: string; uploadedAt: number };
   hnsSlot2?: { url: string; title: string; uploadedAt: number };
+  isEclipsa?: boolean;
 }
 
 export interface Photo {
@@ -826,6 +827,7 @@ export interface UserProfile {
   blueskyHandle?: string; // e.g., username.bsky.social
   threadsHandle?: string; // e.g., username
   subscribedPodcastIds?: string[]; // Album IDs of podcasts user has subscribed to from the podcast section
+  avatar?: AvatarConfig;
 }
 
 export interface SystemStats {
@@ -1182,9 +1184,24 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS';
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
+
+export type AvatarStyle = 'ANIME' | 'CHIBI' | 'REALISTIC' | 'URBAN';
+
+export interface AvatarConfig {
+  type: 'RPM' | 'VRM' | 'NONE';
+  style: AvatarStyle;
+  modelUrl?: string;
+  rpmGlbUrl?: string;
+  rpmAvatarId?: string;
+  thumbnailUrl?: string;
+  isActive: boolean;
+  skinTone?: string;
+  hairColor?: string;
+  accessories?: string[]; // wardrobe item IDs equipped by the user
+}
 
 export interface ProfileThemePreset {
   id: string;
@@ -1471,14 +1488,16 @@ export interface Achievement {
   description: string;
   category: AchievementCategory;
   triggerType: AchievementTriggerType;
-  icon: string; // Icon name or URL
+  icon: string;
   backgroundColor?: string;
   pointsValue: number;
+  points?: number; // legacy alias for pointsValue
+  type?: string;   // legacy category label
   requirements: AchievementUnlockRequirement;
   rewards?: AchievementReward;
   animation?: AchievementAnimation;
-  createdBy: 'SYSTEM' | 'ADMIN' | 'CREATOR'; // CREATOR means Plajah+ member
-  creatorId?: string; // If CREATOR, the Plajah+ artist ID
+  createdBy: 'SYSTEM' | 'ADMIN' | 'CREATOR';
+  creatorId?: string;
   isActive: boolean;
   createdAt: number;
   updatedAt: number;
@@ -1516,9 +1535,10 @@ export interface UserPointsBalance {
   id: string;
   userId: string;
   totalPoints: number;
-  availablePlajahBucks: number; // Converted currency for store purchases
-  lifetime: number; // Historical total earned
+  availablePlajahBucks: number;
+  lifetime: number;
   lastEarnedAt?: number;
+  timestamp?: number; // legacy alias for lastEarnedAt
   lastRedeemedAt?: number;
   pointsHistory?: PointsTransaction[];
 }

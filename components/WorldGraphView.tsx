@@ -38,6 +38,18 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
   const [previewNode, setPreviewNode] = useState<any>(null);
   const [audioMuted, setAudioMuted] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Track real container size so ForceGraph3D reflows on resize
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setDimensions({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Graph data ─────────────────────────────────────────────────────────────
   const graphData = useMemo(() => {
@@ -129,6 +141,13 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     }, 80);
     return () => clearTimeout(t);
   }, [graphData]);
+
+  // Re-center graph whenever the container resizes
+  useEffect(() => {
+    if (!dimensions.width || !dimensions.height) return;
+    const padding = Math.min(dimensions.width, dimensions.height) * 0.08;
+    fgRef.current?.zoomToFit(400, padding);
+  }, [dimensions]);
 
   // ── Nebula background ──────────────────────────────────────────────────────
   const setupNebula = useCallback(() => {
@@ -358,23 +377,26 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       </div>
 
       {/* Legend */}
-      <div className={`absolute bottom-8 left-8 p-6 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 z-20 max-w-xs pointer-events-none ${isEmbedded ? 'scale-75 origin-bottom-left' : ''}`}>
-        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2"><Zap size={14} /> Legend</h3>
-        <div className="space-y-2">
-          <LegendItem color="#ff8c00" label="Cosmic Seed (World)" />
-          <LegendItem color="#4A90E2" label="Inhabitants" />
-          <LegendItem color="#9b59b6" label="Chronicle (Lore)" />
-          <LegendItem color="#2ecc71" label="Nexus (Events)" />
-          <LegendItem color="#f1c40f" label="Soundscapes (Albums)" />
-          <LegendItem color="#e74c3c" label="Visuals (Videos)" />
+      <div className={`absolute z-20 pointer-events-none bg-black/50 backdrop-blur-md border border-white/10 ${isEmbedded ? 'bottom-3 left-3 p-3 rounded-xl' : 'bottom-8 left-8 p-5 rounded-2xl'}`}>
+        <h3 className={`font-black uppercase tracking-widest text-primary flex items-center gap-2 ${isEmbedded ? 'text-[9px] mb-2' : 'text-xs mb-4'}`}><Zap size={isEmbedded ? 10 : 14} /> Legend</h3>
+        <div className={isEmbedded ? 'space-y-1' : 'space-y-2'}>
+          <LegendItem color="#ff8c00" label="Cosmic Seed (World)" compact={isEmbedded} />
+          <LegendItem color="#4A90E2" label="Inhabitants" compact={isEmbedded} />
+          <LegendItem color="#9b59b6" label="Chronicle (Lore)" compact={isEmbedded} />
+          <LegendItem color="#2ecc71" label="Nexus (Events)" compact={isEmbedded} />
+          <LegendItem color="#f1c40f" label="Soundscapes (Albums)" compact={isEmbedded} />
+          <LegendItem color="#e74c3c" label="Visuals (Videos)" compact={isEmbedded} />
         </div>
       </div>
 
       {/* Hover tooltip */}
       {hoveredNode && !isEmbedded && (
         <div
-          className="fixed z-40 pointer-events-none bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 max-w-[220px] shadow-xl"
-          style={{ left: Math.min(hoverPos.x + 18, window.innerWidth - 240), top: Math.max(hoverPos.y - 56, 8) }}
+          className="fixed z-40 pointer-events-none bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 max-w-[200px] shadow-xl"
+          style={{
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 56, 8), window.innerHeight - 80),
+          }}
         >
           <p className="text-white font-black text-xs uppercase tracking-wider truncate">{hoveredNode.name}</p>
           <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-0.5">{hoveredNode.type}</p>
@@ -389,9 +411,9 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         <div
           className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
           style={{
-            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
-            top: Math.max(hoverPos.y - 145, 8),
-            width: 200,
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 145, 8), window.innerHeight - 160),
+            width: Math.min(200, window.innerWidth - 24),
           }}
         >
           <video
@@ -414,9 +436,9 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         <div
           className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
           style={{
-            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
-            top: Math.max(hoverPos.y - 145, 8),
-            width: 200,
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 145, 8), window.innerHeight - 160),
+            width: Math.min(200, window.innerWidth - 24),
           }}
         >
           <img src={previewNode.img} alt="" className="w-full h-28 object-cover" />
@@ -431,9 +453,9 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         <div
           className="fixed z-40 pointer-events-auto shadow-2xl rounded-2xl overflow-hidden border border-white/15 bg-black/80 backdrop-blur-md"
           style={{
-            left: Math.min(hoverPos.x + 18, window.innerWidth - 220),
-            top: Math.max(hoverPos.y - 110, 8),
-            width: 200,
+            left: Math.min(Math.max(hoverPos.x + 18, 8), window.innerWidth - 216),
+            top: Math.min(Math.max(hoverPos.y - 110, 8), window.innerHeight - 130),
+            width: Math.min(200, window.innerWidth - 24),
           }}
         >
           {previewNode.img && <img src={previewNode.img} alt="" className="w-full h-20 object-cover" />}
@@ -455,6 +477,8 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         ref={fgRef}
         graphData={graphData}
         backgroundColor="#00000d"
+        width={dimensions.width || undefined}
+        height={dimensions.height || undefined}
         nodeLabel=""
         nodeThreeObject={nodeThreeObject}
         nodeThreeObjectExtend={false}
@@ -468,17 +492,18 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         onNodeHover={handleNodeHover}
         onEngineStop={() => {
           setupNebula();
-          fgRef.current?.zoomToFit(500, 80);
+          const padding = Math.min(dimensions.width || 400, dimensions.height || 400) * 0.08;
+          fgRef.current?.zoomToFit(500, padding);
         }}
       />
     </div>
   );
 };
 
-const LegendItem = ({ color, label }: { color: string; label: string }) => (
+const LegendItem = ({ color, label, compact }: { color: string; label: string; compact?: boolean }) => (
   <div className="flex items-center gap-3">
-    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-    <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">{label}</span>
+    <div className={`${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full shrink-0`} style={{ backgroundColor: color }} />
+    <span className={`${compact ? 'text-[8px]' : 'text-[10px]'} font-bold uppercase tracking-widest opacity-40`}>{label}</span>
   </div>
 );
 

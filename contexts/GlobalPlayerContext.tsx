@@ -54,6 +54,8 @@ interface GlobalPlayerContextType {
   setIsMinimized: (val: boolean) => void;
   isThreeDEnabled: boolean;
   setIsThreeDEnabled: (val: boolean) => void;
+  isSpatialAudioEnabled: boolean;
+  setSpatialAudioEnabled: (val: boolean) => void;
   toggleFullScreen: () => void;
   toggleAppFullScreen: () => void;
   view: string;
@@ -107,6 +109,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const pannerRef = useRef<PannerNode | null>(null);
+  const spatialAnimRef = useRef<number>(0);
+  const [isSpatialAudioEnabled, setIsSpatialAudioEnabledState] = useState(false);
   const contextRef = useRef<GlobalPlayerContextType | null>(null);
   const wakeLockRef = useRef<any>(null);
 
@@ -161,6 +166,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         analyserRef.current = analyser;
+        // Create HRTF panner for Eclipsa spatial audio (neutral position by default)
+        const panner = ctx.createPanner();
+        panner.panningModel = 'HRTF';
+        panner.distanceModel = 'inverse';
+        panner.refDistance = 1;
+        panner.rolloffFactor = 1;
+        panner.coneInnerAngle = 360;
+        panner.coneOuterAngle = 0;
+        panner.coneOuterGain = 0;
+        panner.positionX.value = 0;
+        panner.positionY.value = 0;
+        panner.positionZ.value = -1;
+        pannerRef.current = panner;
       }
     }
     // Always attempt to resume if called (usually in response to user interaction)
@@ -178,9 +196,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const audio = audioRef.current;
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
       try {
-        // Only connect if it's not already connected to avoid 'node already connected' error
         const source = audioContextRef.current.createMediaElementSource(audio);
-        source.connect(analyserRef.current);
+        if (pannerRef.current) {
+          // Chain: source → panner → analyser → destination
+          source.connect(pannerRef.current);
+          pannerRef.current.connect(analyserRef.current);
+        } else {
+          source.connect(analyserRef.current);
+        }
         analyserRef.current.connect(audioContextRef.current.destination);
         sourceRef.current = source;
       } catch (e) {
@@ -735,6 +758,31 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [currentTrack, duration, currentTime]);
 
+  const setSpatialAudioEnabled = useCallback((val: boolean) => {
+    setIsSpatialAudioEnabledState(val);
+    const panner = pannerRef.current;
+    if (!panner) return;
+    cancelAnimationFrame(spatialAnimRef.current);
+    if (val) {
+      // Slowly orbit the audio source in the horizontal plane (creates genuine 3D sensation with headphones)
+      let angle = 0;
+      const animate = () => {
+        angle += 0.008;
+        const radius = 3;
+        panner.positionX.value = Math.sin(angle) * radius;
+        panner.positionY.value = Math.sin(angle * 0.5) * 0.5;
+        panner.positionZ.value = Math.cos(angle) * radius;
+        spatialAnimRef.current = requestAnimationFrame(animate);
+      };
+      animate();
+    } else {
+      // Reset to neutral (directly in front of listener — transparent pass-through)
+      panner.positionX.value = 0;
+      panner.positionY.value = 0;
+      panner.positionZ.value = -1;
+    }
+  }, []);
+
   const clearMedia = () => {
     setCurrentTrack(null);
     setCurrentAlbum(null);
@@ -750,6 +798,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
+    isSpatialAudioEnabled, setSpatialAudioEnabled,
     toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
@@ -757,6 +806,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
+    isSpatialAudioEnabled, setSpatialAudioEnabled,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia
   ]);
 

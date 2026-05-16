@@ -2,17 +2,63 @@ import React, { useState, useEffect } from 'react';
 import { LiveFeed, UserProfile } from '../types';
 import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels } from '../services/backendService';
-import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 
 import { useAchievements } from '../contexts/AchievementContext';
 import TVView from './TVView';
 import PPVEventsView from './PPVEventsView';
+import GoLiveWizard from './GoLiveWizard';
 
 interface LiveHubViewProps {
   onBack: () => void;
   currentUser: FirebaseUser | null;
   onJoinPool: (poolId: string) => void;
+}
+
+// Hover-triggered stream preview: loads iframe once on first hover, stays mounted
+function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }) {
+  const [hovered, setHovered] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const isHls = url.toLowerCase().includes('.m3u8');
+  const isEmbeddable = url.includes('youtube.com') || url.includes('youtu.be') ||
+    url.includes('twitch.tv') || url.includes('vimeo.com') || url.includes('archive.org');
+
+  return (
+    <div
+      className="w-full h-full relative"
+      onMouseEnter={() => { setHovered(true); if (isEmbeddable && !isHls) setIframeReady(true); }}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Placeholder (always visible until hovered) */}
+      <div className={`absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity duration-300 z-10 ${hovered && iframeReady ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-md">
+            {hovered ? <Play size={24} fill="white" className="ml-1" /> : <Tv size={24} className="text-white/40" />}
+          </div>
+          {!hovered && <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Hover to preview</span>}
+        </div>
+      </div>
+
+      {/* Lazy iframe — mounts only once, stays mounted */}
+      {iframeReady && (
+        <iframe
+          src={mutedUrl}
+          className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      )}
+
+      {/* HLS notice */}
+      {isHls && hovered && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-20">
+          <Tv size={32} className="text-white/30 mb-2" />
+          <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Click to open full screen</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool }) => {
@@ -22,6 +68,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [liveArtists, setLiveArtists] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [fullScreenFeed, setFullScreenFeed] = useState<{ id: string, title: string, url: string, ownerName: string } | null>(null);
+  const [showGoLiveWizard, setShowGoLiveWizard] = useState(false);
 
   useEffect(() => {
     const unsubscribe = fetchAllLiveFeeds((items) => {
@@ -195,7 +242,14 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         
         {activeTab === 'STREAMS' && (
           <div className="flex flex-wrap gap-4 items-center">
-            <button 
+            <button
+              onClick={() => setShowGoLiveWizard(true)}
+              className="flex items-center justify-center gap-3 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
+            >
+              <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
+              <Radio size={18} className="text-white" /> Go Live
+            </button>
+            <button
               onClick={handleFeelingLucky}
               className="flex items-center justify-center gap-3 px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all group"
             >
@@ -220,80 +274,91 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           <div className="px-8 lg:px-24 w-full max-w-7xl mx-auto flex-1 overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               {filteredArtists.map((artist) => {
-          const streamUrl = artist.liveStreamConfig?.activeStreamType === 'FAST' 
-            ? artist.liveStreamConfig.fastChannelUrl 
+          const streamUrl = artist.liveStreamConfig?.activeStreamType === 'FAST'
+            ? artist.liveStreamConfig.fastChannelUrl
             : artist.liveStreamConfig?.streamUrl;
-          
-          return (
-             <div key={artist.uid} className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01]" onClick={() => setFullScreenFeed(streamUrl ? { id: artist.uid, title: artist.liveStreamConfig?.title || 'Live Stream', url: streamUrl, ownerName: artist.displayName } : null)}>
-              <div className="relative aspect-video bg-black cursor-pointer">
-                {renderStreamPreview(streamUrl)}
-                
-                <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="bg-black/50 text-white rounded-full p-4 backdrop-blur-md">
-                       <Maximize2 size={32} />
-                       <span className="block text-[10px] mt-2 font-bold uppercase tracking-widest text-center">Full Screen & Unmute</span>
-                    </button>
-                </div>
+          const mutedUrl = streamUrl ? getAutoplayUrl(streamUrl, true) : '';
 
-                <div className="absolute top-6 left-6 px-4 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg z-20">
-                  <div className="w-2 h-2 bg-white rounded-full animate-ping" />
-                  Artist Live
+          return (
+            <div
+              key={artist.uid}
+              className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01] cursor-pointer"
+              onClick={() => streamUrl && setFullScreenFeed({ id: artist.uid, title: artist.liveStreamConfig?.title || 'Live Stream', url: streamUrl, ownerName: artist.displayName })}
+            >
+              <div className="relative aspect-video bg-black overflow-hidden">
+                <HoverStreamPreview url={streamUrl || ''} mutedUrl={mutedUrl} />
+                <div className="absolute inset-0 z-20 flex items-end justify-end p-4 pointer-events-none">
+                  <div className="px-4 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg">
+                    <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                    Artist Live
+                  </div>
                 </div>
               </div>
-              <div className="p-10">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden">
-                    {artist.photoURL ? <img src={artist.photoURL || null} alt={artist.displayName} className="w-full h-full object-cover" /> : <User size={18} className="text-white/20" />}
+              <div className="p-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden shrink-0">
+                    {artist.photoURL ? <img src={artist.photoURL} alt={artist.displayName} className="w-full h-full object-cover" /> : <User size={18} className="text-white/20" />}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-xl uppercase tracking-tight">{artist.liveStreamConfig?.title || 'Live Stream'}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-base uppercase tracking-tight truncate">{artist.liveStreamConfig?.title || 'Live Stream'}</h3>
                     <p className="text-small-orange text-[10px] font-black uppercase tracking-widest">{artist.displayName}</p>
                   </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); streamUrl && setFullScreenFeed({ id: artist.uid, title: artist.liveStreamConfig?.title || 'Live Stream', url: streamUrl, ownerName: artist.displayName }); }}
+                    className="ml-auto p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all shrink-0"
+                  >
+                    <Maximize2 size={16} />
+                  </button>
                 </div>
               </div>
             </div>
           );
         })}
 
-        {filteredFeeds.map((feed) => (
-          <div key={feed.id} className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01]" onClick={() => setFullScreenFeed(feed)}>
-            <div className="relative aspect-video bg-black cursor-pointer">
-              {renderStreamPreview(feed.url)}
-              
-              <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="bg-black/50 text-white rounded-full p-4 backdrop-blur-md">
-                     <Maximize2 size={32} />
-                     <span className="block text-[10px] mt-2 font-bold uppercase tracking-widest text-center">Full Screen & Unmute</span>
+        {filteredFeeds.map((feed) => {
+          const mutedUrl = getAutoplayUrl(feed.url, true);
+          return (
+            <div
+              key={feed.id}
+              className="group bg-theme-card border border-theme rounded-[3rem] overflow-hidden shadow-2xl transition-all hover:scale-[1.01] cursor-pointer"
+              onClick={() => setFullScreenFeed(feed)}
+            >
+              <div className="relative aspect-video bg-black overflow-hidden">
+                <HoverStreamPreview url={feed.url} mutedUrl={mutedUrl} />
+                <div className="absolute inset-0 z-20 flex items-end justify-between p-4 pointer-events-none">
+                  <div className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg">
+                    <div className="w-2 h-2 bg-white rounded-full animate-ping" /> Live
+                  </div>
+                  {currentUser?.uid === feed.ownerId && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(feed.id); }}
+                      className="p-3 bg-black/60 text-white/40 hover:text-red-500 rounded-full backdrop-blur-md transition-all pointer-events-auto"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="p-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden shrink-0">
+                    {feed.ownerPhoto ? <img src={feed.ownerPhoto} alt={feed.ownerName} className="w-full h-full object-cover" /> : <User size={18} className="text-white/20" />}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-base uppercase tracking-tight truncate">{feed.title}</h3>
+                    <p className="text-small-orange text-[10px] font-black uppercase tracking-widest">{feed.ownerName}</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFullScreenFeed(feed); }}
+                    className="ml-auto p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all shrink-0"
+                  >
+                    <Maximize2 size={16} />
                   </button>
-              </div>
-
-              <div className="absolute top-6 left-6 px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-lg z-20">
-                <div className="w-2 h-2 bg-white rounded-full animate-ping" />
-                Live
-              </div>
-              {currentUser?.uid === feed.ownerId && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleDelete(feed.id); }}
-                  className="absolute top-6 right-6 p-4 bg-black/60 text-white/40 hover:text-red-500 rounded-full backdrop-blur-md transition-all z-20"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
-            </div>
-            <div className="p-10">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden">
-                  {feed.ownerPhoto ? <img src={feed.ownerPhoto || null} alt={feed.ownerName} className="w-full h-full object-cover" /> : <User size={18} className="text-white/20" />}
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl uppercase tracking-tight">{feed.title}</h3>
-                  <p className="text-small-orange text-[10px] font-black uppercase tracking-widest">{feed.ownerName}</p>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {filteredFeeds.length === 0 && filteredArtists.length === 0 && (
           <div className="col-span-full py-40 text-center opacity-20 flex flex-col items-center gap-6">
             <Radio size={64} className="mb-4" />
@@ -319,6 +384,13 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         )}
       </div>
 
+
+      {showGoLiveWizard && (
+        <GoLiveWizard
+          onClose={() => setShowGoLiveWizard(false)}
+          currentUser={currentUser}
+        />
+      )}
 
       {fullScreenFeed && (
         <div className="fixed inset-0 z-[1000] bg-black">

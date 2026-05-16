@@ -53,6 +53,7 @@ const PlayerDetailView = retryLazy(() => import('./components/PlayerDetailView')
 import GlobalPlayer from './components/GlobalPlayer';
 
 import NebulaBackground from './components/NebulaBackground';
+import PrivacyConsentBanner from './components/PrivacyConsentBanner';
 import NebulaVisualizer from './components/NebulaVisualizer';
 import BackgroundFrequencyGraph from './components/BackgroundFrequencyGraph';
 const VideoTab = retryLazy(() => import('./components/VideoTab'));
@@ -78,6 +79,7 @@ const MovieUXView = retryLazy(() => import('./components/MovieUXView'));
 const MoviesTVView = retryLazy(() => import('./components/MoviesTVView'));
 const ClubsView = retryLazy(() => import('./components/ClubsView'));
 const CharityView = retryLazy(() => import('./components/CharityView'));
+const AvatarStudio = retryLazy(() => import('./components/AvatarStudio'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChatDrawer'));
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
@@ -129,29 +131,106 @@ import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
+import AvatarViewer from './components/AvatarViewer';
+import type { AvatarConfig } from './types';
 
-// Rendered inside the provider tree so hooks have access to their contexts
-const SidebarGamification: React.FC<{ collapsed: boolean; bigScreen: boolean; onOpenAchievements: () => void }> = ({ collapsed, bigScreen, onOpenAchievements }) => {
+// Sidebar card that replaces the old user photo + email + cloud + points + badges
+const AvatarSidebarCard: React.FC<{
+  collapsed: boolean;
+  bigScreen: boolean;
+  displayName?: string;
+  photoURL?: string;
+  cloudStatus: 'CONNECTED' | 'OFFLINE' | 'CHECKING';
+  avatar?: AvatarConfig;
+  onOpenAchievements: () => void;
+  onOpenAvatarStudio?: () => void;
+}> = ({ collapsed, bigScreen, displayName, photoURL, cloudStatus, avatar, onOpenAchievements, onOpenAvatarStudio }) => {
   const { balance } = usePoints();
   const { userBadges } = useBadges();
   const earnedCount = userBadges.filter((b: any) => b.earnedAt).length;
+  const pts = ((balance as any)?.totalPoints ?? 0).toLocaleString();
   const visClass = collapsed ? 'hidden' : (bigScreen ? 'hidden group-hover/sidebar:block' : 'block');
+  const showAvatar = avatar?.isActive;
+
+  if (collapsed) {
+    // Collapsed sidebar: just the avatar bubble or photo
+    return (
+      <div className="flex flex-col items-center gap-2 mt-2">
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-white/5 ring-2 ring-white/10">
+          {showAvatar ? (
+            <AvatarViewer config={avatar!} compact autoRotate className="w-full h-full" />
+          ) : photoURL ? (
+            <img src={photoURL} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User size={16} className="text-white/30" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`mt-4 space-y-2 ${visClass}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Points</span>
-        <span className="text-[8px] font-black text-small-orange">{((balance as any)?.totalPoints ?? 0).toLocaleString()}</span>
+    <div className={`space-y-0 ${visClass}`}>
+      {/* Avatar or photo as centrepiece */}
+      <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent" style={{ height: showAvatar ? 200 : 64 }}>
+        {showAvatar ? (
+          <AvatarViewer config={avatar!} compact wave autoRotate={false} className="w-full h-full" />
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-4">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/10 shrink-0">
+              {photoURL
+                ? <img src={photoURL} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center"><User size={16} className="text-white/30" /></div>
+              }
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{displayName || 'Artist'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Gradient floor fade on avatar */}
+        {showAvatar && (
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#020202] to-transparent pointer-events-none" />
+        )}
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Badges</span>
-        <span className="text-[8px] font-black text-small-orange">{earnedCount}</span>
+
+      {/* Name under avatar */}
+      {showAvatar && (
+        <div className="px-2 pt-1 pb-2 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{displayName || 'Artist'}</p>
+        </div>
+      )}
+
+      {/* Cloud status + stats row */}
+      <div className="flex items-center justify-between px-1 py-1.5">
+        <span className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-widest ${cloudStatus === 'CONNECTED' ? 'text-green-500' : cloudStatus === 'OFFLINE' ? 'text-red-500' : 'text-white/20'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'CONNECTED' ? 'bg-green-500' : cloudStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-white/20'}`} />
+          {cloudStatus === 'CONNECTED' ? 'Verified' : cloudStatus === 'OFFLINE' ? 'Offline' : '…'}
+        </span>
+        <span className="text-[8px] font-black text-small-orange">{pts} pts</span>
+        <span className="text-[8px] font-black text-small-orange">{earnedCount} 🏅</span>
       </div>
-      <button
-        onClick={onOpenAchievements}
-        className="w-full mt-1 py-2 bg-small-orange/10 hover:bg-small-orange/20 border border-small-orange/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-small-orange transition-all"
-      >
-        View Achievements
-      </button>
+
+      {/* Action buttons */}
+      <div className="flex gap-1.5 mt-1">
+        {onOpenAvatarStudio && (
+          <button
+            onClick={onOpenAvatarStudio}
+            className="flex-1 py-1.5 bg-[#ff8c00]/10 hover:bg-[#ff8c00]/20 border border-[#ff8c00]/20 rounded-xl text-[7px] font-black uppercase tracking-widest text-[#ff8c00] transition-all"
+          >
+            ✦ Avatar
+          </button>
+        )}
+        <button
+          onClick={onOpenAchievements}
+          className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[7px] font-black uppercase tracking-widest text-white/50 transition-all"
+        >
+          Achievements
+        </button>
+      </div>
     </div>
   );
 };
@@ -336,7 +415,7 @@ const App: React.FC = () => {
       // has not already saved an explicit visual theme preference.
       if (view === 'LANDING') {
         const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-        const hasExplicitTheme = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
+        const hasExplicitTheme = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
         if (!hasExplicitTheme) {
           const isTV = tvKeywords.some(kw => navigator.userAgent.toLowerCase().includes(kw));
           if (mobile) setTheme('PHONE');
@@ -383,7 +462,7 @@ const App: React.FC = () => {
     const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
     // Only apply device layout theme if the user has no explicit visual preference saved
     const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-    const hasExplicitTheme = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
+    const hasExplicitTheme = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
 
     if (isMobileDevice) {
       setView('MUSIC');
@@ -518,7 +597,7 @@ const App: React.FC = () => {
             const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
             // Only apply device layout theme if the user has no explicit visual preference
             const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-            const hasExplicit = savedTheme && savedTheme !== 'PLAJAH' && savedTheme !== 'DARK';
+            const hasExplicit = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
             if (isMobileDevice) {
               if (!hasExplicit) setTheme('PHONE');
               return 'MUSIC';
@@ -948,7 +1027,7 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-[var(--bg-color)] flex flex-col items-center justify-center gap-6">
         <div className="relative">
           <div className="w-24 h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(107,0,153,0.3)]">
             <Logo size={48} />
@@ -982,7 +1061,7 @@ const App: React.FC = () => {
               <NotificationProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <Suspense fallback={
-          <div className="fixed inset-0 flex items-center justify-center bg-black z-[200]">
+          <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-color)] z-[200]">
             <div className="flex flex-col items-center gap-4">
               <Logo className="w-24 h-24" />
               <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -1134,9 +1213,9 @@ const App: React.FC = () => {
                       
                       {videoBackgroundFrosted !== false && (
                         <div className={`absolute inset-0 backdrop-blur-[80px] ${
-                          theme === 'LIGHT'   ? 'bg-white/55' :
+                          theme === 'LIGHT'   ? 'bg-white/60' :
                           theme === 'PASTEL'  ? 'bg-[#fdf6e3]/50' :
-                          theme === 'PLAJAH'  ? 'bg-[#0d0015]/45' :
+                          theme === 'PLAJAH'  ? 'bg-[#1a0026]/40' :
                           theme === 'CITRUS'  ? 'bg-[#0a0400]/40' :
                           theme === 'ETHEREAL'? 'bg-[#131314]/45' :
                           theme === 'NEBULA'  ? 'bg-[#050510]/50' :
@@ -1162,7 +1241,7 @@ const App: React.FC = () => {
             )}
             {/* Left Ad Area (Moved to far left) */}
           {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL') && (
-            <aside className="lg:w-80 p-8 border-r border-white/5 bg-black/40 backdrop-blur-3xl hidden lg:flex flex-col gap-8 sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <aside className="lg:w-80 p-8 border-r border-theme glass-high hidden lg:flex flex-col gap-8 sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar overflow-x-hidden">
               <SystemMessageBanner />
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles size={16} className="text-small-orange" />
@@ -1382,52 +1461,34 @@ const App: React.FC = () => {
               </div>
 
               <div className="pt-10 border-t border-theme space-y-6">
-                <div className={`p-6 bg-white/[0.04] border border-theme rounded-[2.5rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
-                  <div className={`flex items-center gap-4 ${isSidebarCollapsed ? 'mb-0 justify-center' : (theme === 'BIG_SCREEN' ? 'mb-6 justify-center group-hover/sidebar:justify-start' : 'mb-6')}`}>
-                     <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden ring-2 ring-white/5 shrink-0">
-                        {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
-                     </div>
-                     <div className={`overflow-hidden ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{user?.displayName || 'Guest Artist'}</p>
-                        <p className="text-[8px] font-bold text-small-orange truncate opacity-60">{user ? user.email : 'Public Instance'}</p>
-                     </div>
-                  </div>
-                  
-                  <div className={`flex flex-col gap-3 ${isSidebarCollapsed ? 'items-center' : (theme === 'BIG_SCREEN' ? 'items-center group-hover/sidebar:items-start' : '')}`}>
-                    <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${cloudStatus === 'CONNECTED' ? 'text-green-500' : cloudStatus === 'OFFLINE' ? 'text-red-500' : 'text-white/20'}`}>
-                      {cloudStatus === 'CONNECTED' ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-                      <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>
-                        {cloudStatus === 'CONNECTED' ? 'Cloud Verified' : cloudStatus === 'OFFLINE' ? 'Connection Lost' : 'Checking Link...'}
-                      </span>
+                <div className={`bg-white/[0.04] border border-theme shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-3' : 'p-4 rounded-[2rem]'}`}>
+                  <AvatarSidebarCard
+                    collapsed={isSidebarCollapsed}
+                    bigScreen={theme === 'BIG_SCREEN'}
+                    displayName={user?.displayName ?? undefined}
+                    photoURL={user?.photoURL ?? undefined}
+                    cloudStatus={cloudStatus}
+                    avatar={userProfile?.avatar}
+                    onOpenAchievements={() => setShowAchievements(true)}
+                    onOpenAvatarStudio={user ? () => { setViewedUserId(user.uid); setView('AVATAR_STUDIO'); } : undefined}
+                  />
+
+                  {!user && (
+                    <div className={`flex flex-col gap-2 mt-3 pt-3 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
+                      <button onClick={loginWithGoogle} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                          <LogIn size={14} />
+                        </div>
+                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Google Sign In</span>
+                      </button>
+                      <button onClick={loginWithTwitter} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                          <XIcon size={14} />
+                        </div>
+                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>X / Twitter Sign In</span>
+                      </button>
                     </div>
-                  </div>
-
-                  {user && (
-                    <SidebarGamification
-                      collapsed={isSidebarCollapsed}
-                      bigScreen={theme === 'BIG_SCREEN'}
-                      onOpenAchievements={() => setShowAchievements(true)}
-                    />
                   )}
-
-                  <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-4">
-                    {!user && (
-                      <div className="flex flex-col gap-2">
-                        <button onClick={loginWithGoogle} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                            <LogIn size={14} />
-                          </div>
-                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Google Sign In</span>
-                        </button>
-                        <button onClick={loginWithTwitter} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                            <XIcon size={14} />
-                          </div>
-                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>X / Twitter Sign In</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </aside>
@@ -1821,7 +1882,7 @@ const App: React.FC = () => {
                 onVisitUser={handleVisitUser}
               />
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} currentTheme={theme} onSetTheme={setTheme} />}
             {view === 'SEARCH' && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} />}
             {view === 'FEED' && (
               <FeedView 
@@ -1868,13 +1929,14 @@ const App: React.FC = () => {
             )}
             {view === 'USER_PROFILE' && viewedUserId && (
               <div className="relative">
-                <UserProfileView 
-                  uid={viewedUserId} 
-                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }} 
+                <UserProfileView
+                  uid={viewedUserId}
+                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }}
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}
                   onVisitUser={handleVisitUser}
                   onMessage={handleMessage}
+                  onNavigate={setView}
                   initialTab={initialProfileTab as any}
                 />
               </div>
@@ -1963,13 +2025,23 @@ const App: React.FC = () => {
               />
             )}
             {view === 'PLAYER' && selectedVideo && (
-              <VideoPlayer 
-                video={selectedVideo} 
+              <VideoPlayer
+                video={selectedVideo}
                 onBack={() => {
                   setSelectedVideo(null);
                   setView('VIDEOS');
-                }} 
-                currentUser={user} 
+                }}
+                currentUser={user}
+              />
+            )}
+            {view === 'AVATAR_STUDIO' && userProfile && (
+              <AvatarStudio
+                userProfile={userProfile}
+                onBack={() => setView('USER_PROFILE')}
+                onSave={(config) => {
+                  setUserProfile(prev => prev ? { ...prev, avatar: config } : prev);
+                  setView('USER_PROFILE');
+                }}
               />
             )}
             </motion.div>
@@ -2102,6 +2174,7 @@ const App: React.FC = () => {
         />
       )}
       {user && <PersistentChatDrawer />}
+      <PrivacyConsentBanner />
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>

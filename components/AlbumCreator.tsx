@@ -58,6 +58,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [bookChapters, setBookChapters] = useState<BookChapter[]>(initialAlbum?.bookChapters || []);
   const [bookPreviewConfig, setBookPreviewConfig] = useState(initialAlbum?.bookPreviewConfig || { type: 'PAGES' as const, allowedPageRange: [1, 5] as [number, number] });
   const [isDeploying, setIsDeploying] = useState(false);
+  const [rightsConfirmed, setRightsConfirmed] = useState(!!initialAlbum);
   const [status, setStatus] = useState({ text: '', percent: 0 });
   const [galleryUrl, setGalleryUrl] = useState(initialAlbum?.galleryUrl || '');
   const [socialLinks, setSocialLinks] = useState(initialAlbum?.socialLinks || { twitter: '', instagram: '', spotify: '', youtube: '', website: '' });
@@ -248,7 +249,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         } catch (e) { console.error("Failed to parse playlist XML", e); }
       }
       for (const file of fileArray) {
-        if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+        const isIamf = file.name.toLowerCase().endsWith('.iamf');
+        if (isIamf || file.type.startsWith('audio/') || file.type.startsWith('video/')) {
           newTracks.push({
             id: Math.random().toString(36).substr(2, 9),
             title: file.name.replace(/\.[^/.]+$/, "").replace(/^\d+\s*[-_]*\s*/, ""),
@@ -257,7 +259,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             url: URL.createObjectURL(file),
             price: 0,
             isPaywalled: false,
-            genre
+            genre,
+            ...(isIamf && { isEclipsa: true }),
           });
         }
       }
@@ -573,7 +576,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {(type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && (
         <div className="space-y-4">
           <div className="relative group">
-            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : type === 'GAME' ? '*' : 'audio/*'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : type === 'GAME' ? '*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-[3rem] flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
               <div className="p-6 rounded-[1.5rem] bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
@@ -1611,9 +1614,25 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 {step === 0 ? (type ? `Continue with ${TYPE_OPTIONS.find(t => t.id === type)?.label}` : 'Select a Type') : 'Continue'} <ChevronRight size={18} />
               </button>
             ) : (
-              <button type="submit" disabled={isDeploying || !title} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
-                {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
-              </button>
+              <div className="flex-1 flex flex-col gap-3">
+                {!initialAlbum && (
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <button
+                      type="button"
+                      onClick={() => setRightsConfirmed(v => !v)}
+                      className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${rightsConfirmed ? 'bg-small-orange border-small-orange' : 'border-white/30 group-hover:border-white/60'}`}
+                    >
+                      {rightsConfirmed && <Check size={12} className="text-white" />}
+                    </button>
+                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest leading-relaxed">
+                      I confirm I own or have full legal rights to distribute all files, images, and content uploaded here, including copyright. Uploading content you do not own violates our Terms of Service and may result in takedown and account suspension.
+                    </span>
+                  </label>
+                )}
+                <button type="submit" disabled={isDeploying || !title || (!initialAlbum && !rightsConfirmed)} className="w-full py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
+                  {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
+                </button>
+              </div>
             )}
           </div>
         </form>

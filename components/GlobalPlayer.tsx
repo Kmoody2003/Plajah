@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
-import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon } from 'lucide-react';
+import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
 import Logo from './Logo';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
@@ -86,6 +86,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     setIsMinimized,
     isThreeDEnabled,
     setIsThreeDEnabled,
+    isSpatialAudioEnabled,
+    setSpatialAudioEnabled,
     isTVMode,
     setIsTVMode,
     isMiniPlayerActive,
@@ -485,6 +487,13 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   <div className={`text-center ${isMinimized ? 'mb-1' : 'mb-6'}`}>
                     <h3 className={`${isMinimized ? 'text-[10px]' : 'text-sm'} font-display font-black uppercase tracking-[0.1em] truncate text-white px-2`}>{currentTrack?.title || 'No Track Playing'}</h3>
                     {!isMinimized && <p className="text-[10px] font-label font-black text-small-orange uppercase tracking-[0.2em] truncate opacity-60">{currentAlbum?.artist || 'Unknown Artist'}</p>}
+                    {currentTrack?.isEclipsa && !isMinimized && (
+                      <div className="flex items-center justify-center gap-1.5 mt-1">
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/40 text-violet-300 text-[8px] font-black uppercase tracking-widest">
+                          <Headphones size={9} /> Eclipsa Spatial Audio
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -546,12 +555,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Tv size={isMinimized ? 11 : 14} />
                       </button>
-                      <button 
-                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)} 
+                      <button
+                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                         className={`p-1 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                         title="3D Depth Mapping"
                       >
                         <Box size={isMinimized ? 11 : 14} />
+                      </button>
+                      <button
+                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
+                        className={`p-1 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        title="Eclipsa Spatial Audio (HRTF)"
+                      >
+                        <Headphones size={isMinimized ? 11 : 14} />
                       </button>
                       <button 
                         onClick={() => setIsSlideshowActive(!isSlideshowActive)} 

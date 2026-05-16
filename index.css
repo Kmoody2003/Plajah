@@ -70,7 +70,7 @@
 }
 
 /* Frosted Glass Texture for Light Theme */
-.theme-light body::before {
+body.theme-light::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -80,8 +80,8 @@
   pointer-events: none;
 }
 
-.theme-light body {
-  background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #f1f5f9 100%);
+body.theme-light {
+  background: radial-gradient(circle at 30% 20%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
 }
 
 /* Overrides for Light Theme */
@@ -204,16 +204,16 @@
 }
 
 /* Scrapbook Notebook Page Background */
-.theme-pastel body {
+body.theme-pastel {
   background-color: var(--bg-color);
-  background-image: 
+  background-image:
     linear-gradient(rgba(7, 54, 66, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(211, 54, 130, 0.1) 1px, transparent 1px);
   background-size: 100% 2.5rem, 100% 100%;
   background-position: 0 1rem, 4rem 0;
 }
 
-.theme-pastel body::before {
+body.theme-pastel::before {
   content: "";
   position: fixed;
   left: 3.8rem;
@@ -362,12 +362,24 @@
   --on-surface-variant: var(--text-secondary);
 }
 
-.theme-plajah body {
+body.theme-plajah {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(107, 0, 153, 0.5) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(212, 0, 85, 0.3) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 60% 40%, rgba(255, 140, 0, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.22) 0%, transparent 60%),
     #0d0015;
+}
+
+/* Plajah gradient overlay — renders on top of custom background when active */
+.theme-plajah #universal-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(107, 0, 153, 0.40) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 80% 80%,  rgba(212, 0, 85,  0.25) 0%, transparent 65%);
 }
 
 /* Overrides for faint text and icons in Plajah theme */
@@ -413,7 +425,7 @@
   --on-surface-variant: rgba(255, 255, 255, 0.9);
 }
 
-.theme-big-screen body {
+body.theme-big-screen {
   font-size: 1.25rem;
   letter-spacing: 0.02em;
 }
@@ -443,7 +455,7 @@
   --on-surface-variant: rgba(255, 255, 255, 0.8);
 }
 
-.theme-phone body {
+body.theme-phone {
   font-size: 14px;
   -webkit-tap-highlight-color: transparent;
 }
@@ -574,7 +586,7 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
 
   /* Navigation bar glass (bottom tab bar, player) */
   .glass-nav {
-    background: rgba(10,10,12,0.55);
+    background: color-mix(in srgb, var(--bg-color) 60%, transparent);
     -webkit-backdrop-filter: var(--blur-xl);
     backdrop-filter: var(--blur-xl);
     border-top: 1px solid var(--m3-border);
@@ -582,7 +594,7 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
 
   /* Sheet / drawer glass */
   .glass-sheet {
-    background: rgba(14,14,18,0.72);
+    background: color-mix(in srgb, var(--bg-color) 75%, transparent);
     -webkit-backdrop-filter: var(--blur-xl);
     backdrop-filter: var(--blur-xl);
     border-top: 1px solid var(--m3-border-strong);
@@ -843,6 +855,37 @@ body.has-custom-background::after {
   }
 }
 
+/* NEBULA THEME */
+.theme-nebula {
+  --bg-color: #050510;
+  --text-primary: #e2e8ff;
+  --text-secondary: #818cf8;
+  --accent-color: #22d3ee;
+  --border-color: rgba(99, 102, 241, 0.18);
+  --card-bg: rgba(99, 102, 241, 0.07);
+  --surface-variant: rgba(139, 92, 246, 0.12);
+  --on-surface-variant: rgba(226, 232, 255, 0.7);
+  --chat-bubble-bg: rgba(99, 102, 241, 0.1);
+  --chat-bubble-text: #e2e8ff;
+}
+
+body.theme-nebula {
+  background:
+    radial-gradient(ellipse 80% 60% at 35% 25%, rgba(99, 102, 241, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 55% at 70% 75%, rgba(139, 92, 246, 0.25) 0%, transparent 60%),
+    #050510;
+}
+
+.theme-nebula .text-white\/5,
+.theme-nebula .text-white\/10,
+.theme-nebula .text-white\/20,
+.theme-nebula .text-white\/30,
+.theme-nebula .text-white\/40,
+.theme-nebula .text-white\/50,
+.theme-nebula .text-white\/60 {
+  color: rgba(129, 140, 248, 0.7) !important;
+}
+
 /* CITRUS THEME */
 .theme-citrus {
   --bg-color: #0f0500;
@@ -918,14 +961,12 @@ body.has-custom-background::after {
 /* ── DARK (default, no body class) ── */
 #universal-background {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 0, 0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(107, 0, 153, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 0, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(107, 0, 153, 0.12) 0%, transparent 65%),
     #020202;
 }
 #universal-background::before {
-  background: rgba(0, 0, 0, 0.30);
-  backdrop-filter: blur(20px) saturate(130%);
-  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 /* ── LIGHT ── */
@@ -960,55 +1001,47 @@ body.theme-pastel #universal-background::before {
 /* ── PLAJAH ── */
 body.theme-plajah #universal-background {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(107, 0, 153, 0.55) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(212, 0, 85, 0.35) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 60% 40%, rgba(255, 140, 0, 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.22) 0%, transparent 60%),
     #0d0015;
 }
 body.theme-plajah #universal-background::before {
-  background: rgba(10, 0, 20, 0.38);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  background: rgba(13, 0, 21, 0.18);
 }
 
 /* ── CITRUS ── */
 body.theme-citrus #universal-background {
   background:
-    radial-gradient(ellipse 70% 60% at 80% 15%, rgba(255, 100, 0, 0.50) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 55% at 15% 80%, rgba(200, 40, 0, 0.30) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 170, 0, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 65% at 80% 15%, rgba(255, 100, 0, 0.80) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 60% at 15% 80%, rgba(200, 40, 0, 0.60) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255, 170, 0, 0.25) 0%, transparent 60%),
     #080200;
 }
 body.theme-citrus #universal-background::before {
-  background: rgba(12, 4, 0, 0.35);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  background: rgba(12, 4, 0, 0.12);
 }
 
 /* ── ETHEREAL ── */
 body.theme-ethereal #universal-background {
   background:
-    radial-gradient(ellipse 70% 60% at 30% 20%, rgba(208, 188, 255, 0.28) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 70% 75%, rgba(0, 218, 243, 0.14) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 182, 141, 0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 65% at 30% 20%, rgba(208, 188, 255, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 55% at 70% 75%, rgba(0, 218, 243, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255, 182, 141, 0.20) 0%, transparent 60%),
     #0f0f10;
 }
 body.theme-ethereal #universal-background::before {
-  background: rgba(14, 14, 15, 0.42);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  background: rgba(14, 14, 15, 0.15);
 }
 
 /* ── NEBULA ── */
 body.theme-nebula #universal-background {
   background:
-    radial-gradient(ellipse 80% 60% at 35% 25%, rgba(99, 102, 241, 0.35) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 55% at 70% 75%, rgba(139, 92, 246, 0.25) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 55% 50%, rgba(34, 211, 238, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 85% 65% at 35% 25%, rgba(99, 102, 241, 0.65) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 60% at 70% 75%, rgba(139, 92, 246, 0.50) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 50%, rgba(34, 211, 238, 0.25) 0%, transparent 60%),
     #050510;
 }
 body.theme-nebula #universal-background::before {
-  background: rgba(5, 5, 16, 0.48);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  background: rgba(5, 5, 16, 0.15);
 }

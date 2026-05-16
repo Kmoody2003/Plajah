@@ -538,7 +538,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
             )}
 
             {activeTab === 'Graph' && selectedWorld && (
-              <div className="h-[700px] w-full rounded-[3rem] overflow-hidden border border-white/10 relative">
+              <div className="w-full rounded-[3rem] overflow-hidden border border-white/10 relative" style={{ height: 'clamp(420px, 72vh, 920px)' }}>
                  <div className="absolute top-8 left-8 z-10 pointer-events-none">
                     <h4 className="text-xl font-black uppercase tracking-tight italic text-white flex items-center gap-3">
                        <Network className="text-small-orange" size={24} />
