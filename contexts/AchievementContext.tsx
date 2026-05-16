@@ -22,7 +22,7 @@ interface AchievementContextType {
   userAchievements: UserAchievementProgress[];
   unlockAchievement: (id: string) => void;
   triggerAction: (action: string) => void;
-  registerAndUnlock: (achievement: Omit<Achievement, 'unlockedAt' | 'isNew' | 'id' | 'createdAt' | 'updatedAt'>) => void;
+  registerAndUnlock: (achievement: Omit<Achievement, 'unlockedAt' | 'isNew' | 'createdAt' | 'updatedAt'> & { id?: string }) => void;
   isLoading: boolean;
   loadUserAchievements: (userId: string) => void;
 }
@@ -90,10 +90,10 @@ export const AchievementProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [achievements, fireNotification]);
 
-  const registerAndUnlock = useCallback((achievement: Omit<Achievement, 'unlockedAt' | 'isNew' | 'id' | 'createdAt' | 'updatedAt'>) => {
+  const registerAndUnlock = useCallback((achievement: Omit<Achievement, 'unlockedAt' | 'isNew' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     const newAch: Achievement = {
       ...achievement,
-      id: `custom_${Date.now()}`,
+      id: achievement.id || `custom_${Date.now()}`,
       unlockedAt: Date.now(),
       isNew: true,
       createdAt: Date.now(),

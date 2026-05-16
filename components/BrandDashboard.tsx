@@ -55,7 +55,7 @@ const BrandDashboard: React.FC<BrandDashboardProps> = ({ user, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white p-8 lg:p-12">
+    <div className="min-h-screen bg-[var(--bg-color)] text-white p-8 lg:p-12">
       <div className="max-w-7xl mx-auto">
         <button 
           onClick={onBack}

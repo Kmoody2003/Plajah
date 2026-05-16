@@ -3,6 +3,7 @@ import { Send, Mic, Video, Phone, Plus, Image as ImageIcon, Link as LinkIcon, Sp
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
 import { sendMessage, listenToMessages, fetchUserProfile, auth, createCollabProject, fetchCollabProjects, fetchUserContent, updateTypingStatus, markMessageAsSeen, fetchUserProfiles } from '../services/backendService';
+import { encryptText, decryptText } from '../services/cryptoService';
 import VoiceRecorder from './VoiceRecorder';
 
 interface ChatWindowProps {
@@ -57,6 +58,7 @@ const RoomIcon: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfile>
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onStartVideo }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [decryptedMessages, setDecryptedMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
@@ -67,6 +69,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Decrypt messages as they arrive
+  useEffect(() => {
+    if (messages.length === 0) { setDecryptedMessages([]); return; }
+    let cancelled = false;
+    Promise.all(
+      messages.map(async (m) => ({
+        ...m,
+        text: m.text ? await decryptText(m.text, room.id) : m.text,
+      }))
+    ).then((decrypted) => {
+      if (!cancelled) setDecryptedMessages(decrypted);
+    });
+    return () => { cancelled = true; };
+  }, [messages, room.id]);
 
   useEffect(() => {
     const unsubscribe = listenToMessages(room.id, (msgs) => {
@@ -140,11 +157,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     }
 
+    const encryptedText = await encryptText(inputText, room.id);
     await sendMessage(room.id, {
       senderId: auth.currentUser?.uid || '',
       senderName: auth.currentUser?.displayName || 'Anonymous',
       senderPhoto: auth.currentUser?.photoURL || '',
-      text: inputText,
+      text: encryptedText,
       type: 'TEXT'
     });
     setInputText('');
@@ -302,7 +320,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
-        {messages.map((msg, i) => {
+        {decryptedMessages.map((msg, i) => {
           const isMe = msg.senderId === auth.currentUser?.uid;
           const isSeen = msg.seenBy && msg.seenBy.length > (isMe ? 1 : 0);
           

@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-6 text-center">
+        <div className="min-h-screen bg-[var(--bg-color)] flex flex-col items-center justify-center p-6 text-center">
           <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-8 border border-red-500/20">
             <ShieldAlert size={40} className="text-red-500" />
           </div>

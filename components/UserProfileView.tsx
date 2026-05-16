@@ -93,6 +93,7 @@ import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
 import ThreeDImage from './ThreeDImage';
+import AvatarViewer from './AvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
 import ArtistMembersArea from './ArtistMembersArea';
@@ -106,6 +107,7 @@ import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
 import HideNSeekManager from './HideNSeekManager';
 import { uploadFile } from '../services/backendService';
+import SignInPrompt from './SignInPrompt';
 
 interface UserProfileViewProps {
   uid: string;
@@ -116,6 +118,7 @@ interface UserProfileViewProps {
   onMessage?: (uid: string) => void;
   onSelectArticle?: (article: Article) => void;
   onSelectApp?: (app: WebApp) => void;
+  onNavigate?: (view: AppView) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
@@ -194,15 +197,16 @@ const UserProfileSlideshow: React.FC<{ items: { id: string; url: string; type: '
   );
 };
 
-const UserProfileView: React.FC<UserProfileViewProps> = ({ 
-  uid, 
-  onBack, 
+const UserProfileView: React.FC<UserProfileViewProps> = ({
+  uid,
+  onBack,
   onSelectAlbum,
   onSelectGame,
   onVisitUser,
   onMessage,
   onSelectArticle,
   onSelectApp,
+  onNavigate,
   initialTab
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -251,6 +255,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const dragTabRef = useRef<number | null>(null);
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
   const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
+  const [signInAction, setSignInAction] = useState<string | null>(null);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -351,7 +356,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   }, [uid, initialTab]);
 
   const handleFollowToggle = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('follow this creator'); return; }
     if (following) {
       await unfollowUser(uid);
       setFollowing(false);
@@ -364,7 +369,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   };
 
   const handleMailingListToggle = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('subscribe to updates'); return; }
     if (isSubscribed) {
       await unsubscribeFromMailingList(uid);
       setIsSubscribed(false);
@@ -605,29 +610,33 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         )}
 
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
-          <div className="relative group/avatar">
+          <div className="relative group/avatar flex flex-col items-center gap-2">
             <div className="absolute -inset-2 bg-gradient-to-r from-small-orange to-[#FF8C00] rounded-[3rem] blur opacity-25 group-hover/avatar:opacity-50 transition duration-1000" />
             <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'} rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden border-4 lg:border-8 border-theme bg-white/5`}>
-              <ThreeDImage 
-                src={profile.customPhotoURL || profile.photoURL || null} 
-                alt={profile.displayName} 
-                className="w-full h-full object-cover"
-              />
+              {profile.avatar?.isActive ? (
+                <AvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
+              ) : (
+                <ThreeDImage
+                  src={profile.customPhotoURL || profile.photoURL || null}
+                  alt={profile.displayName}
+                  className="w-full h-full object-cover"
+                />
+              )}
               {profile.liveStreamConfig?.isActive && (
                 <div className="absolute top-3 right-3 lg:top-4 lg:right-4 z-20">
                   <div className="w-3 h-3 lg:w-4 lg:h-4 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] border-2 border-white" />
                 </div>
               )}
-              {isOwnProfile && (
+              {isOwnProfile && !profile.avatar?.isActive && (
                 <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-all cursor-pointer backdrop-blur-md">
                   <div className="flex flex-col items-center gap-2">
                     <Camera size={isMobile ? 20 : 24} />
                     <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Update Photo</span>
                   </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleProfileUpdate('photo', file);
@@ -636,10 +645,35 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </label>
               )}
             </div>
+            {isOwnProfile && onNavigate && (
+              <button
+                onClick={() => onNavigate('AVATAR_STUDIO')}
+                className="relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
+              >
+                ✦ Avatar Studio
+              </button>
+            )}
           </div>
           
           <div className="flex-1 w-full">
             <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:items-start'} gap-2 mb-4`}>
+              {/* Name row — avatar standing to the left on desktop */}
+              <div className={`flex ${isMobile ? 'flex-col items-center' : 'flex-row items-end'} gap-4`}>
+                {/* Standing avatar next to name (desktop + active avatar only) */}
+                {!isMobile && profile.avatar?.isActive && (
+                  <div
+                    className="shrink-0 self-end"
+                    style={{ width: 90, height: 220 }}
+                  >
+                    <AvatarViewer
+                      config={profile.avatar}
+                      compact
+                      wave
+                      autoRotate={false}
+                      className="w-full h-full"
+                    />
+                  </div>
+                )}
               <div className={`flex items-center gap-3 ${isMobile ? 'flex-col' : ''}`}>
                 <h1 className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}>
                   {profile.displayName}
@@ -717,6 +751,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   </button>
                 )}
               </div>
+              {/* ↑ closes flex items-center gap-3 (name+badges row) */}
+              </div>
+              {/* ↑ closes flex flex-row items-end (avatar + name outer wrapper) */}
               <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs mt-2' : 'text-sm mt-2'}`}>
                 {profile.bio || "No bio yet. This artist is letting their work speak for itself."}
               </p>
@@ -819,13 +856,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                         </button>
                       </div>
                     )}
-                    {!isOwnProfile && auth.currentUser && (
+                    {!isOwnProfile && (
                       <div className="flex items-center gap-4">
-                        <button 
+                        <button
                           onClick={handleFollowToggle}
                           className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            following 
-                              ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500' 
+                            following
+                              ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
                               : 'bg-small-orange text-black hover:scale-105 active:scale-95'
                           }`}
                         >
@@ -833,11 +870,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           {following ? 'Unfollow' : 'Follow'}
                         </button>
 
-                        <button 
+                        <button
                           onClick={handleMailingListToggle}
                           className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            isSubscribed 
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                            isSubscribed
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                               : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
                           }`}
                         >
@@ -2977,6 +3014,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               setHnsAlbum(null);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {signInAction && (
+          <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
         )}
       </AnimatePresence>
     </div>

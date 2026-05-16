@@ -19,6 +19,7 @@ import PostCard from './PostCard';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
+import SignInPrompt from './SignInPrompt';
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -1096,6 +1097,7 @@ const FeedItemComponent: React.FC<{
 const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, onMessage, onSelectGame }) => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [globalPosts, setGlobalPosts] = useState<Post[]>([]);
+  const [signInAction, setSignInAction] = useState<string | null>(null);
   const [simplePostText, setSimplePostText] = useState('');
   const [isSimplePosting, setIsSimplePosting] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
@@ -2882,6 +2884,21 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
           )}
 
+          {/* ── Sign-in CTA (unauthenticated) ── */}
+          {!currentUser && (
+            <button
+              onClick={() => setSignInAction('post to Plajah Social')}
+              className="w-full flex items-center gap-4 px-5 py-4 bg-white/[0.03] border border-white/8 rounded-[2rem] hover:bg-white/[0.06] transition-all group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-small-orange/20 transition-all">
+                <User size={18} className="text-white/30 group-hover:text-small-orange transition-colors" />
+              </div>
+              <span className="text-sm font-medium text-white/25 group-hover:text-white/50 transition-colors">
+                Sign in to post…
+              </span>
+            </button>
+          )}
+
           {/* ── Rich Composer ── */}
           {currentUser && (
             <motion.div
@@ -3367,6 +3384,12 @@ const toggleFavoriteTeam = async (team: string) => {
          currentUserPhoto={currentUser.photoURL || undefined}
          onClose={() => setShowStoryCreator(false)}
        />
+     )}
+   </AnimatePresence>
+
+   <AnimatePresence>
+     {signInAction && (
+       <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
      )}
    </AnimatePresence>
    </>

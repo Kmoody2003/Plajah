@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { sanitizeHtml } from '../src/lib/sanitize';
 import { Post, UserProfile, Album, Video } from '../types';
 import {
   listenToUserPosts,
@@ -567,7 +568,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                      animate={{ opacity: 1, y: 0 }}
                      className="p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/[0.07] transition-all"
                    >
-                     <div dangerouslySetInnerHTML={{ __html: status.content }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
+                     <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(status.content) }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
                      {status.media_attachments.length > 0 && (
                        <div className="grid grid-cols-2 gap-2 mt-4">
                          {status.media_attachments.map((media: any) => (
@@ -877,7 +878,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     className="p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/[0.07] transition-all"
                   >
-                    <div dangerouslySetInnerHTML={{ __html: status.content }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(status.content) }} className="text-sm leading-relaxed text-white prose prose-invert max-w-none" />
                     {status.media_attachments?.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         {status.media_attachments.map((media: any) => (
@@ -970,11 +971,11 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                  <div 
                    ref={twitterContainerRef}
                    className="twitter-embed-container"
-                   dangerouslySetInnerHTML={{ 
-                     __html: xEmbedHtml || `
+                   dangerouslySetInnerHTML={{
+                     __html: sanitizeHtml(xEmbedHtml || `
                        <a class="twitter-timeline" data-theme="dark" href="https://twitter.com/${xHandle}?ref_src=twsrc%5Etfw">Tweets by @${xHandle}</a>
-                     `
-                   }} 
+                     `)
+                   }}
                  />
                  {isOwnProfile && (
                    <div className="mt-8 pt-8 border-t border-white/5 text-center">

@@ -174,6 +174,12 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
           type: 'CONTENT',
           icon: 'Eye',
           points: 100,
+          pointsValue: 100,
+          category: 'USER',
+          triggerType: 'CUSTOM',
+          isActive: true,
+          requirements: { type: 'ACTION' },
+          createdBy: 'SYSTEM',
         });
       }
     }

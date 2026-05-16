@@ -134,7 +134,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white p-8">
+    <div className="min-h-screen bg-[var(--bg-color)] text-white p-8">
       <div className="max-w-6xl mx-auto">
         <button 
           onClick={onBack}

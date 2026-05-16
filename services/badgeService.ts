@@ -11,7 +11,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Badge, UserBadge, BadgeType, User } from '../types';
+import { Badge, UserBadge, BadgeType } from '../types';
 
 const BADGES_COLLECTION = 'badges';
 const USER_BADGES_COLLECTION = 'userBadges';

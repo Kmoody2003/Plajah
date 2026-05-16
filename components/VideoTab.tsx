@@ -54,7 +54,7 @@ function timeAgo(ts: number) {
   return `${Math.floor(d / 2592000000)}mo ago`;
 }
 
-// â”€â”€ Video Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Video Card â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const VideoCard: React.FC<{
   video: Video | Album | any;
   onPlay: () => void;
@@ -118,10 +118,10 @@ const VideoCard: React.FC<{
         )}
         {/* Duration / views pill */}
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
-          {(video as any).playsCount ? `${(video as any).playsCount}` : 'â€”'} views
+          {(video as any).playsCount ? `${(video as any).playsCount}` : 'â€"'} views
         </div>
-        {/* Change Thumbnail button (owner only) */}
-        {isCardOwner && (
+        {/* Change Thumbnail button (owner only, not on live streams) */}
+        {isCardOwner && !isLive && (
           <label
             onClick={(e) => e.stopPropagation()}
             className="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:bg-small-orange/80 hover:border-small-orange/60"
@@ -165,7 +165,7 @@ const VideoCard: React.FC<{
   );
 };
 
-// â”€â”€ Section Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Section Row â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const VideoRow: React.FC<{
   title: string;
   icon: React.ComponentType<any>;
@@ -204,20 +204,30 @@ const VideoRow: React.FC<{
   </section>
 );
 
-// â”€â”€ Live Feed Card (extracted to avoid hook-in-map) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Live Feed Card (extracted to avoid hook-in-map) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: () => void }> = ({ feed, autoplayUrl, onSelect }) => {
   const [hovered, setHovered] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
   return (
     <div
       className="shrink-0 w-72 aspect-video rounded-2xl overflow-hidden bg-black relative group cursor-pointer shadow-2xl ring-1 ring-red-500/30"
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => { setHovered(true); setIframeReady(true); }}
       onMouseLeave={() => setHovered(false)}
       onClick={onSelect}
     >
-      {hovered
-        ? <iframe src={autoplayUrl} className="w-full h-full" allow="autoplay; muted" allowFullScreen />
-        : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Radio size={28} className="text-white/20" /></div>
-      }
+      {/* Placeholder shown when not yet hovered or on top before iframe loads */}
+      <div className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${hovered && iframeReady ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <Radio size={28} className="text-white/20" />
+      </div>
+      {/* Iframe mounts once on first hover, stays mounted; hidden via opacity when not hovered */}
+      {iframeReady && autoplayUrl && (
+        <iframe
+          src={autoplayUrl}
+          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      )}
       <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -229,7 +239,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: ()
   );
 };
 
-// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Main Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
@@ -414,7 +424,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   };
 
   const getAutoplayUrl = (url: string) => {
-    if (!url) return '';
+    if (!url || url === 'live_stream_placeholder') return '';
     try {
       const u = new URL(url);
       u.searchParams.set('autoplay', '1');
@@ -479,10 +489,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
   const isMusicVideoMode = newVideo.genre === 'Music Video';
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   return (
     <div className="flex-1 min-h-0">
-      {/* â”€â”€ Top Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-6 lg:px-12 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
@@ -537,7 +547,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â"€â"€ Content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <div className="flex max-w-7xl mx-auto">
         {/* Sidebar nav (desktop) */}
         <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">
@@ -568,9 +578,27 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             ))}
           </div>
 
-          {/* â”€â”€ DISCOVER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* â"€â"€ DISCOVER â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'discover' && (
             <div className="space-y-2">
+              {/* Owner upload CTA banner */}
+              {isOwner && (
+                <div className="flex items-center gap-4 mb-6 p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black uppercase tracking-widest text-white/60">Share your content</p>
+                    <p className="text-[10px] text-white/30 mt-0.5">Upload videos, movies, or import from YouTube</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => setShowGoLiveModal(true)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-600/80 text-white font-black text-[9px] uppercase tracking-widest hover:bg-red-600 transition-all">
+                      <Radio size={12} /> Go Live
+                    </button>
+                    <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-lg">
+                      <Upload size={12} /> Upload Video
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Featured hero */}
               <div className="mb-10">
                 <FeaturedCarousel
@@ -750,7 +778,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* â”€â”€ MY VIDEOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* â"€â"€ MY VIDEOS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'uploads' && (
             <div className="space-y-6 pt-2">
               <div className="flex items-center justify-between">
@@ -773,7 +801,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* â”€â”€ LIVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* â"€â"€ LIVE â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'live' && (
             <div className="space-y-8 pt-2">
               <div className="flex items-center justify-between">
@@ -794,12 +822,12 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             </div>
           )}
 
-          {/* â”€â”€ PLAYLISTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* â"€â"€ PLAYLISTS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'playlists' && (
             <VideoRow title="My Playlists" icon={List} videos={playlists} onSelect={handlePlay} emptyMessage="No playlists found." />
           )}
 
-          {/* â”€â”€ CHANNELS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* â"€â"€ CHANNELS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'channel' && (
             <div className="space-y-8 pt-2">
               <div>
@@ -856,7 +884,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-black uppercase tracking-widest text-white truncate">{p.displayName}</p>
-                                <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{p.bio || p.email || 'Creator'}</p>
+                                <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{p.bio || 'Creator'}</p>
                               </div>
                             </div>
                           </button>
@@ -877,7 +905,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* â”€â”€ Upload Wizard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â"€â"€ Upload Wizard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <AnimatePresence>
         {showUpload && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-2xl z-[200] flex items-center justify-center p-4 lg:p-8">
@@ -919,7 +947,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <AnimatePresence mode="wait">
 
-                  {/* â”€â”€ STEP 1: SELECT â”€â”€ */}
+                  {/* â"€â"€ STEP 1: SELECT â"€â"€ */}
                   {uploadStep === 1 && (
                     <motion.div
                       key="step1"
@@ -995,7 +1023,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                               </div>
                               <div className="text-center">
                                 <p className="text-sm font-black uppercase tracking-widest text-white/40">Drop your video here</p>
-                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse â€” MP4, MOV, AVI, MKV supported</p>
+                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse â€" MP4, MOV, AVI, MKV supported</p>
                               </div>
                             </div>
                           )}
@@ -1036,7 +1064,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     </motion.div>
                   )}
 
-                  {/* â”€â”€ STEP 2: DETAILS â”€â”€ */}
+                  {/* â"€â"€ STEP 2: DETAILS â"€â"€ */}
                   {uploadStep === 2 && (
                     <motion.div
                       key="step2"
@@ -1231,7 +1259,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     </motion.div>
                   )}
 
-                  {/* â”€â”€ STEP 3: PUBLISH â”€â”€ */}
+                  {/* â"€â"€ STEP 3: PUBLISH â"€â"€ */}
                   {uploadStep === 3 && (
                     <motion.div
                       key="step3"

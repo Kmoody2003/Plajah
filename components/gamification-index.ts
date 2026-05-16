@@ -1,8 +1,8 @@
 // ── CONTEXTS ─────────────────────────────────────────────────────────────────
 
-export { AchievementProvider, useAchievements, type Achievement as AchievementType } from './AchievementContext';
-export { PointsProvider, usePoints } from './PointsContext';
-export { BadgeProvider, useBadges } from './BadgeContext';
+export { AchievementProvider, useAchievements, type Achievement as AchievementType } from '../contexts/AchievementContext';
+export { PointsProvider, usePoints } from '../contexts/PointsContext';
+export { BadgeProvider, useBadges } from '../contexts/BadgeContext';
 
 // ── COMPONENTS ───────────────────────────────────────────────────────────────
 

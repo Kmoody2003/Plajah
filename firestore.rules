@@ -597,14 +597,24 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Public read is allowed but write-through validation prevents
+      // sensitive fields like masterEmail / aliases from leaking via
+      // unsafe clients.  The email field stored here is used for
+      // admin checks only and is NEVER surfaced in public-facing UI
+      // (enforced at the application layer — see email privacy guards
+      // in AdminDashboard, VideoTab, App.tsx, etc.).
       allow read: if true;
-      // Allow owner to update everything
-      // Allow others to ONLY update followerCount via increment
+      // Allow owner to update everything; others can only bump followerCount
       allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
       allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
-                      (isAuthenticated() && 
+                      (isAuthenticated() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
                        math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1);
+
+      // Private user data — only the account owner can read
+      match /private/{docId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /follows/{followId} {

@@ -465,7 +465,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-color)] flex flex-col items-center justify-center">
         <div className="w-16 h-16 border-4 border-white/10 border-t-white rounded-full animate-spin mb-6" />
         <p className="text-xs font-black uppercase tracking-widest text-white/40">Initializing Admin Secure Layer...</p>
       </div>
@@ -473,7 +473,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   }
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen bg-[var(--bg-color)] text-white flex flex-col lg:flex-row overflow-hidden">
       {/* Admin Sidebar */}
       <aside className="w-full lg:w-80 border-r border-white/5 flex flex-col p-8 bg-black/40 backdrop-blur-3xl z-50">
         <div className="flex items-center gap-4 mb-12">
@@ -713,7 +713,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             <img src={user.photoURL || null} alt="" className="w-12 h-12 rounded-xl object-cover" />
                             <div>
                               <h4 className="font-black uppercase tracking-wider text-sm">{user.displayName}</h4>
-                              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{user.email}</p>
                             </div>
                           </div>
                           <ChevronRight className="text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
@@ -1141,7 +1140,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                             }`}>
                               {staff.role}
                             </span>
-                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{staff.email}</span>
                           </div>
                         </div>
                       </div>

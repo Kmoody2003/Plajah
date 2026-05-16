@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Send, Heart, Reply, Trash2, Smile, X, ChevronDown,
-  Loader2, MessageCircle, AtSign
+  Loader2, MessageCircle, AtSign, LogIn
 } from 'lucide-react';
 import {
   auth,
@@ -15,6 +15,7 @@ import {
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import SignInPrompt from './SignInPrompt';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -514,6 +515,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(!isLegacy);
+  const [showSignIn, setShowSignIn] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Subscribe only in self-contained mode
@@ -672,15 +674,34 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 
       {/* ── Input footer ── */}
       <div className={`px-5 sm:px-8 py-4 sm:py-5 border-t ${headerBorder} shrink-0 ${isDark ? 'bg-black/30' : 'bg-white/50'}`}>
-        <CommentInput
-          postId={safePostId}
-          replyTo={replyTo}
-          onClearReply={() => setReplyTo(null)}
-          onCommentPosted={handleCommentPosted}
-          isDark={isDark}
-          onSubmitOverride={isLegacy ? onPostComment : undefined}
-        />
+        {auth.currentUser ? (
+          <CommentInput
+            postId={safePostId}
+            replyTo={replyTo}
+            onClearReply={() => setReplyTo(null)}
+            onCommentPosted={handleCommentPosted}
+            isDark={isDark}
+            onSubmitOverride={isLegacy ? onPostComment : undefined}
+          />
+        ) : (
+          <button
+            onClick={() => setShowSignIn(true)}
+            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl border transition-all text-[10px] font-black uppercase tracking-widest
+              ${isDark
+                ? 'border-white/10 text-white/40 hover:border-white/20 hover:text-white bg-white/3 hover:bg-white/5'
+                : 'border-black/10 text-black/40 hover:border-black/20 hover:text-black bg-black/3 hover:bg-black/5'}`}
+          >
+            <LogIn size={13} />
+            Sign in to join the conversation
+          </button>
+        )}
       </div>
+
+      <AnimatePresence>
+        {showSignIn && (
+          <SignInPrompt action="comment" onClose={() => setShowSignIn(false)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

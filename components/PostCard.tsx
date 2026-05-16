@@ -10,6 +10,7 @@ import { auth, updatePost, deletePost, togglePostLike, processDonation } from '.
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
+import SignInPrompt from './SignInPrompt';
 
 interface PostCardProps {
   post: Post;
@@ -59,6 +60,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [isGifting, setIsGifting] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
   const [showWaterfall, setShowWaterfall] = useState(false);
+  const [signInAction, setSignInAction] = useState<string | null>(null);
 
   const waterfallItems: WaterfallMediaItem[] = (post.media || []).map(m => ({
     type: m.type as WaterfallMediaItem['type'],
@@ -93,7 +95,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const isTargeted = post.targetUserId && post.targetUserId !== post.authorId;
 
   const handleLike = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('like this post'); return; }
     const optimisticLiked = !isLiked;
     setIsLiked(optimisticLiked);
     setLikes(prev => optimisticLiked ? prev + 1 : prev - 1);
@@ -432,10 +434,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             </motion.button>
 
             {/* Gift — non-author only */}
-            {!isAuthor && auth.currentUser && (
+            {!isAuthor && (
               <motion.button
                 whileTap={{ scale: 0.85 }}
-                onClick={() => setShowGift(!showGift)}
+                onClick={() => {
+                  if (!auth.currentUser) { setSignInAction('send a gift'); return; }
+                  setShowGift(!showGift);
+                }}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
                   ${showGift
                     ? 'text-yellow-400 bg-yellow-400/10'
@@ -551,6 +556,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             />
           }
         />
+      )}
+    </AnimatePresence>
+
+    {/* Sign-in prompt */}
+    <AnimatePresence>
+      {signInAction && (
+        <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
       )}
     </AnimatePresence>
     </>

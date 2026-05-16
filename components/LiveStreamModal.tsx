@@ -30,6 +30,7 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const activeFeedIdRef = useRef<string | null>(null);
+  const isLiveRef = useRef(false);
 
   // Chat Logic (Streamer end)
   const [chatMessages, setChatMessages] = useState<{user: string, text: string}[]>([]);
@@ -83,21 +84,21 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
       // In publishLiveFeed the returned feed might not have the ID if we simulated it? Wait, let's just assume we can get it or we keep track. 
       // ACTUALLY publishLiveFeed might not return the inserted object, but let's check. 
       // If not, we don't strictly need the ID for this prototype if it's transient. 
+      isLiveRef.current = true;
       setIsLive(true);
       if (mediaStreamRef.current) {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, {
-           mimeType: 'video/webm;codecs=vp9'
-        });
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : 'video/webm';
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType });
         mediaRecorderRef.current.ondataavailable = (e) => {
-           if (e.data.size > 0 && isLive) {
-              // IN A REAL APP: Send e.data through WebSocket to RTMP server or SFU
-              // e.g. wsRef.current.send(e.data);
-           }
+          if (e.data.size > 0 && isLiveRef.current) {
+            // IN A REAL APP: Send e.data through WebSocket to RTMP server or SFU
+            // e.g. wsRef.current.send(e.data);
+          }
         };
-        mediaRecorderRef.current.start(1000); // chunk every 1 sec
+        mediaRecorderRef.current.start(1000);
       }
-
-      setIsLive(true);
       onStreamActive(true);
     } catch(e) {
       console.error("Broadcast failed:", e);
@@ -105,10 +106,10 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
   };
 
   const stopBroadcast = async () => {
+    isLiveRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
-    // Prototype: cleanup if needed
     setIsLive(false);
     onStreamActive(false);
   };

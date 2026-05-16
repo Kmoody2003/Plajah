@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useBadges } from '../contexts/BadgeContext';
-import { Tooltip } from './Tooltip';
+import Tooltip from './Tooltip';
 
 interface BadgeDisplayProps {
   userId: string;
@@ -54,8 +54,7 @@ export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({
         {displayBadges.map((userBadge) => (
           <Tooltip
             key={userBadge.id}
-            text={userBadge.badge?.title || userBadge.badgeType}
-            content={userBadge.badge?.description || ''}
+            content={userBadge.badge?.title || userBadge.badgeType}
           >
             <div
               className={`${sizeClasses[size]} ${bgMap[userBadge.badgeType] || bgMap.CUSTOM} rounded-full flex items-center justify-center cursor-help hover:scale-110 transition-transform`}
@@ -68,7 +67,7 @@ export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({
         ))}
 
         {hiddenCount > 0 && (
-          <Tooltip text={`+${hiddenCount} more`} content="View profile for all badges">
+          <Tooltip content={`+${hiddenCount} more badges`}>
             <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-xs font-bold text-white/60 cursor-help hover:scale-110 transition-transform">
               +{hiddenCount}
             </div>

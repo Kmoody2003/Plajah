@@ -58,16 +58,14 @@ const TVView: React.FC<TVViewProps> = ({ onBack }) => {
         });
       }
 
-      // Fetch owners
+      // Parallel owner fetch
+      const ownerIds = [...new Set([
+        ...allChannels.map(c => c.ownerId),
+        ...rankedFeeds.map(f => f.ownerId),
+      ])];
+      const ownerProfiles = await Promise.all(ownerIds.map(id => fetchUserProfile(id).catch(() => null)));
       const owners: Record<string, UserProfile> = {};
-      for (const channel of allChannels) {
-        const profile = await fetchUserProfile(channel.ownerId);
-        if (profile) owners[channel.ownerId] = profile;
-      }
-      for (const feed of rankedFeeds) {
-        const profile = await fetchUserProfile(feed.ownerId);
-        if (profile) owners[feed.ownerId] = profile;
-      }
+      ownerIds.forEach((id, i) => { if (ownerProfiles[i]) owners[id] = ownerProfiles[i]!; });
       setChannelOwners(owners);
     };
     loadTV();

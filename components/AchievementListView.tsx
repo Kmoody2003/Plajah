@@ -30,7 +30,7 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Total Points</p>
-            <p className="text-4xl font-black text-white">{unlocked.reduce((sum, a) => sum + a.points, 0)}</p>
+            <p className="text-4xl font-black text-white">{unlocked.reduce((sum, a) => sum + a.pointsValue, 0)}</p>
           </div>
           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Unlocked</p>
@@ -57,7 +57,7 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{a.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-black text-small-orange">+{a.points}</p>
+                  <p className="text-xl font-black text-small-orange">+{a.pointsValue}</p>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-20">Points</p>
                 </div>
               </motion.div>
@@ -85,7 +85,7 @@ const AchievementListView: React.FC<AchievementListViewProps> = ({ onClose }) =>
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Locked Achievement</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-black text-white/20">+{a.points}</p>
+                  <p className="text-xl font-black text-white/20">+{a.pointsValue}</p>
                 </div>
               </div>
             ))}

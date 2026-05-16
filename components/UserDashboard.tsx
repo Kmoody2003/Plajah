@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld } from '../types';
+import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import { 
   fetchUserProfile, updateUserProfile, updateLiveStreamConfig,
   fetchUserAlbums, deleteCloudAlbum, fetchUserPhotos, deletePhoto,
@@ -14,7 +14,7 @@ import {
   User, Settings, Database, Video as VideoIcon, Music, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
-  CheckSquare, Square, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate
+  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -26,9 +26,21 @@ import FileUploader from './FileUploader';
 interface UserDashboardProps {
   user: any;
   onBack: () => void;
+  currentTheme?: ThemeType;
+  onSetTheme?: (t: ThemeType) => void;
 }
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack }) => {
+const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
+  { id: 'DARK',     label: 'Dark',    bg: '#020202',             text: '#ffffff' },
+  { id: 'LIGHT',    label: 'Light',   bg: '#f8fafc',             text: '#0f172a' },
+  { id: 'PLAJAH',   label: 'Plajah',  bg: 'linear-gradient(135deg,#6B0099,#FF8C00)', text: '#ffffff' },
+  { id: 'ETHEREAL', label: 'Ethereal',bg: '#131314',             text: '#e5e2e3' },
+  { id: 'NEBULA',   label: 'Nebula',  bg: 'linear-gradient(135deg,#050510,#1a1a3e)', text: '#ffffff' },
+  { id: 'CITRUS',   label: 'Citrus',  bg: 'linear-gradient(135deg,#0f0500,#FF3B00)', text: '#ffffff' },
+  { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
+];
+
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' | 'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' | 'WORLDS' | 'RADIO_MANAGER' | 'THEMES'>('ACCOUNT');
   const [isSaving, setIsSaving] = useState(false);
@@ -775,6 +787,35 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack }) => {
                   <p className="mt-3 text-[9px] font-bold text-white/20 uppercase tracking-widest ml-2">This is the first tab visitors will see when they land on your profile.</p>
                 </div>
               </div>
+
+                {onSetTheme && (
+                  <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-6 flex items-center gap-2">
+                      <Sparkles size={14} /> Interface Theme
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {THEME_OPTIONS.map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => onSetTheme(t.id)}
+                          className={`group relative h-24 rounded-2xl overflow-hidden border-2 transition-all ${currentTheme === t.id ? 'border-small-orange scale-[1.03] shadow-[0_0_20px_rgba(255,140,0,0.3)]' : 'border-white/10 hover:border-white/30'}`}
+                          style={{ background: t.bg }}
+                        >
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: t.text }}>{t.label}</span>
+                            {currentTheme === t.id && (
+                              <div className="w-4 h-4 rounded-full bg-small-orange flex items-center justify-center">
+                                <Check size={10} className="text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[9px] font-bold text-white/20 uppercase tracking-widest ml-2">Theme is saved to your account and persists across devices.</p>
+                  </div>
+                )}
 
                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
                   <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-6 flex items-center gap-2">
