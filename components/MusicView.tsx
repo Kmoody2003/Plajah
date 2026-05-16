@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { Album, Track, UserProfile, Playlist } from '../types';
 import PageHeader from './PageHeader';
+const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 import {
   Play, Pause, SkipForward, SkipBack, Heart, Share2,
   Radio, Music2, Mic2, Disc, Star, TrendingUp,
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats } from '../services/backendService';
@@ -39,6 +40,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [sortOrder, setSortOrder] = useState<'RECENT' | 'ALPHA'>('RECENT');
   const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO'>('ALL');
   const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS'>('ALL');
+  const [album3D, setAlbum3D] = useState<Album | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
@@ -408,6 +410,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <PlayCircle size={48} className="text-small-orange" />
                           </div>
+                          {album.coverImage && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setAlbum3D(album); }}
+                              className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-md rounded-full text-cyan-400 opacity-0 group-hover:opacity-100 hover:scale-110 transition-all z-10"
+                            >
+                              <Layers size={12} />
+                            </button>
+                          )}
                         </div>
                         <h4 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h4>
                         <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
@@ -970,6 +980,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           track={playlistPickerTrack}
           onClose={() => setPlaylistPickerTrack(null)}
         />
+      )}
+      {album3D && (
+        <Suspense fallback={null}>
+          <AlbumArt3DViewer album={album3D} onClose={() => setAlbum3D(null)} />
+        </Suspense>
       )}
     </div>
   );
