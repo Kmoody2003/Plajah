@@ -1,5 +1,5 @@
-import React, { Suspense, useRef, useEffect } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import React, { Suspense, useRef } from 'react';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -15,10 +15,13 @@ interface AvatarBubbleProps {
 // Tiny procedural head for the bubble
 function BubbleHead({ style }: { style: AvatarConfig['style'] }) {
   const ref = useRef<THREE.Mesh>(null);
-  const isToon = style === 'ANIME' || style === 'CHIBI';
-  const mat = isToon
-    ? new THREE.MeshToonMaterial({ color: 0xf5c9a0 })
-    : new THREE.MeshStandardMaterial({ color: 0xf5c9a0, roughness: 0.6 });
+  const isToon = style === 'ANIME' || style === 'CHIBI' || style === 'CLAY';
+  const isClay = style === 'CLAY';
+  const mat = isClay
+    ? new THREE.MeshStandardMaterial({ color: 0xf7c59f, roughness: 0.9, metalness: 0, flatShading: true })
+    : isToon
+      ? new THREE.MeshToonMaterial({ color: 0xf5c9a0 })
+      : new THREE.MeshStandardMaterial({ color: 0xf5c9a0, roughness: 0.6 });
 
   useFrame(() => {
     if (ref.current) {
@@ -68,15 +71,6 @@ function VRMBubble({ url }: { url: string; style: AvatarConfig['style'] }) {
   );
 }
 
-function BubbleSceneSetup() {
-  const { scene, gl } = useThree();
-  useEffect(() => {
-    scene.background = null;
-    gl.setClearColor(0x000000, 0);
-  }, [scene, gl]);
-  return null;
-}
-
 const AvatarBubble: React.FC<AvatarBubbleProps> = ({ config, size = 40, className = '' }) => {
   // If there's a thumbnail snapshot, use it (faster, no WebGL cost)
   if (config.thumbnailUrl) {
@@ -96,14 +90,17 @@ const AvatarBubble: React.FC<AvatarBubbleProps> = ({ config, size = 40, classNam
   return (
     <div
       className={`rounded-full overflow-hidden ${className}`}
-      style={{ width: size, height: size, background: '#0a0a0a' }}
+      style={{ width: size, height: size, background: 'transparent' }}
     >
       <Canvas
         camera={{ position: [0, 0.9, 2.2], fov: 45 }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
         style={{ background: 'transparent', display: 'block' }}
+        onCreated={({ gl, scene }) => {
+          gl.setClearColor(0x000000, 0);
+          scene.background = null;
+        }}
       >
-        <BubbleSceneSetup />
         <ambientLight intensity={0.7} />
         <directionalLight position={[2, 3, 2]} intensity={1.2} />
         <hemisphereLight args={[0xffeeff, 0x222244, 0.4]} />

@@ -1,5 +1,5 @@
 import React, { Suspense, useRef, useEffect } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -221,21 +221,25 @@ function ProceduralAvatar({ style, wave, accessories = [] }: ProceduralProps) {
   const waving   = useRef(!!wave);
 
   // ── Per-style configuration ─────────────────────────────────────────────────
-  const isChibi    = style === 'CHIBI';
-  const isAnime    = style === 'ANIME';
-  const isUrban    = style === 'URBAN';
-  const isRealistic = style === 'REALISTIC';
-  const isToon     = isAnime || isChibi;
+  const isChibi      = style === 'CHIBI';
+  const isClay       = style === 'CLAY';
+  const isAnime      = style === 'ANIME';
+  const isUrban      = style === 'URBAN';
+  const isStreetwear = style === 'STREETWEAR';
+  const isRealistic  = style === 'REALISTIC';
+  const isToon       = isAnime || isChibi || isClay;
 
   // Material factory
   const mkMat = (c: number, opts?: { roughness?: number; metalness?: number }) =>
-    isToon
-      ? new THREE.MeshToonMaterial({ color: c })
-      : new THREE.MeshStandardMaterial({
-          color: c,
-          roughness: opts?.roughness ?? 0.6,
-          metalness: opts?.metalness ?? 0.05,
-        });
+    isClay
+      ? new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, metalness: 0, flatShading: true })
+      : isToon
+        ? new THREE.MeshToonMaterial({ color: c })
+        : new THREE.MeshStandardMaterial({
+            color: c,
+            roughness: opts?.roughness ?? 0.6,
+            metalness: opts?.metalness ?? 0.05,
+          });
 
   // ── Skin & cloth colors per style ──────────────────────────────────────────
   let skinColor: number;
@@ -250,6 +254,14 @@ function ProceduralAvatar({ style, wave, accessories = [] }: ProceduralProps) {
     skinColor  = 0xffe0c0;
     clothColor = 0xff69b4; // bright pink
     pantColor  = 0xff69b4;
+  } else if (isClay) {
+    skinColor  = 0xf7c59f; // warm peach clay
+    clothColor = 0x7ec8e3; // pastel sky blue
+    pantColor  = 0xf4a261; // warm terracotta
+  } else if (isStreetwear) {
+    skinColor  = 0xc68642; // medium brown
+    clothColor = 0xe8ff3e; // neon yellow hoodie
+    pantColor  = 0x1a1a1a; // black joggers
   } else if (isUrban) {
     skinColor  = 0x8b5e3c; // darker skin
     clothColor = 0x111111; // black hoodie
@@ -267,26 +279,26 @@ function ProceduralAvatar({ style, wave, accessories = [] }: ProceduralProps) {
   const eyeMat   = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
   // ── Proportions ─────────────────────────────────────────────────────────────
-  const headR   = isChibi ? 0.52  : 0.38;
-  const headY   = isChibi ? 1.38  : 1.66;
-  const bodyY   = isChibi ? 0.52  : 0.85;
-  const bodyW   = isChibi ? 0.52  : 0.48;
-  const bodyH   = isChibi ? 0.62  : 0.82;
-  const legH    = isChibi ? 0.38  : 0.68;
-  const legY    = isChibi ? -0.08 : -0.12;
-  // Chibi arms are shorter and chubbier
-  const armLen  = isChibi ? 0.42  : 0.60;
-  const armTopR = isChibi ? 0.11  : 0.09;
-  const armBotR = isChibi ? 0.10  : 0.08;
-  const legTopR = isChibi ? 0.14  : 0.11;
-  const legBotR = isChibi ? 0.12  : 0.09;
+  const isBigHead = isChibi || isClay;
+  const headR   = isBigHead ? 0.52  : 0.38;
+  const headY   = isBigHead ? 1.38  : 1.66;
+  const bodyY   = isBigHead ? 0.52  : 0.85;
+  const bodyW   = isBigHead ? 0.52  : 0.48;
+  const bodyH   = isBigHead ? 0.62  : 0.82;
+  const legH    = isBigHead ? 0.38  : 0.68;
+  const legY    = isBigHead ? -0.08 : -0.12;
+  const armLen  = isBigHead ? 0.42  : 0.60;
+  const armTopR = isBigHead ? 0.11  : 0.09;
+  const armBotR = isBigHead ? 0.10  : 0.08;
+  const legTopR = isBigHead ? 0.14  : 0.11;
+  const legBotR = isBigHead ? 0.12  : 0.09;
   const armOffX = bodyW / 2 + 0.13;
 
   // Eye radius: each style has a different size
-  const eyeR = isChibi ? headR * 0.20 : isAnime ? headR * 0.16 : headR * 0.13;
+  const eyeR = isBigHead ? headR * 0.20 : isAnime ? headR * 0.16 : headR * 0.13;
 
-  // Urban: slight forward lean
-  const groupRotX = isUrban ? -0.04 : 0;
+  // Urban/Streetwear: slight forward lean
+  const groupRotX = (isUrban || isStreetwear) ? -0.04 : 0;
 
   useFrame(() => {
     const elapsed = (Date.now() - startRef.current) / 1000;
@@ -516,17 +528,6 @@ function VRMModel({
   );
 }
 
-// ── Scene setup: force transparent background ─────────────────────────────────
-
-function SceneSetup() {
-  const { scene, gl } = useThree();
-  useEffect(() => {
-    scene.background = null;
-    gl.setClearColor(0x000000, 0);
-  }, [scene, gl]);
-  return null;
-}
-
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 function AvatarScene({
@@ -543,7 +544,6 @@ function AvatarScene({
   const accs = config.accessories ?? [];
   return (
     <>
-      <SceneSetup />
       <ambientLight intensity={0.7} />
       <directionalLight position={[2, 4, 3]} intensity={1.2} />
       <pointLight position={[-2, 2, -2]} intensity={0.4} color="#ff8c00" />
@@ -598,11 +598,15 @@ const AvatarViewer: React.FC<AvatarViewerProps> = ({
   const camZ = compact ? 2.5 : 2.2;
   const camY = compact ? 1.0 : 1.2;
   return (
-    <div className={`w-full h-full ${className}`} style={{ minHeight: compact ? 80 : 320 }}>
+    <div className={`w-full h-full ${className}`} style={{ minHeight: compact ? 80 : 320, background: 'transparent' }}>
       <Canvas
         camera={{ position: [0, camY, camZ], fov: compact ? 50 : 46 }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
         style={{ background: 'transparent', display: 'block' }}
+        onCreated={({ gl, scene }) => {
+          gl.setClearColor(0x000000, 0);
+          scene.background = null;
+        }}
       >
         <AvatarScene
           config={config}
