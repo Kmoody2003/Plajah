@@ -78,6 +78,8 @@ const MerchStorefront = retryLazy(() => import('./components/MerchStorefront'));
 const MovieUXView = retryLazy(() => import('./components/MovieUXView'));
 const MoviesTVView = retryLazy(() => import('./components/MoviesTVView'));
 const ClubsView = retryLazy(() => import('./components/ClubsView'));
+const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
+const DeleteAccountPage = retryLazy(() => import('./components/DeleteAccountPage'));
 const CharityView = retryLazy(() => import('./components/CharityView'));
 const AvatarStudio = retryLazy(() => import('./components/AvatarStudio'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
@@ -88,7 +90,7 @@ import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerCo
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
 import SignInPrompt from './components/SignInPrompt';
 import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload } from 'lucide-react';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, MessageCircle } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -646,6 +648,8 @@ const App: React.FC = () => {
         }
       } else {
         setUserProfile(null);
+        // Unauthenticated visitors should reach the dashboard to browse public content.
+        setViewInternal(prev => (prev === 'LANDING' ? 'DASHBOARD' : prev));
       }
     });
     return () => unsubscribe();
@@ -737,6 +741,13 @@ const App: React.FC = () => {
       if (pathParts[1] === 'profile' && pathParts[2]) {
         setViewedUserId(pathParts[2]);
         setView('USER_PROFILE');
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle delete-account page
+      if (pathParts[1] === 'delete-account' || pathParts[1] === 'data-deletion') {
+        setView('DELETE_ACCOUNT' as any);
         setIsLoading(false);
         return;
       }
@@ -1302,6 +1313,7 @@ const App: React.FC = () => {
                     { id: 'APPS', order: 8.5, isVisible: true },
                     { id: 'GAMES', order: 9, isVisible: true },
                     { id: 'CLUBS', order: 10, isVisible: true },
+                    { id: 'DISCUSSION', order: 10.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
                     { id: 'CLASSROOMS', order: 12, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 14, isVisible: true },
@@ -1343,6 +1355,7 @@ const App: React.FC = () => {
                         APPS: { label: 'Apps', icon: AppWindow },
                         GAMES: { label: 'Games', icon: Gamepad2 },
                         CLUBS: { label: 'Clubs', icon: Users },
+                        DISCUSSION: { label: 'Discussion', icon: MessageCircle },
                         CHARITY: { label: 'Charity', icon: Heart },
                         CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
@@ -1571,6 +1584,7 @@ const App: React.FC = () => {
                         { id: 'GAMES', icon: Gamepad2, label: 'Games' },
                         { id: 'APPS', icon: AppWindow, label: 'Apps' },
                         { id: 'CLUBS', icon: Users, label: 'Clubs' },
+                        { id: 'DISCUSSION', icon: MessageCircle, label: 'Discussion' },
                         { id: 'CHAT', icon: MessageSquare, label: 'Messages' },
                         { id: 'FEED', icon: Rss, label: 'Feed' },
                         { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classes' },
@@ -1836,7 +1850,10 @@ const App: React.FC = () => {
               <PartnerDashboard profile={userProfile} onBack={() => setView('DASHBOARD')} />
             )}
             {view === 'HELP_CENTER' && (
-              <HelpCenter onBack={() => setView('DASHBOARD')} />
+              <HelpCenter onBack={() => setView('DASHBOARD')} onDeleteAccount={() => setView('DELETE_ACCOUNT')} />
+            )}
+            {view === 'DELETE_ACCOUNT' && (
+              <DeleteAccountPage onBack={() => setView('HELP_CENTER')} />
             )}
             {view === 'ADMIN_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminDashboard 
@@ -1984,6 +2001,7 @@ const App: React.FC = () => {
               </ErrorBlock>
             )}
             {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} />}
+            {view === 'DISCUSSION' && <DiscussionView onBack={() => setView('DASHBOARD')} currentUser={user} />}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
             {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
             {view === 'WORLD_MANAGER' && (
