@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Album, Video, Universe, VideoPlaylist } from '../types';
 import { fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds } from '../services/backendService';
-import { fetchArchiveVideos, ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
+import { fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
@@ -27,10 +27,24 @@ interface MoviesTVViewProps {
 
 type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE' | 'LIBRARY';
 
+const GENRE_ICONS: Record<string, React.ComponentType<any>> = {
+  'Feature Films': Film,
+  'Classic TV': Monitor,
+  'Animation': Rocket,
+  'Horror': Ghost,
+  'Comedy': Sparkles,
+  'Sci-Fi': Zap,
+  'Western': ExploreIcon,
+  'Documentary': BookOpen,
+  'Film Noir': Moon,
+  'Silent Film': History,
+};
+
 const HomeView: React.FC<{
   universes: Universe[];
   movies: ArchiveVideo[];
   tvSeries: ArchiveVideo[];
+  genreCollections: GenreCollection[];
   curatedPlaylists: VideoPlaylist[];
   featuredItem: ArchiveVideo | Album | null;
   onSelectArchiveItem: (item: ArchiveVideo) => void;
@@ -39,15 +53,7 @@ const HomeView: React.FC<{
   setActiveAllyUrl: (url: string | null) => void;
   onSelectCuratedPlaylist: (playlist: VideoPlaylist) => void;
   tabNav: React.ReactNode;
-}> = ({ universes, movies, tvSeries, curatedPlaylists, featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView, setActiveAllyUrl, onSelectCuratedPlaylist, tabNav }) => {
-  const genres = [
-    { name: 'Feature Films', query: 'collection:feature_films', icon: Film },
-    { name: 'Sci-Fi', query: 'subject:sci-fi', icon: Zap },
-    { name: 'Comedy', query: 'subject:comedy', icon: Sparkles },
-    { name: 'Horror', query: 'subject:horror', icon: Ghost },
-    { name: 'Classic TV', query: 'collection:classic_tv', icon: Monitor },
-    { name: 'Cartoons', query: 'collection:animationandcartoons', icon: Rocket }
-  ];
+}> = ({ universes, movies, tvSeries, genreCollections, curatedPlaylists, featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView, setActiveAllyUrl, onSelectCuratedPlaylist, tabNav }) => {
 
   return (
     <div className="space-y-16">
@@ -109,12 +115,15 @@ const HomeView: React.FC<{
 
       {/* Genres Row */}
       <section className="px-8 md:px-16 flex gap-6 overflow-x-auto pb-4 mask-fade-edges">
-         {genres.map(g => (
-             <button key={g.name} className="flex flex-col items-center gap-2 group p-4 border border-white/5 rounded-xl hover:bg-white/5 transition-all">
-                <g.icon size={20} className="text-white/40 group-hover:text-primary transition-colors" />
-                <span className="font-black uppercase tracking-widest text-[8px] text-white/60">{g.name}</span>
-             </button>
-         ))}
+        {genreCollections.map(({ genre }) => {
+          const Icon = GENRE_ICONS[genre] ?? Film;
+          return (
+            <button key={genre} className="flex flex-col items-center gap-2 group p-4 border border-white/5 rounded-xl hover:bg-white/5 transition-all shrink-0">
+              <Icon size={20} className="text-white/40 group-hover:text-primary transition-colors" />
+              <span className="font-black uppercase tracking-widest text-[8px] text-white/60 whitespace-nowrap">{genre}</span>
+            </button>
+          );
+        })}
       </section>
 
       {/* Curated Playlists */}
@@ -156,32 +165,39 @@ const HomeView: React.FC<{
         </section>
       )}
 
-      {/* Categories Rails */}
+      {/* Genre Rails — one row per genre collection from Archive.org */}
       <section className="px-8 md:px-16 pb-40 space-y-20 pt-12">
-        {Array.from(new Set(movies.map(m => m.genre))).filter(Boolean).map(genre => {
-          const categoryMovies = movies.filter(m => m.genre === genre);
-          if (categoryMovies.length < 2) return null;
+        {genreCollections.map(({ genre, items }) => {
+          const GenreIcon = GENRE_ICONS[genre] ?? Film;
           return (
             <div key={genre}>
               <div className="mb-8 flex items-end justify-between">
-                <div>
+                <div className="flex items-center gap-3">
+                  <GenreIcon size={20} className="text-primary" />
                   <h3 className="font-bebas text-5xl uppercase tracking-tighter">{genre}</h3>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/20 border border-white/10 px-2 py-0.5 rounded-lg">
+                    Public Domain
+                  </span>
                 </div>
-                <button className="text-on-surface-variant hover:text-primary transition-colors font-label text-[10px] uppercase tracking-widest">Explore All</button>
               </div>
-              <div className="flex gap-6 overflow-x-auto no-scrollbar mask-fade-edges pb-8">
-                {categoryMovies.map((item, i) => (
-                  <motion.div 
+              <div className="flex gap-6 overflow-x-auto no-scrollbar pb-8">
+                {items.map((item) => (
+                  <motion.div
                     key={item.identifier}
                     whileHover={{ scale: 1.05 }}
                     className="group min-w-[280px] md:min-w-[320px] aspect-video relative rounded-xl overflow-hidden glass border border-white/5 hover:border-primary/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
                     onClick={() => onSelectArchiveItem(item)}
                   >
-                    <img src={item.thumbnailUrl || null} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt={item.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+                    <img src={item.thumbnailUrl || undefined} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt={item.title} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl">
+                        <Play fill="white" size={22} className="ml-0.5" />
+                      </div>
+                    </div>
                     <div className="absolute bottom-0 left-0 right-0 p-5">
                       <h4 className="font-bold text-lg uppercase tracking-tight line-clamp-2">{item.title}</h4>
-                      <p className="text-xs text-on-surface-variant mt-2 uppercase tracking-widest">{item.year || 'Classic'}</p>
+                      <p className="text-xs text-on-surface-variant mt-1 uppercase tracking-widest">{item.year || 'Classic'} · {item.genre}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -496,6 +512,7 @@ const LibraryView: React.FC<{
 const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNavigate }) => {
   const [movies, setMovies] = useState<ArchiveVideo[]>([]);
   const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>([]);
+  const [genreCollections, setGenreCollections] = useState<GenreCollection[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<VideoPlaylist[]>([]);
   const [localContent, setLocalContent] = useState<Album[]>([]);
   const [universes, setUniverses] = useState<Universe[]>([]);
@@ -516,17 +533,19 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const loadContent = async () => {
     try {
       setIsLoading(true);
-      const [all, unis, archiveFilms, archiveTV, settings] = await Promise.all([
-        fetchAllPublicAlbums(), 
+      const [all, unis, allGenres, settings] = await Promise.all([
+        fetchAllPublicAlbums(),
         fetchUniverses(),
-        fetchArchiveVideos('collection:feature_films', 40),
-        fetchArchiveVideos('collection:classic_tv', 40),
+        fetchArchiveByAllGenres(15),
         fetchSystemSettingsConfig()
       ]);
-      
+
       setLocalContent(all.filter(a => a.type === 'VIDEO'));
-      setMovies(archiveFilms);
-      setTvSeries(archiveTV);
+      setGenreCollections(allGenres);
+      const featureGenre = allGenres.find(g => g.genre === 'Feature Films');
+      const tvGenre = allGenres.find(g => g.genre === 'Classic TV');
+      setMovies(featureGenre?.items ?? []);
+      setTvSeries(tvGenre?.items ?? []);
       setUniverses(unis);
 
       if (settings?.curatedVideoPlaylists?.length > 0) {
@@ -534,8 +553,9 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         setCuratedPlaylists(curPls);
       }
       
-      if (archiveFilms.length > 0) {
-        setFeaturedItem(archiveFilms[0]);
+      const featureItems = allGenres.find(g => g.genre === 'Feature Films')?.items ?? [];
+      if (featureItems.length > 0) {
+        setFeaturedItem(featureItems[0]);
       }
     } catch (err) {
       console.error(err);
@@ -690,6 +710,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               universes={universes}
               movies={movies}
               tvSeries={tvSeries}
+              genreCollections={genreCollections}
               curatedPlaylists={curatedPlaylists}
               featuredItem={featuredItem}
               onSelectArchiveItem={handleSelectArchiveItem}

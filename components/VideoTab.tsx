@@ -17,7 +17,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useUpload } from '../contexts/UploadContext';
-import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
 import YoutubeImportModal from './YoutubeImportModal';
 import { LiveStreamModal } from './LiveStreamModal';
@@ -257,6 +256,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userTracks, setUserTracks] = useState<(Track & { albumTitle: string; albumId: string })[]>([]);
   const [userWorlds, setUserWorlds] = useState<{ id: string; name: string }[]>([]);
+  const [heroVideo, setHeroVideo] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel'>('discover');
@@ -352,6 +352,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       fetchSystemSettingsConfig()
     ]);
     fetchAllLiveFeeds(setLiveFeeds);
+    if (vids.length) {
+      const pool = vids.slice(0, Math.min(vids.length, 20));
+      setHeroVideo(pool[Math.floor(Math.random() * pool.length)]);
+    }
     setVideos(vids);
     setPlaylists(pls);
     setUserVideos(uVids);
@@ -593,20 +597,82 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 </div>
               )}
 
-              {/* Featured hero */}
-              <div className="mb-10">
-                <FeaturedCarousel
-                  items={(mode === 'MOVIES_TV' ? [...movies, ...tvSeries] : filteredVideos).slice(0, 5).map(item => ({
-                    id: item.id,
-                    title: item.title,
-                    subtitle: (item as any).genre || '',
-                    imageUrl: (item as any).thumbnailUrl || (item as any).coverImage || `https://picsum.photos/seed/${item.id}/1280/720`,
-                    videoUrl: (item as any).url,
-                    onClick: () => handlePlay(item)
-                  }))}
-                />
-              </div>
+              {/* Search results — shown instead of discover when query is active */}
+              {searchTerm.length >= 2 && (
+                <section className="mb-10">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-white/50 mb-5 flex items-center gap-2">
+                    <Search size={13} className="text-small-orange" />
+                    {filteredVideos.length} result{filteredVideos.length !== 1 ? 's' : ''} for &ldquo;{searchTerm}&rdquo;
+                  </h2>
+                  {filteredVideos.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                      {filteredVideos.map(v => (
+                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-20 bg-white/[0.02] rounded-2xl border border-dashed border-white/5 text-center">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest">No videos match &ldquo;{searchTerm}&rdquo;</p>
+                    </div>
+                  )}
+                </section>
+              )}
 
+              {/* Prominent hero — random user video, hidden when searching */}
+              {!searchTerm && (() => {
+                const heroItem = mode === 'MOVIES_TV'
+                  ? ([...movies, ...tvSeries][Math.floor(Math.random() * (movies.length + tvSeries.length))] ?? heroVideo)
+                  : heroVideo;
+                if (!heroItem) return null;
+                const thumb = heroItem.thumbnailUrl || heroItem.coverImage || `https://picsum.photos/seed/${heroItem.id}/1280/720`;
+                const creator = heroItem.artist || heroItem.ownerName || 'Creator';
+                const genre = heroItem.genre || heroItem.subType?.replace('_', ' ') || 'Video';
+                return (
+                  <div
+                    className="relative rounded-[2rem] overflow-hidden mb-12 cursor-pointer group shadow-2xl"
+                    style={{ height: 480 }}
+                    onClick={() => handlePlay(heroItem)}
+                  >
+                    <img
+                      src={thumb}
+                      alt={heroItem.title}
+                      className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
+                    <div className="absolute top-6 left-6 flex items-center gap-2">
+                      <span className="px-3 py-1.5 bg-small-orange/90 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest text-white shadow-lg">
+                        Featured
+                      </span>
+                      <span className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest text-white/80 border border-white/10">
+                        {genre}
+                      </span>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/50 flex items-center justify-center shadow-2xl">
+                        <Play fill="white" size={32} className="ml-1" />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-8">
+                      <div className="flex items-end justify-between gap-6">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-2">{creator}</p>
+                          <h2 className="text-3xl lg:text-5xl font-black uppercase tracking-tight leading-tight text-white mb-1 drop-shadow-lg line-clamp-2">
+                            {heroItem.title}
+                          </h2>
+                        </div>
+                        <button
+                          className="flex items-center gap-3 px-7 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-2xl shrink-0"
+                          onClick={(e) => { e.stopPropagation(); handlePlay(heroItem); }}
+                        >
+                          <Play fill="currentColor" size={16} /> Watch Now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {!searchTerm && <>
               {/* Music Videos section */}
               {mode === 'VIDEOS' && musicVideos.length > 0 && (
                 <VideoRow title="Music Videos" icon={Music2} videos={musicVideos} onSelect={handlePlay} />
@@ -769,6 +835,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   </div>
                 </section>
               )}
+              </>}
             </div>
           )}
 

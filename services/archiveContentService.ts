@@ -337,6 +337,38 @@ export const fetchClassicBooks = async (genre?: string): Promise<ArchiveBook[]> 
   }
 };
 
+const GENRE_KEYWORD_MAP: [string, string][] = [
+  ['horror', 'Horror'],
+  ['comedy', 'Comedy'],
+  ['western', 'Western'],
+  ['science fiction', 'Sci-Fi'],
+  ['sci-fi', 'Sci-Fi'],
+  ['sci fi', 'Sci-Fi'],
+  ['animation', 'Animation'],
+  ['cartoon', 'Animation'],
+  ['documentary', 'Documentary'],
+  ['drama', 'Drama'],
+  ['crime', 'Crime'],
+  ['thriller', 'Thriller'],
+  ['romance', 'Romance'],
+  ['adventure', 'Adventure'],
+  ['action', 'Action'],
+  ['film noir', 'Film Noir'],
+  ['noir', 'Film Noir'],
+  ['silent', 'Silent Film'],
+  ['television', 'TV Series'],
+  ['classic tv', 'TV Series'],
+  ['feature film', 'Feature Film'],
+];
+
+function normalizeArchiveGenre(subjects: string[], collections: string[]): string {
+  const haystack = [...subjects, ...collections].map(s => s.toLowerCase()).join(' ');
+  for (const [key, label] of GENRE_KEYWORD_MAP) {
+    if (haystack.includes(key)) return label;
+  }
+  return 'Classic Cinema';
+}
+
 export const fetchArchiveVideos = async (query: string = 'collection:feature_films', limit: number = 30): Promise<ArchiveVideo[]> => {
   try {
     const params = new URLSearchParams({
@@ -346,29 +378,22 @@ export const fetchArchiveVideos = async (query: string = 'collection:feature_fil
       rows: String(limit),
       output: 'json'
     });
-    
+
     const targetUrl = `${INTERNET_ARCHIVE_BASE}?${params.toString()}`;
     const response = await fetch(targetUrl);
     const data = await response.json();
     const docs = data.response.docs;
 
     return docs.map((d: any) => {
-      let subjects: string[] = [];
-      if (Array.isArray(d.subject)) {
-        subjects = d.subject;
-      } else if (typeof d.subject === 'string') {
-        subjects = [d.subject];
-      }
-      
-      const genre = subjects.length > 0 ? subjects[0] : 'Classic Cinema';
-
+      const subjects: string[] = Array.isArray(d.subject) ? d.subject : (d.subject ? [d.subject] : []);
+      const collections: string[] = Array.isArray(d.collection) ? d.collection : (d.collection ? [d.collection] : []);
       return {
         identifier: d.identifier,
         title: d.title || 'Untitled Archive Film',
         description: d.description || '',
         mediatype: d.mediatype,
-        collection: Array.isArray(d.collection) ? d.collection : [d.collection],
-        genre: genre,
+        collection: collections,
+        genre: normalizeArchiveGenre(subjects, collections),
         year: d.year,
         runtime: d.runtime,
         thumbnailUrl: `https://archive.org/services/img/${d.identifier}`
@@ -378,6 +403,33 @@ export const fetchArchiveVideos = async (query: string = 'collection:feature_fil
     console.error('Error fetching archive videos:', error);
     return [];
   }
+};
+
+export interface GenreCollection { genre: string; items: ArchiveVideo[] }
+
+export const ARCHIVE_GENRE_SOURCES: { genre: string; query: string }[] = [
+  { genre: 'Feature Films',  query: 'collection:feature_films' },
+  { genre: 'Classic TV',     query: 'collection:classic_tv' },
+  { genre: 'Animation',      query: 'collection:animationandcartoons' },
+  { genre: 'Horror',         query: 'subject:horror AND mediatype:movies' },
+  { genre: 'Comedy',         query: 'subject:comedy AND mediatype:movies' },
+  { genre: 'Sci-Fi',         query: 'subject:"science fiction" AND mediatype:movies' },
+  { genre: 'Western',        query: 'subject:western AND mediatype:movies' },
+  { genre: 'Documentary',    query: 'subject:documentary AND mediatype:movies' },
+  { genre: 'Film Noir',      query: 'subject:"film noir" AND mediatype:movies' },
+  { genre: 'Silent Film',    query: 'subject:silent AND mediatype:movies' },
+];
+
+export const fetchArchiveByAllGenres = async (limitPerGenre = 12): Promise<GenreCollection[]> => {
+  const results = await Promise.allSettled(
+    ARCHIVE_GENRE_SOURCES.map(async ({ genre, query }) => ({
+      genre,
+      items: await fetchArchiveVideos(query, limitPerGenre)
+    }))
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<GenreCollection> => r.status === 'fulfilled' && r.value.items.length > 0)
+    .map(r => r.value);
 };
 
 export const getVideoMetadata = async (identifier: string) => {
