@@ -15,6 +15,12 @@ import {
   getAdditionalUserInfo,
   GoogleAuthProvider,
   TwitterAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   User
@@ -3022,6 +3028,92 @@ export const linkXAccount = async (): Promise<string | null> => {
     }
     console.error('X account link failed:', error);
     return null;
+  }
+};
+
+export const loginWithFacebook = async () => {
+  const provider = new FacebookAuthProvider();
+  try {
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) await syncUserProfile(result.user);
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/account-exists-with-different-credential') {
+      alert('An account already exists with this email. Sign in with your original method, then link Facebook from Account Settings.');
+    } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      alert(`Facebook sign-in failed: ${error.message || 'Unknown error'}`);
+    }
+  }
+};
+
+export const loginWithMicrosoft = async () => {
+  const provider = new OAuthProvider('microsoft.com');
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) await syncUserProfile(result.user);
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      alert(`Microsoft sign-in failed: ${error.message || 'Unknown error'}`);
+    }
+  }
+};
+
+export const loginWithEmail = async (email: string, password: string) => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    if (result.user) await syncUserProfile(result.user);
+    return result.user;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      throw new Error('Invalid email or password.');
+    } else if (code === 'auth/too-many-requests') {
+      throw new Error('Too many attempts. Please try again later.');
+    }
+    throw new Error(error.message || 'Sign-in failed.');
+  }
+};
+
+export const registerWithEmail = async (email: string, password: string, displayName: string) => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(result.user, { displayName });
+    await syncUserProfile(result.user);
+    return result.user;
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/email-already-in-use') {
+      throw new Error('This email is already registered. Try signing in instead.');
+    } else if (code === 'auth/weak-password') {
+      throw new Error('Password must be at least 6 characters.');
+    }
+    throw new Error(error.message || 'Registration failed.');
+  }
+};
+
+export const sendPasswordReset = async (email: string) => {
+  await sendPasswordResetEmail(auth, email);
+};
+
+export const linkAuthProvider = async (providerName: 'GOOGLE' | 'TWITTER' | 'FACEBOOK' | 'MICROSOFT') => {
+  if (!auth.currentUser) throw new Error('Not signed in');
+  let provider;
+  if (providerName === 'GOOGLE') provider = new GoogleAuthProvider();
+  else if (providerName === 'TWITTER') provider = new TwitterAuthProvider();
+  else if (providerName === 'FACEBOOK') provider = new FacebookAuthProvider();
+  else provider = new OAuthProvider('microsoft.com');
+  try {
+    await linkWithPopup(auth.currentUser, provider);
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/credential-already-in-use') {
+      throw new Error('This account is already linked to a different Plajah user.');
+    } else if (code === 'auth/provider-already-linked') {
+      throw new Error('This provider is already linked to your account.');
+    }
+    throw error;
   }
 };
 

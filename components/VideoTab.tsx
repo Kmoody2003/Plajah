@@ -274,36 +274,30 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [recommendedProfiles, setRecommendedProfiles] = useState<UserProfile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
 
-  // Fetch discoverable channels and current following
+  // Fetch discoverable channels — always load public channels, personalize when logged in
   useEffect(() => {
     const loadChannels = async () => {
       const userId = currentUser?.uid || auth.currentUser?.uid;
-      if (!userId) {
-        setFollowingProfiles([]);
-        setRecommendedProfiles([]);
-        setFollowedIds(new Set());
-        return;
-      }
-
       try {
-        const followed = await fetchFollowedArtists(userId);
-        const ids = new Set(followed.map(u => u.uid));
-        ids.add(userId);
-        setFollowingProfiles(followed);
-        setFollowedIds(ids);
-
         const allUsers = await fetchAllUsers();
-        const recommendations = allUsers
-          .filter(u => u.uid !== userId && !ids.has(u.uid))
-          .slice(0, 18);
-        setRecommendedProfiles(recommendations);
+        if (userId) {
+          const followed = await fetchFollowedArtists(userId);
+          const ids = new Set(followed.map(u => u.uid));
+          ids.add(userId);
+          setFollowingProfiles(followed);
+          setFollowedIds(ids);
+          setRecommendedProfiles(allUsers.filter(u => u.uid !== userId && !ids.has(u.uid)).slice(0, 18));
+        } else {
+          setFollowingProfiles([]);
+          setFollowedIds(new Set());
+          setRecommendedProfiles(allUsers.slice(0, 18));
+        }
       } catch (err) {
         setFollowingProfiles([]);
         setRecommendedProfiles([]);
         setFollowedIds(new Set());
       }
     };
-
     loadChannels();
   }, [currentUser?.uid]);
 

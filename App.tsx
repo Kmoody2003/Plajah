@@ -86,6 +86,7 @@ const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops')
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
+import SignInPrompt from './components/SignInPrompt';
 import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -268,6 +269,7 @@ const App: React.FC = () => {
   }, []);
 
   const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
+  const [appSignInAction, setAppSignInAction] = useState<string | null>(null);
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
@@ -519,7 +521,7 @@ const App: React.FC = () => {
   const handleGlobalNavigate = (target: string, params?: any) => {
     if (target === 'LIBRARY') {
       if (!user) {
-        loginWithGoogle();
+        setAppSignInAction('access your library');
         return;
       }
       setViewedUserId(user.uid);
@@ -534,7 +536,7 @@ const App: React.FC = () => {
       if (user) {
         handleVisitUser(user.uid);
       } else {
-        loginWithGoogle();
+        setAppSignInAction('view your profile');
       }
     } else if (target === 'SEARCH') {
       setSearchQuery(params?.query || '');
@@ -546,13 +548,13 @@ const App: React.FC = () => {
       setView('CHAT');
     } else if (target === 'SETTINGS') {
       if (!user) {
-        loginWithGoogle();
+        setAppSignInAction('access settings');
         return;
       }
       setView('CREATOR');
     } else if (target === 'CREATOR') {
       if (!user) {
-        loginWithGoogle();
+        setAppSignInAction('access creator tools');
         return;
       }
       if (params?.editingAlbum) {
@@ -926,7 +928,7 @@ const App: React.FC = () => {
 
   const handleMessage = async (uid: string) => {
     if (!user) {
-      await loginWithGoogle();
+      setAppSignInAction('send messages');
       return;
     }
     await createChatRoom([user.uid, uid], 'PRIVATE');
@@ -965,8 +967,7 @@ const App: React.FC = () => {
 
   const handlePurchase = (item: any, isAlbum: boolean) => {
     if (!user) {
-      alert("Please sign in to make a purchase.");
-      loginWithGoogle();
+      setAppSignInAction('make a purchase');
       return;
     }
     // Replaced alert with console log and ideally we'd show a modal
@@ -1414,7 +1415,7 @@ const App: React.FC = () => {
                                 if (user) {
                                   handleVisitUser(user.uid);
                                 } else {
-                                  loginWithGoogle();
+                                  setAppSignInAction('view your profile');
                                 }
                               } else if (config.id === 'MUSIC') {
                                 setView('MUSIC');
@@ -1519,7 +1520,7 @@ const App: React.FC = () => {
                             setIsBottomSectionExpanded(v => !v);
                           } else if (tab.id === 'USER_PROFILE') {
                             if (user) handleVisitUser(user.uid);
-                            else loginWithGoogle();
+                            else setAppSignInAction('view your profile');
                           } else {
                             setView(tab.id as any);
                             setIsBottomSectionExpanded(false);
@@ -1586,7 +1587,7 @@ const App: React.FC = () => {
                             onClick={() => {
                               if (section.id === 'USER_PROFILE') {
                                 if (user) handleVisitUser(user.uid);
-                                else loginWithGoogle();
+                                else setAppSignInAction('view your profile');
                               } else {
                                 setView(section.id as any);
                               }
@@ -1605,7 +1606,7 @@ const App: React.FC = () => {
                     {/* Auth row at bottom of drawer */}
                     {!user && (
                       <div className="flex gap-3 px-4 pb-4">
-                        <button onClick={() => { loginWithGoogle(); setIsBottomSectionExpanded(false); }} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
+                        <button onClick={() => { setAppSignInAction('get started'); setIsBottomSectionExpanded(false); }} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
                           <LogIn size={14} /> Sign In
                         </button>
                       </div>
@@ -1737,7 +1738,7 @@ const App: React.FC = () => {
                               else if (tab === 'MOVIES_TV') setView('MOVIES_TV');
                               else if (tab === 'BOOK') setView('BOOKS');
                               else if (tab === 'MODULES') setView('CLASSROOMS');
-                              else if (tab === 'MY_ARCHIVE' && !user) loginWithGoogle();
+                              else if (tab === 'MY_ARCHIVE' && !user) setAppSignInAction('access your archive');
                               else setArchiveTab(tab as any);
                             }}
                             className={`text-sm font-black uppercase tracking-[0.3em] transition-all pb-2 border-b-2 whitespace-nowrap shrink-0 ${archiveTab === tab ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
@@ -2175,6 +2176,11 @@ const App: React.FC = () => {
       )}
       {user && <PersistentChatDrawer />}
       <PrivacyConsentBanner />
+      <AnimatePresence>
+        {appSignInAction && (
+          <SignInPrompt action={appSignInAction} onClose={() => setAppSignInAction(null)} />
+        )}
+      </AnimatePresence>
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>
