@@ -293,7 +293,7 @@ const AlbumArt3DViewer: React.FC<AlbumArt3DViewerProps> = ({ album, onClose }) =
   const [density, setDensity]       = useState(1.0);
   const [showControls, setShowControls] = useState(false);
 
-  const src = album.coverImage || album.photoURL || '';
+  const src = album.coverImage || '';
 
   const generate = useCallback(async () => {
     if (!src) return;

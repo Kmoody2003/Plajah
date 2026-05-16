@@ -93,7 +93,7 @@ import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
 import ThreeDImage from './ThreeDImage';
-import AvatarViewer from './AvatarViewer';
+import SafeAvatarViewer from './SafeAvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
 import ArtistMembersArea from './ArtistMembersArea';
@@ -614,7 +614,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             <div className="absolute -inset-2 bg-gradient-to-r from-small-orange to-[#FF8C00] rounded-[3rem] blur opacity-25 group-hover/avatar:opacity-50 transition duration-1000" />
             <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'} rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden border-4 lg:border-8 border-theme bg-white/5`}>
               {profile.avatar?.isActive ? (
-                <AvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
+                <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
               ) : (
                 <ThreeDImage
                   src={profile.customPhotoURL || profile.photoURL || null}
@@ -665,7 +665,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     className="shrink-0 self-end"
                     style={{ width: 90, height: 220 }}
                   >
-                    <AvatarViewer
+                    <SafeAvatarViewer
                       config={profile.avatar}
                       compact
                       wave

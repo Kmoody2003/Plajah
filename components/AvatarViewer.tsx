@@ -1,4 +1,4 @@
-import React, { Suspense, useRef, useEffect } from 'react';
+import React, { Suspense, useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -29,17 +29,26 @@ function WardrobeAccessories({ accessories, headR, headY, bodyY, bodyW }: Wardro
 
   const acc = new Set(accessories);
 
-  // Materials (created inline as primitive values — no hooks needed)
-  const goldMat    = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3, metalness: 0.8 });
-  const grayMat    = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.7 });
-  const darkGrayMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
-  const maroonMat  = new THREE.MeshStandardMaterial({ color: 0x8b2222, roughness: 0.8 });
-  const redMat     = new THREE.MeshStandardMaterial({ color: 0xcc1111, roughness: 0.7, side: THREE.DoubleSide });
-  const orangeMat  = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6 });
-  const whiteMat   = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, side: THREE.DoubleSide });
-  const dragonMat  = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, side: THREE.DoubleSide });
-  const glassMat   = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.3 });
-  const yellowMat  = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.4, metalness: 0.2 });
+  // Memoize materials so they are created once and properly disposed on unmount
+  const mats = useMemo(() => {
+    const goldMat     = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3, metalness: 0.8 });
+    const grayMat     = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.7 });
+    const darkGrayMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+    const maroonMat   = new THREE.MeshStandardMaterial({ color: 0x8b2222, roughness: 0.8 });
+    const redMat      = new THREE.MeshStandardMaterial({ color: 0xcc1111, roughness: 0.7, side: THREE.DoubleSide });
+    const orangeMat   = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6 });
+    const whiteMat    = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, side: THREE.DoubleSide });
+    const dragonMat   = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, side: THREE.DoubleSide });
+    const glassMat    = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.3 });
+    const yellowMat   = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.4, metalness: 0.2 });
+    return { goldMat, grayMat, darkGrayMat, maroonMat, redMat, orangeMat, whiteMat, dragonMat, glassMat, yellowMat };
+  }, []);
+
+  useEffect(() => {
+    return () => { Object.values(mats).forEach(m => m.dispose()); };
+  }, [mats]);
+
+  const { goldMat, grayMat, darkGrayMat, maroonMat, redMat, orangeMat, whiteMat, dragonMat, glassMat, yellowMat } = mats;
 
   const topOfHead = headY + headR;
   const neckY     = headY - headR * 0.95;

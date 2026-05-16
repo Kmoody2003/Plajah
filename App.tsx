@@ -134,7 +134,7 @@ import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
-import AvatarViewer from './components/AvatarViewer';
+import SafeAvatarViewer from './components/SafeAvatarViewer';
 import type { AvatarConfig } from './types';
 
 // Sidebar card that replaces the old user photo + email + cloud + points + badges
@@ -161,7 +161,9 @@ const AvatarSidebarCard: React.FC<{
       <div className="flex flex-col items-center gap-2 mt-2">
         <div className="w-10 h-10 rounded-full overflow-hidden bg-white/5 ring-2 ring-white/10">
           {showAvatar ? (
-            <AvatarViewer config={avatar!} compact autoRotate className="w-full h-full" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-small-orange/40 to-small-orange/10 text-[10px] font-black text-white/70 uppercase">
+              {(displayName || '?')[0]}
+            </div>
           ) : photoURL ? (
             <img src={photoURL} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -179,7 +181,7 @@ const AvatarSidebarCard: React.FC<{
       {/* Avatar or photo as centrepiece */}
       <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent" style={{ height: showAvatar ? 200 : 64 }}>
         {showAvatar ? (
-          <AvatarViewer config={avatar!} compact wave autoRotate={false} className="w-full h-full" />
+          <SafeAvatarViewer config={avatar!} compact wave autoRotate={false} className="w-full h-full" />
         ) : (
           <div className="flex items-center gap-3 px-4 py-4">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/10 shrink-0">
