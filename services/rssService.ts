@@ -62,17 +62,28 @@ function parseRSS(text: string): any[] {
   });
 }
 
+const fetchFeedXml = async (url: string): Promise<string> => {
+  // Try allorigins first (returns JSON wrapper with raw content)
+  try {
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    if (r.ok) {
+      const data = await r.json();
+      if (data.contents) return data.contents as string;
+    }
+  } catch (_) {}
+  // Fallback: corsproxy.io returns raw content directly
+  const r2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+  if (!r2.ok) throw new Error(`proxy failed: ${r2.status}`);
+  return r2.text();
+};
+
 export const fetchNewsFromRSS = async (category: string): Promise<any[]> => {
   if (cache[category] && Date.now() - cache[category].timestamp < TTL)
     return cache[category].data;
 
   const feeds = RSS_FEEDS[category] || RSS_FEEDS['GENERAL_WORLD'];
   const results = await Promise.allSettled(
-    feeds.map(url =>
-      fetch(`/api/proxy?url=${encodeURIComponent(url)}`)
-        .then(r => r.text())
-        .then(parseRSS)
-    )
+    feeds.map(url => fetchFeedXml(url).then(parseRSS))
   );
 
   let allItems: any[] = [];
