@@ -1350,7 +1350,7 @@ const App: React.FC = () => {
                         PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart },
                         CHAT: { label: 'Messages', icon: MessageSquare },
                         POSTMAN: { label: 'The Postman', icon: Mail },
-                        FEED: { label: 'Global Feed', icon: Rss },
+                        FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         SEARCH: { label: 'Find Artists', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },

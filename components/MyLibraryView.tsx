@@ -360,7 +360,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         imageUrl: track.albumCover || '',
         shareCount: 0
       });
-      alert('Posted to Global Feed!');
+      alert('Posted to Plajah Social!');
     } catch (error) {
       console.error("Failed to post to feed:", error);
     }

@@ -1875,7 +1875,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             onClick={() => {
                               const url = `${window.location.origin}${window.location.pathname}?id=${album.id}&track=${album.tracks[currentTrackIndex]?.id || 'album'}`;
                               navigator.clipboard.writeText(url);
-                              alert('Global Feed link copied to clipboard!');
+                              alert('Plajah Social link copied to clipboard!');
                             }}
                             className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all"
                           >
