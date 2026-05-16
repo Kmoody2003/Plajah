@@ -22,7 +22,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -5979,4 +5979,262 @@ export const uploadStoryMedia = async (file: File, ownerId: string): Promise<str
     await uploadBytes(storageRef, file);
     return await getDownloadURL(storageRef);
   } catch (e) { console.error('uploadStoryMedia', e); return null; }
+};
+
+// ─── CLUBS ────────────────────────────────────────────────────────────────────
+
+export const createClub = async (data: Partial<Club>): Promise<Club | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubs'));
+  const now = Date.now();
+  const club: Club = {
+    id: docRef.id,
+    name: data.name || 'Untitled Club',
+    description: data.description || '',
+    creatorId: auth.currentUser.uid,
+    admins: [auth.currentUser.uid],
+    moderators: [],
+    category: data.category || 'General',
+    tags: data.tags || [],
+    isPrivate: data.isPrivate ?? false,
+    joinProcess: data.joinProcess || 'AUTO',
+    questionnaire: data.questionnaire,
+    rules: data.rules,
+    allowedAssetTypes: data.allowedAssetTypes || ['MUSIC', 'VIDEO', 'PHOTO', 'ARTICLE', 'BOOK', 'PLAYLIST', 'WORLD', 'LINK'],
+    linksAllowed: data.linksAllowed ?? true,
+    memberCount: 1,
+    type: data.type || 'CLUB',
+    coverImage: data.coverImage,
+    iconImage: data.iconImage,
+    customBackground: data.customBackground,
+    customThemeId: data.customThemeId,
+    customFont: data.customFont,
+    hasLiveChat: data.hasLiveChat ?? true,
+    hasMerchStore: data.hasMerchStore ?? false,
+    hasExclusiveEvents: data.hasExclusiveEvents ?? true,
+    monthlyPrice: data.monthlyPrice,
+    yearlyPrice: data.yearlyPrice,
+    charityGoal: data.charityGoal,
+    charityRaised: data.charityRaised ?? 0,
+    charityOrgName: data.charityOrgName,
+    timestamp: now,
+    updatedAt: now,
+  };
+  await setDoc(docRef, removeUndefined(club));
+  const memberRef = doc(collection(db, 'clubMemberships'));
+  await setDoc(memberRef, removeUndefined({
+    id: memberRef.id,
+    clubId: club.id,
+    userId: auth.currentUser.uid,
+    role: 'OWNER' as ClubRole,
+    status: 'ACTIVE',
+    displayName: auth.currentUser.displayName || 'Creator',
+    photoUrl: auth.currentUser.photoURL || '',
+    joinedAt: now,
+  } as ClubMembership));
+  return club;
+};
+
+export const updateClub = async (clubId: string, updates: Partial<Club>) => {
+  await updateDoc(doc(db, 'clubs', clubId), { ...removeUndefined(updates), updatedAt: Date.now() });
+};
+
+export const deleteClub = async (clubId: string) => {
+  await deleteDoc(doc(db, 'clubs', clubId));
+};
+
+export const fetchPublicClubs = async (category?: string): Promise<Club[]> => {
+  let q = category && category !== 'All'
+    ? query(collection(db, 'clubs'), where('isPrivate', '==', false), where('category', '==', category), orderBy('memberCount', 'desc'), limit(30))
+    : query(collection(db, 'clubs'), where('isPrivate', '==', false), orderBy('memberCount', 'desc'), limit(30));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Club));
+};
+
+export const fetchUserClubs = async (uid: string): Promise<Club[]> => {
+  const q = query(collection(db, 'clubMemberships'), where('userId', '==', uid), where('status', '==', 'ACTIVE'));
+  const snap = await getDocs(q);
+  if (snap.empty) return [];
+  const clubIds = snap.docs.map(d => d.data().clubId as string);
+  const clubs: Club[] = [];
+  for (const cid of clubIds.slice(0, 10)) {
+    const d = await getDoc(doc(db, 'clubs', cid));
+    if (d.exists()) clubs.push({ id: d.id, ...d.data() } as Club);
+  }
+  return clubs;
+};
+
+export const fetchClub = async (clubId: string): Promise<Club | null> => {
+  const d = await getDoc(doc(db, 'clubs', clubId));
+  return d.exists() ? ({ id: d.id, ...d.data() } as Club) : null;
+};
+
+export const getUserClubMembership = async (clubId: string, uid: string): Promise<ClubMembership | null> => {
+  const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), where('userId', '==', uid));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as ClubMembership;
+};
+
+export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answers?: string[]): Promise<ClubMembership | null> => {
+  if (!auth.currentUser) return null;
+  const club = await fetchClub(clubId);
+  if (!club) return null;
+  const existing = await getUserClubMembership(clubId, auth.currentUser.uid);
+  if (existing) return existing;
+  const memberRef = doc(collection(db, 'clubMemberships'));
+  const status = club.joinProcess === 'AUTO' ? 'ACTIVE' : 'PENDING';
+  const mem: ClubMembership = {
+    id: memberRef.id,
+    clubId,
+    userId: auth.currentUser.uid,
+    role,
+    status,
+    displayName: auth.currentUser.displayName || 'Member',
+    photoUrl: auth.currentUser.photoURL || '',
+    questionnaireAnswers: answers,
+    joinedAt: Date.now(),
+  };
+  await setDoc(memberRef, removeUndefined(mem));
+  if (status === 'ACTIVE') await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+  return mem;
+};
+
+export const leaveClub = async (clubId: string) => {
+  if (!auth.currentUser) return;
+  const mem = await getUserClubMembership(clubId, auth.currentUser.uid);
+  if (!mem) return;
+  await deleteDoc(doc(db, 'clubMemberships', mem.id));
+  await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(-1) });
+};
+
+export const fetchClubMembers = async (clubId: string): Promise<ClubMembership[]> => {
+  const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), where('status', '==', 'ACTIVE'), orderBy('joinedAt', 'asc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubMembership));
+};
+
+export const updateMemberRole = async (membershipId: string, role: ClubRole) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { role });
+};
+
+export const approveMember = async (membershipId: string, clubId: string) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'ACTIVE' });
+  await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+};
+
+export const banMember = async (membershipId: string) => {
+  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'BANNED' });
+};
+
+// Club Posts
+export const createClubPost = async (post: Partial<ClubPost>): Promise<ClubPost | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubPosts'));
+  const newPost: ClubPost = {
+    id: docRef.id,
+    clubId: post.clubId!,
+    authorId: auth.currentUser.uid,
+    authorName: auth.currentUser.displayName || 'Member',
+    authorPhoto: auth.currentUser.photoURL || '',
+    content: post.content || '',
+    type: post.type || 'POST',
+    attachments: post.attachments,
+    likes: [],
+    commentCount: 0,
+    isPinned: post.isPinned ?? false,
+    isBulletin: post.isBulletin ?? false,
+    isNewArticle: post.isNewArticle ?? false,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newPost));
+  return newPost;
+};
+
+export const listenToClubPosts = (clubId: string, callback: (posts: ClubPost[]) => void) => {
+  const q = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), orderBy('isPinned', 'desc'), orderBy('timestamp', 'desc'), limit(50));
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost))));
+};
+
+export const deleteClubPost = async (postId: string) => {
+  await deleteDoc(doc(db, 'clubPosts', postId));
+};
+
+export const toggleClubPostLike = async (postId: string, uid: string, liked: boolean) => {
+  await updateDoc(doc(db, 'clubPosts', postId), { likes: liked ? arrayRemove(uid) : arrayUnion(uid) });
+};
+
+export const pinClubPost = async (postId: string, pinned: boolean) => {
+  await updateDoc(doc(db, 'clubPosts', postId), { isPinned: pinned });
+};
+
+// Club Gallery
+export const addClubGalleryItem = async (item: Partial<ClubGalleryItem>): Promise<ClubGalleryItem | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubGallery'));
+  const newItem: ClubGalleryItem = {
+    id: docRef.id,
+    clubId: item.clubId!,
+    uploaderId: auth.currentUser.uid,
+    uploaderName: auth.currentUser.displayName || 'Member',
+    uploaderPhoto: auth.currentUser.photoURL || '',
+    type: item.type || 'PHOTO',
+    url: item.url || '',
+    thumbnailUrl: item.thumbnailUrl,
+    title: item.title || '',
+    description: item.description,
+    assetId: item.assetId,
+    likes: [],
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newItem));
+  return newItem;
+};
+
+export const fetchClubGallery = async (clubId: string): Promise<ClubGalleryItem[]> => {
+  const q = query(collection(db, 'clubGallery'), where('clubId', '==', clubId), orderBy('timestamp', 'desc'), limit(60));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubGalleryItem));
+};
+
+export const deleteClubGalleryItem = async (itemId: string) => {
+  await deleteDoc(doc(db, 'clubGallery', itemId));
+};
+
+// Club Chat
+export const sendClubChatMessage = async (clubId: string, content: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const docRef = doc(collection(db, 'clubChat'));
+  await setDoc(docRef, removeUndefined({
+    id: docRef.id,
+    clubId,
+    senderId: auth.currentUser.uid,
+    senderName: auth.currentUser.displayName || 'Member',
+    senderPhoto: auth.currentUser.photoURL || '',
+    content,
+    isSticky: false,
+    timestamp: Date.now(),
+  } as ClubChatMessage));
+};
+
+export const listenToClubChat = (clubId: string, callback: (msgs: ClubChatMessage[]) => void) => {
+  const q = query(collection(db, 'clubChat'), where('clubId', '==', clubId), orderBy('timestamp', 'asc'), limit(100));
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubChatMessage))));
+};
+
+export const deleteClubChatMessage = async (msgId: string) => {
+  await deleteDoc(doc(db, 'clubChat', msgId));
+};
+
+export const stickyClubChatMessage = async (msgId: string, sticky: boolean) => {
+  await updateDoc(doc(db, 'clubChat', msgId), { isSticky: sticky });
+};
+
+export const uploadClubImage = async (file: File, clubId: string, type: 'cover' | 'icon'): Promise<string | null> => {
+  try {
+    const path = `clubs/${clubId}/${type}_${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  } catch (e) { console.error('uploadClubImage', e); return null; }
 };

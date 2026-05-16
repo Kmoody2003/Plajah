@@ -1028,6 +1028,127 @@ export interface FanPage {
   timestamp: number;
 }
 
+export type ClubType = 'CLUB' | 'CHARITY' | 'SANCTUARY';
+export type ClubJoinProcess = 'AUTO' | 'REVIEW' | 'QUESTIONNAIRE';
+export type ClubRole = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'WRITER' | 'MEMBER';
+export type ClubAssetType = 'MUSIC' | 'VIDEO' | 'PHOTO' | 'ARTICLE' | 'BOOK' | 'PLAYLIST' | 'WORLD' | 'LINK';
+
+export interface Club {
+  id: string;
+  name: string;
+  description: string;
+  creatorId: string;
+  admins: string[];
+  moderators: string[];
+  coverImage?: string;
+  iconImage?: string;
+  category: string;
+  tags: string[];
+  isPrivate: boolean;
+  joinProcess: ClubJoinProcess;
+  questionnaire?: string[];
+  rules?: string;
+  allowedAssetTypes: ClubAssetType[];
+  linksAllowed: boolean;
+  memberCount: number;
+  type: ClubType;
+  customBackground?: string;
+  customThemeId?: string;
+  customFont?: string;
+  hasLiveChat: boolean;
+  hasMerchStore: boolean;
+  hasExclusiveEvents: boolean;
+  externalJoinUrl?: string;
+  monthlyPrice?: number;
+  yearlyPrice?: number;
+  charityGoal?: number;
+  charityRaised?: number;
+  charityOrgName?: string;
+  slowMode?: boolean;
+  slowModeSeconds?: number;
+  timestamp: number;
+  updatedAt: number;
+}
+
+export interface ClubMembership {
+  id: string;
+  clubId: string;
+  userId: string;
+  role: ClubRole;
+  status: 'ACTIVE' | 'PENDING' | 'BANNED';
+  displayName: string;
+  photoUrl?: string;
+  questionnaireAnswers?: string[];
+  joinedAt: number;
+}
+
+export interface ClubPost {
+  id: string;
+  clubId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  content: string;
+  type: 'POST' | 'ANNOUNCEMENT' | 'ARTICLE_LINK';
+  attachments?: Array<{ type: string; url: string; title?: string; thumbnailUrl?: string; assetId?: string }>;
+  likes: string[];
+  commentCount: number;
+  isPinned: boolean;
+  isBulletin: boolean;
+  isNewArticle: boolean;
+  timestamp: number;
+}
+
+export interface ClubGalleryItem {
+  id: string;
+  clubId: string;
+  uploaderId: string;
+  uploaderName: string;
+  uploaderPhoto?: string;
+  type: 'PHOTO' | 'VIDEO' | 'MUSIC' | 'ARTICLE' | 'BOOK' | 'PLAYLIST';
+  url: string;
+  thumbnailUrl?: string;
+  title: string;
+  description?: string;
+  assetId?: string;
+  likes: string[];
+  timestamp: number;
+}
+
+export interface ClubChatMessage {
+  id: string;
+  clubId: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  content: string;
+  isSticky: boolean;
+  timestamp: number;
+}
+
+export interface ClubEvent {
+  id: string;
+  clubId: string;
+  hostId: string;
+  title: string;
+  description?: string;
+  type: 'LIVE_TALK' | 'LIVE_STREAM' | 'WATCH_PARTY';
+  scheduledAt: number;
+  isExclusive: boolean;
+  isActive: boolean;
+  attendeeIds: string[];
+  timestamp: number;
+}
+
+export interface ClubStickyNote {
+  id: string;
+  clubId: string;
+  userId: string;
+  content: string;
+  color: string;
+  timestamp: number;
+}
+
 export interface BrandAccount {
   id: string;
   name: string;

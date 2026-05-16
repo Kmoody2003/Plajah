@@ -1982,7 +1982,7 @@ const App: React.FC = () => {
                 />
               </ErrorBlock>
             )}
-            {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} />}
+            {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} />}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
             {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
             {view === 'WORLD_MANAGER' && (
