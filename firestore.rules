@@ -570,7 +570,7 @@ service cloud.firestore {
     }
 
     match /videos/{videoId} {
-      allow read: if (!('isPrivate' in resource.data) || resource.data.isPrivate == false) || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow read: if true;
       allow create: if isAuthenticated() && isValidVideo(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidVideo(request.resource.data)) ||
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
@@ -642,10 +642,7 @@ service cloud.firestore {
     }
 
     match /albums/{albumId} {
-      allow get: if true;
-      allow list: if (!('isPrivate' in resource.data) || resource.data.isPrivate == false) ||
-                      isDocOwner() ||
-                      isAdmin();
+      allow read: if true;
       allow create: if (isAuthenticated() && isValidAlbum(request.resource.data) && request.resource.data.ownerId == request.auth.uid) || isAdmin();
       allow update: if (isDocOwner() || isAdmin()) && isValidAlbum(request.resource.data);
       allow delete: if isDocOwner() || isAdmin();
@@ -923,9 +920,14 @@ service cloud.firestore {
     match /worlds/{worldId} {
       allow read: if true;
       allow create: if isAuthenticated() && isValidWorld(request.resource.data) && request.resource.data.creatorId == request.auth.uid;
-      allow update: if isAdmin() || (isAuthenticated() && resource.data.creatorId == request.auth.uid && (
-                       isValidWorld(request.resource.data) ||
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timelineIds', 'assetIds', 'characterIds', 'loreIds'])
+      allow update: if isAdmin() || (isAuthenticated() && (
+                       // Normal owner update
+                       (resource.data.creatorId == request.auth.uid && (
+                         isValidWorld(request.resource.data) ||
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timelineIds', 'assetIds', 'characterIds', 'loreIds', 'creatorId'])
+                       )) ||
+                       // Claim ownership of worlds with blank creatorId (legacy data fix)
+                       (resource.data.creatorId == '' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creatorId']) && request.resource.data.creatorId == request.auth.uid)
                      ));
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
 
@@ -1066,6 +1068,132 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if false;
+    }
+
+    // ===============================================================
+    // CLUBS
+    // ===============================================================
+
+    match /clubs/{clubId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      // allow unclaimed demo club to be claimed by any authenticated user
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.admins ||
+        resource.data.creatorId == request.auth.uid ||
+        (resource.data.creatorId == '' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creatorId', 'admins', 'isDemo', 'updatedAt']) && request.resource.data.creatorId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+
+      match /clubPosts/{postId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubGallery/{itemId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubChatMessages/{msgId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+        allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+        allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubEvents/{eventId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+
+      match /clubStickyNotes/{noteId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
+      }
+    }
+
+    match /clubMemberships/{membershipId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /clubPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /clubGallery/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
+    }
+
+    match /clubChat/{msgId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+
+    match /clubEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+    }
+
+    // ===============================================================
+    // DISCUSSION (Reddit-style forum)
+    // ===============================================================
+
+    match /discussionBoards/{boardId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /discussionPosts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /discussionComments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /discussionVotes/{voteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /discussionAliases/{aliasId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

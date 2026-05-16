@@ -4,7 +4,7 @@ import {
   ArrowLeft, Users, MessageSquare, Image, Newspaper, Settings,
   Plus, Send, Heart, Pin, Trash2, Shield, Crown, Pen, Lock, Globe,
   X, Check, Calendar, Play, Music, BookOpen, Link2, Upload, Zap,
-  UserPlus, UserMinus, Ban
+  UserPlus, UserMinus, Ban, Sparkles
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole } from '../types';
@@ -14,7 +14,7 @@ import {
   pinClubPost, fetchClubGallery, addClubGalleryItem, deleteClubGalleryItem,
   listenToClubChat, sendClubChatMessage, deleteClubChatMessage,
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
-  uploadClubImage
+  uploadClubImage, claimClubAsFounder
 } from '../services/backendService';
 
 interface ClubDetailViewProps {
@@ -64,6 +64,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<ClubGalleryItem | null>(null);
   const [settingsEdit, setSettingsEdit] = useState<Partial<Club>>({});
   const [savingSettings, setSavingSettings] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const galleryUploadRef = useRef<HTMLInputElement>(null);
 
@@ -140,6 +141,19 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     setSavingSettings(false);
   };
 
+  const handleClaim = async () => {
+    if (!currentUser || claiming) return;
+    setClaiming(true);
+    const ok = await claimClubAsFounder(club.id);
+    if (ok) {
+      const updated = { ...club, creatorId: currentUser.uid, admins: [currentUser.uid], isDemo: false, memberCount: club.memberCount + 1 };
+      setClub(updated);
+      onClubUpdated(updated);
+      setMembership({ id: '', clubId: club.id, userId: currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: currentUser.displayName || '', photoUrl: currentUser.photoURL || '', joinedAt: Date.now() });
+    }
+    setClaiming(false);
+  };
+
   const handleRoleChange = async (mem: ClubMembership, newRole: ClubRole) => {
     await updateMemberRole(mem.id, newRole);
     setMembers(ms => ms.map(m => m.id === mem.id ? { ...m, role: newRole } : m));
@@ -199,6 +213,36 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           </div>
         </div>
       </div>
+
+      {/* Claim-as-Founder banner — only shown for unclaimed demo clubs */}
+      {club.isDemo && !club.creatorId && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-amber-900/40 via-orange-900/40 to-amber-900/40 border-b border-amber-500/20">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.08),transparent_70%)]" />
+          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <Crown size={18} className="text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-400">Unclaimed Community</p>
+                <p className="text-sm font-light text-white/70 mt-0.5">Be the first to claim <span className="text-white font-bold">{club.name}</span> as its Founder — you'll get full admin control.</p>
+              </div>
+            </div>
+            {currentUser ? (
+              <button
+                onClick={handleClaim}
+                disabled={claiming}
+                className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 shrink-0 disabled:opacity-50"
+              >
+                <Sparkles size={12} />
+                {claiming ? 'Claiming…' : 'Claim as Founder'}
+              </button>
+            ) : (
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 shrink-0">Sign in to claim</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/5">

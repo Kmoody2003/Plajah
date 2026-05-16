@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown } from 'lucide-react';
+import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown, Crown } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubJoinProcess } from '../types';
-import { fetchPublicClubs, fetchUserClubs, createClub } from '../services/backendService';
+import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
 import ClubDetailView from './ClubDetailView';
 
 interface ClubsViewProps {
@@ -30,6 +30,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
 
   const loadClubs = useCallback(async () => {
     setLoading(true);
+    await seedDemoClubs();
     const [pub, mine] = await Promise.all([
       fetchPublicClubs(selectedCategory !== 'All' ? selectedCategory : undefined),
       currentUser ? fetchUserClubs(currentUser.uid) : Promise.resolve([]),
@@ -181,6 +182,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
                   <div className="absolute top-5 left-5 flex items-center gap-2">
                     <span className="px-3 py-1 bg-black/50 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-widest border border-white/10 text-white">{club.category}</span>
                     {club.isPrivate && <span className="px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-widest border border-white/10 text-white flex items-center gap-1"><Lock size={7} /> Private</span>}
+                    {club.isDemo && !club.creatorId && <span className="px-2 py-1 bg-amber-500/80 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-widest text-black flex items-center gap-1"><Crown size={7} /> Claimable</span>}
                   </div>
                   <div className="absolute bottom-5 left-6 right-6">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -193,8 +195,8 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
                 <div className="p-8">
                   <p className="opacity-40 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8 line-clamp-2">{club.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="px-6 py-2.5 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest group-hover:bg-white/90 transition-all">
-                      {club.joinProcess === 'AUTO' ? 'Join' : 'Request to Join'}
+                    <span className={`px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${club.isDemo && !club.creatorId ? 'bg-amber-500 text-black group-hover:bg-amber-400' : 'bg-white text-black group-hover:bg-white/90'}`}>
+                      {club.isDemo && !club.creatorId ? 'Claim as Founder' : club.joinProcess === 'AUTO' ? 'Join' : 'Request to Join'}
                     </span>
                     <div className="flex -space-x-2">
                       {[1, 2, 3].map(i => (

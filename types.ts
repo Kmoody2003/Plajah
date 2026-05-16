@@ -1066,6 +1066,7 @@ export interface Club {
   charityOrgName?: string;
   slowMode?: boolean;
   slowModeSeconds?: number;
+  isDemo?: boolean;
   timestamp: number;
   updatedAt: number;
 }
@@ -1305,11 +1306,11 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO';
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
-export type AvatarStyle = 'ANIME' | 'CHIBI' | 'REALISTIC' | 'URBAN';
+export type AvatarStyle = 'ANIME' | 'CHIBI' | 'REALISTIC' | 'URBAN' | 'STREETWEAR' | 'CLAY';
 
 export interface AvatarConfig {
   type: 'RPM' | 'VRM' | 'NONE';
@@ -1693,6 +1694,79 @@ export interface UserBadge {
   badge?: Badge; // Denormalized for convenience
   earnedAt: number;
   badgeType: BadgeType;
+}
+
+// ── DISCUSSION (Reddit-style forum) ──────────────────────────────────────────
+
+export interface DiscussionBoard {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  coverImage?: string;
+  icon?: string;
+  creatorId: string;
+  memberCount: number;
+  postCount: number;
+  isNSFW: boolean;
+  tags: string[];
+  timestamp: number;
+}
+
+export interface DiscussionPost {
+  id: string;
+  boardId: string;
+  boardName: string;
+  authorId: string;
+  aliasId?: string;
+  displayName: string;
+  displayPhoto?: string;
+  isAnonymous: boolean;
+  title: string;
+  body: string;
+  imageUrls?: string[];
+  linkUrl?: string;
+  upvotes: number;
+  downvotes: number;
+  commentCount: number;
+  timestamp: number;
+  isPinned?: boolean;
+  flair?: string;
+}
+
+export interface DiscussionComment {
+  id: string;
+  postId: string;
+  parentCommentId?: string;
+  authorId: string;
+  aliasId?: string;
+  displayName: string;
+  displayPhoto?: string;
+  isAnonymous: boolean;
+  body: string;
+  upvotes: number;
+  downvotes: number;
+  replyCount: number;
+  timestamp: number;
+  depth: number;
+}
+
+export interface DiscussionAlias {
+  id: string;
+  userId: string;
+  name: string;
+  avatar?: string;
+  bio?: string;
+  timestamp: number;
+}
+
+export interface DiscussionVote {
+  id: string;
+  userId: string;
+  targetId: string;
+  targetType: 'POST' | 'COMMENT';
+  value: 1 | -1;
+  timestamp: number;
 }
 
 // ── EXTENDED USER TYPE ADDITIONS ─────────────────────────────────────────────

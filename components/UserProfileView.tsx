@@ -675,9 +675,14 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   </div>
                 )}
               <div className={`flex items-center gap-3 ${isMobile ? 'flex-col' : ''}`}>
-                <h1 className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}>
+                <motion.h1
+                  className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
+                  animate={{ scale: [1, 1.013, 1], opacity: [1, 0.92, 1] }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ transformOrigin: 'left center' }}
+                >
                   {profile.displayName}
-                </h1>
+                </motion.h1>
                 
                 <div className="flex items-center gap-2">
                   {profile.tier === 'PIONEER' && (

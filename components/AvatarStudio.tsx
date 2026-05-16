@@ -28,11 +28,13 @@ const WARDROBE_ITEMS: { id: string; name: string; category: string; emoji: strin
   { id: 'booth_pm',     name: 'Booth.pm Assets', category: 'External',emoji: '🛍️', desc: 'Free Japanese avatar items', source: 'Booth.pm', sourceUrl: 'https://booth.pm' },
 ];
 
-const STYLES: { key: AvatarStyle; label: string; desc: string; emoji: string }[] = [
-  { key: 'ANIME', label: 'Anime',    desc: 'Cel-shaded manga look',   emoji: '🎌' },
-  { key: 'CHIBI', label: 'Chibi',    desc: 'Big head, cute proportions', emoji: '🌸' },
-  { key: 'REALISTIC', label: 'Realistic', desc: 'High-fidelity PBR render', emoji: '👤' },
-  { key: 'URBAN',  label: 'Urban',   desc: 'Street-level stylised',   emoji: '🏙️' },
+const STYLES: { key: AvatarStyle; label: string; desc: string; emoji: string; preview: string }[] = [
+  { key: 'CLAY',       label: 'Clay 3D',    desc: 'Soft clay-like chibi with rounded body proportions',  emoji: '🫧', preview: 'https://images.unsplash.com/photo-1620288627223-53302f4e8c74?w=200&q=80' },
+  { key: 'CHIBI',      label: 'Chibi',      desc: 'Oversized head, big eyes, cute toy proportions',       emoji: '🌸', preview: 'https://images.unsplash.com/photo-1636955816868-fcb881e57954?w=200&q=80' },
+  { key: 'STREETWEAR', label: 'Streetwear', desc: 'NFT-style streetwear characters with accessories',     emoji: '🧢', preview: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&q=80' },
+  { key: 'URBAN',      label: 'Urban',      desc: 'Street-level stylised with bold outfits',               emoji: '🏙️', preview: 'https://images.unsplash.com/photo-1605792657660-596af9009e82?w=200&q=80' },
+  { key: 'REALISTIC',  label: 'Realistic',  desc: 'Diverse high-fidelity 3D characters',                  emoji: '👤', preview: 'https://images.unsplash.com/photo-1580927752452-89d86da3fa0a?w=200&q=80' },
+  { key: 'ANIME',      label: 'Anime',      desc: 'Cel-shaded manga look with expressive features',       emoji: '🎌', preview: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=200&q=80' },
 ];
 
 const RPM_SUBDOMAIN = 'plajah'; // change to your RPM subdomain if you sign up
@@ -199,21 +201,31 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
           <div className="flex-1 p-5 flex flex-col gap-6">
             {/* Style picker */}
             <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-3">Style Preset</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-3">Avatar Style</p>
+              <div className="grid grid-cols-3 gap-2">
                 {STYLES.map((s) => (
                   <button
                     key={s.key}
                     onClick={() => setStyle(s.key)}
-                    className={`p-3 rounded-xl border transition-all text-left ${
+                    className={`relative rounded-2xl border overflow-hidden transition-all group ${
                       style === s.key
-                        ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]/10'
-                        : 'border-white/10 hover:border-white/30'
+                        ? 'border-[var(--text-secondary)] ring-2 ring-[var(--text-secondary)]/30 scale-[1.02]'
+                        : 'border-white/10 hover:border-white/30 hover:scale-[1.02]'
                     }`}
                   >
-                    <div className="text-lg mb-1">{s.emoji}</div>
-                    <div className="text-xs font-black">{s.label}</div>
-                    <div className="text-[9px] text-white/40 leading-tight mt-0.5">{s.desc}</div>
+                    <div className="aspect-square relative overflow-hidden">
+                      <img src={s.preview} alt={s.label} className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      {style === s.key && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-[var(--text-secondary)] rounded-full flex items-center justify-center">
+                          <Check size={9} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-white">{s.label}</div>
+                      <div className="text-[7px] text-white/40 leading-tight mt-0.5 line-clamp-2">{s.desc}</div>
+                    </div>
                   </button>
                 ))}
               </div>

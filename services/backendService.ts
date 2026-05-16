@@ -374,7 +374,7 @@ export const createIPWorld = async (world: Partial<IPWorld>) => {
     const docRef = doc(collection(db, path));
     const newWorld: IPWorld = {
       id: docRef.id,
-      creatorId: world.creatorId || '',
+      creatorId: world.creatorId || auth.currentUser?.uid || '',
       name: world.name || 'Untitled World',
       description: world.description || '',
       coverImage: world.coverImage || '',
@@ -676,13 +676,16 @@ export const fetchWorldTimelines = async (worldId: string) => {
 export const createTimeline = async (timeline: { worldId: string; name: string; description?: string; color?: string }) => {
   const path = `worlds/${timeline.worldId}/timelines`;
   if (!auth.currentUser) throw new Error('Not authenticated');
-  // Pre-flight: verify the world document exists and belongs to this user.
-  // The Firestore rule uses get() to check creatorId — if the doc is missing or
-  // creatorId doesn't match we'd get an opaque PERMISSION_DENIED.  Checking here
-  // surfaces a clear error message instead.
+  // Verify world exists. If creatorId is missing or blank (data from an older
+  // creation path), patch it now so the Firestore rule's get() check passes.
   const worldSnap = await getDocFromServer(doc(db, 'worlds', timeline.worldId));
   if (!worldSnap.exists()) throw new Error(`World document not found (id: ${timeline.worldId}). Save the world first.`);
-  if (worldSnap.data()?.creatorId !== auth.currentUser.uid) throw new Error('You are not the creator of this world.');
+  const worldData = worldSnap.data();
+  if (!worldData?.creatorId) {
+    await updateDoc(doc(db, 'worlds', timeline.worldId), { creatorId: auth.currentUser.uid });
+  } else if (worldData.creatorId !== auth.currentUser.uid) {
+    throw new Error('You are not the creator of this world.');
+  }
   try {
     const docRef = doc(collection(db, 'worlds', timeline.worldId, 'timelines'));
     const newTimeline = {
@@ -6136,11 +6139,260 @@ export const deleteClub = async (clubId: string) => {
 };
 
 export const fetchPublicClubs = async (category?: string): Promise<Club[]> => {
-  let q = category && category !== 'All'
-    ? query(collection(db, 'clubs'), where('isPrivate', '==', false), where('category', '==', category), orderBy('memberCount', 'desc'), limit(30))
-    : query(collection(db, 'clubs'), where('isPrivate', '==', false), orderBy('memberCount', 'desc'), limit(30));
+  // Avoid composite index requirement — filter/sort client-side
+  const q = category && category !== 'All'
+    ? query(collection(db, 'clubs'), where('isPrivate', '==', false), where('category', '==', category), limit(50))
+    : query(collection(db, 'clubs'), where('isPrivate', '==', false), limit(50));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Club));
+  const clubs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Club));
+  return clubs.sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+};
+
+const DEMO_CLUBS: Omit<Club, 'id' | 'timestamp' | 'updatedAt'>[] = [
+  {
+    name: 'Plajah Music Collective',
+    description: 'The premier community for music creators and fans on Plajah. Share tracks, collaborate on projects, and discover underground artists before they blow up. From bedroom producers to touring musicians — all genres welcome.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Music',
+    tags: ['music', 'producers', 'artists', 'collaboration'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['MUSIC', 'VIDEO', 'PHOTO', 'PLAYLIST', 'LINK'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Visual Artists United',
+    description: 'A sanctuary for visual artists, illustrators, photographers, and digital creators. Share your work, give feedback, and connect with collectors and fans who appreciate the craft.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Art',
+    tags: ['art', 'illustration', 'photography', 'digital', 'design'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['PHOTO', 'VIDEO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Independent Film Society',
+    description: 'Where independent filmmakers, cinematographers, and cinephiles unite. Screen your short films, discuss the craft, and find collaborators for your next project.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Film',
+    tags: ['film', 'cinema', 'indie', 'screenwriting', 'directing'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'LINK', 'PHOTO', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Plajah Gaming League',
+    description: 'Compete, stream, and connect with gamers across every platform and genre. Tournaments, live playthroughs, and community challenges. GG.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Gaming',
+    tags: ['gaming', 'esports', 'streaming', 'tournaments', 'fps', 'rpg'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'LINK', 'PHOTO', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'The Literary Circle',
+    description: 'For writers, poets, authors, and book lovers. Share chapters, get feedback, discuss literature, and find your next favorite read or writing partner.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Literature',
+    tags: ['books', 'writing', 'poetry', 'authors', 'fiction'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['ARTICLE', 'BOOK', 'LINK', 'PHOTO'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Tech Builders',
+    description: 'Developers, designers, and digital makers building the future. Share side projects, discuss trends, collaborate on open source, and help each other ship.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Tech',
+    tags: ['tech', 'coding', 'dev', 'ai', 'startups', 'design'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['LINK', 'ARTICLE', 'VIDEO', 'PHOTO'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Global Sports Arena',
+    description: 'All sports, all levels — from armchair fans to pro athletes. Live match reactions, highlights, fitness content, and sports debate from around the world.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Sports',
+    tags: ['sports', 'fitness', 'football', 'basketball', 'soccer', 'athletics'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'PHOTO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Lifestyle Creators Hub',
+    description: 'Fashion, food, travel, wellness, and everything in between. Lifestyle creators sharing content, building brands, and connecting with an engaged audience.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Lifestyle',
+    tags: ['lifestyle', 'fashion', 'food', 'travel', 'wellness', 'beauty'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['PHOTO', 'VIDEO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CLUB',
+    hasLiveChat: true,
+    hasMerchStore: true,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    coverImage: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200&q=80',
+    charityRaised: 0,
+  },
+  {
+    name: 'Plajah Gives Back',
+    description: 'A charity community raising funds and awareness for causes that matter. Every member, every post, every event moves the needle on real-world impact.',
+    creatorId: '',
+    admins: [],
+    moderators: [],
+    category: 'Charity',
+    tags: ['charity', 'giving', 'community', 'nonprofit', 'impact'],
+    isPrivate: false,
+    joinProcess: 'AUTO',
+    allowedAssetTypes: ['VIDEO', 'PHOTO', 'LINK', 'ARTICLE'],
+    linksAllowed: true,
+    memberCount: 0,
+    type: 'CHARITY',
+    hasLiveChat: true,
+    hasMerchStore: false,
+    hasExclusiveEvents: true,
+    isDemo: true,
+    charityGoal: 10000,
+    charityRaised: 0,
+    charityOrgName: 'Plajah Community Fund',
+    coverImage: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&q=80',
+    iconImage: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=200&q=80',
+  },
+];
+
+export const seedDemoClubs = async (): Promise<void> => {
+  try {
+    const existing = await getDocs(query(collection(db, 'clubs'), where('isDemo', '==', true), limit(1)));
+    if (!existing.empty) return; // already seeded
+    const now = Date.now();
+    for (const club of DEMO_CLUBS) {
+      const docRef = doc(collection(db, 'clubs'));
+      await setDoc(docRef, removeUndefined({ ...club, id: docRef.id, timestamp: now, updatedAt: now }));
+    }
+  } catch (e) {
+    console.warn('seedDemoClubs failed', e);
+  }
+};
+
+export const claimClubAsFounder = async (clubId: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  try {
+    const uid = auth.currentUser.uid;
+    await updateDoc(doc(db, 'clubs', clubId), {
+      creatorId: uid,
+      admins: [uid],
+      isDemo: false,
+      updatedAt: Date.now(),
+    });
+    // Create an OWNER membership for the claimer
+    const memberRef = doc(collection(db, 'clubMemberships'));
+    await setDoc(memberRef, removeUndefined({
+      id: memberRef.id,
+      clubId,
+      userId: uid,
+      role: 'OWNER' as ClubRole,
+      status: 'ACTIVE',
+      displayName: auth.currentUser.displayName || 'Founder',
+      photoUrl: auth.currentUser.photoURL || '',
+      joinedAt: Date.now(),
+    }));
+    await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
+    return true;
+  } catch (e) {
+    console.error('claimClubAsFounder', e);
+    return false;
+  }
 };
 
 export const fetchUserClubs = async (uid: string): Promise<Club[]> => {
@@ -6329,4 +6581,122 @@ export const uploadClubImage = async (file: File, clubId: string, type: 'cover' 
     await uploadBytes(storageRef, file);
     return await getDownloadURL(storageRef);
   } catch (e) { console.error('uploadClubImage', e); return null; }
+};
+
+// ── DISCUSSION FORUM ──────────────────────────────────────────────────────────
+
+export const createDiscussionAlias = async (name: string, avatar?: string, bio?: string) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionAliases'));
+  const alias = { id: docRef.id, userId: auth.currentUser.uid, name, avatar: avatar || '', bio: bio || '', timestamp: Date.now() };
+  await setDoc(docRef, alias);
+  return alias;
+};
+
+export const fetchMyDiscussionAliases = async () => {
+  if (!auth.currentUser) return [];
+  const q = query(collection(db, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), orderBy('timestamp', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+};
+
+export const fetchDiscussionBoards = async () => {
+  const q = query(collection(db, 'discussionBoards'), orderBy('memberCount', 'desc'), limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+};
+
+export const createDiscussionBoard = async (name: string, description: string, tags: string[] = []) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionBoards'));
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const board = { id: docRef.id, name, slug, description, tags, creatorId: auth.currentUser.uid, memberCount: 1, postCount: 0, isNSFW: false, timestamp: Date.now() };
+  await setDoc(docRef, board);
+  return board;
+};
+
+export const fetchDiscussionPosts = async (boardId?: string, sortBy: 'hot' | 'new' | 'top' = 'hot') => {
+  const orderField = sortBy === 'new' ? orderBy('timestamp', 'desc') : orderBy('upvotes', 'desc');
+  const q = boardId
+    ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), orderField, limit(50))
+    : query(collection(db, 'discussionPosts'), orderField, limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as object) })) as any[];
+};
+
+export const createDiscussionPost = async (data: { boardId: string; boardName: string; title: string; body: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; linkUrl?: string; imageUrls?: string[]; flair?: string }) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionPosts'));
+  const post = {
+    id: docRef.id, ...data,
+    authorId: auth.currentUser.uid,
+    upvotes: 0, downvotes: 0, commentCount: 0, isPinned: false,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(post));
+  await updateDoc(doc(db, 'discussionBoards', data.boardId), { postCount: increment(1) });
+  return post;
+};
+
+export const voteDiscussionPost = async (postId: string, value: 1 | -1) => {
+  if (!auth.currentUser) return;
+  const voteId = `${auth.currentUser.uid}_post_${postId}`;
+  const voteRef = doc(db, 'discussionVotes', voteId);
+  const existing = await getDoc(voteRef);
+  const postRef = doc(db, 'discussionPosts', postId);
+  if (existing.exists() && existing.data().value === value) {
+    await deleteDoc(voteRef);
+    await updateDoc(postRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+  } else {
+    if (existing.exists()) {
+      await updateDoc(postRef, { [existing.data().value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+    }
+    await setDoc(voteRef, { id: voteId, userId: auth.currentUser.uid, targetId: postId, targetType: 'POST', value, timestamp: Date.now() });
+    await updateDoc(postRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(1) });
+  }
+};
+
+export const deleteDiscussionPost = async (postId: string) => {
+  await deleteDoc(doc(db, 'discussionPosts', postId));
+};
+
+export const fetchDiscussionComments = async (postId: string) => {
+  const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), orderBy('timestamp', 'asc'), limit(200));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+};
+
+export const createDiscussionComment = async (data: { postId: string; body: string; parentCommentId?: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; depth: number }) => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'discussionComments'));
+  const comment = {
+    id: docRef.id, ...data,
+    authorId: auth.currentUser.uid,
+    upvotes: 0, downvotes: 0, replyCount: 0,
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(comment));
+  await updateDoc(doc(db, 'discussionPosts', data.postId), { commentCount: increment(1) });
+  if (data.parentCommentId) {
+    await updateDoc(doc(db, 'discussionComments', data.parentCommentId), { replyCount: increment(1) });
+  }
+  return comment;
+};
+
+export const voteDiscussionComment = async (commentId: string, value: 1 | -1) => {
+  if (!auth.currentUser) return;
+  const voteId = `${auth.currentUser.uid}_comment_${commentId}`;
+  const voteRef = doc(db, 'discussionVotes', voteId);
+  const existing = await getDoc(voteRef);
+  const commentRef = doc(db, 'discussionComments', commentId);
+  if (existing.exists() && existing.data().value === value) {
+    await deleteDoc(voteRef);
+    await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+  } else {
+    if (existing.exists()) {
+      await updateDoc(commentRef, { [existing.data().value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
+    }
+    await setDoc(voteRef, { id: voteId, userId: auth.currentUser.uid, targetId: commentId, targetType: 'COMMENT', value, timestamp: Date.now() });
+    await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(1) });
+  }
 };
