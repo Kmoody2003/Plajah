@@ -18,6 +18,7 @@ type NewsItem = {
   url: string;
   imageUrl?: string;
   timestamp: string;
+  date?: string; // alias used in templates
   category: string;
 };
 
@@ -538,21 +539,21 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   href={item.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex gap-4 p-5 bg-white/5 border border-white/5 rounded-[1.5rem] hover:border-white/20 hover:bg-white/[0.08] transition-all group"
+                  className="flex gap-5 p-6 bg-white/5 border border-white/5 rounded-[1.5rem] hover:border-white/20 hover:bg-white/[0.08] transition-all group"
                 >
                   {item.imageUrl && (
-                    <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0 bg-white/5">
+                    <div className="w-36 h-28 rounded-xl overflow-hidden shrink-0 bg-white/5">
                       <img src={item.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
                     <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-1">{item.source} Â· {item.date}</p>
-                      <h3 className="text-[11px] font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-1.5">{item.source} Â· {item.date}</p>
+                      <h3 className="text-sm font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
                     </div>
-                    <p className="text-[9px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>
+                    <p className="text-[11px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>
                   </div>
-                  <ExternalLink size={12} className="text-white/20 group-hover:text-small-orange transition-colors shrink-0 mt-1" />
+                  <ExternalLink size={14} className="text-white/20 group-hover:text-small-orange transition-colors shrink-0 mt-1" />
                 </a>
               ))}
 

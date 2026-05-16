@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Post, Album } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers } from 'lucide-react';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { auth, updatePost, deletePost, togglePostLike, processDonation } from '../services/backendService';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
+import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 
 interface PostCardProps {
   post: Post;
@@ -57,6 +58,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [customGift, setCustomGift] = useState('');
   const [isGifting, setIsGifting] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
+  const [showWaterfall, setShowWaterfall] = useState(false);
+
+  const waterfallItems: WaterfallMediaItem[] = (post.media || []).map(m => ({
+    type: m.type as WaterfallMediaItem['type'],
+    url: m.url,
+    title: m.title,
+    thumbnail: m.thumbnail,
+    linkPreview: m.linkPreview,
+  }));
 
   const isAuthor = auth.currentUser?.uid === post.authorId;
 
@@ -205,6 +215,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   };
 
   return (
+    <>
     <div className="relative group/card">
       <div className="flex gap-3 px-4 py-3.5 hover:bg-white/[0.02] transition-colors border-b border-white/[0.06]">
         {/* Avatar col */}
@@ -387,6 +398,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               )}
             </motion.button>
 
+            {/* Media Waterfall — only when post has media */}
+            {waterfallItems.length > 0 && (
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => setShowWaterfall(true)}
+                title="View Media Waterfall"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-violet-400 hover:bg-violet-400/10"
+              >
+                <Layers size={15} strokeWidth={1.5} />
+                {waterfallItems.length > 1 && <span className="text-[11px]">{waterfallItems.length}</span>}
+              </motion.button>
+            )}
+
             {/* Like */}
             <motion.button
               whileTap={{ scale: 0.85 }}
@@ -511,6 +535,25 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
         )}
       </AnimatePresence>
     </div>
+
+    {/* Media Waterfall overlay */}
+    <AnimatePresence>
+      {showWaterfall && waterfallItems.length > 0 && (
+        <MediaWaterfallView
+          items={waterfallItems}
+          onClose={() => setShowWaterfall(false)}
+          commentNode={
+            <CommentSection
+              postId={post.id}
+              postAuthorId={post.authorId}
+              onVisitUser={onVisitUser}
+              layout="inline"
+            />
+          }
+        />
+      )}
+    </AnimatePresence>
+    </>
   );
 };
 
