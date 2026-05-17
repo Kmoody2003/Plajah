@@ -1218,5 +1218,44 @@ service cloud.firestore {
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
+
+    // ===============================================================
+    // LIVE STREAMS (WebRTC signaling via Firestore)
+    // ===============================================================
+    match /live_streams/{streamId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      // Chat messages — public read, authenticated write
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+      }
+
+      // Viewer signaling docs — any visitor (guest or member) can join as a viewer
+      match /viewers/{viewerId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+
+        match /offer/{docId} {
+          allow read: if true;
+          allow write: if isAuthenticated();
+        }
+        match /answer/{docId} {
+          allow read: if true;
+          allow write: if true;
+        }
+        match /broadcaster_candidates/{candidateId} {
+          allow read: if true;
+          allow create: if isAuthenticated();
+        }
+        match /viewer_candidates/{candidateId} {
+          allow read: if true;
+          allow create: if true;
+        }
+      }
+    }
   }
 }

@@ -1571,7 +1571,7 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} />}
+            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} />}
             {view === 'ADMIN_AD_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminAdDashboard onBack={() => setView('DASHBOARD')} />
             )}
