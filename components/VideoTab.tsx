@@ -417,7 +417,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const recentVideos = useMemo(() => [...filteredVideos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 8), [filteredVideos]);
 
   const handlePlay = (item: Video | Album | any) => {
-    if ((item as any).type === 'VIDEO' && (item as any).subType) playVideo(item as any);
+    const sub = (item as any).subType || '';
+    const isCinema = sub === 'MOVIE' || sub === 'Movie' || sub === 'Short Film' || sub === 'TV_SERIES' || sub === 'TV Series';
+    if (!isCinema && (item as any).type === 'VIDEO' && sub) playVideo(item as any);
     onSelectVideo?.(item);
   };
 

@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Mic, X, Radio, MessageCircle, Users, Eye, Settings2, MicOff, VideoOff, Share2 } from 'lucide-react';
 import { auth } from '../services/backendService';
+import { db } from '../services/firebase';
 import {
-  getFirestore, doc, setDoc, collection, addDoc, onSnapshot,
+  doc, setDoc, collection, addDoc, onSnapshot,
   deleteDoc, updateDoc, increment, serverTimestamp, Timestamp
 } from 'firebase/firestore';
-
-const db = getFirestore();
 
 const ICE_SERVERS = {
   iceServers: [

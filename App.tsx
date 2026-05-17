@@ -1,7 +1,6 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
-import PageHeader from './components/PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Standard lazy loading with retry logic for network stability
@@ -53,7 +52,6 @@ const PlayerDetailView = retryLazy(() => import('./components/PlayerDetailView')
 import GlobalPlayer from './components/GlobalPlayer';
 
 import NebulaBackground from './components/NebulaBackground';
-import PrivacyConsentBanner from './components/PrivacyConsentBanner';
 import NebulaVisualizer from './components/NebulaVisualizer';
 import BackgroundFrequencyGraph from './components/BackgroundFrequencyGraph';
 const VideoTab = retryLazy(() => import('./components/VideoTab'));
@@ -78,19 +76,15 @@ const MerchStorefront = retryLazy(() => import('./components/MerchStorefront'));
 const MovieUXView = retryLazy(() => import('./components/MovieUXView'));
 const MoviesTVView = retryLazy(() => import('./components/MoviesTVView'));
 const ClubsView = retryLazy(() => import('./components/ClubsView'));
-const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
-const DeleteAccountPage = retryLazy(() => import('./components/DeleteAccountPage'));
 const CharityView = retryLazy(() => import('./components/CharityView'));
-const AvatarStudio = retryLazy(() => import('./components/AvatarStudio'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChatDrawer'));
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
+const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, subscribeToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
-import SignInPrompt from './components/SignInPrompt';
-import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, MessageCircle } from 'lucide-react';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -120,8 +114,8 @@ import Tooltip from './components/Tooltip';
 import { UserProfile, PayItForwardWinner, Article, LiveFeed } from './types';
 import { UploadProvider } from './contexts/UploadContext';
 import { AchievementProvider } from './contexts/AchievementContext';
-import { PointsProvider, usePoints } from './contexts/PointsContext';
-import { BadgeProvider, useBadges } from './contexts/BadgeContext';
+import { PointsProvider } from './contexts/PointsContext';
+import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SpatialProvider } from './contexts/SpatialContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -134,116 +128,6 @@ import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
-import SafeAvatarViewer from './components/SafeAvatarViewer';
-import type { AvatarConfig } from './types';
-
-// Sidebar card that replaces the old user photo + email + cloud + points + badges
-const AvatarSidebarCard: React.FC<{
-  collapsed: boolean;
-  bigScreen: boolean;
-  displayName?: string;
-  photoURL?: string;
-  cloudStatus: 'CONNECTED' | 'OFFLINE' | 'CHECKING';
-  avatar?: AvatarConfig;
-  onOpenAchievements: () => void;
-  onOpenAvatarStudio?: () => void;
-}> = ({ collapsed, bigScreen, displayName, photoURL, cloudStatus, avatar, onOpenAchievements, onOpenAvatarStudio }) => {
-  const { balance } = usePoints();
-  const { userBadges } = useBadges();
-  const earnedCount = userBadges.filter((b: any) => b.earnedAt).length;
-  const pts = ((balance as any)?.totalPoints ?? 0).toLocaleString();
-  const visClass = collapsed ? 'hidden' : (bigScreen ? 'hidden group-hover/sidebar:block' : 'block');
-  const showAvatar = avatar?.isActive;
-
-  if (collapsed) {
-    // Collapsed sidebar: just the avatar bubble or photo
-    return (
-      <div className="flex flex-col items-center gap-2 mt-2">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-white/5 ring-2 ring-white/10">
-          {showAvatar ? (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-small-orange/40 to-small-orange/10 text-[10px] font-black text-white/70 uppercase">
-              {(displayName || '?')[0]}
-            </div>
-          ) : photoURL ? (
-            <img src={photoURL} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <User size={16} className="text-white/30" />
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`space-y-0 ${visClass}`}>
-      {/* Avatar or photo as centrepiece */}
-      <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent" style={{ height: showAvatar ? 200 : 64 }}>
-        {showAvatar ? (
-          <SafeAvatarViewer config={avatar!} compact wave autoRotate={false} className="w-full h-full" />
-        ) : (
-          <div className="flex items-center gap-3 px-4 py-4">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/10 shrink-0">
-              {photoURL
-                ? <img src={photoURL} alt="" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center"><User size={16} className="text-white/30" /></div>
-              }
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{displayName || 'Artist'}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Gradient floor fade on avatar */}
-        {showAvatar && (
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#020202] to-transparent pointer-events-none" />
-        )}
-      </div>
-
-      {/* Name under avatar */}
-      {showAvatar && (
-        <div className="px-2 pt-1 pb-2 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{displayName || 'Artist'}</p>
-        </div>
-      )}
-
-      {/* Cloud status + stats row */}
-      <div className="flex items-center justify-between px-1 py-1.5">
-        <span className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-widest ${cloudStatus === 'CONNECTED' ? 'text-green-500' : cloudStatus === 'OFFLINE' ? 'text-red-500' : 'text-white/20'}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'CONNECTED' ? 'bg-green-500' : cloudStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-white/20'}`} />
-          {cloudStatus === 'CONNECTED' ? 'Verified' : cloudStatus === 'OFFLINE' ? 'Offline' : '…'}
-        </span>
-        <span className="text-[8px] font-black text-small-orange">{pts} pts</span>
-        <span className="text-[8px] font-black text-small-orange">{earnedCount} 🏅</span>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-1.5 mt-1">
-        {onOpenAvatarStudio && (
-          <button
-            onClick={onOpenAvatarStudio}
-            className="flex-1 py-1.5 bg-[#ff8c00]/10 hover:bg-[#ff8c00]/20 border border-[#ff8c00]/20 rounded-xl text-[7px] font-black uppercase tracking-widest text-[#ff8c00] transition-all"
-          >
-            ✦ Avatar
-          </button>
-        )}
-        <button
-          onClick={onOpenAchievements}
-          className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[7px] font-black uppercase tracking-widest text-white/50 transition-all"
-        >
-          Achievements
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const detectMobile = () =>
-  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|EdgA|EdgiOS|Mobile/i.test(navigator.userAgent)
-  || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024)
-  || window.innerWidth < 768;
 
 const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>('LANDING');
@@ -273,7 +157,6 @@ const App: React.FC = () => {
   }, []);
 
   const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
-  const [appSignInAction, setAppSignInAction] = useState<string | null>(null);
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
@@ -295,17 +178,7 @@ const App: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [pushToast, setPushToast] = useState<{ title: string; body: string; link?: string } | null>(null);
-
-  // ── Theme: read from localStorage immediately so there's no flash on refresh ──
-  const [theme, setTheme] = useState<ThemeType>(() => {
-    try {
-      const saved = localStorage.getItem('plajah_theme') as ThemeType | null;
-      const valid: ThemeType[] = ['DARK','LIGHT','PASTEL','PLAJAH','BIG_SCREEN','PHONE','ETHEREAL','NEBULA','CITRUS'];
-      if (saved && valid.includes(saved)) return saved;
-    } catch {}
-    return 'PLAJAH';
-  });
+  const [theme, setTheme] = useState<ThemeType>('PLAJAH');
   
   // Theme Asset Cycle
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
@@ -320,7 +193,6 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [albumTransitionImg, setAlbumTransitionImg] = useState<string | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
@@ -353,8 +225,7 @@ const App: React.FC = () => {
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setView: setGlobalView, analyser, isPlaying } = useGlobalPlayerState();
-  const profileUnsubRef = React.useRef<(() => void) | null>(null);
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView } = useGlobalPlayerState();
 
   useEffect(() => {
     setGlobalView(view);
@@ -413,25 +284,24 @@ const App: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
     const checkDevice = () => {
-      const mobile = detectMobile();
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
       setIsMobile(mobile);
-
-      // Only apply device layout theme when on the LANDING screen AND the user
-      // has not already saved an explicit visual theme preference.
+      
+      // Device-specific defaults for initial load
       if (view === 'LANDING') {
-        const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-        const hasExplicitTheme = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
-        if (!hasExplicitTheme) {
-          const isTV = tvKeywords.some(kw => navigator.userAgent.toLowerCase().includes(kw));
-          if (mobile) setTheme('PHONE');
-          else if (isTV) setTheme('BIG_SCREEN');
+        const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
+        const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+        
+        if (mobile) {
+          setTheme('PHONE');
+        } else if (isTV) {
+          setTheme('BIG_SCREEN');
         }
       }
     };
     checkDevice();
-    window.addEventListener('resize', checkDevice, { passive: true });
+    window.addEventListener('resize', checkDevice);
     return () => window.removeEventListener('resize', checkDevice);
   }, [view]);
 
@@ -464,32 +334,25 @@ const App: React.FC = () => {
   }, [isBottomSectionExpanded]);
 
   const handleEnterApp = () => {
-    const isMobileDevice = detectMobile();
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
     const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
     const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
-    // Only apply device layout theme if the user has no explicit visual preference saved
-    const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-    const hasExplicitTheme = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
 
     if (isMobileDevice) {
       setView('MUSIC');
-      if (!hasExplicitTheme) setTheme('PHONE');
+      setTheme('PHONE');
     } else if (isTV) {
       setView('LIVE_HUB');
-      if (!hasExplicitTheme) setTheme('BIG_SCREEN');
+      setTheme('BIG_SCREEN');
     } else {
       setView('DASHBOARD');
-    }
-
-    // Preload content for guests who haven't yet triggered the init fetch
-    if (albums.length === 0) {
-      fetchAllPublicAlbums().then(setAlbums).catch(() => {});
     }
   };
 
   const handleSelectItem = (item: any) => {
-    const isMovie = item.category === 'MOVIE' || item.subType === 'MOVIE' || item.genre === 'Movies';
-    const isTV = item.subType === 'TV_SERIES' || item.genre === 'TV Series';
+    const subType = item.subType || '';
+    const isMovie = item.category === 'MOVIE' || subType === 'MOVIE' || subType === 'Movie' || subType === 'Short Film' || item.genre === 'Movies';
+    const isTV = subType === 'TV_SERIES' || subType === 'TV Series' || item.genre === 'TV Series';
     const isLive = item.ownerName && item.url && item.status !== undefined;
 
     if (isLive) {
@@ -510,15 +373,11 @@ const App: React.FC = () => {
       setSelectedAlbum(item);
       setSelectedVideo(null);
       setSelectedGame(null);
-      setAlbumTransitionImg(item.coverImage || null);
-      setIsSidebarCollapsed(true);
       setView('PLAYER');
     } else {
       setSelectedVideo(item);
       setSelectedAlbum(null);
       setSelectedGame(null);
-      setAlbumTransitionImg((item as any).coverImage || null);
-      setIsSidebarCollapsed(true);
       setView('PLAYER');
     }
   };
@@ -526,7 +385,8 @@ const App: React.FC = () => {
   const handleGlobalNavigate = (target: string, params?: any) => {
     if (target === 'LIBRARY') {
       if (!user) {
-        setAppSignInAction('access your library');
+        setView('DASHBOARD');
+        alert('Please sign in to access your library');
         return;
       }
       setViewedUserId(user.uid);
@@ -541,7 +401,7 @@ const App: React.FC = () => {
       if (user) {
         handleVisitUser(user.uid);
       } else {
-        setAppSignInAction('view your profile');
+        loginWithGoogle();
       }
     } else if (target === 'SEARCH') {
       setSearchQuery(params?.query || '');
@@ -553,13 +413,13 @@ const App: React.FC = () => {
       setView('CHAT');
     } else if (target === 'SETTINGS') {
       if (!user) {
-        setAppSignInAction('access settings');
+        loginWithGoogle();
         return;
       }
       setView('CREATOR');
     } else if (target === 'CREATOR') {
       if (!user) {
-        setAppSignInAction('access creator tools');
+        loginWithGoogle();
         return;
       }
       if (params?.editingAlbum) {
@@ -594,28 +454,19 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthUpdate((u) => {
+    const unsubscribe = onAuthUpdate(async (u) => {
       setUser(u);
-
-      // Cancel any existing profile subscription from a previous sign-in
-      if (profileUnsubRef.current) {
-        profileUnsubRef.current();
-        profileUnsubRef.current = null;
-      }
-
       if (u) {
         setViewInternal(prev => {
           if (prev === 'LANDING') {
-            const isMobileDevice = detectMobile();
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
             const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
             const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
-            const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
-            const hasExplicit = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
             if (isMobileDevice) {
-              if (!hasExplicit) setTheme('PHONE');
+              setTheme('PHONE');
               return 'MUSIC';
             } else if (isTV) {
-              if (!hasExplicit) setTheme('BIG_SCREEN');
+              setTheme('BIG_SCREEN');
               return 'LIVE_HUB';
             }
             return 'DASHBOARD';
@@ -623,73 +474,35 @@ const App: React.FC = () => {
           return prev;
         });
 
-        // One-time session initialisation (safe to call on each sign-in)
-        seedDemoWorlds();
-        requestPushPermission().then(token => {
-          if (token) saveFcmToken(u.uid, token);
-        }).catch(() => {});
-        if (u.email === 'kmoody2003@gmail.com') {
-          fetchAllPublicAlbums().then(async (cloudAlbums) => {
-            if (!cloudAlbums.some((a: any) => a.type === 'BOOK')) {
-              await seedPublicDomainBooks();
-              const updated = await fetchAllPublicAlbums();
-              setAlbums(updated);
-            }
-          }).catch(() => {});
+        const p = await fetchUserProfile(u.uid);
+        setUserProfile(p);
+        
+        if (p?.uiSettings?.lastTheme) {
+          setTheme(p.uiSettings.lastTheme);
         }
 
-        // Real-time profile subscription — keeps userProfile (and therefore
-        // background + theme data) in sync with Firestore at all times.
-        let isFirstCallback = true;
-        profileUnsubRef.current = subscribeToUserProfile(u.uid, (p) => {
-          setUserProfile(p);
+        // Initialize demo worlds
+        seedDemoWorlds();
 
-          // On first callback only: restore theme from Firestore as the
-          // authoritative source. Subsequent calls only update profile data
-          // (background URLs, preset IDs, etc.) without overriding a theme
-          // the user may have just changed locally in this session.
-          if (isFirstCallback) {
-            isFirstCallback = false;
-            if (p?.uiSettings?.lastTheme) {
-              const savedTheme = p.uiSettings.lastTheme;
-              try { localStorage.setItem('plajah_theme', savedTheme); } catch {}
-              setTheme(savedTheme);
-            }
-            if (p && !p.hasCompletedOnboarding) {
-              setShowOnboarding(true);
-            }
+        if (p && !p.hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
+
+        // Seed public domain books if none exist and user is admin
+        if (u.email === 'kmoody2003@gmail.com') {
+          const cloudAlbums = await fetchAllPublicAlbums();
+          if (!cloudAlbums.some(a => a.type === 'BOOK')) {
+            await seedPublicDomainBooks();
+            const updatedAlbums = await fetchAllPublicAlbums();
+            setAlbums(updatedAlbums);
           }
-        });
+        }
       } else {
         setUserProfile(null);
-        setViewInternal(prev => (prev === 'LANDING' ? 'DASHBOARD' : prev));
       }
     });
-    return () => {
-      unsubscribe();
-      profileUnsubRef.current?.();
-    };
+    return () => unsubscribe();
   }, []);
-
-  // Foreground push message → in-app toast
-  useEffect(() => {
-    const unsub = onForegroundMessage((payload) => {
-      const title = payload.notification?.title || 'Plajah';
-      const body = payload.notification?.body || '';
-      const link = (payload.data as any)?.link;
-      setPushToast({ title, body, link });
-      setTimeout(() => setPushToast(null), 5000);
-    });
-    return unsub;
-  }, []);
-
-  // Clear album transition overlay after animation completes
-  useEffect(() => {
-    if (albumTransitionImg) {
-      const t = setTimeout(() => setAlbumTransitionImg(null), 520);
-      return () => clearTimeout(t);
-    }
-  }, [albumTransitionImg]);
 
   useEffect(() => {
     const init = async () => {
@@ -761,13 +574,6 @@ const App: React.FC = () => {
         return;
       }
 
-      // Handle delete-account page
-      if (pathParts[1] === 'delete-account' || pathParts[1] === 'data-deletion') {
-        setView('DELETE_ACCOUNT' as any);
-        setIsLoading(false);
-        return;
-      }
-
       await loadAlbums();
       setIsLoading(false);
     };
@@ -775,30 +581,19 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  // All possible theme classes — we remove them all before adding the active one
-  // so we never wipe unrelated body classes (e.g. has-custom-background)
-  const ALL_THEME_CLASSES = [
-    'theme-dark','theme-light','theme-pastel','theme-plajah',
-    'theme-big-screen','theme-phone','theme-ethereal','theme-nebula','theme-citrus',
-  ];
-  const THEME_CLASS_MAP: Record<ThemeType, string> = {
-    'DARK':       'theme-dark',
-    'LIGHT':      'theme-light',
-    'PASTEL':     'theme-pastel',
-    'PLAJAH':     'theme-plajah',
-    'BIG_SCREEN': 'theme-big-screen',
-    'PHONE':      'theme-phone',
-    'ETHEREAL':   'theme-ethereal',
-    'NEBULA':     'theme-nebula',
-    'CITRUS':     'theme-citrus',
-  };
-
   useEffect(() => {
-    // Persist immediately so a refresh restores the theme before auth resolves
-    try { localStorage.setItem('plajah_theme', theme); } catch {}
-    // Swap body class without touching anything else (e.g. has-custom-background)
-    document.body.classList.remove(...ALL_THEME_CLASSES);
-    document.body.classList.add(THEME_CLASS_MAP[theme]);
+    const themeClasses: Record<ThemeType, string> = {
+      'DARK': '',
+      'LIGHT': 'theme-light',
+      'PASTEL': 'theme-pastel',
+      'PLAJAH': 'theme-plajah',
+      'BIG_SCREEN': 'theme-big-screen',
+      'PHONE': 'theme-phone',
+      'ETHEREAL': 'theme-ethereal',
+      'NEBULA': 'theme-nebula',
+      'CITRUS': 'theme-citrus'
+    };
+    document.body.className = themeClasses[theme];
   }, [theme]);
 
   useEffect(() => {
@@ -955,32 +750,12 @@ const App: React.FC = () => {
 
   const handleMessage = async (uid: string) => {
     if (!user) {
-      setAppSignInAction('send messages');
+      await loginWithGoogle();
       return;
     }
     await createChatRoom([user.uid, uid], 'PRIVATE');
     setView('CHAT');
   };
-
-  const [archiveBgIndex, setArchiveBgIndex] = useState(0);
-  const archiveBgAlbums = useMemo(() =>
-    [...albums]
-      .filter(a => !!a.coverImage)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      .slice(0, 5),
-    [albums]
-  );
-  useEffect(() => {
-    if (archiveBgAlbums.length < 2) return;
-    const id = setInterval(() => {
-      setArchiveBgIndex(prev => {
-        let next = Math.floor(Math.random() * archiveBgAlbums.length);
-        if (next === prev) next = (prev + 1) % archiveBgAlbums.length;
-        return next;
-      });
-    }, 6000);
-    return () => clearInterval(id);
-  }, [archiveBgAlbums.length]);
 
   const sortedItems = [...albums]
     .filter(album => (album.type || 'MUSIC') === archiveTab)
@@ -994,7 +769,8 @@ const App: React.FC = () => {
 
   const handlePurchase = (item: any, isAlbum: boolean) => {
     if (!user) {
-      setAppSignInAction('make a purchase');
+      alert("Please sign in to make a purchase.");
+      loginWithGoogle();
       return;
     }
     // Replaced alert with console log and ideally we'd show a modal
@@ -1011,17 +787,8 @@ const App: React.FC = () => {
     await updateGamePlayCount(game.id);
   };
 
-  // Determine whose background to show: only use visitedProfile when on
-  // USER_PROFILE AND it's actually a different user's profile.
-  const getActiveProfile = () => {
-    if (view === 'USER_PROFILE' && visitedProfile && visitedProfile.uid !== userProfile?.uid) {
-      return visitedProfile;
-    }
-    return userProfile;
-  };
-
   useEffect(() => {
-    const activeProfile = getActiveProfile();
+    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
     const hasBg = !!(activeProfile?.frostedBackground || activeProfile?.videoBackgroundUrl);
     if (hasBg) {
       document.body.classList.add('has-custom-background');
@@ -1031,7 +798,7 @@ const App: React.FC = () => {
   }, [view, visitedProfile, userProfile]);
 
   useEffect(() => {
-    const activeProfile = getActiveProfile();
+    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
     const curId = activeProfile?.activeThemePresetId || null;
     if (curId !== activeThemeId) {
       setActiveThemeId(curId);
@@ -1064,7 +831,7 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-color)] flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center gap-6">
         <div className="relative">
           <div className="w-24 h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(107,0,153,0.3)]">
             <Logo size={48} />
@@ -1076,17 +843,13 @@ const App: React.FC = () => {
   }
 
   const handleSetTheme = (newTheme: ThemeType) => {
-    // Write localStorage first — instant persistence even if Firestore lags or fails
-    try { localStorage.setItem('plajah_theme', newTheme); } catch {}
     setTheme(newTheme);
     if (userProfile?.uid) {
-      // Optimistically update in-memory profile so nothing re-reads stale data
-      setUserProfile(prev => prev ? {
-        ...prev,
-        uiSettings: { ...prev.uiSettings, lastTheme: newTheme }
-      } : prev);
       updateUserProfile(userProfile.uid, {
-        uiSettings: { ...userProfile.uiSettings, lastTheme: newTheme },
+        uiSettings: {
+          ...userProfile.uiSettings,
+          lastTheme: newTheme
+        }
       });
     }
   };
@@ -1100,7 +863,7 @@ const App: React.FC = () => {
               <NotificationProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <Suspense fallback={
-          <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-color)] z-[200]">
+          <div className="fixed inset-0 flex items-center justify-center bg-black z-[200]">
             <div className="flex flex-col items-center gap-4">
               <Logo className="w-24 h-24" />
               <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -1121,68 +884,11 @@ const App: React.FC = () => {
           />
         ) : (
           <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
-            {/* Push notification foreground toast */}
-            <AnimatePresence>
-              {pushToast && (
-                <motion.div
-                  initial={{ opacity: 0, y: -80 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -80 }}
-                  onClick={() => { if (pushToast.link) window.location.href = pushToast.link; setPushToast(null); }}
-                  className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl cursor-pointer max-w-sm w-[calc(100vw-2rem)]"
-                >
-                  <Logo size={28} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-white truncate">{pushToast.title}</p>
-                    <p className="text-[10px] text-white/50 truncate">{pushToast.body}</p>
-                  </div>
-                  <button onClick={e => { e.stopPropagation(); setPushToast(null); }} className="text-white/30 hover:text-white">
-                    <XIcon size={14} />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {/* Album cover zoom transition overlay */}
-            <AnimatePresence>
-              {albumTransitionImg && (
-                <motion.div
-                  key="album-transition"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.22, ease: 'easeInOut' }}
-                  className="fixed inset-0 z-[500] pointer-events-none flex items-center justify-center"
-                >
-                  {/* Blurred full-screen backdrop */}
-                  <motion.img
-                    src={albumTransitionImg}
-                    initial={{ scale: 1.1, opacity: 0 }}
-                    animate={{ scale: 1.2, opacity: 0.65 }}
-                    exit={{ scale: 1.25, opacity: 0 }}
-                    transition={{ duration: 0.42, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    className="absolute inset-0 w-full h-full object-cover blur-[60px]"
-                    alt=""
-                  />
-                  {/* Cover art hero that grows toward screen */}
-                  <motion.img
-                    src={albumTransitionImg}
-                    initial={{ scale: 0.3, opacity: 1, borderRadius: '1.5rem' }}
-                    animate={{ scale: 1.1, opacity: 0, borderRadius: '0rem' }}
-                    exit={{ scale: 1.15, opacity: 0 }}
-                    transition={{ duration: 0.44, ease: [0.16, 1, 0.3, 1] }}
-                    className="relative z-10 w-64 h-64 md:w-96 md:h-96 object-cover shadow-[0_0_120px_rgba(0,0,0,0.8)]"
-                    alt=""
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
             {/* Universal Background Layer */}
             <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-theme" id="universal-background">
               <AnimatePresence mode="wait">
                 {(() => {
-                  const activeProfile = getActiveProfile();
-                  // If profile hasn't loaded yet, render nothing — the CSS
-                  // theme class on <body> already provides the base colour.
+                  const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
                   if (!activeProfile) return null;
 
                   const {
@@ -1253,15 +959,7 @@ const App: React.FC = () => {
                       ) : null}
                       
                       {videoBackgroundFrosted !== false && (
-                        <div className={`absolute inset-0 backdrop-blur-[80px] ${
-                          theme === 'LIGHT'   ? 'bg-white/60' :
-                          theme === 'PASTEL'  ? 'bg-[#fdf6e3]/50' :
-                          theme === 'PLAJAH'  ? 'bg-[#1a0026]/40' :
-                          theme === 'CITRUS'  ? 'bg-[#0a0400]/40' :
-                          theme === 'ETHEREAL'? 'bg-[#131314]/45' :
-                          theme === 'NEBULA'  ? 'bg-[#050510]/50' :
-                                               'bg-black/35'
-                        }`} />
+                        <div className="absolute inset-0 backdrop-blur-[100px] bg-black/30" />
                       )}
                     </motion.div>
                   );
@@ -1282,7 +980,7 @@ const App: React.FC = () => {
             )}
             {/* Left Ad Area (Moved to far left) */}
           {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL') && (
-            <aside className="lg:w-80 p-8 border-r border-theme glass-high hidden lg:flex flex-col gap-8 sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <aside className="lg:w-80 p-8 border-r border-white/5 bg-black/40 backdrop-blur-3xl hidden lg:flex flex-col gap-8 sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar overflow-x-hidden">
               <SystemMessageBanner />
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles size={16} className="text-small-orange" />
@@ -1342,13 +1040,13 @@ const App: React.FC = () => {
                     { id: 'APPS', order: 8.5, isVisible: true },
                     { id: 'GAMES', order: 9, isVisible: true },
                     { id: 'CLUBS', order: 10, isVisible: true },
-                    { id: 'DISCUSSION', order: 10.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
                     { id: 'CLASSROOMS', order: 12, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 14, isVisible: true },
                     { id: 'ART_GALLERY', order: 15, isVisible: true },
                     { id: 'PAY_IT_FORWARD', order: 16, isVisible: true },
                     { id: 'CHAT', order: 17, isVisible: true },
+                    { id: 'DISCUSSION', order: 17.5, isVisible: true },
                     { id: 'FEED', order: 18, isVisible: true },
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
@@ -1372,19 +1070,18 @@ const App: React.FC = () => {
                     .map(config => {
                       const items = {
                         USER_PROFILE: { label: 'My Profile', icon: User },
-                        DASHBOARD: { label: 'Home', icon: Settings },
-                        MUSIC: { label: 'Plajah Chora', icon: Music2 },
+                        DASHBOARD: { label: 'Global Archive', icon: Settings },
+                        MUSIC: { label: 'Chora', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
-                        VIDEOS: { label: 'Plajah Reello', icon: VideoIcon },
-                        MOVIES_TV: { label: 'Plajah Taleo', icon: Film },
-                        ARTICLES: { label: 'News Stand', icon: Newspaper },
-                        BOOKS: { label: 'Plajah Lorea', icon: BookOpen },
+                        VIDEOS: { label: 'Reello', icon: VideoIcon },
+                        MOVIES_TV: { label: 'Taleo', icon: Film },
+                        ARTICLES: { label: 'The Newstand', icon: Newspaper },
+                        BOOKS: { label: 'The Book Shelf', icon: BookOpen },
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
                         APPS: { label: 'Apps', icon: AppWindow },
                         GAMES: { label: 'Games', icon: Gamepad2 },
                         CLUBS: { label: 'Clubs', icon: Users },
-                        DISCUSSION: { label: 'Discussion', icon: MessageCircle },
                         CHARITY: { label: 'Charity', icon: Heart },
                         CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
@@ -1392,8 +1089,9 @@ const App: React.FC = () => {
                         ART_GALLERY: { label: 'Art Gallery', icon: Sparkles },
                         PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart },
                         CHAT: { label: 'Messages', icon: MessageSquare },
+                        DISCUSSION: { label: 'Discussion', icon: MessageCircle },
                         POSTMAN: { label: 'The Postman', icon: Mail },
-                        FEED: { label: 'Plajah Social', icon: Rss },
+                        FEED: { label: 'Global Feed', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         SEARCH: { label: 'Find Artists', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
@@ -1424,6 +1122,7 @@ const App: React.FC = () => {
                         ART_GALLERY: "A curated experience of the finest visual works.",
                         PAY_IT_FORWARD: "Support the community through our unique giving platform.",
                         CHAT: "Connect with artists and fans in private or group chats.",
+                        DISCUSSION: "Join community discussion boards and open forums.",
                         POSTMAN: "Access the formal AI-Studio dispatch system.",
                         FEED: "See the latest updates and posts from everyone you follow.",
                         LIVE_HUB: "Discover what's happening live on the platform right now.",
@@ -1457,7 +1156,7 @@ const App: React.FC = () => {
                                 if (user) {
                                   handleVisitUser(user.uid);
                                 } else {
-                                  setAppSignInAction('view your profile');
+                                  loginWithGoogle();
                                 }
                               } else if (config.id === 'MUSIC') {
                                 setView('MUSIC');
@@ -1498,40 +1197,75 @@ const App: React.FC = () => {
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
+                <button
+                  onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
+                  className={`w-full flex items-center transition-all group overflow-hidden relative ${
+                    (isSidebarCollapsed || theme === 'BIG_SCREEN') ? 'justify-center p-3 rounded-2xl' : 'gap-5 px-6 py-5 rounded-[2rem]'
+                  } bg-gradient-to-br from-violet-500/20 to-purple-600/20 border border-violet-500/30 text-violet-400 hover:from-violet-500/30 hover:to-purple-600/30 shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all`}
+                  title="Open Controller"
+                >
+                  <div className="absolute inset-0 bg-violet-400/5 blur-xl pointer-events-none animate-pulse" />
+                  <div className="relative flex items-center justify-center min-w-[22px] shrink-0">
+                    <Zap size={22} className="text-violet-400 shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+                  </div>
+                  {!(isSidebarCollapsed || theme === 'BIG_SCREEN') && (
+                    <div className="flex flex-col items-start leading-tight">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Controller</span>
+                      <span className="text-[8px] font-bold opacity-40 uppercase tracking-widest">Open Player</span>
+                    </div>
+                  )}
+                </button>
                 <div className={`${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
                   <NotificationCenter />
                 </div>
               </div>
 
               <div className="pt-10 border-t border-theme space-y-6">
-                <div className={`bg-white/[0.04] border border-theme shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-3' : 'p-4 rounded-[2rem]'}`}>
-                  <AvatarSidebarCard
-                    collapsed={isSidebarCollapsed}
-                    bigScreen={theme === 'BIG_SCREEN'}
-                    displayName={user?.displayName ?? undefined}
-                    photoURL={user?.photoURL ?? undefined}
-                    cloudStatus={cloudStatus}
-                    avatar={userProfile?.avatar}
-                    onOpenAchievements={() => setShowAchievements(true)}
-                    onOpenAvatarStudio={user ? () => { setViewedUserId(user.uid); setView('AVATAR_STUDIO'); } : undefined}
-                  />
-
-                  {!user && (
-                    <div className={`flex flex-col gap-2 mt-3 pt-3 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
-                      <button onClick={loginWithGoogle} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                          <LogIn size={14} />
-                        </div>
-                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Google Sign In</span>
-                      </button>
-                      <button onClick={loginWithTwitter} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                          <XIcon size={14} />
-                        </div>
-                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>X / Twitter Sign In</span>
-                      </button>
+                <div className={`p-6 bg-white/[0.04] border border-theme rounded-[2.5rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
+                  <div className={`flex items-center gap-4 ${isSidebarCollapsed ? 'mb-0 justify-center' : (theme === 'BIG_SCREEN' ? 'mb-6 justify-center group-hover/sidebar:justify-start' : 'mb-6')}`}>
+                     <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden ring-2 ring-white/5 shrink-0">
+                        {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
+                     </div>
+                     <div className={`overflow-hidden ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{user?.displayName || 'Guest Artist'}</p>
+                        <p className="text-[8px] font-bold text-small-orange truncate opacity-60">{user ? user.email : 'Public Instance'}</p>
+                     </div>
+                  </div>
+                  
+                  <div className={`flex flex-col gap-3 ${isSidebarCollapsed ? 'items-center' : (theme === 'BIG_SCREEN' ? 'items-center group-hover/sidebar:items-start' : '')}`}>
+                    <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${cloudStatus === 'CONNECTED' ? 'text-green-500' : cloudStatus === 'OFFLINE' ? 'text-red-500' : 'text-white/20'}`}>
+                      {cloudStatus === 'CONNECTED' ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+                      <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>
+                        {cloudStatus === 'CONNECTED' ? 'Cloud Verified' : cloudStatus === 'OFFLINE' ? 'Connection Lost' : 'Checking Link...'}
+                      </span>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-3">
+                    {user ? (
+                      <button onClick={logout} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                        <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                          <LogOut size={14} className="text-red-400" />
+                        </div>
+                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign Out</span>
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <button onClick={loginWithGoogle} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-white/5 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                          <div className="w-8 h-8 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
+                            <LogIn size={14} />
+                          </div>
+                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign In with Google</span>
+                        </button>
+                        <button onClick={loginWithTwitter} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-white/5 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                          <div className="w-8 h-8 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
+                            <XIcon size={14} />
+                          </div>
+                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign In with X</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </aside>
@@ -1544,7 +1278,7 @@ const App: React.FC = () => {
               <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
                 <div className="flex items-center justify-around px-1 pt-1 pb-android-nav">
                   {[
-                    { id: 'MUSIC', icon: Music2, label: 'Plajah Chora' },
+                    { id: 'MUSIC', icon: Music2, label: 'Chora' },
                     { id: 'ARTICLES', icon: Newspaper, label: 'News' },
                     { id: 'DASHBOARD', icon: Home, label: 'Home' },
                     { id: 'SEARCH', icon: Search, label: 'Search' },
@@ -1553,7 +1287,6 @@ const App: React.FC = () => {
                     const Icon = tab.icon;
                     const isActive = tab.id !== '__MORE__' && view === tab.id;
                     const isMore = tab.id === '__MORE__';
-                    const isDashboard = tab.id === 'DASHBOARD';
                     return (
                       <button
                         key={tab.id}
@@ -1562,7 +1295,7 @@ const App: React.FC = () => {
                             setIsBottomSectionExpanded(v => !v);
                           } else if (tab.id === 'USER_PROFILE') {
                             if (user) handleVisitUser(user.uid);
-                            else setAppSignInAction('view your profile');
+                            else loginWithGoogle();
                           } else {
                             setView(tab.id as any);
                             setIsBottomSectionExpanded(false);
@@ -1572,9 +1305,7 @@ const App: React.FC = () => {
                         style={{ minHeight: 48, minWidth: 48 }}
                       >
                         <div className={`w-12 h-8 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
-                          {isDashboard
-                            ? <Logo size={22} className={isActive ? 'opacity-100' : 'opacity-50'} />
-                            : <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />}
+                          <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />
                         </div>
                         <span className={`text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
@@ -1602,18 +1333,17 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-4 gap-2 p-4">
                       {[
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
-                        { id: 'DASHBOARD', icon: null, label: 'Home' },
-                        { id: 'MUSIC', icon: Music2, label: 'Plajah Chora' },
-                        { id: 'VIDEOS', icon: VideoIcon, label: 'Plajah Reello' },
-                        { id: 'MOVIES_TV', icon: Film, label: 'Plajah Taleo' },
-                        { id: 'BOOKS', icon: BookOpen, label: 'Plajah Lorea' },
-                        { id: 'ARTICLES', icon: Newspaper, label: 'News Stand' },
+                        { id: 'DASHBOARD', icon: Home, label: 'Home' },
+                        { id: 'MUSIC', icon: Music2, label: 'Music' },
+                        { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
+                        { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
+                        { id: 'BOOKS', icon: BookOpen, label: 'Books' },
+                        { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },
                         { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
                         { id: 'GAMES', icon: Gamepad2, label: 'Games' },
                         { id: 'APPS', icon: AppWindow, label: 'Apps' },
                         { id: 'CLUBS', icon: Users, label: 'Clubs' },
-                        { id: 'DISCUSSION', icon: MessageCircle, label: 'Discussion' },
                         { id: 'CHAT', icon: MessageSquare, label: 'Messages' },
                         { id: 'FEED', icon: Rss, label: 'Feed' },
                         { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classes' },
@@ -1621,16 +1351,15 @@ const App: React.FC = () => {
                         { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
                       ].map(section => {
-                        const Icon = section.icon as any;
+                        const Icon = section.icon;
                         const isActive = view === section.id;
-                        const isDashboard = section.id === 'DASHBOARD';
                         return (
                           <button
                             key={section.id}
                             onClick={() => {
                               if (section.id === 'USER_PROFILE') {
                                 if (user) handleVisitUser(user.uid);
-                                else setAppSignInAction('view your profile');
+                                else loginWithGoogle();
                               } else {
                                 setView(section.id as any);
                               }
@@ -1638,9 +1367,7 @@ const App: React.FC = () => {
                             }}
                             className={`flex flex-col items-center gap-2 p-3 rounded-m3-lg transition-all android-press ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'glass-low m3-state-hover'}`}
                           >
-                            {isDashboard
-                              ? <Logo size={22} className={isActive ? 'opacity-100' : 'opacity-50'} />
-                              : <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />}
+                            <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
                             <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>
                           </button>
                         );
@@ -1649,7 +1376,7 @@ const App: React.FC = () => {
                     {/* Auth row at bottom of drawer */}
                     {!user && (
                       <div className="flex gap-3 px-4 pb-4">
-                        <button onClick={() => { setAppSignInAction('get started'); setIsBottomSectionExpanded(false); }} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
+                        <button onClick={() => { loginWithGoogle(); setIsBottomSectionExpanded(false); }} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
                           <LogIn size={14} /> Sign In
                         </button>
                       </div>
@@ -1661,15 +1388,6 @@ const App: React.FC = () => {
           )}
 
           <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={view}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: 'easeInOut' }}
-              className="flex-1 flex flex-col w-full min-h-0"
-            >
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (
@@ -1733,28 +1451,10 @@ const App: React.FC = () => {
 
             {view === 'DASHBOARD' && (
               <div className="flex flex-col lg:flex-row w-full h-full">
-                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full relative z-[1]">
-                  {archiveBgAlbums.length > 0 && (
-                    <div className="fixed top-0 left-0 w-screen h-[75vh] pointer-events-none" style={{ zIndex: 0, WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)' }}>
-                      <AnimatePresence mode="sync">
-                        <motion.img
-                          key={archiveBgAlbums[archiveBgIndex]?.id}
-                          src={archiveBgAlbums[archiveBgIndex]?.coverImage}
-                          initial={{ opacity: 0, scale: 1.06 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 1.8, ease: 'easeInOut' }}
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      </AnimatePresence>
-                      <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(2,2,2,0.2) 0%, rgba(2,2,2,0.5) 40%, rgba(2,2,2,0.75) 70%)' }} />
-                    </div>
-                  )}
-                  <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 relative z-10">
+                <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
+                  <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <div style={{ mixBlendMode: 'overlay' }}>
-                        <PageHeader wrapperClassName="mb-4" textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Global Archive</PageHeader>
-                      </div>
+                      <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">Global Archive</h1>
                       <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">
@@ -1781,12 +1481,12 @@ const App: React.FC = () => {
                               else if (tab === 'MOVIES_TV') setView('MOVIES_TV');
                               else if (tab === 'BOOK') setView('BOOKS');
                               else if (tab === 'MODULES') setView('CLASSROOMS');
-                              else if (tab === 'MY_ARCHIVE' && !user) setAppSignInAction('access your archive');
+                              else if (tab === 'MY_ARCHIVE' && !user) loginWithGoogle();
                               else setArchiveTab(tab as any);
                             }}
                             className={`text-sm font-black uppercase tracking-[0.3em] transition-all pb-2 border-b-2 whitespace-nowrap shrink-0 ${archiveTab === tab ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                           >
-                            {tab === 'MY_ARCHIVE' ? 'My Archive' : tab === 'MOVIES_TV' ? 'Plajah Taleo' : tab === 'VIDEO' ? 'Plajah Reello' : tab === 'LIVE_HUB' ? 'Live' : tab === 'MUSIC' ? 'Plajah Chora' : tab === 'BOOK' ? 'Plajah Lorea' : tab}
+                            {tab === 'MY_ARCHIVE' ? 'My Archive' : tab === 'MOVIES_TV' ? 'Movies & TV' : tab === 'VIDEO' ? 'Videos' : tab === 'LIVE_HUB' ? 'Live' : tab}
                           </button>
                         ))}
                       </div>
@@ -1879,10 +1579,7 @@ const App: React.FC = () => {
               <PartnerDashboard profile={userProfile} onBack={() => setView('DASHBOARD')} />
             )}
             {view === 'HELP_CENTER' && (
-              <HelpCenter onBack={() => setView('DASHBOARD')} onDeleteAccount={() => setView('DELETE_ACCOUNT')} />
-            )}
-            {view === 'DELETE_ACCOUNT' && (
-              <DeleteAccountPage onBack={() => setView('HELP_CENTER')} />
+              <HelpCenter onBack={() => setView('DASHBOARD')} />
             )}
             {view === 'ADMIN_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminDashboard 
@@ -1929,7 +1626,7 @@ const App: React.FC = () => {
                 onVisitUser={handleVisitUser}
               />
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} currentTheme={theme} onSetTheme={setTheme} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} />}
             {view === 'SEARCH' && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} />}
             {view === 'FEED' && (
               <FeedView 
@@ -1951,7 +1648,7 @@ const App: React.FC = () => {
               />
             )}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
-            {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => { if (v === 'WORLDS') setView('WORLDS'); else if (v === 'USER_PROFILE') setView('USER_PROFILE'); }} />}
+            {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} />}
@@ -1976,14 +1673,13 @@ const App: React.FC = () => {
             )}
             {view === 'USER_PROFILE' && viewedUserId && (
               <div className="relative">
-                <UserProfileView
-                  uid={viewedUserId}
-                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }}
+                <UserProfileView 
+                  uid={viewedUserId} 
+                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }} 
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}
                   onVisitUser={handleVisitUser}
                   onMessage={handleMessage}
-                  onNavigate={setView}
                   initialTab={initialProfileTab as any}
                 />
               </div>
@@ -2030,26 +1726,25 @@ const App: React.FC = () => {
               </ErrorBlock>
             )}
             {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} />}
-            {view === 'DISCUSSION' && <DiscussionView onBack={() => setView('DASHBOARD')} currentUser={user} />}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
+            {view === 'DISCUSSION' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <DiscussionView onBack={() => setView('DASHBOARD')} currentUser={user} />
+              </Suspense>
+            )}
             {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
             {view === 'WORLD_MANAGER' && (
               <WorldManagerView 
                 initialWorld={selectedWorld || undefined}
-                onSave={async (w) => {
-                  const uid = firebaseAuth.currentUser?.uid || user?.uid;
+                onSave={async (w) => { 
                   if (w.id) {
                     await updateIPWorld(w.id, w);
-                    setSelectedWorld(null);
                   } else {
-                    // createIPWorld returns the world with its new Firestore ID.
-                    // Keep it in selectedWorld so the editor can use the ID immediately
-                    // if the user navigates back to WORLD_MANAGER in this session.
-                    const saved = await createIPWorld({ ...w, creatorId: uid });
-                    setSelectedWorld(saved ?? null);
+                    await createIPWorld({ ...w, creatorId: user?.uid });
                   }
-                  setView('USER_PROFILE');
-                }}
+                  setSelectedWorld(null);
+                  setView('USER_PROFILE'); 
+                }} 
                 onPreview={(w) => {
                   setSelectedWorld(w);
                   setView('WORLDS');
@@ -2073,27 +1768,15 @@ const App: React.FC = () => {
               />
             )}
             {view === 'PLAYER' && selectedVideo && (
-              <VideoPlayer
-                video={selectedVideo}
+              <VideoPlayer 
+                video={selectedVideo} 
                 onBack={() => {
                   setSelectedVideo(null);
                   setView('VIDEOS');
-                }}
-                currentUser={user}
+                }} 
+                currentUser={user} 
               />
             )}
-            {view === 'AVATAR_STUDIO' && userProfile && (
-              <AvatarStudio
-                userProfile={userProfile}
-                onBack={() => setView('USER_PROFILE')}
-                onSave={(config) => {
-                  setUserProfile(prev => prev ? { ...prev, avatar: config } : prev);
-                  setView('USER_PROFILE');
-                }}
-              />
-            )}
-            </motion.div>
-          </AnimatePresence>
           </SpatialUIRoot>
           {showCreator && (
             <AlbumCreator 
@@ -2222,12 +1905,6 @@ const App: React.FC = () => {
         />
       )}
       {user && <PersistentChatDrawer />}
-      <PrivacyConsentBanner />
-      <AnimatePresence>
-        {appSignInAction && (
-          <SignInPrompt action={appSignInAction} onClose={() => setAppSignInAction(null)} />
-        )}
-      </AnimatePresence>
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>

@@ -2,11 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { X, Users, MessageCircle, Heart, Send, Radio, Wifi, WifiOff } from 'lucide-react';
 import { auth } from '../services/backendService';
+import { db } from '../services/firebase';
 import {
-  getFirestore, doc, collection, addDoc, onSnapshot, setDoc, updateDoc, increment
+  doc, collection, addDoc, onSnapshot, setDoc, updateDoc, increment
 } from 'firebase/firestore';
-
-const db = getFirestore();
 
 const ICE_SERVERS = {
   iceServers: [
