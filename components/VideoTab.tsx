@@ -12,7 +12,7 @@ import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
-  BookOpen, List, Layers, Lock
+  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -21,6 +21,9 @@ import ThreeDImage from './ThreeDImage';
 import YoutubeImportModal from './YoutubeImportModal';
 import { LiveStreamModal } from './LiveStreamModal';
 import CommentSection from './CommentSection';
+import SignInPrompt from './SignInPrompt';
+import StoriesBar from './StoriesBar';
+import LiveStreamViewer from './LiveStreamViewer';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -259,7 +262,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [heroVideo, setHeroVideo] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel'>('discover');
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts'>('discover');
+  const [shortsIndex, setShortsIndex] = useState(0);
+  const [shortsMuted, setShortsMuted] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadStep, setUploadStep] = useState(1);
   const [thumbPreview, setThumbPreview] = useState('');
@@ -273,6 +278,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [followingProfiles, setFollowingProfiles] = useState<UserProfile[]>([]);
   const [recommendedProfiles, setRecommendedProfiles] = useState<UserProfile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
+  const [signInAction, setSignInAction] = useState<string | null>(null);
+  const [activeLiveStream, setActiveLiveStream] = useState<{ streamId: string; title: string; ownerName: string } | null>(null);
 
   // Fetch discoverable channels — always load public channels, personalize when logged in
   useEffect(() => {
@@ -302,7 +309,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   }, [currentUser?.uid]);
 
   const handleToggleFollow = async (profile: UserProfile) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) { setSignInAction('follow creators'); return; }
     const isFollowed = followedIds.has(profile.uid);
     if (isFollowed) {
       await unfollowUser(profile.uid);
@@ -551,6 +558,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">
           {[
             { id: 'discover', label: 'Discover', icon: Sparkles },
+            { id: 'shorts', label: 'Shorts', icon: Smartphone },
             { id: 'uploads', label: 'My Videos', icon: Film },
             { id: 'live', label: 'Live', icon: Radio },
             { id: 'playlists', label: 'Playlists', icon: List },
@@ -571,7 +579,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* Mobile view tabs */}
           <div className="flex gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar">
-            {(['discover', 'uploads', 'live', 'playlists', 'channel'] as const).map(v => (
+            {(['discover', 'shorts', 'uploads', 'live', 'playlists', 'channel'] as const).map(v => (
               <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v}</button>
             ))}
           </div>
@@ -594,6 +602,19 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <Upload size={12} /> Upload Video
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Stories bar */}
+              {(currentUser?.uid || auth.currentUser?.uid) && (
+                <div className="mb-6 -mx-2">
+                  <StoriesBar
+                    currentUserId={currentUser?.uid || auth.currentUser?.uid || ''}
+                    currentUserName={currentUser?.displayName || auth.currentUser?.displayName || 'You'}
+                    currentUserPhoto={currentUser?.photoURL || auth.currentUser?.photoURL || ''}
+                    followedUids={Array.from(followedIds)}
+                    onVisitUser={uid => onVisitUser?.(uid)}
+                  />
                 </div>
               )}
 
@@ -689,7 +710,19 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   </h2>
                   <div className="flex gap-5 overflow-x-auto pb-3 custom-scrollbar">
                     {liveFeeds.map(feed => (
-                      <LiveFeedCard key={feed.id} feed={feed} autoplayUrl={getAutoplayUrl(feed.url)} onSelect={() => onSelectVideo?.(feed as any)} />
+                      <LiveFeedCard
+                        key={feed.id}
+                        feed={feed}
+                        autoplayUrl={feed.url?.startsWith('livestream:') ? '' : getAutoplayUrl(feed.url)}
+                        onSelect={() => {
+                          if (feed.url?.startsWith('livestream:')) {
+                            const sid = feed.url.replace('livestream:', '');
+                            setActiveLiveStream({ streamId: sid, title: feed.title, ownerName: (feed as any).ownerName || '' });
+                          } else {
+                            onSelectVideo?.(feed as any);
+                          }
+                        }}
+                      />
                     ))}
                   </div>
                 </section>
@@ -882,6 +915,64 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               <VideoRow title="Past Broadcasts" icon={Radio} videos={userVideos.filter(v => v.genre === 'Live')} onSelect={handlePlay} emptyMessage="No past broadcasts." />
             </div>
           )}
+
+          {/* ── SHORTS ───────────────────────────────────────────────────────────────────── */}
+          {activeView === 'shorts' && (() => {
+            const shortVideos = [...videos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+            if (!shortVideos.length) return (
+              <div className="py-32 text-center">
+                <Smartphone size={48} className="text-white/10 mx-auto mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No shorts yet</p>
+              </div>
+            );
+            const short = shortVideos[shortsIndex] as any;
+            const thumb = short?.thumbnailUrl || short?.coverImage || `https://picsum.photos/seed/${short?.id}/720/1280`;
+            return (
+              <div className="relative flex justify-center py-4">
+                <div className="relative overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ width: 380, height: 680, background: '#000' }}>
+                  <div className="absolute inset-0" style={{ backgroundImage: `url(${thumb})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(40px) brightness(0.25)', transform: 'scale(1.15)' }} />
+                  <img src={thumb} className="absolute inset-0 w-full h-full object-contain z-[1]" alt={short?.title} />
+                  <div className="absolute inset-0 z-[2]" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 50%, rgba(0,0,0,0.25) 100%)' }} />
+                  <button className="absolute inset-0 z-[3] flex items-center justify-center" onClick={() => handlePlay(short)}>
+                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/50 flex items-center justify-center shadow-2xl hover:bg-white/30 transition-all">
+                      <Play fill="white" size={24} className="ml-1" />
+                    </div>
+                  </button>
+                  <div className="absolute right-4 bottom-28 z-[4] flex flex-col items-center gap-5">
+                    <button className="flex flex-col items-center gap-1 group" onClick={() => { if (!auth.currentUser) setSignInAction('like videos'); }}>
+                      <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:bg-white/20 transition-all"><Heart size={20} className="text-white" /></div>
+                      <span className="text-[9px] font-black text-white/60">{(short?.likesCount || 0) > 999 ? `${((short?.likesCount||0)/1000).toFixed(1)}k` : (short?.likesCount||0)}</span>
+                    </button>
+                    <button className="flex flex-col items-center gap-1 group" onClick={() => handlePlay(short)}>
+                      <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:bg-white/20 transition-all"><MessageCircle size={20} className="text-white" /></div>
+                      <span className="text-[9px] font-black text-white/60">{short?.commentsCount || 0}</span>
+                    </button>
+                    <button className="flex flex-col items-center gap-1 group">
+                      <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:bg-white/20 transition-all"><Share2 size={20} className="text-white" /></div>
+                      <span className="text-[9px] font-black text-white/60">Share</span>
+                    </button>
+                    <button onClick={() => setShortsMuted(v => !v)} className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-all">
+                      {shortsMuted ? <VolumeX size={18} className="text-white" /> : <Volume2 size={18} className="text-white" />}
+                    </button>
+                  </div>
+                  <div className="absolute left-4 right-16 bottom-6 z-[4]">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">{short?.artist || short?.ownerName || 'Creator'}</p>
+                    <h3 className="text-base font-black uppercase tracking-tight text-white leading-tight line-clamp-2 mb-2">{short?.title}</h3>
+                    {short?.description && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{short.description}</p>}
+                  </div>
+                  <div className="absolute top-4 left-0 right-0 flex justify-center gap-1 z-[4]">
+                    {shortVideos.slice(0, Math.min(shortVideos.length, 8)).map((_, i) => (
+                      <div key={i} className={`h-0.5 rounded-full transition-all ${i === shortsIndex % 8 ? 'w-6 bg-white' : 'w-2 bg-white/30'}`} />
+                    ))}
+                  </div>
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-3 pr-2">
+                  <button onClick={() => setShortsIndex(i => Math.max(0, i - 1))} disabled={shortsIndex === 0} className="w-12 h-12 rounded-full bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all disabled:opacity-20"><ChevronUp size={20} /></button>
+                  <button onClick={() => setShortsIndex(i => Math.min(shortVideos.length - 1, i + 1))} disabled={shortsIndex >= shortVideos.length - 1} className="w-12 h-12 rounded-full bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all disabled:opacity-20"><ChevronDown size={20} /></button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* â"€â"€ PLAYLISTS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'playlists' && (
@@ -1421,6 +1512,21 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
       {showYoutubeImport && <YoutubeImportModal onClose={() => setShowYoutubeImport(false)} onImported={() => { setShowYoutubeImport(false); loadData(); }} />}
       {showGoLiveModal && <LiveStreamModal onClose={() => setShowGoLiveModal(false)} onStreamActive={setIsLiveStreamActive} />}
+
+      {activeLiveStream && (
+        <LiveStreamViewer
+          streamId={activeLiveStream.streamId}
+          title={activeLiveStream.title}
+          ownerName={activeLiveStream.ownerName}
+          onClose={() => setActiveLiveStream(null)}
+        />
+      )}
+
+      <AnimatePresence>
+        {signInAction && (
+          <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

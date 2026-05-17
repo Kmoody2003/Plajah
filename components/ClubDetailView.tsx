@@ -22,6 +22,7 @@ interface ClubDetailViewProps {
   currentUser: FirebaseUser | null;
   onBack: () => void;
   onClubUpdated: (club: Club) => void;
+  initialTab?: TabId;
 }
 
 type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'SETTINGS';
@@ -48,9 +49,9 @@ const ROLE_ICONS: Record<ClubRole, React.ReactNode> = {
   WRITER: <Pen size={10} />, MEMBER: <Users size={10} />
 };
 
-const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, currentUser, onBack, onClubUpdated }) => {
+const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, currentUser, onBack, onClubUpdated, initialTab }) => {
   const [club, setClub] = useState<Club>(initialClub);
-  const [activeTab, setActiveTab] = useState<TabId>('TIMELINE');
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'TIMELINE');
   const [membership, setMembership] = useState<ClubMembership | null>(null);
   const [posts, setPosts] = useState<ClubPost[]>([]);
   const [members, setMembers] = useState<ClubMembership[]>([]);
@@ -62,11 +63,27 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [joining, setJoining] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<ClubGalleryItem | null>(null);
-  const [settingsEdit, setSettingsEdit] = useState<Partial<Club>>({});
+  const [settingsEdit, setSettingsEdit] = useState<Partial<Club>>({
+    name: initialClub.name,
+    description: initialClub.description,
+    rules: initialClub.rules,
+    customFont: initialClub.customFont,
+    isPrivate: initialClub.isPrivate,
+    joinProcess: initialClub.joinProcess,
+    linksAllowed: initialClub.linksAllowed,
+    hasLiveChat: initialClub.hasLiveChat,
+    hasExclusiveEvents: initialClub.hasExclusiveEvents,
+    hasMerchStore: initialClub.hasMerchStore,
+  });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savedSettings, setSavedSettings] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const galleryUploadRef = useRef<HTMLInputElement>(null);
+  const coverUploadRef = useRef<HTMLInputElement>(null);
+  const iconUploadRef = useRef<HTMLInputElement>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   const isAdmin = membership?.role === 'OWNER' || membership?.role === 'ADMIN';
   const isMod = isAdmin || membership?.role === 'MODERATOR';
@@ -134,11 +151,36 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
-    await updateClub(club.id, settingsEdit);
-    const updated = { ...club, ...settingsEdit };
-    setClub(updated);
-    onClubUpdated(updated);
-    setSavingSettings(false);
+    try {
+      await updateClub(club.id, settingsEdit);
+      const updated = { ...club, ...settingsEdit };
+      setClub(updated);
+      onClubUpdated(updated);
+      setSavedSettings(true);
+      setTimeout(() => setSavedSettings(false), 2500);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    const url = await uploadClubImage(file, club.id, 'cover');
+    if (url) setSettingsEdit(s => ({ ...s, coverImage: url }));
+    setUploadingCover(false);
+    e.target.value = '';
+  };
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIcon(true);
+    const url = await uploadClubImage(file, club.id, 'icon');
+    if (url) setSettingsEdit(s => ({ ...s, iconImage: url }));
+    setUploadingIcon(false);
+    e.target.value = '';
   };
 
   const handleClaim = async () => {
@@ -441,42 +483,214 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
           {/* SETTINGS */}
           {activeTab === 'SETTINGS' && isAdmin && (
-            <motion.div key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8 max-w-2xl">
-              <SettingsSection title="Identity">
-                <label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Club Name</label>
-                <input defaultValue={club.name} onChange={e => setSettingsEdit(s => ({ ...s, name: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-white/20 transition-all mb-4" />
-                <label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Description</label>
-                <textarea defaultValue={club.description} onChange={e => setSettingsEdit(s => ({ ...s, description: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-white/20 transition-all resize-none h-24" />
-              </SettingsSection>
-              <SettingsSection title="Rules and Conduct">
-                <textarea defaultValue={club.rules} onChange={e => setSettingsEdit(s => ({ ...s, rules: e.target.value }))}
-                  placeholder="Define club rules and expected behaviors..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-white/20 transition-all resize-none h-32" />
-              </SettingsSection>
-              <SettingsSection title="Access and Features">
-                <div className="space-y-3">
-                  <Toggle label="Private Club" value={settingsEdit.isPrivate ?? club.isPrivate} onChange={v => setSettingsEdit(s => ({ ...s, isPrivate: v }))} />
-                  <Toggle label="Links Allowed" value={settingsEdit.linksAllowed ?? club.linksAllowed} onChange={v => setSettingsEdit(s => ({ ...s, linksAllowed: v }))} />
-                  <Toggle label="Live Chat" value={settingsEdit.hasLiveChat ?? club.hasLiveChat} onChange={v => setSettingsEdit(s => ({ ...s, hasLiveChat: v }))} />
-                  <Toggle label="Exclusive Events" value={settingsEdit.hasExclusiveEvents ?? club.hasExclusiveEvents} onChange={v => setSettingsEdit(s => ({ ...s, hasExclusiveEvents: v }))} />
-                  <Toggle label="Merch Store" value={settingsEdit.hasMerchStore ?? club.hasMerchStore} onChange={v => setSettingsEdit(s => ({ ...s, hasMerchStore: v }))} />
+            <motion.div key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5 max-w-2xl pb-16">
+
+              {/* New-club founder welcome */}
+              {club.memberCount <= 1 && membership?.role === 'OWNER' && (
+                <div className="relative overflow-hidden bg-gradient-to-r from-violet-900/30 via-indigo-900/30 to-violet-900/30 border border-violet-500/20 rounded-3xl p-6">
+                  <Sparkles className="absolute top-4 right-4 text-violet-400/20" size={56} />
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mb-4">
+                    <Crown size={18} className="text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-black uppercase tracking-tight mb-1">Welcome, Founder.</h3>
+                  <p className="text-xs text-white/40 leading-relaxed max-w-xs">Set up your club's identity, pick who can join, and unlock features. Your community starts here.</p>
                 </div>
-              </SettingsSection>
-              <SettingsSection title="Club Typography">
-                <label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Custom Font</label>
-                <select defaultValue={club.customFont || ''} onChange={e => setSettingsEdit(s => ({ ...s, customFont: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-white/20 transition-all">
-                  <option value="">Platform Default</option>
-                  <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
-                  <option value="'Playfair Display', serif">Playfair Display</option>
-                  <option value="'Bebas Neue', cursive">Bebas Neue</option>
-                  <option value="'DM Mono', monospace">DM Mono</option>
-                  <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                </select>
-              </SettingsSection>
-              <button onClick={handleSaveSettings} disabled={savingSettings} className="px-8 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-white/90 transition-all flex items-center gap-2">
-                {savingSettings ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : <Check size={12} />}
-                Save Settings
+              )}
+
+              {/* Cover + Icon hero */}
+              <div className="relative">
+                <button
+                  onClick={() => coverUploadRef.current?.click()}
+                  disabled={uploadingCover}
+                  className="relative w-full rounded-3xl overflow-hidden bg-white/5 border border-white/10 hover:border-white/20 group transition-all"
+                  style={{ aspectRatio: '21/7' }}
+                >
+                  {settingsEdit.coverImage || club.coverImage
+                    ? <img src={settingsEdit.coverImage || club.coverImage} className="w-full h-full object-cover" alt="" />
+                    : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20">
+                        <Image size={28} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Upload Cover Art</span>
+                        <span className="text-[7px] text-white/10">Recommended 1500 × 500</span>
+                      </div>
+                    )
+                  }
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                    {uploadingCover
+                      ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <><Upload size={16} className="text-white" /><span className="text-xs font-black uppercase tracking-widest text-white">Change Cover</span></>
+                    }
+                  </div>
+                </button>
+
+                {/* Icon overlapping cover at bottom-left */}
+                <div className="absolute -bottom-8 left-6 flex items-end gap-4 z-10">
+                  <button
+                    onClick={() => iconUploadRef.current?.click()}
+                    disabled={uploadingIcon}
+                    className="w-20 h-20 rounded-2xl border-4 border-black overflow-hidden bg-white/10 group relative shrink-0 hover:border-white/20 transition-all"
+                  >
+                    {settingsEdit.iconImage || club.iconImage
+                      ? <img src={settingsEdit.iconImage || club.iconImage} className="w-full h-full object-cover" alt="" />
+                      : <div className="w-full h-full flex items-center justify-center text-white/20"><Users size={22} /></div>
+                    }
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      {uploadingIcon
+                        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        : <Upload size={12} className="text-white" />
+                      }
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Spacer for icon overlap */}
+              <div className="h-10" />
+
+              <input ref={coverUploadRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+              <input ref={iconUploadRef} type="file" accept="image/*" className="hidden" onChange={handleIconUpload} />
+
+              {/* Identity */}
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-3xl p-6 space-y-6">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25">Identity</p>
+                <div>
+                  <label className="text-[8px] font-black uppercase tracking-widest text-white/30 block mb-3">Club Name</label>
+                  <input
+                    value={settingsEdit.name ?? ''}
+                    onChange={e => setSettingsEdit(s => ({ ...s, name: e.target.value }))}
+                    placeholder="Your club's name"
+                    className="w-full bg-transparent border-b-2 border-white/10 focus:border-white/40 pb-2 text-2xl font-black uppercase tracking-tight outline-none transition-colors placeholder:text-white/15"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-[8px] font-black uppercase tracking-widest text-white/30">Description</label>
+                    <span className="text-[8px] text-white/20">{(settingsEdit.description ?? '').length}/500</span>
+                  </div>
+                  <textarea
+                    value={settingsEdit.description ?? ''}
+                    onChange={e => setSettingsEdit(s => ({ ...s, description: e.target.value.slice(0, 500) }))}
+                    placeholder="Tell people what this club is about..."
+                    rows={3}
+                    className="w-full bg-transparent border-b border-white/10 focus:border-white/30 pb-2 text-sm text-white/70 font-medium outline-none resize-none transition-colors placeholder:text-white/15 leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Community Rules */}
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-3xl p-6">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-6">Community Rules</p>
+                <textarea
+                  value={settingsEdit.rules ?? ''}
+                  onChange={e => setSettingsEdit(s => ({ ...s, rules: e.target.value }))}
+                  placeholder="What are the expectations? What's welcome, what isn't? Members will see this when they join."
+                  rows={5}
+                  className="w-full bg-transparent border-b border-white/10 focus:border-white/30 pb-2 text-sm text-white/70 font-medium outline-none resize-none transition-colors placeholder:text-white/15 leading-relaxed"
+                />
+              </div>
+
+              {/* Visibility + Access */}
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-3xl p-6">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-5">Visibility &amp; Access</p>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  {([
+                    { key: 'isPrivate', label: 'Private', desc: 'Hidden from discovery', icon: Lock },
+                    { key: 'linksAllowed', label: 'Links OK', desc: 'Members can post URLs', icon: Link2 },
+                  ] as const).map(({ key, label, desc, icon: Icon }) => {
+                    const val = settingsEdit[key] ?? club[key];
+                    return (
+                      <button key={key} onClick={() => setSettingsEdit(s => ({ ...s, [key]: !val }))}
+                        className={`p-4 rounded-2xl border text-left transition-all ${val ? 'border-white/30 bg-white/8' : 'border-white/[0.07] hover:border-white/20'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <Icon size={16} className={val ? 'text-white' : 'text-white/25'} />
+                          <div className={`w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-white' : 'bg-white/10'}`}>
+                            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-black transition-transform ${val ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                          </div>
+                        </div>
+                        <p className={`text-[10px] font-black uppercase tracking-wide ${val ? 'text-white' : 'text-white/35'}`}>{label}</p>
+                        <p className="text-[8px] text-white/20 mt-0.5 leading-relaxed">{desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-3 mt-5">Join Process</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['AUTO', 'REVIEW'] as const).map(p => {
+                    const active = (settingsEdit.joinProcess ?? club.joinProcess) === p;
+                    return (
+                      <button key={p} onClick={() => setSettingsEdit(s => ({ ...s, joinProcess: p }))}
+                        className={`p-4 rounded-2xl border text-left transition-all ${active ? 'border-white/30 bg-white/8' : 'border-white/[0.07] hover:border-white/20'}`}>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-white/35'}`}>
+                          {p === 'AUTO' ? 'Open Join' : 'Admin Review'}
+                        </p>
+                        <p className="text-[8px] text-white/20 mt-1 leading-relaxed">
+                          {p === 'AUTO' ? 'Anyone joins instantly' : 'You approve each request'}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-3xl p-6">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-5">Features</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { key: 'hasLiveChat', label: 'Live Chat', desc: 'Real-time messaging room', icon: MessageSquare },
+                    { key: 'hasExclusiveEvents', label: 'Events', desc: 'Member-only events', icon: Calendar },
+                    { key: 'hasMerchStore', label: 'Merch', desc: 'Sell products to fans', icon: Sparkles },
+                  ] as const).map(({ key, label, desc, icon: Icon }) => {
+                    const val = settingsEdit[key] ?? club[key];
+                    return (
+                      <button key={key} onClick={() => setSettingsEdit(s => ({ ...s, [key]: !val }))}
+                        className={`p-4 rounded-2xl border text-left transition-all ${val ? 'border-white/30 bg-white/8' : 'border-white/[0.07] hover:border-white/20'}`}>
+                        <Icon size={18} className={`mb-3 transition-colors ${val ? 'text-white' : 'text-white/20'}`} />
+                        <p className={`text-[9px] font-black uppercase tracking-wide ${val ? 'text-white' : 'text-white/30'}`}>{label}</p>
+                        <p className="text-[7px] text-white/20 mt-1 leading-relaxed">{desc}</p>
+                        <div className={`mt-3 w-full h-px rounded-full transition-colors ${val ? 'bg-white/40' : 'bg-white/8'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Typography */}
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-3xl p-6">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-5">Typography</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { value: '', label: 'Default', sample: 'Aa' },
+                    { value: "'Space Grotesk', sans-serif", label: 'Space Grotesk', sample: 'Aa' },
+                    { value: "'Playfair Display', serif", label: 'Playfair', sample: 'Aa' },
+                    { value: "'Bebas Neue', cursive", label: 'Bebas Neue', sample: 'Aa' },
+                    { value: "'DM Mono', monospace", label: 'DM Mono', sample: 'Aa' },
+                    { value: "'Cormorant Garamond', serif", label: 'Cormorant', sample: 'Aa' },
+                  ].map(opt => {
+                    const active = (settingsEdit.customFont ?? '') === opt.value;
+                    return (
+                      <button key={opt.value} onClick={() => setSettingsEdit(s => ({ ...s, customFont: opt.value }))}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${active ? 'border-white/30 bg-white/8' : 'border-white/[0.07] hover:border-white/20'}`}>
+                        <span className="text-xl font-bold text-white/50 leading-none" style={opt.value ? { fontFamily: opt.value } : {}}>{opt.sample}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-white/30'}`}>{opt.label}</span>
+                        {active && <Check size={10} className="ml-auto text-white/60 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Save */}
+              <button
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 bg-white text-black hover:bg-white/90"
+              >
+                {savingSettings
+                  ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                  : savedSettings ? <Check size={14} /> : null
+                }
+                {savingSettings ? 'Saving…' : savedSettings ? 'Saved!' : 'Save Changes'}
               </button>
             </motion.div>
           )}

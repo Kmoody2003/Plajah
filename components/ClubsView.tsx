@@ -20,8 +20,10 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
+  const [openInSettings, setOpenInSettings] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<{
     name: string; description: string; category: string; isPrivate: boolean; joinProcess: ClubJoinProcess;
   }>({
@@ -30,14 +32,19 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
 
   const loadClubs = useCallback(async () => {
     setLoading(true);
-    await seedDemoClubs();
-    const [pub, mine] = await Promise.all([
-      fetchPublicClubs(selectedCategory !== 'All' ? selectedCategory : undefined),
-      currentUser ? fetchUserClubs(currentUser.uid) : Promise.resolve([]),
-    ]);
-    setClubs(pub);
-    setMyClubs(mine);
-    setLoading(false);
+    try {
+      await seedDemoClubs();
+      const [pub, mine] = await Promise.all([
+        fetchPublicClubs(selectedCategory !== 'All' ? selectedCategory : undefined),
+        currentUser ? fetchUserClubs(currentUser.uid) : Promise.resolve([]),
+      ]);
+      setClubs(pub);
+      setMyClubs(mine);
+    } catch (e) {
+      console.error('loadClubs failed:', e);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedCategory, currentUser]);
 
   useEffect(() => { loadClubs(); }, [loadClubs]);
@@ -45,14 +52,28 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
   const handleCreateClub = async () => {
     if (!createForm.name.trim() || !currentUser) return;
     setCreating(true);
-    const club = await createClub(createForm);
-    if (club) {
-      setClubs(c => [club, ...c]);
-      setMyClubs(c => [club, ...c]);
-      setShowCreateModal(false);
-      setSelectedClub(club);
+    setCreateError(null);
+    try {
+      const club = await createClub(createForm);
+      if (club) {
+        setClubs(c => [club, ...c]);
+        setMyClubs(c => [club, ...c]);
+        setShowCreateModal(false);
+        setOpenInSettings(true);
+        setSelectedClub(club);
+      }
+    } catch (e: any) {
+      const msg: string = e?.message || '';
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient')) {
+        setCreateError('Permission denied — run "firebase deploy --only firestore" in your terminal to apply the database rules, then try again.');
+      } else if (msg.toLowerCase().includes('auth') || !currentUser) {
+        setCreateError('Not signed in. Please sign out and sign back in, then try again.');
+      } else {
+        setCreateError(`Error: ${msg || 'Unknown error. Check the browser console for details.'}`);
+      }
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   };
 
   const filteredClubs = clubs.filter(c =>
@@ -64,7 +85,8 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
       <ClubDetailView
         club={selectedClub}
         currentUser={currentUser}
-        onBack={() => setSelectedClub(null)}
+        initialTab={openInSettings ? 'SETTINGS' : 'TIMELINE'}
+        onBack={() => { setSelectedClub(null); setOpenInSettings(false); }}
         onClubUpdated={updated => {
           setSelectedClub(updated);
           setClubs(cs => cs.map(c => c.id === updated.id ? updated : c));
@@ -117,7 +139,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
                 <motion.button
                   key={club.id}
                   whileHover={{ scale: 1.05 }}
-                  onClick={() => setSelectedClub(club)}
+                  onClick={() => { setOpenInSettings(false); setSelectedClub(club); }}
                   className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 whitespace-nowrap hover:bg-white/10 transition-all shrink-0"
                 >
                   {club.iconImage
@@ -170,7 +192,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
               <motion.div
                 key={club.id}
                 whileHover={{ y: -8 }}
-                onClick={() => setSelectedClub(club)}
+                onClick={() => { setOpenInSettings(false); setSelectedClub(club); }}
                 className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden group cursor-pointer hover:bg-white/8 transition-all backdrop-blur-xl"
               >
                 <div className="aspect-[16/10] relative overflow-hidden">
@@ -262,8 +284,13 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 mt-8">
-                <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">Cancel</button>
+              {createError && (
+                <div className="mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-[10px] font-bold text-red-400">
+                  {createError}
+                </div>
+              )}
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => { setShowCreateModal(false); setCreateError(null); }} className="flex-1 py-3 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">Cancel</button>
                 <button onClick={handleCreateClub} disabled={creating || !createForm.name.trim()} className="flex-1 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-white/90 transition-all flex items-center justify-center gap-2">
                   {creating ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : <Check size={12} />}
                   Create Club

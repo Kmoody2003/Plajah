@@ -11,7 +11,8 @@ import {
   Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, auth } from '../services/backendService';
+import SignInPrompt from './SignInPrompt';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
@@ -51,6 +52,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [trackStats, setTrackStats] = useState<Record<string, number>>({});
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [signInAction, setSignInAction] = useState<string | null>(null);
 
   const [bgIndex, setBgIndex] = useState(0);
   const bgAlbums = useMemo(() =>
@@ -527,7 +529,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                            </div>
                          </div>
                          <button
-                           onClick={e => { e.stopPropagation(); setPlaylistPickerTrack(track); }}
+                           onClick={e => { e.stopPropagation(); if (!auth.currentUser) { setSignInAction('save to playlists'); } else { setPlaylistPickerTrack(track); } }}
                            className="p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all shrink-0"
                            title="Add to playlist"
                          >
@@ -592,7 +594,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                       <div className="flex items-center justify-between mb-6">
                         <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">My Playlists</h2>
                         <button
-                          onClick={() => setCreatingPlaylist(v => !v)}
+                          onClick={() => { if (!auth.currentUser) { setSignInAction('create playlists'); } else { setCreatingPlaylist(v => !v); } }}
                           className="flex items-center gap-2 px-4 py-2 bg-small-orange text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
                         >
                           <Plus size={12} /> New Playlist
@@ -986,6 +988,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <AlbumArt3DViewer album={album3D} onClose={() => setAlbum3D(null)} />
         </Suspense>
       )}
+
+      <AnimatePresence>
+        {signInAction && (
+          <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

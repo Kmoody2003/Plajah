@@ -6114,54 +6114,59 @@ export const uploadStoryMedia = async (file: File, ownerId: string): Promise<str
 
 export const createClub = async (data: Partial<Club>): Promise<Club | null> => {
   if (!auth.currentUser) return null;
-  const docRef = doc(collection(db, 'clubs'));
-  const now = Date.now();
-  const club: Club = {
-    id: docRef.id,
-    name: data.name || 'Untitled Club',
-    description: data.description || '',
-    creatorId: auth.currentUser.uid,
-    admins: [auth.currentUser.uid],
-    moderators: [],
-    category: data.category || 'General',
-    tags: data.tags || [],
-    isPrivate: data.isPrivate ?? false,
-    joinProcess: data.joinProcess || 'AUTO',
-    questionnaire: data.questionnaire,
-    rules: data.rules,
-    allowedAssetTypes: data.allowedAssetTypes || ['MUSIC', 'VIDEO', 'PHOTO', 'ARTICLE', 'BOOK', 'PLAYLIST', 'WORLD', 'LINK'],
-    linksAllowed: data.linksAllowed ?? true,
-    memberCount: 1,
-    type: data.type || 'CLUB',
-    coverImage: data.coverImage,
-    iconImage: data.iconImage,
-    customBackground: data.customBackground,
-    customThemeId: data.customThemeId,
-    customFont: data.customFont,
-    hasLiveChat: data.hasLiveChat ?? true,
-    hasMerchStore: data.hasMerchStore ?? false,
-    hasExclusiveEvents: data.hasExclusiveEvents ?? true,
-    monthlyPrice: data.monthlyPrice,
-    yearlyPrice: data.yearlyPrice,
-    charityGoal: data.charityGoal,
-    charityRaised: data.charityRaised ?? 0,
-    charityOrgName: data.charityOrgName,
-    timestamp: now,
-    updatedAt: now,
-  };
-  await setDoc(docRef, removeUndefined(club));
-  const memberRef = doc(collection(db, 'clubMemberships'));
-  await setDoc(memberRef, removeUndefined({
-    id: memberRef.id,
-    clubId: club.id,
-    userId: auth.currentUser.uid,
-    role: 'OWNER' as ClubRole,
-    status: 'ACTIVE',
-    displayName: auth.currentUser.displayName || 'Creator',
-    photoUrl: auth.currentUser.photoURL || '',
-    joinedAt: now,
-  } as ClubMembership));
-  return club;
+  try {
+    const docRef = doc(collection(db, 'clubs'));
+    const now = Date.now();
+    const club: Club = {
+      id: docRef.id,
+      name: data.name || 'Untitled Club',
+      description: data.description || '',
+      creatorId: auth.currentUser.uid,
+      admins: [auth.currentUser.uid],
+      moderators: [],
+      category: data.category || 'General',
+      tags: data.tags || [],
+      isPrivate: data.isPrivate ?? false,
+      joinProcess: data.joinProcess || 'AUTO',
+      questionnaire: data.questionnaire,
+      rules: data.rules,
+      allowedAssetTypes: data.allowedAssetTypes || ['MUSIC', 'VIDEO', 'PHOTO', 'ARTICLE', 'BOOK', 'PLAYLIST', 'WORLD', 'LINK'],
+      linksAllowed: data.linksAllowed ?? true,
+      memberCount: 1,
+      type: data.type || 'CLUB',
+      coverImage: data.coverImage,
+      iconImage: data.iconImage,
+      customBackground: data.customBackground,
+      customThemeId: data.customThemeId,
+      customFont: data.customFont,
+      hasLiveChat: data.hasLiveChat ?? true,
+      hasMerchStore: data.hasMerchStore ?? false,
+      hasExclusiveEvents: data.hasExclusiveEvents ?? true,
+      monthlyPrice: data.monthlyPrice,
+      yearlyPrice: data.yearlyPrice,
+      charityGoal: data.charityGoal,
+      charityRaised: data.charityRaised ?? 0,
+      charityOrgName: data.charityOrgName,
+      timestamp: now,
+      updatedAt: now,
+    };
+    await setDoc(docRef, removeUndefined(club));
+    const memberRef = doc(collection(db, 'clubMemberships'));
+    await setDoc(memberRef, removeUndefined({
+      id: memberRef.id,
+      clubId: club.id,
+      userId: auth.currentUser.uid,
+      role: 'OWNER' as ClubRole,
+      status: 'ACTIVE',
+      displayName: auth.currentUser.displayName || 'Creator',
+      photoUrl: auth.currentUser.photoURL || '',
+      joinedAt: now,
+    } as ClubMembership));
+    return club;
+  } catch (e: any) {
+    console.error('createClub failed:', e);
+    throw new Error(e?.message || 'Firestore write failed');
+  }
 };
 
 export const updateClub = async (clubId: string, updates: Partial<Club>) => {
@@ -6430,16 +6435,23 @@ export const claimClubAsFounder = async (clubId: string): Promise<boolean> => {
 };
 
 export const fetchUserClubs = async (uid: string): Promise<Club[]> => {
-  const q = query(collection(db, 'clubMemberships'), where('userId', '==', uid), where('status', '==', 'ACTIVE'));
-  const snap = await getDocs(q);
-  if (snap.empty) return [];
-  const clubIds = snap.docs.map(d => d.data().clubId as string);
-  const clubs: Club[] = [];
-  for (const cid of clubIds.slice(0, 10)) {
-    const d = await getDoc(doc(db, 'clubs', cid));
-    if (d.exists()) clubs.push({ id: d.id, ...d.data() } as Club);
+  try {
+    const q = query(collection(db, 'clubMemberships'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    if (snap.empty) return [];
+    const clubIds = snap.docs
+      .filter(d => d.data().status === 'ACTIVE')
+      .map(d => d.data().clubId as string);
+    const clubs: Club[] = [];
+    for (const cid of clubIds.slice(0, 10)) {
+      const d = await getDoc(doc(db, 'clubs', cid));
+      if (d.exists()) clubs.push({ id: d.id, ...d.data() } as Club);
+    }
+    return clubs;
+  } catch (e) {
+    console.error('fetchUserClubs failed:', e);
+    return [];
   }
-  return clubs;
 };
 
 export const fetchClub = async (clubId: string): Promise<Club | null> => {
@@ -6487,9 +6499,17 @@ export const leaveClub = async (clubId: string) => {
 };
 
 export const fetchClubMembers = async (clubId: string): Promise<ClubMembership[]> => {
-  const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), where('status', '==', 'ACTIVE'), orderBy('joinedAt', 'asc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubMembership));
+  try {
+    const q = query(collection(db, 'clubMemberships'), where('clubId', '==', clubId), limit(200));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubMembership))
+      .filter(m => m.status === 'ACTIVE')
+      .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  } catch (e) {
+    console.error('[fetchClubMembers]', e);
+    return [];
+  }
 };
 
 export const updateMemberRole = async (membershipId: string, role: ClubRole) => {
@@ -6530,8 +6550,15 @@ export const createClubPost = async (post: Partial<ClubPost>): Promise<ClubPost 
 };
 
 export const listenToClubPosts = (clubId: string, callback: (posts: ClubPost[]) => void) => {
-  const q = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), orderBy('isPinned', 'desc'), orderBy('timestamp', 'desc'), limit(50));
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost))));
+  const q = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(100));
+  return onSnapshot(q, snap => {
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost));
+    posts.sort((a, b) => {
+      const pinDiff = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+      return pinDiff !== 0 ? pinDiff : (b.timestamp || 0) - (a.timestamp || 0);
+    });
+    callback(posts);
+  }, err => console.error('[listenToClubPosts]', err));
 };
 
 export const deleteClubPost = async (postId: string) => {
@@ -6570,9 +6597,16 @@ export const addClubGalleryItem = async (item: Partial<ClubGalleryItem>): Promis
 };
 
 export const fetchClubGallery = async (clubId: string): Promise<ClubGalleryItem[]> => {
-  const q = query(collection(db, 'clubGallery'), where('clubId', '==', clubId), orderBy('timestamp', 'desc'), limit(60));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubGalleryItem));
+  try {
+    const q = query(collection(db, 'clubGallery'), where('clubId', '==', clubId), limit(60));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubGalleryItem))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  } catch (e) {
+    console.error('[fetchClubGallery]', e);
+    return [];
+  }
 };
 
 export const deleteClubGalleryItem = async (itemId: string) => {
@@ -6596,8 +6630,12 @@ export const sendClubChatMessage = async (clubId: string, content: string): Prom
 };
 
 export const listenToClubChat = (clubId: string, callback: (msgs: ClubChatMessage[]) => void) => {
-  const q = query(collection(db, 'clubChat'), where('clubId', '==', clubId), orderBy('timestamp', 'asc'), limit(100));
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubChatMessage))));
+  const q = query(collection(db, 'clubChat'), where('clubId', '==', clubId), limit(200));
+  return onSnapshot(q, snap => {
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubChatMessage));
+    msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    callback(msgs);
+  }, err => console.error('[listenToClubChat]', err));
 };
 
 export const deleteClubChatMessage = async (msgId: string) => {
@@ -6629,15 +6667,29 @@ export const createDiscussionAlias = async (name: string, avatar?: string, bio?:
 
 export const fetchMyDiscussionAliases = async () => {
   if (!auth.currentUser) return [];
-  const q = query(collection(db, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), orderBy('timestamp', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+  try {
+    const q = query(collection(db, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchMyDiscussionAliases]', e);
+    return [];
+  }
 };
 
 export const fetchDiscussionBoards = async () => {
-  const q = query(collection(db, 'discussionBoards'), orderBy('memberCount', 'desc'), limit(50));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+  try {
+    const q = query(collection(db, 'discussionBoards'), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchDiscussionBoards]', e);
+    return [];
+  }
 };
 
 export const createDiscussionBoard = async (name: string, description: string, tags: string[] = []) => {
@@ -6650,12 +6702,19 @@ export const createDiscussionBoard = async (name: string, description: string, t
 };
 
 export const fetchDiscussionPosts = async (boardId?: string, sortBy: 'hot' | 'new' | 'top' = 'hot') => {
-  const orderField = sortBy === 'new' ? orderBy('timestamp', 'desc') : orderBy('upvotes', 'desc');
-  const q = boardId
-    ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), orderField, limit(50))
-    : query(collection(db, 'discussionPosts'), orderField, limit(50));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as object) })) as any[];
+  try {
+    const q = boardId
+      ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+      : query(collection(db, 'discussionPosts'), limit(100));
+    const snap = await getDocs(q);
+    const posts = snap.docs.map(d => ({ id: d.id, ...(d.data() as object) })) as any[];
+    if (sortBy === 'new') posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    else posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    return posts;
+  } catch (e) {
+    console.error('[fetchDiscussionPosts]', e);
+    return [];
+  }
 };
 
 export const createDiscussionPost = async (data: { boardId: string; boardName: string; title: string; body: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; linkUrl?: string; imageUrls?: string[]; flair?: string }) => {
@@ -6668,7 +6727,7 @@ export const createDiscussionPost = async (data: { boardId: string; boardName: s
     timestamp: Date.now(),
   };
   await setDoc(docRef, removeUndefined(post));
-  await updateDoc(doc(db, 'discussionBoards', data.boardId), { postCount: increment(1) });
+  try { await updateDoc(doc(db, 'discussionBoards', data.boardId), { postCount: increment(1) }); } catch {}
   return post;
 };
 
@@ -6695,26 +6754,38 @@ export const deleteDiscussionPost = async (postId: string) => {
 };
 
 export const fetchDiscussionComments = async (postId: string) => {
-  const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), orderBy('timestamp', 'asc'), limit(200));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+  try {
+    const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0)) as any[];
+  } catch (e) {
+    console.error('[fetchDiscussionComments]', e);
+    return [];
+  }
 };
 
 export const createDiscussionComment = async (data: { postId: string; body: string; parentCommentId?: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; depth: number }) => {
   if (!auth.currentUser) return null;
-  const docRef = doc(collection(db, 'discussionComments'));
-  const comment = {
-    id: docRef.id, ...data,
-    authorId: auth.currentUser.uid,
-    upvotes: 0, downvotes: 0, replyCount: 0,
-    timestamp: Date.now(),
-  };
-  await setDoc(docRef, removeUndefined(comment));
-  await updateDoc(doc(db, 'discussionPosts', data.postId), { commentCount: increment(1) });
-  if (data.parentCommentId) {
-    await updateDoc(doc(db, 'discussionComments', data.parentCommentId), { replyCount: increment(1) });
+  try {
+    const docRef = doc(collection(db, 'discussionComments'));
+    const comment = {
+      id: docRef.id, ...data,
+      authorId: auth.currentUser.uid,
+      upvotes: 0, downvotes: 0, replyCount: 0,
+      timestamp: Date.now(),
+    };
+    await setDoc(docRef, removeUndefined(comment));
+    try { await updateDoc(doc(db, 'discussionPosts', data.postId), { commentCount: increment(1) }); } catch {}
+    if (data.parentCommentId) {
+      try { await updateDoc(doc(db, 'discussionComments', data.parentCommentId), { replyCount: increment(1) }); } catch {}
+    }
+    return comment;
+  } catch (e) {
+    console.error('[createDiscussionComment]', e);
+    return null;
   }
-  return comment;
 };
 
 export const voteDiscussionComment = async (commentId: string, value: 1 | -1) => {

@@ -11,7 +11,8 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { Album, Video, Universe, VideoPlaylist } from '../types';
-import { fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds, auth } from '../services/backendService';
+import SignInPrompt from './SignInPrompt';
 import { fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
@@ -53,7 +54,8 @@ const HomeView: React.FC<{
   setActiveAllyUrl: (url: string | null) => void;
   onSelectCuratedPlaylist: (playlist: VideoPlaylist) => void;
   tabNav: React.ReactNode;
-}> = ({ universes, movies, tvSeries, genreCollections, curatedPlaylists, featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView, setActiveAllyUrl, onSelectCuratedPlaylist, tabNav }) => {
+  onRequestSignIn: (action: string) => void;
+}> = ({ universes, movies, tvSeries, genreCollections, curatedPlaylists, featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView, setActiveAllyUrl, onSelectCuratedPlaylist, tabNav, onRequestSignIn }) => {
 
   return (
     <div className="space-y-16">
@@ -88,7 +90,11 @@ const HomeView: React.FC<{
               >
                 <Play fill="currentColor" size={24} /> PLAY NOW
               </button>
-              <button className="glass px-8 py-4 rounded-full border border-white/10 hover:bg-white/5 transition-all">
+              <button
+                onClick={() => { if (!auth.currentUser) { onRequestSignIn('add to watchlist'); } }}
+                className="glass px-8 py-4 rounded-full border border-white/10 hover:bg-white/5 transition-all"
+                title="Add to Watchlist"
+              >
                 <Plus size={24} className="text-primary" />
               </button>
             </div>
@@ -522,6 +528,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const [isMuted, setIsMuted] = useState(true);
   const [currentSubView, setCurrentSubView] = useState<SubView>('HOME');
   const [activePlaylistItem, setActivePlaylistItem] = useState<any | null>(null);
+  const [signInAction, setSignInAction] = useState<string | null>(null);
   const { playVideo, setTheme } = useGlobalPlayerState();
 
   useEffect(() => {
@@ -719,6 +726,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               setActiveAllyUrl={setActiveAllyUrl}
               onSelectCuratedPlaylist={handleSelectCuratedPlaylist}
               tabNav={<TabNav />}
+              onRequestSignIn={action => setSignInAction(action)}
             />
           )}
           {currentSubView === 'TV' && (
@@ -794,6 +802,11 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         </motion.div>
       </AnimatePresence>
 
+      <AnimatePresence>
+        {signInAction && (
+          <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
