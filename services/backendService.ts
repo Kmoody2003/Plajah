@@ -1101,6 +1101,40 @@ export const updateSystemSettingsConfig = async (config: Partial<SystemSettingsC
   }
 };
 
+// ── Landing Background ────────────────────────────────────────────────────────
+
+export const fetchLandingBgConfig = async (): Promise<import('../types').LandingBgConfig | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'systemConfig', 'landingBg'));
+    return snap.exists() ? (snap.data() as import('../types').LandingBgConfig) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveLandingBgConfig = async (config: import('../types').LandingBgConfig): Promise<void> => {
+  await setDoc(doc(db, 'systemConfig', 'landingBg'), config);
+};
+
+export const uploadLandingBgAsset = async (
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<{ url: string; thumbnailUrl?: string }> => {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const path = `landing-bg/${Date.now()}_${file.name}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, file);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  return { url };
+};
+
 export const deleteGlobalArchiveItem = async (id: string) => {
   const path = `albums/${id}`;
   try {

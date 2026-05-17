@@ -509,7 +509,8 @@ service cloud.firestore {
     }
 
     match /systemConfig/{configId} {
-      allow read: if isAuthenticated();
+      // landingBg is public so unauthenticated visitors can load the background
+      allow read: if configId == 'landingBg' || isAuthenticated();
       allow write: if isAdmin();
     }
 

@@ -1549,6 +1549,27 @@ export interface Team {
   highlights: any[];
 }
 
+// ── LANDING PAGE BACKGROUND ───────────────────────────────────────────────────
+export type LandingBgMode = 'EARTH' | 'PHOTO' | 'VIDEO' | 'SLIDESHOW';
+
+export interface LandingBgAsset {
+  id: string;
+  type: 'photo' | 'video';
+  url: string;
+  thumbnailUrl?: string;
+  name: string;
+  size?: number;
+  uploadedAt: number;
+  isSelected: boolean; // pinned for PHOTO/VIDEO single-mode, included in slideshow
+}
+
+export interface LandingBgConfig {
+  mode: LandingBgMode;
+  slideshowIntervalMs: number; // default 5000
+  overlayOpacity: number;      // 0–100, default 40
+  assets: LandingBgAsset[];
+}
+
 export interface SystemSettingsConfig {
   id: string;
   adRatios: AdRatioConfig;
@@ -1560,6 +1581,7 @@ export interface SystemSettingsConfig {
   curatedMusicPlaylists?: string[]; // IDs of Playlists
   curatedVideoPlaylists?: string[]; // IDs of Video Playlists
   mustWatchMovies?: string[];       // IDs of Videos (Movies)
+  landingBg?: LandingBgConfig;
   externalSocialLinks: {
     xEnabled: boolean;
     mastodonEnabled: boolean;

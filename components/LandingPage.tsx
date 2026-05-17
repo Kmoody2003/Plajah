@@ -1,28 +1,133 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { loginWithGoogle, loginWithTwitter, fetchRandomActiveUser } from '../services/backendService';
-import Logo from './Logo';
-import { ArrowRight, Globe, Sparkles, LogIn, X as XIcon } from 'lucide-react';
-import { UserProfile } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { loginWithGoogle, loginWithTwitter, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
+import { ArrowRight, Sparkles, LogIn, X as XIcon } from 'lucide-react';
+import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
+import EarthGlobe from './EarthGlobe';
 
 interface LandingPageProps {
   onEnter: () => void;
   onVisitUser?: (uid: string) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
-  const [leftAdUser, setLeftAdUser] = React.useState<UserProfile | null>(null);
-  const [rightAdUser, setRightAdUser] = React.useState<UserProfile | null>(null);
+// ── Dynamic Background ──────────────────────────────────────────────────────────
 
-  React.useEffect(() => {
-    const loadAds = async () => {
-      const u1 = await fetchRandomActiveUser();
-      const u2 = await fetchRandomActiveUser();
+const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) => {
+  const selected = config.assets.filter(a => a.isSelected);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (config.mode !== 'SLIDESHOW' || selected.length < 2) return;
+    const id = setInterval(
+      () => setSlideIdx(i => (i + 1) % selected.length),
+      config.slideshowIntervalMs
+    );
+    return () => clearInterval(id);
+  }, [config.mode, config.slideshowIntervalMs, selected.length]);
+
+  const overlayStyle: React.CSSProperties = {
+    background: `linear-gradient(to bottom, rgba(0,0,0,${config.overlayOpacity / 100 * 0.3}) 0%, rgba(2,2,2,${config.overlayOpacity / 100}) 100%)`
+  };
+
+  if (config.mode === 'EARTH' || selected.length === 0) {
+    return (
+      <>
+        <EarthGlobe />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#1a0026]/30 to-[#020202]" />
+      </>
+    );
+  }
+
+  if (config.mode === 'PHOTO') {
+    const asset = selected.find(a => a.type === 'photo') ?? selected[0];
+    return (
+      <>
+        <img src={asset.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0" style={overlayStyle} />
+      </>
+    );
+  }
+
+  if (config.mode === 'VIDEO') {
+    const asset = selected.find(a => a.type === 'video') ?? selected[0];
+    return (
+      <>
+        <video
+          ref={videoRef}
+          src={asset.url}
+          autoPlay muted loop playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0" style={overlayStyle} />
+      </>
+    );
+  }
+
+  // SLIDESHOW
+  const current = selected[slideIdx] ?? selected[0];
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current.id}
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+        >
+          {current.type === 'video' ? (
+            <video
+              src={current.url}
+              autoPlay muted loop playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <img src={current.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+        </motion.div>
+      </AnimatePresence>
+      <div className="absolute inset-0" style={overlayStyle} />
+
+      {/* Slide dots */}
+      {selected.length > 1 && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {selected.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setSlideIdx(i)}
+              className={`w-1.5 h-1.5 rounded-full transition-all ${i === slideIdx ? 'bg-white w-4' : 'bg-white/30 hover:bg-white/60'}`}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+// ── Landing Page ────────────────────────────────────────────────────────────────
+
+const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
+  const [leftAdUser, setLeftAdUser] = useState<UserProfile | null>(null);
+  const [rightAdUser, setRightAdUser] = useState<UserProfile | null>(null);
+  const [bgConfig, setBgConfig] = useState<LandingBgConfig>({
+    mode: 'EARTH', slideshowIntervalMs: 5000, overlayOpacity: 40, assets: []
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      const [u1, u2, bg] = await Promise.all([
+        fetchRandomActiveUser(),
+        fetchRandomActiveUser(),
+        fetchLandingBgConfig(),
+      ]);
       setLeftAdUser(u1);
       setRightAdUser(u2);
+      if (bg) setBgConfig(bg);
     };
-    loadAds();
+    load();
   }, []);
 
   const handleAdClick = (user: UserProfile) => {
@@ -83,15 +188,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
       {/* Ad Squares */}
       <AdSquare user={leftAdUser} side="left" />
       <AdSquare user={rightAdUser} side="right" />
-      {/* Background Image with Overlay */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop" 
-          alt="Space Earth" 
-          className="w-full h-full object-cover opacity-40 scale-110"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a0026]/40 to-[#020202]" />
+      {/* Dynamic background */}
+      <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
+        <LandingBackground config={bgConfig} />
       </div>
 
       {/* Content */}
@@ -102,9 +201,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           transition={{ duration: 1, ease: "easeOut" }}
           className="flex flex-col items-center gap-6"
         >
-          <div className="w-24 h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(107,0,153,0.5)] rotate-3">
-            <Logo size={48} />
-          </div>
           <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
             Plajah
           </h1>
@@ -161,10 +257,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
-        {/* Floating Equipment Icons (Abstract Continents) */}
-        <div className="absolute -left-20 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden xl:block">
-          <Globe size={400} className="text-white animate-spin-slow" />
-        </div>
       </div>
 
       {/* Footer Info */}

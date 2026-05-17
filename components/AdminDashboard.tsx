@@ -82,6 +82,7 @@ import { analyzeThemeBackground } from '../services/geminiService';
 import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
+import AdminLandingBgManager from './AdminLandingBgManager';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -90,7 +91,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   
@@ -494,6 +495,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
             { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
+            { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
             { id: 'CURATED', label: 'Curated Content', icon: Sparkles },
             { id: 'FEATURES', label: 'Feature Toggles', icon: Zap },
             { id: 'MAINTENANCE', label: 'Maintenance', icon: Settings },
@@ -1102,7 +1104,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             )}
 
             {activeTab === 'LIVE_FEEDS' && (
-              <motion.div 
+              <motion.div
                 key="liveFeeds"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1110,6 +1112,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                 className="h-full"
               >
                 <AdminLiveFeedsManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'LANDING_BG' && (
+              <motion.div
+                key="landingBg"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminLandingBgManager />
               </motion.div>
             )}
 
