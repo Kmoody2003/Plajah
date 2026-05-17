@@ -3655,6 +3655,19 @@ export const subscribeToPhotoPool = (poolId: string, callback: (media: Photo[]) 
   });
 };
 
+export const subscribeToUserProfile = (
+  uid: string,
+  callback: (profile: UserProfile | null) => void
+): (() => void) => {
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snap) => {
+      callback(snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null);
+    },
+    () => callback(null)
+  );
+};
+
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const d = await getDoc(doc(db, 'users', uid));
   if (d.exists()) {

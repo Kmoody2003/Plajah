@@ -87,7 +87,7 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, subscribeToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, saveFcmToken, auth as firebaseAuth } from './services/backendService';
 import SignInPrompt from './components/SignInPrompt';
 import { requestPushPermission, onForegroundMessage } from './services/pushNotificationService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, MessageCircle } from 'lucide-react';
@@ -354,6 +354,7 @@ const App: React.FC = () => {
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
   const { isShrunk, setView: setGlobalView, analyser, isPlaying } = useGlobalPlayerState();
+  const profileUnsubRef = React.useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setGlobalView(view);
@@ -593,15 +594,21 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthUpdate(async (u) => {
+    const unsubscribe = onAuthUpdate((u) => {
       setUser(u);
+
+      // Cancel any existing profile subscription from a previous sign-in
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+
       if (u) {
         setViewInternal(prev => {
           if (prev === 'LANDING') {
             const isMobileDevice = detectMobile();
             const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
             const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
-            // Only apply device layout theme if the user has no explicit visual preference
             const savedTheme = (() => { try { return localStorage.getItem('plajah_theme') as ThemeType | null; } catch { return null; } })();
             const hasExplicit = savedTheme && !['PHONE', 'BIG_SCREEN'].includes(savedTheme);
             if (isMobileDevice) {
@@ -616,45 +623,52 @@ const App: React.FC = () => {
           return prev;
         });
 
-        const p = await fetchUserProfile(u.uid);
-        setUserProfile(p);
-
-        if (p?.uiSettings?.lastTheme) {
-          const savedTheme = p.uiSettings.lastTheme;
-          // Always restore user's theme from profile — it's the most authoritative source.
-          // Also write back to localStorage so it's available on the next load.
-          try { localStorage.setItem('plajah_theme', savedTheme); } catch {}
-          setTheme(savedTheme);
-        }
-
-        // Initialize demo worlds
+        // One-time session initialisation (safe to call on each sign-in)
         seedDemoWorlds();
-
-        // Request push notification permission and save token
         requestPushPermission().then(token => {
           if (token) saveFcmToken(u.uid, token);
         }).catch(() => {});
-
-        if (p && !p.hasCompletedOnboarding) {
-          setShowOnboarding(true);
-        }
-
-        // Seed public domain books if none exist and user is admin
         if (u.email === 'kmoody2003@gmail.com') {
-          const cloudAlbums = await fetchAllPublicAlbums();
-          if (!cloudAlbums.some(a => a.type === 'BOOK')) {
-            await seedPublicDomainBooks();
-            const updatedAlbums = await fetchAllPublicAlbums();
-            setAlbums(updatedAlbums);
-          }
+          fetchAllPublicAlbums().then(async (cloudAlbums) => {
+            if (!cloudAlbums.some((a: any) => a.type === 'BOOK')) {
+              await seedPublicDomainBooks();
+              const updated = await fetchAllPublicAlbums();
+              setAlbums(updated);
+            }
+          }).catch(() => {});
         }
+
+        // Real-time profile subscription — keeps userProfile (and therefore
+        // background + theme data) in sync with Firestore at all times.
+        let isFirstCallback = true;
+        profileUnsubRef.current = subscribeToUserProfile(u.uid, (p) => {
+          setUserProfile(p);
+
+          // On first callback only: restore theme from Firestore as the
+          // authoritative source. Subsequent calls only update profile data
+          // (background URLs, preset IDs, etc.) without overriding a theme
+          // the user may have just changed locally in this session.
+          if (isFirstCallback) {
+            isFirstCallback = false;
+            if (p?.uiSettings?.lastTheme) {
+              const savedTheme = p.uiSettings.lastTheme;
+              try { localStorage.setItem('plajah_theme', savedTheme); } catch {}
+              setTheme(savedTheme);
+            }
+            if (p && !p.hasCompletedOnboarding) {
+              setShowOnboarding(true);
+            }
+          }
+        });
       } else {
         setUserProfile(null);
-        // Unauthenticated visitors should reach the dashboard to browse public content.
         setViewInternal(prev => (prev === 'LANDING' ? 'DASHBOARD' : prev));
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      profileUnsubRef.current?.();
+    };
   }, []);
 
   // Foreground push message → in-app toast
@@ -997,8 +1011,17 @@ const App: React.FC = () => {
     await updateGamePlayCount(game.id);
   };
 
+  // Determine whose background to show: only use visitedProfile when on
+  // USER_PROFILE AND it's actually a different user's profile.
+  const getActiveProfile = () => {
+    if (view === 'USER_PROFILE' && visitedProfile && visitedProfile.uid !== userProfile?.uid) {
+      return visitedProfile;
+    }
+    return userProfile;
+  };
+
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = getActiveProfile();
     const hasBg = !!(activeProfile?.frostedBackground || activeProfile?.videoBackgroundUrl);
     if (hasBg) {
       document.body.classList.add('has-custom-background');
@@ -1008,7 +1031,7 @@ const App: React.FC = () => {
   }, [view, visitedProfile, userProfile]);
 
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = getActiveProfile();
     const curId = activeProfile?.activeThemePresetId || null;
     if (curId !== activeThemeId) {
       setActiveThemeId(curId);
@@ -1057,11 +1080,13 @@ const App: React.FC = () => {
     try { localStorage.setItem('plajah_theme', newTheme); } catch {}
     setTheme(newTheme);
     if (userProfile?.uid) {
+      // Optimistically update in-memory profile so nothing re-reads stale data
+      setUserProfile(prev => prev ? {
+        ...prev,
+        uiSettings: { ...prev.uiSettings, lastTheme: newTheme }
+      } : prev);
       updateUserProfile(userProfile.uid, {
-        uiSettings: {
-          ...userProfile.uiSettings,
-          lastTheme: newTheme,
-        },
+        uiSettings: { ...userProfile.uiSettings, lastTheme: newTheme },
       });
     }
   };
@@ -1155,7 +1180,9 @@ const App: React.FC = () => {
             <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-theme" id="universal-background">
               <AnimatePresence mode="wait">
                 {(() => {
-                  const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+                  const activeProfile = getActiveProfile();
+                  // If profile hasn't loaded yet, render nothing — the CSS
+                  // theme class on <body> already provides the base colour.
                   if (!activeProfile) return null;
 
                   const {
