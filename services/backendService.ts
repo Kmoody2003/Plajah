@@ -1062,33 +1062,36 @@ export const claimPioneerReward = async (uid: string) => {
 
 export const fetchSystemSettingsConfig = async (): Promise<SystemSettingsConfig> => {
   const path = 'systemConfig/settings';
+  const defaultConfig: SystemSettingsConfig = {
+    id: 'settings',
+    adRatios: { userPromos: 50, partners: 20, thirdParty: 30 },
+    fastChannelAds: { adInterval: 5, maxAdDuration: 90, rulesEnabled: true },
+    globalFreeStorageLimit: 25 * 1024 * 1024 * 1024,
+    radioAdInterval: 20,
+    stingers: [],
+    isLiveStreamAdsEnabledDefault: true,
+    externalSocialLinks: {
+      xEnabled: false,
+      mastodonEnabled: false,
+      blueskyEnabled: false,
+      threadsEnabled: false
+    },
+    updatedAt: Date.now()
+  };
   try {
     const docSnap = await getDoc(doc(db, 'systemConfig', 'settings'));
     if (docSnap.exists()) {
       return docSnap.data() as SystemSettingsConfig;
     } else {
-      const defaultConfig: SystemSettingsConfig = {
-        id: 'settings',
-        adRatios: { userPromos: 50, partners: 20, thirdParty: 30 },
-        fastChannelAds: { adInterval: 5, maxAdDuration: 90, rulesEnabled: true },
-        globalFreeStorageLimit: 25 * 1024 * 1024 * 1024,
-        radioAdInterval: 20,
-        stingers: [],
-        isLiveStreamAdsEnabledDefault: true,
-        externalSocialLinks: {
-          xEnabled: false,
-          mastodonEnabled: false,
-          blueskyEnabled: false,
-          threadsEnabled: false
-        },
-        updatedAt: Date.now()
-      };
-      await setDoc(doc(db, 'systemConfig', 'settings'), defaultConfig);
+      // Only write the default doc if the user is authenticated (admin check skipped for speed)
+      if (auth.currentUser) {
+        setDoc(doc(db, 'systemConfig', 'settings'), defaultConfig).catch(() => {});
+      }
       return defaultConfig;
     }
   } catch (e) {
     handleFirestoreError(e, OperationType.GET, path);
-    throw e;
+    return defaultConfig;
   }
 };
 

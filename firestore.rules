@@ -509,8 +509,8 @@ service cloud.firestore {
     }
 
     match /systemConfig/{configId} {
-      // landingBg is public so unauthenticated visitors can load the background
-      allow read: if configId == 'landingBg' || isAuthenticated();
+      // landingBg and settings are public — guests need settings to load Chora/Reello/Taleo
+      allow read: if configId == 'landingBg' || configId == 'settings' || isAuthenticated();
       allow write: if isAdmin();
     }
 
