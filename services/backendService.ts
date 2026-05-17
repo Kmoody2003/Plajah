@@ -4989,32 +4989,39 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     commentsCount: 0
   };
   
-  try {
-    if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
-      const res = await fetch('/api/mux/create-asset-from-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: videoUrl })
-      });
-      if (res.ok) {
-        const muxData = await res.json();
-        if (muxData.playbackId) {
-          newVideo.muxPlaybackId = muxData.playbackId;
-          newVideo.muxAssetId = muxData.assetId;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to auto-migrate to Mux during upload:', err);
-  }
-  
+  // Save to Firestore immediately so the creator can see the video right away.
   try {
     await setDoc(doc(db, 'videos', id), newVideo);
-    return newVideo;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
   }
+
+  // Kick off Mux transcoding in the background (non-blocking).
+  // The server polls until the asset is ready, then we update Firestore.
+  if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
+    (async () => {
+      try {
+        const res = await fetch('/api/mux/create-asset-from-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: videoUrl })
+        });
+        if (!res.ok) return;
+        const muxData = await res.json();
+        if (muxData.assetId || muxData.playbackId) {
+          await updateDoc(doc(db, 'videos', id), {
+            ...(muxData.assetId ? { muxAssetId: muxData.assetId } : {}),
+            ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+          });
+        }
+      } catch (err) {
+        console.error('Background Mux transcoding failed for video', id, ':', err);
+      }
+    })();
+  }
+
+  return newVideo;
 };
 
 export const fetchAllVideos = async (): Promise<Video[]> => {

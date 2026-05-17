@@ -408,7 +408,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     fetchUserProfile(video.ownerId).then(p => setOwnerProfile(p));
     checkIfLiked(video.id).then(l => setIsLiked(l));
     if (currentVideo?.id !== video.id) playVideo(video);
-    return () => { unsub(); clearMedia(); };
+    return () => {
+      unsub();
+      // Explicitly stop the local video element before clearing global state so
+      // its audio track is terminated immediately — prevents overlap when the
+      // user switches to a different video.
+      if (localVideoRef.current) {
+        localVideoRef.current.pause();
+        localVideoRef.current.removeAttribute('src');
+        try { localVideoRef.current.load(); } catch (_) {}
+      }
+      clearMedia();
+    };
   }, [video.id]);
 
   // Mute / volume sync

@@ -410,11 +410,23 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const playVideo = React.useCallback((video: Video) => {
     initAudioContext();
     const startVideo = async () => {
+      // Always stop every audio/video source before switching — do not rely on
+      // audioSource state because clearMedia() may have already nulled it out.
       if (stateRef.current.audioSource !== 'VIDEO' && stateRef.current.isPlaying) {
         await fadeOutAudio().catch(console.error);
+      } else {
+        audioRef.current.pause();
       }
-      if (stateRef.current.audioSource === 'VIDEO' && videoRef.current) {
+      // Stop YouTube player unconditionally
+      if (ytPlayerRef.current) {
+        try { ytPlayerRef.current.stopVideo?.(); } catch (_) {}
+      }
+      // Pause and release the current video element unconditionally so its
+      // audio track is terminated before the new element starts.
+      if (videoRef.current) {
         videoRef.current.pause();
+        videoRef.current.removeAttribute('src');
+        try { videoRef.current.load(); } catch (_) {}
       }
       setCurrentVideo(video);
       setCurrentTrack(null);
@@ -783,14 +795,25 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
-  const clearMedia = () => {
+  const clearMedia = useCallback(() => {
+    // Stop YouTube player
+    if (ytPlayerRef.current) {
+      try { ytPlayerRef.current.stopVideo?.(); } catch (_) {}
+    }
+    // Stop and release the HTML video element so its audio track is fully terminated
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.removeAttribute('src');
+      try { videoRef.current.load(); } catch (_) {}
+    }
+    // Stop music audio element
+    audioRef.current.pause();
     setCurrentTrack(null);
     setCurrentAlbum(null);
     setCurrentVideo(null);
     setAudioSource(null);
     setIsPlaying(false);
-    audioRef.current.pause();
-  };
+  }, []);
 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
@@ -807,7 +830,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
-    view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia
+    view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia,
   ]);
 
   const progressValue: GlobalPlayerProgressContextType = useMemo(() => ({

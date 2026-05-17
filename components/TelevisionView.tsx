@@ -84,17 +84,14 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
   const getId = (s: any) => s.identifier || s.id;
 
   const handleItemClick = async (item: any) => {
-    // If it's already a transformed album or local content without explicit show structure,
-    // we might want to just play it. But the user wants "show pages".
-    // We'll fetching files first to see if it's episodic.
-    
     setSelectedSeries(item);
     setIsLoadingEpisodes(true);
     setEpisodes([]);
 
+    try {
     if (item.identifier) {
         const files = await getArchiveItemFiles(item.identifier);
-        
+
         // Group files into seasons and episodes
         const episodesList: any[] = [];
         const foundSeasons = new Set<number>();
@@ -153,13 +150,17 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
         const sortedSeasons = Array.from(foundSeasons).sort((a, b) => a - b);
         if (sortedSeasons.length > 0) setSelectedSeason(sortedSeasons[0]);
     } else if (item.seasons) {
-        setSelectedSeason(item.seasons[0].number);
-        const allEpisodes = item.seasons.flatMap((s: any) => 
-            s.episodes.map((e: any) => ({ ...e, season: s.number }))
+        setSelectedSeason(item.seasons[0]?.number ?? 1);
+        const allEpisodes = item.seasons.flatMap((s: any) =>
+            (s.episodes || []).map((e: any) => ({ ...e, season: s.number }))
         );
         setEpisodes(allEpisodes);
     }
-    setIsLoadingEpisodes(false);
+    } catch (err) {
+      console.error('TelevisionView: failed to load episodes:', err);
+    } finally {
+      setIsLoadingEpisodes(false);
+    }
   };
 
   const currentEpisodes = episodes.filter(ep => ep.season === selectedSeason);
@@ -202,7 +203,9 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
             <div className="flex flex-col lg:flex-row gap-16">
                 <div className="w-full lg:w-1/3 space-y-8">
                     <div className="aspect-[2/3] relative rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 group aurora-glow">
-                        <img src={getCover(selectedSeries) || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                        {getCover(selectedSeries) && (
+                          <img src={getCover(selectedSeries)!} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={getTitle(selectedSeries)} />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                         <div className="absolute bottom-8 left-8 right-8">
                              <div className="p-4 glass rounded-2xl flex items-center gap-4 border border-white/5">
@@ -285,7 +288,7 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
                                         </div>
                                         <div className="flex-1 flex flex-col justify-center">
                                             <div className="flex items-center gap-4 mb-3">
-                                                <span className="text-primary font-black text-[10px] uppercase tracking-widest">E{idx + 1}</span>
+                                                <span className="text-primary font-black text-[10px] uppercase tracking-widest">E{ep.episode ?? idx + 1}</span>
                                                 <span className="h-px w-8 bg-white/10"></span>
                                                 <span className="text-on-surface-variant font-label text-[10px] uppercase tracking-widest">Digital Signal Found</span>
                                             </div>

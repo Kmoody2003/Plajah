@@ -181,17 +181,33 @@ async function startServer() {
       }
 
       const Mux = (await import('@mux/mux-node')).default;
-      const mux = new Mux({
-        tokenId: MUX_TOKEN_ID,
-        tokenSecret: MUX_TOKEN_SECRET,
-      });
+      const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
 
       const asset = await mux.video.assets.create({
         inputs: [{ url }],
         playback_policy: ['public'],
       });
 
-      res.json({ assetId: asset.id, playbackId: asset.playback_ids?.[0]?.id });
+      // Mux processes asynchronously — poll until the asset is 'ready' and
+      // playback_ids is populated (up to 3 minutes, checking every 4 seconds).
+      const assetId = asset.id;
+      let playbackId: string | undefined = asset.playback_ids?.[0]?.id;
+
+      if (!playbackId) {
+        for (let i = 0; i < 45; i++) {
+          await new Promise(r => setTimeout(r, 4000));
+          try {
+            const polled = await mux.video.assets.retrieve(assetId);
+            if (polled.status === 'ready' && polled.playback_ids?.[0]?.id) {
+              playbackId = polled.playback_ids[0].id;
+              break;
+            }
+            if (polled.status === 'errored') break;
+          } catch (_) { break; }
+        }
+      }
+
+      res.json({ assetId, playbackId });
     } catch (error: any) {
       console.error('Mux create asset from URL error:', error);
       res.status(500).json({ error: error.message });
