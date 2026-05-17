@@ -1104,8 +1104,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>
               </div>
 
-                {/* Right Side: music video + queue buttons */}
+                {/* Right Side: share + music video + queue buttons */}
                 <div className={`flex items-center justify-end gap-1 shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                  <button
+                    onClick={handleShare}
+                    className="p-2 android-press transition-all rounded-full text-white/30 hover:text-white"
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title="Share"
+                  >
+                    <Share2 size={16} />
+                  </button>
                   {currentTrack?.videoUrl && isPlatformVideoUrl(currentTrack.videoUrl) && (
                     <button
                       onClick={switchToMusicVideo}

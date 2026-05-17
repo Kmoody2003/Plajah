@@ -1600,6 +1600,7 @@ const App: React.FC = () => {
                 onVisitUser={handleVisitUser}
                 userProfile={userProfile}
                 initialTab={musicInitialTab}
+                onUploadMusic={() => setShowCreator(true)}
               />
             )}
             {view === 'BOOKS' && (

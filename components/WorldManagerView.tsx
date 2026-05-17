@@ -49,7 +49,8 @@ import {
   updateTimelineEvent,
   createTimelineEvent,
   uploadWorldPhoto,
-  fetchWorldPhotos
+  fetchWorldPhotos,
+  createIPWorld,
 } from '../services/backendService';
 import WorldGraphView from './WorldGraphView';
 
@@ -527,20 +528,39 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                           <button
                             onClick={async () => {
                               if (!newTimelineName.trim()) return;
-                              if (!world.id) {
-                                alert('This world hasn\'t been saved to the cloud yet.\nClick "Sync Local Snapshot" first, then come back to add timelines.');
+                              if (!auth.currentUser) {
+                                alert('Please sign in to create a timeline.');
                                 return;
+                              }
+                              let worldId = world.id;
+                              // Auto-save the world to Firestore if it hasn't been yet
+                              if (!worldId) {
+                                if (!world.name?.trim()) {
+                                  alert('Give your world a name first (Identity tab), then come back to add timelines.');
+                                  return;
+                                }
+                                try {
+                                  const saved = await createIPWorld({
+                                    ...world,
+                                    creatorId: auth.currentUser.uid,
+                                  });
+                                  setWorld(prev => ({ ...prev, id: saved.id }));
+                                  worldId = saved.id;
+                                } catch (err: any) {
+                                  alert(`Could not save world before creating timeline:\n${err?.message || err}`);
+                                  return;
+                                }
                               }
                               try {
                                 const existingCount = timelines.length;
-                                const tl = await createTimeline({ worldId: world.id!, name: newTimelineName.trim(), color: newTimelineColor });
+                                const tl = await createTimeline({ worldId: worldId!, name: newTimelineName.trim(), color: newTimelineColor });
                                 setTimelines(p => [...p, tl]);
                                 setActiveTimelineId(tl.id);
                                 setNewTimelineName('');
 
                                 if (existingCount === 0) {
                                   const ev = await createTimelineEvent({
-                                    worldId: world.id!,
+                                    worldId: worldId!,
                                     timelineId: tl.id,
                                     title: 'Origin',
                                     description: 'Beginning of this timeline.',

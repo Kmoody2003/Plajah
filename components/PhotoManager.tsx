@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Photo, PhotoAlbum, UserProfile } from '../types';
-import { 
-  Plus, 
-  Grid, 
-  List, 
-  Lock, 
-  Globe, 
-  Trash2, 
-  Image as ImageIcon, 
+import {
+  Plus,
+  Grid,
+  List,
+  Lock,
+  Globe,
+  Trash2,
+  Image as ImageIcon,
   FolderPlus,
   Cloud,
   Upload,
@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   X,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Check,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { uploadPhoto, createPhotoAlbum, auth, db } from '../services/backendService';
@@ -35,6 +37,9 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showRightsModal, setShowRightsModal] = useState(false);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -121,11 +126,14 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
             <Cloud size={14} />
             Import Cloud
           </button>
-          <label className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer hover:scale-105 transition-all shadow-xl">
+          <button
+            onClick={() => setShowRightsModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+          >
             <Upload size={14} />
             Bulk Upload
-            <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} />
-          </label>
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} />
         </div>
       </div>
 
@@ -366,6 +374,69 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                   className="flex-1 py-4 bg-small-orange text-white font-black uppercase tracking-widest text-[10px] rounded-full hover:scale-105 transition-all"
                 >
                   Create Album
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rights Confirmation Modal */}
+      <AnimatePresence>
+        {showRightsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowRightsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 shadow-3xl"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-small-orange/10 rounded-2xl">
+                  <ShieldCheck size={22} className="text-small-orange" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-widest text-white">Content Rights Declaration</h3>
+                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Required before upload</p>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-4 cursor-pointer group mb-8">
+                <button
+                  type="button"
+                  onClick={() => setRightsConfirmed(v => !v)}
+                  className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${rightsConfirmed ? 'bg-small-orange border-small-orange' : 'border-white/30 group-hover:border-white/60'}`}
+                >
+                  {rightsConfirmed && <Check size={12} className="text-white" />}
+                </button>
+                <p className="text-[10px] font-medium text-white/60 leading-relaxed">
+                  I hereby declare, under penalty of applicable law, that I am the original creator of or hold all necessary intellectual property rights, licenses, and permissions to upload, store, and distribute the selected content. I confirm that uploading this content does not infringe any copyright, trademark, right of publicity, privacy right, or any other proprietary right of any third party, and that I am in full compliance with all applicable federal, state, and international laws. I understand that uploading content I do not have rights to violates Plajah's Terms of Service and may result in immediate content removal, account suspension, and potential legal liability.
+                </p>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRightsModal(false)}
+                  className="flex-1 py-4 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/30 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!rightsConfirmed}
+                  onClick={() => {
+                    setShowRightsModal(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex-1 py-4 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  Confirm & Select Files
                 </button>
               </div>
             </motion.div>

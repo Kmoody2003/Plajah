@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useCallback, useEffect, useState } from 'react'
 import ForceGraph3D, { ForceGraphMethods } from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { IPWorld, Character, LoreEntry, TimelineEvent, Album, Video } from '../types';
-import { X, Zap, Volume2, VolumeX } from 'lucide-react';
+import { X, Zap, Volume2, VolumeX, RotateCcw, ExternalLink, ChevronRight } from 'lucide-react';
 
 interface WorldGraphViewProps {
   world: IPWorld;
@@ -13,6 +13,7 @@ interface WorldGraphViewProps {
   videos: Video[];
   onClose?: () => void;
   onNodeClick?: (node: any) => void;
+  onNavigate?: (type: string, id: string) => void;
   isEmbedded?: boolean;
 }
 
@@ -25,11 +26,13 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   videos,
   onClose,
   onNodeClick,
+  onNavigate,
   isEmbedded = false,
 }) => {
   const fgRef = useRef<ForceGraphMethods>(null);
   const nebulaAdded = useRef(false);
   const hasExploded = useRef(false);
+  const introAnimDone = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +40,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   const [hoveredNode, setHoveredNode] = useState<any>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
   const [previewNode, setPreviewNode] = useState<any>(null);
+  const [clickedNode, setClickedNode] = useState<any>(null);
   const [audioMuted, setAudioMuted] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -67,12 +71,12 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     });
 
     characters.forEach(char => {
-      nodes.push({ id: char.id, name: char.name, type: 'CHARACTER', color: '#4A90E2', size: 9, img: char.imageUrl });
+      nodes.push({ id: char.id, name: char.name, type: 'CHARACTER', color: '#4A90E2', size: 9, img: char.imageUrl, description: char.bio });
       links.push({ source: world.id, target: char.id, label: 'INHABITANT' });
     });
 
     loreEntries.forEach(entry => {
-      nodes.push({ id: entry.id, name: entry.title, type: 'LORE', color: '#9b59b6', size: 7 });
+      nodes.push({ id: entry.id, name: entry.title, type: 'LORE', color: '#9b59b6', size: 7, description: entry.content?.slice(0, 140) });
       links.push({ source: world.id, target: entry.id, label: 'KNOWLEDGE' });
     });
 
@@ -147,6 +151,12 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     if (!dimensions.width || !dimensions.height) return;
     const padding = Math.min(dimensions.width, dimensions.height) * 0.08;
     fgRef.current?.zoomToFit(400, padding);
+  }, [dimensions]);
+
+  const handleReset = useCallback(() => {
+    setClickedNode(null);
+    const padding = Math.min(dimensions.width || 400, dimensions.height || 400) * 0.08;
+    fgRef.current?.zoomToFit(800, padding);
   }, [dimensions]);
 
   // ── Nebula background ──────────────────────────────────────────────────────
@@ -277,7 +287,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     return group;
   }, []);
 
-  // ── Click: explosion burst on first touch, then camera center ──────────────
+  // ── Click: explosion burst on first touch, camera center, info card ─────────
   const handleNodeClick = useCallback((node: any) => {
     const fg = fgRef.current as any;
 
@@ -286,7 +296,6 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       hasExploded.current = true;
       fg.d3Force('charge')?.strength(-1400).distanceMax(800);
       fg.d3ReheatSimulation();
-      // Settle back to comfortable spread after burst
       setTimeout(() => {
         fg.d3Force('charge')?.strength(-450).distanceMax(600);
         fg.d3ReheatSimulation();
@@ -298,10 +307,11 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       fgRef.current.cameraPosition(
         { x: node.x, y: node.y, z: (node.z ?? 0) + 90 },
         { x: node.x, y: node.y, z: node.z ?? 0 },
-        2000,
+        1200,
       );
     }
 
+    setClickedNode(node);
     onNodeClick?.(node);
   }, [onNodeClick]);
 
@@ -369,11 +379,20 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
             <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Interactive 3D Connection Mapping: {world.name}</p>
           </div>
         )}
-        {onClose && (
-          <button onClick={onClose} className="pointer-events-auto p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white ml-auto">
-            <X size={24} />
+        <div className="flex items-center gap-3 ml-auto pointer-events-auto">
+          <button
+            onClick={handleReset}
+            title="Reset view"
+            className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white"
+          >
+            <RotateCcw size={18} />
           </button>
-        )}
+          {onClose && (
+            <button onClick={onClose} className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/40 hover:text-white">
+              <X size={24} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Legend */}
@@ -473,6 +492,62 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         </div>
       )}
 
+      {/* Node info card */}
+      {clickedNode && (
+        <div className={`absolute z-30 ${isEmbedded ? 'bottom-4 right-4 max-w-[220px]' : 'bottom-8 right-8 max-w-[280px]'} bg-black/85 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden shadow-2xl`}>
+          {clickedNode.img && (
+            <div className="relative">
+              <img src={clickedNode.img} alt="" className="w-full h-28 object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-2 left-3">
+                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full`} style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+                  {nodeTypeLabel(clickedNode.type)}
+                </span>
+              </div>
+            </div>
+          )}
+          {!clickedNode.img && (
+            <div className="px-4 pt-4 pb-0">
+              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full`} style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+                {nodeTypeLabel(clickedNode.type)}
+              </span>
+            </div>
+          )}
+          <div className="p-4">
+            <h3 className="font-black text-sm leading-tight mb-1">{clickedNode.name}</h3>
+            {clickedNode.description && (
+              <p className="text-[11px] text-white/50 leading-relaxed mb-3 line-clamp-3">{clickedNode.description}</p>
+            )}
+            <div className="flex items-center gap-2">
+              {onNavigate && (clickedNode.type === 'VIDEO' || clickedNode.type === 'ALBUM') && (
+                <button
+                  onClick={() => { onNavigate(clickedNode.type, clickedNode.id); setClickedNode(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  Open
+                </button>
+              )}
+              {onNavigate && (clickedNode.type === 'CHARACTER' || clickedNode.type === 'LORE' || clickedNode.type === 'TIMELINE' || clickedNode.type === 'WORLD') && (
+                <button
+                  onClick={() => { onNavigate(clickedNode.type, clickedNode.id); setClickedNode(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold transition-colors"
+                >
+                  <ChevronRight size={12} />
+                  World Page
+                </button>
+              )}
+              <button
+                onClick={() => setClickedNode(null)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ForceGraph3D
         ref={fgRef}
         graphData={graphData}
@@ -493,11 +568,41 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         onEngineStop={() => {
           setupNebula();
           const padding = Math.min(dimensions.width || 400, dimensions.height || 400) * 0.08;
-          fgRef.current?.zoomToFit(500, padding);
+          if (!introAnimDone.current) {
+            introAnimDone.current = true;
+            // Jump camera to a distant position first (the "traveling through space" start)
+            const fg = fgRef.current as any;
+            if (fg?.camera) {
+              const cam = fg.camera();
+              cam.position.set(0, 0, 4500);
+            }
+            // Then smoothly rush in to fit all nodes
+            setTimeout(() => {
+              fgRef.current?.zoomToFit(2200, padding);
+            }, 80);
+          } else {
+            fgRef.current?.zoomToFit(500, padding);
+          }
         }}
       />
     </div>
   );
+};
+
+const nodeTypeColor = (type: string) => {
+  const map: Record<string, string> = {
+    WORLD: '#ff8c00', CHARACTER: '#4A90E2', LORE: '#9b59b6',
+    TIMELINE: '#2ecc71', ALBUM: '#f1c40f', VIDEO: '#e74c3c',
+  };
+  return map[type] || '#ffffff';
+};
+
+const nodeTypeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    WORLD: 'World', CHARACTER: 'Character', LORE: 'Lore',
+    TIMELINE: 'Event', ALBUM: 'Album', VIDEO: 'Video',
+  };
+  return map[type] || type;
 };
 
 const LegendItem = ({ color, label, compact }: { color: string; label: string; compact?: boolean }) => (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Video, VideoPlaylist, Album, Track } from '../types';
 import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile } from '../services/backendService';
-import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio } from 'lucide-react';
+import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck } from 'lucide-react';
 import UploadManager from './UploadManager';
 import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
@@ -24,6 +24,8 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [newPlaylist, setNewPlaylist] = useState({ title: '', description: '' });
   const [fastChannelEnabled, setFastChannelEnabled] = useState<boolean>(user?.fastChannelEnabled ?? false);
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
+  const [showRightsModal, setShowRightsModal] = useState(false);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -163,8 +165,8 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
             <p className="text-white/50 text-sm font-bold uppercase tracking-widest">Manage your visual archive & FAST channels</p>
           </div>
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsUploading(true)}
+            <button
+              onClick={() => setShowRightsModal(true)}
               className="flex items-center gap-3 px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] hover:scale-105 transition-all shadow-xl"
             >
               <Plus size={18} />
@@ -487,6 +489,69 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Rights Confirmation Modal */}
+      <AnimatePresence>
+        {showRightsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowRightsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 shadow-3xl"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-small-orange/10 rounded-2xl">
+                  <ShieldCheck size={22} className="text-small-orange" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-widest text-white">Content Rights Declaration</h3>
+                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Required before upload</p>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-4 cursor-pointer group mb-8">
+                <button
+                  type="button"
+                  onClick={() => setRightsConfirmed(v => !v)}
+                  className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${rightsConfirmed ? 'bg-small-orange border-small-orange' : 'border-white/30 group-hover:border-white/60'}`}
+                >
+                  {rightsConfirmed && <Check size={12} className="text-white" />}
+                </button>
+                <p className="text-[10px] font-medium text-white/60 leading-relaxed">
+                  I hereby declare, under penalty of applicable law, that I am the original creator of or hold all necessary intellectual property rights, licenses, and permissions to upload, store, and distribute this video content. I confirm this upload does not infringe any copyright, trademark, right of publicity, privacy right, or any other proprietary right of any third party, and that I am in full compliance with all applicable federal, state, and international laws including the Digital Millennium Copyright Act (DMCA). I understand that uploading content I do not own violates Plajah's Terms of Service and may result in immediate content removal, account suspension, and potential legal liability.
+                </p>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRightsModal(false)}
+                  className="flex-1 py-4 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/30 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!rightsConfirmed}
+                  onClick={() => {
+                    setShowRightsModal(false);
+                    setIsUploading(true);
+                  }}
+                  className="flex-1 py-4 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  Confirm & Upload
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

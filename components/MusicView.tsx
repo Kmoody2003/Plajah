@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, auth } from '../services/backendService';
@@ -29,9 +29,10 @@ interface MusicViewProps {
   onVisitUser: (uid: string, initialTab?: string) => void;
   userProfile: UserProfile | null;
   initialTab?: TabType;
+  onUploadMusic?: () => void;
 }
 
-const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab }) => {
+const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
@@ -383,16 +384,27 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             <PageHeader>Plajah Chora</PageHeader>
           </div>
           <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
-            <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
-              {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-8 overflow-x-auto no-scrollbar flex-1">
+                {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); }}
+                    className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-2 border-b-2 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
+                  >
+                    {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              {onUploadMusic && (
                 <button
-                  key={tab}
-                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); }}
-                  className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-2 border-b-2 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
+                  onClick={onUploadMusic}
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.4)] whitespace-nowrap"
                 >
-                  {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
+                  <Upload size={13} />
+                  Upload Music
                 </button>
-              ))}
+              )}
             </div>
           </nav>
           {activeTab === 'NEW' && !selectedArchiveArtist && (

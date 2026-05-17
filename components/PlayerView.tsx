@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Album, Track, Comment } from '../types';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
@@ -309,10 +309,89 @@ interface PlayerViewProps {
   user: FirebaseUser | null;
 }
 
-const PlayerView: React.FC<PlayerViewProps> = ({ 
-  album, 
-  onBack, 
-  onEdit, 
+// Amplitude-reactive bars — reads directly from Web Audio AnalyserNode via RAF
+const AmplitudeBar: React.FC<{ analyser: AnalyserNode | null; isPlaying: boolean }> = ({ analyser, isPlaying }) => {
+  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const rafRef = useRef<number>(0);
+  const BAR_COUNT = 7;
+
+  useEffect(() => {
+    const bars = barsRef.current;
+    if (!analyser || !isPlaying) {
+      bars.forEach(b => { if (b) { b.style.height = '2px'; b.style.opacity = '0.2'; } });
+      return;
+    }
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const bar = bars[i];
+        if (!bar) continue;
+        const bucket = Math.floor((data.length / 3) * (i / BAR_COUNT));
+        const val = data[bucket] / 255;
+        bar.style.height = `${Math.max(2, val * 24)}px`;
+        bar.style.opacity = String(0.3 + val * 0.7);
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [analyser, isPlaying]);
+
+  return (
+    <div className="flex items-end gap-[2px] h-6 shrink-0">
+      {Array.from({ length: BAR_COUNT }).map((_, i) => (
+        <div
+          key={i}
+          ref={el => { barsRef.current[i] = el; }}
+          className="w-[3px] rounded-full bg-small-orange"
+          style={{ height: '2px', opacity: 0.2, transition: 'height 0.06s ease, opacity 0.06s ease' }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Caption ticker that scrolls through lyric chunks like a rolodex
+const CaptionTicker: React.FC<{ caption: string }> = ({ caption }) => {
+  const words = caption.split(' ').filter(Boolean);
+  const CHUNK = 4;
+  const chunks = useMemo(() => {
+    const out: string[] = [];
+    for (let i = 0; i < words.length; i += CHUNK) out.push(words.slice(i, i + CHUNK).join(' '));
+    return out.length ? out : [caption];
+  }, [caption]);
+
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [caption]);
+  useEffect(() => {
+    if (chunks.length <= 1) return;
+    const t = setInterval(() => setIdx(p => (p + 1) % chunks.length), 1600);
+    return () => clearInterval(t);
+  }, [chunks]);
+
+  return (
+    <div className="h-4 overflow-hidden relative w-full">
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={`${caption}-${idx}`}
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -10, opacity: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="absolute inset-0 text-[9px] font-bold uppercase tracking-widest text-white/30 truncate leading-4"
+        >
+          {chunks[idx]}
+        </motion.span>
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const PlayerView: React.FC<PlayerViewProps> = ({
+  album,
+  onBack,
+  onEdit,
   onUpdate, 
   onPurchase,
   onVisitUser,
@@ -832,14 +911,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
                       <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-3 text-left flex-1 min-w-0">
                         <span className="text-[10px] font-black text-small-orange w-4 shrink-0">{i + 1}</span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold uppercase tracking-widest truncate">{t.title}</p>
-                          <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>
+                          {isActive && isCurrentTrackGlobal
+                            ? <CaptionTicker caption={getCurrentCaption()} />
+                            : <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>}
                         </div>
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
                         {isActive && globalIsPlaying && isCurrentTrackGlobal
-                          ? <Activity size={14} className="text-small-orange" />
+                          ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
                           : <Play size={14} className="text-white/20" fill="currentColor" />}
                         {isOwner && (
                           <button
