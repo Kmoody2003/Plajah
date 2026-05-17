@@ -110,6 +110,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const pannerRef = useRef<PannerNode | null>(null);
+  const bypassGainRef = useRef<GainNode | null>(null);
+  const pannerInputGainRef = useRef<GainNode | null>(null);
   const spatialAnimRef = useRef<number>(0);
   const [isSpatialAudioEnabled, setIsSpatialAudioEnabledState] = useState(false);
   const contextRef = useRef<GlobalPlayerContextType | null>(null);
@@ -166,7 +168,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         analyserRef.current = analyser;
-        // Create HRTF panner for Eclipsa spatial audio (neutral position by default)
+        // Panner for Eclipsa spatial audio — only active when an Eclipsa track is playing
         const panner = ctx.createPanner();
         panner.panningModel = 'HRTF';
         panner.distanceModel = 'inverse';
@@ -179,6 +181,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         panner.positionY.value = 0;
         panner.positionZ.value = -1;
         pannerRef.current = panner;
+        // Gain nodes to route audio around the panner for non-Eclipsa files
+        const bypassGain = ctx.createGain();
+        bypassGain.gain.value = 1; // default: bypass active (transparent path)
+        bypassGainRef.current = bypassGain;
+        const pannerInputGain = ctx.createGain();
+        pannerInputGain.gain.value = 0; // default: panner path muted
+        pannerInputGainRef.current = pannerInputGain;
       }
     }
     // Always attempt to resume if called (usually in response to user interaction)
@@ -197,9 +206,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
       try {
         const source = audioContextRef.current.createMediaElementSource(audio);
-        if (pannerRef.current) {
-          // Chain: source → panner → analyser → destination
-          source.connect(pannerRef.current);
+        if (pannerRef.current && bypassGainRef.current && pannerInputGainRef.current) {
+          // Dual-path graph — only the active path carries audio:
+          // Bypass path (default, no HRTF coloring): source → bypassGain → analyser → destination
+          // Spatial path (Eclipsa only):              source → pannerInputGain → panner → analyser → destination
+          source.connect(bypassGainRef.current);
+          source.connect(pannerInputGainRef.current);
+          bypassGainRef.current.connect(analyserRef.current);
+          pannerInputGainRef.current.connect(pannerRef.current);
           pannerRef.current.connect(analyserRef.current);
         } else {
           source.connect(analyserRef.current);
@@ -304,6 +318,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     stateRef.current.currentAlbum = album;
     stateRef.current.audioSource = source;
     stateRef.current.isPlaying = true;
+
+    // Auto-enable spatial audio for Eclipsa files, auto-disable for regular files
+    if (isNewTrack) {
+      setSpatialAudioEnabled(!!track.isEclipsa);
+    }
 
     if (source !== 'VIDEO') {
       if (isNewTrack) {
@@ -773,25 +792,35 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const setSpatialAudioEnabled = useCallback((val: boolean) => {
     setIsSpatialAudioEnabledState(val);
     const panner = pannerRef.current;
-    if (!panner) return;
+    const bypassGain = bypassGainRef.current;
+    const pannerInputGain = pannerInputGainRef.current;
     cancelAnimationFrame(spatialAnimRef.current);
     if (val) {
-      // Slowly orbit the audio source in the horizontal plane (creates genuine 3D sensation with headphones)
-      let angle = 0;
-      const animate = () => {
-        angle += 0.008;
-        const radius = 3;
-        panner.positionX.value = Math.sin(angle) * radius;
-        panner.positionY.value = Math.sin(angle * 0.5) * 0.5;
-        panner.positionZ.value = Math.cos(angle) * radius;
-        spatialAnimRef.current = requestAnimationFrame(animate);
-      };
-      animate();
+      // Route audio through HRTF panner, mute transparent bypass
+      if (bypassGain) bypassGain.gain.value = 0;
+      if (pannerInputGain) pannerInputGain.gain.value = 1;
+      if (panner) {
+        // Slowly orbit the audio source in the horizontal plane
+        let angle = 0;
+        const animate = () => {
+          angle += 0.008;
+          const radius = 3;
+          panner.positionX.value = Math.sin(angle) * radius;
+          panner.positionY.value = Math.sin(angle * 0.5) * 0.5;
+          panner.positionZ.value = Math.cos(angle) * radius;
+          spatialAnimRef.current = requestAnimationFrame(animate);
+        };
+        animate();
+      }
     } else {
-      // Reset to neutral (directly in front of listener — transparent pass-through)
-      panner.positionX.value = 0;
-      panner.positionY.value = 0;
-      panner.positionZ.value = -1;
+      // Route audio through transparent bypass — panner receives no signal, zero HRTF coloring
+      if (bypassGain) bypassGain.gain.value = 1;
+      if (pannerInputGain) pannerInputGain.gain.value = 0;
+      if (panner) {
+        panner.positionX.value = 0;
+        panner.positionY.value = 0;
+        panner.positionZ.value = -1;
+      }
     }
   }, []);
 

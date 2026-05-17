@@ -1548,7 +1548,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     >
                       <Logo size={16} />
                     </button>
-                    {currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
+                    {((currentAlbum?.slideshow && currentAlbum.slideshow.length > 0) || (currentTrack?.images && currentTrack.images.length > 0)) && (
                       <button
                         onClick={() => setIsSlideshowActive(!isSlideshowActive)}
                         className={`p-2 rounded-xl transition-all ${isSlideshowActive ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
