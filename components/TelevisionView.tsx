@@ -5,7 +5,18 @@ import { ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/
 import { Play, ChevronLeft, Loader2, Info, TrendingUp, Star, Zap, Eye } from 'lucide-react';
 import ScrollableTabRow from './ScrollableTabRow';
 
-const TV_GENRE_CHIPS = ['All', 'Comedy', 'Drama', 'Action', 'Sci-Fi', 'Crime', 'Horror', 'Reality', 'Documentary', 'Animation', 'Classic'];
+const TV_GENRE_CHIPS = ['All', 'Trailers', 'Comedy', 'Drama', 'Action', 'Sci-Fi', 'Crime', 'Horror', 'Reality', 'Documentary', 'Animation', 'Classic'];
+
+const tvMatchesChip = (item: any, chip: string): boolean => {
+  if (chip === 'All') return true;
+  const lc = chip.toLowerCase();
+  const genre = (('genre' in item ? item.genre : '') || '').toLowerCase();
+  const subType = (item.subType || '').toLowerCase();
+  const tags: string[] = item.tags || [];
+  const tagMatch = tags.some((t: string) => t.toLowerCase().includes(lc));
+  if (chip === 'Trailers') return subType === 'trailer' || tagMatch || genre.includes('trailer');
+  return genre.includes(lc) || subType === lc || tagMatch;
+};
 
 const SeriesCard: React.FC<{ item: any; onClick: (i: any) => void; width?: string }> = ({ item, onClick, width = 'min-w-[140px] md:min-w-[160px]' }) => {
   const cover = item.thumbnailUrl || item.coverImage || null;
@@ -297,29 +308,25 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
     );
   }
 
-  const genreFiltered = useMemo(() => {
-    if (selectedGenre === 'All') return series;
-    return series.filter(s => {
-      const g = ('genre' in s ? (s as any).genre : '') || '';
-      return g.toLowerCase().includes(selectedGenre.toLowerCase());
-    });
-  }, [selectedGenre, series]);
+  const genreFiltered = useMemo(() =>
+    series.filter(s => tvMatchesChip(s, selectedGenre)),
+  [selectedGenre, series]);
 
   const newShows = useMemo(() => series.slice(0, 20), [series]);
   const recommended = useMemo(() => series.filter((_, i) => i % 3 === 2).slice(0, 20), [series]);
   const popular = useMemo(() => [...series].reverse().slice(0, 20), [series]);
 
   const genreCategories = useMemo(() => {
-    const genres = Array.from(new Set<string>(series.map(s => {
-      if ('genre' in s && (s as any).genre) return (s as any).genre as string;
-      return 'Classic TV';
-    }).filter(Boolean)));
+    const genres = Array.from(new Set<string>(
+      series.flatMap(s => {
+        const g = 'genre' in s ? (s as any).genre : null;
+        const tags: string[] = (s as any).tags || [];
+        return [g || 'Classic TV', ...tags].filter(Boolean);
+      })
+    )).filter(g => !['trailer', 'Trailer'].includes(g));
     return genres.map(genre => ({
       genre,
-      items: series.filter(s => {
-        const g = 'genre' in s ? (s as any).genre : null;
-        return g === genre || (!g && genre === 'Classic TV');
-      }).slice(0, 16)
+      items: series.filter(s => tvMatchesChip(s, genre)).slice(0, 16)
     })).filter(g => g.items.length >= 2).slice(0, 5);
   }, [series]);
 

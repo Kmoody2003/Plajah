@@ -83,9 +83,12 @@ import {
   fetchThemePresetsByIds,
   subscribeToPodcast,
   unsubscribeFromPodcast,
-  fetchAlbumsByIds
+  fetchAlbumsByIds,
+  fetchFastChannelVideos
 } from '../services/backendService';
 import { motion, AnimatePresence } from 'motion/react';
+import FastChannelPlayer from './FastChannelPlayer';
+import FastChannelManager from './FastChannelManager';
 import { Article, SystemSettingsConfig } from '../types';
 import MerchStore from './MerchStore';
 import StoreView from './StoreView';
@@ -484,6 +487,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   const [isLivePlayerExpanded, setIsLivePlayerExpanded] = useState(false);
   const [isLivePlaying, setIsLivePlaying] = useState(false);
+  const [showFastChannel, setShowFastChannel] = useState(false);
+  const [hasFastContent, setHasFastContent] = useState(false);
+  const [showFastChannelManager, setShowFastChannelManager] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    if (profile.fastChannelEnabled || profile.liveStreamConfig?.fastChannelUrl) {
+      fetchFastChannelVideos(profile.uid).then(vids => setHasFastContent(vids.length > 0));
+    }
+  }, [profile?.uid, profile?.fastChannelEnabled]);
 
   useEffect(() => {
     if (!isLivePlayerExpanded) {
@@ -742,10 +755,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 )}
 
                 {!profile.liveStreamConfig?.isActive && profile.radioSettings?.enabled && (
-                   <button 
+                   <button
                     onClick={() => {
-                      const event = new CustomEvent('NAVIGATE', { 
-                        detail: { target: 'RADIO', artistId: profile.uid } 
+                      const event = new CustomEvent('NAVIGATE', {
+                        detail: { target: 'RADIO', artistId: profile.uid }
                       });
                       window.dispatchEvent(event);
                     }}
@@ -753,6 +766,28 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   >
                     <Radio size={18} />
                     <span className="text-[12px] font-black uppercase tracking-widest">Artist Radio</span>
+                  </button>
+                )}
+
+                {/* FAST Channel Watch Button */}
+                {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
+                  <button
+                    onClick={() => setShowFastChannel(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-3 shadow-[0_0_20px_rgba(107,0,153,0.4)]"
+                  >
+                    <Tv size={18} />
+                    <span className="text-[12px] font-black uppercase tracking-widest">Watch Channel</span>
+                  </button>
+                )}
+
+                {/* Manage Channel (owner only) */}
+                {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
+                  <button
+                    onClick={() => setShowFastChannelManager(true)}
+                    className="px-6 py-3 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-3"
+                  >
+                    <Radio size={18} />
+                    <span className="text-[12px] font-black uppercase tracking-widest">Manage Channel</span>
                   </button>
                 )}
               </div>
@@ -3027,6 +3062,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
         )}
       </AnimatePresence>
+
+      {showFastChannel && profile && (
+        <FastChannelPlayer profile={profile} onClose={() => setShowFastChannel(false)} />
+      )}
+
+      {showFastChannelManager && profile && (
+        <div className="fixed inset-0 z-[200]">
+          <FastChannelManager user={profile} onBack={() => setShowFastChannelManager(false)} />
+        </div>
+      )}
     </div>
   );
 };

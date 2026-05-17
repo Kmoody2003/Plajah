@@ -351,48 +351,52 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   useEffect(() => { loadData(); }, [profile?.uid]);
 
   const loadData = async () => {
-    const [vids, pls, uVids, allAlbums, settings] = await Promise.all([
-      fetchAllVideos(),
-      fetchVideoPlaylists(),
-      profile?.uid ? fetchUserVideos(profile.uid) : Promise.resolve([]),
-      fetchAllPublicAlbums(),
-      fetchSystemSettingsConfig()
-    ]);
-    fetchAllLiveFeeds(setLiveFeeds);
-    if (vids.length) {
-      const pool = vids.slice(0, Math.min(vids.length, 20));
-      setHeroVideo(pool[Math.floor(Math.random() * pool.length)]);
-    }
-    setVideos(vids);
-    setPlaylists(pls);
-    setUserVideos(uVids);
-    setUserAlbums(allAlbums.filter(a => a.ownerId === auth.currentUser?.uid));
-    setMovies(allAlbums.filter(a => a.type === 'VIDEO' && a.subType === 'MOVIE'));
-    setTvSeries(allAlbums.filter(a => a.type === 'VIDEO' && a.subType === 'TV_SERIES'));
-
-    // Build flat track list from user's music albums for MV linking
-    const musicAlbums = allAlbums.filter(a => a.ownerId === auth.currentUser?.uid && a.type === 'MUSIC');
-    const tracks = musicAlbums.flatMap(album =>
-      (album.tracks || []).map(t => ({ ...t, albumTitle: album.title, albumId: album.id }))
-    );
-    setUserTracks(tracks);
-
-    if (auth.currentUser) {
-      const [followed, interested, worlds] = await Promise.all([
-        fetchFollowedVideos(auth.currentUser.uid),
-        fetchVideosByInterests(auth.currentUser.uid),
-        fetchUserWorlds(auth.currentUser.uid)
+    try {
+      const [vids, pls, uVids, allAlbums, settings] = await Promise.all([
+        fetchAllVideos(),
+        fetchVideoPlaylists(),
+        profile?.uid ? fetchUserVideos(profile.uid) : Promise.resolve([]),
+        fetchAllPublicAlbums(),
+        fetchSystemSettingsConfig()
       ]);
-      setFollowedVideos(followed);
-      setInterestVideos(interested);
-      setUserWorlds(worlds.map((w: any) => ({ id: w.id, name: w.name || w.title || 'World' })));
-    }
+      fetchAllLiveFeeds(setLiveFeeds);
+      if (vids.length) {
+        const pool = vids.slice(0, Math.min(vids.length, 20));
+        setHeroVideo(pool[Math.floor(Math.random() * pool.length)]);
+      }
+      setVideos(vids);
+      setPlaylists(pls);
+      setUserVideos(uVids);
+      setUserAlbums(allAlbums.filter(a => a.ownerId === auth.currentUser?.uid));
+      setMovies(allAlbums.filter(a => a.type === 'VIDEO' && a.subType === 'MOVIE'));
+      setTvSeries(allAlbums.filter(a => a.type === 'VIDEO' && a.subType === 'TV_SERIES'));
 
-    if (settings.curatedVideoPlaylists?.length) {
-      setCuratedVideoPlaylists(await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists));
-    }
-    if (settings.mustWatchMovies?.length) {
-      setMustWatchMovies(await fetchVideosByIds(settings.mustWatchMovies));
+      // Build flat track list from user's music albums for MV linking
+      const musicAlbums = allAlbums.filter(a => a.ownerId === auth.currentUser?.uid && a.type === 'MUSIC');
+      const tracks = musicAlbums.flatMap(album =>
+        (album.tracks || []).map(t => ({ ...t, albumTitle: album.title, albumId: album.id }))
+      );
+      setUserTracks(tracks);
+
+      if (auth.currentUser) {
+        const [followed, interested, worlds] = await Promise.all([
+          fetchFollowedVideos(auth.currentUser.uid),
+          fetchVideosByInterests(auth.currentUser.uid),
+          fetchUserWorlds(auth.currentUser.uid)
+        ]);
+        setFollowedVideos(followed);
+        setInterestVideos(interested);
+        setUserWorlds(worlds.map((w: any) => ({ id: w.id, name: w.name || w.title || 'World' })));
+      }
+
+      if (settings.curatedVideoPlaylists?.length) {
+        setCuratedVideoPlaylists(await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists));
+      }
+      if (settings.mustWatchMovies?.length) {
+        setMustWatchMovies(await fetchVideosByIds(settings.mustWatchMovies));
+      }
+    } catch (error) {
+      console.error('VideoTab: failed to load content:', error);
     }
   };
 
@@ -519,21 +523,25 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={14} /></button>}
           </div>
 
-          {/* Actions */}
+          {/* Actions — always visible; require auth when clicked */}
           <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <button
+              onClick={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${isLiveStreamActive ? 'bg-green-600 text-white' : 'bg-red-600/80 text-white hover:bg-red-600'}`}
+            >
+              <Radio size={14} /> {isLiveStreamActive ? 'Live' : 'Go Live'}
+            </button>
             {isOwner && (
-              <>
-                <button onClick={() => setShowGoLiveModal(true)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${isLiveStreamActive ? 'bg-green-600 text-white' : 'bg-red-600/80 text-white hover:bg-red-600'}`}>
-                  <Radio size={14} /> {isLiveStreamActive ? 'Live' : 'Go Live'}
-                </button>
-                <button onClick={() => setShowYoutubeImport(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest">
-                  <Plus size={14} /> Import
-                </button>
-                <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg">
-                  <Upload size={14} /> Upload
-                </button>
-              </>
+              <button onClick={() => setShowYoutubeImport(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest">
+                <Plus size={14} /> Import
+              </button>
             )}
+            <button
+              onClick={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
+            >
+              <Upload size={14} /> Upload
+            </button>
           </div>
         </div>
 

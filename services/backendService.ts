@@ -28,7 +28,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -1759,7 +1759,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Do NOT re-throw here — callers that need to propagate errors must do so explicitly with `throw e`.
+  // Re-throwing here causes every `catch (e) { handleFirestoreError(...); return []; }` fallback to be dead code.
 }
 
 /**
@@ -4422,13 +4423,11 @@ export const fetchPersonalPlaylists = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_playlists';
   try {
-    const q = query(
-      collection(db, 'personal_playlists'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('timestamp', 'desc')
-    );
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
+    const q = query(collection(db, 'personal_playlists'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Playlist);
+    const playlists = snap.docs.map(d => d.data() as Playlist);
+    return playlists.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5021,9 +5020,11 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
 export const fetchAllVideos = async (): Promise<Video[]> => {
   const path = 'videos';
   try {
-    const q = query(collection(db, path), where("isPrivate", "==", false), orderBy("timestamp", "desc"), limit(50));
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
+    const q = query(collection(db, path), where("isPrivate", "==", false), limit(100));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Video);
+    const videos = snap.docs.map(d => d.data() as Video);
+    return videos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5149,14 +5150,16 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
 export const fetchVideoPlaylists = async (uid?: string): Promise<VideoPlaylist[]> => {
   const path = 'video_playlists';
   try {
+    // No orderBy — avoids composite index requirement on named database; sort in JS instead
     let q;
     if (uid) {
-      q = query(collection(db, path), where("ownerId", "==", uid), orderBy("timestamp", "desc"));
+      q = query(collection(db, path), where("ownerId", "==", uid));
     } else {
-      q = query(collection(db, path), where("isPublic", "==", true), orderBy("timestamp", "desc"), limit(50));
+      q = query(collection(db, path), where("isPublic", "==", true), limit(100));
     }
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as VideoPlaylist);
+    const playlists = snap.docs.map(d => d.data() as VideoPlaylist);
+    return playlists.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5381,6 +5384,284 @@ export const updateTrack = async (trackId: string, updates: Partial<Track>) => {
     await updateDoc(doc(db, 'tracks', trackId), removeUndefined(updates));
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
+  }
+};
+
+export const fetchFastChannelVideos = async (uid: string): Promise<Video[]> => {
+  const path = 'videos';
+  try {
+    const q = query(collection(db, path), where('ownerId', '==', uid), where('allowInFastChannel', '==', true));
+    const snap = await getDocs(q);
+    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    return videos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const updateFastChannelEnabled = async (uid: string, enabled: boolean) => {
+  await updateUserProfile(uid, { fastChannelEnabled: enabled } as any);
+};
+
+// ── FAST CHANNEL SCHEDULE ─────────────────────────────────────────────────────
+
+export const fetchFastChannelSchedule = async (uid: string): Promise<FastChannelSchedule | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'fast_channel_schedules', uid));
+    if (snap.exists()) return snap.data() as FastChannelSchedule;
+    return null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `fast_channel_schedules/${uid}`);
+    return null;
+  }
+};
+
+export const saveFastChannelSchedule = async (schedule: FastChannelSchedule): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'fast_channel_schedules', schedule.userId), { ...schedule, lastUpdated: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_schedules/${schedule.userId}`);
+    throw e;
+  }
+};
+
+export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number): Promise<void> => {
+  const scheduleRef = doc(db, 'fast_channel_schedules', uid);
+  try {
+    await updateDoc(scheduleRef, {
+      pendingLiveInterrupt: { scheduledAt, maxDurationSeconds },
+      lastUpdated: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `fast_channel_schedules/${uid}`);
+    throw e;
+  }
+};
+
+export const clearLiveInterrupt = async (uid: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'fast_channel_schedules', uid), {
+      pendingLiveInterrupt: null,
+      lastUpdated: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `fast_channel_schedules/${uid}`);
+  }
+};
+
+/**
+ * Auto-generates a looping 24/7 schedule from the user's FAST channel videos.
+ * Inserts ad breaks at the configured frequency. Bumpers wrap each content block.
+ */
+export const autoGenerateFastChannelSchedule = async (uid: string): Promise<FastChannelSchedule> => {
+  const [videos, bumpers, existing] = await Promise.all([
+    fetchFastChannelVideos(uid),
+    fetchChannelBumpers(uid),
+    fetchFastChannelSchedule(uid),
+  ]);
+
+  const adFreq = existing?.adFrequencyMinutes ?? 20;
+  const adDur = existing?.adDurationSeconds ?? 60;
+  const includePublicDomain = existing?.includePublicDomain ?? false;
+
+  const slots: FastChannelSlot[] = [];
+  let order = 0;
+  let minutesSinceLastAd = 0;
+
+  const introBumper = bumpers.find(b => b.type === 'INTRO');
+  const outroBumper = bumpers.find(b => b.type === 'OUTRO');
+  const stationId = bumpers.find(b => b.type === 'STATION_ID');
+
+  // Station ID at start
+  if (stationId) {
+    slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: stationId.id, bumperUrl: stationId.url, bumperTitle: stationId.title, bumperDurationSeconds: stationId.durationSeconds });
+    order++;
+  }
+
+  for (const video of videos) {
+    const durationMins = (video.timestamp || 0) > 0 ? 0 : 30; // fallback 30min if duration unknown
+
+    // Intro bumper before each video
+    if (introBumper) {
+      slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: introBumper.id, bumperUrl: introBumper.url, bumperTitle: introBumper.title, bumperDurationSeconds: introBumper.durationSeconds });
+      order++;
+    }
+
+    // The video itself
+    const videoSlot: FastChannelSlot = {
+      id: `slot_${order}`,
+      type: 'VIDEO',
+      order,
+      videoId: video.id,
+      videoUrl: video.url || video.muxPlaybackId ? `https://stream.mux.com/${video.muxPlaybackId}.m3u8` : video.url,
+      videoTitle: video.title,
+      videoThumbnail: video.thumbnailUrl || video.coverImage,
+      sourceUserId: uid,
+    };
+    // Copy ad markers from video metadata
+    if (video.adMarkers?.length) {
+      videoSlot.adMarkersSeconds = video.adMarkers.map(m => m.time);
+    }
+    slots.push(videoSlot);
+    order++;
+
+    // Outro bumper
+    if (outroBumper) {
+      slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: outroBumper.id, bumperUrl: outroBumper.url, bumperTitle: outroBumper.title, bumperDurationSeconds: outroBumper.durationSeconds });
+      order++;
+    }
+
+    minutesSinceLastAd += durationMins;
+    if (minutesSinceLastAd >= adFreq) {
+      slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
+      order++;
+      minutesSinceLastAd = 0;
+    }
+  }
+
+  const schedule: FastChannelSchedule = {
+    userId: uid,
+    slots,
+    adFrequencyMinutes: adFreq,
+    adDurationSeconds: adDur,
+    loopSchedule: true,
+    autoGenerated: true,
+    includePublicDomain,
+    lastUpdated: Date.now(),
+  };
+
+  await saveFastChannelSchedule(schedule);
+  return schedule;
+};
+
+// ── CHANNEL BUMPERS ───────────────────────────────────────────────────────────
+
+export const fetchChannelBumpers = async (uid: string): Promise<ChannelBumper[]> => {
+  try {
+    const q = query(collection(db, 'channel_bumpers'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ChannelBumper));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'channel_bumpers');
+    return [];
+  }
+};
+
+export const saveChannelBumper = async (bumper: Omit<ChannelBumper, 'id'> & { id?: string }): Promise<ChannelBumper> => {
+  const id = bumper.id || `bumper_${auth.currentUser!.uid}_${Date.now()}`;
+  const full: ChannelBumper = { ...bumper, id };
+  try {
+    await setDoc(doc(db, 'channel_bumpers', id), full);
+    return full;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `channel_bumpers/${id}`);
+    throw e;
+  }
+};
+
+export const deleteChannelBumper = async (bumperId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'channel_bumpers', bumperId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `channel_bumpers/${bumperId}`);
+  }
+};
+
+// ── FAST CHANNEL ASSET SHARING ────────────────────────────────────────────────
+
+export const grantFastChannelAccess = async (grant: Omit<FastChannelAssetGrant, 'id' | 'timestamp'>): Promise<FastChannelAssetGrant> => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const id = `grant_${auth.currentUser.uid}_${grant.toUserId}_${Date.now()}`;
+  const full: FastChannelAssetGrant = { ...grant, id, timestamp: Date.now() };
+  try {
+    await setDoc(doc(db, 'fast_channel_access', id), full);
+    return full;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_access/${id}`);
+    throw e;
+  }
+};
+
+export const revokeGrantedFastChannelAccess = async (grantId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'fast_channel_access', grantId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `fast_channel_access/${grantId}`);
+  }
+};
+
+/** Fetch all grants I have issued (from me → others) */
+export const fetchMyFastChannelGrants = async (uid: string): Promise<FastChannelAssetGrant[]> => {
+  try {
+    const q = query(collection(db, 'fast_channel_access'), where('fromUserId', '==', uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as FastChannelAssetGrant);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_access');
+    return [];
+  }
+};
+
+/** Fetch all assets that have been granted TO a given user's FAST channel */
+export const fetchGrantedFastChannelAssets = async (uid: string): Promise<FastChannelAssetGrant[]> => {
+  try {
+    const [personal, global] = await Promise.all([
+      getDocs(query(collection(db, 'fast_channel_access'), where('toUserId', '==', uid), where('isActive', '==', true))),
+      getDocs(query(collection(db, 'fast_channel_access'), where('toUserId', '==', '*'), where('isActive', '==', true))),
+    ]);
+    return [
+      ...personal.docs.map(d => d.data() as FastChannelAssetGrant),
+      ...global.docs.map(d => d.data() as FastChannelAssetGrant),
+    ];
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_access');
+    return [];
+  }
+};
+
+// ── FAST CHANNEL PLATFORM LIBRARY ─────────────────────────────────────────────
+
+export const fetchFastChannelLibrary = async (): Promise<FastChannelLibraryEntry[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'fast_channel_library'));
+    return snap.docs.map(d => d.data() as FastChannelLibraryEntry);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'fast_channel_library');
+    return [];
+  }
+};
+
+export const addToFastChannelLibrary = async (video: Video, isPaid: boolean = false, pricePerMonth?: number): Promise<void> => {
+  if (!auth.currentUser) return;
+  const id = `lib_${video.id}`;
+  const entry: FastChannelLibraryEntry = {
+    id,
+    videoId: video.id,
+    videoTitle: video.title,
+    videoUrl: video.url || '',
+    thumbnailUrl: video.thumbnailUrl || video.coverImage || '',
+    genre: video.genre,
+    tags: video.tags,
+    ownerUserId: auth.currentUser.uid,
+    ownerName: auth.currentUser.displayName || '',
+    isPublicDomain: false,
+    isPaid,
+    pricePerMonth,
+    timestamp: Date.now(),
+  };
+  try {
+    await setDoc(doc(db, 'fast_channel_library', id), entry);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `fast_channel_library/${id}`);
+  }
+};
+
+export const removeFromFastChannelLibrary = async (videoId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'fast_channel_library', `lib_${videoId}`));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `fast_channel_library/lib_${videoId}`);
   }
 };
 

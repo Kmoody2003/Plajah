@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles, LogIn, X as XIcon } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
+import Logo from './Logo';
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -201,6 +202,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           transition={{ duration: 1, ease: "easeOut" }}
           className="flex flex-col items-center gap-6"
         >
+          {/* Pulsing Plajah Logo */}
+          <motion.div
+            animate={{ scale: [1, 1.07, 1], opacity: [0.85, 1, 0.85] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative"
+          >
+            <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] blur-2xl opacity-60 scale-125" />
+            <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-[0_0_60px_rgba(107,0,153,0.5)]">
+              <Logo size={56} fluid />
+            </div>
+          </motion.div>
+
           <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
             Plajah
           </h1>

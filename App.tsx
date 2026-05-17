@@ -499,6 +499,8 @@ const App: React.FC = () => {
         }
       } else {
         setUserProfile(null);
+        // Auto-enter the app for unauthenticated guests — skip requiring manual "Enter As Guest" click
+        setViewInternal(prev => prev === 'LANDING' ? 'DASHBOARD' : prev);
       }
     });
     return () => unsubscribe();

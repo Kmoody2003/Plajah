@@ -11,7 +11,18 @@ interface MoviesSpecificViewProps {
   onSelect: (item: any) => void;
 }
 
-const GENRE_CHIPS = ['All', 'Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Romance', 'Documentary', 'Thriller', 'Animation', 'Classic'];
+const GENRE_CHIPS = ['All', 'Trailers', 'Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Romance', 'Documentary', 'Thriller', 'Animation', 'Classic'];
+
+const matchesChip = (item: any, chip: string): boolean => {
+  if (chip === 'All') return true;
+  const lc = chip.toLowerCase();
+  const genre = (item.genre || '').toLowerCase();
+  const subType = (item.subType || '').toLowerCase();
+  const tags: string[] = item.tags || [];
+  const tagMatch = tags.some(t => t.toLowerCase().includes(lc));
+  if (chip === 'Trailers') return subType === 'trailer' || tagMatch || genre.includes('trailer');
+  return genre.includes(lc) || subType === lc || tagMatch;
+};
 
 const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: string }> = ({ item, onSelect, width = 'min-w-[140px] md:min-w-[160px]' }) => {
   const isArchive = 'identifier' in item;
@@ -64,13 +75,9 @@ export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, 
   const localMovies = localContent.filter(c => c.subType === 'MOVIE' || c.tags?.includes('movie'));
   const allMovies = [...localMovies, ...movies];
 
-  const genreFiltered = useMemo(() => {
-    if (selectedGenre === 'All') return allMovies;
-    return allMovies.filter(m => {
-      const g = ('genre' in m ? m.genre : '') || '';
-      return g.toLowerCase().includes(selectedGenre.toLowerCase());
-    });
-  }, [selectedGenre, allMovies]);
+  const genreFiltered = useMemo(() =>
+    allMovies.filter(m => matchesChip(m, selectedGenre)),
+  [selectedGenre, allMovies]);
 
   // Simulate sections from available data
   const newReleases = useMemo(() => [...allMovies].sort((a, b) => {
@@ -84,12 +91,18 @@ export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, 
 
   // Genre category sections (only if genre filter is All)
   const genreCategories = useMemo(() => {
-    const genres = Array.from(new Set(movies.map(m => m.genre).filter(Boolean)));
+    const genres = Array.from(new Set(
+      allMovies.flatMap(m => {
+        const g = (m as any).genre;
+        const tags: string[] = (m as any).tags || [];
+        return [g, ...tags].filter(Boolean);
+      })
+    )).filter(g => !['trailer', 'Trailer'].includes(g));
     return genres.map(genre => ({
       genre,
-      items: movies.filter(m => m.genre === genre).slice(0, 16)
+      items: allMovies.filter(m => matchesChip(m, genre)).slice(0, 16)
     })).filter(g => g.items.length >= 2).slice(0, 6);
-  }, [movies]);
+  }, [allMovies]);
 
   return (
     <main className="pt-8 pb-40 px-6 lg:px-12 max-w-screen-2xl mx-auto space-y-14">
@@ -147,7 +160,7 @@ export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, 
               </div>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                 {items.map((item, i) => (
-                  <MovieCard key={item.identifier || i} item={item} onSelect={onSelect} />
+                  <MovieCard key={(item as any).identifier || (item as any).id || i} item={item} onSelect={onSelect} />
                 ))}
               </div>
             </section>

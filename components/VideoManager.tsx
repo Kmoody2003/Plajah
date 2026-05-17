@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Video, VideoPlaylist, Album, Track } from '../types';
-import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum } from '../services/backendService';
-import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers } from 'lucide-react';
+import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile } from '../services/backendService';
+import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio } from 'lucide-react';
 import UploadManager from './UploadManager';
 import PodcastManager from './PodcastManager';
+import FastChannelManager from './FastChannelManager';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface VideoManagerProps {
@@ -21,10 +22,18 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
   const [editingPodcastVideo, setEditingPodcastVideo] = useState<Video | null>(null);
   const [newPlaylist, setNewPlaylist] = useState({ title: '', description: '' });
+  const [fastChannelEnabled, setFastChannelEnabled] = useState<boolean>(user?.fastChannelEnabled ?? false);
+  const [showFastChannelManager, setShowFastChannelManager] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [user.uid]);
+
+  const handleToggleFastChannel = async () => {
+    const next = !fastChannelEnabled;
+    setFastChannelEnabled(next);
+    await updateUserProfile(user.uid, { fastChannelEnabled: next } as any);
+  };
 
   const loadData = async () => {
     const [vids, pls, userAlbums] = await Promise.all([
@@ -133,6 +142,10 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
     loadData();
   };
 
+  if (showFastChannelManager) {
+    return <FastChannelManager user={user} onBack={() => setShowFastChannelManager(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-color)] text-white p-8">
       <div className="max-w-6xl mx-auto">
@@ -156,6 +169,39 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
             >
               <Plus size={18} />
               Upload Video
+            </button>
+          </div>
+        </div>
+
+        {/* FAST Channel Toggle */}
+        <div className="mb-10 p-6 bg-gradient-to-r from-[#6B0099]/10 to-[#D40055]/10 border border-[#6B0099]/20 rounded-2xl flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0">
+              <Tv size={18} className="text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-black uppercase tracking-widest text-white">FAST Channel</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">
+                {fastChannelEnabled
+                  ? `${videos.filter(v => v.allowInFastChannel).length} videos in channel · Always-on broadcast for your fans`
+                  : 'Enable your 24/7 free ad-supported channel — fans can watch without signing in'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {fastChannelEnabled && (
+              <button
+                onClick={() => setShowFastChannelManager(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
+              >
+                <Radio size={13} /> Manage Channel
+              </button>
+            )}
+            <button
+              onClick={handleToggleFastChannel}
+              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${fastChannelEnabled ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055]' : 'bg-white/10'}`}
+            >
+              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-300 ${fastChannelEnabled ? 'left-8' : 'left-1'}`} />
             </button>
           </div>
         </div>

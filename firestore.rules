@@ -1257,5 +1257,47 @@ service cloud.firestore {
         }
       }
     }
+
+    // ===============================================================
+    // FAST CHANNEL SCHEDULES
+    // ===============================================================
+    // One doc per user — the owner controls it; everyone can read (needed for viewers)
+    match /fast_channel_schedules/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // ===============================================================
+    // CHANNEL BUMPERS
+    // ===============================================================
+    match /channel_bumpers/{bumperId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // FAST CHANNEL ASSET GRANTS
+    // ===============================================================
+    // fromUserId grants toUserId access to assets
+    match /fast_channel_access/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid ||
+        resource.data.toUserId == '*' ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.fromUserId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.fromUserId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // FAST CHANNEL PLATFORM LIBRARY
+    // ===============================================================
+    match /fast_channel_library/{entryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUserId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.ownerUserId == request.auth.uid || isAdmin();
+    }
   }
 }
