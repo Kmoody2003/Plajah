@@ -72,6 +72,29 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState('All');
 
+  // All useMemo hooks must be BEFORE any early return so React sees a consistent hook count
+  const genreFiltered = useMemo(() =>
+    series.filter(s => tvMatchesChip(s, selectedGenre)),
+  [selectedGenre, series]);
+
+  const newShows = useMemo(() => series.slice(0, 20), [series]);
+  const recommended = useMemo(() => series.filter((_, i) => i % 3 === 2).slice(0, 20), [series]);
+  const popular = useMemo(() => [...series].reverse().slice(0, 20), [series]);
+
+  const genreCategories = useMemo(() => {
+    const genres = Array.from(new Set<string>(
+      series.flatMap(s => {
+        const g = 'genre' in s ? (s as any).genre : null;
+        const tags: string[] = (s as any).tags || [];
+        return [g || 'Classic TV', ...tags].filter(Boolean);
+      })
+    )).filter(g => !['trailer', 'Trailer'].includes(g));
+    return genres.map(genre => ({
+      genre,
+      items: series.filter(s => tvMatchesChip(s, genre)).slice(0, 16)
+    })).filter(g => g.items.length >= 2).slice(0, 5);
+  }, [series]);
+
   useEffect(() => {
     if (initialSelectedSeries) {
       handleItemClick(initialSelectedSeries);
@@ -310,28 +333,6 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
         </motion.div>
     );
   }
-
-  const genreFiltered = useMemo(() =>
-    series.filter(s => tvMatchesChip(s, selectedGenre)),
-  [selectedGenre, series]);
-
-  const newShows = useMemo(() => series.slice(0, 20), [series]);
-  const recommended = useMemo(() => series.filter((_, i) => i % 3 === 2).slice(0, 20), [series]);
-  const popular = useMemo(() => [...series].reverse().slice(0, 20), [series]);
-
-  const genreCategories = useMemo(() => {
-    const genres = Array.from(new Set<string>(
-      series.flatMap(s => {
-        const g = 'genre' in s ? (s as any).genre : null;
-        const tags: string[] = (s as any).tags || [];
-        return [g || 'Classic TV', ...tags].filter(Boolean);
-      })
-    )).filter(g => !['trailer', 'Trailer'].includes(g));
-    return genres.map(genre => ({
-      genre,
-      items: series.filter(s => tvMatchesChip(s, genre)).slice(0, 16)
-    })).filter(g => g.items.length >= 2).slice(0, 5);
-  }, [series]);
 
   return (
     <div className="pt-8 px-6 md:px-12 pb-32 max-w-screen-2xl mx-auto space-y-14">
