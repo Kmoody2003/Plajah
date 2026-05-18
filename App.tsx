@@ -500,8 +500,8 @@ const App: React.FC = () => {
         }
       } else {
         setUserProfile(null);
-        // Auto-enter the app for unauthenticated guests — skip requiring manual "Enter As Guest" click
-        setViewInternal(prev => prev === 'LANDING' ? 'DASHBOARD' : prev);
+        // Unauthenticated visitors always land on the landing page
+        setViewInternal('LANDING');
       }
     });
     return () => unsubscribe();
@@ -832,7 +832,7 @@ const App: React.FC = () => {
     }
   }, [viewedUserId, view, visitedProfile]);
 
-  if (isLoading) {
+  if (isLoading && view !== 'LANDING') {
     return (
       <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center gap-6">
         <div className="relative">
