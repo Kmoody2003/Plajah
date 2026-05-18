@@ -5024,6 +5024,36 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   return newVideo;
 };
 
+// --- Mux Live Streaming ---
+
+export const createMuxLiveStream = async (): Promise<{
+  streamId: string;
+  streamKey: string;
+  rtmpUrl: string;
+  playbackId: string | null;
+}> => {
+  const res = await fetch('/api/mux/live/create', { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to create live stream' }));
+    throw new Error(err.error || 'Failed to create Mux live stream');
+  }
+  return res.json();
+};
+
+export const endMuxLiveStream = async (streamId: string): Promise<void> => {
+  const res = await fetch(`/api/mux/live/${streamId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to end stream' }));
+    throw new Error(err.error || 'Failed to end Mux live stream');
+  }
+};
+
+export const getMuxLiveStreamStatus = async (streamId: string): Promise<{ status: string; playbackId: string | null }> => {
+  const res = await fetch(`/api/mux/live/${streamId}/status`);
+  if (!res.ok) throw new Error('Failed to fetch stream status');
+  return res.json();
+};
+
 export const fetchAllVideos = async (): Promise<Video[]> => {
   const path = 'videos';
   try {

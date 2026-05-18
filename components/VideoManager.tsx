@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Video, VideoPlaylist, Album, Track } from '../types';
-import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile } from '../services/backendService';
-import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck } from 'lucide-react';
+import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo } from '../services/backendService';
+import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck, Upload, Film, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import UploadManager from './UploadManager';
 import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
@@ -26,10 +26,53 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   const [showFastChannelManager, setShowFastChannelManager] = useState(false);
   const [showRightsModal, setShowRightsModal] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    description: '',
+    genre: '',
+    isPrivate: false,
+  });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadThumb, setUploadThumb] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const thumbFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
   }, [user.uid]);
+
+  const handleSubmitUpload = async () => {
+    if (!uploadFile || !uploadForm.title.trim()) return;
+    setIsSubmitting(true);
+    setUploadError('');
+    setUploadProgress(0);
+    try {
+      await uploadVideo(
+        {
+          title: uploadForm.title.trim(),
+          description: uploadForm.description.trim(),
+          genre: uploadForm.genre || 'General',
+          isPrivate: uploadForm.isPrivate,
+          file: uploadFile,
+          thumbnailFile: uploadThumb || undefined,
+        },
+        (p) => setUploadProgress(Math.round(p))
+      );
+      setIsUploading(false);
+      setUploadForm({ title: '', description: '', genre: '', isPrivate: false });
+      setUploadFile(null);
+      setUploadThumb(null);
+      setUploadProgress(0);
+      loadData();
+    } catch (err: any) {
+      setUploadError(err.message || 'Upload failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleToggleFastChannel = async () => {
     const next = !fastChannelEnabled;
@@ -253,7 +296,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
               />
             </motion.div>
           ) : isUploading ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
@@ -261,11 +304,124 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
             >
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black uppercase tracking-tight">Upload New Video</h2>
-                <button onClick={() => setIsUploading(false)} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white">
+                <button onClick={() => { setIsUploading(false); setUploadFile(null); setUploadThumb(null); setUploadError(''); }} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white">
                   <X size={20} />
                 </button>
               </div>
-              <UploadManager />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* Left: file pickers */}
+                <div className="space-y-6">
+                  {/* Video file */}
+                  <div>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">Video File *</p>
+                    <input ref={videoFileRef} type="file" accept="video/*" className="hidden"
+                      onChange={e => setUploadFile(e.target.files?.[0] || null)} />
+                    <button onClick={() => videoFileRef.current?.click()}
+                      className={`w-full flex flex-col items-center gap-3 py-10 rounded-2xl border-2 border-dashed transition-all ${uploadFile ? 'border-small-orange/60 bg-small-orange/5' : 'border-white/10 hover:border-white/30 bg-white/5'}`}>
+                      <Film size={28} className={uploadFile ? 'text-small-orange' : 'text-white/20'} />
+                      {uploadFile ? (
+                        <div className="text-center">
+                          <p className="text-white text-sm font-black truncate max-w-[200px]">{uploadFile.name}</p>
+                          <p className="text-white/40 text-[10px] font-bold">{(uploadFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-white/60 text-sm font-bold">Click to select video</p>
+                          <p className="text-white/20 text-[10px]">MP4, MOV, MKV, AVI, WebM</p>
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Thumbnail */}
+                  <div>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">Thumbnail (optional)</p>
+                    <input ref={thumbFileRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => setUploadThumb(e.target.files?.[0] || null)} />
+                    <button onClick={() => thumbFileRef.current?.click()}
+                      className={`w-full flex flex-col items-center gap-3 py-6 rounded-2xl border-2 border-dashed transition-all ${uploadThumb ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/10 hover:border-white/20 bg-white/5'}`}>
+                      <ImageIcon size={20} className={uploadThumb ? 'text-blue-400' : 'text-white/20'} />
+                      <p className={`text-xs font-bold ${uploadThumb ? 'text-blue-400' : 'text-white/30'}`}>
+                        {uploadThumb ? uploadThumb.name : 'Click to add thumbnail'}
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right: metadata */}
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-white/40 text-[10px] font-black uppercase tracking-widest block mb-2">Title *</label>
+                    <input
+                      type="text"
+                      value={uploadForm.title}
+                      onChange={e => setUploadForm(f => ({ ...f, title: e.target.value }))}
+                      placeholder="Enter video title..."
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-white/20 outline-none focus:ring-2 ring-small-orange/40 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/40 text-[10px] font-black uppercase tracking-widest block mb-2">Description</label>
+                    <textarea
+                      value={uploadForm.description}
+                      onChange={e => setUploadForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="What's this video about?"
+                      rows={3}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-white/20 outline-none focus:ring-2 ring-small-orange/40 resize-none text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/40 text-[10px] font-black uppercase tracking-widest block mb-2">Genre</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Music', 'Film', 'Documentary', 'Short', 'Gaming', 'Education', 'Comedy', 'Sports', 'Other'].map(g => (
+                        <button key={g} onClick={() => setUploadForm(f => ({ ...f, genre: g }))}
+                          className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-wide border transition-all ${uploadForm.genre === g ? 'border-small-orange/50 bg-small-orange/20 text-small-orange' : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'}`}>
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div>
+                      <p className="text-white text-xs font-black uppercase tracking-widest">Private Video</p>
+                      <p className="text-white/30 text-[10px] font-bold mt-0.5">Only visible to you</p>
+                    </div>
+                    <button onClick={() => setUploadForm(f => ({ ...f, isPrivate: !f.isPrivate }))}
+                      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${uploadForm.isPrivate ? 'bg-small-orange' : 'bg-white/10'}`}>
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-300 ${uploadForm.isPrivate ? 'left-6' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {uploadError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                      <AlertCircle size={16} className="text-red-400 shrink-0" />
+                      <p className="text-red-400 text-xs">{uploadError}</p>
+                    </div>
+                  )}
+
+                  {isSubmitting && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/40">
+                        <span>Uploading</span><span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div className="h-full bg-small-orange rounded-full" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                      <p className="text-white/30 text-[10px] font-bold">Video will be transcoded by Mux after upload completes</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSubmitUpload}
+                    disabled={!uploadFile || !uploadForm.title.trim() || isSubmitting}
+                    className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-small-orange text-black rounded-full font-black uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.35)] disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <Upload size={16} />
+                    {isSubmitting ? 'Uploading...' : 'Upload Video'}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           ) : activeTab === 'VIDEOS' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -3,20 +3,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, ChevronLeft, ChevronRight, Radio, Camera, Monitor, Wifi,
   Mic, MicOff, Video, VideoOff, Check, AlertCircle, Trash2,
-  Clock, Type, MessageSquare, Ban, Layers
+  Clock, Type, MessageSquare, Ban, Layers, Copy, Tv2, RefreshCw
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { publishLiveFeed, deleteLiveFeed } from '../services/backendService';
+import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream } from '../services/backendService';
 import { db } from '../services/backendService';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import MuxPlayer from '@mux/mux-player-react';
 
 interface GoLiveWizardProps {
   onClose: () => void;
   currentUser: FirebaseUser | null;
 }
 
-type StreamType = 'QUICK' | 'STUDIO' | 'EXTERNAL';
+type StreamType = 'QUICK' | 'STUDIO' | 'EXTERNAL' | 'MUX';
 type WizardStep = 'TYPE' | 'DETAILS' | 'SIGNAL' | 'GRAPHICS' | 'GOLIVE';
+
+interface MuxStreamInfo {
+  streamId: string;
+  streamKey: string;
+  rtmpUrl: string;
+  playbackId: string | null;
+}
 
 interface LowerThird {
   id: string;
@@ -101,13 +109,39 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [mutedUsers, setMutedUsers] = useState<Set<string>>(new Set());
   const [slowMode, setSlowMode] = useState(false);
+  const [muxStream, setMuxStream] = useState<MuxStreamInfo | null>(null);
+  const [muxCreating, setMuxCreating] = useState(false);
+  const [muxError, setMuxError] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const steps: WizardStep[] = ['TYPE', 'DETAILS', 'SIGNAL', 'GRAPHICS', 'GOLIVE'];
   const stepIndex = steps.indexOf(step);
 
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (_) {}
+  };
+
+  const createMuxStream = async () => {
+    setMuxCreating(true);
+    setMuxError('');
+    try {
+      const info = await createMuxLiveStream();
+      setMuxStream(info);
+      setSignalOk(true);
+    } catch (err: any) {
+      setMuxError(err.message || 'Failed to create Mux live stream');
+    } finally {
+      setMuxCreating(false);
+    }
+  };
+
   const startCamera = useCallback(async () => {
     setSignalError('');
-    if (streamType === 'EXTERNAL') { setSignalOk(true); return; }
+    if (streamType === 'EXTERNAL' || streamType === 'MUX') { setSignalOk(true); return; }
     try {
       const constraints: MediaStreamConstraints = {
         video: streamType === 'QUICK'
@@ -156,8 +190,26 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
   const handleGoLive = async () => {
     if (!currentUser) return;
     try {
-      const url = streamType === 'EXTERNAL' ? externalUrl : `plajah://live/${currentUser.uid}`;
-      const feedRef = await publishLiveFeed({ title, url, ownerName: currentUser.displayName || 'User', ownerPhoto: currentUser.photoURL || '', status: 'LIVE', isPublic: true } as any);
+      let url = externalUrl;
+      if (streamType === 'MUX' && muxStream?.playbackId) {
+        url = `https://stream.mux.com/${muxStream.playbackId}.m3u8`;
+      } else if (streamType !== 'EXTERNAL') {
+        url = `plajah://live/${currentUser.uid}`;
+      }
+      const feedPayload: any = {
+        title,
+        url,
+        ownerName: currentUser.displayName || 'User',
+        ownerPhoto: currentUser.photoURL || '',
+        status: 'LIVE',
+        isPublic: true,
+        streamType,
+      };
+      if (streamType === 'MUX' && muxStream) {
+        feedPayload.muxPlaybackId = muxStream.playbackId;
+        feedPayload.muxStreamId = muxStream.streamId;
+      }
+      const feedRef = await publishLiveFeed(feedPayload);
       setLiveFeedId((feedRef as any)?.id || currentUser.uid);
       setIsLive(true);
       setGoLiveStartTime(Date.now());
@@ -166,6 +218,9 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
 
   const handleEndStream = async () => {
     if (liveFeedId) await deleteLiveFeed(liveFeedId);
+    if (muxStream?.streamId) {
+      endMuxLiveStream(muxStream.streamId).catch(console.error);
+    }
     localStream?.getTracks().forEach(t => t.stop());
     setLocalStream(null);
     setIsLive(false);
@@ -307,7 +362,8 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                   {([
                     { id: 'QUICK' as StreamType, icon: Camera, label: 'Quick Mobile', desc: 'Camera or phone stream. Simple, fast, no setup.' },
                     { id: 'STUDIO' as StreamType, icon: Monitor, label: 'Studio Broadcast', desc: 'High quality with audio/video controls. Webcam or capture card.' },
-                    { id: 'EXTERNAL' as StreamType, icon: Wifi, label: 'External Stream', desc: 'Paste a stream URL from OBS, YouTube, Twitch, or any source.' },
+                    { id: 'MUX' as StreamType, icon: Tv2, label: 'Mux Pro Stream', desc: 'Professional broadcast via OBS, Streamlabs, or any RTMP software. Powered by Mux.' },
+                    { id: 'EXTERNAL' as StreamType, icon: Wifi, label: 'External Stream', desc: 'Paste an existing stream URL from YouTube, Twitch, or any source.' },
                   ]).map(({ id, icon: Icon, label, desc }) => (
                     <button key={id} onClick={() => setStreamType(id)}
                       className={`w-full flex items-center gap-5 p-6 rounded-2xl border text-left transition-all ${streamType === id ? 'border-red-500/50 bg-red-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
@@ -323,9 +379,9 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                   ))}
                   {streamType === 'EXTERNAL' && (
                     <div className="mt-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">OBS / External Stream URL</p>
-                      <p className="text-white/40 text-xs mb-3 leading-relaxed">In OBS: Settings → Stream → Service: Custom → copy your RTMP URL here. For YouTube/Twitch paste the live embed URL.</p>
-                      <input type="url" value={externalUrl} onChange={e => setExternalUrl(e.target.value)} placeholder="https://... or rtmp://..."
+                      <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">External Stream URL</p>
+                      <p className="text-white/40 text-xs mb-3 leading-relaxed">Paste your live embed URL from YouTube, Twitch, or any source.</p>
+                      <input type="url" value={externalUrl} onChange={e => setExternalUrl(e.target.value)} placeholder="https://..."
                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none focus:ring-2 ring-red-500/40" />
                     </div>
                   )}
@@ -362,7 +418,72 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
               {step === 'SIGNAL' && (
                 <div className="space-y-5">
                   <h2 className="text-white font-black text-xl uppercase tracking-tight mb-2">Signal check</h2>
-                  {streamType === 'EXTERNAL' ? (
+                  {streamType === 'MUX' ? (
+                    <div className="space-y-4">
+                      {!muxStream ? (
+                        <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center space-y-4">
+                          <Tv2 size={40} className="text-[#ff8c00] mx-auto" />
+                          <div>
+                            <p className="text-white font-black uppercase tracking-tight">Professional RTMP Stream</p>
+                            <p className="text-white/40 text-sm mt-1 leading-relaxed">We'll generate a private RTMP endpoint for you. Use it in OBS, Streamlabs, or any broadcasting software.</p>
+                          </div>
+                          {muxError && (
+                            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                              <AlertCircle size={16} className="text-red-400 shrink-0" />
+                              <p className="text-red-400 text-xs">{muxError}</p>
+                            </div>
+                          )}
+                          <button onClick={createMuxStream} disabled={muxCreating}
+                            className="flex items-center gap-2 mx-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-widest rounded-full transition-all disabled:opacity-50">
+                            {muxCreating ? <RefreshCw size={14} className="animate-spin" /> : <Tv2 size={14} />}
+                            {muxCreating ? 'Creating Stream...' : 'Generate Stream Credentials'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                            <Check size={16} className="text-green-400 shrink-0" />
+                            <p className="text-green-400 text-xs font-black uppercase tracking-widest">Stream credentials ready</p>
+                          </div>
+                          {[
+                            { label: 'RTMP Server', value: muxStream.rtmpUrl, field: 'rtmp' },
+                            { label: 'Stream Key', value: muxStream.streamKey, field: 'key', secret: true },
+                          ].map(({ label, value, field, secret }) => (
+                            <div key={field} className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-2">
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">{label}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-white text-xs font-mono flex-1 break-all select-all">
+                                  {secret ? value.replace(/./g, '•').slice(0, 24) + '...' : value}
+                                </p>
+                                <button onClick={() => copyToClipboard(value, field)}
+                                  className={`shrink-0 p-2 rounded-xl transition-all ${copiedField === field ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40 hover:text-white'}`}>
+                                  {copiedField === field ? <Check size={13} /> : <Copy size={13} />}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="p-4 bg-[#ff8c00]/5 border border-[#ff8c00]/20 rounded-2xl text-xs text-white/50 leading-relaxed space-y-1">
+                            <p className="text-[#ff8c00] font-black uppercase tracking-widest text-[10px] mb-2">OBS Setup</p>
+                            <p>Settings → Stream → Service: Custom RTMP</p>
+                            <p>Server: <span className="text-white/80 font-mono">rtmps://global-live.mux.com:443/app</span></p>
+                            <p>Stream Key: <span className="text-white/80">paste your key above</span></p>
+                          </div>
+                          {muxStream.playbackId && (
+                            <div className="rounded-2xl overflow-hidden border border-white/10">
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest p-3 pb-0">Live Preview (appears after stream starts)</p>
+                              <MuxPlayer
+                                streamType="live"
+                                playbackId={muxStream.playbackId}
+                                autoPlay
+                                muted
+                                style={{ width: '100%', aspectRatio: '16/9' }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : streamType === 'EXTERNAL' ? (
                     <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
                       <Wifi size={40} className="text-[#ff8c00] mx-auto mb-3" />
                       <p className="text-white font-bold">External stream detected</p>
@@ -466,7 +587,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                   <h2 className="text-white font-black text-xl uppercase tracking-tight mb-2">Ready to go live?</h2>
                   <div className="space-y-3">
                     {[
-                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : 'External Stream' },
+                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : streamType === 'MUX' ? 'Mux Pro Stream' : 'External Stream' },
                       { label: 'Title', value: title || '(untitled)' },
                       { label: 'Category', value: category || '(none)' },
                       { label: 'Lower Thirds', value: `${lowerThirds.filter(lt => lt.title).length} configured` },
@@ -477,14 +598,21 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                       </div>
                     ))}
                   </div>
-                  {streamType !== 'EXTERNAL' && (
+                  {streamType === 'MUX' ? (
+                    <div className={`flex items-center gap-3 p-4 rounded-2xl border ${muxStream ? 'border-green-500/30 bg-green-500/10' : 'border-yellow-500/30 bg-yellow-500/10'}`}>
+                      {muxStream ? <Check size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-yellow-400" />}
+                      <p className={`text-sm font-bold ${muxStream ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {muxStream ? 'Mux stream credentials ready — connect OBS and go live' : 'No Mux stream created yet — go back to Signal step'}
+                      </p>
+                    </div>
+                  ) : streamType !== 'EXTERNAL' ? (
                     <div className={`flex items-center gap-3 p-4 rounded-2xl border ${signalOk ? 'border-green-500/30 bg-green-500/10' : 'border-yellow-500/30 bg-yellow-500/10'}`}>
                       {signalOk ? <Check size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-yellow-400" />}
                       <p className={`text-sm font-bold ${signalOk ? 'text-green-400' : 'text-yellow-400'}`}>
                         {signalOk ? 'Signal verified — ready to broadcast' : 'Signal not verified — you can still go live'}
                       </p>
                     </div>
-                  )}
+                  ) : null}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-2xl text-xs text-white/40 leading-relaxed">
                     By going live you confirm your content complies with Plajah Community Guidelines and all applicable laws. Do not stream copyrighted content without authorization.
                   </div>

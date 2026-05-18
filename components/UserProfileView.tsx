@@ -122,6 +122,7 @@ interface UserProfileViewProps {
   onSelectArticle?: (article: Article) => void;
   onSelectApp?: (app: WebApp) => void;
   onNavigate?: (view: AppView) => void;
+  onOpenCreator?: (type?: string) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
@@ -210,6 +211,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   onSelectArticle,
   onSelectApp,
   onNavigate,
+  onOpenCreator,
   initialTab
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -687,6 +689,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     />
                   </div>
                 )}
+              {/* Name + badges — no action buttons here so the giant text never pushes them off */}
               <div className={`flex items-center gap-3 ${isMobile ? 'flex-col' : ''}`}>
                 <motion.h1
                   className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
@@ -696,17 +699,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 >
                   {profile.displayName}
                 </motion.h1>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2 flex-wrap">
                   {profile.tier === 'PIONEER' && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30" title="Early Adopter - Pioneer Status">
                       <Sparkles size={14} className="text-white" />
                       <span className="text-[9px] font-black uppercase tracking-widest text-white">Pioneer</span>
                     </div>
                   )}
-
                   {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
-                    <button 
+                    <button
                       onClick={handleClaimPioneerReward}
                       className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
                     >
@@ -714,84 +716,70 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     </button>
                   )}
                 </div>
-                  
-                {profile.liveStreamConfig?.isActive && (
-                  <div className="flex items-center gap-3">
-                    <div className="px-3 py-1 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2">
-                      <div className="w-1 h-1 bg-white rounded-full" />
+              </div>
+
+              {/* Action buttons row — always below the name, wraps cleanly at any width */}
+              {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
+                <div className={`flex flex-wrap items-center gap-2 mt-3 ${isMobile ? 'justify-center' : ''}`}>
+                  {profile.liveStreamConfig?.isActive && (
+                    <div className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2 shrink-0">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                       On Air
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => {
-                            setIsLivePlayerExpanded(!isLivePlayerExpanded);
-                            if (!isLivePlayerExpanded) setIsLivePlaying(true);
-                          }}
-                          className={`px-4 py-2 rounded-full transition-all border flex items-center gap-2 ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}
-                        >
-                          <Tv size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                            {isLivePlayerExpanded ? 'Close' : 'Watch Live'}
-                          </span>
-                        </button>
+                  )}
 
-                      {profile.radioSettings?.enabled && (
-                        <button 
-                          onClick={() => {
-                            const event = new CustomEvent('NAVIGATE', { 
-                              detail: { target: 'RADIO', artistId: profile.uid } 
-                            });
-                            window.dispatchEvent(event);
-                          }}
-                          className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-2"
-                        >
-                          <Radio size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Artist Radio</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  {profile.liveStreamConfig?.isActive && (
+                    <button
+                      onClick={() => {
+                        setIsLivePlayerExpanded(!isLivePlayerExpanded);
+                        if (!isLivePlayerExpanded) setIsLivePlaying(true);
+                      }}
+                      className={`px-4 py-2 rounded-full transition-all border flex items-center gap-2 shrink-0 ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}
+                    >
+                      <Tv size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                        {isLivePlayerExpanded ? 'Close' : 'Watch Live'}
+                      </span>
+                    </button>
+                  )}
 
-                {!profile.liveStreamConfig?.isActive && profile.radioSettings?.enabled && (
-                   <button
-                    onClick={() => {
-                      const event = new CustomEvent('NAVIGATE', {
-                        detail: { target: 'RADIO', artistId: profile.uid }
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                    className="px-6 py-3 bg-[#00DAF3] text-black rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-3 shadow-[0_0_20px_rgba(0,218,243,0.3)]"
-                  >
-                    <Radio size={18} />
-                    <span className="text-[12px] font-black uppercase tracking-widest">Artist Radio</span>
-                  </button>
-                )}
+                  {profile.radioSettings?.enabled && (
+                    <button
+                      onClick={() => {
+                        const event = new CustomEvent('NAVIGATE', {
+                          detail: { target: 'RADIO', artistId: profile.uid }
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-2 shrink-0"
+                    >
+                      <Radio size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Artist Radio</span>
+                    </button>
+                  )}
 
-                {/* FAST Channel Watch Button */}
-                {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
-                  <button
-                    onClick={() => setShowFastChannel(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-3 shadow-[0_0_20px_rgba(107,0,153,0.4)]"
-                  >
-                    <Tv size={18} />
-                    <span className="text-[12px] font-black uppercase tracking-widest">Watch Channel</span>
-                  </button>
-                )}
+                  {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
+                    <button
+                      onClick={() => setShowFastChannel(true)}
+                      className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shrink-0 shadow-[0_0_20px_rgba(107,0,153,0.4)]"
+                    >
+                      <Tv size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Watch Channel</span>
+                    </button>
+                  )}
 
-                {/* Manage Channel (owner only) */}
-                {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
-                  <button
-                    onClick={() => setShowFastChannelManager(true)}
-                    className="px-6 py-3 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-3"
-                  >
-                    <Radio size={18} />
-                    <span className="text-[12px] font-black uppercase tracking-widest">Manage Channel</span>
-                  </button>
-                )}
-              </div>
-              {/* ↑ closes flex items-center gap-3 (name+badges row) */}
+                  {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
+                    <button
+                      onClick={() => setShowFastChannelManager(true)}
+                      className="px-4 py-2 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-2 shrink-0"
+                    >
+                      <Radio size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Manage Channel</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
               </div>
               {/* ↑ closes flex flex-row items-end (avatar + name outer wrapper) */}
               <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs mt-2' : 'text-sm mt-2'}`}>
@@ -2618,10 +2606,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 className="space-y-8"
               >
                 {isOwnProfile && (
-                  <div className="flex justify-end">
-                    <button 
+                  <div className="flex justify-end gap-3">
+                    {onOpenCreator && (
+                      <button
+                        onClick={() => onOpenCreator('GAME')}
+                        className="flex items-center gap-2 px-6 py-3 bg-small-orange text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,140,0,0.35)]"
+                      >
+                        <Plus size={14} />
+                        New Game Project
+                      </button>
+                    )}
+                    <button
                       onClick={() => setIsAddGameModalOpen(true)}
-                      className="flex items-center gap-2 px-6 py-3 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all"
+                      className="flex items-center gap-2 px-6 py-3 bg-white/10 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-white/20 transition-all"
                     >
                       <Plus size={14} />
                       Add Game Link

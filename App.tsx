@@ -171,6 +171,7 @@ const App: React.FC = () => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
+  const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1676,14 +1677,19 @@ const App: React.FC = () => {
             )}
             {view === 'USER_PROFILE' && viewedUserId && (
               <div className="relative">
-                <UserProfileView 
-                  uid={viewedUserId} 
-                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }} 
+                <UserProfileView
+                  uid={viewedUserId}
+                  onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }}
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}
                   onVisitUser={handleVisitUser}
                   onMessage={handleMessage}
                   initialTab={initialProfileTab as any}
+                  onOpenCreator={(type) => {
+                    setCreatorInitialType(type);
+                    setEditingAlbum(null);
+                    setShowCreator(true);
+                  }}
                 />
               </div>
             )}
@@ -1782,20 +1788,23 @@ const App: React.FC = () => {
             )}
           </SpatialUIRoot>
           {showCreator && (
-            <AlbumCreator 
+            <AlbumCreator
               onCreated={(alb) => {
                 handleCreateAlbum(alb);
                 setShowCreator(false);
                 setIsCreatorMinimized(false);
-              }} 
-              onCancel={() => { 
-                setShowCreator(false); 
-                setEditingAlbum(null); 
+                setCreatorInitialType(undefined);
+              }}
+              onCancel={() => {
+                setShowCreator(false);
+                setEditingAlbum(null);
                 setIsCreatorMinimized(false);
-              }} 
+                setCreatorInitialType(undefined);
+              }}
               onMinimize={() => setIsCreatorMinimized(true)}
               isMinimized={isCreatorMinimized}
-              initialAlbum={editingAlbum || undefined} 
+              initialAlbum={editingAlbum || undefined}
+              initialType={creatorInitialType as any}
             />
           )}
           

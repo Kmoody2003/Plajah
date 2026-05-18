@@ -218,7 +218,7 @@ async function startServer() {
     try {
       const { assetId } = req.query;
       if (!assetId) return res.status(400).json({ error: 'Missing assetId' });
-      
+
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
         return res.status(500).json({ error: 'Mux integration is not configured.' });
@@ -235,6 +235,66 @@ async function startServer() {
       res.json({ status: asset.status, playbackId, asset });
     } catch (error: any) {
       console.error('Mux playback error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Mux Live Streaming ---
+  app.post('/api/mux/live/create', express.json(), async (req, res) => {
+    try {
+      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
+      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+        return res.status(500).json({ error: 'Mux integration is not configured.' });
+      }
+      const Mux = (await import('@mux/mux-node')).default;
+      const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+      const stream = await mux.video.liveStreams.create({
+        playback_policy: ['public'],
+        new_asset_settings: { playback_policy: ['public'] },
+        latency_mode: 'reduced',
+      });
+      res.json({
+        streamId: stream.id,
+        streamKey: stream.stream_key,
+        rtmpUrl: 'rtmps://global-live.mux.com:443/app',
+        playbackId: stream.playback_ids?.[0]?.id || null,
+      });
+    } catch (error: any) {
+      console.error('Mux live create error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/mux/live/:streamId', async (req, res) => {
+    try {
+      const { streamId } = req.params;
+      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
+      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+        return res.status(500).json({ error: 'Mux integration is not configured.' });
+      }
+      const Mux = (await import('@mux/mux-node')).default;
+      const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+      await mux.video.liveStreams.disable(streamId);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Mux live disable error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/mux/live/:streamId/status', async (req, res) => {
+    try {
+      const { streamId } = req.params;
+      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
+      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+        return res.status(500).json({ error: 'Mux integration is not configured.' });
+      }
+      const Mux = (await import('@mux/mux-node')).default;
+      const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+      const stream = await mux.video.liveStreams.retrieve(streamId);
+      res.json({ status: stream.status, playbackId: stream.playback_ids?.[0]?.id || null });
+    } catch (error: any) {
+      console.error('Mux live status error:', error);
       res.status(500).json({ error: error.message });
     }
   });

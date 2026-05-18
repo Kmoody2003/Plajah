@@ -744,7 +744,11 @@ export interface UserProfile {
     activeStreamType?: 'LIVE' | 'FAST';
     title: string;
     isActive: boolean;
-    source: string; // e.g., 'YouTube', 'Twitch', 'Custom'
+    source: string; // e.g., 'YouTube', 'Twitch', 'Custom', 'MUX'
+    muxStreamId?: string;
+    muxPlaybackId?: string;
+    streamKey?: string;
+    rtmpUrl?: string;
   };
   interestsNotebook?: string;
   publicInterests?: string[];

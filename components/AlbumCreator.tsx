@@ -17,6 +17,7 @@ interface AlbumCreatorProps {
   onMinimize?: () => void;
   isMinimized?: boolean;
   initialAlbum?: Album;
+  initialType?: AssetType;
 }
 
 type AssetType = 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' | 'GAME';
@@ -36,11 +37,12 @@ const VIDEO_SUBTYPES = ['MOVIE', 'TV_SERIES', 'PODCAST'] as const;
 
 const hasSubtype = (t: AssetType) => t === 'MUSIC' || t === 'VIDEO';
 
-const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMinimize, isMinimized, initialAlbum }) => {
-  const [step, setStep] = useState(initialAlbum ? 3 : 0);
+const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMinimize, isMinimized, initialAlbum, initialType }) => {
+  const resolvedInitialType: AssetType = (initialAlbum?.type as AssetType) || initialType || 'MUSIC';
+  const [step, setStep] = useState(initialAlbum ? 3 : initialType ? 1 : 0);
   const [title, setTitle] = useState(initialAlbum?.title || '');
   const [artist, setArtist] = useState(initialAlbum?.artist || '');
-  const [type, setType] = useState<AssetType>((initialAlbum?.type as AssetType) || 'MUSIC');
+  const [type, setType] = useState<AssetType>(resolvedInitialType);
   const [subType, setSubType] = useState<'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
