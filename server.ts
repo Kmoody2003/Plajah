@@ -584,6 +584,74 @@ async function startServer() {
     }
   });
 
+  // --- Partner Site Browser Proxy ---
+  // Fetches an external URL server-side and strips X-Frame-Options / CSP frame-ancestors
+  // so the content can be rendered inside a Plajah iframe panel.
+  app.get('/api/browse', async (req: any, res: any) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('URL required');
+
+    let targetUrl: string;
+    try {
+      targetUrl = decodeURIComponent(url as string);
+      const parsed = new URL(targetUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return res.status(400).send('Only http/https URLs are supported');
+      }
+    } catch {
+      return res.status(400).send('Invalid URL');
+    }
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        redirect: 'follow',
+      });
+
+      const contentType = upstream.headers.get('content-type') || 'text/html; charset=utf-8';
+      res.setHeader('Content-Type', contentType);
+      // Strip iframe-blocking headers — intentionally NOT forwarding X-Frame-Options or CSP
+
+      if (contentType.includes('text/html')) {
+        let html = await upstream.text();
+        // Inject <base> tag so relative URLs resolve against the original origin
+        const origin = new URL(targetUrl).origin;
+        const baseTag = `<base href="${origin}/">`;
+        if (/<head(\s[^>]*)?>/.test(html)) {
+          html = html.replace(/<head(\s[^>]*)?>/, (m) => `${m}${baseTag}`);
+        } else {
+          html = baseTag + html;
+        }
+        return res.send(html);
+      }
+
+      // Non-HTML: stream directly (CSS, JS, images, etc.)
+      if (upstream.body) {
+        try {
+          // @ts-ignore
+          const nodeReadable = Readable.fromWeb(upstream.body);
+          nodeReadable.pipe(res);
+          res.on('close', () => nodeReadable.destroy());
+        } catch {
+          const buf = await upstream.arrayBuffer();
+          res.end(Buffer.from(buf));
+        }
+      } else {
+        res.end();
+      }
+    } catch (error: any) {
+      console.error('[BrowseProxy] Error:', error.message);
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.status(502).send(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#0a0a0a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;gap:12px;"><h2 style="margin:0">Could not load page</h2><p style="color:#666;margin:0">${error.message}</p></body></html>`);
+      }
+    }
+  });
+
   // --- Embed & Meta tag Middleware ---
 
   // Push notification send endpoint — called by the client after creating a Firestore notification

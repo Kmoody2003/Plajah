@@ -49,6 +49,7 @@ const WorldManagerView = retryLazy(() => import('./components/WorldManagerView')
 const TeamDetailView = retryLazy(() => import('./components/TeamDetailView').then(m => ({ default: m.TeamDetailView })));
 const PlayerDetailView = retryLazy(() => import('./components/PlayerDetailView').then(m => ({ default: m.PlayerDetailView })));
 const AvatarStudio = retryLazy(() => import('./components/AvatarStudio'));
+const BrowserPanel = retryLazy(() => import('./components/BrowserPanel'));
 
 import GlobalPlayer from './components/GlobalPlayer';
 
@@ -86,7 +87,7 @@ const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap } from 'lucide-react';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -1078,7 +1079,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
-                    { id: 'HELP_CENTER', order: 21, isVisible: true }
+                    { id: 'HELP_CENTER', order: 21, isVisible: true },
+                    { id: 'BROWSER', order: 22, isVisible: true }
                   ];
 
                   let displayConfig = [...baseConfig];
@@ -1123,7 +1125,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         SEARCH: { label: 'Find Artists', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
-                        PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database }
+                        PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
+                        BROWSER: { label: 'Partner Sites', icon: Monitor }
                       };
                       const item = items[config.id as keyof typeof items];
                       if (!item) return null;
@@ -1156,7 +1159,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         SEARCH: "Find specific artists, albums, or content.",
                         HELP_CENTER: "Access documentation, tutorials, and platform guides.",
                         ADMIN_AD_DASHBOARD: "Manage platform advertisements and promotions.",
-                        PARTNER_DASHBOARD: "Configure cloud storage and partner integrations."
+                        PARTNER_DASHBOARD: "Configure cloud storage and partner integrations.",
+                        BROWSER: "Access partner websites (Impact, Mainstreem) inside Plajah without iframe restrictions."
                       }[config.id] || "Navigate to this section.";
 
                       return (
@@ -1795,6 +1799,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setView('USER_PROFILE');
                 }}
               />
+            )}
+            {view === 'BROWSER' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-xs uppercase tracking-widest">Loading Browser...</div>}>
+                <BrowserPanel initialUrl="https://impact.com" />
+              </Suspense>
             )}
             {view === 'TEAM_DETAIL' && selectedTeamName && (
               <TeamDetailView 
