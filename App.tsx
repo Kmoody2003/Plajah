@@ -48,6 +48,7 @@ const WorldsView = retryLazy(() => import('./components/WorldsView'));
 const WorldManagerView = retryLazy(() => import('./components/WorldManagerView'));
 const TeamDetailView = retryLazy(() => import('./components/TeamDetailView').then(m => ({ default: m.TeamDetailView })));
 const PlayerDetailView = retryLazy(() => import('./components/PlayerDetailView').then(m => ({ default: m.PlayerDetailView })));
+const AvatarStudio = retryLazy(() => import('./components/AvatarStudio'));
 
 import GlobalPlayer from './components/GlobalPlayer';
 
@@ -1708,6 +1709,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onVisitUser={handleVisitUser}
                   onMessage={handleMessage}
                   initialTab={initialProfileTab as any}
+                  onNavigate={setView}
                   onOpenCreator={(type) => {
                     setCreatorInitialType(type);
                     setEditingAlbum(null);
@@ -1780,6 +1782,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onPreview={(w) => {
                   setSelectedWorld(w);
                   setView('WORLDS');
+                }}
+              />
+            )}
+            {view === 'AVATAR_STUDIO' && userProfile && (
+              <AvatarStudio
+                userProfile={userProfile}
+                onBack={() => setView('USER_PROFILE')}
+                onSave={async (config) => {
+                  await updateUserProfile(userProfile.uid, { avatar: config } as any);
+                  setUserProfile(prev => prev ? { ...prev, avatar: config } : prev);
+                  setView('USER_PROFILE');
                 }}
               />
             )}
