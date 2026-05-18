@@ -129,6 +129,7 @@ import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
+import SidebarSearch from './components/SidebarSearch';
 
 const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>('LANDING');
@@ -157,7 +158,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
+const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
@@ -1035,7 +1036,19 @@ const App: React.FC = () => {
                   <span className="text-small-orange font-black uppercase tracking-[0.3em] text-[8px]">Playgrounds</span>
                 </div>
               </div>
-              
+
+              {/* ── Universal Sidebar Search ── */}
+              <SidebarSearch
+                isSidebarCollapsed={isSidebarCollapsed}
+                theme={theme}
+                onVisitUser={handleVisitUser}
+                onSelectItem={handleSelectItem}
+                onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
+                onSelectGame={handleSelectGame}
+                onSelectView={(v) => setView(v as any)}
+                onSelectLiveFeed={setActiveLiveFeed}
+              />
+
               <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                 {(() => {
                   const baseConfig = [
@@ -1049,8 +1062,8 @@ const App: React.FC = () => {
                     { id: 'BOOKS', order: 6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
-                    { id: 'GAMES', order: 9, isVisible: true },
-                    { id: 'CLUBS', order: 10, isVisible: true },
+                    { id: 'GAMES', order: 4.5, isVisible: true },
+                    { id: 'CLUBS', order: 0.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
                     { id: 'CLASSROOMS', order: 12, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 14, isVisible: true },
