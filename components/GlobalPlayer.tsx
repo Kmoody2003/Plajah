@@ -472,20 +472,45 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
             <div className={`relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-2xl ${isMinimized ? 'px-2 py-2 flex items-center gap-2' : 'px-8 py-6'}`} onPointerDown={e => e.stopPropagation()}>
               
               {isMinimized && (
-                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
-                  <img 
-                    src={currentAlbum?.coverImage || undefined} 
-                    className="w-full h-full object-cover" 
+                <button
+                  onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                  className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+                  title="Back to album"
+                >
+                  <img
+                    src={currentAlbum?.coverImage || undefined}
+                    className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                </div>
+                </button>
+              )}
+
+              {isMinimized && (currentTrack || currentVideo) && (
+                <button
+                  onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                  className="flex flex-col min-w-0 flex-shrink text-left cursor-pointer hover:opacity-80 transition-opacity"
+                  title="Back to album"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-tight truncate text-white leading-tight max-w-[100px]">
+                    {currentTrack?.title || currentVideo?.title || 'Playing'}
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-widest truncate text-small-orange/70 leading-tight">
+                    {currentAlbum?.artist || ''}
+                  </span>
+                </button>
               )}
 
               <div className={`flex flex-col flex-1 ${isMinimized ? 'gap-1' : 'gap-5'}`}>
-                
+
                 {!isMinimized && (
                   <div className={`text-center ${isMinimized ? 'mb-1' : 'mb-6'}`}>
-                    <h3 className={`${isMinimized ? 'text-[10px]' : 'text-sm'} font-display font-black uppercase tracking-[0.1em] truncate text-white px-2`}>{currentTrack?.title || 'No Track Playing'}</h3>
+                    <button
+                      onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                      className="hover:opacity-80 transition-opacity cursor-pointer w-full"
+                      title="Back to album"
+                    >
+                      <h3 className="text-sm font-display font-black uppercase tracking-[0.1em] truncate text-white px-2">{currentTrack?.title || 'No Track Playing'}</h3>
+                    </button>
                     {!isMinimized && <p className="text-[10px] font-label font-black text-small-orange uppercase tracking-[0.2em] truncate opacity-60">{currentAlbum?.artist || 'Unknown Artist'}</p>}
                     {currentTrack?.isEclipsa && !isMinimized && (
                       <div className="flex items-center justify-center gap-1.5 mt-1">

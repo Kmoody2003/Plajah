@@ -328,6 +328,10 @@ export interface Album {
   characterIds?: string[];
   isSlideshowEnabled?: boolean; // Toggle for slideshow experience in player
   hideNSeekConfig?: HideNSeekConfig;
+  gameUrl?: string;
+  gameFeatures?: Record<string, boolean>;
+  gameScreenshots?: string[];
+  gameVideoUrl?: string;
 }
 
 // ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
@@ -415,6 +419,15 @@ export interface TVSeries {
   seasons: Season[];
 }
 
+export interface WorldBackgroundConfig {
+  type: 'IMAGE' | 'VIDEO' | 'SLIDESHOW';
+  images?: string[];           // For IMAGE or SLIDESHOW
+  videoUrl?: string;           // For VIDEO
+  slideshowInterval?: number;  // ms between slides (default 5000)
+  opacity?: number;            // 0-1 overlay opacity
+  blur?: boolean;
+}
+
 export interface IPWorld {
   id: string;
   creatorId: string;
@@ -424,11 +437,11 @@ export interface IPWorld {
   worldType: 'FICTION' | 'NON_FICTION';
   status?: 'DRAFT' | 'PUBLISHED';
   publishedAt?: number;
-  parentWorldId?: string | null; // For nested worlds
+  parentWorldId?: string | null;
   timelineConfig: {
     startYear: number;
     endYear: number;
-    unitName: string; // e.g. "AY", "Years", "Eras"
+    unitName: string;
   };
   themeConfig: {
     primaryColor: string;
@@ -437,13 +450,16 @@ export interface IPWorld {
     customBackgroundImage?: string;
     useFrostedGlassDefault?: boolean;
   };
-  assetIds: string[]; // Linked Album, Video, Book IDs
+  backgroundConfig?: WorldBackgroundConfig;  // Rich background imagery
+  backgroundMusicAlbumId?: string;           // Album ID for ambient music
+  backgroundMusicRadioArtistId?: string;     // Artist ID for radio stream
+  assetIds: string[];
   characterIds: string[];
   loreIds: string[];
   timelineIds: string[];
-  storyListIds: string[]; // Lists of multimedia content
-  moduleIds: string[]; // Linked ClassroomModule IDs
-  associatedClubIds: string[]; // Linked Club/FanPage IDs
+  storyListIds: string[];
+  moduleIds: string[];
+  associatedClubIds: string[];
   graphConnections: GraphNodeConnection[];
   createdAt: number;
 }
@@ -465,6 +481,20 @@ export interface StoryList {
   tags: string[]; // For intelligent association
 }
 
+export interface CharacterRelationship {
+  characterId: string;
+  characterName: string;
+  type: 'FAMILY' | 'FRIEND' | 'RIVAL' | 'ALLY' | 'ENEMY' | 'ROMANTIC' | 'COWORKER' | 'ACQUAINTANCE' | 'MENTOR' | 'STUDENT';
+  note?: string;
+}
+
+export interface CharacterJournalEntry {
+  id: string;
+  date: string;
+  content: string;
+  mood?: string;
+}
+
 export interface Character {
   id: string;
   worldId: string;
@@ -479,6 +509,24 @@ export interface Character {
   themeAlbumId?: string;
   themeTrackId?: string;
   actorName?: string;
+  // Enhanced fields
+  gallery?: string[];          // Additional portrait/scene images
+  clips?: string[];            // Short video clips
+  physicalStats?: {
+    height?: string;
+    weight?: string;
+    age?: string;
+    birthdate?: string;
+    species?: string;
+    alignment?: string;
+  };
+  lore?: string;               // Long-form lore / origin story
+  relationships?: CharacterRelationship[];
+  journalEntries?: CharacterJournalEntry[];
+  playlistAlbumIds?: string[]; // Album IDs linked for character playlist
+  playlistTrackIds?: string[]; // Specific track IDs
+  modelUrl?: string;           // GLTF/GLB 3D model URL
+  accentColor?: string;        // Character accent color
 }
 
 export interface LoreEntry {
@@ -487,9 +535,17 @@ export interface LoreEntry {
   title: string;
   content: string;
   tags: string[];
-  type: 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY';
-  conflictsDetected: string[]; // Intelligent conflict warnings
+  type: 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY' | 'EVENT' | 'FACTION' | 'CREATURE';
+  conflictsDetected: string[];
   isPublished?: boolean;
+  // Enhanced fields
+  gallery?: string[];          // Images for this lore entry
+  clips?: string[];            // Video clips
+  modelUrl?: string;           // 3D model URL for props/locations
+  coordinates?: { x: number; y: number; description?: string }; // Map coordinates
+  linkedCharacterIds?: string[];
+  linkedEventIds?: string[];
+  ambientMusicAlbumId?: string; // Background music for this location
 }
 
 export interface Timeline {
@@ -507,11 +563,16 @@ export interface TimelineEvent {
   timelineId: string;
   title: string;
   description: string;
-  year: number; // Linear timeline point in specified units
+  year: number;
   isPublished?: boolean;
   linkedCharacterIds?: string[];
   linkedLoreIds?: string[];
   linkedAssetIds?: string[];
+  // Enhanced fields
+  gallery?: string[];
+  clips?: string[];
+  locationRef?: string;        // LoreEntry ID of the location
+  significance?: 'MINOR' | 'MAJOR' | 'PIVOTAL';
 }
 
 

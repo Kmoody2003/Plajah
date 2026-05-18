@@ -404,6 +404,7 @@ interface HelpCenterProps {
 const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [quickPolicy, setQuickPolicy] = useState<string | null>(null);
 
   const filteredSections = helpSections.filter(s => 
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -598,8 +599,97 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount }) => {
               <div className="text-[11px] text-white/40 mt-0.5">support@plajah.com</div>
             </div>
           </a>
+          <div className="flex flex-col gap-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Policies</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-sm">Terms &amp; Conditions</div>
+                    <p className="text-[11px] text-white/50 mt-2">Short summary: nothing illegal may be uploaded; we enforce takedowns and account actions for violations.</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => setQuickPolicy('terms')} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Quick</button>
+                  <a href="/policies/terms.html" target="_blank" rel="noreferrer" className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Full</a>
+                </div>
+              </div>
+
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-sm">Privacy &amp; Data</div>
+                    <p className="text-[11px] text-white/50 mt-2">Short summary: we follow GDPR/UK rules; users can request access, correction, portability, and deletion.</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => setQuickPolicy('privacy')} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Quick</button>
+                  <a href="/policies/privacy.html" target="_blank" rel="noreferrer" className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Full</a>
+                </div>
+              </div>
+
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-sm">DMCA &amp; Copyright</div>
+                    <p className="text-[11px] text-white/50 mt-2">Short summary: copyright complaints handled under DMCA; counter-notice process available; repeat infringers may be terminated.</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => setQuickPolicy('dmca')} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Quick</button>
+                  <a href="/policies/dmca.html" target="_blank" rel="noreferrer" className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Full</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Policies</h4>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a href="/policies/terms.html" target="_blank" rel="noreferrer" className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/70">Terms &amp; Conditions</a>
+              <a href="/policies/privacy.html" target="_blank" rel="noreferrer" className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/70">Privacy &amp; Data</a>
+              <a href="/policies/dmca.html" target="_blank" rel="noreferrer" className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/70">DMCA Policy</a>
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* Quick Policy Modal */}
+      <AnimatePresence>
+        {quickPolicy && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/70">
+            <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }} className="w-full max-w-3xl bg-theme-card border border-white/10 rounded-[2rem] p-8 relative">
+              <button onClick={() => setQuickPolicy(null)} className="absolute top-6 right-6 text-white/40 hover:text-white">Close</button>
+              <h3 className="text-2xl font-black uppercase tracking-widest mb-4">
+                {quickPolicy === 'terms' ? 'Terms — Quick Summary' : quickPolicy === 'privacy' ? 'Privacy — Quick Summary' : 'DMCA — Quick Summary'}
+              </h3>
+              <div className="text-white/70 space-y-3">
+                {quickPolicy === 'terms' && (
+                  <>
+                    <p>Nothing illegal may be uploaded. Users must own or have rights to share content. We enforce takedown, suspension, and termination policies for violations.</p>
+                    <p>We reserve the right to remove content that violates our Terms or applicable law.</p>
+                  </>
+                )}
+                {quickPolicy === 'privacy' && (
+                  <>
+                    <p>We collect basic account and usage data to operate the service. EU/UK users have rights to access, correct, erase, restrict, and port their data.</p>
+                    <p>Contact <a href="mailto:privacy@plajah.com" className="text-white underline">privacy@plajah.com</a> to exercise your rights.</p>
+                  </>
+                )}
+                {quickPolicy === 'dmca' && (
+                  <>
+                    <p>To report copyright infringement send a DMCA notice to <a href="mailto:copyright@plajah.com" className="text-white underline">copyright@plajah.com</a>.</p>
+                    <p>A counter-notice process is available for content removed in error; repeat infringers may be terminated.</p>
+                  </>
+                )}
+              </div>
+              <div className="mt-6 flex gap-3">
+                <a href={quickPolicy === 'terms' ? '/policies/terms.html' : quickPolicy === 'privacy' ? '/policies/privacy.html' : '/policies/dmca.html'} target="_blank" rel="noreferrer" className="px-4 py-2 bg-small-orange text-black font-black rounded-full">Read Full Policy</a>
+                <button onClick={() => setQuickPolicy(null)} className="px-4 py-2 bg-white/5 rounded-full font-black">Close</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

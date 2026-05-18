@@ -449,6 +449,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('BRAND_DASHBOARD');
     } else if (target === 'VIDEO_MANAGER') {
       setView('VIDEO_MANAGER');
+    } else if (target === 'PLAYER') {
+      setView('PLAYER');
     }
   };
 

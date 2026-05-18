@@ -146,10 +146,10 @@ const HomeView: React.FC<{
           </div>
           <div className="flex gap-6 overflow-x-auto no-scrollbar mask-fade-edges pb-8">
             {curatedPlaylists.map(pl => (
-              <motion.div 
+              <motion.div
                 key={pl.id}
                 whileHover={{ scale: 1.02 }}
-                className="group min-w-[280px] md:min-w-[320px] aspect-[16/9] relative rounded-[2rem] overflow-hidden glass border border-white/5 hover:border-small-orange/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
+                className="group w-64 aspect-[16/9] relative rounded-[2rem] overflow-hidden glass border border-white/5 hover:border-small-orange/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
                 onClick={() => {
                   onSelectCuratedPlaylist(pl);
                 }}
@@ -186,25 +186,24 @@ const HomeView: React.FC<{
                   </span>
                 </div>
               </div>
-              <div className="flex gap-6 overflow-x-auto no-scrollbar pb-8">
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-8">
                 {items.map((item) => (
                   <motion.div
                     key={item.identifier}
-                    whileHover={{ scale: 1.05 }}
-                    className="group min-w-[280px] md:min-w-[320px] aspect-video relative rounded-xl overflow-hidden glass border border-white/5 hover:border-primary/30 transition-all duration-500 cursor-pointer shadow-lg flex-shrink-0"
+                    whileHover={{ y: -6 }}
+                    className="group w-40 flex-shrink-0 cursor-pointer"
                     onClick={() => onSelectArchiveItem(item)}
                   >
-                    <img src={item.thumbnailUrl || undefined} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt={item.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl">
-                        <Play fill="white" size={22} className="ml-0.5" />
+                    <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 relative border border-white/5 group-hover:border-white/20 transition-all duration-300">
+                      <img src={item.thumbnailUrl || undefined} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" alt={item.title} />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
+                          <Play fill="white" size={20} className="text-white ml-0.5" />
+                        </div>
                       </div>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <h4 className="font-bold text-lg uppercase tracking-tight line-clamp-2">{item.title}</h4>
-                      <p className="text-xs text-on-surface-variant mt-1 uppercase tracking-widest">{item.year || 'Classic'} · {item.genre}</p>
-                    </div>
+                    <h4 className="font-black text-[10px] uppercase tracking-tight truncate mt-2.5 text-white/80 group-hover:text-white transition-colors">{item.title}</h4>
+                    <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">{item.year || 'Classic'} · {item.genre}</p>
                   </motion.div>
                 ))}
               </div>
@@ -336,10 +335,10 @@ const NebulaView: React.FC<{
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         {localContent.length > 0 ? (
           localContent.map((video) => (
-            <motion.div 
+            <motion.div
               key={video.id}
               whileHover={{ scale: 1.05 }}
-              className="group relative aspect-[9/16] rounded-2xl overflow-hidden glass border border-white/10 shadow-2xl cursor-pointer"
+              className="group relative aspect-[2/3] rounded-2xl overflow-hidden glass border border-white/10 shadow-2xl cursor-pointer"
               onClick={() => onSelectMovie(video)}
             >
               <img src={video.coverImage || null} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -491,7 +490,7 @@ const LibraryView: React.FC<{
               <motion.div
                 key={video.id}
                 whileHover={{ scale: 1.03 }}
-                className="group relative aspect-video rounded-2xl overflow-hidden glass border border-white/5 hover:border-primary/30 transition-all cursor-pointer"
+                className="group relative aspect-[2/3] rounded-2xl overflow-hidden glass border border-white/5 hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => onSelectMovie(video)}
               >
                 <img src={video.coverImage || null} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />

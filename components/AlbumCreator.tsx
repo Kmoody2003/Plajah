@@ -102,6 +102,28 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newCharName, setNewCharName] = useState('');
   const [newCharRole, setNewCharRole] = useState('');
 
+  // Game-specific fields
+  const [gameUrl, setGameUrl] = useState(initialAlbum?.gameUrl || '');
+  const [gameVideoUrl, setGameVideoUrl] = useState(initialAlbum?.gameVideoUrl || '');
+  const [gameScreenshots, setGameScreenshots] = useState<string[]>(initialAlbum?.gameScreenshots || []);
+  const [gameFeatures, setGameFeatures] = useState<Record<string, boolean>>(initialAlbum?.gameFeatures || {});
+  const GAME_FEATURES = [
+    { key: 'controllerSupport', label: 'Controller Support' },
+    { key: 'keyboardMouse', label: 'Keyboard & Mouse' },
+    { key: 'touchControls', label: 'Touch Controls' },
+    { key: 'mobileOptimized', label: 'Mobile Optimized' },
+    { key: 'multiplayer', label: 'Multiplayer' },
+    { key: 'localMultiplayer', label: 'Local Multiplayer' },
+    { key: 'onlineMultiplayer', label: 'Online Multiplayer' },
+    { key: 'coop', label: 'Co-op Mode' },
+    { key: 'pvp', label: 'PvP Mode' },
+    { key: 'xrVr', label: 'XR / VR' },
+    { key: 'achievements', label: 'Achievements' },
+    { key: 'leaderboards', label: 'Leaderboards' },
+    { key: 'freeToPlay', label: 'Free to Play' },
+    { key: 'crossPlatform', label: 'Cross-Platform' },
+  ];
+
   // Hide N Seek configuration
   const [hnsEnabled, setHnsEnabled] = useState<boolean>(initialAlbum?.hideNSeekConfig?.isEnabled || false);
   const [hnsGlobalMode, setHnsGlobalMode] = useState<boolean>(initialAlbum?.hideNSeekConfig?.globalEnabled || false);
@@ -370,6 +392,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
         movieMetadata: (type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES')) ? finalMovieMetadata : undefined,
         bookChapters, bookPreviewConfig, liveFeedUrl, donationGoal, tags, relatedProjectIds, trackListLabel: trackListLabel || undefined,
+        gameUrl: type === 'GAME' ? gameUrl : undefined,
+        gameVideoUrl: type === 'GAME' ? gameVideoUrl : undefined,
+        gameScreenshots: type === 'GAME' ? gameScreenshots : undefined,
+        gameFeatures: type === 'GAME' ? gameFeatures : undefined,
         createdAt: initialAlbum?.createdAt || Date.now(),
         isPublic: !isPrivate && !isDraft,
         isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
@@ -574,16 +600,133 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       )}
 
-      {/* Audio/General Upload Drop Zone */}
-      {(type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && (
+      {/* Game-specific content form */}
+      {type === 'GAME' && (
+        <div className="space-y-8">
+          {/* Game URL */}
+          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+            <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
+              <Globe size={20} className="text-small-orange" /> Game Link
+            </h3>
+            <div className="space-y-2">
+              <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Web App URL <span className="text-small-orange">*</span></label>
+              <input
+                type="url"
+                value={gameUrl}
+                onChange={e => setGameUrl(e.target.value)}
+                placeholder="https://your-game.itch.io or https://play.yourgame.com"
+                className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-small-orange/50 placeholder:text-white/20 transition-all"
+              />
+              <p className="text-[8px] font-bold uppercase tracking-widest text-white/20">Link to your playable web app — itch.io, GameJolt, or your own URL</p>
+            </div>
+          </div>
+
+          {/* Game Video / Trailer */}
+          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+            <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
+              <VideoIcon size={20} className="text-small-orange" /> Gameplay Video / Trailer
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Video URL (YouTube / Vimeo)</label>
+                <input
+                  type="url"
+                  value={gameVideoUrl}
+                  onChange={e => setGameVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-small-orange/50 placeholder:text-white/20 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Or Upload Video File</label>
+                <label className="flex items-center justify-center gap-3 w-full py-4 bg-black/40 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-white/20 transition-all group">
+                  <Upload size={16} className="text-white/30 group-hover:text-white transition-colors" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{gameVideoUrl && !gameVideoUrl.includes('http') ? 'Video Ready' : 'Upload .mp4 / .webm'}</span>
+                  <input type="file" className="hidden" accept="video/*" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) { const url = await uploadFile(file, 'VIDEO'); setGameVideoUrl(url); }
+                  }} />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Screenshots */}
+          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
+                <ImageIcon size={20} className="text-small-orange" /> Screenshots
+              </h3>
+              <label className="px-5 py-2.5 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-white/90 transition-all">
+                Add Screenshots
+                <input type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  const urls = await Promise.all(files.map(f => uploadFile(f, 'PHOTO')));
+                  setGameScreenshots(prev => [...prev, ...urls.filter(Boolean) as string[]]);
+                }} />
+              </label>
+            </div>
+            {gameScreenshots.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {gameScreenshots.map((url, i) => (
+                  <div key={i} className="relative aspect-video rounded-2xl overflow-hidden group border border-white/5">
+                    <img src={url} className="w-full h-full object-cover" alt={`Screenshot ${i + 1}`} />
+                    <button
+                      type="button"
+                      onClick={() => setGameScreenshots(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-2 right-2 w-7 h-7 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                    >
+                      <X size={12} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-10 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No screenshots yet — add some to showcase your game</p>
+              </div>
+            )}
+          </div>
+
+          {/* Feature Flags */}
+          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+            <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
+              <Settings size={20} className="text-small-orange" /> Game Features
+            </h3>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-white/20">Select all features your game supports</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {GAME_FEATURES.map(({ key, label }) => {
+                const active = !!gameFeatures[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setGameFeatures(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className={`px-4 py-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
+                      active
+                        ? 'bg-small-orange text-white border-small-orange shadow-lg shadow-small-orange/20'
+                        : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/70'
+                    }`}
+                  >
+                    {active ? '✓ ' : ''}{label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audio/General Upload Drop Zone (non-GAME) */}
+      {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && (
         <div className="space-y-4">
           <div className="relative group">
-            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : type === 'GAME' ? '*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-[3rem] flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
               <div className="p-6 rounded-[1.5rem] bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
                 <p className="text-lg font-black uppercase tracking-widest text-white/60 mb-2">
-                  {type === 'BOOK' ? 'Upload Chapters / Files' : type === 'PHOTO' ? 'Upload Photos' : type === 'GAME' ? 'Upload Game Files' : type === 'VIDEO' ? 'Upload Video' : 'Upload Audio Tracks'}
+                  {type === 'BOOK' ? 'Upload Chapters / Files' : type === 'PHOTO' ? 'Upload Photos' : type === 'VIDEO' ? 'Upload Video' : 'Upload Audio Tracks'}
                 </p>
                 <p className="text-[11px] text-small-orange font-black uppercase tracking-[0.4em] opacity-60">Direct Upload to Google Cloud Storage</p>
                 {type === 'MUSIC' && (

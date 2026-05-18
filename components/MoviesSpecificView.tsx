@@ -24,7 +24,7 @@ const matchesChip = (item: any, chip: string): boolean => {
   return genre.includes(lc) || subType === lc || tagMatch;
 };
 
-const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: string }> = ({ item, onSelect, width = 'min-w-[140px] md:min-w-[160px]' }) => {
+const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: string }> = ({ item, onSelect, width = 'w-40' }) => {
   const isArchive = 'identifier' in item;
   const cover = isArchive ? item.thumbnailUrl : item.coverImage;
   return (

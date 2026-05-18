@@ -25,9 +25,11 @@ import {
   Network,
   Image,
   Library,
-  Loader2
+  Loader2,
+  Film,
+  Music2
 } from 'lucide-react';
-import { IPWorld, Character, LoreEntry, TimelineEvent, Timeline, Album, Video, GraphNodeConnection, Photo } from '../types';
+import { IPWorld, Character, LoreEntry, TimelineEvent, Timeline, Album, Video, GraphNodeConnection, Photo, CharacterRelationship, CharacterJournalEntry, WorldBackgroundConfig } from '../types';
 import {
   fetchWorldCharacters,
   fetchWorldLore,
@@ -100,6 +102,45 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const [addPhotoToLibrary, setAddPhotoToLibrary] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Character editor state
+  const [charEditName, setCharEditName] = useState('');
+  const [charEditRole, setCharEditRole] = useState('');
+  const [charEditImageUrl, setCharEditImageUrl] = useState('');
+  const [charEditBio, setCharEditBio] = useState('');
+  const [charEditAccentColor, setCharEditAccentColor] = useState('#a855f7');
+  const [charEditPhysicalStats, setCharEditPhysicalStats] = useState<Record<string, string>>({});
+  const [charEditCustomStats, setCharEditCustomStats] = useState('');
+  const [charEditGallery, setCharEditGallery] = useState<string[]>([]);
+  const [charEditJournalEntries, setCharEditJournalEntries] = useState<CharacterJournalEntry[]>([]);
+  const [charEditRelationships, setCharEditRelationships] = useState<CharacterRelationship[]>([]);
+  const [charEditPlaylistAlbumIds, setCharEditPlaylistAlbumIds] = useState<string[]>([]);
+  const [charEditTab, setCharEditTab] = useState<'BASICS' | 'STATS' | 'GALLERY' | 'JOURNAL' | 'RELATIONS' | 'PLAYLIST'>('BASICS');
+  const [charImageUploading, setCharImageUploading] = useState(false);
+  const [charGalleryUploading, setCharGalleryUploading] = useState(false);
+  const charPortraitInputRef = useRef<HTMLInputElement>(null);
+  const charGalleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Journal entry form state
+  const [newJournalDate, setNewJournalDate] = useState('');
+  const [newJournalContent, setNewJournalContent] = useState('');
+  const [newJournalMood, setNewJournalMood] = useState('');
+
+  // Relationship form state
+  const [newRelCharId, setNewRelCharId] = useState('');
+  const [newRelType, setNewRelType] = useState<CharacterRelationship['type']>('FRIEND');
+  const [newRelNote, setNewRelNote] = useState('');
+
+  // Lore editor state
+  const [loreEditGallery, setLoreEditGallery] = useState<string[]>([]);
+  const [loreEditClips, setLoreEditClips] = useState<string[]>([]);
+  const [loreGalleryUploading, setLoreGalleryUploading] = useState(false);
+  const [newClipUrl, setNewClipUrl] = useState('');
+  const loreGalleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Background config upload
+  const [bgImageUploading, setBgImageUploading] = useState(false);
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'IDENTITY' | 'CONTENT' | 'TIMELINE' | 'CONNECTIONS' | 'ASSETS'>('IDENTITY');
   const [activeEditor, setActiveEditor] = useState<{ type: 'CHARACTER' | 'LORE' | 'TIMELINE' | 'CONNECTION', item?: any } | null>(null);
@@ -111,6 +152,36 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
     }
     loadUserData();
   }, [initialWorld?.id]);
+
+  useEffect(() => {
+    if (!activeEditor) return;
+    if (activeEditor.type === 'CHARACTER') {
+      const c = activeEditor.item as Character | undefined;
+      setCharEditName(c?.name || '');
+      setCharEditRole(c?.role || '');
+      setCharEditImageUrl(c?.imageUrl || '');
+      setCharEditBio(c?.bio || '');
+      setCharEditAccentColor((c as any)?.accentColor || '#a855f7');
+      setCharEditPhysicalStats((c as any)?.physicalStats || {});
+      setCharEditCustomStats(c?.stats ? Object.entries(c.stats).map(([k, v]) => `${k}: ${v}`).join(', ') : '');
+      setCharEditGallery((c as any)?.gallery || []);
+      setCharEditJournalEntries((c as any)?.journalEntries || []);
+      setCharEditRelationships((c as any)?.relationships || []);
+      setCharEditPlaylistAlbumIds((c as any)?.playlistAlbumIds || []);
+      setCharEditTab('BASICS');
+      setNewJournalDate('');
+      setNewJournalContent('');
+      setNewJournalMood('');
+      setNewRelCharId('');
+      setNewRelType('FRIEND');
+      setNewRelNote('');
+    } else if (activeEditor.type === 'LORE') {
+      const l = activeEditor.item as LoreEntry | undefined;
+      setLoreEditGallery((l as any)?.gallery || []);
+      setLoreEditClips((l as any)?.clips || []);
+      setNewClipUrl('');
+    }
+  }, [activeEditor?.type, activeEditor?.item?.id]);
 
   const loadUserData = async () => {
     if (!auth.currentUser) return;
@@ -321,13 +392,160 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
 
                     <div className="space-y-2">
                       <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Chronicle Summary (Lore)</label>
-                      <textarea 
-                        placeholder="The foundational truth of your universe..." 
+                      <textarea
+                        placeholder="The foundational truth of your universe..."
                         value={world.description}
                         className="w-full bg-black/40 p-5 rounded-2xl border border-white/10 h-40 text-sm leading-relaxed"
                         onChange={e => setWorld({...world, description: e.target.value})}
                       />
                     </div>
+                  </div>
+                </section>
+
+                {/* Background Imagery */}
+                <section className="glass p-8 rounded-[2.5rem] border border-white/10">
+                  <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3 mb-8">
+                    <Image className="text-primary" size={20} />
+                    World Background Imagery
+                  </h3>
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(['IMAGE', 'VIDEO', 'SLIDESHOW'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setWorld({ ...world, backgroundConfig: { type: t, images: world.backgroundConfig?.images, videoUrl: world.backgroundConfig?.videoUrl, slideshowInterval: world.backgroundConfig?.slideshowInterval, opacity: world.backgroundConfig?.opacity } })}
+                          className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${(world.backgroundConfig?.type) === t ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                        >{t}</button>
+                      ))}
+                      {world.backgroundConfig && (
+                        <button
+                          onClick={() => setWorld({ ...world, backgroundConfig: undefined })}
+                          className="ml-auto text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-red-400 transition-colors"
+                        >Clear</button>
+                      )}
+                    </div>
+
+                    {world.backgroundConfig?.type === 'VIDEO' ? (
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Video URL (mp4 / webm)</label>
+                        <input
+                          type="text"
+                          value={world.backgroundConfig.videoUrl || ''}
+                          onChange={e => setWorld({ ...world, backgroundConfig: { ...world.backgroundConfig!, videoUrl: e.target.value } })}
+                          placeholder="https://..."
+                          className="w-full bg-black/40 p-4 rounded-xl border border-white/10 text-sm"
+                        />
+                      </div>
+                    ) : world.backgroundConfig ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] font-black uppercase tracking-widest opacity-30">
+                            {world.backgroundConfig.type === 'SLIDESHOW' ? 'Slideshow Images' : 'Background Image'}
+                          </p>
+                          <label className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all ${bgImageUploading || !world.id ? 'opacity-50 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                            {bgImageUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                            {bgImageUploading ? 'Uploading…' : 'Upload'}
+                            <input
+                              ref={bgImageInputRef}
+                              type="file"
+                              accept="image/*"
+                              multiple={world.backgroundConfig.type === 'SLIDESHOW'}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const files = Array.from(e.target.files || []);
+                                if (!files.length || !world.id) return;
+                                setBgImageUploading(true);
+                                try {
+                                  const photos = await Promise.all(files.map(f => uploadWorldPhoto(f, world.id!, { title: f.name.replace(/\.[^.]+$/, '') })));
+                                  const urls = photos.filter(Boolean).map(p => p!.url);
+                                  const existing = world.backgroundConfig?.images || [];
+                                  setWorld({ ...world, backgroundConfig: { ...world.backgroundConfig!, images: [...existing, ...urls] } });
+                                } finally {
+                                  setBgImageUploading(false);
+                                  if (bgImageInputRef.current) bgImageInputRef.current.value = '';
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {!world.id && <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest">Save world first to upload background images.</p>}
+                        {(world.backgroundConfig.images?.length || 0) > 0 && (
+                          <div className="grid grid-cols-4 gap-2">
+                            {world.backgroundConfig.images!.map((url, i) => (
+                              <div key={i} className="relative aspect-video rounded-xl overflow-hidden bg-white/5">
+                                <img src={url} className="w-full h-full object-cover" />
+                                <button
+                                  onClick={() => setWorld({ ...world, backgroundConfig: { ...world.backgroundConfig!, images: world.backgroundConfig!.images!.filter((_, idx) => idx !== i) } })}
+                                  className="absolute top-1 right-1 p-1 bg-black/70 rounded-full"
+                                ><X size={10} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {world.backgroundConfig.type === 'SLIDESHOW' && (
+                          <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-40 shrink-0">Slide interval</span>
+                            <input
+                              type="number"
+                              min={2}
+                              max={30}
+                              value={world.backgroundConfig.slideshowInterval || 5}
+                              onChange={e => setWorld({ ...world, backgroundConfig: { ...world.backgroundConfig!, slideshowInterval: parseInt(e.target.value) } })}
+                              className="w-20 bg-black/40 p-2 rounded-lg border border-white/10 text-sm text-center"
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-30">seconds</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Select a background type above to configure imagery.</p>
+                    )}
+
+                    {world.backgroundConfig && (
+                      <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-40 shrink-0">Opacity</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={Math.round((world.backgroundConfig.opacity ?? 0.7) * 100)}
+                          onChange={e => setWorld({ ...world, backgroundConfig: { ...world.backgroundConfig!, opacity: parseInt(e.target.value) / 100 } })}
+                          className="flex-1 accent-primary"
+                        />
+                        <span className="text-[9px] font-mono opacity-40">{Math.round((world.backgroundConfig.opacity ?? 0.7) * 100)}%</span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Ambient Music */}
+                <section className="glass p-8 rounded-[2.5rem] border border-white/10">
+                  <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3 mb-8">
+                    <Music2 className="text-primary" size={20} />
+                    Ambient Background Music
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Linked Album (plays when entering this world)</label>
+                      <select
+                        className="w-full bg-black/40 p-5 rounded-2xl border border-white/10 text-white/60 text-sm font-bold"
+                        value={world.backgroundMusicAlbumId || ''}
+                        onChange={e => setWorld({ ...world, backgroundMusicAlbumId: e.target.value || undefined })}
+                      >
+                        <option value="">No ambient music</option>
+                        {userAlbums.map(album => (
+                          <option key={album.id} value={album.id}>{album.title} — {album.artist}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {world.backgroundMusicAlbumId && (
+                      <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-2xl">
+                        <Music2 size={14} className="text-primary shrink-0" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                          {userAlbums.find(a => a.id === world.backgroundMusicAlbumId)?.title || 'Linked album'} will autoplay when visitors enter this world
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </section>
               </motion.div>
@@ -1009,87 +1227,392 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                 <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto no-scrollbar">
                    {activeEditor.type === 'CHARACTER' && (
                      <div className="space-y-6">
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Inhabitant Appellation</label>
-                           <input 
-                             type="text"
-                             placeholder="E.g. Aelous"
-                             defaultValue={activeEditor.item?.name}
-                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 text-lg font-black uppercase tracking-tight"
-                             id="char-name"
-                           />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                              <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Arch-Role</label>
-                              <input 
-                                type="text"
-                                placeholder="E.g. Sage"
-                                defaultValue={activeEditor.item?.role}
-                                className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm"
-                                id="char-role"
-                              />
-                           </div>
-                           <div className="space-y-2">
-                              <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Visual Descriptor (URL)</label>
-                              <input 
-                                type="text"
-                                placeholder="Image URL"
-                                defaultValue={activeEditor.item?.imageUrl}
-                                className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm"
-                                id="char-img"
-                              />
-                           </div>
-                        </div>
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Existential Bio</label>
-                           <textarea 
-                             placeholder="The essence of this being..."
-                             defaultValue={activeEditor.item?.bio}
-                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-32 text-sm leading-relaxed"
-                             id="char-bio"
-                           />
-                        </div>
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Primary Stats (Key: Value strings)</label>
-                           <textarea 
-                             placeholder='E.g. strength: 10, agility: 15'
-                             defaultValue={activeEditor.item?.stats ? Object.entries(activeEditor.item.stats).map(([k,v]) => `${k}: ${v}`).join(', ') : ''}
-                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-20 text-xs font-mono"
-                             id="char-stats"
-                           />
-                        </div>
-                        <button
-                          onClick={() => {
-                            const name = (document.getElementById('char-name') as HTMLInputElement).value.trim();
-                            const role = (document.getElementById('char-role') as HTMLInputElement).value.trim();
-                            const imageUrl = (document.getElementById('char-img') as HTMLInputElement).value.trim();
-                            const bio = (document.getElementById('char-bio') as HTMLTextAreaElement).value.trim();
-                            const statsRaw = (document.getElementById('char-stats') as HTMLTextAreaElement).value.trim();
+                       {/* Editor tabs */}
+                       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                         {(['BASICS', 'STATS', 'GALLERY', 'JOURNAL', 'RELATIONS', 'PLAYLIST'] as const).map(tab => (
+                           <button
+                             key={tab}
+                             onClick={() => setCharEditTab(tab)}
+                             className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${charEditTab === tab ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                           >{tab}</button>
+                         ))}
+                       </div>
 
-                            const data: Record<string, any> = {
-                              id: activeEditor.item?.id,
-                              worldId: activeEditor.item?.worldId || world.id,
-                            };
-                            // Only include fields the user has actually filled in
-                            if (name) data.name = name;
-                            if (role) data.role = role;
-                            if (imageUrl) data.imageUrl = imageUrl;
-                            if (bio) data.bio = bio;
-                            if (statsRaw) {
-                              const stats: Record<string, any> = {};
-                              statsRaw.split(',').forEach(pair => {
-                                const [k, v] = pair.split(':').map(s => s.trim());
-                                if (k && v) stats[k] = isNaN(Number(v)) ? v : Number(v);
-                              });
-                              if (Object.keys(stats).length > 0) data.stats = stats;
-                            }
-                            handleSaveEditor(data);
-                          }}
-                          className="w-full py-6 bg-primary rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl"
-                        >
-                          Save Progress
-                        </button>
+                       {charEditTab === 'BASICS' && (
+                         <div className="space-y-5">
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Name</label>
+                             <input
+                               type="text"
+                               value={charEditName}
+                               onChange={e => setCharEditName(e.target.value)}
+                               placeholder="E.g. Aelous"
+                               className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 text-lg font-black uppercase tracking-tight"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Role / Title</label>
+                             <input
+                               type="text"
+                               value={charEditRole}
+                               onChange={e => setCharEditRole(e.target.value)}
+                               placeholder="E.g. Sage"
+                               className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Portrait</label>
+                             <div className="flex items-start gap-4">
+                               {charEditImageUrl ? (
+                                 <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white/5 shrink-0">
+                                   <img src={charEditImageUrl} className="w-full h-full object-cover" />
+                                   <button onClick={() => setCharEditImageUrl('')} className="absolute top-1 right-1 p-1 bg-black/70 rounded-full"><X size={10} /></button>
+                                 </div>
+                               ) : (
+                                 <div className="w-20 h-20 rounded-2xl bg-white/5 border border-dashed border-white/20 flex items-center justify-center shrink-0">
+                                   <Upload size={16} className="text-white/20" />
+                                 </div>
+                               )}
+                               <div className="flex-1 space-y-2">
+                                 <label className={`flex items-center gap-2 px-4 py-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${charImageUploading || !world.id ? 'opacity-50 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                   {charImageUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                                   {charImageUploading ? 'Uploading…' : 'Upload File'}
+                                   <input
+                                     ref={charPortraitInputRef}
+                                     type="file"
+                                     accept="image/*"
+                                     className="hidden"
+                                     onChange={async (e) => {
+                                       const file = e.target.files?.[0];
+                                       if (!file || !world.id) return;
+                                       setCharImageUploading(true);
+                                       try {
+                                         const photo = await uploadWorldPhoto(file, world.id, { title: 'portrait-' + (charEditName || 'character') });
+                                         if (photo?.url) setCharEditImageUrl(photo.url);
+                                       } finally {
+                                         setCharImageUploading(false);
+                                         if (charPortraitInputRef.current) charPortraitInputRef.current.value = '';
+                                       }
+                                     }}
+                                   />
+                                 </label>
+                                 {!world.id && <p className="text-[8px] text-white/30 uppercase tracking-widest font-bold">Save world first to upload files.</p>}
+                                 <input
+                                   type="text"
+                                   value={charEditImageUrl}
+                                   onChange={e => setCharEditImageUrl(e.target.value)}
+                                   placeholder="Or paste image URL"
+                                   className="w-full bg-white/5 p-3 rounded-2xl border border-white/5 text-xs"
+                                 />
+                               </div>
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Biography</label>
+                             <textarea
+                               value={charEditBio}
+                               onChange={e => setCharEditBio(e.target.value)}
+                               placeholder="The essence of this being..."
+                               className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 h-28 text-sm leading-relaxed"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Accent Color</label>
+                             <div className="flex items-center gap-3">
+                               <input
+                                 type="color"
+                                 value={charEditAccentColor}
+                                 onChange={e => setCharEditAccentColor(e.target.value)}
+                                 className="w-12 h-12 rounded-2xl border-none cursor-pointer bg-transparent"
+                               />
+                               <span className="text-xs font-mono opacity-40">{charEditAccentColor}</span>
+                             </div>
+                           </div>
+                         </div>
+                       )}
+
+                       {charEditTab === 'STATS' && (
+                         <div className="space-y-5">
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Physical Stats</label>
+                             <div className="grid grid-cols-2 gap-3">
+                               {(['height', 'weight', 'age', 'birthdate', 'species', 'alignment'] as const).map(field => (
+                                 <div key={field} className="space-y-1">
+                                   <label className="text-[8px] font-black uppercase tracking-widest opacity-30 ml-1">{field}</label>
+                                   <input
+                                     type="text"
+                                     value={charEditPhysicalStats[field] || ''}
+                                     onChange={e => setCharEditPhysicalStats({ ...charEditPhysicalStats, [field]: e.target.value })}
+                                     placeholder={field === 'height' ? '5\'10"' : field === 'weight' ? '165 lbs' : field}
+                                     className="w-full bg-white/5 p-3 rounded-xl border border-white/5 text-sm"
+                                   />
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Custom Stats (Key: Value)</label>
+                             <textarea
+                               value={charEditCustomStats}
+                               onChange={e => setCharEditCustomStats(e.target.value)}
+                               placeholder="strength: 10, agility: 15, magic: 8"
+                               className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 h-24 text-xs font-mono"
+                             />
+                           </div>
+                         </div>
+                       )}
+
+                       {charEditTab === 'GALLERY' && (
+                         <div className="space-y-5">
+                           <div className="flex items-center justify-between">
+                             <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Gallery ({charEditGallery.length} items)</label>
+                             <label className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all ${charGalleryUploading || !world.id ? 'opacity-50 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                               {charGalleryUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                               {charGalleryUploading ? 'Uploading…' : 'Add Files'}
+                               <input
+                                 ref={charGalleryInputRef}
+                                 type="file"
+                                 accept="image/*,video/*"
+                                 multiple
+                                 className="hidden"
+                                 onChange={async (e) => {
+                                   const files = Array.from(e.target.files || []);
+                                   if (!files.length || !world.id) return;
+                                   setCharGalleryUploading(true);
+                                   try {
+                                     const photos = await Promise.all(files.map(f => uploadWorldPhoto(f, world.id!, { title: f.name.replace(/\.[^.]+$/, '') })));
+                                     const urls = photos.filter(Boolean).map(p => p!.url);
+                                     setCharEditGallery(prev => [...prev, ...urls]);
+                                   } finally {
+                                     setCharGalleryUploading(false);
+                                     if (charGalleryInputRef.current) charGalleryInputRef.current.value = '';
+                                   }
+                                 }}
+                               />
+                             </label>
+                           </div>
+                           {!world.id && <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest">Save world first to upload files.</p>}
+                           {charEditGallery.length > 0 ? (
+                             <div className="grid grid-cols-3 gap-3">
+                               {charEditGallery.map((url, i) => (
+                                 <div key={i} className="relative aspect-square rounded-2xl overflow-hidden bg-white/5">
+                                   <img src={url} className="w-full h-full object-cover" />
+                                   <button
+                                     onClick={() => setCharEditGallery(prev => prev.filter((_, idx) => idx !== i))}
+                                     className="absolute top-1 right-1 p-1 bg-black/70 rounded-full hover:bg-red-500/70 transition-colors"
+                                   ><X size={10} /></button>
+                                 </div>
+                               ))}
+                             </div>
+                           ) : (
+                             <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                               <Image size={24} className="text-white/10 mx-auto mb-2" />
+                               <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No gallery items yet</p>
+                             </div>
+                           )}
+                         </div>
+                       )}
+
+                       {charEditTab === 'JOURNAL' && (
+                         <div className="space-y-5">
+                           <div className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-3">
+                             <p className="text-[9px] font-black uppercase tracking-widest opacity-40">New Journal Entry</p>
+                             <div className="grid grid-cols-2 gap-3">
+                               <input
+                                 type="text"
+                                 value={newJournalDate}
+                                 onChange={e => setNewJournalDate(e.target.value)}
+                                 placeholder="Date (e.g. Year 342)"
+                                 className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm"
+                               />
+                               <select
+                                 value={newJournalMood}
+                                 onChange={e => setNewJournalMood(e.target.value)}
+                                 className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm text-white/60"
+                               >
+                                 <option value="">Mood (optional)</option>
+                                 {['HAPPY', 'SAD', 'ANGRY', 'AFRAID', 'NEUTRAL', 'MYSTERIOUS', 'DETERMINED'].map(m => (
+                                   <option key={m} value={m}>{m}</option>
+                                 ))}
+                               </select>
+                             </div>
+                             <textarea
+                               value={newJournalContent}
+                               onChange={e => setNewJournalContent(e.target.value)}
+                               placeholder="Write a journal entry..."
+                               className="w-full bg-white/5 p-4 rounded-xl border border-white/5 h-24 text-sm leading-relaxed"
+                             />
+                             <button
+                               onClick={() => {
+                                 if (!newJournalContent.trim()) return;
+                                 setCharEditJournalEntries(prev => [{
+                                   id: Date.now().toString(),
+                                   date: newJournalDate || new Date().toLocaleDateString(),
+                                   content: newJournalContent.trim(),
+                                   mood: newJournalMood || undefined,
+                                 }, ...prev]);
+                                 setNewJournalDate('');
+                                 setNewJournalContent('');
+                                 setNewJournalMood('');
+                               }}
+                               disabled={!newJournalContent.trim()}
+                               className="w-full py-3 bg-primary/80 hover:bg-primary rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-30"
+                             >Add Entry</button>
+                           </div>
+                           <div className="space-y-3">
+                             {charEditJournalEntries.map(entry => (
+                               <div key={entry.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                                 <div className="flex items-center justify-between mb-2">
+                                   <div className="flex items-center gap-2">
+                                     <span className="text-[9px] font-black uppercase tracking-widest opacity-50">{entry.date}</span>
+                                     {entry.mood && <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 opacity-60">{entry.mood}</span>}
+                                   </div>
+                                   <button onClick={() => setCharEditJournalEntries(prev => prev.filter(e => e.id !== entry.id))} className="p-1 hover:text-red-400 transition-colors opacity-30 hover:opacity-100"><Trash2 size={12} /></button>
+                                 </div>
+                                 <p className="text-xs text-white/60 leading-relaxed">{entry.content}</p>
+                               </div>
+                             ))}
+                             {charEditJournalEntries.length === 0 && (
+                               <div className="py-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                                 <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No journal entries</p>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+                       )}
+
+                       {charEditTab === 'RELATIONS' && (
+                         <div className="space-y-5">
+                           <div className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl space-y-3">
+                             <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Add Connection</p>
+                             <select
+                               value={newRelCharId}
+                               onChange={e => setNewRelCharId(e.target.value)}
+                               className="w-full bg-white/5 p-3 rounded-xl border border-white/5 text-sm text-white/60"
+                             >
+                               <option value="">Select character…</option>
+                               {characters.filter(c => c.id !== activeEditor.item?.id).map(c => (
+                                 <option key={c.id} value={c.id}>{c.name}</option>
+                               ))}
+                             </select>
+                             <div className="grid grid-cols-2 gap-3">
+                               <select
+                                 value={newRelType}
+                                 onChange={e => setNewRelType(e.target.value as CharacterRelationship['type'])}
+                                 className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm text-white/60"
+                               >
+                                 {(['FAMILY', 'FRIEND', 'RIVAL', 'ALLY', 'ENEMY', 'ROMANTIC', 'COWORKER', 'ACQUAINTANCE', 'MENTOR', 'STUDENT'] as const).map(t => (
+                                   <option key={t} value={t}>{t}</option>
+                                 ))}
+                               </select>
+                               <input
+                                 type="text"
+                                 value={newRelNote}
+                                 onChange={e => setNewRelNote(e.target.value)}
+                                 placeholder="Note (optional)"
+                                 className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm"
+                               />
+                             </div>
+                             <button
+                               onClick={() => {
+                                 if (!newRelCharId) return;
+                                 const relName = characters.find(c => c.id === newRelCharId)?.name || '';
+                                 setCharEditRelationships(prev => [...prev, { characterId: newRelCharId, characterName: relName, type: newRelType, note: newRelNote || undefined }]);
+                                 setNewRelCharId('');
+                                 setNewRelNote('');
+                               }}
+                               disabled={!newRelCharId}
+                               className="w-full py-3 bg-primary/80 hover:bg-primary rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-30"
+                             >Add Connection</button>
+                           </div>
+                           <div className="space-y-3">
+                             {charEditRelationships.map((rel, i) => {
+                               const relChar = characters.find(c => c.id === rel.characterId);
+                               return (
+                                 <div key={i} className="flex items-center gap-3 p-4 bg-white/5 border border-white/5 rounded-2xl">
+                                   {relChar?.imageUrl && <img src={relChar.imageUrl} className="w-10 h-10 rounded-full object-cover shrink-0" />}
+                                   <div className="flex-1 min-w-0">
+                                     <p className="text-xs font-black uppercase tracking-tight">{relChar?.name || rel.characterId}</p>
+                                     <div className="flex items-center gap-2 mt-0.5">
+                                       <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-primary/20 text-primary">{rel.type}</span>
+                                       {rel.note && <span className="text-[9px] opacity-40 truncate">{rel.note}</span>}
+                                     </div>
+                                   </div>
+                                   <button onClick={() => setCharEditRelationships(prev => prev.filter((_, idx) => idx !== i))} className="p-2 hover:text-red-400 transition-colors opacity-30 hover:opacity-100"><Trash2 size={12} /></button>
+                                 </div>
+                               );
+                             })}
+                             {charEditRelationships.length === 0 && (
+                               <div className="py-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                                 <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No connections yet</p>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+                       )}
+
+                       {charEditTab === 'PLAYLIST' && (
+                         <div className="space-y-4">
+                           <p className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Link Albums to This Character</p>
+                           {userAlbums.length === 0 ? (
+                             <p className="text-[10px] text-white/30 p-4 bg-white/5 rounded-2xl border border-white/5">No albums available. Add albums in the Assets tab first.</p>
+                           ) : (
+                             <div className="space-y-2">
+                               {userAlbums.map(album => {
+                                 const linked = charEditPlaylistAlbumIds.includes(album.id);
+                                 return (
+                                   <button
+                                     key={album.id}
+                                     onClick={() => setCharEditPlaylistAlbumIds(prev => linked ? prev.filter(id => id !== album.id) : [...prev, album.id])}
+                                     className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${linked ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
+                                   >
+                                     <div className="flex items-center gap-3">
+                                       {(album as any).coverImageUrl && <img src={(album as any).coverImageUrl} className="w-8 h-8 rounded-lg object-cover" />}
+                                       <div className="text-left">
+                                         <p className="text-xs font-bold">{album.title}</p>
+                                         <p className="text-[9px] opacity-40 uppercase">{album.type}</p>
+                                       </div>
+                                     </div>
+                                     {linked ? <Check size={14} className="text-primary" /> : <Plus size={14} className="opacity-20" />}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           )}
+                         </div>
+                       )}
+
+                       <button
+                         onClick={() => {
+                           const customStats: Record<string, any> = {};
+                           if (charEditCustomStats.trim()) {
+                             charEditCustomStats.split(',').forEach(pair => {
+                               const [k, v] = pair.split(':').map(s => s.trim());
+                               if (k && v) customStats[k] = isNaN(Number(v)) ? v : Number(v);
+                             });
+                           }
+                           const data: Record<string, any> = {
+                             id: activeEditor.item?.id,
+                             worldId: activeEditor.item?.worldId || world.id,
+                             name: charEditName,
+                             role: charEditRole,
+                             imageUrl: charEditImageUrl,
+                             bio: charEditBio,
+                             accentColor: charEditAccentColor,
+                           };
+                           if (Object.keys(charEditPhysicalStats).length > 0) data.physicalStats = charEditPhysicalStats;
+                           if (Object.keys(customStats).length > 0) data.stats = customStats;
+                           if (charEditGallery.length > 0) data.gallery = charEditGallery;
+                           if (charEditJournalEntries.length > 0) data.journalEntries = charEditJournalEntries;
+                           if (charEditRelationships.length > 0) data.relationships = charEditRelationships;
+                           if (charEditPlaylistAlbumIds.length > 0) data.playlistAlbumIds = charEditPlaylistAlbumIds;
+                           handleSaveEditor(data);
+                         }}
+                         disabled={!charEditName.trim()}
+                         className="w-full py-6 bg-primary rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl disabled:opacity-30 transition-all"
+                       >
+                         Save Character
+                       </button>
                      </div>
                    )}
 
@@ -1097,7 +1620,7 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                      <div className="space-y-6">
                         <div className="space-y-2">
                            <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Chronicle Title</label>
-                           <input 
+                           <input
                              type="text"
                              placeholder="E.g. The Age of Silence"
                              defaultValue={activeEditor.item?.title}
@@ -1107,7 +1630,7 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                         </div>
                         <div className="space-y-2">
                            <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Ontological Category</label>
-                           <select 
+                           <select
                              defaultValue={activeEditor.item?.type || 'BACKSTORY'}
                              className="w-full bg-white/5 p-5 rounded-2xl border border-white/5 text-sm font-bold opacity-60"
                              id="lore-type"
@@ -1116,26 +1639,107 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                              <option value="ITEM">Relic / Artifact</option>
                              <option value="PLOT_POINT">Historical Nexus</option>
                              <option value="BACKSTORY">Backstory</option>
+                             <option value="EVENT">Event</option>
+                             <option value="FACTION">Faction</option>
+                             <option value="CREATURE">Creature</option>
                            </select>
                         </div>
                         <div className="space-y-2">
                            <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">The Revelation</label>
-                           <textarea 
+                           <textarea
                              placeholder="Unfold the truth..."
                              defaultValue={activeEditor.item?.content}
-                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-64 text-sm leading-relaxed"
+                             className="w-full bg-white/5 p-6 rounded-2xl border border-white/5 h-40 text-sm leading-relaxed"
                              id="lore-content"
                            />
                         </div>
-                        <button 
+
+                        {/* Gallery */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Gallery Images ({loreEditGallery.length})</label>
+                            <label className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all ${loreGalleryUploading || !world.id ? 'opacity-50 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                              {loreGalleryUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                              Add Images
+                              <input
+                                ref={loreGalleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const files = Array.from(e.target.files || []);
+                                  if (!files.length || !world.id) return;
+                                  setLoreGalleryUploading(true);
+                                  try {
+                                    const photos = await Promise.all(files.map(f => uploadWorldPhoto(f, world.id!, { title: f.name.replace(/\.[^.]+$/, '') })));
+                                    const urls = photos.filter(Boolean).map(p => p!.url);
+                                    setLoreEditGallery(prev => [...prev, ...urls]);
+                                  } finally {
+                                    setLoreGalleryUploading(false);
+                                    if (loreGalleryInputRef.current) loreGalleryInputRef.current.value = '';
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                          {!world.id && <p className="text-[8px] text-white/30 font-bold uppercase tracking-widest ml-2">Save world first to upload images.</p>}
+                          {loreEditGallery.length > 0 && (
+                            <div className="grid grid-cols-4 gap-2">
+                              {loreEditGallery.map((url, i) => (
+                                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-white/5">
+                                  <img src={url} className="w-full h-full object-cover" />
+                                  <button
+                                    onClick={() => setLoreEditGallery(prev => prev.filter((_, idx) => idx !== i))}
+                                    className="absolute top-1 right-1 p-1 bg-black/70 rounded-full hover:bg-red-500/70 transition-colors"
+                                  ><X size={10} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Video Clips */}
+                        <div className="space-y-3">
+                          <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-2">Video Clips</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={newClipUrl}
+                              onChange={e => setNewClipUrl(e.target.value)}
+                              placeholder="Video URL (mp4, youtube, etc.)…"
+                              className="flex-1 bg-white/5 p-3 rounded-xl border border-white/5 text-sm"
+                            />
+                            <button
+                              onClick={() => { if (!newClipUrl.trim()) return; setLoreEditClips(prev => [...prev, newClipUrl.trim()]); setNewClipUrl(''); }}
+                              disabled={!newClipUrl.trim()}
+                              className="px-4 py-3 bg-primary/80 rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-30 transition-all"
+                            >Add</button>
+                          </div>
+                          {loreEditClips.length > 0 && (
+                            <div className="space-y-2">
+                              {loreEditClips.map((url, i) => (
+                                <div key={i} className="flex items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl">
+                                  <Film size={12} className="text-white/40 shrink-0" />
+                                  <span className="text-xs text-white/50 flex-1 truncate">{url}</span>
+                                  <button onClick={() => setLoreEditClips(prev => prev.filter((_, idx) => idx !== i))} className="p-1 hover:text-red-400 transition-colors opacity-40 hover:opacity-100"><X size={10} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
                           onClick={() => {
-                            const data = {
+                            const data: Record<string, any> = {
                               id: activeEditor.item?.id,
                               title: (document.getElementById('lore-title') as HTMLInputElement).value,
                               type: (document.getElementById('lore-type') as HTMLSelectElement).value,
                               content: (document.getElementById('lore-content') as HTMLTextAreaElement).value,
-                              isPublished: true
+                              isPublished: true,
                             };
+                            if (loreEditGallery.length > 0) data.gallery = loreEditGallery;
+                            if (loreEditClips.length > 0) data.clips = loreEditClips;
                             handleSaveEditor(data);
                           }}
                           className="w-full py-6 bg-primary rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl"
