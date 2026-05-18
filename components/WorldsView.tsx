@@ -498,7 +498,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
                   <span className="px-4 py-1.5 bg-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest rounded-full border border-white/10 backdrop-blur-md">Draft</span>
                 )}
               </div>
-              <PageHeader>{selectedWorld?.name}</PageHeader>
+              <PageHeader textClassName="text-[clamp(1.8rem,5.5vw,6rem)] font-black uppercase tracking-tighter text-white leading-[0.85] italic select-none">{selectedWorld?.name}</PageHeader>
               <p className="text-white/60 text-base lg:text-lg font-medium max-w-2xl leading-relaxed mt-2">{selectedWorld?.description}</p>
             </div>
           </div>
