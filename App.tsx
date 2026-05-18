@@ -86,6 +86,49 @@ const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops')
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
+
+// Theme base backgrounds — matched to index.css per-theme gradients.
+// Rendered as inline styles so they are immune to CSS cascade / Tailwind layer conflicts.
+const THEME_BG: Record<string, string> = {
+  PLAJAH: [
+    'radial-gradient(ellipse 90% 70% at 15% 10%, rgba(107,0,153,0.85) 0%, transparent 55%)',
+    'radial-gradient(ellipse 70% 60% at 85% 85%, rgba(212,0,85,0.70) 0%, transparent 55%)',
+    'radial-gradient(ellipse 55% 45% at 55% 45%, rgba(255,140,0,0.22) 0%, transparent 60%)',
+    '#0d0015',
+  ].join(','),
+  DARK: [
+    'radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255,140,0,0.12) 0%, transparent 65%)',
+    'radial-gradient(ellipse 60% 50% at 80% 90%, rgba(107,0,153,0.12) 0%, transparent 65%)',
+    '#020202',
+  ].join(','),
+  LIGHT: [
+    'radial-gradient(ellipse 80% 60% at 25% 15%, rgba(186,230,255,0.55) 0%, transparent 65%)',
+    'radial-gradient(ellipse 60% 50% at 75% 80%, rgba(253,186,234,0.40) 0%, transparent 65%)',
+    'radial-gradient(ellipse 50% 40% at 55% 45%, rgba(221,214,254,0.30) 0%, transparent 60%)',
+    '#f8fafc',
+  ].join(','),
+  PASTEL: '#fdf6e3',
+  BIG_SCREEN: '#00050a',
+  PHONE: '#000000',
+  ETHEREAL: [
+    'radial-gradient(ellipse 75% 65% at 30% 20%, rgba(208,188,255,0.55) 0%, transparent 55%)',
+    'radial-gradient(ellipse 65% 55% at 70% 75%, rgba(0,218,243,0.35) 0%, transparent 55%)',
+    'radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255,182,141,0.20) 0%, transparent 60%)',
+    '#0f0f10',
+  ].join(','),
+  NEBULA: [
+    'radial-gradient(ellipse 85% 65% at 35% 25%, rgba(99,102,241,0.65) 0%, transparent 55%)',
+    'radial-gradient(ellipse 65% 60% at 70% 75%, rgba(139,92,246,0.50) 0%, transparent 55%)',
+    'radial-gradient(ellipse 55% 45% at 55% 50%, rgba(34,211,238,0.25) 0%, transparent 60%)',
+    '#050510',
+  ].join(','),
+  CITRUS: [
+    'radial-gradient(ellipse 75% 65% at 80% 15%, rgba(255,100,0,0.80) 0%, transparent 55%)',
+    'radial-gradient(ellipse 65% 60% at 15% 80%, rgba(200,40,0,0.60) 0%, transparent 55%)',
+    'radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255,170,0,0.25) 0%, transparent 60%)',
+    '#080200',
+  ].join(','),
+};
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -925,8 +968,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           />
         ) : (
           <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
-            {/* Universal Background Layer */}
-            <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden" id="universal-background">
+            {/* Universal Background Layer — inline styles bypass CSS/Tailwind layer conflicts */}
+            <div
+              id="universal-background"
+              style={{ position: 'fixed', inset: 0, zIndex: -1, overflow: 'hidden', pointerEvents: 'none' }}
+            >
+              {/* Base theme gradient — always present so the background is never blank */}
+              <div
+                className="absolute inset-0 transition-all duration-700"
+                style={{ background: THEME_BG[theme] ?? THEME_BG.PLAJAH }}
+              />
               <AnimatePresence mode="wait">
                 {(() => {
                   const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
