@@ -988,7 +988,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {theme === 'NEBULA' && (
               <>
                 <NebulaBackground />
-                {view !== 'VIDEOS' && view !== 'MOVIES_TV' && view !== 'MOVIE_UX' && view !== 'PLAYER' && (
+                {view !== 'VIDEOS' && view !== 'MOVIES_TV' && view !== 'MOVIE_UX' && view !== 'PLAYER' && view !== 'AVATAR_STUDIO' && (
                   <NebulaVisualizer analyser={analyser} isPlaying={isPlaying} />
                 )}
               </>

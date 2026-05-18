@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Upload, User, Sparkles, Check, Loader2, X, Camera, ShoppingBag, ExternalLink } from 'lucide-react';
-import AvatarViewer from './AvatarViewer';
+import SafeAvatarViewer from './SafeAvatarViewer';
 import { uploadFile, updateUserProfile } from '../services/backendService';
 import type { AvatarConfig, AvatarStyle, UserProfile } from '../types';
 
@@ -172,7 +172,18 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
         <div className="flex-1 relative flex flex-col">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30 pointer-events-none z-10" />
           <div className="flex-1" style={{ minHeight: 400 }}>
-            <AvatarViewer config={config} autoRotate={false} />
+            <SafeAvatarViewer
+              key={`${config.type}-${config.style}`}
+              config={config}
+              autoRotate={false}
+              fallback={
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/30">
+                  <User size={48} />
+                  <p className="text-[10px] font-black uppercase tracking-widest">3D Preview Unavailable</p>
+                  <p className="text-[9px] opacity-60">Select a style to configure your avatar</p>
+                </div>
+              }
+            />
           </div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-[10px] text-white/40 tracking-widest uppercase">
             Drag to rotate · Scroll to zoom
