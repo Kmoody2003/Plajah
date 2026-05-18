@@ -133,6 +133,20 @@ const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] =
     isActive: true,
   },
 
+  {
+    title: 'Welcome To The Playground',
+    description: 'Joined Plajah — the stage is yours',
+    category: 'USER',
+    triggerType: 'FIRST_SIGN_IN',
+    icon: 'Trophy',
+    backgroundColor: '#FF8C00',
+    pointsValue: 100,
+    requirements: { type: 'ACTION', actionTrigger: 'FIRST_SIGN_IN' },
+    rewards: { pointsBonus: 100 },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+
   // ARTIST ACHIEVEMENTS
   {
     title: 'Creator',

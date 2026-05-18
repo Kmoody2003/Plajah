@@ -38,7 +38,9 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Kenne\\\\plajah\" -Recurse -Filter \"*.tsx\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -First 20)",
       "Bash(cd C:\\\\\\\\Users\\\\\\\\Kenne\\\\\\\\plajah)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Kenne\\\\plajah\" -Directory)",
+      "Bash(Select-Object Name)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Kenne\\.claude\\projects\\c--Users-Kenne-plajah\\memory"

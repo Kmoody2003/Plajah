@@ -814,6 +814,8 @@ export interface UserProfile {
   aliases?: UserAlias[];
   partnerConfig?: PartnerConfig;
   hasCompletedOnboarding?: boolean;
+  welcomeAchievementShown?: boolean;
+  totalPoints?: number;
   onboardingStartTimestamp?: number;
   tooltipsEnabled?: boolean;
   frostedBackground?: string;
@@ -1599,10 +1601,13 @@ export interface SystemSettingsConfig {
 // ── ACHIEVEMENTS & GAMIFICATION ──────────────────────────────────────────────
 
 export type AchievementCategory = 'USER' | 'ARTIST' | 'ORGANIZATION';
-export type AchievementTriggerType = 
-  | 'FIRST_PLAY' | 'FIRST_ALBUM_LISTEN' | 'FIRST_SONG' | 'FIRST_MOVIE_COMPLETED' 
+export type AchievementTriggerType =
+  | 'FIRST_PLAY' | 'FIRST_ALBUM_LISTEN' | 'FIRST_SONG' | 'FIRST_MOVIE_COMPLETED'
   | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION'
   | 'FIRST_ENGAGEMENT' | 'FIRST_UPLOAD' | 'FIRST_LISTENER' | 'FIRST_FAN'
+  | 'FIRST_SIGN_IN' | 'FIRST_FOLLOW' | 'WATCH_LIVE' | 'POST_COMMENT'
+  | 'HNS_DISCOVER_FIRST' | 'HNS_BOTH_SLOTS' | 'HNS_ARTIST_10' | 'HNS_ARTIST_50'
+  | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
   | 'CUSTOM' | 'MANUAL';
 
 export interface AchievementUnlockRequirement {

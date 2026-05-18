@@ -62,6 +62,7 @@ const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
+import WelcomeAchievement from './components/WelcomeAchievement';
 const AdminDashboard = retryLazy(() => import('./components/AdminDashboard'));
 const PartnerDashboard = retryLazy(() => import('./components/PartnerDashboard'));
 const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
@@ -217,6 +218,7 @@ const App: React.FC = () => {
     return () => { window.removeEventListener('resize', onResize); clearTimeout(t); };
   }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
 
@@ -487,6 +489,12 @@ const App: React.FC = () => {
 
         if (p && !p.hasCompletedOnboarding) {
           setShowOnboarding(true);
+        }
+
+        // Grand welcome achievement on first sign-in
+        if (p && !p.welcomeAchievementShown) {
+          setShowWelcomeAchievement(true);
+          updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
         // Seed public domain books if none exist and user is admin
@@ -1808,8 +1816,12 @@ const App: React.FC = () => {
             />
           )}
           
-          <GlobalPlayer 
-            onNavigate={handleGlobalNavigate} 
+          {showWelcomeAchievement && (
+            <WelcomeAchievement onDone={() => setShowWelcomeAchievement(false)} />
+          )}
+
+          <GlobalPlayer
+            onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 
             topOffset={undefined}
             isMobile={isMobile}

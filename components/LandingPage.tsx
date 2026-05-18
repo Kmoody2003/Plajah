@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { loginWithGoogle, loginWithTwitter, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
-import { ArrowRight, Sparkles, LogIn, X as XIcon } from 'lucide-react';
+import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig } from '../services/backendService';
+import { ArrowRight, Sparkles, LogIn, X as XIcon, Facebook, Minimize2 } from 'lucide-react';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
@@ -241,7 +241,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-2xl"
+          className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-4xl"
         >
           <button
             onClick={loginWithGoogle}
@@ -250,6 +250,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
             <LogIn size={16} className="transition-transform group-hover:scale-110" />
             <span className="transition-all duration-300">Google</span>
             <div className="absolute inset-0 rounded-2xl bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </button>
+
+          <button
+            onClick={loginWithFacebook}
+            className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-[#1877F2] text-white rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(24,119,242,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+          >
+            <Facebook size={16} className="transition-transform group-hover:scale-110" />
+            <span className="transition-all duration-300">Facebook</span>
+            <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </button>
+
+          <button
+            onClick={loginWithMicrosoft}
+            className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-[#0078D4] text-white rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(0,120,212,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
+          >
+            <Minimize2 size={16} className="transition-transform group-hover:scale-110" />
+            <span className="transition-all duration-300">Microsoft</span>
+            <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </button>
 
           <button
