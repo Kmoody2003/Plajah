@@ -185,7 +185,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#020202] flex flex-col items-center justify-center p-6">
+    <div className="relative min-h-screen w-full overflow-hidden bg-transparent flex flex-col items-center justify-center p-6">
       {/* Ad Squares */}
       <AdSquare user={leftAdUser} side="left" />
       <AdSquare user={rightAdUser} side="right" />
