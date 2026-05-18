@@ -926,7 +926,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         ) : (
           <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer */}
-            <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-theme" id="universal-background">
+            <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden" id="universal-background">
               <AnimatePresence mode="wait">
                 {(() => {
                   const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
