@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
 import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
@@ -86,7 +86,7 @@ const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops')
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
 import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -163,6 +163,7 @@ const App: React.FC = () => {
 const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const profileUnsubRef = useRef<(() => void) | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -464,6 +465,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     const unsubscribe = onAuthUpdate(async (u) => {
       setUser(u);
+
+      // Tear down any previous profile listener on auth change
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+
       if (u) {
         setViewInternal(prev => {
           if (prev === 'LANDING') {
@@ -482,27 +490,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           return prev;
         });
 
+        // One-time fetch for initialization actions
         const p = await fetchUserProfile(u.uid);
         setUserProfile(p);
-        
+
         if (p?.uiSettings?.lastTheme) {
           setTheme(p.uiSettings.lastTheme);
         }
 
-        // Initialize demo worlds
         seedDemoWorlds();
 
         if (p && !p.hasCompletedOnboarding) {
           setShowOnboarding(true);
         }
 
-        // Grand welcome achievement on first sign-in
         if (p && !p.welcomeAchievementShown) {
           setShowWelcomeAchievement(true);
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        // Seed public domain books if none exist and user is admin
         if (u.email === 'kmoody2003@gmail.com') {
           const cloudAlbums = await fetchAllPublicAlbums();
           if (!cloudAlbums.some(a => a.type === 'BOOK')) {
@@ -511,13 +517,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setAlbums(updatedAlbums);
           }
         }
+
+        // Real-time listener keeps userProfile fresh after any profile edits
+        // (background changes, theme activation, etc.) without requiring re-login
+        profileUnsubRef.current = listenToUserProfile(u.uid, (liveProfile) => {
+          setUserProfile(liveProfile);
+        });
       } else {
         setUserProfile(null);
-        // Unauthenticated visitors always land on the landing page
         setViewInternal('LANDING');
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (profileUnsubRef.current) profileUnsubRef.current();
+    };
   }, []);
 
   useEffect(() => {
@@ -609,7 +623,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       'NEBULA': 'theme-nebula',
       'CITRUS': 'theme-citrus'
     };
+    // Preserve has-custom-background — className= replaces everything,
+    // so we re-add it after the theme class is applied.
+    const hadCustomBg = document.body.classList.contains('has-custom-background');
     document.body.className = themeClasses[theme];
+    if (hadCustomBg) document.body.classList.add('has-custom-background');
   }, [theme]);
 
   useEffect(() => {
@@ -805,13 +823,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   useEffect(() => {
     const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
-    const hasBg = !!(activeProfile?.frostedBackground || activeProfile?.videoBackgroundUrl);
+    const bgAllowed = activeProfile?.customBgEnabled !== false;
+    const themeAllowed = activeProfile?.customThemeEnabled !== false;
+    // Only mark the body as having a custom background when something will actually render.
+    // bgAllowed: user's frosted/video bg is enabled AND a URL exists
+    // themeAllowed: user has an active theme preset with assets
+    const hasBg =
+      (bgAllowed && !!(activeProfile?.frostedBackground || activeProfile?.videoBackgroundUrl)) ||
+      (themeAllowed && !!(activeTheme?.assets?.length));
     if (hasBg) {
       document.body.classList.add('has-custom-background');
     } else {
       document.body.classList.remove('has-custom-background');
     }
-  }, [view, visitedProfile, userProfile]);
+  }, [view, visitedProfile, userProfile, activeTheme]);
 
   useEffect(() => {
     const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
