@@ -197,7 +197,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
       videoId: video.id,
       videoUrl: video.url,
       videoTitle: video.title,
-      videoThumbnail: video.thumbnailUrl || video.coverImage,
+      videoThumbnail: video.thumbnailUrl || video.coverImageUrl,
       sourceUserId: user.uid,
     };
     setSchedule({ ...schedule, slots: [...schedule.slots, slot] });
@@ -233,7 +233,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     setIsBumperUploading(true);
     try {
       const path = `bumpers/${user.uid}/${Date.now()}_${bumperFile.name}`;
-      const url = await uploadFile(bumperFile, path);
+      const url = await uploadFile(path, bumperFile);
       if (url) {
         const bumper = await saveChannelBumper({
           userId: user.uid,
@@ -292,7 +292,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
         videoId: video.id,
         videoTitle: video.title,
         videoUrl: video.url || '',
-        thumbnailUrl: video.thumbnailUrl || video.coverImage || '',
+        thumbnailUrl: video.thumbnailUrl || video.coverImageUrl || '',
         ownerUserId: user.uid,
         ownerName: user.displayName,
         isPublicDomain: false,
@@ -507,7 +507,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                           <button key={v.id} onClick={() => addVideoSlot(v)}
                             className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all text-left group">
                             <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-white/5">
-                              {(v.thumbnailUrl || v.coverImage) && <img src={v.thumbnailUrl || v.coverImage} className="w-full h-full object-cover" alt="" />}
+                              {(v.thumbnailUrl || v.coverImageUrl) && <img src={v.thumbnailUrl || v.coverImageUrl} className="w-full h-full object-cover" alt="" />}
                             </div>
                             <p className="flex-1 text-[9px] font-black uppercase tracking-tight truncate text-white/60 group-hover:text-white transition-colors">{v.title}</p>
                             <Plus size={12} className="text-white/20 group-hover:text-white shrink-0 transition-colors" />
@@ -790,7 +790,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
                       return (
                         <div key={v.id} className={`p-4 rounded-2xl border transition-all ${inLibrary ? 'bg-violet-500/5 border-violet-500/20' : 'bg-white/[0.02] border-white/5'}`}>
                           <div className="aspect-video rounded-xl overflow-hidden bg-white/5 mb-3">
-                            {(v.thumbnailUrl || v.coverImage) && <img src={v.thumbnailUrl || v.coverImage} className="w-full h-full object-cover opacity-80" alt="" />}
+                            {(v.thumbnailUrl || v.coverImageUrl) && <img src={v.thumbnailUrl || v.coverImageUrl} className="w-full h-full object-cover opacity-80" alt="" />}
                           </div>
                           <p className="text-[10px] font-black uppercase tracking-tight text-white truncate mb-2">{v.title}</p>
                           {inLibrary ? (

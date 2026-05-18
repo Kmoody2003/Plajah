@@ -41,7 +41,7 @@ function WorldBackground({ world }: { world: IPWorld | null }) {
     return () => clearInterval(t);
   }, [world?.id, cfg?.type]);
 
-  if (!cfg && !world?.themeConfig.customBackgroundImage) return null;
+  if (!cfg && !world?.themeConfig?.customBackgroundImage) return null;
 
   if (cfg?.type === 'VIDEO' && cfg.videoUrl) {
     return (

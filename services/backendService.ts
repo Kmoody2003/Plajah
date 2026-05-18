@@ -5539,7 +5539,7 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
       videoId: video.id,
       videoUrl: video.url || video.muxPlaybackId ? `https://stream.mux.com/${video.muxPlaybackId}.m3u8` : video.url,
       videoTitle: video.title,
-      videoThumbnail: video.thumbnailUrl || video.coverImage,
+      videoThumbnail: video.thumbnailUrl || video.coverImageUrl,
       sourceUserId: uid,
     };
     // Copy ad markers from video metadata
@@ -5683,7 +5683,7 @@ export const addToFastChannelLibrary = async (video: Video, isPaid: boolean = fa
     videoId: video.id,
     videoTitle: video.title,
     videoUrl: video.url || '',
-    thumbnailUrl: video.thumbnailUrl || video.coverImage || '',
+    thumbnailUrl: video.thumbnailUrl || video.coverImageUrl || '',
     genre: video.genre,
     tags: video.tags,
     ownerUserId: auth.currentUser.uid,
