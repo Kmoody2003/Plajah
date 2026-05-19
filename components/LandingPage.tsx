@@ -60,6 +60,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
           src={asset.url}
           autoPlay muted loop playsInline
           className="absolute inset-0 w-full h-full object-cover"
+          onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
         />
         <div className="absolute inset-0" style={overlayStyle} />
       </>
@@ -84,6 +85,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
               src={current.url}
               autoPlay muted loop playsInline
               className="absolute inset-0 w-full h-full object-cover"
+              onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
             />
           ) : (
             <img src={current.url} alt="" className="absolute inset-0 w-full h-full object-cover" />

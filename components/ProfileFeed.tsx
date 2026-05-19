@@ -572,7 +572,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                      {status.media_attachments.length > 0 && (
                        <div className="grid grid-cols-2 gap-2 mt-4">
                          {status.media_attachments.map((media: any) => (
-                           <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                           <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
                          ))}
                        </div>
                      )}
@@ -734,7 +734,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                      {item.post.embed?.images && (
                        <div className="grid grid-cols-2 gap-2 mt-4">
                          {item.post.embed.images.map((img: any, i: number) => (
-                           <img key={i} src={img.fullsize || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                           <img key={i} src={img.fullsize || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
                          ))}
                        </div>
                      )}
@@ -882,7 +882,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                     {status.media_attachments?.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         {status.media_attachments.map((media: any) => (
-                          <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" />
+                          <img key={media.id} src={media.url || null} alt="" className="rounded-xl w-full h-40 object-cover border border-white/5" loading="lazy" decoding="async" />
                         ))}
                       </div>
                     )}
@@ -1105,7 +1105,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
         <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-8 space-y-6">
           <div className="flex gap-4">
             <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
-              <img src={auth.currentUser?.photoURL || null} alt="Me" className="w-full h-full object-cover" />
+              <img src={auth.currentUser?.photoURL || null} alt="Me" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             </div>
             <textarea 
               value={postText}
@@ -1130,7 +1130,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/5 group-hover:ring-small-orange transition-all">
                       {user.photoURL ? (
-                        <img src={user.photoURL || null} className="w-full h-full object-cover" />
+                        <img src={user.photoURL || null} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <Sparkles size={16} className="m-auto text-white/20" />
                       )}
@@ -1156,7 +1156,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
               >
                 {selectedMedia.map((m, i) => (
                   <div key={i} className="relative group">
-                    <img src={m.url || null} className="w-24 h-24 rounded-2xl object-cover border border-white/10" alt="Preview" />
+                    <img src={m.url || null} className="w-24 h-24 rounded-2xl object-cover border border-white/10" alt="Preview" loading="lazy" decoding="async" />
                     <button 
                       onClick={() => setSelectedMedia(selectedMedia.filter((_, idx) => idx !== i))}
                       className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all"
@@ -1168,7 +1168,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 {embeddedAlbum && (
                   <div className="relative group flex-1">
                     <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
-                      <img src={embeddedAlbum.coverImage || null} className="w-12 h-12 rounded-xl object-cover" alt="Album" />
+                      <img src={embeddedAlbum.coverImage || null} className="w-12 h-12 rounded-xl object-cover" alt="Album" loading="lazy" decoding="async" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-widest truncate">{embeddedAlbum.title}</p>
                         <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Embedded Album</p>
@@ -1267,7 +1267,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                         onClick={() => { setEmbeddedAlbum(album); setShowMediaPicker(null); }}
                         className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-left"
                       >
-                        <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover" alt="Art" />
+                        <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover" alt="Art" loading="lazy" decoding="async" />
                         <span className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</span>
                       </button>
                     ))}
@@ -1299,7 +1299,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                       'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l0HlTjJ8Z1Z1Z1Z1Z/giphy.gif'
                     ].map((url, i) => (
                       <button key={i} onClick={() => addGif(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="GIF" />
+                        <img src={url || null} className="w-full h-full object-cover" alt="GIF" loading="lazy" decoding="async" />
                       </button>
                     ))}
                   </div>
@@ -1314,7 +1314,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                       'https://picsum.photos/seed/sticker4/100/100'
                     ].map((url, i) => (
                       <button key={i} onClick={() => addSticker(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="Sticker" />
+                        <img src={url || null} className="w-full h-full object-cover" alt="Sticker" loading="lazy" decoding="async" />
                       </button>
                     ))}
                   </div>

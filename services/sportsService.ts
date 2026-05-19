@@ -345,6 +345,24 @@ export async function fetchLeagueStandings(tab: string): Promise<any[]> {
   return groups;
 }
 
+// ESPN returns roster as grouped `{ position: string, items: athlete[] }[]` — check items first
+function parseRosterAthletes(rawAthletes: any[]): { group: string; athletes: any[] }[] {
+  if (!Array.isArray(rawAthletes) || rawAthletes.length === 0) return [];
+  if (rawAthletes[0]?.items) {
+    return rawAthletes.map((g: any) => ({ group: g.position || g.name || '', athletes: g.items || [] }));
+  }
+  if (rawAthletes[0]?.id || rawAthletes[0]?.displayName) {
+    const grouped: Record<string, any[]> = {};
+    rawAthletes.forEach((a: any) => {
+      const pos = a.position?.abbreviation || a.position?.name || 'Other';
+      if (!grouped[pos]) grouped[pos] = [];
+      grouped[pos].push(a);
+    });
+    return Object.entries(grouped).map(([group, athletes]) => ({ group, athletes }));
+  }
+  return [];
+}
+
 // ---------- team page: news + roster + recent games -----------------------
 export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPageData | null> {
   const cfg = getLeagueCfg(tab);
@@ -359,7 +377,7 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
     safeFetch(`${base}?enable=roster,record,stats`),
     safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?team=${teamId}&limit=15`),
     safeFetch(`${base}/roster`),
-    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=2025&seasontype=2&limit=10`),
+    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=${new Date().getFullYear()}&seasontype=2&limit=10`),
   ]);
 
   const teamData   = teamRes.status   === 'fulfilled' ? teamRes.value   : null;
@@ -367,22 +385,8 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
   const rosterData = rosterRes.status === 'fulfilled' ? rosterRes.value : null;
   const scoresData = scoresRes.status === 'fulfilled' ? scoresRes.value : null;
 
-  // Normalise roster into position groups
   const rawAthletes: any[] = rosterData?.athletes ?? teamData?.team?.athletes ?? [];
-  let roster: { group: string; athletes: any[] }[] = [];
-  if (Array.isArray(rawAthletes) && rawAthletes.length > 0) {
-    if (rawAthletes[0]?.position) {
-      const grouped: Record<string, any[]> = {};
-      rawAthletes.forEach((a: any) => {
-        const pos = a.position?.abbreviation || a.position?.name || 'Other';
-        if (!grouped[pos]) grouped[pos] = [];
-        grouped[pos].push(a);
-      });
-      roster = Object.entries(grouped).map(([group, athletes]) => ({ group, athletes }));
-    } else if (rawAthletes[0]?.items) {
-      roster = rawAthletes.map((g: any) => ({ group: g.position || g.name || '', athletes: g.items || [] }));
-    }
-  }
+  const roster = parseRosterAthletes(rawAthletes);
 
   const page: TeamPageData = {
     team: teamData?.team ?? null,
@@ -431,19 +435,31 @@ export interface RichTeamPage extends TeamPageData {
   legends: LegendPlayer[];
 }
 
-async function fetchTheSportsDBTeam(fullName: string): Promise<any | null> {
-  const key = `tsdb:team:${fullName}`;
+// Maps ESPN tab → TSDB strSport value so we never mix basketball/soccer legends
+const TSDB_SPORT: Record<string, string> = {
+  NBA:  'Basketball',
+  NFL:  'American Football',
+  NHL:  'Ice Hockey',
+  MLB:  'Baseball',
+  NCAA: 'Basketball',
+  FIFA: 'Soccer',
+  MLS:  'Soccer',
+};
+
+async function fetchTheSportsDBTeam(fullName: string, sport?: string): Promise<any | null> {
+  const key = `tsdb:team:${fullName}:${sport ?? ''}`;
   const c = fromCache(key, TTL.teams);
   if (c !== null) return c;
-  // Search by nickname (last word) for better match rate
   const nickname = fullName.split(' ').pop() || fullName;
   const data = await safeFetch(`${TSDB}/searchteams.php?t=${encodeURIComponent(nickname)}`);
   const teams: any[] = data?.teams ?? [];
   const lc = fullName.toLowerCase();
+  // Filter by sport type first, then match by name
+  const sameSport = sport ? teams.filter(t => t.strSport === sport) : teams;
   const match =
-    teams.find(t => t.strTeam?.toLowerCase() === lc) ??
-    teams.find(t => t.strTeam?.toLowerCase().includes(nickname.toLowerCase())) ??
-    teams[0] ?? null;
+    sameSport.find(t => t.strTeam?.toLowerCase() === lc) ??
+    sameSport.find(t => t.strTeam?.toLowerCase().includes(nickname.toLowerCase())) ??
+    sameSport[0] ?? null;
   toCache(key, match);
   return match;
 }
@@ -702,11 +718,32 @@ export async function fetchTeamFullSchedule(tab: string, teamId: string): Promis
   const c = fromCache(key, TTL.scores);
   if (c) return c;
   const data = await safeFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=2025&seasontype=2`
+    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=${new Date().getFullYear()}&seasontype=2`
   );
   const events = data?.events ?? [];
   toCache(key, events);
   return events;
+}
+
+// ─── ROSTER FOR SPECIFIC SEASON ──────────────────────────────────────────────
+
+export async function fetchTeamRosterForSeason(
+  tab: string,
+  teamId: string,
+  season: number,
+): Promise<{ group: string; athletes: any[] }[]> {
+  const cfg = getLeagueCfg(tab);
+  if (!cfg) return [];
+  const key = `roster:${tab}:${teamId}:${season}`;
+  const c = fromCache(key, TTL.roster);
+  if (c) return c;
+  const data = await safeFetch(
+    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/roster?season=${season}`
+  );
+  const rawAthletes: any[] = data?.athletes ?? [];
+  const roster = parseRosterAthletes(rawAthletes);
+  if (roster.length > 0) toCache(key, roster);
+  return roster;
 }
 
 // ─── LEAGUE CHAMPIONS HISTORY ────────────────────────────────────────────────
@@ -909,7 +946,7 @@ export async function fetchRichTeamPage(
 
   const [base, tsdbTeam, wikiText] = await Promise.all([
     fetchTeamPage(tab, teamId),
-    fetchTheSportsDBTeam(fullName),
+    fetchTheSportsDBTeam(fullName, TSDB_SPORT[tab]),
     fetchWikiSummary(fullName),
   ]);
 

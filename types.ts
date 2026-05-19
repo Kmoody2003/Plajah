@@ -1428,10 +1428,11 @@ export interface ChatMessage {
   senderPhoto: string;
   text?: string;
   voiceUrl?: string;
+  imageUrl?: string;
   mediaId?: string;
   mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO';
   timestamp: number;
-  type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION';
+  type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE';
   metadata?: {
     action?: string;
     time?: number;

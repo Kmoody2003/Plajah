@@ -6,7 +6,7 @@ import {
   ChevronRight, Clock, TrendingUp, Shield,
 } from 'lucide-react';
 import {
-  fetchRichTeamPage, fetchTeamFullSchedule, fetchPlayerProfile, LEAGUE_CHAMPIONS,
+  fetchRichTeamPage, fetchTeamFullSchedule, fetchPlayerProfile, fetchTeamRosterForSeason, LEAGUE_CHAMPIONS,
   type SportsTeam, type RichTeamPage, type LegendPlayer,
 } from '../../services/sportsService';
 import type { StaticTeamData } from '../../data/leagueTeams';
@@ -33,6 +33,10 @@ export const TeamPageView: React.FC<Props> = ({
   const [schedule, setSchedule]           = useState<any[]>([]);
   const [scheduleLoading, setSchLoading]  = useState(false);
   const [historyNews, setHistoryNews]     = useState<any[]>([]);
+  const currentYear = new Date().getFullYear();
+  const [rosterSeason, setRosterSeason]   = useState(currentYear);
+  const [rosterOverride, setRosterOverride] = useState<{ group: string; athletes: any[] }[] | null>(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
 
   const logo      = staticData?.logo      || team.logo;
   const color     = staticData?.color     || team.color     || '#1a1a1a';
@@ -64,6 +68,16 @@ export const TeamPageView: React.FC<Props> = ({
       .then(evts => { setSchedule(evts); setSchLoading(false); })
       .catch(() => setSchLoading(false));
   }, [activeTab, team.id, tab]);
+
+  // ── roster season change ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 'roster') return;
+    if (rosterSeason === currentYear) { setRosterOverride(null); return; }
+    setRosterLoading(true);
+    fetchTeamRosterForSeason(tab, team.id, rosterSeason)
+      .then(r => { setRosterOverride(r); setRosterLoading(false); })
+      .catch(() => setRosterLoading(false));
+  }, [rosterSeason, activeTab, team.id, tab]);
 
   // â”€â”€ history news â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -231,7 +245,7 @@ export const TeamPageView: React.FC<Props> = ({
                         <button onClick={() => setActiveTab('schedule')} className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00]/60 hover:text-[#FF8C00] transition-colors flex items-center gap-1">Full Schedule <ChevronRight size={10} /></button>
                       </div>
                       <div className="space-y-2">
-                        {richData!.recentGames.slice(0, 6).map((game: any, i: number) => {
+                        {(richData?.recentGames ?? []).slice(0, 6).map((game: any, i: number) => {
                           const comps = game.competitions?.[0];
                           const away  = comps?.competitors?.find((c: any) => c.homeAway === 'away');
                           const home  = comps?.competitors?.find((c: any) => c.homeAway === 'home');
@@ -268,18 +282,34 @@ export const TeamPageView: React.FC<Props> = ({
               {/* â”€â”€ ROSTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {activeTab === 'roster' && (
                 <div className="space-y-6">
-                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Tap a player to view profile & stats</p>
-                  {(!richData?.roster || richData.roster.length === 0) && (
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Tap a player to view profile & stats</p>
+                    <div className="flex gap-1">
+                      {[currentYear, currentYear - 1, currentYear - 2].map(yr => (
+                        <button
+                          key={yr}
+                          onClick={() => setRosterSeason(yr)}
+                          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                            rosterSeason === yr ? 'bg-small-orange text-white' : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >{yr}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {rosterLoading && (
+                    <div className="space-y-2">{[...Array(12)].map((_, i) => <div key={i} className="h-16 rounded-2xl bg-white/5 animate-pulse" />)}</div>
+                  )}
+                  {!rosterLoading && (!(rosterOverride ?? richData?.roster)?.length) && (
                     <div className="py-16 text-center space-y-3">
                       <Users size={36} className="mx-auto text-white/10" />
-                      <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Roster loading...</p>
+                      <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Roster unavailable</p>
                     </div>
                   )}
-                  {richData?.roster?.map((group, gi) => (
+                  {!rosterLoading && (rosterOverride ?? richData?.roster ?? []).map((group, gi) => (
                     <div key={gi} className="space-y-2">
                       <p className="text-[7px] font-black uppercase tracking-[0.4em] text-white/25 px-1">{group.group}</p>
                       <div className="grid gap-2">
-                        {group.athletes.map((a: any, ai: number) => (
+                        {(group.athletes ?? []).map((a: any, ai: number) => (
                           <button key={ai}
                             onClick={() => a.id && onSelectPlayer({ id: String(a.id), name: a.fullName || a.displayName })}
                             className="flex items-center gap-4 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.07] rounded-2xl border border-white/5 hover:border-[#FF8C00]/20 transition-all group text-left w-full">

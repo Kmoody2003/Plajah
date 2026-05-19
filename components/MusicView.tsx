@@ -287,7 +287,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               className="group bg-white/[0.03] border border-white/5 rounded-3xl p-4 transition-all hover:bg-white/[0.08]"
             >
               <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative" onClick={() => handlePlayVaultTrack(track)}>
-                <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                   <div className="w-12 h-12 rounded-full bg-small-orange flex items-center justify-center text-black">
                     <Play size={24} fill="currentColor" className="ml-1" />
@@ -328,7 +328,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
         <div className="flex flex-col md:flex-row gap-12 items-center md:items-end p-12 bg-white/[0.03] rounded-[3rem] border border-white/5">
           <div className="w-64 h-64 rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl shrink-0 bg-black">
-            <img src={artistTracks[0]?.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-50" />
+            <img src={artistTracks[0]?.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-50" loading="lazy" decoding="async" />
           </div>
           <div className="text-center md:text-left">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
@@ -348,7 +348,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {artistTracks.map(track => (
               <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                 <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/5 bg-black">
-                  <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                  <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                 </div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h4>
                 <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Public Domain</p>
@@ -477,7 +477,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         >
                            <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform">
                               {pl.coverImage ? (
-                                  <img src={pl.coverImage || undefined} className="w-full h-full object-cover rounded-xl pointer-events-none" />
+                                  <img src={pl.coverImage || undefined} className="w-full h-full object-cover rounded-xl pointer-events-none" loading="lazy" decoding="async" />
                               ) : (
                                   <ListMusic size={32} className="text-white/10 group-hover:text-small-orange transition-colors" />
                               )}
@@ -500,7 +500,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <div className="space-y-4">
                     {artists.slice(5, 10).map((artist) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
-                        <img src={artist.photoURL || `https://picsum.photos/seed/${artist.uid}/200/200`} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" />
+                        <img src={artist.photoURL || `https://picsum.photos/seed/${artist.uid}/200/200`} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" loading="lazy" decoding="async" />
                         <div>
                           <h4 className="text-xs font-black uppercase tracking-widest group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                           <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">New Artist</span>
@@ -518,7 +518,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {getSortedArtists().slice(0, 3).map((artist, idx) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
                         <span className="text-lg font-black text-white/20">{idx + 1}</span>
-                        <img src={artist.photoURL || undefined} className="w-10 h-10 rounded-full object-cover" />
+                        <img src={artist.photoURL || undefined} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                         <div className="flex-1 truncate">
                           <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h5>
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</span>
@@ -580,7 +580,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
-                            <img src={artist.photoURL || undefined} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" />
+                            <img src={artist.photoURL || undefined} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                          </div>
                          <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
                          <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Recommended</span>
@@ -672,7 +672,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                   onClick={() => onSelectAlbum({ id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', subType: 'PLAYLIST', createdAt: pl.timestamp, isPublic: false } as any)}
                                 >
                                   {pl.coverUrl || pl.coverImage
-                                    ? <img src={(pl.coverUrl || pl.coverImage) ?? undefined} className="w-full h-full object-cover" />
+                                    ? <img src={(pl.coverUrl || pl.coverImage) ?? undefined} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     : <ListMusic size={18} className="text-white/20" />
                                   }
                                 </div>
@@ -725,7 +725,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                       (pl.tracks || []).map((track, idx) => (
                                         <div key={track.id} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.03] transition-colors group border-b border-white/[0.03] last:border-0">
                                           <span className="text-sm font-black text-white/10 w-6 text-center shrink-0">{idx + 1}</span>
-                                          <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover border border-white/5 shrink-0" />
+                                          <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover border border-white/5 shrink-0" loading="lazy" decoding="async" />
                                           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => playTrack(track, { id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', createdAt: pl.timestamp } as any, 'LIBRARY')}>
                                             <h5 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{track.title}</h5>
                                             <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
@@ -768,7 +768,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             >
                               <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center group-hover:scale-[1.02] transition-transform">
                                 {pl.coverImage
-                                  ? <img src={pl.coverImage ?? undefined} className="w-full h-full object-cover rounded-xl" />
+                                  ? <img src={pl.coverImage ?? undefined} className="w-full h-full object-cover rounded-xl" loading="lazy" decoding="async" />
                                   : <ListMusic size={48} className="text-white/10 group-hover:text-small-orange transition-colors" />
                                 }
                               </div>
@@ -803,7 +803,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {[...artists].sort((a, b) => (b.followerCount || 0) - (a.followerCount || 0)).slice(0, 10).map((artist, idx) => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
                             <span className="text-2xl font-black text-white/10 w-8 text-center shrink-0">#{idx + 1}</span>
-                            <img src={artist.photoURL || undefined} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" />
+                            <img src={artist.photoURL || undefined} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                               <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{(artist.followerCount || 0).toLocaleString()} Fans</p>
@@ -821,7 +821,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {getSortedArtists().map(artist => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
-                              <img src={artist.photoURL || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                              <img src={artist.photoURL || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <User size={32} className="text-white" />
                               </div>
@@ -856,7 +856,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           {trendingAlbums.map((album, idx) => (
                             <div key={album.id} onClick={() => onSelectAlbum(album)} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
                               <span className={`text-2xl font-black w-8 text-center shrink-0 ${idx < 3 ? 'text-small-orange' : 'text-white/10'}`}>#{idx + 1}</span>
-                              <img src={album.coverImage || undefined} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" />
+                              <img src={album.coverImage || undefined} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
                                 <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest truncate">{album.artist}</p>
@@ -922,7 +922,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                 {genreAlbums.map((album, idx) => (
                                   <div key={album.id} onClick={() => onSelectAlbum(album)} className="min-w-[150px] group cursor-pointer relative">
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl relative">
-                                      <img src={album.coverImage || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                      <img src={album.coverImage || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                                       {idx === 0 && (album.playCount || 0) > 0 && (
                                         <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-small-orange text-black rounded-full">
                                           <Flame size={8} /><span className="text-[7px] font-black uppercase">#1</span>
@@ -936,7 +936,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                 {vaultGenre.map(track => (
                                   <div key={track.id} className="min-w-[150px] group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl opacity-60">
-                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
                                     <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Vault</p>
@@ -968,7 +968,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                       {vaultTracks.filter(t => t.genre === 'Audiobook').map(track => (
                         <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                           <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
-                            <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" decoding="async" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                               <PlayCircle size={48} className="text-small-orange" />
                             </div>

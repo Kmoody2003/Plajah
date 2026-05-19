@@ -233,7 +233,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack })
     setIsBumperUploading(true);
     try {
       const path = `bumpers/${user.uid}/${Date.now()}_${bumperFile.name}`;
-      const url = await uploadFile(path, bumperFile);
+      const url = await uploadFileService(path, bumperFile);
       if (url) {
         const bumper = await saveChannelBumper({
           userId: user.uid,

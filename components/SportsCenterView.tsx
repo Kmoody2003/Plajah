@@ -10,6 +10,7 @@ import {
 } from '../services/sportsService';
 import { TeamPageView } from './sports/TeamPageView';
 import { getLeagueStaticTeams, findStaticTeam } from '../data/leagueTeams';
+import ErrorBoundary from './ErrorBoundary';
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
@@ -296,16 +297,18 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     const staticData = findStaticTeam(selectedSportsTab, selectedTeam.name)
       ?? findStaticTeam(selectedSportsTab, selectedTeam.abbreviation);
     return (
-      <TeamPageView
-        team={selectedTeam}
-        tab={selectedSportsTab}
-        staticData={staticData}
-        pinnedIds={pinnedIds}
-        onBack={() => setSelectedTeam(null)}
-        onTogglePin={togglePin}
-        onSelectPlayer={(p) => { setSelectedPlayer(p); setPlayerProfile(null); }}
-        leagueNews={news}
-      />
+      <ErrorBoundary key={selectedTeam.id}>
+        <TeamPageView
+          team={selectedTeam}
+          tab={selectedSportsTab}
+          staticData={staticData}
+          pinnedIds={pinnedIds}
+          onBack={() => setSelectedTeam(null)}
+          onTogglePin={togglePin}
+          onSelectPlayer={(p) => { setSelectedPlayer(p); setPlayerProfile(null); }}
+          leagueNews={news}
+        />
+      </ErrorBoundary>
     );
   }
 

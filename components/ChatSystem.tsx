@@ -158,9 +158,9 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId }) => {
   };
 
   return (
-    <div className="h-full bg-transparent flex overflow-hidden relative pb-32 lg:pb-40">
+    <div className="h-full bg-black/15 backdrop-blur-2xl flex overflow-hidden relative pb-32 lg:pb-40">
       {/* Sidebar for Chat List */}
-      <div className={`w-full lg:w-96 border-r border-white/10 flex flex-col bg-black/40 backdrop-blur-md ${activeRoom || activeCollabId ? 'hidden lg:flex' : 'flex'}`}>
+      <div className={`w-full lg:w-96 border-r border-white/[0.07] flex flex-col bg-white/[0.03] ${activeRoom || activeCollabId ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-8 border-b border-white/5">
           <div className="flex flex-col gap-6 mb-8">
             <div className="flex items-center justify-between">

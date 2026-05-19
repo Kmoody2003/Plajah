@@ -41,6 +41,19 @@ const NEWS_SUBCATS = [
   { id: 'GENERAL_BUSINESS',      label: 'Business' },
 ];
 
+const LEAGUE_LOGOS: Record<string, string> = {
+  SPORTS_NBA:    'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png',
+  SPORTS_NFL:    'https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png',
+  SPORTS_NHL:    'https://a.espncdn.com/i/teamlogos/leagues/500/nhl.png',
+  SPORTS_MLB:    'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png',
+  SPORTS_NCAA:   'https://a.espncdn.com/i/teamlogos/leagues/500/ncaa.png',
+  SPORTS_FIFA:   'https://a.espncdn.com/i/teamlogos/leagues/500/fifa.png',
+  SPORTS_MLS:    'https://a.espncdn.com/i/teamlogos/leagues/500/mls.png',
+  SPORTS_F1:     'https://a.espncdn.com/i/teamlogos/leagues/500/f1.png',
+  SPORTS_NASCAR: 'https://a.espncdn.com/i/teamlogos/leagues/500/nascar.png',
+  SPORTS_INDYCAR:'https://a.espncdn.com/i/teamlogos/leagues/500/indycar.png',
+};
+
 const SPORTS_TABS = [
   { id: 'SPORTS_ALL',     label: 'All Sports' },
   { id: 'SPORTS_FIFA',    label: 'FIFA / Soccer' },
@@ -347,10 +360,18 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
               <button
                 key={tab.id}
                 onClick={() => setActiveSportsTab(tab.id)}
-                className={`px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-xl ${
+                className={`flex items-center gap-2 px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-xl ${
                   activeSportsTab === tab.id ? 'bg-small-orange text-white transform -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
                 }`}
               >
+                {LEAGUE_LOGOS[tab.id] && (
+                  <img
+                    src={LEAGUE_LOGOS[tab.id]}
+                    alt=""
+                    className="w-5 h-5 object-contain"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
                 {tab.label}
               </button>
             ))}
@@ -410,19 +431,28 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
               {/* League tiles */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
-                  { id: 'SPORTS_NBA', label: 'NBA', icon: 'ðŸ€' },
-                  { id: 'SPORTS_NFL', label: 'NFL', icon: 'ðŸˆ' },
-                  { id: 'SPORTS_NHL', label: 'NHL', icon: 'ðŸ’' },
-                  { id: 'SPORTS_MLB', label: 'MLB', icon: 'âš¾' },
-                  { id: 'SPORTS_NCAA', label: 'NCAA', icon: 'ðŸŽ“' },
-                  { id: 'SPORTS_ESPORTS', label: 'Esports', icon: 'ðŸŽ®' },
+                  { id: 'SPORTS_NBA',    label: 'NBA' },
+                  { id: 'SPORTS_NFL',    label: 'NFL' },
+                  { id: 'SPORTS_NHL',    label: 'NHL' },
+                  { id: 'SPORTS_MLB',    label: 'MLB' },
+                  { id: 'SPORTS_NCAA',   label: 'NCAA' },
+                  { id: 'SPORTS_ESPORTS',label: 'Esports' },
                 ].map(l => (
                   <button
                     key={l.id}
                     onClick={() => setActiveSportsTab(l.id)}
                     className="flex flex-col items-center justify-center gap-3 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-white/10 hover:border-small-orange transition-all group"
                   >
-                    <span className="text-4xl">{l.icon}</span>
+                    {LEAGUE_LOGOS[l.id] ? (
+                      <img
+                        src={LEAGUE_LOGOS[l.id]}
+                        alt={l.label}
+                        className="w-14 h-14 object-contain"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="w-14 h-14 flex items-center justify-center text-3xl font-black text-white/30">{l.label[0]}</span>
+                    )}
                     <span className="text-xs font-black uppercase tracking-widest group-hover:text-small-orange transition-colors">{l.label}</span>
                   </button>
                 ))}
