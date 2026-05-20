@@ -90,6 +90,7 @@ import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
 import AdminLandingBgManager from './AdminLandingBgManager';
+import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -98,7 +99,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'ACHIEVEMENTS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'ACHIEVEMENTS' | 'ANALYTICS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   
@@ -502,6 +503,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
         <nav className="flex-1 space-y-2">
           {[
+            { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'STATS', label: 'Site Health', icon: Activity },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
@@ -1367,8 +1369,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
               </motion.div>
             )}
 
+            {activeTab === 'ANALYTICS' && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <AdminAnalyticsDashboard />
+              </motion.div>
+            )}
+
             {activeTab === 'STAFF' && (
-              <motion.div 
+              <motion.div
                 key="staff"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

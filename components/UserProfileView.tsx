@@ -111,6 +111,7 @@ import PayItForwardButton from './PayItForwardButton';
 import HideNSeekManager from './HideNSeekManager';
 import { uploadFile } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
+import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 
 interface UserProfileViewProps {
   uid: string;
@@ -225,7 +226,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS'>(initialTab || 'FEED');
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>('PERSONAL');
   const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
@@ -1103,6 +1104,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             { id: 'FRIENDS', label: 'Friends' },
             { id: 'INTERESTS', label: 'Interests' },
             ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
             ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
             ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Sanctuary' }] : [])
@@ -1682,6 +1684,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <p className="text-white/20 uppercase font-black tracking-[0.5em]">No creations yet.</p>
                   </div>
                 )}
+              </motion.div>
+            ) : activeTab === 'MY_STATS' && isOwnProfile ? (
+              <motion.div
+                key="my-stats"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="pb-8"
+              >
+                <UserAnalyticsDashboard currentUser={profile} />
               </motion.div>
             ) : activeTab === 'MY_HABITS' && isOwnProfile ? (
               <motion.div
