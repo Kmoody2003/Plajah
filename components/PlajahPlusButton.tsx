@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, Check, Crown, X, Settings, Users, RefreshCw, Star } from 'lucide-react';
 import { PlajahPlusSubscription, CreatorSplit, CreatorSplitEntry, SubscriptionTier } from '../types';
@@ -10,8 +10,7 @@ import {
 } from '../services/subscriptionService';
 import { startSubscriptionCheckout, openBillingPortal, TIER_META } from '../services/stripeService';
 import { auth } from '../services/firebase';
-
-const PlajahPlusLanding = lazy(() => import('./PlajahPlusLanding'));
+import PlajahPlusLanding from './PlajahPlusLanding';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -308,13 +307,11 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
             >
               <X size={18} />
             </button>
-            <Suspense fallback={null}>
-              <PlajahPlusLanding
-                defaultCreatorId={creatorId}
-                defaultCreatorName={creatorName}
-                onClose={() => setShowInternalLanding(false)}
-              />
-            </Suspense>
+            <PlajahPlusLanding
+              defaultCreatorId={creatorId}
+              defaultCreatorName={creatorName}
+              onClose={() => setShowInternalLanding(false)}
+            />
           </motion.div>
         )}
       </AnimatePresence>
