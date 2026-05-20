@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import CommentSection from './CommentSection';
 import MuxPlayer from '@mux/mux-player-react';
+import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface VideoPlayerProps {
@@ -664,6 +665,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                     Follow
                   </button>
                 )}
+                <PlajahPlusButton
+                  creatorId={video.ownerId}
+                  creatorName={ownerProfile.displayName}
+                  isOwnProfile={isOwner}
+                />
               </div>
             )}
 

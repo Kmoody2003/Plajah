@@ -501,17 +501,19 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
               </div>
               <PageHeader textClassName="text-[clamp(1.8rem,5.5vw,6rem)] font-black uppercase tracking-tighter text-white leading-[0.85] italic select-none">{selectedWorld?.name}</PageHeader>
               <p className="text-white/60 text-base lg:text-lg font-medium max-w-2xl leading-relaxed mt-2">{selectedWorld?.description}</p>
-              {selectedWorld && (
-                <div className="mt-4">
-                  <PlajahPlusButton
-                    creatorId={selectedWorld.creatorId}
-                    creatorName={selectedWorld.name}
-                    isOwnProfile={isOwner}
-                  />
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Creator support — below hero, outside overflow-hidden */}
+          {selectedWorld && (
+            <div className="flex items-center gap-4 mb-6 mt-2">
+              <PlajahPlusButton
+                creatorId={selectedWorld.creatorId}
+                creatorName={selectedWorld.name}
+                isOwnProfile={isOwner}
+              />
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex overflow-x-auto gap-3 mb-10 no-scrollbar">

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment } from '../services/backendService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import PlajahPlusButton from './PlajahPlusButton';
 import { ReactReader, ReactReaderStyle } from 'react-reader';
 import { Rendition, Book as EPubBook } from 'epubjs';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -477,8 +478,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             exit={{ y: -100 }}
             className={`h-20 ${s.header} flex items-center justify-between px-8 z-50 transition-colors duration-500`}
           >
-            <div className="flex items-center gap-6">
-              <button 
+            <div className="flex items-center gap-4 lg:gap-6">
+              <button
                 onClick={() => { setShowTOC(!showTOC); setShowComments(false); setShowNotes(false); setShowSettings(false); }}
                 className={`p-3 rounded-full transition-all ${showTOC ? s.activeBtn : s.btnHover}`}
                 title="Table of Contents"
@@ -491,10 +492,19 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               <div>
                 <h2 className="text-sm font-black uppercase tracking-widest truncate max-w-[200px]">{book.title}</h2>
                 <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
-                  {isEpub ? `Reading: ${epubProgress}%` : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)} 
+                  {isEpub ? `Reading: ${epubProgress}%` : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)}
                   {!isEpub && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
                 </p>
               </div>
+              {book.ownerId && (
+                <div className="hidden sm:block">
+                  <PlajahPlusButton
+                    creatorId={book.ownerId}
+                    creatorName={book.artist || book.title}
+                    isOwnProfile={book.ownerId === currentUser?.uid}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 lg:gap-4">

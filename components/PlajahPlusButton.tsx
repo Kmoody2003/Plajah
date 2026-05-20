@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, Check, Crown, X, Settings, Users, RefreshCw, Star } from 'lucide-react';
 import { PlajahPlusSubscription, CreatorSplit, CreatorSplitEntry, SubscriptionTier } from '../types';
@@ -10,6 +10,8 @@ import {
 } from '../services/subscriptionService';
 import { startSubscriptionCheckout, openBillingPortal, TIER_META } from '../services/stripeService';
 import { auth } from '../services/firebase';
+
+const PlajahPlusLanding = lazy(() => import('./PlajahPlusLanding'));
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -160,8 +162,11 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
   const [sub, setSub] = useState<PlajahPlusSubscription | null>(null);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [showInternalLanding, setShowInternalLanding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOpenLanding = onOpenLanding ?? (() => setShowInternalLanding(true));
 
   const isBoundToThisCreator = sub?.boundCreatorId === creatorId && sub?.status === 'active';
 
@@ -223,7 +228,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
             </button>
           ) : (
             <button
-              onClick={onOpenLanding}
+              onClick={handleOpenLanding}
               className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:scale-105 transition-all shadow-lg shadow-[#D40055]/20"
             >
               <Zap size={10} />
@@ -275,7 +280,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
                   <h3 className="text-sm font-black text-white">No Active Subscription</h3>
                   <p className="text-xs text-white/40">You don't have a Plajah+ subscription yet. Subscribe to manage creator splits.</p>
                   <button
-                    onClick={() => { setShowModal(false); onOpenLanding?.(); }}
+                    onClick={() => { setShowModal(false); handleOpenLanding(); }}
                     className="w-full py-3 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-2xl text-xs font-black uppercase tracking-widest text-white"
                   >
                     View Plans
@@ -283,6 +288,33 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
                 </div>
               )}
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Internal landing modal — used when no onOpenLanding prop is provided */}
+      <AnimatePresence>
+        {showInternalLanding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md"
+            onClick={e => { if (e.target === e.currentTarget) setShowInternalLanding(false); }}
+          >
+            <button
+              onClick={() => setShowInternalLanding(false)}
+              className="fixed top-4 right-4 z-[61] p-3 bg-white/10 border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+            >
+              <X size={18} />
+            </button>
+            <Suspense fallback={null}>
+              <PlajahPlusLanding
+                defaultCreatorId={creatorId}
+                defaultCreatorName={creatorName}
+                onClose={() => setShowInternalLanding(false)}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

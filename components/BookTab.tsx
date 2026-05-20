@@ -5,6 +5,7 @@ import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles 
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchAllPublicAlbums, syncPublicDomainAsset } from '../services/backendService';
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
+import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface BookTabProps {
@@ -190,6 +191,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
         </div>
         
         <div className="flex flex-col gap-4 items-end">
+          <PlajahPlusBanner variant="COMPACT" className="w-72" />
           <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
             <button
               onClick={() => setActiveTab('CLASSICS')}

@@ -510,9 +510,6 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
             {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
           </h1>
-          <div className="hidden xl:block w-72 shrink-0">
-            <PlajahPlusBanner variant="COMPACT" />
-          </div>
 
           {/* Search */}
           <div className="flex-1 relative max-w-xl">
@@ -566,7 +563,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
       </div>
 
-      {/* â"€â"€ Content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
+      {/* Plajah+ Banner */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 pt-4 pb-2">
+        <PlajahPlusBanner variant="COMPACT" />
+      </div>
+
       <div className="flex max-w-7xl mx-auto">
         {/* Sidebar nav (desktop) */}
         <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">

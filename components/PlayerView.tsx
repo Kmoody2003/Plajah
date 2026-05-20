@@ -22,6 +22,7 @@ import GlobalPhotosView from './GlobalPhotosView';
 import CommentSection from './CommentSection';
 import The411 from './The411';
 import { LyricItem, TimeCodedLyrics } from './LyricItem';
+import PlajahPlusButton from './PlajahPlusButton';
 
 type RepeatMode = 'NONE' | 'ONE' | 'ALL';
 
@@ -1046,11 +1047,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
           {activeHUD === 'INFO' && (
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <img src={album.artistImage || album.coverImage || undefined} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
                 <div>
                   <h3 className="text-lg font-black uppercase tracking-tight">{album.artist}</h3>
                   <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest">Archive Identity</p>
+                </div>
+                <div className="ml-auto">
+                  <PlajahPlusButton
+                    creatorId={album.ownerId}
+                    creatorName={album.artist}
+                    isOwnProfile={!!(user && album.ownerId === user.uid)}
+                  />
                 </div>
               </div>
               <p className="text-sm font-medium leading-relaxed text-white/60 italic font-display">
