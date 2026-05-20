@@ -24,6 +24,7 @@ import CommentSection from './CommentSection';
 import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
 import LiveStreamViewer from './LiveStreamViewer';
+import PlajahPlusBanner from './PlajahPlusBanner';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -509,6 +510,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
             {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
           </h1>
+          <div className="hidden xl:block w-72 shrink-0">
+            <PlajahPlusBanner variant="COMPACT" />
+          </div>
 
           {/* Search */}
           <div className="flex-1 relative max-w-xl">

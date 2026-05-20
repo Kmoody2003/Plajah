@@ -20,6 +20,7 @@ import MiniMusicPlayer from './MiniMusicPlayer';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import SignInPrompt from './SignInPrompt';
+import PlajahPlusPill from './PlajahPlusPill';
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -909,6 +910,9 @@ const FeedItemComponent: React.FC<{
                   >
                     {item.authorName}
                   </h3>
+                  {item.authorId !== 'system' && (
+                    <PlajahPlusPill creatorId={item.authorId} creatorName={item.authorName} />
+                  )}
                   {item.authorId === 'system' && (
                     <div className="bg-primary/20 border border-primary/20 px-3 py-1 rounded-full flex items-center gap-2">
                        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />

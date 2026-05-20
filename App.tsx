@@ -86,6 +86,7 @@ const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops')
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
+const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
 
@@ -1602,6 +1603,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           Creators Upload Here
                         </button>
                       </div>
+                      <Suspense fallback={null}>
+                        <PlajahPlusBanner className="mb-8 max-w-2xl" />
+                      </Suspense>
                       <div className="flex items-center gap-6 mt-8 overflow-x-auto no-scrollbar pb-2">
                         {(['MUSIC', 'WORLDS', 'LIVE_HUB', 'VIDEO', 'MOVIES_TV', 'BOOK', 'GAMES', 'MODULES', 'MY_ARCHIVE'] as const).map(tab => (
                           <button 

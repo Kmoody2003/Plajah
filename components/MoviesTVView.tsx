@@ -19,6 +19,7 @@ import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ScrollableTabRow from './ScrollableTabRow';
+import PlajahPlusBanner from './PlajahPlusBanner';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -118,6 +119,11 @@ const HomeView: React.FC<{
 
       {/* Tab Bar — sticky below hero */}
       {tabNav}
+
+      {/* Plajah+ Banner */}
+      <div className="px-8 md:px-16 pt-8">
+        <PlajahPlusBanner />
+      </div>
 
       {/* Genres Row */}
       <section className="px-8 md:px-16 flex gap-6 overflow-x-auto pb-4 mask-fade-edges">

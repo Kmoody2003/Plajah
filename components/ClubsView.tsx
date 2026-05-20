@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown, Crown } from 'lucide-react';
+import PlajahPlusBanner from './PlajahPlusBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubJoinProcess } from '../types';
 import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
@@ -130,6 +131,11 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
       </section>
 
       <div className="max-w-7xl mx-auto px-6 lg:px-12 pb-32">
+        {/* Plajah+ Banner */}
+        <div className="mt-10 mb-4">
+          <PlajahPlusBanner />
+        </div>
+
         {/* My Clubs */}
         {myClubs.length > 0 && (
           <section className="mb-16 mt-10">

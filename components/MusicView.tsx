@@ -20,6 +20,7 @@ import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
 import { PodcastsView } from './PodcastsView';
 import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
+import PlajahPlusBanner from './PlajahPlusBanner';
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
 
@@ -382,6 +383,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         <div className="flex-1 min-w-0">
           <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Chora</PageHeader>
+            <div className="mt-4">
+              <PlajahPlusBanner variant="COMPACT" />
+            </div>
           </div>
           <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
             <div className="flex items-center gap-4">
