@@ -65,9 +65,9 @@ export async function hasActiveSubscription(uid: string): Promise<boolean> {
 
 export function getSubscriptionBenefits(tier: SubscriptionTier) {
   const map = {
-    1: { storageGb: 100, monthlyPoints: 100, transactionDiscount: 10, merchDiscount: 10, sanctuaryDiscount: 10, adBoost: 15 },
-    2: { storageGb: 500, monthlyPoints: 300, transactionDiscount: 15, merchDiscount: 15, sanctuaryDiscount: 15, adBoost: 30 },
-    3: { storageGb: 1024, monthlyPoints: 1000, transactionDiscount: 20, merchDiscount: 20, sanctuaryDiscount: 20, adBoost: 50 },
+    1: { storageGb: 50, monthlyPoints: 100, transactionDiscount: 10, merchDiscount: 10, sanctuaryDiscount: 10, adBoost: 15 },
+    2: { storageGb: 75, monthlyPoints: 300, transactionDiscount: 15, merchDiscount: 15, sanctuaryDiscount: 15, adBoost: 30 },
+    3: { storageGb: 100, monthlyPoints: 1000, transactionDiscount: 20, merchDiscount: 20, sanctuaryDiscount: 20, adBoost: 50 },
   };
   return map[tier];
 }

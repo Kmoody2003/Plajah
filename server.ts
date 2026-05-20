@@ -190,7 +190,7 @@ async function firestoreCreate(collection: string, data: object) {
   return json.name?.split('/').pop() ?? null;
 }
 
-const TIER_STORAGE: Record<string, number> = { '1': 100, '2': 500, '3': 1024 };
+const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
 const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
 
 async function startServer() {

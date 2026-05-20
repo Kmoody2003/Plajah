@@ -36,28 +36,28 @@ Plajah is a multi-revenue creator-first platform combining social media, music, 
 ### Pricing & revenue split
 | Tier | Price / month | Platform take | Creator share | Storage | Monthly points | Ad boost |
 |---|---|---|---|---|---|---|
-| Tier 1 — Spark | $4.99 | $1.99 | $3.00 | 100 GB | 100 pts | +15% |
-| Tier 2 — Glow | $9.99 | $2.99 | $7.00 | 500 GB | 300 pts | +30% |
-| Tier 3 — Nova | $14.99 | $3.99 | $11.00 | 1 TB | 1,000 pts | +50% |
+| Tier 1 — Spark | $4.99 | $1.99 | $3.00 | 50 GB | 100 pts | +15% |
+| Tier 2 — Glow | $9.99 | $2.99 | $7.00 | 75 GB | 300 pts | +30% |
+| Tier 3 — Nova | $14.99 | $3.99 | $11.00 | 100 GB | 1,000 pts | +50% |
 
 ### Subscriber benefits by tier
 **Tier 1 — Spark ($4.99)**
 - Radio monetization unlocked
 - 10% discount on Plajah For Business purchases
 - 100 monthly loyalty points
-- 100 GB creator storage
+- 50 GB creator storage
 
 **Tier 2 — Glow ($9.99)**
 - Radio + Live TV + PPV monetization
 - 15% discount on Plajah For Business purchases
 - 300 monthly loyalty points
-- 500 GB creator storage
+- 75 GB creator storage
 
 **Tier 3 — Nova ($14.99)**
 - Full monetization (radio, TV, PPV, exclusive content)
 - 20% discount on Plajah For Business purchases
 - 1,000 monthly loyalty points
-- 1 TB creator storage
+- 100 GB creator storage
 
 ### Creator Split System
 Creators can split their Plajah+ revenue with up to 3 recipients (other artists, charities, or clubs). Constraints:
@@ -220,11 +220,11 @@ Effective storage cost (Firebase/GCS): **$0.03–$0.04 per GB per month**
 
 | Tier | Included storage | Storage cost to platform | Creator share covers it? |
 |---|---|---|---|
-| Tier 1 | 100 GB | ~$3.00–$4.00/mo | Break-even |
-| Tier 2 | 500 GB | ~$15–$20/mo | Platform net ($2.99) is at risk — offset by ad/package revenue |
-| Tier 3 | 1 TB | ~$30–$40/mo | Platform net ($3.99) doesn't cover it — offset by ad/package/business revenue |
+| Tier 1 | 50 GB | ~$1.50–$2.00/mo | Platform net ($1.99) covers storage cost comfortably |
+| Tier 2 | 75 GB | ~$2.25–$3.00/mo | Platform net ($2.99) roughly break-even on storage alone |
+| Tier 3 | 100 GB | ~$3.00–$4.00/mo | Platform net ($3.99) covers storage; remaining margin from ad/package revenue |
 
-**Key insight:** Higher tiers are loss-leaders on storage but are offset by the higher probability that Tier 2/3 subscribers also purchase ad packages, generate tips (10% fee), and drive off-platform promotion subscriptions.
+**Key insight:** With the revised storage tiers (50/75/100 GB), storage costs are fully covered by platform take at every tier. Higher-tier subscribers still drive disproportionate revenue through ad packages, tips, and off-platform promotion — making them strongly profitable on a blended basis.
 
 ---
 
