@@ -112,6 +112,8 @@ import HideNSeekManager from './HideNSeekManager';
 import { uploadFile } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import UserAnalyticsDashboard from './UserAnalyticsDashboard';
+import PlajahPlusButton from './PlajahPlusButton';
+import PlajahPlusLanding from './PlajahPlusLanding';
 
 interface UserProfileViewProps {
   uid: string;
@@ -230,6 +232,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>('PERSONAL');
   const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
+  const [showPlajahPlusLanding, setShowPlajahPlusLanding] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
   const [isAddAppModalOpen, setIsAddAppModalOpen] = useState(false);
@@ -863,11 +866,17 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 ) : (
                   <>
                     <PayItForwardButton variant="FULL" />
-                    <ShareButton 
+                    <ShareButton
                       title={`${profile.displayName}'s Profile`}
                       text={`Check out ${profile.displayName} on Plajah!`}
                       url={`${window.location.origin}/profile/${profile.uid}`}
                       className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/60 hover:text-white"
+                    />
+                    <PlajahPlusButton
+                      creatorId={profile.uid}
+                      creatorName={profile.displayName}
+                      isOwnProfile={true}
+                      onOpenLanding={() => setShowPlajahPlusLanding(true)}
                     />
 
                       {(profile.xUrl || profile.xHandle) && (
@@ -918,8 +927,14 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           <HeartHandshake size={14} className="text-small-orange" />
                           Gifts & tips
                         </button>
+                        <PlajahPlusButton
+                          creatorId={profile.uid}
+                          creatorName={profile.displayName}
+                          isOwnProfile={false}
+                          onOpenLanding={() => setShowPlajahPlusLanding(true)}
+                        />
                         {onMessage && uid !== auth.currentUser?.uid && (
-                          <button 
+                          <button
                             onClick={() => onMessage(uid)}
                             className="px-8 py-3 bg-small-orange text-white font-black text-xs uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
                           >
@@ -2867,12 +2882,38 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         </div>
       </div>
       
-      <DonationModal 
+      <DonationModal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         toId={profile.uid}
         toName={profile.displayName}
       />
+
+      <AnimatePresence>
+        {showPlajahPlusLanding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md"
+            onClick={e => { if (e.target === e.currentTarget) setShowPlajahPlusLanding(false); }}
+          >
+            <div className="min-h-screen">
+              <button
+                onClick={() => setShowPlajahPlusLanding(false)}
+                className="fixed top-4 right-4 z-[61] p-3 bg-white/10 border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={18} />
+              </button>
+              <PlajahPlusLanding
+                defaultCreatorId={profile.uid}
+                defaultCreatorName={profile.displayName}
+                onClose={() => setShowPlajahPlusLanding(false)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add Game Modal */}
       <AnimatePresence>

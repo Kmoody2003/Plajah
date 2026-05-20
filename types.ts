@@ -1374,7 +1374,7 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER';
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'AD_PACKAGES';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -1967,4 +1967,224 @@ export interface FastChannelLibraryEntry {
   isPaid: boolean;
   pricePerMonth?: number;
   timestamp: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLAJAH+ SUBSCRIPTIONS, BUSINESS, ADS, AND PLATFORM ECONOMY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type SubscriptionTier = 1 | 2 | 3;
+
+export interface PlajahPlusSubscription {
+  id: string;
+  subscriberId: string;
+  stripeSubscriptionId: string;
+  stripeCustomerId: string;
+  tier: SubscriptionTier;
+  status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'incomplete';
+  isMorph: boolean;
+  boundCreatorId?: string;
+  morphCreatorIds?: string[];
+  morphMode?: 'SPLIT' | 'RANDOM';
+  currentPeriodEnd: number;
+  cancelAtPeriodEnd: boolean;
+  storageLimitGb: number;
+  monthlyPoints: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreatorSplitEntry {
+  targetId: string;
+  targetType: 'USER' | 'CHARITY' | 'CLUB';
+  targetName: string;
+  percentage: number;
+}
+
+export interface CreatorSplit {
+  creatorId: string;
+  splits: CreatorSplitEntry[];
+  updatedAt: number;
+}
+
+export interface BusinessPage {
+  id: string;
+  ownerId: string;
+  businessName: string;
+  businessType: 'RETAIL' | 'RESTAURANT' | 'SERVICE' | 'ENTERTAINMENT' | 'TECH' | 'HEALTH' | 'OTHER';
+  description: string;
+  logoUrl?: string;
+  coverUrl?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  website?: string;
+  isVerified: boolean;
+  plajahUserDiscountPct?: number;
+  stripeAccountId?: string;
+  isAcceptingOrders: boolean;
+  radioServiceEnabled: boolean;
+  digitalSignageEnabled: boolean;
+  crmEnabled: boolean;
+  rewardsEnabled: boolean;
+  rewardPointsPerDollar?: number;
+  seedRaiserId?: string;
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BusinessOrder {
+  id: string;
+  businessId: string;
+  customerId: string;
+  customerName: string;
+  customerPhotoURL?: string;
+  items: { name: string; price: number; quantity: number; notes?: string }[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY' | 'COMPLETED' | 'CANCELLED';
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BusinessReward {
+  id: string;
+  businessId: string;
+  customerId: string;
+  points: number;
+  lifetimePoints: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DigitalSignageSlide {
+  id: string;
+  businessId: string;
+  type: 'IMAGE' | 'VIDEO' | 'TEXT' | 'PROMO';
+  url?: string;
+  headline?: string;
+  subtext?: string;
+  backgroundColor?: string;
+  durationSeconds: number;
+  isActive: boolean;
+  order: number;
+}
+
+export interface SeedRaiserCampaign {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  creatorPhoto?: string;
+  title: string;
+  description: string;
+  category: 'MUSIC' | 'VIDEO' | 'ART' | 'TECH' | 'COMMUNITY' | 'BUSINESS' | 'OTHER';
+  goalAmount: number;
+  currentAmount: number;
+  backerCount: number;
+  endDate: number;
+  rewards: SeedRaiserReward[];
+  status: 'DRAFT' | 'ACTIVE' | 'FUNDED' | 'FAILED' | 'CANCELLED';
+  coverUrl?: string;
+  videoUrl?: string;
+  updates: { id: string; title: string; text: string; timestamp: number }[];
+  stripeConnectAccountId?: string;
+  platformFeePct: number;
+  createdAt: number;
+}
+
+export interface SeedRaiserReward {
+  id: string;
+  title: string;
+  minPledge: number;
+  description: string;
+  limitedCount?: number;
+  claimedCount: number;
+  estimatedDelivery?: string;
+  includes?: string[];
+}
+
+export interface SeedRaiserPledge {
+  id: string;
+  campaignId: string;
+  backerId: string;
+  backerName: string;
+  backerPhoto?: string;
+  amount: number;
+  rewardId?: string;
+  stripePaymentIntentId: string;
+  status: 'PENDING' | 'COMPLETED' | 'REFUNDED';
+  isAnonymous: boolean;
+  message?: string;
+  createdAt: number;
+}
+
+export type AdPackageType = 'BASIC' | 'FEATURED' | 'PREMIUM' | 'MAXIMUM';
+
+export interface AdPackage {
+  id: string;
+  userId: string;
+  packageType: AdPackageType;
+  price: number;
+  durationDays: number;
+  boostMultiplier: number;
+  contentId?: string;
+  contentType?: string;
+  stripePaymentIntentId: string;
+  isActive: boolean;
+  expiresAt: number;
+  createdAt: number;
+}
+
+export type OffPlatformTier = 'STANDARD' | 'PREMIUM';
+
+export interface OffPlatformPromotion {
+  id: string;
+  userId: string;
+  tier: OffPlatformTier;
+  price: number;
+  stripeSubscriptionId: string;
+  currentPeriodEnd: number;
+  status: 'active' | 'canceled' | 'past_due';
+  createdAt: number;
+}
+
+export interface AdBoostProfile {
+  userId: string;
+  subscriptionTierBoost: number;
+  achievementBoostMultiplier: number;
+  achievementBoostExpiresAt?: number;
+  activeAdPackageBoost: number;
+  activityScore: number;
+  totalBoostScore: number;
+  lastUpdated: number;
+}
+
+export interface AdSlotAllocation {
+  userId: string;
+  displayName: string;
+  photoURL: string;
+  contentId?: string;
+  contentType?: string;
+  boostScore: number;
+  slotType: 'USER_PROMO' | 'CONTENT_PARTNER' | 'THIRD_PARTY';
+  impressionWeight: number;
+}
+
+export interface CrmContact {
+  id: string;
+  businessId: string;
+  userId?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  tags: string[];
+  notes: string;
+  rewardPoints: number;
+  totalSpend: number;
+  visitCount: number;
+  lastVisit?: number;
+  createdAt: number;
 }

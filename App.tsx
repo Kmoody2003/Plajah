@@ -84,6 +84,8 @@ const AppsView = retryLazy(() => import('./components/AppsView'));
 const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChatDrawer'));
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
+const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
+const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
 
@@ -130,7 +132,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor } from 'lucide-react';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -1156,7 +1158,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
                     { id: 'HELP_CENTER', order: 21, isVisible: true },
-                    { id: 'BROWSER', order: 22, isVisible: true }
+                    { id: 'BROWSER', order: 22, isVisible: true },
+                    ...(user ? [
+                      { id: 'BUSINESS_DASHBOARD', order: 9.5, isVisible: true },
+                      { id: 'AD_PACKAGES', order: 9.6, isVisible: true },
+                    ] : [])
                   ];
 
                   let displayConfig = [...baseConfig];
@@ -1202,7 +1208,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
                         PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
-                        BROWSER: { label: 'Partner Sites', icon: Monitor }
+                        BROWSER: { label: 'Partner Sites', icon: Monitor },
+                        BUSINESS_DASHBOARD: { label: 'My Business', icon: Briefcase },
+                        AD_PACKAGES: { label: 'Promote', icon: TrendingUp }
                       };
                       const item = items[config.id as keyof typeof items];
                       if (!item) return null;
@@ -1236,7 +1244,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         HELP_CENTER: "Access documentation, tutorials, and platform guides.",
                         ADMIN_AD_DASHBOARD: "Manage platform advertisements and promotions.",
                         PARTNER_DASHBOARD: "Configure cloud storage and partner integrations.",
-                        BROWSER: "Access partner websites (Impact, Mainstreem) inside Plajah without iframe restrictions."
+                        BROWSER: "Access partner websites (Impact, Mainstreem) inside Plajah without iframe restrictions.",
+                        BUSINESS_DASHBOARD: "Manage your business pages, orders, CRM, digital signage, and SeedRaiser campaigns.",
+                        AD_PACKAGES: "Boost your content visibility with ad packages and off-platform promotions."
                       }[config.id] || "Navigate to this section.";
 
                       return (
@@ -1271,6 +1281,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                 setView('ADMIN_AD_DASHBOARD');
                               } else if (config.id === 'PARTNER_DASHBOARD') {
                                 setView('PARTNER_DASHBOARD');
+                              } else if (config.id === 'BUSINESS_DASHBOARD') {
+                                setView('BUSINESS_DASHBOARD');
+                              } else if (config.id === 'AD_PACKAGES') {
+                                setView('AD_PACKAGES');
                               } else {
                                 setView(config.id as any);
                               }
@@ -1530,10 +1544,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'BRAND_DASHBOARD' && user && (
-              <BrandDashboard 
+              <BrandDashboard
                 user={user}
                 onBack={() => setView('CREATOR')}
               />
+            )}
+
+            {view === 'BUSINESS_DASHBOARD' && user && userProfile && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <BusinessDashboard currentUser={userProfile} />
+              </Suspense>
+            )}
+
+            {view === 'AD_PACKAGES' && user && userProfile && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <AdPackageManager currentUser={userProfile} />
+              </Suspense>
             )}
 
             {view === 'VIDEO_MANAGER' && user && (

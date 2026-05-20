@@ -110,13 +110,498 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 };
 
 
+// ── Stripe helpers (shared by all Stripe routes) ─────────────────────────────
+
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key || key.startsWith('sk_live_YOUR')) throw new Error('Stripe secret key not configured');
+  // Dynamic import so Stripe isn't loaded until first use
+  const Stripe = require('stripe');
+  return new Stripe(key, { apiVersion: '2024-12-18.acacia' });
+}
+
+// Verify a Firebase ID token using Firebase Auth REST API
+async function verifyFirebaseToken(token: string): Promise<string | null> {
+  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    return data.users?.[0]?.localId ?? null;
+  } catch { return null; }
+}
+
+async function authMiddleware(req: any, res: any, next: any) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  const token = auth.slice(7);
+  const uid = await verifyFirebaseToken(token);
+  if (!uid) return res.status(401).json({ error: 'Invalid token' });
+  req.uid = uid;
+  next();
+}
+
+// Firestore REST helper (reuses existing fetchFirebaseDoc pattern)
+async function firestoreWrite(collection: string, id: string, data: object) {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
+  // Build Firestore field map
+  const fields: any = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v === 'string') fields[k] = { stringValue: v };
+    else if (typeof v === 'number') fields[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else if (v === null || v === undefined) fields[k] = { nullValue: null };
+    else if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map(i => ({ stringValue: String(i) })) } };
+    else fields[k] = { stringValue: JSON.stringify(v) };
+  }
+  await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  });
+}
+
+async function firestoreCreate(collection: string, data: object) {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}`;
+  const fields: any = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v === 'string') fields[k] = { stringValue: v };
+    else if (typeof v === 'number') fields[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else if (v === null || v === undefined) fields[k] = { nullValue: null };
+    else if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map(i => ({ stringValue: String(i) })) } };
+    else fields[k] = { stringValue: JSON.stringify(v) };
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  });
+  const json = await res.json() as any;
+  return json.name?.split('/').pop() ?? null;
+}
+
+const TIER_STORAGE: Record<string, number> = { '1': 100, '2': 500, '3': 1024 };
+const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
+
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
+  // ── Stripe Webhook — MUST be raw body BEFORE express.json() ──────────────
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret || secret.startsWith('whsec_YOUR')) {
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    let event: any;
+    try {
+      const stripe = getStripe();
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err: any) {
+      console.error('Stripe webhook error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    const now = Date.now();
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          const meta = session.metadata || {};
+          const subId = session.subscription;
+          const custId = session.customer;
+          const mode = session.mode;
+
+          if (mode === 'subscription' && meta.type === 'plajahplus') {
+            const stripe = getStripe();
+            const sub = await stripe.subscriptions.retrieve(subId);
+            const priceId = sub.items.data[0]?.price?.id ?? '';
+            const tierMap: Record<string, string> = {
+              [process.env.STRIPE_PRICE_TIER1 ?? '']: '1',
+              [process.env.STRIPE_PRICE_TIER2 ?? '']: '2',
+              [process.env.STRIPE_PRICE_TIER3 ?? '']: '3',
+            };
+            const tier = tierMap[priceId] ?? '1';
+
+            const docId = `${meta.uid}_${subId}`;
+            await firestoreWrite('plajahPlusSubscriptions', docId, {
+              id: docId,
+              subscriberId: meta.uid,
+              stripeSubscriptionId: subId,
+              stripeCustomerId: custId,
+              tier: parseInt(tier),
+              status: 'active',
+              isMorph: meta.isMorph === 'true',
+              boundCreatorId: meta.boundCreatorId || '',
+              morphCreatorIds: meta.morphCreatorIds || '',
+              morphMode: meta.morphMode || 'SPLIT',
+              currentPeriodEnd: sub.current_period_end * 1000,
+              cancelAtPeriodEnd: false,
+              storageLimitGb: TIER_STORAGE[tier] ?? 100,
+              monthlyPoints: TIER_POINTS[tier] ?? 100,
+              createdAt: now,
+              updatedAt: now,
+            });
+
+            // Grant monthly points
+            const userDoc = await fetchFirebaseDoc('users', meta.uid);
+            if (userDoc?.fields) {
+              const currentPoints = parseInt(userDoc.fields.points?.integerValue ?? '0');
+              await firestoreWrite('users', meta.uid, { points: currentPoints + (TIER_POINTS[tier] ?? 100), updatedAt: now });
+            }
+          }
+
+          if (mode === 'payment' && meta.type === 'adpackage') {
+            const packageBoost: Record<string, number> = { BASIC: 1.5, FEATURED: 2.5, PREMIUM: 4.0, MAXIMUM: 6.0 };
+            const packageDays: Record<string, number> = { BASIC: 7, FEATURED: 14, PREMIUM: 21, MAXIMUM: 30 };
+            const pType = meta.packageType || 'BASIC';
+            const expiresAt = now + (packageDays[pType] ?? 7) * 86_400_000;
+            await firestoreCreate('adPackages', {
+              userId: meta.uid,
+              packageType: pType,
+              price: parseFloat(meta.price || '4.99'),
+              durationDays: packageDays[pType] ?? 7,
+              boostMultiplier: packageBoost[pType] ?? 1.5,
+              contentId: meta.contentId || '',
+              contentType: meta.contentType || '',
+              stripePaymentIntentId: session.payment_intent || '',
+              isActive: true,
+              expiresAt,
+              createdAt: now,
+            });
+          }
+
+          if (mode === 'payment' && meta.type === 'seedraiser_pledge') {
+            await firestoreCreate('seedRaiserPledges', {
+              campaignId: meta.campaignId,
+              backerId: meta.uid,
+              backerName: meta.backerName || 'Backer',
+              amount: parseFloat(meta.amount || '0'),
+              rewardId: meta.rewardId || '',
+              stripePaymentIntentId: session.payment_intent || '',
+              status: 'COMPLETED',
+              isAnonymous: meta.isAnonymous === 'true',
+              message: meta.message || '',
+              createdAt: now,
+            });
+            // Update campaign totals via REST — best-effort
+          }
+
+          break;
+        }
+
+        case 'customer.subscription.updated': {
+          const sub = event.data.object;
+          const snap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/plajahPlusSubscriptions?pageSize=5`);
+          // Update status in Firestore based on stripeSubscriptionId
+          // (full query not available via REST easily — rely on client-side sync)
+          break;
+        }
+
+        case 'customer.subscription.deleted': {
+          const sub = event.data.object;
+          console.log('Subscription cancelled:', sub.id);
+          break;
+        }
+
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object;
+          console.warn('Payment failed for subscription:', invoice.subscription);
+          break;
+        }
+      }
+    } catch (err: any) {
+      console.error('Webhook handler error:', err.message);
+    }
+
+    res.json({ received: true });
+  });
+
   app.use(express.json());
   app.use(cookieParser());
   app.use(cors());
+
+  // ── Stripe: Create Subscription Checkout Session ──────────────────────────
+  app.post('/api/stripe/create-checkout-session', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const { tier, isMorph, boundCreatorId, morphCreatorIds, morphMode } = req.body;
+      const uid: string = req.uid;
+
+      const priceMap: Record<number, string> = {
+        1: process.env.STRIPE_PRICE_TIER1 ?? '',
+        2: process.env.STRIPE_PRICE_TIER2 ?? '',
+        3: process.env.STRIPE_PRICE_TIER3 ?? '',
+      };
+
+      const priceId = priceMap[tier as 1|2|3];
+      if (!priceId || priceId.startsWith('price_YOUR')) {
+        return res.status(400).json({ error: 'Subscription pricing not configured yet. Contact support.' });
+      }
+
+      const successUrl = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?subscription=success`;
+      const cancelUrl  = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?subscription=cancelled`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          type: 'plajahplus',
+          uid,
+          tier: String(tier),
+          isMorph: String(!!isMorph),
+          boundCreatorId: boundCreatorId ?? '',
+          morphCreatorIds: Array.isArray(morphCreatorIds) ? morphCreatorIds.join(',') : '',
+          morphMode: morphMode ?? 'SPLIT',
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('/api/stripe/create-checkout-session', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Create Billing Portal Session ─────────────────────────────────
+  app.post('/api/stripe/create-portal-session', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { returnUrl } = req.body;
+
+      // Look up customer ID from Firestore
+      const subSnap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/plajahPlusSubscriptions?pageSize=1`);
+      // We'll use the customer ID stored in metadata — but we need to find it.
+      // For now, search Stripe for the customer by metadata.uid
+      const customers = await stripe.customers.search({ query: `metadata['uid']:'${uid}'`, limit: 1 });
+      const customerId = customers.data[0]?.id;
+      if (!customerId) return res.status(404).json({ error: 'No subscription found' });
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl || 'https://gen-lang-client-0665118474.web.app',
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('/api/stripe/create-portal-session', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Rebind Subscription ($2.99 fee) ───────────────────────────────
+  app.post('/api/stripe/rebind-subscription', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { subscriptionId, newCreatorId } = req.body;
+
+      if (!subscriptionId || !newCreatorId) {
+        return res.status(400).json({ error: 'subscriptionId and newCreatorId required' });
+      }
+
+      const successUrl = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?rebind=success`;
+      const cancelUrl  = `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?rebind=cancelled`;
+
+      // Charge $2.99 one-time rebind fee
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Plajah+ Rebind Fee', description: 'Move your subscription to a new creator' },
+            unit_amount: 299, // $2.99
+          },
+          quantity: 1,
+        }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { type: 'rebind', uid, subscriptionId, newCreatorId },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Purchase Ad Package ───────────────────────────────────────────
+  app.post('/api/stripe/purchase-ad-package', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { packageType, contentId, contentType } = req.body;
+
+      const PACKAGES: Record<string, { price: number; label: string; days: number }> = {
+        BASIC:    { price: 499,  label: 'Starter Boost (7 days)',   days: 7  },
+        FEATURED: { price: 999,  label: 'Featured Boost (14 days)', days: 14 },
+        PREMIUM:  { price: 1499, label: 'Premium Blast (21 days)',  days: 21 },
+        MAXIMUM:  { price: 2000, label: 'Max Exposure (30 days)',   days: 30 },
+      };
+
+      const pkg = PACKAGES[packageType as string];
+      if (!pkg) return res.status(400).json({ error: 'Invalid package type' });
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Plajah Ad: ${pkg.label}` },
+            unit_amount: pkg.price,
+          },
+          quantity: 1,
+        }],
+        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?ad=success`,
+        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?ad=cancelled`,
+        metadata: {
+          type: 'adpackage',
+          uid,
+          packageType,
+          price: String(pkg.price / 100),
+          contentId: contentId ?? '',
+          contentType: contentType ?? '',
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Off-Platform Promotion ───────────────────────────────────────
+  app.post('/api/stripe/purchase-off-platform', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { tier } = req.body;
+
+      const TIERS: Record<string, { price: number; label: string }> = {
+        STANDARD: { price: 4900,  label: 'Off-Platform Standard Promotion' },
+        PREMIUM:  { price: 10000, label: 'Off-Platform Premium Promotion (Billboards)' },
+      };
+
+      const t = TIERS[tier as string];
+      if (!t) return res.status(400).json({ error: 'Invalid tier' });
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Plajah: ${t.label}` },
+            unit_amount: t.price,
+          },
+          quantity: 1,
+        }],
+        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?offplatform=success`,
+        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?offplatform=cancelled`,
+        metadata: { type: 'offplatform', uid, tier, price: String(t.price / 100) },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: SeedRaiser Pledge ─────────────────────────────────────────────
+  app.post('/api/stripe/seedraiser-pledge', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { campaignId, amount, rewardId, message, isAnonymous } = req.body;
+
+      if (!campaignId || !amount || amount < 1) {
+        return res.status(400).json({ error: 'campaignId and amount (min $1) required' });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Plajah Seed Raiser Pledge' },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?pledge=success`,
+        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?pledge=cancelled`,
+        metadata: {
+          type: 'seedraiser_pledge',
+          uid,
+          campaignId,
+          amount: String(amount),
+          rewardId: rewardId ?? '',
+          message: message ?? '',
+          isAnonymous: String(!!isAnonymous),
+          backerName: '', // will be resolved from user profile
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Business Order Payment ────────────────────────────────────────
+  app.post('/api/stripe/business-order', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { businessId, items } = req.body;
+
+      if (!businessId || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'businessId and items required' });
+      }
+
+      const lineItems = items.map((item: { name: string; price: number; quantity: number }) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: item.name },
+          unit_amount: Math.round(item.price * 100),
+        },
+        quantity: item.quantity,
+      }));
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        success_url: `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?order=success`,
+        cancel_url:  `${req.headers.origin || 'https://gen-lang-client-0665118474.web.app'}/?order=cancelled`,
+        metadata: { type: 'business_order', uid, businessId },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // --- Mux Integration ---
   app.post('/api/mux/upload', async (req, res) => {
