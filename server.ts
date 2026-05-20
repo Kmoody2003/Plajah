@@ -168,7 +168,7 @@ async function startServer() {
       });
 
       const asset = await mux.video.assets.create({
-        input: [{ url }],
+        inputs: [{ url }],
         playback_policy: ['public'],
       });
 

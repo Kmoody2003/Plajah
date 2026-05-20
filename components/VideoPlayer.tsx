@@ -310,13 +310,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onBack, currentUser })
 
           if (video.muxPlaybackId) {
             return (
-              <MuxPlayer
-                ref={setVideoElement as any}
-                playbackId={video.muxPlaybackId}
-                autoPlay="any"
-                className="w-full h-full object-contain cursor-pointer"
-                onClick={togglePlay}
-              />
+              <div className="w-full h-full cursor-pointer" onClick={togglePlay}>
+                <MuxPlayer
+                  ref={setVideoElement as any}
+                  playbackId={video.muxPlaybackId}
+                  autoPlay="any"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             );
           }
 

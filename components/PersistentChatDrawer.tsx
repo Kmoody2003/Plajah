@@ -34,6 +34,35 @@ const PersistentChatDrawer: React.FC = () => {
   const { currentVideo, currentTrack, currentAlbum } = useGlobalPlayerState();
   const { currentTime, seek } = useGlobalPlayerProgress();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [forceSetup, setForceSetup] = useState(false);
+  const [selectedTalkId, setSelectedTalkId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const handleOpenDrawer = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.tab) {
+        setIsOpen(true);
+        setActiveTab(customEvent.detail.tab as TabType);
+        
+        if (customEvent.detail.tab === 'LIVETALK') {
+          if (customEvent.detail.action === 'HOST') {
+            setForceSetup(true);
+            setSelectedTalkId(undefined);
+          } else {
+            setForceSetup(false);
+            if (customEvent.detail.talkId) {
+              setSelectedTalkId(customEvent.detail.talkId);
+            } else {
+              setSelectedTalkId(undefined);
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('open-drawer', handleOpenDrawer);
+    return () => window.removeEventListener('open-drawer', handleOpenDrawer);
+  }, []);
   
   // LIVE Tab Logic: Auto-switch based on content
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
@@ -176,7 +205,11 @@ const PersistentChatDrawer: React.FC = () => {
               className="flex-1 flex flex-col h-full"
             >
               {activeTab === 'LIVETALK' && (
-                <LiveTalkView onBrowse={() => {}} />
+                <LiveTalkView 
+                  onBrowse={() => {}} 
+                  initialShowSetup={forceSetup} 
+                  initialTalkId={selectedTalkId}
+                />
               )}
 
               {activeTab === 'LIVE' && (

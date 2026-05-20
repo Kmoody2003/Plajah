@@ -104,8 +104,26 @@ const LiveTalkDiscovery: React.FC<{
            </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Persistent Premium "Host Your Own Talk" Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="group relative"
+        >
+           <div className="absolute inset-0 bg-gradient-to-br from-[#00DAF3]/20 via-[#00DAF3]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem] blur-2xl" />
+           <div className="relative glass border border-dashed border-[#00DAF3]/30 rounded-[3rem] p-10 flex flex-col items-center justify-center text-center h-full hover:border-[#00DAF3]/80 hover:bg-[#00DAF3]/5 hover:-translate-y-2 transition-all duration-500 cursor-pointer"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-drawer', { detail: { tab: 'LIVETALK', action: 'HOST' } }))}>
+              <div className="w-16 h-16 rounded-[1.5rem] bg-[#00DAF3]/10 border border-[#00DAF3]/20 flex items-center justify-center mb-6 shadow-2xl group-hover:scale-110 transition-transform">
+                 <Plus size={32} className="text-[#00DAF3]" />
+              </div>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-3">Host Your Own Talk</h3>
+              <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-relaxed max-w-[220px]">
+                Broadcast your audio frequency live onto Plajah instantly.
+              </p>
+           </div>
+        </motion.div>
+
         {filteredTalks.map(talk => (
           <motion.div 
             key={talk.id}

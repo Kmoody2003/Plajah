@@ -337,8 +337,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const snapReset = () => {};
   
   const toggleFullScreen = useCallback(() => {
-    if (videoElementRef.current) {
-      const el = videoElementRef.current as any;
+    if (videoRef.current) {
+      const el = videoRef.current as any;
       if (!document.fullscreenElement) {
         if (el.requestFullscreen) {
           el.requestFullscreen().catch(err => console.error(err));
