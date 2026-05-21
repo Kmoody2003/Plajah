@@ -7,7 +7,7 @@ import {
   TrendingUp, Clock, User, LogOut, Radio,
   Shield, Volume2, List, Trash2
 } from 'lucide-react';
-import { LiveTalk, SharedAsset, ChatMessage, UserProfile } from '../types';
+import { LiveTalk, SharedAsset, ChatMessage } from '../types';
 import { 
   auth, 
   createLiveTalk, 
@@ -19,31 +19,275 @@ import {
   endLiveTalk,
   listenToMessages,
   sendMessage,
-  listenToActiveLiveTalks
+  listenToActiveLiveTalks,
+  db
 } from '../services/backendService';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  onSnapshot, 
+  arrayUnion 
+} from 'firebase/firestore';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+
+const rtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+// Sub-component to play remote audio track
+const RemoteAudioPlayer: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (audioRef.current && stream) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />;
+};
+
+// Premium Speaker Avatar Component with real-time volume detection & pulsing halos
+interface SpeakerAvatarProps {
+  speaker: {
+    uid: string;
+    name: string;
+    photoURL: string;
+    isMuted: boolean;
+  };
+  stream: MediaStream | null;
+  isHost: boolean;
+  isCurrentUserHost: boolean;
+  onToggleMute: (uid: string) => void;
+}
+
+const SpeakerAvatar: React.FC<SpeakerAvatarProps> = ({ speaker, stream, isHost, isCurrentUserHost, onToggleMute }) => {
+  const [volume, setVolume] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!stream || speaker.isMuted) {
+      setVolume(0);
+      return;
+    }
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      audioContextRef.current = audioContext;
+
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      analyserRef.current = analyser;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const checkVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        let total = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          total += dataArray[i];
+        }
+        const average = total / bufferLength / 255;
+        setVolume(average);
+
+        animationFrameRef.current = requestAnimationFrame(checkVolume);
+      };
+
+      animationFrameRef.current = requestAnimationFrame(checkVolume);
+    } catch (e) {
+      console.error("Error setting up speaker volume analysis:", e);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, [stream, speaker.isMuted]);
+
+  // Speaking threshold
+  const isSpeaking = volume > 0.02;
+
+  return (
+    <div className="flex flex-col items-center gap-1 group relative">
+       <div 
+         className={`w-14 h-14 rounded-2xl overflow-hidden bg-white/5 border transition-all duration-300 relative ${
+           isSpeaking 
+             ? 'ring-4 ring-[#00DAF3] shadow-[0_0_20px_rgba(0,218,243,0.6)] scale-105 border-transparent' 
+             : 'ring-0 border-white/10 hover:border-white/20'
+         }`}
+       >
+          <img 
+            src={speaker.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${speaker.uid}`} 
+            className="w-full h-full object-cover" 
+            alt={speaker.name}
+          />
+          
+          {/* Animated sound wave bars on bottom of avatar when speaking */}
+          {isSpeaking && (
+            <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-0.5 px-2 bg-black/60 py-0.5">
+               <div className="w-0.5 h-3 bg-[#00DAF3] animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '0.1s' }} />
+               <div className="w-0.5 h-4 bg-[#00DAF3] animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '0.3s' }} />
+               <div className="w-0.5 h-2 bg-[#00DAF3] animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '0s' }} />
+               <div className="w-0.5 h-3 bg-[#00DAF3] animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '0.2s' }} />
+            </div>
+          )}
+
+          {/* Muted overlay */}
+          {speaker.isMuted && (
+             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <MicOff size={16} className="text-red-500" />
+             </div>
+          )}
+       </div>
+       
+       {/* Badge indicators */}
+       <div className="absolute top-10 right-0 w-5 h-5 bg-black border border-white/10 rounded-full flex items-center justify-center shadow-md">
+          {isHost ? (
+             <Shield size={10} className="text-[#00DAF3]" />
+          ) : (
+             <User size={10} className="text-white/60" />
+          )}
+       </div>
+       {isHost && (
+          <span className="absolute -top-2 -left-1 px-1.5 py-0.5 bg-red-500 rounded text-[6px] font-black text-white uppercase tracking-wider shadow">Host</span>
+       )}
+       
+       <p className="text-[9px] font-black uppercase text-center mt-1 text-white/50 truncate max-w-[64px]">{speaker.name}</p>
+
+       {/* Host or Owner Controls */}
+       {(isCurrentUserHost || speaker.uid === auth.currentUser?.uid) && (
+         <div className="absolute -top-3 -right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <button 
+              onClick={() => onToggleMute(speaker.uid)} 
+              className="p-1.5 bg-black border border-white/10 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-transform"
+            >
+               {speaker.isMuted ? <MicOff size={10} className="text-red-500" /> : <Mic size={10} className="text-green-500" />}
+            </button>
+         </div>
+       )}
+    </div>
+  );
+};
 
 interface LiveTalkViewProps {
   onBrowse: () => void;
+  initialShowSetup?: boolean;
+  initialTalkId?: string;
 }
 
-const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
+const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup, initialTalkId }) => {
   const [activeTalk, setActiveTalk] = useState<LiveTalk | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
-  const [setupData, setSetupData] = useState({ title: '', description: '', topic: '', category: '' });
+  const [setupData, setSetupData] = useState({ title: '', description: '', topic: '', category: 'Discussion' });
   const [activeTalks, setActiveTalks] = useState<LiveTalk[]>([]);
   
+  // Trigger setup or auto-join from parent props
+  useEffect(() => {
+    if (initialShowSetup) {
+      setShowSetup(true);
+    }
+  }, [initialShowSetup]);
+
+  useEffect(() => {
+    if (initialTalkId && activeTalks.length > 0) {
+      const talk = activeTalks.find(t => t.id === initialTalkId);
+      if (talk && (!activeTalk || activeTalk.id !== talk.id)) {
+        joinLiveTalk(talk.id);
+        setActiveTalk(talk);
+      }
+    }
+  }, [initialTalkId, activeTalks]);
+
   const { currentTrack, currentVideo, currentAlbum, playTrack, playVideo } = useGlobalPlayerState();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Microphones state
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [isTestingMic, setIsTestingMic] = useState(false);
+  const [signalConfirmed, setSignalConfirmed] = useState(false);
+
+  // Web Audio refs for setup test
+  const micTestStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // WebRTC mesh state & refs
+  const [remoteStreams, setRemoteStreams] = useState<{ [speakerUid: string]: MediaStream }>({});
+  const peerConnectionsRef = useRef<{ [speakerUid: string]: RTCPeerConnection }>({});
+  const signalingListenersRef = useRef<{ [key: string]: () => void }>({});
+  const localStreamRef = useRef<MediaStream | null>(null);
+
+  const [talkTab, setTalkTab] = useState<'CHAT' | 'ASSETS'>('CHAT');
+  const [raisedHands, setRaisedHands] = useState<string[]>([]);
+
+  // Enumerate input devices on load
+  const loadDevices = async () => {
+    try {
+      const deviceInfos = await navigator.mediaDevices.enumerateDevices();
+      const audioDevices = deviceInfos.filter(d => d.kind === 'audioinput');
+      setDevices(audioDevices);
+      if (audioDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(audioDevices[0].deviceId);
+      }
+    } catch (e) {
+      console.error("Error enumerating devices:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadDevices();
+    navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
+    };
+  }, []);
+
+  // Request permissions when setup opens
+  useEffect(() => {
+    if (showSetup) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          stream.getTracks().forEach(track => track.stop());
+          loadDevices();
+        })
+        .catch(err => console.error("Mic permissions request error:", err));
+    }
+  }, [showSetup]);
+
+  // Handle active talks subscription
   useEffect(() => {
     const unsubscribe = listenToActiveLiveTalks(setActiveTalks);
     return () => unsubscribe();
   }, []);
 
+  // Handle messages and live talk document updates
   useEffect(() => {
     if (activeTalk) {
       const roomId = `live_talk_${activeTalk.id}`;
@@ -53,7 +297,10 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
       });
       const unsubscribeTalk = listenToLiveTalk(activeTalk.id, (talk) => {
         setActiveTalk(talk);
-        if (!talk.isActive) setActiveTalk(null);
+        if (!talk.isActive) {
+          setActiveTalk(null);
+          cleanupAllConnections();
+        }
       });
       return () => {
         unsubscribeMessages();
@@ -65,16 +312,377 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
   useEffect(() => {
     if (activeTalk && auth.currentUser) {
       setIsHost(activeTalk.hostId === auth.currentUser.uid);
+      setRaisedHands((activeTalk as any).raisedHands || []);
     } else {
       setIsHost(false);
+      setRaisedHands([]);
     }
   }, [activeTalk, auth.currentUser]);
 
+  // Clean up all connections on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAllConnections();
+      stopMicTest();
+    };
+  }, []);
+
+  // WebRTC mesh signaling synchronization loop
+  useEffect(() => {
+    if (!activeTalk || !auth.currentUser) {
+      cleanupAllConnections();
+      return;
+    }
+
+    const talkId = activeTalk.id;
+    const myUid = auth.currentUser.uid;
+
+    // Check if current user is speaker & unmuted
+    const mySpeakerRecord = activeTalk.speakers.find(s => s.uid === myUid);
+    const isSelfSpeakerUnmuted = mySpeakerRecord ? !mySpeakerRecord.isMuted : false;
+
+    // A. Sync local mic stream & callee connection offers
+    const syncLocalBroadcast = async () => {
+      if (isSelfSpeakerUnmuted) {
+        // Capture stream if not already captured
+        if (!localStreamRef.current) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
+            });
+            localStreamRef.current = stream;
+            // Small kick to trigger re-renders
+            setRemoteStreams(prev => ({ ...prev }));
+          } catch (e) {
+            console.error("Failed to capture local stream:", e);
+            // Re-mute automatically if capture fails
+            toggleMuteSpeaker(myUid);
+            return;
+          }
+        }
+
+        // Listen for incoming offers from listeners
+        if (!signalingListenersRef.current['callee_listener']) {
+          const q = query(
+            collection(db, 'liveTalks', talkId, 'signaling'),
+            where('calleeUid', '==', myUid)
+          );
+
+          const unsubSignal = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+              const data = change.doc.data();
+              const callerUid = data.callerUid;
+
+              if (change.type === 'added' || change.type === 'modified') {
+                if (!peerConnectionsRef.current[callerUid] && data.offer && localStreamRef.current) {
+                  try {
+                    const pc = new RTCPeerConnection(rtcConfig);
+                    peerConnectionsRef.current[callerUid] = pc;
+
+                    localStreamRef.current.getTracks().forEach(track => {
+                      pc.addTrack(track, localStreamRef.current!);
+                    });
+
+                    pc.onicecandidate = (event) => {
+                      if (event.candidate) {
+                        const docRef = doc(db, 'liveTalks', talkId, 'signaling', change.doc.id);
+                        updateDoc(docRef, {
+                          calleeCandidates: arrayUnion(event.candidate.toJSON())
+                        }).catch(() => {});
+                      }
+                    };
+
+                    const desc = new RTCSessionDescription(data.offer);
+                    await pc.setRemoteDescription(desc);
+
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+
+                    const docRef = doc(db, 'liveTalks', talkId, 'signaling', change.doc.id);
+                    await updateDoc(docRef, {
+                      answer: { sdp: answer.sdp, type: answer.type }
+                    });
+
+                    const docUnsub = onSnapshot(docRef, (docSnap) => {
+                      if (!docSnap.exists()) return;
+                      const d = docSnap.data();
+                      if (d.callerCandidates) {
+                        d.callerCandidates.forEach((candidate: any) => {
+                          pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+                        });
+                      }
+                    });
+
+                    signalingListenersRef.current[`speaker_${callerUid}`] = docUnsub;
+                  } catch (e) {
+                    console.error("Error creating speaker peer connection:", e);
+                  }
+                }
+              }
+            });
+          });
+
+          signalingListenersRef.current['callee_listener'] = unsubSignal;
+        }
+      } else {
+        // Speaker is muted. Tear down capture & callee connections
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+          localStreamRef.current = null;
+        }
+
+        // Close peer connections where we are callee (acting as speaker broadcaster)
+        Object.keys(peerConnectionsRef.current).forEach(id => {
+          const isSpeaker = activeTalk.speakers.some(s => s.uid === id);
+          if (!isSpeaker) {
+            peerConnectionsRef.current[id].close();
+            delete peerConnectionsRef.current[id];
+
+            if (signalingListenersRef.current[`speaker_${id}`]) {
+              signalingListenersRef.current[`speaker_${id}`]();
+              delete signalingListenersRef.current[`speaker_${id}`];
+            }
+          }
+        });
+
+        if (signalingListenersRef.current['callee_listener']) {
+          signalingListenersRef.current['callee_listener']();
+          delete signalingListenersRef.current['callee_listener'];
+        }
+      }
+    };
+
+    syncLocalBroadcast();
+
+    // B. Sync listening to other speakers
+    const activeSpeakers = activeTalk.speakers.filter(s => s.uid !== myUid && !s.isMuted);
+    const activeSpeakerUids = new Set(activeSpeakers.map(s => s.uid));
+
+    // Close connections to muted or left speakers
+    Object.keys(peerConnectionsRef.current).forEach(uid => {
+      const isSpeaker = activeTalk.speakers.some(s => s.uid === uid);
+      if (isSpeaker && !activeSpeakerUids.has(uid)) {
+        peerConnectionsRef.current[uid].close();
+        delete peerConnectionsRef.current[uid];
+
+        if (signalingListenersRef.current[`listener_${uid}`]) {
+          signalingListenersRef.current[`listener_${uid}`]();
+          delete signalingListenersRef.current[`listener_${uid}`];
+        }
+
+        setRemoteStreams(prev => {
+          const next = { ...prev };
+          delete next[uid];
+          return next;
+        });
+
+        // Delete signaling document we created as caller
+        const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${uid}`);
+        deleteDoc(docRef).catch(() => {});
+      }
+    });
+
+    // Open connection to newly unmuted speakers
+    activeSpeakers.forEach(async (speaker) => {
+      const speakerUid = speaker.uid;
+      if (!peerConnectionsRef.current[speakerUid]) {
+        try {
+          const pc = new RTCPeerConnection(rtcConfig);
+          peerConnectionsRef.current[speakerUid] = pc;
+
+          pc.ontrack = (event) => {
+            if (event.streams && event.streams[0]) {
+              setRemoteStreams(prev => ({
+                ...prev,
+                [speakerUid]: event.streams[0]
+              }));
+            }
+          };
+
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${speakerUid}`);
+              updateDoc(docRef, {
+                callerCandidates: arrayUnion(event.candidate.toJSON())
+              }).catch(() => {});
+            }
+          };
+
+          // Create offer
+          const offer = await pc.createOffer({ offerToReceiveAudio: true });
+          await pc.setLocalDescription(offer);
+
+          const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${speakerUid}`);
+          await setDoc(docRef, {
+            id: `${myUid}_${speakerUid}`,
+            callerUid: myUid,
+            calleeUid: speakerUid,
+            offer: { sdp: offer.sdp, type: offer.type },
+            timestamp: Date.now()
+          }, { merge: true });
+
+          const unsub = onSnapshot(docRef, (docSnap) => {
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
+
+            if (data.answer && pc.signalingState !== 'stable') {
+              const desc = new RTCSessionDescription(data.answer);
+              pc.setRemoteDescription(desc).catch(e => console.error("Error setting answer:", e));
+            }
+
+            if (data.calleeCandidates) {
+              data.calleeCandidates.forEach((candidate: any) => {
+                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+              });
+            }
+          });
+
+          signalingListenersRef.current[`listener_${speakerUid}`] = unsub;
+        } catch (e) {
+          console.error("Failed to connect to speaker:", e);
+        }
+      }
+    });
+
+  }, [activeTalk?.speakers, activeTalk?.id, selectedDeviceId]);
+
+  // Clean up all WebRTC structures
+  const cleanupAllConnections = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+
+    Object.values(signalingListenersRef.current).forEach(unsub => unsub());
+    signalingListenersRef.current = {};
+
+    Object.entries(peerConnectionsRef.current).forEach(([uid, pc]) => {
+      pc.close();
+    });
+    peerConnectionsRef.current = {};
+
+    setRemoteStreams({});
+  };
+
+  // Mic test logic for Setup screen
+  const startMicTest = async (deviceId: string) => {
+    try {
+      stopMicTest();
+
+      const constraints = {
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      micTestStreamRef.current = stream;
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      audioCtxRef.current = audioContext;
+
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      setIsTestingMic(true);
+      setSignalConfirmed(false);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const draw = () => {
+        if (!canvasRef.current || !analyserRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        analyserRef.current.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const barCount = 30;
+        const barWidth = canvas.width / barCount;
+        let total = 0;
+
+        for (let i = 0; i < barCount; i++) {
+          const binIndex = Math.floor((i / barCount) * bufferLength);
+          const val = dataArray[binIndex];
+          total += val;
+
+          const barHeight = (val / 255) * canvas.height * 0.95;
+
+          const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+          gradient.addColorStop(0, '#6B0099'); // Purple
+          gradient.addColorStop(0.5, '#FF007F'); // Pink
+          gradient.addColorStop(1, '#00DAF3'); // Cyan
+
+          ctx.fillStyle = gradient;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = '#00DAF3';
+
+          const y = canvas.height - barHeight - 2;
+          const width = barWidth - 4;
+
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(i * barWidth + 2, y, width, barHeight, 4);
+          } else {
+            ctx.rect(i * barWidth + 2, y, width, barHeight);
+          }
+          ctx.fill();
+        }
+
+        const average = total / barCount / 255;
+        if (average > 0.08) {
+          setSignalConfirmed(true);
+        }
+
+        animationFrameRef.current = requestAnimationFrame(draw);
+      };
+
+      animationFrameRef.current = requestAnimationFrame(draw);
+    } catch (err) {
+      console.error("Failed to start mic test:", err);
+    }
+  };
+
+  const stopMicTest = () => {
+    setIsTestingMic(false);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (micTestStreamRef.current) {
+      micTestStreamRef.current.getTracks().forEach(track => track.stop());
+      micTestStreamRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      if (audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close();
+      }
+      audioCtxRef.current = null;
+    }
+    analyserRef.current = null;
+  };
+
+  // Launch a talk session
   const handleCreateTalk = async () => {
     if (!setupData.title.trim()) return;
+    stopMicTest();
+
+    // Create the session
     const talk = await createLiveTalk(setupData);
     if (talk) {
-      setActiveTalk(talk);
+      // Host immediately starts unmuted when they launch
+      const newSpeakers = [{
+        uid: auth.currentUser!.uid,
+        name: auth.currentUser!.displayName || 'Host',
+        photoURL: auth.currentUser!.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${auth.currentUser!.uid}`,
+        isMuted: false
+      }];
+      await updateLiveTalk(talk.id, { speakers: newSpeakers });
+      setActiveTalk({ ...talk, speakers: newSpeakers });
       setShowSetup(false);
     }
   };
@@ -118,25 +726,245 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
     }
   };
 
-  const [talkTab, setTalkTab] = useState<'CHAT' | 'ASSETS'>('CHAT');
+  const handleStartTalk = async () => {
+    if (!activeTalk || !auth.currentUser) return;
+    // Host goes live (unmuted)
+    const newSpeakers = activeTalk.speakers.map(s => {
+      if (s.uid === auth.currentUser?.uid) {
+        return { ...s, isMuted: false };
+      }
+      return s;
+    });
+    await updateLiveTalk(activeTalk.id, { speakers: newSpeakers });
+  };
+
+  const handleStopTalk = async () => {
+    if (!activeTalk || !auth.currentUser) return;
+    // Host mutes themselves
+    const newSpeakers = activeTalk.speakers.map(s => {
+      if (s.uid === auth.currentUser?.uid) {
+        return { ...s, isMuted: true };
+      }
+      return s;
+    });
+    await updateLiveTalk(activeTalk.id, { speakers: newSpeakers });
+  };
+
+  const toggleMuteSpeaker = async (uid: string) => {
+    if (!activeTalk || !auth.currentUser) return;
+    const isSelf = auth.currentUser.uid === uid;
+    if (!isHost && !isSelf) return;
+
+    const newSpeakers = activeTalk.speakers.map(s => {
+      if (s.uid === uid) {
+        return { ...s, isMuted: !s.isMuted };
+      }
+      return s;
+    });
+    await updateLiveTalk(activeTalk.id, { speakers: newSpeakers });
+  };
+
+  const handleRaiseHand = async () => {
+    if (!activeTalk || !auth.currentUser) return;
+    const newRaisedHands = [...raisedHands, auth.currentUser.uid];
+    await updateLiveTalk(activeTalk.id, { raisedHands: newRaisedHands } as any);
+  };
+
+  const handleApproveHand = async (uid: string) => {
+    if (!activeTalk || !isHost) return;
+    const newRaisedHands = raisedHands.filter(id => id !== uid);
+    const newSpeakers = [...(activeTalk.speakers), {
+      uid: uid,
+      name: 'Speaker',
+      photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
+      isMuted: false
+    }];
+    await updateLiveTalk(activeTalk.id, { raisedHands: newRaisedHands, speakers: newSpeakers as any } as any);
+  };
+
+  // Check roles
+  const isUserSpeaker = activeTalk?.speakers.some(s => s.uid === auth.currentUser?.uid) || false;
+  const userSpeakerObj = activeTalk?.speakers.find(s => s.uid === auth.currentUser?.uid);
+  const isUserMuted = userSpeakerObj ? userSpeakerObj.isMuted : true;
+
+  if (showSetup) {
+    return (
+      <div className="flex-1 flex flex-col p-8 space-y-8 bg-black/40 h-full overflow-y-auto">
+        <div className="flex items-center justify-between">
+           <h3 className="text-2xl font-headline uppercase tracking-tight">Setup Talk</h3>
+           <button onClick={() => { stopMicTest(); setShowSetup(false); }} className="p-2 hover:bg-white/5 rounded-full text-white/40"><X size={20} /></button>
+        </div>
+
+        <div className="space-y-6">
+           <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Talk Title</label>
+              <input 
+                type="text" 
+                placeholder="The Future of Plajah..."
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-[#00DAF3]/50 transition-all text-white"
+                value={setupData.title}
+                onChange={e => setSetupData({...setupData, title: e.target.value})}
+              />
+           </div>
+           
+           <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Topic</label>
+              <input 
+                type="text" 
+                placeholder="Tech, Philosophy, Music..."
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-[#00DAF3]/50 transition-all text-white"
+                value={setupData.topic}
+                onChange={e => setSetupData({...setupData, topic: e.target.value})}
+              />
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Category</label>
+              <select 
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-[#00DAF3]/50 transition-all appearance-none text-white"
+                value={setupData.category}
+                onChange={e => setSetupData({...setupData, category: e.target.value})}
+              >
+                <option value="Discussion" className="bg-black">Discussion</option>
+                <option value="Education" className="bg-black">Education</option>
+                <option value="Entertainment" className="bg-black">Entertainment</option>
+                <option value="Music" className="bg-black">Music</option>
+                <option value="Q&A" className="bg-black">Q&A</option>
+              </select>
+           </div>
+
+           {/* Audio Devices Dropdown */}
+           <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Select Microphone</label>
+              <select 
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-[#00DAF3]/50 transition-all appearance-none text-white"
+                value={selectedDeviceId}
+                onChange={e => {
+                  setSelectedDeviceId(e.target.value);
+                  if (isTestingMic) {
+                    startMicTest(e.target.value);
+                  }
+                }}
+              >
+                {devices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId} className="bg-black">
+                    {d.label || `Microphone (${d.deviceId.slice(0, 5)})`}
+                  </option>
+                ))}
+                {devices.length === 0 && <option value="" className="bg-black">Default/System Microphone</option>}
+              </select>
+           </div>
+
+           {/* Mic Audio Signal Test Panel */}
+           <div className="space-y-4 p-5 bg-white/[0.02] border border-white/5 rounded-3xl">
+              <div className="flex items-center justify-between">
+                 <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Mic Audio Signal Test</span>
+                 <button 
+                   type="button"
+                   onClick={() => {
+                     if (isTestingMic) {
+                       stopMicTest();
+                     } else {
+                       startMicTest(selectedDeviceId);
+                     }
+                   }}
+                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                     isTestingMic 
+                       ? 'bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/30' 
+                       : 'bg-[#00DAF3]/20 border border-[#00DAF3]/30 text-[#00DAF3] hover:bg-[#00DAF3]/30'
+                   }`}
+                 >
+                   {isTestingMic ? 'Stop Test' : 'Test Mic'}
+                 </button>
+              </div>
+
+              {/* Visualizer Canvas container */}
+              <div className="relative h-16 w-full bg-black/40 rounded-2xl border border-white/5 overflow-hidden flex items-center justify-center">
+                 <canvas 
+                   ref={canvasRef} 
+                   className={`absolute inset-0 w-full h-full transition-all ${isTestingMic ? 'opacity-100' : 'opacity-0 h-0 pointer-events-none'}`} 
+                   width={400} 
+                   height={64} 
+                 />
+                 {!isTestingMic && (
+                   <span className="text-[9px] font-black uppercase tracking-widest text-white/10 italic">Click Test Mic to see signal level</span>
+                 )}
+              </div>
+
+              {/* Signal Confirmed Badge */}
+              {signalConfirmed && (
+                 <div className="flex items-center justify-center gap-2 py-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                    <Volume2 size={12} />
+                    Signal Confirmed
+                 </div>
+              )}
+           </div>
+        </div>
+
+        <button 
+          onClick={handleCreateTalk}
+          className="w-full py-5 aurora-bg rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-bloom hover:scale-[1.02] active:scale-[0.98] transition-all text-white"
+        >
+          Launch Broadcast
+        </button>
+      </div>
+    );
+  }
 
   if (activeTalk) {
     return (
       <div className="flex-1 flex flex-col h-full bg-black/40">
+        {/* Dynamic, hidden receiver players for all active remote speaker streams */}
+        {Object.entries(remoteStreams).map(([speakerUid, stream]) => (
+          <RemoteAudioPlayer key={speakerUid} stream={stream} />
+        ))}
+
         {/* Talk Header */}
-        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col gap-4">
+          <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Live Audio</span>
              </div>
+             
+             {/* Header Microphone / Mute controls for Host or Speakers */}
+             {(isHost || isUserSpeaker) && (
+               <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => toggleMuteSpeaker(auth.currentUser!.uid)}
+                     className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${
+                       isUserMuted 
+                         ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' 
+                         : 'bg-green-500/20 border border-green-500/30 text-green-500 hover:bg-green-500/30'
+                     }`}
+                   >
+                      {isUserMuted ? 'Muted' : 'Unmuted'}
+                   </button>
+                   
+                   <select 
+                     value={selectedDeviceId} 
+                     onChange={e => setSelectedDeviceId(e.target.value)} 
+                     className="bg-black/80 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-[#00DAF3]/50 transition-all max-w-[120px]"
+                   >
+                      {devices.map(d => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Mic (${d.deviceId.slice(0, 5)})`}
+                        </option>
+                      ))}
+                      {devices.length === 0 && <option value="">Default Microphone</option>}
+                   </select>
+               </div>
+             )}
+             
              <button 
                onClick={async () => {
                  if (isHost) {
                    if (window.confirm("End this Live Talk for everyone?")) {
+                     cleanupAllConnections();
                      await endLiveTalk(activeTalk.id);
                    }
                  } else {
+                   cleanupAllConnections();
                    await leaveLiveTalk(activeTalk.id);
                    setActiveTalk(null);
                  }
@@ -147,47 +975,83 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
              </button>
           </div>
           
-          <h3 className="text-lg font-black uppercase tracking-tight text-white mb-1">{activeTalk.title}</h3>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.1em]">Topic: {activeTalk.topic} • {activeTalk.category}</p>
+          <div>
+            <h3 className="text-lg font-black uppercase tracking-tight text-white mb-1">{activeTalk.title}</h3>
+            <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.1em]">Topic: {activeTalk.topic} • {activeTalk.category}</p>
+          </div>
         </div>
 
         {/* Participation Panel */}
-        <div className="p-6 flex flex-col gap-6 border-b border-white/5 bg-black/20">
+        <div className="p-6 flex flex-col gap-6 border-b border-white/5 bg-black/20 overflow-y-auto max-h-[320px]">
+           {/* Speaker List */}
            <div className="space-y-4">
               <div className="flex items-center justify-between">
                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[#00DAF3]">Speakers</h4>
                  <span className="text-[10px] font-black font-mono text-white/20">{activeTalk.speakers.length}</span>
               </div>
+              
               <div className="flex flex-wrap gap-4">
-                 <div className="relative group cursor-pointer">
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden ring-2 ring-[#00DAF3] shadow-lg">
-                       <img src={activeTalk.hostPhoto || null} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-black border border-white/10 rounded-full flex items-center justify-center">
-                       <Shield size={10} className="text-[#00DAF3]" />
-                    </div>
-                    <span className="absolute -top-1 -left-1 px-1.5 py-0.5 bg-red-500 rounded text-[6px] font-black text-white uppercase">Host</span>
-                 </div>
-                 {activeTalk.speakers.filter(s => s !== activeTalk.hostId).map(uid => (
-                    <div key={uid} className="w-12 h-12 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shadow-lg relative group">
-                       <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`} className="w-full h-full" />
-                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Mic size={14} className="text-white" />
-                       </div>
-                    </div>
-                 ))}
+                 {activeTalk.speakers.map(speaker => {
+                   const isSpeakerHost = speaker.uid === activeTalk.hostId;
+                   const stream = speaker.uid === auth.currentUser?.uid 
+                     ? localStreamRef.current 
+                     : (remoteStreams[speaker.uid] || null);
+
+                   return (
+                     <SpeakerAvatar
+                       key={speaker.uid}
+                       speaker={speaker}
+                       stream={stream}
+                       isHost={isSpeakerHost}
+                       isCurrentUserHost={isHost}
+                       onToggleMute={toggleMuteSpeaker}
+                     />
+                   );
+                 })}
               </div>
            </div>
 
+           {/* Host-only Raised Hands Queue */}
+           {isHost && raisedHands.length > 0 && (
+             <div className="space-y-4 p-4 bg-[#00DAF3]/5 border border-[#00DAF3]/20 rounded-3xl animate-pulse">
+                <div className="flex items-center justify-between">
+                   <h4 className="text-[10px] font-black uppercase tracking-widest text-[#00DAF3]">Raised Hands Queue</h4>
+                   <span className="text-[10px] font-black font-mono text-[#00DAF3]">{raisedHands.length}</span>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                   {raisedHands.map(uid => (
+                      <div key={uid} className="flex items-center gap-3 bg-black/40 border border-white/5 p-2 rounded-2xl">
+                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`} className="w-8 h-8 rounded-xl" alt="" />
+                         <button 
+                           onClick={() => handleApproveHand(uid)}
+                           className="px-2.5 py-1 bg-[#00DAF3] text-black text-[8px] font-black rounded-lg hover:scale-105 transition-transform uppercase tracking-wider"
+                         >
+                           Approve
+                         </button>
+                      </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+           {/* Listener List */}
            <div className="space-y-4">
               <div className="flex items-center justify-between">
                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Listeners</h4>
+                 {!isHost && !activeTalk.speakers.find(s => s.uid === auth.currentUser?.uid) && (
+                   <button 
+                     onClick={handleRaiseHand} 
+                     className="px-2.5 py-1 bg-[#00DAF3] text-black text-[8px] font-black rounded-lg hover:scale-105 transition-transform uppercase tracking-wider"
+                   >
+                     Raise Hand
+                   </button>
+                 )}
                  <span className="text-[10px] font-black font-mono text-white/20">{activeTalk.listeners.length}</span>
               </div>
               <div className="flex flex-wrap gap-3">
                  {activeTalk.listeners.map(uid => (
                     <div key={uid} className="w-8 h-8 rounded-xl overflow-hidden bg-white/5 border border-white/5 shadow-sm opacity-60 hover:opacity-100 transition-opacity">
-                       <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`} className="w-full h-full" />
+                       <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`} className="w-full h-full" alt="" />
                     </div>
                  ))}
                  {activeTalk.listeners.length === 0 && <p className="text-[9px] font-bold uppercase tracking-widest text-white/10 italic">Waiting for audience...</p>}
@@ -215,50 +1079,51 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
               {talkTab === 'CHAT' ? (
                 <>
-                  {/* Asset Section (Pinned if latest) */}
-                  {activeTalk.sharedAssets.length > 0 && (
-                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl mb-8 space-y-3">
-                       <div className="flex items-center justify-between">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-primary">Live Playback Highlight</span>
-                          <Music size={12} className="text-primary" />
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-black rounded-xl border border-white/10 flex items-center justify-center">
-                             {activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1].type === 'MUSIC' ? <Music size={20} className="text-white/40" /> : <Film size={20} className="text-white/40" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <h5 className="text-[10px] font-black text-white truncate">{activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1].title}</h5>
-                             <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Shared by {isHost ? 'You' : 'Host'}</p>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              const asset = activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1];
-                              if (asset.type === 'MUSIC' && asset.mediaId) playTrack({ id: asset.mediaId, title: asset.title, url: asset.url } as any, null, 'RADIO');
-                              else if (asset.type === 'VIDEO' && asset.mediaId) playVideo({ id: asset.mediaId, title: asset.title, url: asset.url } as any);
-                            }}
-                            className="p-2 bg-white text-black rounded-lg hover:scale-105 transition-all"
-                          >
-                             <Play size={14} fill="black" />
-                          </button>
-                       </div>
-                    </div>
-                  )}
+                   {/* Pinned Shared media assets inside Chat */}
+                   {activeTalk.sharedAssets.length > 0 && (
+                     <div className="p-4 bg-[#00DAF3]/5 border border-[#00DAF3]/20 rounded-2xl mb-8 space-y-3">
+                        <div className="flex items-center justify-between">
+                           <span className="text-[8px] font-black uppercase tracking-widest text-[#00DAF3]">Live Playback Highlight</span>
+                           <Music size={12} className="text-[#00DAF3]" />
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <div className="w-12 h-12 bg-black rounded-xl border border-white/10 flex items-center justify-center">
+                              {activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1].type === 'MUSIC' ? <Music size={20} className="text-white/40" /> : <Film size={20} className="text-white/40" />}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                              <h5 className="text-[10px] font-black text-white truncate">{activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1].title}</h5>
+                              <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Shared by Host</p>
+                           </div>
+                           <button 
+                             onClick={() => {
+                               const asset = activeTalk.sharedAssets[activeTalk.sharedAssets.length - 1];
+                               if (asset.type === 'MUSIC' && asset.mediaId) playTrack({ id: asset.mediaId, title: asset.title, url: asset.url } as any, null, 'RADIO');
+                               else if (asset.type === 'VIDEO' && asset.mediaId) playVideo({ id: asset.mediaId, title: asset.title, url: asset.url } as any);
+                             }}
+                             className="p-2 bg-white text-black rounded-lg hover:scale-105 transition-all animate-pulse"
+                           >
+                              <Play size={14} fill="black" />
+                           </button>
+                        </div>
+                     </div>
+                   )}
 
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="flex gap-4">
-                      <img 
-                        src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`} 
-                        className="w-10 h-10 rounded-xl bg-white/5 border border-white/10" 
-                      />
-                      <div className="space-y-1">
-                         <div className="flex items-center gap-2">
-                           <span className="text-[9px] font-black uppercase tracking-widest text-[#00DAF3]">{msg.senderName}</span>
-                           <span className="text-[8px] font-mono text-white/10">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                         </div>
-                         <p className="text-sm text-white/70 leading-relaxed">{msg.text}</p>
-                      </div>
-                    </div>
-                  ))}
+                   {messages.map((msg) => (
+                     <div key={msg.id} className="flex gap-4">
+                       <img 
+                         src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`} 
+                         className="w-10 h-10 rounded-xl bg-white/5 border border-white/10" 
+                         alt=""
+                       />
+                       <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-[#00DAF3]">{msg.senderName}</span>
+                            <span className="text-[8px] font-mono text-white/10">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <p className="text-sm text-white/70 leading-relaxed">{msg.text}</p>
+                       </div>
+                     </div>
+                   ))}
                 </>
               ) : (
                 <div className="space-y-4">
@@ -276,7 +1141,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
                              if (asset.type === 'MUSIC' && asset.mediaId) playTrack({ id: asset.mediaId, title: asset.title, url: asset.url } as any, null, 'RADIO');
                              else if (asset.type === 'VIDEO' && asset.mediaId) playVideo({ id: asset.mediaId, title: asset.title, url: asset.url } as any);
                            }}
-                           className="p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary"
+                           className="p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#00DAF3]"
                          >
                             <Play size={14} fill="currentColor" />
                          </button>
@@ -293,21 +1158,34 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
               <div ref={messagesEndRef} />
            </div>
 
-           {/* Controls */}
+           {/* Controls and Mute Toggles */}
            <div className="p-6 bg-black/40 border-t border-white/5 space-y-4">
-              {isHost && (
-                <div className="flex gap-2">
-                   <button 
-                     onClick={handleShareCurrent}
-                     className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/10 flex items-center justify-center gap-2"
-                   >
-                     <Share2 size={14} /> Share Media
-                   </button>
-                   <button className="px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10">
-                     <Settings size={14} />
-                   </button>
-                </div>
-              )}
+              <div className="flex gap-2">
+                 {/* Shared Media trigger (Host only) */}
+                 {isHost && (
+                    <button 
+                      onClick={handleShareCurrent}
+                      className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/10 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Share2 size={14} /> Share Media
+                    </button>
+                 )}
+
+                 {/* Microphone mute quick toggler (Approved speakers and Host) */}
+                 {isUserSpeaker && (
+                    <button 
+                      onClick={() => toggleMuteSpeaker(auth.currentUser!.uid)}
+                      className={`flex-1 py-3 border rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                        isUserMuted 
+                          ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' 
+                          : 'bg-green-500/20 border border-green-500/30 text-green-500 hover:bg-green-500/30'
+                      }`}
+                    >
+                      {isUserMuted ? <MicOff size={14} /> : <Mic size={14} />} 
+                      {isUserMuted ? 'Unmute Mic' : 'Mute Mic'}
+                    </button>
+                 )}
+              </div>
               
               <form onSubmit={handleSendMessage} className="relative">
                 <input 
@@ -315,7 +1193,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Say something..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pr-14 text-sm outline-none focus:border-[#00DAF3]/50 transition-all shadow-inner"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pr-14 text-sm outline-none focus:border-[#00DAF3]/50 transition-all shadow-inner text-white"
                 />
                 <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00DAF3] hover:scale-110 transition-transform">
                   <Send size={20} />
@@ -323,63 +1201,6 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
               </form>
            </div>
         </div>
-      </div>
-    );
-  }
-
-  if (showSetup) {
-    return (
-      <div className="flex-1 flex flex-col p-8 space-y-8 bg-black/40">
-        <div className="flex items-center justify-between">
-           <h3 className="text-2xl font-headline uppercase tracking-tight">Setup Talk</h3>
-           <button onClick={() => setShowSetup(false)} className="p-2 hover:bg-white/5 rounded-full text-white/40"><X size={20} /></button>
-        </div>
-
-        <div className="space-y-6">
-           <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Talk Title</label>
-              <input 
-                type="text" 
-                placeholder="The Future of Plajah..."
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-primary/50 transition-all"
-                value={setupData.title}
-                onChange={e => setSetupData({...setupData, title: e.target.value})}
-              />
-           </div>
-           
-           <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Topic</label>
-              <input 
-                type="text" 
-                placeholder="Tech, Philosophy, Music..."
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-primary/50 transition-all"
-                value={setupData.topic}
-                onChange={e => setSetupData({...setupData, topic: e.target.value})}
-              />
-           </div>
-
-           <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-2">Category</label>
-              <select 
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-primary/50 transition-all appearance-none"
-                value={setupData.category}
-                onChange={e => setSetupData({...setupData, category: e.target.value})}
-              >
-                <option value="Discussion">Discussion</option>
-                <option value="Education">Education</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Music">Music</option>
-                <option value="Q&A">Q&A</option>
-              </select>
-           </div>
-        </div>
-
-        <button 
-          onClick={handleCreateTalk}
-          className="w-full py-5 aurora-bg rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-bloom hover:scale-[1.02] active:scale-[0.98] transition-all"
-        >
-          Launch Broadcast
-        </button>
       </div>
     );
   }
@@ -399,7 +1220,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
 
         <div className="grid grid-cols-1 gap-4">
           {activeTalks.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-4 text-left">
               <div className="flex items-center justify-between px-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Now Streaming</span>
                 <span className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">Live</span>
@@ -416,15 +1237,15 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse }) => {
                     >
                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
-                             <img src={talk.hostPhoto || null} className="w-8 h-8 rounded-lg shadow-lg" />
+                             <img src={talk.hostPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${talk.hostId}`} className="w-8 h-8 rounded-lg shadow-lg" alt="" />
                              <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{talk.hostName}</span>
                           </div>
                           <div className="flex items-center gap-2">
                              <Users size={12} className="text-white/20" />
-                             <span className="text-[10px] font-black font-mono text-white/40">{talk.listeners.length + talk.speakers.length}</span>
+                             <span className="text-[10px] font-black font-mono text-white/40">{(talk.listeners?.length || 0) + (talk.speakers?.length || 0)}</span>
                           </div>
                        </div>
-                       <h5 className="text-sm font-black uppercase tracking-tight text-white group-hover:text-primary transition-colors">{talk.title}</h5>
+                       <h5 className="text-sm font-black uppercase tracking-tight text-white group-hover:text-[#00DAF3] transition-colors">{talk.title}</h5>
                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-1">Topic: {talk.topic}</p>
                     </button>
                  ))}
