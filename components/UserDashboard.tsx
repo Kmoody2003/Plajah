@@ -10,12 +10,13 @@ import StoreManager from './StoreManager';
 import RevenueDashboard from './RevenueDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
-import { 
+import {
   User, Settings, Database, Video as VideoIcon, Music, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
-  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate
+  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2
 } from 'lucide-react';
+import FediverseSettings from './FediverseSettings';
 import { motion } from 'motion/react';
 
 import AlbumCreator from './AlbumCreator';
@@ -42,7 +43,7 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
 
 const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' | 'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' | 'WORLDS' | 'RADIO_MANAGER' | 'THEMES'>('ACCOUNT');
+  const [activeTab, setActiveTab] = useState<'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' | 'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' | 'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS'>('ACCOUNT');
   const [isSaving, setIsSaving] = useState(false);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userPhotos, setUserPhotos] = useState<Photo[]>([]);
@@ -203,6 +204,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio },
             { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
             { id: 'THEMES', label: 'Theme Presets', icon: LayoutTemplate },
+            { id: 'NETWORKS', label: 'Social Networks', icon: Share2 },
           ].map(item => (
             <button 
               key={item.id}
@@ -1661,6 +1663,16 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           {activeTab === 'THEMES' && profile && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full">
               <ThemePresetManager currentUser={profile} />
+            </motion.div>
+          )}
+
+          {activeTab === 'NETWORKS' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+              <header>
+                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Social Networks</h1>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Connect Mastodon, Bluesky &amp; Threads to unify your fediverse presence</p>
+              </header>
+              <FediverseSettings />
             </motion.div>
           )}
         </div>

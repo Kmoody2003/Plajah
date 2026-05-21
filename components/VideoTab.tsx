@@ -65,7 +65,11 @@ const VideoCard: React.FC<{
   showChannel?: boolean;
   currentUser?: UserProfile | null;
 }> = ({ video, onPlay, size = 'default', showChannel = true, currentUser }) => {
-  const thumb = (video as any).thumbnailUrl || (video as any).coverImage || `https://picsum.photos/seed/${video.id}/800/450`;
+  const [isHovered, setIsHovered] = React.useState(false);
+  const muxId = (video as any).muxPlaybackId as string | undefined;
+  const thumb = muxId
+    ? `https://image.mux.com/${muxId}/thumbnail.png?width=640&height=360&time=5`
+    : ((video as any).thumbnailUrl || (video as any).coverImage || `https://picsum.photos/seed/${video.id}/800/450`);
   const isLive = (video as any).genre === 'Live';
   const isMV = (video as any).genre === 'Music Video' || (video as any).category === 'MUSIC_VIDEO';
   const isCardOwner = !!(currentUser?.uid && currentUser.uid === (video as any).ownerId);
@@ -92,6 +96,8 @@ const VideoCard: React.FC<{
       whileHover={{ y: -4 }}
       className="group cursor-pointer"
       onClick={onPlay}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Thumbnail */}
       <div className={`relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 mb-3 ${
@@ -102,6 +108,15 @@ const VideoCard: React.FC<{
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           alt={video.title}
         />
+        {/* Mux animated preview on hover */}
+        {muxId && isHovered && (
+          <img
+            src={`https://image.mux.com/${muxId}/animated.webp?width=480&fps=12`}
+            className="absolute inset-0 w-full h-full object-cover"
+            alt=""
+            loading="lazy"
+          />
+        )}
         {/* Hover glass overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center backdrop-blur-0 group-hover:backdrop-blur-[1px]">
           <div className="w-12 h-12 rounded-full bg-white/0 group-hover:bg-white/20 border-2 border-white/0 group-hover:border-white/60 flex items-center justify-center transition-all duration-300 scale-75 group-hover:scale-100">
@@ -350,6 +365,58 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   }, [selectedMovie?.worldId]);
 
   useEffect(() => { loadData(); }, [profile?.uid]);
+
+  // Client-side Mux backfill — runs once per browser session.
+  // Fetches videos via the authenticated Firebase SDK (avoids server-side auth issues),
+  // then fires create-asset-from-url for each video that lacks a muxPlaybackId.
+  useEffect(() => {
+    if ((window as any).__muxBackfillTriggered) return;
+    (window as any).__muxBackfillTriggered = true;
+
+    (async () => {
+      try {
+        const { fetchAllVideos, updateVideo } = await import('../services/backendService');
+        const allVideos = await fetchAllVideos();
+        const toBackfill = allVideos.filter(v =>
+          !v.muxPlaybackId &&
+          v.url &&
+          !v.url.includes('youtube.com') &&
+          !v.url.includes('youtu.be') &&
+          !v.url.includes('vimeo.com')
+        );
+        if (toBackfill.length === 0) {
+          console.log('[Mux Backfill] All videos already transcoded.');
+          return;
+        }
+        console.log(`[Mux Backfill] Queuing ${toBackfill.length} videos for Mux transcoding…`);
+        // Process in small batches to avoid flooding the server
+        for (const v of toBackfill.slice(0, 20)) {
+          (async () => {
+            try {
+              const res = await fetch('/api/mux/create-asset-from-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: v.url }),
+              });
+              if (!res.ok) return;
+              const { assetId, playbackId } = await res.json();
+              if (assetId || playbackId) {
+                await updateVideo(v.id, {
+                  ...(assetId   ? { muxAssetId:    assetId    } : {}),
+                  ...(playbackId ? { muxPlaybackId: playbackId } : {}),
+                });
+                console.log(`[Mux Backfill] ✓ ${v.id} → ${playbackId}`);
+              }
+            } catch (err) {
+              console.warn(`[Mux Backfill] ✗ ${v.id}:`, err);
+            }
+          })();
+        }
+      } catch (err) {
+        console.warn('[Mux Backfill] failed:', err);
+      }
+    })();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -660,7 +727,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   ? ([...movies, ...tvSeries][Math.floor(Math.random() * (movies.length + tvSeries.length))] ?? heroVideo)
                   : heroVideo;
                 if (!heroItem) return null;
-                const thumb = heroItem.thumbnailUrl || heroItem.coverImage || `https://picsum.photos/seed/${heroItem.id}/1280/720`;
+                const heroMuxId = (heroItem as any).muxPlaybackId as string | undefined;
+                const thumb = heroMuxId
+                  ? `https://image.mux.com/${heroMuxId}/thumbnail.png?width=1280&height=720&time=5`
+                  : (heroItem.thumbnailUrl || heroItem.coverImage || `https://picsum.photos/seed/${heroItem.id}/1280/720`);
                 const creator = heroItem.artist || heroItem.ownerName || 'Creator';
                 const genre = heroItem.genre || heroItem.subType?.replace('_', ' ') || 'Video';
                 return (

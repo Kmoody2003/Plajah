@@ -2241,15 +2241,19 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
 
   // 5. Upload Music Videos
   const finalVideos: Video[] = [];
+  const pendingMuxUploads: Array<{ videoId: string; uploadId: string }> = [];
   if (album.musicVideos && album.musicVideos.length > 0) {
     for (let i = 0; i < album.musicVideos.length; i++) {
       const video = album.musicVideos[i];
       let videoUrl = video.url;
       let thumbUrl = video.thumbnailUrl;
-      
+
       if (video.file) {
         onProgress?.(`Uploading Video ${i + 1}/${album.musicVideos.length}`, 85);
-        videoUrl = await uploadFile(`albums/${album.id}/videos/${video.id}_${video.file.name}`, video.file);
+        // Direct upload to Mux — browser → Mux, skipping Firebase Storage
+        const uploadId = await uploadVideoFileMux(video.file);
+        pendingMuxUploads.push({ videoId: video.id, uploadId });
+        videoUrl = undefined; // playbackId will arrive via pollMuxUploadUntilReady
       }
       
       if (video.thumbnailFile) {
@@ -2390,8 +2394,51 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
           handleFirestoreError(e, OperationType.WRITE, videosCollectionPath);
         }
       }
+
+      // Poll for playback IDs from direct Mux uploads (music videos uploaded via uploadVideoFileMux)
+      for (const { videoId, uploadId } of pendingMuxUploads) {
+        const docId = `sys_${cloudAlbum.id}_${videoId}`;
+        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+          try {
+            await updateDoc(doc(db, videosCollectionPath, docId), { muxPlaybackId: playbackId, muxAssetId: assetId });
+          } catch {}
+        }, 60, 4000);
+      }
+
+      // Kick off Mux transcoding in background for URL-based videos (no direct upload)
+      for (const v of videosToPublish) {
+        const srcUrl = v.url ?? '';
+        if (
+          srcUrl &&
+          !v.muxPlaybackId &&
+          !srcUrl.includes('youtube.com') &&
+          !srcUrl.includes('youtu.be') &&
+          !srcUrl.includes('vimeo.com')
+        ) {
+          const videoId = v.id;
+          (async () => {
+            try {
+              const res = await fetch('/api/mux/create-asset-from-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: srcUrl }),
+              });
+              if (!res.ok) return;
+              const muxData = await res.json();
+              if (muxData.assetId || muxData.playbackId) {
+                await updateDoc(doc(db, videosCollectionPath, videoId), {
+                  ...(muxData.assetId   ? { muxAssetId: muxData.assetId }     : {}),
+                  ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+                });
+              }
+            } catch (err) {
+              console.error('[Mux] Background transcoding failed for video', videoId, err);
+            }
+          })();
+        }
+      }
     }
-    
+
     // Automatically post to feed if public
     if (cloudAlbum.isPublic && !cloudAlbum.isScheduled) {
       await postToFeed({
@@ -4957,14 +5004,38 @@ export const seedMockUsers = async () => {
 
 // --- VIDEO FEATURES ---
 
+// Upload a video file directly to Mux (browser → Mux, skipping Firebase Storage).
+// Returns the Mux upload ID so we can poll for the playback ID afterwards.
+const uploadVideoFileMux = async (
+  file: File,
+  onProgress?: (p: number) => void,
+): Promise<string> => {
+  const { id: uploadId, url: uploadUrl } = await createMuxDirectUpload();
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+    xhr.addEventListener('load', () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Mux upload failed: ${xhr.status}`))));
+    xhr.addEventListener('error', () => reject(new Error('Mux upload network error')));
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    xhr.send(file);
+  });
+  return uploadId;
+};
+
 export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number) => void): Promise<Video> => {
   if (!auth.currentUser) throw new Error("Must be signed in to upload videos.");
   const id = `vid_${Date.now()}`;
   const path = `videos/${id}`;
-  
+
   let videoUrl = video.url || '';
+  let muxUploadId: string | undefined;
   if (video.file) {
-    videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
+    // Upload directly to Mux — 1 transfer instead of browser→Firebase→Mux
+    muxUploadId = await uploadVideoFileMux(video.file, onProgress);
+    // Keep videoUrl empty until Mux is ready; onSnapshot listener in VideoPlayer will pick up playbackId
   }
   
   let thumbUrl = video.thumbnailUrl || '';
@@ -5003,9 +5074,15 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     throw e;
   }
 
-  // Kick off Mux transcoding in the background (non-blocking).
-  // The server polls until the asset is ready, then we update Firestore.
-  if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
+  if (muxUploadId) {
+    // Direct-upload path: poll Mux for the playback ID once the asset is ready.
+    pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
+      try {
+        await updateDoc(doc(db, 'videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId });
+      } catch {}
+    }, 60, 4000);
+  } else if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
+    // URL-based path: ask server to ingest the public URL into Mux.
     (async () => {
       try {
         const res = await fetch('/api/mux/create-asset-from-url', {
@@ -5017,7 +5094,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
         const muxData = await res.json();
         if (muxData.assetId || muxData.playbackId) {
           await updateDoc(doc(db, 'videos', id), {
-            ...(muxData.assetId ? { muxAssetId: muxData.assetId } : {}),
+            ...(muxData.assetId   ? { muxAssetId:    muxData.assetId    } : {}),
             ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
           });
         }

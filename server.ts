@@ -604,97 +604,89 @@ async function startServer() {
   });
 
   // --- Mux Integration ---
+
+  // Shared optimal Mux asset settings — per-title smart encoding, 4K ceiling,
+  // MP4 rendition for download/fallback, normalised audio levels.
+  const MUX_ASSET_SETTINGS = {
+    playback_policy: ['public'] as ['public'],
+    encoding_tier: 'smart' as const,         // per-title encoding (better quality, lower bitrate)
+    max_resolution_tier: '2160p' as const,   // accept 4K source, transcode down as needed
+    mp4_support: 'standard' as const,        // MP4 rendition for compatibility/download
+    normalize_audio: true,                   // loudness normalisation (EBU R128)
+  };
+
+  async function getMux() {
+    const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
+    if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) throw new Error('Mux keys not configured');
+    const Mux = (await import('@mux/mux-node')).default;
+    return new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+  }
+
+  // Poll until Mux asset has a playback ID (fires quickly, often within seconds)
+  async function waitForPlaybackId(mux: any, assetId: string): Promise<string | undefined> {
+    for (let i = 0; i < 60; i++) {           // up to 4 min (60 × 4 s)
+      await new Promise(r => setTimeout(r, 4000));
+      try {
+        const a = await mux.video.assets.retrieve(assetId);
+        if (a.playback_ids?.[0]?.id) return a.playback_ids[0].id;
+        if (a.status === 'errored') return undefined;
+      } catch { return undefined; }
+    }
+    return undefined;
+  }
+
+  // POST /api/mux/upload — browser gets an upload URL and PUTs directly to Mux
   app.post('/api/mux/upload', async (req, res) => {
     try {
-      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
-      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured (missing API keys).' });
-      }
-      
-      const Mux = (await import('@mux/mux-node')).default;
-      const mux = new Mux({
-        tokenId: MUX_TOKEN_ID,
-        tokenSecret: MUX_TOKEN_SECRET,
-      });
-
+      const mux = await getMux();
+      const corsOrigin = req.headers.origin || '*';
       const upload = await mux.video.uploads.create({
-        new_asset_settings: {
-          playback_policy: ['public'],
-        },
-        cors_origin: '*', // Set to actual domain in production
+        new_asset_settings: MUX_ASSET_SETTINGS,
+        cors_origin: corsOrigin,
+        timeout: 3600,   // 1-hour window for large files
       });
-
       res.json({ id: upload.id, url: upload.url });
     } catch (error: any) {
-      console.error('Mux upload error:', error);
+      console.error('[Mux] upload create error:', error.message);
       res.status(500).json({ error: error.message || 'Failed to create Mux upload URL' });
     }
   });
 
+  // GET /api/mux/asset — poll upload status until asset_id is present
   app.get('/api/mux/asset', async (req, res) => {
     try {
       const { uploadId } = req.query;
       if (!uploadId) return res.status(400).json({ error: 'Missing uploadId' });
-      
-      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
-      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
-      }
-
-      const Mux = (await import('@mux/mux-node')).default;
-      const mux = new Mux({
-        tokenId: MUX_TOKEN_ID,
-        tokenSecret: MUX_TOKEN_SECRET,
-      });
-
+      const mux = await getMux();
       const upload = await mux.video.uploads.retrieve(uploadId as string);
       res.json({ status: upload.status, assetId: upload.asset_id });
     } catch (error: any) {
-      console.error('Mux retrieve error:', error);
+      console.error('[Mux] asset retrieve error:', error.message);
       res.status(500).json({ error: error.message });
     }
   });
 
+  // POST /api/mux/create-asset-from-url — ingest a public URL into Mux
+  // Returns playbackId as soon as it's available (usually within a few seconds
+  // of the first segments being ready — full transcoding continues in background).
   app.post('/api/mux/create-asset-from-url', express.json(), async (req, res) => {
     try {
       const { url } = req.body;
       if (!url) return res.status(400).json({ error: 'Missing url' });
 
-      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
-      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
-      }
-
-      const Mux = (await import('@mux/mux-node')).default;
-      const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
-
+      const mux = await getMux();
       const asset = await mux.video.assets.create({
         inputs: [{ url }],
-        playback_policy: ['public'],
+        ...MUX_ASSET_SETTINGS,
       });
 
-      // Mux processes asynchronously — poll until the asset is 'ready' and
-      // playback_ids is populated (up to 3 minutes, checking every 4 seconds).
       const assetId = asset.id;
       let playbackId: string | undefined = asset.playback_ids?.[0]?.id;
-
-      if (!playbackId) {
-        for (let i = 0; i < 45; i++) {
-          await new Promise(r => setTimeout(r, 4000));
-          try {
-            const polled = await mux.video.assets.retrieve(assetId);
-            if (polled.status === 'ready' && polled.playback_ids?.[0]?.id) {
-              playbackId = polled.playback_ids[0].id;
-              break;
-            }
-            if (polled.status === 'errored') break;
-          } catch (_) { break; }
-        }
-      }
+      if (!playbackId) playbackId = await waitForPlaybackId(mux, assetId);
 
       res.json({ assetId, playbackId });
     } catch (error: any) {
-      console.error('Mux create asset from URL error:', error);
+      console.error('[Mux] create-asset-from-url error:', error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -716,7 +708,9 @@ async function startServer() {
       });
 
       const asset = await mux.video.assets.retrieve(assetId as string);
-      const playbackId = asset.playback_ids?.[0]?.id;
+      // Only expose the playback ID once the asset is fully ready — prevents
+      // the client from trying to stream a manifest that doesn't exist yet.
+      const playbackId = asset.status === 'ready' ? asset.playback_ids?.[0]?.id : undefined;
       res.json({ status: asset.status, playbackId, asset });
     } catch (error: any) {
       console.error('Mux playback error:', error);
@@ -781,6 +775,84 @@ async function startServer() {
     } catch (error: any) {
       console.error('Mux live status error:', error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Mux Backfill: transcode all existing Firestore videos that lack muxPlaybackId ---
+  app.post('/api/mux/backfill-videos', async (req, res) => {
+    try {
+      const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
+      if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+        return res.status(500).json({ error: 'Mux keys not configured' });
+      }
+
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId      = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const baseUrl   = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents`;
+
+      // Fetch all videos from Firestore (paginate if needed — 300 per page)
+      const allVideos: Array<{ id: string; url: string }> = [];
+      let pageToken: string | undefined;
+      do {
+        const url = `${baseUrl}/videos?pageSize=300${pageToken ? `&pageToken=${pageToken}` : ''}`;
+        const snap = await fetch(url);
+        if (!snap.ok) {
+          console.error(`[Mux Backfill] Firestore fetch failed: ${snap.status} ${snap.statusText}`);
+          break;
+        }
+        const data = await snap.json() as any;
+        const docs: any[] = data.documents || [];
+        for (const d of docs) {
+          const fields = d.fields || {};
+          const muxId = fields.muxPlaybackId?.stringValue;
+          if (muxId) continue; // already transcoded
+          const videoUrl = fields.url?.stringValue;
+          if (!videoUrl) continue;
+          if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') || videoUrl.includes('vimeo.com')) continue;
+          const docId = d.name?.split('/').pop();
+          if (docId) allVideos.push({ id: docId, url: videoUrl });
+        }
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      res.json({ queued: allVideos.length, message: `Starting background transcoding for ${allVideos.length} videos` });
+
+      // Kick off transcoding in background — respond to client first
+      const mux = await getMux();
+
+      for (const v of allVideos) {
+        (async () => {
+          try {
+            const asset = await mux.video.assets.create({
+              inputs: [{ url: v.url }],
+              ...MUX_ASSET_SETTINGS,
+            });
+            const assetId = asset.id;
+            let playbackId = asset.playback_ids?.[0]?.id;
+            if (!playbackId) playbackId = await waitForPlaybackId(mux, assetId);
+
+            if (playbackId) {
+              const docUrl = `${baseUrl}/videos/${v.id}?updateMask.fieldPaths=muxAssetId&updateMask.fieldPaths=muxPlaybackId`;
+              await fetch(docUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  fields: {
+                    muxAssetId:    { stringValue: assetId },
+                    muxPlaybackId: { stringValue: playbackId },
+                  },
+                }),
+              });
+              console.log(`[Mux Backfill] ✓ ${v.id} → ${playbackId}`);
+            }
+          } catch (err: any) {
+            console.error(`[Mux Backfill] ✗ ${v.id}:`, err.message);
+          }
+        })();
+      }
+    } catch (err: any) {
+      console.error('[Mux Backfill] Error:', err.message);
+      res.status(500).json({ error: err.message });
     }
   });
 

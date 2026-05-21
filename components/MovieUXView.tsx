@@ -5,7 +5,7 @@ import {
   ChevronRight, Info, Volume2, VolumeX, 
   Calendar, Film, List, Sparkles, Globe,
   Heart, MessageCircle, MoreHorizontal,
-  ChevronDown, ChevronUp, Send, X, Users,
+  ChevronDown, Send, X, Users,
   Maximize2, Minimize2, Settings, Pause, Bookmark,
   Subtitles, SkipBack, SkipForward
 } from 'lucide-react';
@@ -37,19 +37,20 @@ interface MovieUXViewProps {
 }
 
 const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, currentUser }) => {
-  const { 
-    playVideo, 
-    setVideoElement, 
-    isPlaying, 
-    pause, 
-    resume, 
-    volume, 
+  const {
+    playVideo,
+    setVideoElement,
+    isPlaying,
+    pause,
+    resume,
+    volume,
     setVolume,
     currentVideo,
     isNanoView,
     setIsNanoView,
     isUserActive,
-    setTheme
+    setTheme,
+    clearMedia,
   } = useGlobalPlayerState();
   const [isMuted, setIsMuted] = useState(true);
   const [activeSeason, setActiveSeason] = useState(1);
@@ -76,6 +77,9 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
   };
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoSrcError, setVideoSrcError] = useState(false);
 
   useEffect(() => {
     const worldId = (item as any).worldId;
@@ -90,6 +94,17 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
   }, [item]);
 
   useEffect(() => {
+    const onFsChange = () =>
+      setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+    };
+  }, []);
+
+  useEffect(() => {
     setTheme('ETHEREAL');
     const handleScroll = () => {
       if (containerRef.current) {
@@ -99,8 +114,9 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
     const container = containerRef.current;
     container?.addEventListener('scroll', handleScroll);
     return () => {
-        container?.removeEventListener('scroll', handleScroll);
-        setTheme('DARK');
+      container?.removeEventListener('scroll', handleScroll);
+      setTheme('DARK');
+      clearMedia();
     };
   }, []);
 
@@ -115,11 +131,8 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
   const ownerId = (item as Album).ownerId || (item as Video).ownerId;
   const cast = (item as Video).movieMetadata?.cast || ['Elias Thorne', 'Lyra Vance', 'Dr. Aris Fenn', 'Command Elara', 'The Observer'];
 
-  useEffect(() => {
-    if (videoRef.current) {
-      setVideoElement(videoRef.current);
-    }
-  }, [videoRef.current]);
+  // Reset fallback flag whenever the playing video changes
+  useEffect(() => { setVideoSrcError(false); }, [currentVideo?.id]);
 
   const handlePlay = () => {
     setIsUIVisible(false);
@@ -148,31 +161,43 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
       }
     } else {
       if (album.type === 'VIDEO' && album.tracks && album.tracks.length > 0 && album.tracks[0]) {
+        const trackUrl = album.tracks[0].url || '';
+        const isArchive = trackUrl.includes('archive.org');
+        const archiveId = isArchive && trackUrl.includes('/download/')
+          ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0]
+          : '';
         const videoFromMovie: Video = {
           id: album.id,
           ownerId: album.ownerId || 'system',
           title: album.title,
-          url: album.tracks[0].url,
+          url: trackUrl,
+          embedUrl: archiveId ? `https://archive.org/embed/${archiveId}` : undefined,
           artist: album.artist,
           timestamp: album.createdAt || Date.now(),
           description: album.description,
           thumbnailUrl: album.coverImage,
           genre: album.genre,
           movieMetadata: album.movieMetadata,
-          subType: 'MOVIE'
+          subType: 'MOVIE',
         };
         playVideo(videoFromMovie);
       } else if (album.customVideoUrl || (item as Video).url) {
-         playVideo({
+        const rawUrl = album.customVideoUrl || (item as Video).url || '';
+        const isArchive = rawUrl.includes('archive.org');
+        const archiveId = isArchive && rawUrl.includes('/download/')
+          ? rawUrl.slice(rawUrl.indexOf('/download/') + 10).split('/')[0]
+          : '';
+        playVideo({
           id: item.id,
-          ownerId: album.ownerId || 'system',
+          ownerId: (album.ownerId || (item as Video).ownerId || 'system'),
           title: album.title,
-          url: album.customVideoUrl || (item as Video).url,
+          url: rawUrl,
+          embedUrl: archiveId ? `https://archive.org/embed/${archiveId}` : undefined,
           artist: album.artist,
-          timestamp: album.createdAt || Date.now()
+          timestamp: album.createdAt || Date.now(),
         } as Video);
       } else {
-        alert("Video source not found or unavailable. This archive item might be restricted.");
+        alert('Video source not found or unavailable. This archive item might be restricted.');
         setIsUIVisible(true);
       }
     }
@@ -196,20 +221,27 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
         <div className="absolute inset-0 bg-gradient-to-r from-[#131314]/60 via-transparent to-transparent z-10 pointer-events-none" />
 
         {currentVideo && isPlaying && (currentVideo.id === item.id || currentVideo.id === (item as any)?.tracks?.[0]?.id || (item as any)?.seasons?.[0]?.episodes?.some((e: any) => e.id === currentVideo.id)) ? (
-          <div className="w-full h-full relative z-20">
+          <div ref={videoContainerRef} className="w-full h-full relative z-20 bg-black">
             {currentVideo.muxPlaybackId ? (
               <MuxPlayer
                 key={currentVideo.id}
                 ref={setVideoElement as any}
                 playbackId={currentVideo.muxPlaybackId}
-                className="w-full h-full object-cover border-none bg-black"
+                className="w-full h-full object-contain border-none"
                 autoPlay="any"
                 playsInline
               />
-            ) : currentVideo.embedUrl ? (
+            ) : currentVideo.embedUrl || (videoSrcError && currentVideo.url?.includes('archive.org')) ? (
               <iframe
-                key={currentVideo.id}
-                src={`${currentVideo.embedUrl}${currentVideo.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+                key={`${currentVideo.id}-embed`}
+                src={(() => {
+                  if (currentVideo.embedUrl) {
+                    return `${currentVideo.embedUrl}${currentVideo.embedUrl.includes('?') ? '&' : '?'}autoplay=1`;
+                  }
+                  const dlIdx = currentVideo.url.indexOf('/download/');
+                  const archiveId = dlIdx !== -1 ? currentVideo.url.slice(dlIdx + 10).split('/')[0] : '';
+                  return `https://archive.org/embed/${archiveId}?autoplay=1`;
+                })()}
                 className="w-full h-full border-none"
                 allow="autoplay; fullscreen"
                 allowFullScreen
@@ -217,59 +249,80 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, cu
             ) : (
               <video
                 key={currentVideo.id}
-                ref={setVideoElement}
+                ref={el => { setVideoElement(el); if (el) videoRef.current = el; }}
                 src={currentVideo.url}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 autoPlay
                 playsInline
+                onError={() => setVideoSrcError(true)}
               />
             )}
-            {/* Overlay buttons for the on-page video */}
-            <div className={`absolute bottom-40 left-8 lg:left-24 z-20 flex gap-4 pointer-events-auto transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`}>
-               <button
-                onClick={() => {
-                   const v = document.querySelector('video');
-                   if (v) {
-                     if (v.requestFullscreen) {
-                       v.requestFullscreen().catch(e => console.log('Fullscreen failed', e));
-                     } else if ((v as any).webkitEnterFullscreen) {
-                       (v as any).webkitEnterFullscreen();
-                     } else if ((v as any).webkitRequestFullscreen) {
-                       (v as any).webkitRequestFullscreen();
-                     }
-                   }
-                }}
-                className="glass p-4 rounded-full text-white hover:text-primary transition-all border border-white/20 shadow-2xl"
-                title="Toggle Fullscreen"
-               >
-                 <Maximize2 size={24} />
-               </button>
+
+            {/* Video controls overlay */}
+            <div className={`absolute top-4 right-4 z-30 flex gap-2 transition-opacity duration-500 pointer-events-auto ${isUserActive ? 'opacity-100' : 'opacity-0'}`}>
+              {isFullscreen ? (
+                <button
+                  onClick={() => { document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.(); }}
+                  className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10"
+                  title="Exit Fullscreen"
+                >
+                  <Minimize2 size={18} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const el = videoContainerRef.current as any;
+                    (el?.requestFullscreen ?? el?.webkitRequestFullscreen)?.call(el);
+                  }}
+                  className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10"
+                  title="Fullscreen"
+                >
+                  <Maximize2 size={18} />
+                </button>
+              )}
+              <button
+                onClick={() => { if (isFullscreen) document.exitFullscreen?.(); setIsUIVisible(true); }}
+                className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10"
+                title="Show Details"
+              >
+                <Info size={18} />
+              </button>
+            </div>
+
+            {/* Play/pause tap area */}
+            <div
+              className="absolute inset-0 flex items-center justify-center cursor-pointer"
+              onClick={() => isPlaying ? pause() : resume()}
+            >
+              <div className={`w-16 h-16 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all opacity-0 hover:opacity-100`}>
+                {isPlaying
+                  ? <Pause fill="white" size={24} className="text-white" />
+                  : <Play fill="white" size={24} className="text-white ml-1" />}
+              </div>
             </div>
           </div>
         ) : null}
       </div>
 
       {/* Detail Content */}
-      {/* Show UI Toggle when hidden */}
-      {!isUIVisible && (
-        <button 
-          onClick={() => setIsUIVisible(true)}
-          className="fixed top-32 left-8 lg:left-24 z-50 glass p-4 rounded-full text-white/40 hover:text-white transition-all border border-white/10"
-          title="Show UI"
-        >
-          <ChevronUp size={24} />
-        </button>
-      )}
 
       <AnimatePresence>
         {isUIVisible && isUserActive && (
-          <motion.main 
+          <motion.main
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
             transition={{ duration: 0.8 }}
             className="relative z-20 pt-40 px-8 lg:px-24 mb-32 max-w-7xl mx-auto"
           >
+            {/* Close detail panel — keeps video playing in background */}
+            <button
+              onClick={() => setIsUIVisible(false)}
+              className="fixed top-20 right-6 z-[160] p-3 bg-black/50 backdrop-blur-md rounded-full text-white/50 hover:text-white border border-white/10 hover:border-white/30 transition-all"
+              title="Close Details"
+            >
+              <X size={18} />
+            </button>
             <div className="flex flex-col lg:flex-row gap-20 items-end lg:items-start">
               <div className="flex-1 space-y-10">
                 <motion.div 

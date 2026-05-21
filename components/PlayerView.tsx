@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Album, Track, Comment } from '../types';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
+import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile } from '../services/backendService';
 import { generateTimeCodedCaptions } from '../services/geminiService';
@@ -13,7 +14,8 @@ import {
   Twitter, Facebook, Linkedin, ExternalLink, Zap,
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
-  AlertCircle, Video, Radio, List, HeartHandshake, Heart, Pen, Maximize2, GripVertical, Upload, EyeOff, Eye
+  AlertCircle, Video, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
+  SkipBack, SkipForward
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -401,9 +403,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   user 
 }) => {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
-  const { 
-    currentTrack: globalTrack, 
-    isPlaying: globalIsPlaying, 
+  const {
+    currentTrack: globalTrack,
+    isPlaying: globalIsPlaying,
     volume: globalVolume,
     playTrack,
     playVideo,
@@ -411,9 +413,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     resume,
     setVolume,
     togglePlay,
+    next: globalNext,
+    prev: globalPrev,
     analyser: globalAnalyser,
     isSlideshowActive,
     setIsSlideshowActive,
+    visualizerType,
     setVideoElement,
     setYtPlayer,
     isTVMode,
@@ -442,6 +447,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [isVisualizerLayout, setIsVisualizerLayout] = useState(false);
+  const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
+
+  const formatTime = (s: number) => {
+    if (!isFinite(s) || s < 0) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
 
   // Tracklist drag-to-reorder
   const dragTrackIndexRef = useRef<number | null>(null);
@@ -1162,31 +1176,38 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      })()}
                    </div>
                 ) : (
-                  <div className="w-full h-full">
+                  <div className="w-full h-full relative">
                     {isSlideshowActive ? (
-                      <AnimatedSlideshow 
-                        images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]} 
-                        isPlaying={globalIsPlaying && isCurrentTrackGlobal} 
+                      <AnimatedSlideshow
+                        images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                        isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                         themeColor={album.themeColor}
                       />
                     ) : (
-                      <Visualizer 
-                        analyser={globalAnalyser} 
-                        themeColor={album.themeColor}
-                        trackTitle={currentTrack?.title || album.title}
-                        artist={album.artist}
-                        isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                      />
+                      <>
+                        <Visualizer
+                          analyser={globalAnalyser}
+                          themeColor={album.themeColor}
+                          trackTitle={currentTrack?.title || album.title}
+                          artist={album.artist}
+                          isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                        />
+                        {visualizerType === 'PAINT' && (
+                          <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.9 }}>
+                            <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
-                
+
                 {/* Media Controls Overlay */}
                 <div className="absolute bottom-12 right-12 flex flex-col gap-2 items-end opacity-0 group-hover:opacity-100 transition-all duration-500">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60">View Features</span>
-                  <div className="flex items-center gap-6 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/10">
-                    <button onClick={() => setIsSlideshowActive(false)} className={`px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all ${!isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Visualizer</button>
-                    <button onClick={() => setIsSlideshowActive(true)} className={`px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all ${isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Slideshow</button>
+                  <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/10">
+                    <button onClick={() => setIsSlideshowActive(false)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${!isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Visualizer</button>
+                    <button onClick={() => setIsSlideshowActive(true)} className={`px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${isSlideshowActive ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>Slideshow</button>
                   </div>
                 </div>
               </div>
@@ -1378,60 +1399,112 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                );
              })()}
            </div>
+         ) : isVisualizerLayout ? (
+           /* ── STAGE MODE: edge-to-edge visualizer palette ── */
+           <div className="w-full h-full relative overflow-hidden group/stage">
+             {/* Full-panel visualizer */}
+             <div className="absolute inset-0 z-0">
+               <div style={{ opacity: visualizerType === 'PAINT' ? 0.45 : 1, transition: 'opacity 0.8s ease' }}>
+                 <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+               </div>
+               {visualizerType === 'PAINT' && (
+                 <div className="absolute inset-0 pointer-events-none">
+                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                 </div>
+               )}
+             </div>
+
+             {/* Atmospheric edge gradients */}
+             <div className="absolute inset-0 z-10 pointer-events-none">
+               <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/60" />
+               <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent" />
+             </div>
+
+             {/* Controls overlay — always visible at top, fades to subtle when idle */}
+             <div className="absolute top-0 left-0 right-0 z-20 p-6 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+               <button
+                 onClick={() => setIsVisualizerLayout(false)}
+                 className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-black/70 transition-all"
+               >
+                 <X size={12} /> Exit Stage
+               </button>
+               <button
+                 onClick={() => setIsVisualizerFullscreen(true)}
+                 className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+               >
+                 <Maximize2 size={12} /> Full Stage
+               </button>
+             </div>
+
+             {/* Centred album title watermark */}
+             <div className="absolute bottom-8 left-0 right-0 z-20 flex flex-col items-center pointer-events-none">
+               <p className="text-[8px] font-black uppercase tracking-[0.5em] text-white/20">{album.artist}</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{currentTrack?.title || album.title}</p>
+             </div>
+           </div>
          ) : (
-           <div className="w-full h-full relative flex flex-col items-center justify-center gap-8">
+           /* ── DEFAULT MODE: visualizer behind, album art + controls on top ── */
+           <div className="w-full h-full relative">
+             {/* Layer 0 — visualizer fills the entire left panel */}
              <div className="absolute inset-0">
                {isSlideshowActive ? (
-                 <AnimatedSlideshow 
-                    images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage, 'https://picsum.photos/seed/slide1/1920/1080', 'https://picsum.photos/seed/slide2/1920/1080']} 
-                    isPlaying={globalIsPlaying && isCurrentTrackGlobal} 
+                 <AnimatedSlideshow
+                    images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage, 'https://picsum.photos/seed/slide1/1920/1080', 'https://picsum.photos/seed/slide2/1920/1080']}
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                     themeColor={album.themeColor}
                     artistNotes={currentTrack?.artistNotes}
                   />
                ) : (
-                 <div className="pointer-events-none w-full h-full">
-                                       <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+                 <div className="w-full h-full relative pointer-events-none">
+                   <div className="absolute inset-0" style={{ opacity: visualizerType === "PAINT" ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
+                     <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+                   </div>
+                   {visualizerType === "PAINT" && (
+                     <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.92 }}>
+                       <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                     </div>
+                   )}
                  </div>
                )}
              </div>
-             
-             {/* Prominent Cover Art */}
-             <motion.button 
-               initial={{ scale: 0.9, opacity: 0 }}
-               animate={{ scale: isSlideshowActive ? 0.9 : 1, opacity: isSlideshowActive ? 0 : 1 }}
-               onClick={() => {
-                 if (album.tracks && album.tracks.length > 0) {
-                   playTrack(album.tracks[0], album, 'LIBRARY');
-                   setCurrentTrackIndex(0);
-                 }
-               }}
-               className={`relative z-10 w-full max-w-[400px] aspect-square rounded-[2.5rem] overflow-hidden shadow-3xl border border-white/10 group cursor-pointer text-left ${isSlideshowActive ? 'pointer-events-none' : 'block'}`}
-             >
-               <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-8">
-                 <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-50 group-hover:scale-100 transition-all duration-500 opacity-0 group-hover:opacity-100 mb-6 border border-white/30 shadow-2xl">
-                   <Play size={32} className="text-white ml-2 drop-shadow-lg" fill="white" />
-                 </div>
-                 <div className="absolute bottom-8 left-8 right-8 flex flex-col justify-end text-left">
-                     <h2 className="text-2xl font-black uppercase tracking-tightest drop-shadow-md">{album.title}</h2>
-                     <p className="text-sm font-bold text-white/80 uppercase tracking-widest drop-shadow-md">{album.artist}</p>
-                 </div>
-               </div>
-             </motion.button>
 
-             <div className="relative z-20 flex items-center gap-4">
-               <button 
-                 onClick={() => setIsSlideshowActive(false)}
-                 className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+             {/* Layer 1 — album art + toggle buttons, absolutely centered on top */}
+             <div className="absolute inset-0 flex flex-col items-center justify-center gap-8" style={{ zIndex: 10 }}>
+               {/* Cover Art — display only, no playback trigger on desktop */}
+               <motion.div
+                 initial={{ scale: 0.9, opacity: 0 }}
+                 animate={{ scale: isSlideshowActive ? 0.9 : 1, opacity: isSlideshowActive ? 0 : 1 }}
+                 className={`relative w-full max-w-[400px] aspect-square rounded-[2.5rem] overflow-hidden shadow-3xl border border-white/10 group ${isSlideshowActive ? 'pointer-events-none' : ''}`}
                >
-                 Visualizer
-               </button>
-               <button 
-                 onClick={() => setIsSlideshowActive(true)}
-                 className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
-               >
-                 Slideshow
-               </button>
+                 <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                 <div className="pointer-events-none absolute bottom-6 left-6 right-6 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                   <h2 className="text-xl font-black uppercase tracking-tightest drop-shadow-md">{album.title}</h2>
+                   <p className="text-xs font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p>
+                 </div>
+               </motion.div>
+
+               {/* View mode toggle */}
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setIsSlideshowActive(false)}
+                   className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+                 >
+                   Art
+                 </button>
+                 <button
+                   onClick={() => setIsSlideshowActive(true)}
+                   className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+                 >
+                   Slideshow
+                 </button>
+                 <button
+                   onClick={() => { setIsVisualizerLayout(true); setIsSlideshowActive(false); }}
+                   className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"
+                 >
+                   <Activity size={11} /> FX Stage
+                 </button>
+               </div>
              </div>
            </div>
          )}
@@ -1447,8 +1520,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
          )}
       </div>
 
-      <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12">
-        <header className="flex flex-nowrap items-center gap-4 mb-6 overflow-x-auto no-scrollbar pb-2 w-full shrink-0">
+      <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12 pointer-events-none">
+        <header className={`pointer-events-auto flex flex-nowrap items-center gap-4 mb-6 overflow-x-auto no-scrollbar pb-2 shrink-0 ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] w-full' : 'w-full'}`}>
+             {isVisualizerLayout && (
+               <button
+                 onClick={() => setIsVisualizerLayout(false)}
+                 className="flex items-center gap-2 px-5 py-3 bg-small-orange/20 border border-small-orange/30 text-small-orange rounded-full font-black text-xs uppercase tracking-widest hover:bg-small-orange/30 transition-all shrink-0"
+               >
+                 <Activity size={14} /> FX Stage On
+               </button>
+             )}
              {!isPublic ? (
                <button onClick={onBack} className="flex items-center gap-4 px-8 py-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all font-black text-xs uppercase tracking-widest">
                  <ArrowLeft size={18} /> Library
@@ -1541,8 +1622,36 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              )}
         </header>
 
-        <div className="flex flex-col gap-6 lg:w-[50%] lg:ml-[44%] lg:mr-auto flex-1 overflow-hidden">
-          <div className="w-full bg-theme-card backdrop-blur-3xl p-6 lg:p-8 rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)]">
+        <div className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}>
+          {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
+          {isVisualizerLayout && (
+            <motion.div
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-4 px-5 py-3 bg-black/50 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-xl"
+            >
+              <img
+                src={album.coverImage || undefined}
+                alt={album.title}
+                className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-lg shrink-0 cursor-pointer hover:scale-105 transition-all"
+                onClick={() => { setIsVisualizerLayout(false); }}
+                title="Back to album art"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || album.title}</p>
+                <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest truncate opacity-70">{album.artist}</p>
+              </div>
+              <button
+                onClick={() => setIsVisualizerFullscreen(true)}
+                className="p-2 text-white/30 hover:text-white hover:bg-white/10 rounded-xl transition-all shrink-0"
+                title="Full Stage"
+              >
+                <Maximize2 size={14} />
+              </button>
+            </motion.div>
+          )}
+
+          <div className={`w-full bg-theme-card backdrop-blur-3xl rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)] ${isVisualizerLayout ? 'p-4 lg:p-5' : 'p-6 lg:p-8'}`}>
              <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
                    <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>
@@ -1583,8 +1692,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
                 </div>
-                <h1 className="text-4xl lg:text-5xl font-display font-black tracking-tightest leading-[0.9]">{currentTrack?.title || album.title}</h1>
-                <p className="text-xl lg:text-2xl font-medium text-primary/40 italic">{album.artist}</p>
+                <h1 className={`font-display font-black tracking-tightest leading-[0.9] ${isVisualizerLayout ? 'text-xl lg:text-2xl' : 'text-4xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
+                {!isVisualizerLayout && <p className="text-xl lg:text-2xl font-medium text-primary/40 italic">{album.artist}</p>}
              </div>
           </div>
 
@@ -2041,6 +2150,136 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       {/* Local Audio Element Removed - Now Global */}
+
+      {/* ─────────────────── VISUALIZER FULLSCREEN STAGE ─────────────────── */}
+      <AnimatePresence>
+        {isVisualizerFullscreen && !isMobile && !isTVMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-[500] bg-black overflow-hidden"
+          >
+            {/* ── Background: full-canvas visualizer ── */}
+            <div className="absolute inset-0 z-0">
+              <div style={{ opacity: visualizerType === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
+                <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+              </div>
+              {visualizerType === 'PAINT' && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                </div>
+              )}
+            </div>
+
+            {/* ── Right half gradient darkener for lyric readability ── */}
+            <div className="absolute right-0 top-0 w-1/2 h-full z-10 pointer-events-none bg-gradient-to-l from-black/85 via-black/60 to-transparent" />
+
+            {/* ── Right half: dominant synced lyrics ── */}
+            <div className="absolute right-0 top-0 w-1/2 h-[calc(100%-88px)] z-20 flex flex-col justify-center px-16 py-16 overflow-hidden pointer-events-none">
+              {(() => {
+                const track = album.tracks[currentTrackIndex];
+                if (track?.timeCodedLyrics && track.timeCodedLyrics.length > 0) {
+                  return (
+                    <div className="space-y-5 overflow-hidden">
+                      {track.timeCodedLyrics.map((line, idx) => {
+                        const isActive = globalCurrentTime >= line.time && (!track.timeCodedLyrics![idx + 1] || globalCurrentTime < track.timeCodedLyrics![idx + 1].time);
+                        const isPast = !isActive && globalCurrentTime > line.time;
+                        return (
+                          <motion.p
+                            key={idx}
+                            animate={{ opacity: isActive ? 1 : isPast ? 0.12 : 0.25, scale: isActive ? 1.02 : 0.97, x: isActive ? 0 : -8 }}
+                            transition={{ duration: 0.55, ease: 'easeOut' }}
+                            className={`font-display font-black uppercase leading-tight tracking-tight ${isActive ? 'text-4xl lg:text-5xl text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.3)]' : 'text-3xl lg:text-4xl text-white/30'}`}
+                          >
+                            {line.text}
+                          </motion.p>
+                        );
+                      })}
+                    </div>
+                  );
+                } else if (track?.lyrics) {
+                  return (
+                    <div className="space-y-4 overflow-hidden">
+                      {track.lyrics.split('\n').filter(Boolean).map((line, idx) => (
+                        <p key={idx} className="text-4xl lg:text-5xl font-display font-black uppercase leading-tight text-white/20">{line}</p>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-col items-center justify-center gap-6 opacity-20">
+                    <Music2 size={64} />
+                    <p className="text-sm font-black uppercase tracking-[0.4em]">No lyrics available</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* ── Bottom: essential control bar ── */}
+            <div className="absolute bottom-0 left-0 right-0 z-30 h-[88px] bg-black/70 backdrop-blur-2xl border-t border-white/10 flex items-center px-8 gap-6">
+              {/* Album art thumbnail – bottom left */}
+              <div
+                className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 shadow-[0_0_20px_rgba(0,0,0,0.6)] shrink-0 cursor-pointer hover:scale-105 transition-all"
+                onClick={() => { setIsVisualizerFullscreen(false); setIsVisualizerLayout(true); }}
+                title="Back to stage"
+              >
+                <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover" />
+              </div>
+
+              {/* Track info */}
+              <div className="flex flex-col min-w-0 shrink-0 max-w-[180px]">
+                <span className="text-[11px] font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || 'No Track'}</span>
+                <span className="text-[9px] font-bold text-small-orange uppercase tracking-widest truncate opacity-70">{album.artist}</span>
+              </div>
+
+              {/* Playback controls */}
+              <div className="flex items-center gap-4 shrink-0">
+                <button onClick={globalPrev} className="p-2 text-white/40 hover:text-white transition-all hover:scale-110 active:scale-95">
+                  <SkipBack size={18} />
+                </button>
+                <button
+                  onClick={togglePlay}
+                  className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.25)] hover:scale-110 active:scale-95 transition-all"
+                >
+                  {globalIsPlaying ? <Pause size={20} fill="black" /> : <Play size={20} fill="black" className="ml-0.5" />}
+                </button>
+                <button onClick={globalNext} className="p-2 text-white/40 hover:text-white transition-all hover:scale-110 active:scale-95">
+                  <SkipForward size={18} />
+                </button>
+              </div>
+
+              {/* Progress bar */}
+              <div className="flex-1 flex items-center gap-3">
+                <span className="text-[9px] font-black text-white/30 w-8 text-right shrink-0">{formatTime(globalCurrentTime)}</span>
+                <div
+                  className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/fs-progress hover:h-1.5 transition-all"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    seek(((e.clientX - rect.left) / rect.width) * globalDuration);
+                  }}
+                >
+                  <motion.div
+                    className="absolute inset-y-0 left-0 bg-small-orange shadow-[0_0_10px_rgba(255,140,0,0.5)]"
+                    animate={{ width: `${(globalCurrentTime / (globalDuration || 1)) * 100}%` }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+                <span className="text-[9px] font-black text-white/30 w-8 shrink-0">{formatTime(globalDuration)}</span>
+              </div>
+
+              {/* Exit fullscreen */}
+              <button
+                onClick={() => setIsVisualizerFullscreen(false)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all shrink-0"
+              >
+                <Minimize2 size={12} /> Exit
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showShareModal && (
         <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-[200] flex items-center justify-center p-6">

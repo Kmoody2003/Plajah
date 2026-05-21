@@ -25,11 +25,13 @@ const uuidv4 = () =>
 interface LiveStreamModalProps {
   onClose: () => void;
   onStreamActive: (isActive: boolean) => void;
+  clubId?: string;
+  isPrivate?: boolean;
 }
 
 interface ChatMsg { user: string; text: string; ts: number }
 
-export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStreamActive }) => {
+export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStreamActive, clubId, isPrivate }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -92,6 +94,7 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
       ownerPhoto: auth.currentUser.photoURL || '',
       isLive: true,
       viewerCount: 0,
+      ...(clubId ? { clubId, isPrivate: !!isPrivate } : {}),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

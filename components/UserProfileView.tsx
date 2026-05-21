@@ -84,7 +84,8 @@ import {
   subscribeToPodcast,
   unsubscribeFromPodcast,
   fetchAlbumsByIds,
-  fetchFastChannelVideos
+  fetchFastChannelVideos,
+  fetchAllUsers
 } from '../services/backendService';
 import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
@@ -114,6 +115,7 @@ import SignInPrompt from './SignInPrompt';
 import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
 import PlajahPlusLanding from './PlajahPlusLanding';
+import ProfileSmartCard from './ProfileSmartCard';
 
 interface UserProfileViewProps {
   uid: string;
@@ -491,6 +493,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     }
   };
 
+  const [welcomeUsers, setWelcomeUsers] = useState<UserProfile[]>([]);
+
   const [isLivePlayerExpanded, setIsLivePlayerExpanded] = useState(false);
   const [isLivePlaying, setIsLivePlaying] = useState(false);
   const [showFastChannel, setShowFastChannel] = useState(false);
@@ -509,6 +513,20 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       setIsLivePlaying(false);
     }
   }, [isLivePlayerExpanded]);
+
+  useEffect(() => {
+    if (uid !== auth.currentUser?.uid) return;
+    fetchAllUsers().then(allUsers => {
+      const others = allUsers.filter(u => u.uid !== uid && u.displayName);
+      const seed = Math.floor(Date.now() / 86400000);
+      const sorted = [...others].sort((a, b) => {
+        const ha = parseInt(a.uid.slice(-6), 16) || 0;
+        const hb = parseInt(b.uid.slice(-6), 16) || 0;
+        return ((ha + seed) % 10000) - ((hb + seed) % 10000);
+      });
+      setWelcomeUsers(sorted.slice(0, 3));
+    }).catch(() => {});
+  }, [uid]);
 
   if (loading) {
     return (
@@ -693,34 +711,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     />
                   </div>
                 )}
-              {/* Name + badges — no action buttons here so the giant text never pushes them off */}
-              <div className={`flex items-center gap-3 ${isMobile ? 'flex-col' : ''}`}>
-                <motion.h1
-                  className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
-                  animate={{ scale: [1, 1.013, 1], opacity: [1, 0.92, 1] }}
-                  transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ transformOrigin: 'left center' }}
-                >
-                  {profile.displayName}
-                </motion.h1>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  {profile.tier === 'PIONEER' && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30" title="Early Adopter - Pioneer Status">
-                      <Sparkles size={14} className="text-white" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white">Pioneer</span>
-                    </div>
-                  )}
-                  {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
-                    <button
-                      onClick={handleClaimPioneerReward}
-                      className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-                    >
-                      Claim Pioneer Reward
-                    </button>
-                  )}
-                </div>
-              </div>
+              {/* Name — standalone, no inline badges */}
+              <motion.h1
+                className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
+                animate={{ scale: [1, 1.013, 1], opacity: [1, 0.92, 1] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ transformOrigin: 'left center' }}
+              >
+                {profile.displayName}
+              </motion.h1>
 
               {/* Action buttons row — always below the name, wraps cleanly at any width */}
               {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
@@ -786,181 +785,134 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
               </div>
               {/* ↑ closes flex flex-row items-end (avatar + name outer wrapper) */}
-              <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs mt-2' : 'text-sm mt-2'}`}>
+            </div>
+            {/* ── Pill row: stats + badges + action buttons — horizontal above bio ── */}
+            <div className={`flex flex-wrap items-center gap-3 mt-4 mb-3 ${isMobile ? 'justify-center' : ''}`}>
+              {/* Stats */}
+              <div className="flex items-center gap-5 pr-4 border-r border-white/10">
+                <div className={isMobile ? 'text-center' : ''}>
+                  <p className="text-lg font-black text-white leading-none">{profile.followerCount}</p>
+                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Followers</p>
+                </div>
+                <div className={isMobile ? 'text-center' : ''}>
+                  <p className="text-lg font-black text-white leading-none">{profile.followingCount}</p>
+                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Following</p>
+                </div>
+              </div>
+
+              {/* Pioneer badge */}
+              {profile.tier === 'PIONEER' && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-yellow-400/30">
+                  <Sparkles size={12} className="text-white" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white">Pioneer</span>
+                </div>
+              )}
+              {isOwnProfile && profile.isPioneer && !profile.pioneerRewardClaimed && (
+                <button
+                  onClick={handleClaimPioneerReward}
+                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+                >
+                  Claim Pioneer Reward
+                </button>
+              )}
+
+              {/* Own-profile: Share + Plajah+ + X + Pay It Forward */}
+              {isOwnProfile && (
+                <>
+                  <PayItForwardButton variant="FULL" />
+                  <ShareButton
+                    title={`${profile.displayName}'s Profile`}
+                    text={`Check out ${profile.displayName} on Plajah!`}
+                    url={`${window.location.origin}/profile/${profile.uid}`}
+                    className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/60 hover:text-white"
+                  />
+                  <PlajahPlusButton
+                    creatorId={profile.uid}
+                    creatorName={profile.displayName}
+                    isOwnProfile={true}
+                    onOpenLanding={() => setShowPlajahPlusLanding(true)}
+                  />
+                  {(profile.xUrl || profile.xHandle) && (
+                    <button
+                      onClick={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
+                      className="p-3 rounded-full flex items-center justify-center bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all"
+                      title="View X Feed"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Visitor: Follow + Mailing List + Gifts + Plajah+ + Message */}
+              {!isOwnProfile && (
+                <>
+                  <button
+                    onClick={handleFollowToggle}
+                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      following
+                        ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
+                        : 'bg-small-orange text-black hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {following ? <UserMinus size={12} /> : <UserPlus size={12} />}
+                    {following ? 'Unfollow' : 'Follow'}
+                  </button>
+                  <button
+                    onClick={handleMailingListToggle}
+                    className={`px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      isSubscribed
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Mail size={12} />
+                    {isSubscribed ? 'Subscribed' : 'Mailing List'}
+                  </button>
+                  <button
+                    onClick={() => setIsDonationModalOpen(true)}
+                    className="px-5 py-2 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                  >
+                    <HeartHandshake size={12} className="text-small-orange" />
+                    Gifts
+                  </button>
+                  <PlajahPlusButton
+                    creatorId={profile.uid}
+                    creatorName={profile.displayName}
+                    isOwnProfile={false}
+                    onOpenLanding={() => setShowPlajahPlusLanding(true)}
+                  />
+                  {onMessage && uid !== auth.currentUser?.uid && (
+                    <button
+                      onClick={() => onMessage(uid)}
+                      className="px-5 py-2 bg-small-orange text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
+                    >
+                      <MessageSquare size={12} />
+                      Message
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Admin Panel */}
+              {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
+                <button
+                  onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
+                  className="px-5 py-2 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                >
+                  <Shield size={12} />
+                  Admin Panel
+                </button>
+              )}
+            </div>
+
+            {/* Bio / quote */}
+            <div>
+              <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 {profile.bio || "No bio yet. This artist is letting their work speak for itself."}
               </p>
             </div>
             
-            <div className={`flex flex-col ${isMobile ? 'items-center' : 'lg:flex-row lg:items-end'} gap-6`}>
-              <div className="flex items-center gap-8">
-                <div className="text-center lg:text-left">
-                  <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black text-white`}>{profile.followerCount}</p>
-                  <p className="text-[9px] lg:text-[10px] font-bold text-white/40 uppercase tracking-widest">Followers</p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black text-white`}>{profile.followingCount}</p>
-                  <p className="text-[9px] lg:text-[10px] font-bold text-white/40 uppercase tracking-widest">Following</p>
-                </div>
-              </div>
-
-              <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
-                {isMobile ? (
-                  <>
-                    <button 
-                      onClick={handleFollowToggle}
-                      className={`flex-1 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                        following 
-                          ? 'bg-white/10 text-white' 
-                          : 'bg-small-orange text-black'
-                      }`}
-                    >
-                      {following ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                      {following ? 'Unfollow' : 'Follow'}
-                    </button>
-                    {onMessage && uid !== auth.currentUser?.uid && (
-                      <button 
-                        onClick={() => onMessage(uid)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-full text-white"
-                      >
-                        <MessageSquare size={18} />
-                      </button>
-                    )}
-                    <div className="relative">
-                      <button 
-                        onClick={() => setShowMoreActions(!showMoreActions)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-full text-white"
-                      >
-                        <MoreHorizontal size={18} />
-                      </button>
-                      <AnimatePresence>
-                        {showMoreActions && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="absolute bottom-full right-0 mb-4 w-48 bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50"
-                          >
-                            <button 
-                              onClick={() => { handleMailingListToggle(); setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 border-b border-white/5"
-                            >
-                              <Mail size={14} /> {isSubscribed ? 'Unsubscribe' : 'Mailing List'}
-                            </button>
-                            <button 
-                              onClick={() => { setIsDonationModalOpen(true); setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 border-b border-white/5"
-                            >
-                              <HeartHandshake size={14} /> Gifts & tips
-                            </button>
-                            <button 
-                              onClick={() => { /* Share logic */ setShowMoreActions(false); }}
-                              className="w-full px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3"
-                            >
-                              <Share size={14} /> Share Profile
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <PayItForwardButton variant="FULL" />
-                    <ShareButton
-                      title={`${profile.displayName}'s Profile`}
-                      text={`Check out ${profile.displayName} on Plajah!`}
-                      url={`${window.location.origin}/profile/${profile.uid}`}
-                      className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white/60 hover:text-white"
-                    />
-                    <PlajahPlusButton
-                      creatorId={profile.uid}
-                      creatorName={profile.displayName}
-                      isOwnProfile={true}
-                      onOpenLanding={() => setShowPlajahPlusLanding(true)}
-                    />
-
-                      {(profile.xUrl || profile.xHandle) && (
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            setFeedInitialType('X_FEED');
-                            setFeedKey(k => k + 1);
-                            setActiveTab('FEED');
-                          }}
-                          className="p-4 rounded-full transition-all flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
-                          title="View X Feed"
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-                    )}
-                    {!isOwnProfile && (
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={handleFollowToggle}
-                          className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            following
-                              ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
-                              : 'bg-small-orange text-black hover:scale-105 active:scale-95'
-                          }`}
-                        >
-                          {following ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                          {following ? 'Unfollow' : 'Follow'}
-                        </button>
-
-                        <button
-                          onClick={handleMailingListToggle}
-                          className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${
-                            isSubscribed
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <Mail size={14} />
-                          {isSubscribed ? 'Subscribed' : 'Join Mailing List'}
-                        </button>
-                        
-                        <button 
-                          onClick={() => setIsDonationModalOpen(true)}
-                          className="px-8 py-3 bg-white/5 border border-white/10 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
-                        >
-                          <HeartHandshake size={14} className="text-small-orange" />
-                          Gifts & tips
-                        </button>
-                        <PlajahPlusButton
-                          creatorId={profile.uid}
-                          creatorName={profile.displayName}
-                          isOwnProfile={false}
-                          onOpenLanding={() => setShowPlajahPlusLanding(true)}
-                        />
-                        {onMessage && uid !== auth.currentUser?.uid && (
-                          <button
-                            onClick={() => onMessage(uid)}
-                            className="px-8 py-3 bg-small-orange text-white font-black text-xs uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all flex items-center gap-2"
-                          >
-                            <MessageSquare size={14} />
-                            Message
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
-                  <button 
-                    onClick={() => {
-                      const event = new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } });
-                      window.dispatchEvent(event);
-                    }}
-                    className={`px-6 lg:px-8 py-3 bg-red-600 text-white font-black text-[10px] lg:text-xs uppercase tracking-widest rounded-full hover:bg-red-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)] ${isMobile ? 'w-full justify-center' : ''}`}
-                  >
-                    <Shield size={14} />
-                    Admin Panel
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1008,6 +960,57 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* Affirmation Banner — unique per profile, rotates daily */}
+        {(() => {
+          const quotes = [
+            { text: "Create without limits. The world needs what only you can make.", category: "creativity" },
+            { text: "Every great artist was once a beginner. Keep going.", category: "growth" },
+            { text: "Your story is worth telling. Your voice is worth hearing.", category: "creativity" },
+            { text: "Consistency beats perfection. Show up, ship it, grow.", category: "growth" },
+            { text: "The best time to share your art was yesterday. The next best time is now.", category: "creativity" },
+            { text: "You are not too late. The world is still waiting for your work.", category: "motivation" },
+            { text: "Doubt is just creativity looking for permission. Grant it.", category: "creativity" },
+            { text: "Small steps daily build empires. Trust the process.", category: "growth" },
+            { text: "Your passion is proof that you belong here. Own it.", category: "motivation" },
+            { text: "Connection starts with one brave post. Make it.", category: "connection" },
+            { text: "Art is not what you make — it is how you make people feel.", category: "creativity" },
+            { text: "Rest is part of the process. You are still growing.", category: "growth" },
+            { text: "The right people will always find your work. Keep creating.", category: "motivation" },
+            { text: "Every upload is a conversation started. Someone needed to hear it.", category: "connection" },
+            { text: "You don't need permission to be great. You already have it.", category: "motivation" },
+            { text: "Collaboration multiplies talent. Reach out today.", category: "connection" },
+            { text: "Progress over perfection — always.", category: "growth" },
+            { text: "Your next fan is waiting for content you haven't posted yet.", category: "motivation" },
+            { text: "Creativity is contagious. Pass it on.", category: "creativity" },
+            { text: "The platform grows when you share something real.", category: "connection" },
+            { text: "Every listen, every view, every read — someone chose you.", category: "motivation" },
+            { text: "Build something worth returning to.", category: "creativity" },
+            { text: "One post can change someone's entire day.", category: "connection" },
+            { text: "The gap between dreaming and doing is just one action.", category: "growth" },
+            { text: "Your art is an act of generosity. Keep giving.", category: "creativity" },
+            { text: "Communities thrive when individuals show up authentically.", category: "connection" },
+            { text: "Momentum is built post by post, day by day.", category: "growth" },
+            { text: "What you share today becomes someone's discovery tomorrow.", category: "motivation" },
+            { text: "Greatness lives inside consistency.", category: "growth" },
+            { text: "Say what only you can say. The world is listening.", category: "creativity" },
+          ];
+          // Seed combines profile UID chars + day number → unique per profile, rotates daily
+          const day = Math.floor(Date.now() / 86400000);
+          const uidSeed = uid.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const idx = (day * 7 + uidSeed) % quotes.length;
+          const quote = quotes[idx];
+          return (
+            <div className="mt-10 mb-2 relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] px-8 py-4 flex items-center gap-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-small-orange/5 via-transparent to-violet-500/5 pointer-events-none" />
+              <div className="w-px h-8 bg-gradient-to-b from-small-orange to-violet-500 shrink-0 rounded-full opacity-70" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] lg:text-xs font-medium text-white/60 italic leading-relaxed truncate">"{quote.text}"</p>
+              </div>
+              <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.3em] text-white/20">— Plajah</span>
+            </div>
+          );
+        })()}
 
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">
@@ -1096,6 +1099,50 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         </div>
 
+        {/* Smart Weather + Activity Card */}
+        <div className="mt-10">
+          <ProfileSmartCard followedIds={followedArtists.map(a => a.uid)} />
+        </div>
+
+        {/* Welcome Card — own profile only */}
+        {isOwnProfile && welcomeUsers.length > 0 && (
+          <div className="mt-6 relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-900/30 via-indigo-900/20 to-purple-900/30 border border-white/10 p-6">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.08),transparent_60%)]" />
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-1">Say Hello! 👋</h3>
+                <p className="text-xs text-white/40 leading-relaxed">You have {welcomeUsers.length} community members waiting to connect. Go introduce yourself!</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {welcomeUsers.map(u => (
+                  <div key={u.uid} className="flex flex-col items-center gap-2 group">
+                    <div
+                      className="relative cursor-pointer"
+                      onClick={() => onVisitUser(u.uid)}
+                    >
+                      <img
+                        src={(u as any).customPhotoURL || u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`}
+                        className="w-14 h-14 rounded-2xl border-2 border-white/20 group-hover:border-violet-400/50 transition-all object-cover"
+                        alt=""
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-black" />
+                    </div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-white/50 truncate max-w-[64px] text-center">{u.displayName?.split(' ')[0] || 'User'}</p>
+                    {onMessage && (
+                      <button
+                        onClick={() => onMessage(u.uid)}
+                        className="px-3 py-1 bg-white/10 hover:bg-violet-500/30 border border-white/10 hover:border-violet-500/40 text-[8px] font-black uppercase tracking-widest rounded-full transition-all text-white/60 hover:text-white whitespace-nowrap"
+                      >
+                        Say Hi
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tabs Container (Sticky & Overflow Scroll) */}
         {(() => {
           const allTabs = [
@@ -1161,7 +1208,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           const handleDragEnd = () => { dragTabRef.current = null; };
 
           return (
-            <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-theme z-40 border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0`}>
+            <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-black/55 backdrop-blur-2xl backdrop-saturate-150 z-40 border-b border-white/[0.08] -mx-4 px-4 lg:mx-0 lg:px-0`}>
               <ScrollableTabRow innerClassName="gap-1 py-2 translate-y-[1px] px-1">
                 {orderedTabs.map((tab, idx) => (
                   <div

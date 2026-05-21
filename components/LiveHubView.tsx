@@ -30,7 +30,7 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
       onMouseEnter={() => { setHovered(true); if (isEmbeddable && !isHls) setIframeReady(true); }}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Placeholder (always visible until hovered) */}
+      {/* Placeholder — hidden once iframe is live */}
       <div className={`absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity duration-300 z-10 ${hovered && iframeReady ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-md">
@@ -40,11 +40,11 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
         </div>
       </div>
 
-      {/* Lazy iframe — mounts only once, stays mounted */}
-      {iframeReady && (
+      {/* Iframe mounts only while hovered — unmounting on mouse-leave stops audio */}
+      {hovered && iframeReady && (
         <iframe
           src={mutedUrl}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className="absolute inset-0 w-full h-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />

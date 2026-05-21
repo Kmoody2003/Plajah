@@ -16,6 +16,8 @@ import CommentSection from './CommentSection';
 import ProfileFeed from './ProfileFeed';
 import PayItForwardButton from './PayItForwardButton';
 import PostCard from './PostCard';
+import FediversePostCard from './FediversePostCard';
+import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
@@ -1158,6 +1160,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [suggestedArtist, setSuggestedArtist] = useState<UserProfile | null>(null);
   const { playTrack, theme } = useGlobalPlayerState();
+  const { feed: fediverseFeed, accounts: fediverseAccounts, isLoadingFeed: fediverseLoading, refreshFeed: refreshFediverse, toggleLike: fediverseToggleLike, toggleRepost: fediverseToggleRepost } = useFediverse();
+  const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
 
   // Compute at render scope so React always sees changes — avoids IIFE-in-JSX issues
   const displayedPosts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;
@@ -2796,18 +2800,103 @@ const toggleFavoriteTeam = async (team: string) => {
       )}
 
       {activeTab === 'SOCIAL' ? (
-        <ProfileFeed
-          uid={currentUser?.uid || ''}
-          profileName={currentUser?.displayName || 'User'}
-          onVisitUser={onVisitUser}
-          xHandle={userProfile?.xHandle}
-          mastodonHandle={userProfile?.mastodonHandle}
-          mastodonInstance={userProfile?.mastodonInstance}
-          blueskyHandle={userProfile?.blueskyHandle}
-          threadsHandle={userProfile?.threadsHandle}
-          hideBroadcaster={true}
-          initialFeedType="X_FEED"
-        />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Sub-tab selector — only show when fediverse accounts are connected */}
+          {fediverseAccounts.length > 0 && (
+            <div className="shrink-0 flex gap-1 px-4 pt-3 pb-2 border-b border-white/5">
+              {(['FEDIVERSE', 'MY_POSTS'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setSocialSubTab(t)}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                    socialSubTab === t
+                      ? 'bg-white text-black shadow-lg'
+                      : 'text-white/40 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {t === 'FEDIVERSE' ? 'Timeline' : 'My Posts'}
+                </button>
+              ))}
+              <button
+                onClick={() => refreshFediverse()}
+                className="ml-auto p-2 rounded-full text-white/30 hover:text-white hover:bg-white/5 transition-all"
+                title="Refresh timeline"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Fediverse timeline */}
+          {fediverseAccounts.length > 0 && socialSubTab === 'FEDIVERSE' ? (
+            <div className="flex-1 overflow-y-auto">
+              {fediverseLoading ? (
+                <div className="flex items-center justify-center py-20 text-white/30 text-sm font-bold uppercase tracking-widest">
+                  Loading timeline…
+                </div>
+              ) : fediverseFeed.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/30">
+                  <Share2 size={32} />
+                  <p className="text-sm font-bold uppercase tracking-widest">No posts yet — your timeline will appear here</p>
+                </div>
+              ) : (
+                <div className="max-w-2xl mx-auto divide-y divide-white/5">
+                  {fediverseFeed.map(post => (
+                    <FediversePostCard
+                      key={`${post.protocol}-${post.id}`}
+                      post={post}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* My Posts — original ProfileFeed, or connect-accounts prompt */
+            fediverseAccounts.length === 0 ? (
+              <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col items-center gap-6 py-16 px-8 max-w-md mx-auto text-center">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                    <Share2 size={24} className="text-white/40" />
+                  </div>
+                  <div>
+                    <p className="text-white font-black uppercase tracking-widest text-sm mb-2">Connect your social networks</p>
+                    <p className="text-white/40 text-xs leading-relaxed">Link Mastodon, Bluesky, or Threads in Account Settings → Social Networks to see your unified timeline here.</p>
+                  </div>
+                </div>
+                <ProfileFeed
+                  uid={currentUser?.uid || ''}
+                  profileName={currentUser?.displayName || 'User'}
+                  onVisitUser={onVisitUser}
+                  xHandle={userProfile?.xHandle}
+                  mastodonHandle={userProfile?.mastodonHandle}
+                  mastodonInstance={userProfile?.mastodonInstance}
+                  blueskyHandle={userProfile?.blueskyHandle}
+                  threadsHandle={userProfile?.threadsHandle}
+                  hideBroadcaster={true}
+                  initialFeedType="X_FEED"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <ProfileFeed
+                  uid={currentUser?.uid || ''}
+                  profileName={currentUser?.displayName || 'User'}
+                  onVisitUser={onVisitUser}
+                  xHandle={userProfile?.xHandle}
+                  mastodonHandle={userProfile?.mastodonHandle}
+                  mastodonInstance={userProfile?.mastodonInstance}
+                  blueskyHandle={userProfile?.blueskyHandle}
+                  threadsHandle={userProfile?.threadsHandle}
+                  hideBroadcaster={true}
+                  initialFeedType="X_FEED"
+                />
+              </div>
+            )
+          )}
+        </div>
       ) : activeTab === 'GLOBAL' ? (
         /* ── Plajah Social Canvas ───────────────────────────── */
         <div className="w-full max-w-2xl mx-auto flex flex-col flex-1 overflow-hidden">

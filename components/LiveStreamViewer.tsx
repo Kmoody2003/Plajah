@@ -56,9 +56,17 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ streamId, title, ow
   const cleanup = () => {
     unsubsRef.current.forEach(u => u());
     unsubsRef.current = [];
+
+    // Stop all incoming media tracks so audio/video halts immediately
+    if (videoRef.current) {
+      const stream = videoRef.current.srcObject as MediaStream | null;
+      stream?.getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
+    }
+
     pcRef.current?.close();
     pcRef.current = null;
-    // Remove viewer document
     const viewerRef = doc(db, 'live_streams', streamId, 'viewers', viewerIdRef.current);
     deleteDoc(viewerRef).catch(() => {});
   };

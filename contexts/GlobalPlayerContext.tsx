@@ -33,6 +33,8 @@ interface GlobalPlayerContextType {
   analyser: AnalyserNode | null;
   isFrequencyVisualizerEnabled: boolean;
   setIsFrequencyVisualizerEnabled: (val: boolean) => void;
+  visualizerType: 'FLOW' | 'PAINT';
+  setVisualizerType: (t: 'FLOW' | 'PAINT') => void;
   isSlideshowActive: boolean;
   setIsSlideshowActive: (val: boolean) => void;
   isNanoView: boolean;
@@ -64,6 +66,7 @@ interface GlobalPlayerContextType {
   setIsMiniPlayerActive: (val: boolean) => void;
   incrementPlayCount: (id: string, type: 'TRACK' | 'VIDEO') => Promise<void>;
   clearMedia: () => void;
+  activateVideoSource: (video: Video) => void;
 }
 
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
@@ -80,6 +83,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [audioSource, setAudioSource] = useState<'LIBRARY' | 'RADIO' | 'VIDEO' | null>(null);
   const [repeatMode, setRepeatMode] = useState<'OFF' | 'ONE' | 'ALL'>('OFF');
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
+  const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setIsSlideshowActive] = useState(false);
   const [isNanoView, setIsNanoView] = useState(true);
   const [isUserActive, setIsUserActive] = useState(true);
@@ -824,6 +828,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
+  // Registers a video as the active source without touching videoRef.current.
+  // Safe to call from VideoPlayer's mount effect — doesn't clear the video element's src.
+  const activateVideoSource = useCallback((video: Video) => {
+    audioRef.current.pause();
+    audioRef.current.src = '';
+    try { ytPlayerRef.current?.stopVideo?.(); } catch (_) {}
+    setCurrentVideo(video);
+    setCurrentTrack(null);
+    setCurrentAlbum(null);
+    setAudioSource('VIDEO');
+    setIsPlaying(true);
+  }, []);
+
   const clearMedia = useCallback(() => {
     // Stop YouTube player
     if (ytPlayerRef.current) {
@@ -847,19 +864,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
-    analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive,
+    analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
-    toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia
+    toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
-    view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia,
+    view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
   ]);
 
   const progressValue: GlobalPlayerProgressContextType = useMemo(() => ({

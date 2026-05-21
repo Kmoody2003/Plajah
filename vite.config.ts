@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         react(), 
         tailwindcss(),
         VitePWA({
-          registerType: 'prompt',
+          registerType: 'autoUpdate',
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
             name: "Plajah",
@@ -44,7 +44,34 @@ export default defineConfig(({ mode }) => {
             ]
           },
           workbox: {
-            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB
+            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+            skipWaiting: true,
+            clientsClaim: true,
+            cleanupOutdatedCaches: true,
+            // HTML navigation: always try network first so users always get the latest build
+            navigateFallback: null,
+            runtimeCaching: [
+              {
+                urlPattern: ({ request }: { request: Request }) => request.destination === 'document',
+                handler: 'NetworkFirst' as const,
+                options: {
+                  cacheName: 'plajah-html',
+                  networkTimeoutSeconds: 5,
+                  expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 }
+                }
+              },
+              {
+                urlPattern: ({ request }: { request: Request }) =>
+                  request.destination === 'script' || request.destination === 'style',
+                handler: 'StaleWhileRevalidate' as const,
+                options: { cacheName: 'plajah-assets', expiration: { maxEntries: 100 } }
+              },
+              {
+                urlPattern: ({ url }: { url: URL }) => url.origin === 'https://fonts.googleapis.com',
+                handler: 'StaleWhileRevalidate' as const,
+                options: { cacheName: 'plajah-fonts' }
+              }
+            ]
           }
         })
       ],

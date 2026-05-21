@@ -8,6 +8,7 @@ import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
 import { UserProfile, ChatRoom } from '../types';
 import Visualizer from './Visualizer';
+import PaintPoolVisualizer from './PaintPoolVisualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import ThreeDImage from './ThreeDImage';
 
@@ -73,7 +74,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     analyser,
     isFrequencyVisualizerEnabled,
     setIsFrequencyVisualizerEnabled,
-    isSlideshowActive, 
+    visualizerType,
+    setVisualizerType,
+    isSlideshowActive,
     setIsSlideshowActive,
     setIsUserActive,
     isUserActive,
@@ -98,6 +101,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   const [isSpillOverOpen, setIsSpillOverOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [showVisualizerDrawer, setShowVisualizerDrawer] = useState(false);
 
   // ── Music Video Sync ────────────────────────────────────────────────────────
   const musicVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -329,7 +333,17 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   if (isNanoView && !isPhoneMode) {
     return (
-      <div className={`fixed bottom-8 left-8 z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`} style={{ perspective: '1200px' }}>
+      <>
+      {/* Persistent expand-to-full-bar button — always accessible from nano view */}
+      <button
+        onClick={() => setIsNanoView?.(false)}
+        className="fixed bottom-8 right-8 z-[201] flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_0_20px_rgba(107,0,153,0.3)] hover:scale-105 active:scale-95 transition-all"
+        title="Expand to full player bar"
+      >
+        <Logo size={16} />
+        <Maximize2 size={12} className="text-white/40" />
+      </button>
+      <div className={`fixed bottom-8 left-8 z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-30'}`} style={{ perspective: '1200px' }}>
         <motion.div
           drag
           dragMomentum={true}
@@ -400,16 +414,24 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
                 {/* Visualizer Header */}
                 <div className="flex-1 relative overflow-hidden">
-                  <div className="absolute inset-0 pointer-events-none opacity-40">
-                    <Visualizer 
-                      analyser={analyser} 
-                      themeColor={currentAlbum?.themeColor || '#FF8C00'} 
-                      trackTitle={currentTrack?.title || ''} 
-                      artist={currentAlbum?.artist || ''} 
-                      isPlaying={isPlaying} 
+                  {/* Hypnotic Flow — always present, dimmed when Paint Pool active */}
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ opacity: visualizerType === 'PAINT' ? 0.12 : 0.4, transition: 'opacity 0.8s ease' }}>
+                    <Visualizer
+                      analyser={analyser}
+                      themeColor={currentAlbum?.themeColor || '#FF8C00'}
+                      trackTitle={currentTrack?.title || ''}
+                      artist={currentAlbum?.artist || ''}
+                      isPlaying={isPlaying}
                       isVideoMode={!!currentVideo}
                     />
                   </div>
+                  {/* Paint Pool — shown when Paint mode active */}
+                  {visualizerType === 'PAINT' && isFrequencyVisualizerEnabled && (
+                    <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.85, transition: 'opacity 0.8s ease' }}>
+                      <PaintPoolVisualizer analyser={analyser} isPlaying={isPlaying} />
+                    </div>
+                  )}
 
                   {/* Album Art Overlay (Spinning Vinyl) */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -473,7 +495,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               
               {isMinimized && (
                 <button
-                  onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                  onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
                   className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
                   title="Back to album"
                 >
@@ -487,7 +509,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
               {isMinimized && (currentTrack || currentVideo) && (
                 <button
-                  onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                  onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
                   className="flex flex-col min-w-0 flex-shrink text-left cursor-pointer hover:opacity-80 transition-opacity"
                   title="Back to album"
                 >
@@ -505,7 +527,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {!isMinimized && (
                   <div className={`text-center ${isMinimized ? 'mb-1' : 'mb-6'}`}>
                     <button
-                      onClick={() => (currentAlbum || currentVideo) && onNavigate?.('PLAYER')}
+                      onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
                       className="hover:opacity-80 transition-opacity cursor-pointer w-full"
                       title="Back to album"
                     >
@@ -717,6 +739,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           </div>
         </motion.div>
       </div>
+      </>
     );
   }
 
@@ -894,9 +917,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         </AnimatePresence>
 
         {/* Minimize/Collapse Toggle */}
-        <button 
+        <button
           onClick={() => setIsMinimized(!isMinimized)}
-          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl text-white/40 hover:text-white transition-all shadow-2xl ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'}`}
+          className={`absolute p-2 bg-theme-card/90 backdrop-blur-3xl border border-white/5 rounded-t-xl text-white/40 hover:text-white transition-all shadow-2xl ${isPhoneMode ? 'left-1/2 -translate-x-1/2' : 'right-8'} ${isLandscape && !isMinimized ? 'hidden' : '-top-10'} ${isMinimized ? 'animate-pulse hover:animate-none' : ''}`}
           title="Toggle Minimized Pill Mode"
         >
           {isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -1560,13 +1583,90 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 {/* Enhancement Toggles (Grouped) */}
                 {!isEssentialMode && (
                   <div className="flex items-center gap-1.5 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                     <button
-                      onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
-                      className={`p-2 rounded-xl transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
-                      title="FX"
-                    >
-                      <Activity size={16} />
-                    </button>
+                    {/* FX / Visualizer picker */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowVisualizerDrawer(v => !v)}
+                        className={`p-2 rounded-xl transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}
+                        title="FX Visualizer"
+                      >
+                        <Activity size={16} />
+                      </button>
+
+                      {/* Visualizer picker drawer */}
+                      <AnimatePresence>
+                        {showVisualizerDrawer && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute bottom-full right-0 mb-3 w-56 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[200]"
+                          >
+                            <div className="px-4 pt-3 pb-2 border-b border-white/5">
+                              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-white/30">Visualizer FX</p>
+                            </div>
+                            <div className="p-2 flex flex-col gap-1">
+                              {/* Hypnotic Flow */}
+                              <button
+                                onClick={() => {
+                                  setVisualizerType('FLOW');
+                                  setIsFrequencyVisualizerEnabled(true);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${visualizerType === 'FLOW' ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-small-orange/80 to-purple-600/80 flex items-center justify-center flex-shrink-0">
+                                  <Activity size={14} className="text-white" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white">Hypnotic Flow</p>
+                                  <p className="text-[8px] text-white/30 mt-0.5">Ribbon wave visualizer</p>
+                                </div>
+                                {visualizerType === 'FLOW' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-small-orange" />}
+                              </button>
+
+                              {/* Paint Pool */}
+                              <button
+                                onClick={() => {
+                                  setVisualizerType('PAINT');
+                                  setIsFrequencyVisualizerEnabled(true);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${visualizerType === 'PAINT' ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/80 via-amber-500/60 to-violet-700/80 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-sm">🎨</span>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white">Paint Pool</p>
+                                  <p className="text-[8px] text-white/30 mt-0.5">GPU fluid · beat drops</p>
+                                </div>
+                                {visualizerType === 'PAINT' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+                              </button>
+
+                              {/* Off */}
+                              <button
+                                onClick={() => {
+                                  setIsFrequencyVisualizerEnabled(false);
+                                  setShowVisualizerDrawer(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${!isFrequencyVisualizerEnabled ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                                  <Activity size={14} className="text-white/20" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Off</p>
+                                  <p className="text-[8px] text-white/20 mt-0.5">No visualizer</p>
+                                </div>
+                                {!isFrequencyVisualizerEnabled && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/30" />}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                     <button
                       onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
                       className={`p-2 rounded-xl transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/20' : 'text-white/20 hover:text-white'}`}

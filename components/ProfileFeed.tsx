@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import FeedTimeline from './FeedTimeline';
 import { sanitizeHtml } from '../src/lib/sanitize';
+import { checkPostRateLimit, recordPost, detectSpam, honeypotTripped } from '../src/lib/spamCheck';
 import { Post, UserProfile, Album, Video } from '../types';
 import {
   listenToUserPosts,
@@ -223,6 +225,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   };
   const [postText, setPostText] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<any[]>([]);
   const [showMediaPicker, setShowMediaPicker] = useState<'ALBUM' | 'VIDEO' | 'GIF' | 'STICKER' | 'EMOJI' | null>(null);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
@@ -237,6 +240,12 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
   const [mentionTriggerIndex, setMentionTriggerIndex] = useState(-1);
+
+  const [scrubTimestamp, setScrubTimestamp] = useState<number | null>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+
+  const handleScrub = useCallback((ts: number | null) => setScrubTimestamp(ts), []);
+  const handleScrubbing = useCallback((s: boolean) => setIsScrubbing(s), []);
 
   useEffect(() => {
     const handleMentionSearch = async () => {
@@ -480,6 +489,14 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
 
   const handleCreatePost = async () => {
     if (!postText.trim() && !selectedMedia.length && !embeddedAlbum) return;
+    if (honeypotTripped(honeypot)) return; // silent bot drop
+    const rateCheck = checkPostRateLimit();
+    if (!rateCheck.allowed) {
+      alert(`Please wait ${rateCheck.waitSecs}s before posting again.`);
+      return;
+    }
+    const spamReason = detectSpam(postText);
+    if (spamReason) { alert(spamReason); return; }
 
     setIsCreating(true);
     try {
@@ -492,6 +509,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
         targetUserId: isOwnProfile ? undefined : uid,
         targetUserName: isOwnProfile ? undefined : profileName
       });
+      recordPost();
       setPostText('');
       setSelectedMedia([]);
       setEmbeddedAlbum(null);
@@ -1015,22 +1033,37 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       );
     }
 
+    const visiblePosts = scrubTimestamp !== null
+      ? posts.filter(p => p.timestamp <= scrubTimestamp)
+      : posts;
+
     return (
       <div className="space-y-8">
-        <AnimatePresence mode="popLayout">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
-          ))}
-        </AnimatePresence>
-        
-        {posts.length === 0 && (
-          <div className="py-20 text-center">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <MessageSquare size={24} className="text-white/20" />
+        <div
+          style={{
+            opacity: isScrubbing ? 0.35 : 1,
+            filter: isScrubbing ? 'blur(1.5px)' : 'none',
+            transition: 'opacity 0.2s ease, filter 0.2s ease',
+            pointerEvents: isScrubbing ? 'none' : 'auto',
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            {visiblePosts.map((post) => (
+              <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
+            ))}
+          </AnimatePresence>
+
+          {visiblePosts.length === 0 && (
+            <div className="py-20 text-center">
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <MessageSquare size={24} className="text-white/20" />
+              </div>
+              <p className="text-white/20 font-black uppercase tracking-widest text-xs">
+                {isScrubbing ? 'No posts at this time' : 'No signals detected in this sector'}
+              </p>
             </div>
-            <p className="text-white/20 font-black uppercase tracking-widest text-xs">No signals detected in this sector</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -1232,7 +1265,17 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 <Smile size={18} />
               </button>
             </div>
-            <button 
+            {/* Honeypot — hidden from real users, traps bots */}
+            <input
+              type="text"
+              value={honeypot}
+              onChange={e => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              aria-hidden="true"
+              autoComplete="off"
+              style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
+            />
+            <button
               onClick={handleCreatePost}
               disabled={isCreating || (!postText.trim() && !selectedMedia.length && !embeddedAlbum)}
               className="px-8 py-3 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
@@ -1332,6 +1375,26 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+      )}
+
+      {/* 48-Hour Timeline — only shown for PERSONAL/GLOBAL feed */}
+      {!['X_FEED', 'MASTODON', 'BLUESKY', 'THREADS'].includes(feedType) && posts.length > 0 && (
+        <div className="bg-white/[0.02] border border-white/5 rounded-3xl px-6 py-2">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+            <span className="text-[8px] font-black uppercase tracking-[0.25em] text-white/20">Timeline · Last 48h</span>
+            {isScrubbing && (
+              <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-white/40 animate-pulse">
+                Scrubbing
+              </span>
+            )}
+          </div>
+          <FeedTimeline
+            posts={posts}
+            onScrub={handleScrub}
+            onScrubbing={handleScrubbing}
+          />
         </div>
       )}
 

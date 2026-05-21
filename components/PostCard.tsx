@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Post, Album } from '../types';
+import { Post, Album, Club } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users } from 'lucide-react';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import { formatDistanceToNow } from 'date-fns';
-import { auth, updatePost, deletePost, togglePostLike, processDonation } from '../services/backendService';
+import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
@@ -61,6 +61,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [giftSent, setGiftSent] = useState(false);
   const [showWaterfall, setShowWaterfall] = useState(false);
   const [signInAction, setSignInAction] = useState<string | null>(null);
+  const [showSendToClub, setShowSendToClub] = useState(false);
+  const [userClubs, setUserClubs] = useState<Club[]>([]);
+  const [loadingClubs, setLoadingClubs] = useState(false);
+  const [sendingToClub, setSendingToClub] = useState('');
+  const [sentToClub, setSentToClub] = useState('');
 
   const waterfallItems: WaterfallMediaItem[] = (post.media || []).map(m => ({
     type: m.type as WaterfallMediaItem['type'],
@@ -93,6 +98,34 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     }
   };
   const isTargeted = post.targetUserId && post.targetUserId !== post.authorId;
+
+  const handleOpenSendToClub = async () => {
+    if (!auth.currentUser) { setSignInAction('send to a club'); return; }
+    setShowSendToClub(true);
+    if (userClubs.length === 0) {
+      setLoadingClubs(true);
+      const clubs = await fetchUserClubs(auth.currentUser.uid);
+      setUserClubs(clubs);
+      setLoadingClubs(false);
+    }
+  };
+
+  const handleSendToClub = async (clubId: string) => {
+    if (!auth.currentUser || sendingToClub) return;
+    setSendingToClub(clubId);
+    const attachments = (post.media || [])
+      .filter(m => m.type === 'PHOTO' || m.type === 'VIDEO' || m.type === 'AUDIO' || m.type === 'ALBUM')
+      .map(m => ({ type: m.type, url: m.url || '', title: m.title, thumbnailUrl: m.thumbnail, assetId: m.id }));
+    await createClubPost({
+      clubId,
+      content: post.text || '',
+      type: 'POST',
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+    setSendingToClub('');
+    setSentToClub(clubId);
+    setTimeout(() => { setSentToClub(''); setShowSendToClub(false); }, 1500);
+  };
 
   const handleLike = async () => {
     if (!auth.currentUser) { setSignInAction('like this post'); return; }
@@ -450,6 +483,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               </motion.button>
             )}
 
+            {/* Send to Club */}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={handleOpenSendToClub}
+              title="Send to a Club"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10"
+            >
+              <Users size={15} strokeWidth={1.5} />
+            </motion.button>
+
             {/* Share */}
             <div className="ml-auto">
               <ShareButton
@@ -556,6 +599,82 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             />
           }
         />
+      )}
+    </AnimatePresence>
+
+    {/* Send to Club modal */}
+    <AnimatePresence>
+      {showSendToClub && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          onClick={() => setShowSendToClub(false)}
+        >
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 w-full max-w-sm"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-widest">Send to Club</h3>
+                <p className="text-[9px] text-white/30 mt-0.5 uppercase tracking-widest">Share this post to a club timeline</p>
+              </div>
+              <button onClick={() => setShowSendToClub(false)} className="p-1.5 text-white/30 hover:text-white transition-colors"><XIcon size={16} /></button>
+            </div>
+
+            {/* Post preview chip */}
+            <div className="flex items-start gap-3 bg-white/5 border border-white/8 rounded-2xl p-3 mb-5">
+              <img src={post.authorPhoto || ''} className="w-8 h-8 rounded-full shrink-0 object-cover border border-white/10" alt="" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-0.5">{post.authorName}</p>
+                <p className="text-[11px] text-white/60 line-clamp-2 leading-tight">{post.text || (post.media?.[0]?.title ?? 'Media post')}</p>
+                {post.media && post.media.length > 0 && (
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                    {post.media.map((m, i) => (
+                      <span key={i} className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-white/8 border border-white/10 rounded-full">{m.type}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {loadingClubs ? (
+              <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>
+            ) : userClubs.length === 0 ? (
+              <p className="text-center text-[10px] text-white/25 uppercase tracking-widest py-8 font-bold">You haven't joined any clubs yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {userClubs.map(club => (
+                  <button
+                    key={club.id}
+                    onClick={() => handleSendToClub(club.id)}
+                    disabled={!!sendingToClub}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/10 rounded-2xl transition-all text-left disabled:opacity-50"
+                  >
+                    {club.iconImage
+                      ? <img src={club.iconImage} className="w-9 h-9 rounded-xl border border-white/10 object-cover shrink-0" alt="" />
+                      : <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0"><Users size={14} className="opacity-30" /></div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-widest truncate">{club.name}</p>
+                      <p className="text-[9px] text-white/25 mt-0.5">{club.memberCount?.toLocaleString()} members</p>
+                    </div>
+                    {sentToClub === club.id
+                      ? <Check size={14} className="text-emerald-400 shrink-0" />
+                      : sendingToClub === club.id
+                      ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0" />
+                      : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
       )}
     </AnimatePresence>
 

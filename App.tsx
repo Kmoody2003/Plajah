@@ -167,6 +167,7 @@ import { PointsProvider } from './contexts/PointsContext';
 import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SpatialProvider } from './contexts/SpatialContext';
+import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
@@ -477,10 +478,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
       if (params?.editingAlbum) {
         setEditingAlbum(params.editingAlbum);
-        setShowCreator(true);
-      } else {
-        setView('CREATOR');
       }
+      if (params?.creatorInitialType) {
+        setCreatorInitialType(params.creatorInitialType);
+      }
+      setShowCreator(true);
     } else if (target === 'SANCTUARY') {
       setViewedUserId(params?.artistId || user?.uid);
       setView('SANCTUARY');
@@ -499,6 +501,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'VIDEO_MANAGER') {
       setView('VIDEO_MANAGER');
     } else if (target === 'PLAYER') {
+      if (params?.album) {
+        setSelectedAlbum(params.album);
+        setSelectedVideo(null);
+      } else if (params?.video) {
+        setSelectedVideo(params.video);
+        setSelectedAlbum(null);
+      }
       setView('PLAYER');
     }
   };
@@ -943,6 +952,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   return (
     <ErrorBoundary>
+      <FediverseProvider>
       <BadgeProvider>
         <PointsProvider>
           <AchievementProvider>
@@ -2079,6 +2089,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </AchievementProvider>
         </PointsProvider>
       </BadgeProvider>
+      </FediverseProvider>
     </ErrorBoundary>
   );
 };

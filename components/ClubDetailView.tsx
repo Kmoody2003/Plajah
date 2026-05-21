@@ -1,12 +1,14 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, MessageSquare, Image, Newspaper, Settings,
   Plus, Send, Heart, Pin, Trash2, Shield, Crown, Pen, Lock, Globe,
   X, Check, Calendar, Play, Music, BookOpen, Link2, Upload, Zap,
-  UserPlus, UserMinus, Ban, Sparkles
+  UserPlus, UserMinus, Ban, Sparkles, Radio, Eye
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole } from '../types';
 import {
   fetchClubMembers, getUserClubMembership, joinClub, leaveClub,
@@ -14,8 +16,10 @@ import {
   pinClubPost, fetchClubGallery, addClubGalleryItem, deleteClubGalleryItem,
   listenToClubChat, sendClubChatMessage, deleteClubChatMessage,
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
-  uploadClubImage, claimClubAsFounder
+  uploadClubImage, claimClubAsFounder, db
 } from '../services/backendService';
+import { LiveStreamModal } from './LiveStreamModal';
+import LiveStreamViewer from './LiveStreamViewer';
 
 interface ClubDetailViewProps {
   club: Club;
@@ -25,7 +29,7 @@ interface ClubDetailViewProps {
   initialTab?: TabId;
 }
 
-type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'SETTINGS';
+type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'LIVE' | 'SETTINGS';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'TIMELINE', label: 'Timeline', icon: <Zap size={14} /> },
@@ -34,6 +38,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'MEMBERS', label: 'Members', icon: <Users size={14} /> },
   { id: 'CHAT', label: 'Live Chat', icon: <MessageSquare size={14} /> },
   { id: 'EVENTS', label: 'Events', icon: <Calendar size={14} /> },
+  { id: 'LIVE', label: 'Live', icon: <Radio size={14} /> },
   { id: 'SETTINGS', label: 'Settings', icon: <Settings size={14} /> },
 ];
 
@@ -84,6 +89,12 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const iconUploadRef = useRef<HTMLInputElement>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [showLiveModal, setShowLiveModal] = useState(false);
+  const [livePrivate, setLivePrivate] = useState(false);
+  const [viewingStreamId, setViewingStreamId] = useState<string | null>(null);
+  const [viewingStreamTitle, setViewingStreamTitle] = useState('');
+  const [viewingStreamOwner, setViewingStreamOwner] = useState('');
+  const [clubStreams, setClubStreams] = useState<{ id: string; title: string; ownerName: string; ownerPhoto: string; viewerCount: number; isPrivate?: boolean }[]>([]);
 
   const isAdmin = membership?.role === 'OWNER' || membership?.role === 'ADMIN';
   const isMod = isAdmin || membership?.role === 'MODERATOR';
@@ -110,6 +121,18 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
+  useEffect(() => {
+    if (activeTab !== 'LIVE') return;
+    const q = query(collection(db, 'live_streams'), where('clubId', '==', club.id), where('isLive', '==', true));
+    const unsub = onSnapshot(q, snap => {
+      setClubStreams(snap.docs.map(d => {
+        const data = d.data();
+        return { id: d.id, title: data.title || 'Live Stream', ownerName: data.ownerName || '', ownerPhoto: data.ownerPhoto || '', viewerCount: data.viewerCount || 0, isPrivate: data.isPrivate };
+      }));
+    });
+    return unsub;
+  }, [activeTab, club.id]);
+
   const handleJoin = async () => {
     if (!currentUser) return;
     setJoining(true);
@@ -128,13 +151,23 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
   const handleSendPost = async () => {
     if (!postInput.trim() || !currentUser) return;
+    const rateCheck = checkPostRateLimit('plajah_last_club_post');
+    if (!rateCheck.allowed) { alert(`Please wait ${rateCheck.waitSecs}s before posting again.`); return; }
+    const spamReason = detectSpam(postInput);
+    if (spamReason) { alert(spamReason); return; }
     await createClubPost({ clubId: club.id, content: postInput });
+    recordPost('plajah_last_club_post');
     setPostInput('');
   };
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || !currentUser) return;
+    const rateCheck = checkPostRateLimit('plajah_last_club_chat');
+    if (!rateCheck.allowed) { alert(`Wait ${rateCheck.waitSecs}s`); return; }
+    const spamReason = detectSpam(chatInput);
+    if (spamReason) { alert(spamReason); return; }
     await sendClubChatMessage(club.id, chatInput);
+    recordPost('plajah_last_club_chat');
     setChatInput('');
   };
 
@@ -205,6 +238,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     if (t.id === 'SETTINGS') return isAdmin;
     if (t.id === 'CHAT') return isMember && club.hasLiveChat;
     if (t.id === 'EVENTS') return isMember && club.hasExclusiveEvents;
+    if (t.id === 'LIVE') return !club.isPrivate || isMember;
     return true;
   });
 
@@ -481,6 +515,81 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
             </motion.div>
           )}
 
+          {/* LIVE */}
+          {activeTab === 'LIVE' && (
+            <motion.div key="live" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60">Live Now</h2>
+                  {clubStreams.length > 0 && <p className="text-[9px] text-white/30 mt-1">{clubStreams.length} active stream{clubStreams.length !== 1 ? 's' : ''}</p>}
+                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setLivePrivate(p => !p)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${livePrivate ? 'border-amber-500/40 bg-amber-500/10 text-amber-400' : 'border-white/10 text-white/40 hover:border-white/20'}`}
+                    >
+                      {livePrivate ? <Lock size={10} /> : <Globe size={10} />}
+                      {livePrivate ? 'Members Only' : 'Public Talk'}
+                    </button>
+                    <button
+                      onClick={() => setShowLiveModal(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                    >
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                      Go Live
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Active Streams */}
+              {clubStreams.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-4 opacity-30">
+                  <Radio size={40} />
+                  <p className="text-xs font-black uppercase tracking-widest">No live streams right now</p>
+                  {isAdmin && <p className="text-[10px] font-medium">Hit Go Live to start a stream or talk</p>}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {clubStreams.map(stream => (
+                    <motion.div
+                      key={stream.id}
+                      whileHover={{ scale: 1.01 }}
+                      className="relative overflow-hidden bg-gradient-to-br from-red-900/20 via-rose-900/10 to-transparent border border-red-500/20 rounded-3xl p-6 cursor-pointer group"
+                      onClick={() => { setViewingStreamId(stream.id); setViewingStreamTitle(stream.title); setViewingStreamOwner(stream.ownerName); }}
+                    >
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(220,38,38,0.08),transparent_60%)]" />
+                      <div className="flex items-start gap-4">
+                        <div className="relative shrink-0">
+                          <img src={stream.ownerPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.id}`} className="w-12 h-12 rounded-2xl border border-white/10 object-cover" alt="" />
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-black flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-red-400 border border-red-500/30 rounded-full px-2 py-0.5">Live</span>
+                            {stream.isPrivate && <span className="text-[8px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5 flex items-center gap-1"><Lock size={7} />Members</span>}
+                          </div>
+                          <p className="text-sm font-black truncate">{stream.title}</p>
+                          <p className="text-[10px] text-white/40 mt-0.5">{stream.ownerName}</p>
+                          <div className="flex items-center gap-1 mt-2 text-[9px] text-white/30">
+                            <Eye size={10} />{stream.viewerCount} watching
+                          </div>
+                        </div>
+                      </div>
+                      <button className="mt-4 w-full py-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                        <Play size={12} /> Watch Now
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* SETTINGS */}
           {activeTab === 'SETTINGS' && isAdmin && (
             <motion.div key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5 max-w-2xl pb-16">
@@ -720,6 +829,30 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Live Stream Modal */}
+      {showLiveModal && (
+        <div className="fixed inset-0 z-[100]">
+          <LiveStreamModal
+            onClose={() => setShowLiveModal(false)}
+            onStreamActive={(active) => { if (!active) setShowLiveModal(false); }}
+            clubId={club.id}
+            isPrivate={livePrivate}
+          />
+        </div>
+      )}
+
+      {/* Live Stream Viewer */}
+      {viewingStreamId && (
+        <div className="fixed inset-0 z-[100]">
+          <LiveStreamViewer
+            streamId={viewingStreamId}
+            title={viewingStreamTitle}
+            ownerName={viewingStreamOwner}
+            onClose={() => setViewingStreamId(null)}
+          />
+        </div>
+      )}
 
       {/* Gallery lightbox */}
       <AnimatePresence>

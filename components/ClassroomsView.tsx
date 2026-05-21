@@ -27,6 +27,7 @@ import { Classroom, Lesson, Assignment, Submission, ProgressReport, ClassroomMod
 import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule } from '../services/backendService';
 import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
+import HumanBodyExperience from './HumanBodyExperience';
 import ErrorBoundary from './ErrorBoundary';
 
 interface ClassroomsViewProps {
@@ -84,11 +85,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
       isActive: true
     };
     
+    const humanBodyDefault: ClassroomModule = {
+      id: 'default_human_body',
+      name: 'The Human Body Experience',
+      description: 'Interactive 3D anatomy — explore organs, systems, and the biology that keeps you alive. Male and female bodies with medically accurate descriptions.',
+      url: 'HUMAN_BODY',
+      coverArt: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f3?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0,
+      isActive: true
+    };
+
     // Check if defaults already exist in data to avoid duplicates if admin added it manually
     const finalModules = [...data];
     if (!data.some(m => m.url === 'SOLAR_SYSTEM')) finalModules.unshift(solarSystemDefault);
     if (!data.some(m => m.url === 'PLANT_BIOLOGY')) finalModules.unshift(plantBiologyDefault);
-    
+    if (!data.some(m => m.url === 'HUMAN_BODY')) finalModules.unshift(humanBodyDefault);
+
     setModules(finalModules);
   };
 
@@ -148,6 +160,21 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
           </div>
         }>
           <PlantBiologyModule onBack={() => setSelectedModule(null)} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (selectedModule === 'HUMAN_BODY') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen bg-[#03060a] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-cyan-400/20 border-t-cyan-400 rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 animate-pulse">Initialising Anatomy Scanner...</p>
+          </div>
+        }>
+          <HumanBodyExperience onBack={() => setSelectedModule(null)} />
         </Suspense>
       </ErrorBoundary>
     );

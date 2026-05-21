@@ -13,9 +13,95 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import CommentSection from './CommentSection';
-import MuxPlayer from '@mux/mux-player-react';
 import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+
+// ── Mux HLS player ────────────────────────────────────────────────────────────
+// Uses a native <video> element + HLS.js so the Plajah player UI is always on
+// top with no MuxPlayer web-component controls overlapping.
+interface MuxHlsVideoProps {
+  playbackId: string;
+  muted: boolean;
+  poster?: string;
+  className?: string;
+  onVideoReady: (el: HTMLVideoElement) => void;
+  onPlay: () => void;
+  onPause: () => void;
+  onError: () => void;
+}
+
+const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoProps>(
+  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError }, _ref) => {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const hlsRef   = useRef<any>(null);
+
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      // Notify parent immediately — controls work before HLS is ready
+      onVideoReady(video);
+
+      const streamUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+
+      const tryHls = async () => {
+        try {
+          const { default: Hls } = await import('hls.js');
+          if (Hls.isSupported()) {
+            const hls = new Hls({
+              enableWorker: true,
+              maxBufferLength: 30,
+              maxMaxBufferLength: 60,
+              maxBufferSize: 60 * 1000 * 1000,
+              backBufferLength: 30,
+              startLevel: -1,
+              abrEwmaDefaultEstimate: 1_000_000,
+              abrBandWidthFactor: 0.95,
+              abrBandWidthUpFactor: 0.7,
+              nudgeMaxRetry: 5,
+              fragLoadingMaxRetry: 4,
+              manifestLoadingMaxRetry: 3,
+              levelLoadingMaxRetry: 3,
+            });
+            hlsRef.current = hls;
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+            });
+            hls.on(Hls.Events.ERROR, (_: any, data: any) => { if (data.fatal) onError(); });
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari — native HLS
+            video.src = streamUrl;
+            video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+          } else {
+            onError();
+          }
+        } catch {
+          onError();
+        }
+      };
+
+      tryHls();
+      return () => { hlsRef.current?.destroy(); hlsRef.current = null; };
+    }, [playbackId]);
+
+    return (
+      <video
+        ref={videoRef}
+        muted={muted}
+        poster={poster}
+        playsInline
+        className={className}
+        onPlay={onPlay}
+        onPause={onPause}
+        onError={onError}
+      />
+    );
+  }
+));
 
 interface VideoPlayerProps {
   video: Video;
@@ -307,7 +393,7 @@ const VideoEditModal: React.FC<EditModalProps> = ({ video, onClose, onSaved }) =
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser }) => {
   const {
     isPlaying, pause, resume, setVideoElement, setYtPlayer,
-    playVideo, currentVideo, clearMedia, volume,
+    playVideo, currentVideo, clearMedia, volume, activateVideoSource,
   } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
@@ -335,6 +421,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const thumbnail = video.thumbnailUrl || video.coverImageUrl || '';
   const progress  = (currentTime / duration) * 100 || 0;
 
+  // Register this video as the active VIDEO source in GlobalPlayerContext on mount.
+  // activateVideoSource stops audio and sets audioSource='VIDEO' without clearing the
+  // video element's src — safe to call after the ref callback has already fired.
+  useEffect(() => {
+    activateVideoSource(initialVideo);
+    return () => { clearMedia(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fullscreen listener
   useEffect(() => {
     const onFsChange = () =>
@@ -346,6 +441,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       document.removeEventListener('webkitfullscreenchange', onFsChange);
     };
   }, []);
+
 
   // Auto-hide controls while playing
   useEffect(() => {
@@ -364,7 +460,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   // YouTube player setup
   useEffect(() => {
-    const isYoutube = video.url.includes('youtube.com') || video.url.includes('youtu.be');
+    const isYoutube = (video.url ?? '').includes('youtube.com') || (video.url ?? '').includes('youtu.be');
     if (!isYoutube) { setYtPlayer(null); return; }
 
     let vId = '';
@@ -408,7 +504,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     const unsub = listenToVideoComments(video.id, setComments);
     fetchUserProfile(video.ownerId).then(p => setOwnerProfile(p));
     checkIfLiked(video.id).then(l => setIsLiked(l));
-    if (currentVideo?.id !== video.id) playVideo(video);
+    // Always call playVideo to clear any stale media from Taleo or other players
+    playVideo(video);
     return () => {
       unsub();
       // Explicitly stop the local video element before clearing global state so
@@ -423,6 +520,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     };
   }, [video.id]);
 
+  // Real-time listener — picks up muxPlaybackId as soon as background transcoding finishes
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'videos', video.id), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as Video;
+      if (data.muxPlaybackId && data.muxPlaybackId !== video.muxPlaybackId) {
+        setVideo(v => ({ ...v, muxPlaybackId: data.muxPlaybackId, muxAssetId: data.muxAssetId }));
+        setVideoError(false);
+      }
+    });
+    return unsub;
+  }, [video.id]);
+
+  // 2s sync check — if the video element is playing but global state says paused, sync it.
+  // Also handles browser-autoplay-blocked case for native <video> elements.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const el = localVideoRef.current;
+      if (!el) return;
+      if (!el.paused) {
+        // Video is actually playing — make sure global state reflects it
+        resume();
+      } else if (el.src && el.readyState >= 2) {
+        // Ready but paused — try to play (native <video> autoplay may have been blocked)
+        el.play().catch(() => {});
+        resume();
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [video.id]);
+
   // Mute / volume sync
   useEffect(() => {
     if (localVideoRef.current) {
@@ -431,7 +559,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     }
   }, [isMuted, volume]);
 
-  const togglePlay = useCallback(() => { isPlaying ? pause() : resume(); }, [isPlaying, pause, resume]);
+  const togglePlay = useCallback(() => {
+    const el = localVideoRef.current;
+    if (el) {
+      if (el.paused) {
+        el.play()
+          .then(() => resume())
+          .catch(() => { el.muted = true; el.play().then(() => resume()).catch(() => {}); });
+      } else {
+        el.pause();
+        pause();
+      }
+    } else {
+      isPlaying ? pause() : resume();
+    }
+  }, [isPlaying, pause, resume]);
 
   const handleLike = async () => {
     if (!currentUser) return;
@@ -465,49 +607,99 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   // ── Render video element ─────────────────────────────────────────────────
   const renderVideo = () => {
-    const isYoutube = video.url.includes('youtube.com') || video.url.includes('youtu.be');
-    const isVimeo   = video.url.includes('vimeo.com');
-    const isArchiveEmbed = video.url.includes('archive.org/embed/');
+    const url = video.url ?? '';
+    const isYoutube      = url.includes('youtube.com') || url.includes('youtu.be');
+    const isVimeo        = url.includes('vimeo.com');
+    const isArchiveEmbed = url.includes('archive.org/embed/');
 
     if (isYoutube) return <div className="w-full h-full"><div id={ytContainerId.current} className="w-full h-full" /></div>;
 
     if (isVimeo) {
-      const vid = video.url.split('/').pop();
+      const vid = url.split('/').pop();
       return <iframe src={`https://player.vimeo.com/video/${vid}?autoplay=1`} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
     }
 
-    if (isArchiveEmbed) return <iframe src={video.url} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
+    if (isArchiveEmbed) return <iframe src={url} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
 
-    if (video.url.includes('archive.org') && videoError) {
-      const parts = video.url.split('/');
+    if (url.includes('archive.org') && videoError) {
+      const parts = url.split('/');
       const idx = parts.indexOf('download');
       const id  = idx !== -1 ? parts[idx + 1] : '';
       return <iframe src={`https://archive.org/embed/${id}?autoplay=1`} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
     }
 
-    if (video.muxPlaybackId) {
+    // Mux HLS stream — native <video> + HLS.js, no web-component overlay
+    if (video.muxPlaybackId && !videoError) {
       return (
-        <MuxPlayer
-          ref={setVideoElement as any}
+        <MuxHlsVideo
           playbackId={video.muxPlaybackId}
-          autoPlay="any"
-          className="w-full h-full object-contain"
+          muted={isMuted}
+          poster={video.thumbnailUrl || video.coverImageUrl || undefined}
+          className="w-full h-full object-contain cursor-pointer"
+          onVideoReady={el => {
+            localVideoRef.current = el;
+            setVideoElement(el);
+            el.muted  = isMuted;
+            el.volume = isMuted ? 0 : volume;
+          }}
+          onPlay={() => resume()}
+          onPause={() => pause()}
+          onError={() => setVideoError(true)}
         />
       );
     }
 
+    // Native video fallback — direct Firebase Storage URL or after Mux error
+    if (url) {
+      return (
+        <video
+          ref={el => { setVideoElement(el); localVideoRef.current = el; }}
+          src={url}
+          playsInline
+          className="w-full h-full object-contain cursor-pointer"
+          onClick={togglePlay}
+          autoPlay
+          muted={isMuted}
+          onCanPlay={e => {
+            const v = e.currentTarget;
+            if (v.paused) {
+              v.play().catch(() => {
+                v.muted = true;
+                setIsMuted(true);
+                v.play().catch(() => {});
+              });
+            }
+          }}
+          onPlay={() => resume()}
+          onPause={() => pause()}
+          onError={() => setVideoError(true)}
+        />
+      );
+    }
+
+    // No playable source yet — show processing / error state
     return (
-      <video
-        ref={el => { setVideoElement(el); localVideoRef.current = el; }}
-        src={video.url || undefined}
-        playsInline
-        crossOrigin="anonymous"
-        className="w-full h-full object-contain cursor-pointer"
-        onClick={togglePlay}
-        autoPlay
-        muted={isMuted}
-        onError={() => setVideoError(true)}
-      />
+      <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/30">
+        {videoError
+          ? <div className="w-10 h-10 flex items-center justify-center text-red-400 text-2xl">✕</div>
+          : <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+        }
+        <p className="text-[10px] font-black uppercase tracking-widest">
+          {videoError ? 'Unable to load video' : 'Processing video…'}
+        </p>
+        {/* Retry whenever there's an error — even for Mux-only videos with no url */}
+        {videoError && (
+          <button
+            onClick={() => { setVideoError(false); }}
+            className="mt-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+          >
+            Retry
+          </button>
+        )}
+        {!videoError && video.muxPlaybackId && (
+          <p className="text-[9px] text-white/20 uppercase tracking-widest">Waiting for stream…</p>
+        )}
+      </div>
     );
   };
 
