@@ -123,17 +123,27 @@ function getStripe() {
 // Verify a Firebase ID token using Firebase Auth REST API
 async function verifyFirebaseToken(token: string): Promise<string | null> {
   const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.error('[Auth] FIREBASE_API_KEY / VITE_FIREBASE_API_KEY env var is not set — all auth will fail');
+    return null;
+  }
   try {
     const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken: token }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => res.statusText);
+      console.error(`[Auth] Token verification failed: HTTP ${res.status} — ${errBody}`);
+      return null;
+    }
     const data = await res.json() as any;
     return data.users?.[0]?.localId ?? null;
-  } catch { return null; }
+  } catch (err: any) {
+    console.error('[Auth] Token verification error:', err.message);
+    return null;
+  }
 }
 
 async function authMiddleware(req: any, res: any, next: any) {
@@ -972,6 +982,19 @@ async function startServer() {
     }
   });
 
+  // ── Public status — no auth, safe to expose, used for deployment verification ─
+  app.get('/api/status', (_req, res) => {
+    const encKey = process.env.ENCRYPTION_KEY ?? '';
+    const firebaseApiKey = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
+    res.json({
+      ok: true,
+      encryption_key_set: encKey.length >= 16,
+      firebase_api_key_set: firebaseApiKey.length > 0,
+      app_url: process.env.VITE_APP_URL ?? '(not set)',
+      node_env: process.env.NODE_ENV ?? '(not set)',
+    });
+  });
+
   // ── Fediverse diagnostics — check every config requirement ────────────────
   app.get('/api/fediverse/diagnostics', authMiddleware, async (req: any, res) => {
     const encKey = process.env.ENCRYPTION_KEY ?? '';
@@ -1661,6 +1684,12 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);
+    // Log env var status at startup so Cloud Run logs reveal config issues immediately
+    const encKey = process.env.ENCRYPTION_KEY ?? '';
+    const fbKey  = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
+    console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
+    console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
+    console.log('[Config] VITE_APP_URL:', process.env.VITE_APP_URL ?? '(not set)');
   });
 }
 

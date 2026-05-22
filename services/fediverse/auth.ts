@@ -6,12 +6,12 @@
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { bskyCreateSession, bskyRefreshSession } from './bluesky';
-import { mastodonAdapter } from './mastodon';
+import { bskyCreateSession, bskyRefreshSession } from './bluesky.js';
+import { mastodonAdapter } from './mastodon.js';
 import type {
   FediverseCredentials, FediverseAccount, FediverseAccountDoc, FediverseProtocol,
-} from './types';
-import { FediverseError } from './types';
+} from './types.js';
+import { FediverseError } from './types.js';
 
 // ─── Encryption ───────────────────────────────────────────────────────────────
 // AES-256-GCM. ENCRYPTION_KEY must be 64 hex chars (32 bytes) in env.
@@ -465,7 +465,7 @@ export class DecentralizedAuthService {
     creds: FediverseCredentials,
     authToken: string,
   ): Promise<Omit<FediverseAccount, 'credentials'>> {
-    const adapters = await import('./service').then(m => m.ADAPTERS_MAP);
+    const adapters = await import('./service.js').then(m => m.ADAPTERS_MAP);
     const adapter = adapters[protocol];
     const profile = await adapter.verifyCredentials(creds);
 
