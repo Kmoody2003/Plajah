@@ -250,7 +250,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    const ua = navigator.userAgent;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+      (ua.includes('Mac') && navigator.maxTouchPoints > 1) || // iPad OS 13+ reports Mac UA
+      window.innerWidth < 768
+    );
+  });
   const [isBottomSectionExpanded, setIsBottomSectionExpanded] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -339,19 +346,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   useEffect(() => {
     const checkDevice = () => {
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+      const ua = navigator.userAgent;
+      const mobile = (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+        (ua.includes('Mac') && navigator.maxTouchPoints > 1) || // iPad OS 13+
+        window.innerWidth < 768
+      );
       setIsMobile(mobile);
-      
-      // Device-specific defaults for initial load
-      if (view === 'LANDING') {
-        const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-        const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
-        
-        if (mobile) {
-          setTheme('PHONE');
-        } else if (isTV) {
-          setTheme('BIG_SCREEN');
-        }
+
+      const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
+      const isTV = tvKeywords.some(keyword => ua.toLowerCase().includes(keyword));
+
+      if (mobile) {
+        // Always force PHONE layout on any mobile/tablet device, regardless of current view
+        setTheme('PHONE');
+      } else if (isTV && view === 'LANDING') {
+        setTheme('BIG_SCREEN');
       }
     };
     checkDevice();
@@ -530,9 +540,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (u) {
         setViewInternal(prev => {
           if (prev === 'LANDING') {
-            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+            const ua = navigator.userAgent;
+            const isMobileDevice =
+              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+              (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
+              window.innerWidth < 768;
             const tvKeywords = ['tv', 'smarttv', 'googletv', 'appletv', 'tizen', 'webos', 'hbbtv', 'pov_tv', 'netcast.tv'];
-            const isTV = tvKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+            const isTV = tvKeywords.some(keyword => ua.toLowerCase().includes(keyword));
             if (isMobileDevice) {
               setTheme('PHONE');
               return 'MUSIC';
@@ -550,7 +564,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setUserProfile(p);
 
         if (p?.uiSettings?.lastTheme) {
-          setTheme(p.uiSettings.lastTheme);
+          const ua = navigator.userAgent;
+          const isMobileDevice =
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+            (ua.includes('Mac') && navigator.maxTouchPoints > 1) ||
+            window.innerWidth < 768;
+          // Never let a saved desktop theme override the mobile layout
+          if (!isMobileDevice) setTheme(p.uiSettings.lastTheme);
         }
 
         seedDemoWorlds();
