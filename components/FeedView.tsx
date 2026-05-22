@@ -1114,6 +1114,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [gifLoading, setGifLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadLabel, setUploadLabel] = useState('');
+  const [isPastingMedia, setIsPastingMedia] = useState(false);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [composerAlbumEmbed, setComposerAlbumEmbed] = useState<Album | null>(null);
   const [globalComposerTheme, setGlobalComposerTheme] = useState<FeedItem['theme']>('STANDARD');
@@ -1383,6 +1384,31 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
       setIsSimplePosting(false);
     }
   };
+
+  const handleComposerPaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.kind === 'file' && item.type.startsWith('image/'));
+    if (!imageItems.length || !currentUser) return;
+    e.preventDefault();
+    setIsPastingMedia(true);
+    setComposerExpanded(true);
+    try {
+      const { uploadFile: uploadToStorage } = await import('../services/backendService');
+      const uploads = imageItems.map(async item => {
+        const file = item.getAsFile();
+        if (!file) return null;
+        const ext = file.type.split('/')[1] || 'png';
+        const url = await uploadToStorage(`posts/${currentUser.uid}/paste_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`, file);
+        return { type: 'PHOTO' as const, url };
+      });
+      const results = (await Promise.all(uploads)).filter(Boolean) as { type: 'PHOTO'; url: string }[];
+      if (results.length) setComposerMedia(prev => [...prev, ...results]);
+    } catch (err) {
+      console.error('[FeedView] Paste upload failed:', err);
+    } finally {
+      setIsPastingMedia(false);
+    }
+  }, [currentUser]);
 
   const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>, mediaType: 'PHOTO'|'VIDEO'|'AUDIO') => {
     const file = e.target.files?.[0];
@@ -2328,12 +2354,37 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>
 
           <div className="relative mb-8">
-            <textarea 
+            <textarea
               value={newPost}
               onChange={handleInputChange}
+              onPaste={async (e) => {
+                const items = Array.from(e.clipboardData.items);
+                const imageItems = items.filter(i => i.kind === 'file' && i.type.startsWith('image/'));
+                if (!imageItems.length || !currentUser) return;
+                e.preventDefault();
+                setIsPastingMedia(true);
+                try {
+                  const { uploadFile: uploadToStorage } = await import('../services/backendService');
+                  for (const item of imageItems) {
+                    const file = item.getAsFile();
+                    if (!file) continue;
+                    const ext = file.type.split('/')[1] || 'png';
+                    const url = await uploadToStorage(`posts/${currentUser.uid}/paste_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`, file);
+                    setPages(prev => [...prev, { id: Date.now().toString(), type: 'IMAGE', url, content: '' }]);
+                    setSelectedTheme('SCRAPBOOK');
+                  }
+                } catch (err) {
+                  console.error('[FeedView] Paste upload failed:', err);
+                } finally {
+                  setIsPastingMedia(false);
+                }
+              }}
               placeholder="What's happening in the studio? Design a gorgeous post..."
               className="w-full bg-white/5 border border-theme rounded-[2.5rem] p-10 text-xl font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all min-h-[200px] resize-none placeholder:text-primary/10"
             />
+            {isPastingMedia && (
+              <span className="absolute bottom-4 left-10 text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse">Uploading image...</span>
+            )}
             {showMentionDropdown && (
               <div className="absolute left-0 bottom-full mb-4 w-72 bg-[#1A1A1A] border border-white/10 rounded-[2rem] shadow-4xl overflow-hidden z-[100] animate-in fade-in slide-in-from-bottom-2">
                 <div className="p-4 border-b border-white/10 bg-white/5">
@@ -2801,46 +2852,70 @@ const toggleFavoriteTeam = async (team: string) => {
 
       {activeTab === 'SOCIAL' ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Sub-tab selector — only show when fediverse accounts are connected */}
-          {fediverseAccounts.length > 0 && (
-            <div className="shrink-0 flex gap-1 px-4 pt-3 pb-2 border-b border-white/5">
-              {(['FEDIVERSE', 'MY_POSTS'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setSocialSubTab(t)}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                    socialSubTab === t
-                      ? 'bg-white text-black shadow-lg'
-                      : 'text-white/40 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {t === 'FEDIVERSE' ? 'Timeline' : 'My Posts'}
-                </button>
-              ))}
+
+          {/* Sub-tab bar — always visible */}
+          <div className="shrink-0 flex gap-1 px-4 pt-3 pb-2 border-b border-white/5">
+            {(['FEDIVERSE', 'MY_POSTS'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setSocialSubTab(t)}
+                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                  socialSubTab === t
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {t === 'FEDIVERSE' ? `Timeline${fediverseAccounts.length ? ` (${fediverseAccounts.length})` : ''}` : 'My Posts'}
+              </button>
+            ))}
+            {socialSubTab === 'FEDIVERSE' && fediverseAccounts.length > 0 && (
               <button
                 onClick={() => refreshFediverse()}
-                className="ml-auto p-2 rounded-full text-white/30 hover:text-white hover:bg-white/5 transition-all"
+                disabled={fediverseLoading}
+                className="ml-auto p-2 rounded-full text-white/30 hover:text-white hover:bg-white/5 transition-all disabled:opacity-40"
                 title="Refresh timeline"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className={fediverseLoading ? 'animate-spin' : ''}>
                   <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Fediverse timeline */}
-          {fediverseAccounts.length > 0 && socialSubTab === 'FEDIVERSE' ? (
+          {socialSubTab === 'FEDIVERSE' ? (
             <div className="flex-1 overflow-y-auto">
-              {fediverseLoading ? (
-                <div className="flex items-center justify-center py-20 text-white/30 text-sm font-bold uppercase tracking-widest">
-                  Loading timeline…
+              {/* No accounts connected — prompt */}
+              {!fediverseAccounts.length ? (
+                <div className="flex flex-col items-center gap-5 py-16 px-8 max-w-sm mx-auto text-center">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(99,100,255,0.1)', border: '1px solid rgba(99,100,255,0.2)' }}>
+                    <Share2 size={26} className="text-[#6364FF]" />
+                  </div>
+                  <div>
+                    <p className="text-white font-black uppercase tracking-widest text-sm mb-2">Connect Mastodon or Bluesky</p>
+                    <p className="text-white/40 text-xs leading-relaxed">
+                      Your home timelines from Mastodon and Bluesky will appear here once you connect an account.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 text-[10px] text-white/30 leading-relaxed">
+                    <p>Go to <span className="text-white/60 font-bold">Account Settings → Social Networks</span> to connect.</p>
+                  </div>
+                </div>
+              ) : fediverseLoading ? (
+                <div className="flex items-center justify-center gap-3 py-20 text-white/30">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                  <span className="text-sm font-bold uppercase tracking-widest">Loading timeline…</span>
                 </div>
               ) : fediverseFeed.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/30">
-                  <Share2 size={32} />
-                  <p className="text-sm font-bold uppercase tracking-widest">No posts yet — your timeline will appear here</p>
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/30">
+                  <Share2 size={28} />
+                  <p className="text-sm font-bold uppercase tracking-widest">Your timeline is empty</p>
+                  <p className="text-xs text-white/20">Follow people on Mastodon or Bluesky to see posts here.</p>
                 </div>
               ) : (
                 <div className="max-w-2xl mx-auto divide-y divide-white/5">
@@ -2854,47 +2929,20 @@ const toggleFavoriteTeam = async (team: string) => {
               )}
             </div>
           ) : (
-            /* My Posts — original ProfileFeed, or connect-accounts prompt */
-            fediverseAccounts.length === 0 ? (
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col items-center gap-6 py-16 px-8 max-w-md mx-auto text-center">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                    <Share2 size={24} className="text-white/40" />
-                  </div>
-                  <div>
-                    <p className="text-white font-black uppercase tracking-widest text-sm mb-2">Connect your social networks</p>
-                    <p className="text-white/40 text-xs leading-relaxed">Link Mastodon, Bluesky, or Threads in Account Settings → Social Networks to see your unified timeline here.</p>
-                  </div>
-                </div>
-                <ProfileFeed
-                  uid={currentUser?.uid || ''}
-                  profileName={currentUser?.displayName || 'User'}
-                  onVisitUser={onVisitUser}
-                  xHandle={userProfile?.xHandle}
-                  mastodonHandle={userProfile?.mastodonHandle}
-                  mastodonInstance={userProfile?.mastodonInstance}
-                  blueskyHandle={userProfile?.blueskyHandle}
-                  threadsHandle={userProfile?.threadsHandle}
-                  hideBroadcaster={true}
-                  initialFeedType="X_FEED"
-                />
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto">
-                <ProfileFeed
-                  uid={currentUser?.uid || ''}
-                  profileName={currentUser?.displayName || 'User'}
-                  onVisitUser={onVisitUser}
-                  xHandle={userProfile?.xHandle}
-                  mastodonHandle={userProfile?.mastodonHandle}
-                  mastodonInstance={userProfile?.mastodonInstance}
-                  blueskyHandle={userProfile?.blueskyHandle}
-                  threadsHandle={userProfile?.threadsHandle}
-                  hideBroadcaster={true}
-                  initialFeedType="X_FEED"
-                />
-              </div>
-            )
+            <div className="flex-1 overflow-y-auto">
+              <ProfileFeed
+                uid={currentUser?.uid || ''}
+                profileName={currentUser?.displayName || 'User'}
+                onVisitUser={onVisitUser}
+                xHandle={userProfile?.xHandle}
+                mastodonHandle={userProfile?.mastodonHandle}
+                mastodonInstance={userProfile?.mastodonInstance}
+                blueskyHandle={userProfile?.blueskyHandle}
+                threadsHandle={userProfile?.threadsHandle}
+                hideBroadcaster={true}
+                initialFeedType="X_FEED"
+              />
+            </div>
           )}
         </div>
       ) : activeTab === 'GLOBAL' ? (
@@ -3011,10 +3059,14 @@ const toggleFavoriteTeam = async (team: string) => {
                     onClick={() => setComposerExpanded(true)}
                     onChange={e => { setSimplePostText(e.target.value); setComposerExpanded(true); }}
                     onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSimplePost(); }}
+                    onPaste={handleComposerPaste}
                     placeholder="What's on your mind?"
                     rows={composerExpanded ? 4 : 2}
                     className="w-full bg-transparent text-sm font-medium text-white placeholder:text-white/20 resize-none outline-none leading-relaxed transition-all"
                   />
+                  {isPastingMedia && (
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse mt-0.5 block">Uploading image...</span>
+                  )}
                 </div>
               </div>
 

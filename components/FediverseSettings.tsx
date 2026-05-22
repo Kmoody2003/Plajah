@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, ExternalLink, RefreshCw, CheckCircle, AlertCircle, X, Globe, Bird, Layers } from 'lucide-react';
+import {
+  Trash2, ExternalLink, RefreshCw, CheckCircle, AlertCircle, X,
+  Globe, Bird, Layers, Lock, Unlock,
+} from 'lucide-react';
 import { useFediverse } from '../contexts/FediverseContext';
 import type { FediverseProtocol, FediverseAccount } from '../services/fediverse/types';
 
-// ─── Protocol meta ────────────────────────────────────────────────────────────
+// ─── Protocol metadata ─────────────────────────────────────────────────────────
 
-const PROTOCOLS: {
+interface ProtocolMeta {
   id: FediverseProtocol;
   label: string;
   color: string;
   bg: string;
   icon: React.ReactNode;
-  connectGuide: React.ReactNode;
-}[] = [
+  description: string;
+  oauthSupported: boolean;
+}
+
+const PROTOCOLS: ProtocolMeta[] = [
   {
     id: 'mastodon',
     label: 'Mastodon',
     color: '#6364FF',
     bg: '#6364FF15',
     icon: <Globe size={16} />,
-    connectGuide: (
-      <p className="text-[10px] text-white/40 leading-relaxed">
-        In your Mastodon instance: <strong className="text-white/60">Preferences → Development → New Application</strong>.
-        Give it <code className="text-purple-300">read write follow</code> scopes, then copy the <strong className="text-white/60">Your access token</strong>.
-      </p>
-    ),
+    description: 'ActivityPub — post, follow, and read your Mastodon home timeline on any instance.',
+    oauthSupported: true,
   },
   {
     id: 'bluesky',
@@ -33,46 +35,37 @@ const PROTOCOLS: {
     color: '#0085ff',
     bg: '#0085ff15',
     icon: <Bird size={16} />,
-    connectGuide: (
-      <p className="text-[10px] text-white/40 leading-relaxed">
-        In Bluesky: <strong className="text-white/60">Settings → Privacy and Security → App Passwords → Add App Password</strong>.
-        Enter your handle and the generated password below.
-      </p>
-    ),
+    description: 'AT Protocol — cross-post with rich link cards, follow graph, and notifications.',
+    oauthSupported: false,
   },
   {
     id: 'threads',
     label: 'Threads',
-    color: '#1C1C1E',
-    bg: '#ffffff10',
+    color: '#888',
+    bg: '#88888815',
     icon: <Layers size={16} />,
-    connectGuide: (
-      <p className="text-[10px] text-white/40 leading-relaxed">
-        Obtain a long-lived Threads access token from the{' '}
-        <strong className="text-white/60">Meta Developer Portal → Threads API</strong>.
-        Note: Threads only supports publishing — no follow graph or notifications.
-      </p>
-    ),
+    description: 'Meta Threads — publish-only. No follow graph or notifications via API.',
+    oauthSupported: false,
   },
 ];
 
-// ─── Protocol badge ───────────────────────────────────────────────────────────
+// ─── Protocol badge ────────────────────────────────────────────────────────────
 
 function ProtocolBadge({ protocol }: { protocol: FediverseProtocol }) {
   const meta = PROTOCOLS.find(p => p.id === protocol)!;
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
       style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}30` }}>
-      {meta.icon}
-      {meta.label}
+      {meta.icon} {meta.label}
     </span>
   );
 }
 
-// ─── Connected account card ───────────────────────────────────────────────────
+// ─── Connected account card ────────────────────────────────────────────────────
 
 function AccountCard({ account, onDisconnect }: { account: FediverseAccount; onDisconnect: () => void }) {
   const [confirming, setConfirming] = useState(false);
+  const meta = PROTOCOLS.find(p => p.id === account.protocol)!;
 
   return (
     <motion.div
@@ -87,7 +80,7 @@ function AccountCard({ account, onDisconnect }: { account: FediverseAccount; onD
         <img src={account.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
       ) : (
         <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-black"
-          style={{ background: PROTOCOLS.find(p => p.id === account.protocol)?.bg }}>
+          style={{ background: meta.bg, color: meta.color }}>
           {account.displayName[0]?.toUpperCase()}
         </div>
       )}
@@ -109,7 +102,7 @@ function AccountCard({ account, onDisconnect }: { account: FediverseAccount; onD
           <div className="flex items-center gap-1">
             <button onClick={onDisconnect}
               className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10 transition-colors">
-              Confirm
+              Disconnect
             </button>
             <button onClick={() => setConfirming(false)}
               className="p-1.5 rounded-lg text-white/30 hover:text-white/60 transition-colors">
@@ -127,26 +120,71 @@ function AccountCard({ account, onDisconnect }: { account: FediverseAccount; onD
   );
 }
 
-// ─── Connect form ─────────────────────────────────────────────────────────────
+// ─── Status button ─────────────────────────────────────────────────────────────
 
 type ConnectStatus = 'idle' | 'loading' | 'success' | 'error';
 
+function StatusButton({ status, color, label, errMsg }: {
+  status: ConnectStatus; color: string; label: string; errMsg: string;
+}) {
+  return (
+    <div>
+      <button type="submit" disabled={status === 'loading' || status === 'success'}
+        className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+        style={{
+          background: status === 'success' ? '#22c55e20' : `${color}20`,
+          color: status === 'success' ? '#22c55e' : color,
+          border: `1px solid ${status === 'success' ? '#22c55e40' : `${color}40`}`,
+          opacity: status === 'loading' ? 0.6 : 1,
+        }}>
+        {status === 'loading' && <RefreshCw size={12} className="animate-spin" />}
+        {status === 'success' && <CheckCircle size={12} />}
+        {status === 'success' ? 'Connected!' : label}
+      </button>
+      {status === 'error' && errMsg && (
+        <p className="mt-2 text-[10px] text-red-400 flex items-center gap-1">
+          <AlertCircle size={10} /> {errMsg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Mastodon form — OAuth popup + manual token fallback ──────────────────────
+
 function MastodonForm({ onSuccess }: { onSuccess: () => void }) {
-  const { connectMastodonAccount } = useFediverse();
+  const { connectMastodonOAuth, connectMastodonToken } = useFediverse();
   const [instanceUrl, setInstanceUrl] = useState('');
-  const [token, setToken] = useState('');
+  const [manualToken, setManualToken] = useState('');
+  const [showManual, setShowManual] = useState(false);
   const [status, setStatus] = useState<ConnectStatus>('idle');
   const [errMsg, setErrMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const normalizeInstance = (val: string) =>
+    val.trim().startsWith('http') ? val.trim() : `https://${val.trim()}`;
+
+  const handleOAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!instanceUrl.trim() || !token.trim()) return;
+    if (!instanceUrl.trim()) return;
     setStatus('loading');
+    setErrMsg('');
     try {
-      const url = instanceUrl.trim().startsWith('http')
-        ? instanceUrl.trim()
-        : `https://${instanceUrl.trim()}`;
-      await connectMastodonAccount(url, token.trim());
+      await connectMastodonOAuth(normalizeInstance(instanceUrl));
+      setStatus('success');
+      setTimeout(onSuccess, 800);
+    } catch (err) {
+      setStatus('error');
+      setErrMsg(err instanceof Error ? err.message : 'OAuth failed');
+    }
+  };
+
+  const handleManual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!instanceUrl.trim() || !manualToken.trim()) return;
+    setStatus('loading');
+    setErrMsg('');
+    try {
+      await connectMastodonToken(normalizeInstance(instanceUrl), manualToken.trim());
       setStatus('success');
       setTimeout(onSuccess, 800);
     } catch (err) {
@@ -156,24 +194,47 @@ function MastodonForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-4">
+    <div className="flex flex-col gap-3 mt-4">
       <input
-        value={instanceUrl} onChange={e => setInstanceUrl(e.target.value)}
+        value={instanceUrl}
+        onChange={e => { setInstanceUrl(e.target.value); setStatus('idle'); setErrMsg(''); }}
         placeholder="mastodon.social"
         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#6364FF]/50"
-        required
       />
-      <input
-        value={token} onChange={e => setToken(e.target.value)}
-        placeholder="Access token"
-        type="password"
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#6364FF]/50"
-        required
-      />
-      <StatusButton status={status} color="#6364FF" label="Connect Mastodon" errMsg={errMsg} />
-    </form>
+
+      {!showManual ? (
+        <form onSubmit={handleOAuth} className="flex flex-col gap-2">
+          <StatusButton status={status} color="#6364FF" label="Sign in with Mastodon" errMsg={errMsg} />
+          <button type="button" onClick={() => setShowManual(true)}
+            className="text-[10px] text-white/25 hover:text-white/50 transition-colors text-center flex items-center justify-center gap-1">
+            <Unlock size={9} /> Use manual access token instead
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleManual} className="flex flex-col gap-2">
+          <input
+            value={manualToken}
+            onChange={e => { setManualToken(e.target.value); setStatus('idle'); setErrMsg(''); }}
+            placeholder="Your access token"
+            type="password"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#6364FF]/50"
+          />
+          <p className="text-[9px] text-white/30 leading-relaxed">
+            In your instance: <strong>Preferences → Development → New Application</strong>{' '}
+            with <code className="text-purple-300">read write follow</code> scopes → copy access token.
+          </p>
+          <StatusButton status={status} color="#6364FF" label="Connect Mastodon" errMsg={errMsg} />
+          <button type="button" onClick={() => setShowManual(false)}
+            className="text-[10px] text-white/25 hover:text-white/50 transition-colors text-center flex items-center justify-center gap-1">
+            <Lock size={9} /> Use OAuth sign-in instead
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
+
+// ─── Bluesky form ──────────────────────────────────────────────────────────────
 
 function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
   const { connectBlueskyAccount } = useFediverse();
@@ -198,23 +259,25 @@ function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-4">
-      <input
-        value={handle} onChange={e => setHandle(e.target.value)}
+      <input value={handle} onChange={e => setHandle(e.target.value)}
         placeholder="yourhandle.bsky.social"
         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#0085ff]/50"
-        required
-      />
-      <input
-        value={appPassword} onChange={e => setAppPassword(e.target.value)}
-        placeholder="App password (xxxx-xxxx-xxxx-xxxx)"
+        required />
+      <input value={appPassword} onChange={e => setAppPassword(e.target.value)}
+        placeholder="App Password  (xxxx-xxxx-xxxx-xxxx)"
         type="password"
         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#0085ff]/50"
-        required
-      />
+        required />
+      <p className="text-[9px] text-white/30 leading-relaxed">
+        <strong>Settings → Privacy &amp; Security → App Passwords</strong>.
+        The password is sent directly to our server and never stored in your browser.
+      </p>
       <StatusButton status={status} color="#0085ff" label="Connect Bluesky" errMsg={errMsg} />
     </form>
   );
 }
+
+// ─── Threads form ──────────────────────────────────────────────────────────────
 
 function ThreadsForm({ onSuccess }: { onSuccess: () => void }) {
   const { connectThreadsAccount } = useFediverse();
@@ -238,45 +301,21 @@ function ThreadsForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-4">
-      <input
-        value={token} onChange={e => setToken(e.target.value)}
+      <input value={token} onChange={e => setToken(e.target.value)}
         placeholder="Long-lived access token"
         type="password"
         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/20"
-        required
-      />
-      <StatusButton status={status} color="#ffffff" label="Connect Threads" errMsg={errMsg} />
+        required />
+      <p className="text-[9px] text-white/30 leading-relaxed">
+        From the <strong>Meta Developer Portal → Threads API</strong>.
+        Threads only supports publishing — no timeline or notifications.
+      </p>
+      <StatusButton status={status} color="#888" label="Connect Threads" errMsg={errMsg} />
     </form>
   );
 }
 
-function StatusButton({ status, color, label, errMsg }: {
-  status: ConnectStatus; color: string; label: string; errMsg: string;
-}) {
-  return (
-    <div>
-      <button type="submit" disabled={status === 'loading' || status === 'success'}
-        className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-        style={{
-          background: status === 'success' ? '#22c55e20' : `${color}20`,
-          color: status === 'success' ? '#22c55e' : color,
-          border: `1px solid ${status === 'success' ? '#22c55e40' : `${color}40`}`,
-          opacity: status === 'loading' ? 0.6 : 1,
-        }}>
-        {status === 'loading' && <RefreshCw size={12} className="animate-spin" />}
-        {status === 'success' && <CheckCircle size={12} />}
-        {status === 'success' ? 'Connected!' : label}
-      </button>
-      {status === 'error' && (
-        <p className="mt-2 text-[10px] text-red-400 flex items-center gap-1">
-          <AlertCircle size={10} /> {errMsg}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 type ConnectPanel = FediverseProtocol | null;
 
@@ -290,7 +329,7 @@ export default function FediverseSettings() {
   return (
     <div className="flex flex-col gap-6 max-w-xl">
 
-      {/* Header stats */}
+      {/* Protocol stats */}
       <div className="grid grid-cols-3 gap-3">
         {PROTOCOLS.map(p => (
           <div key={p.id} className="flex flex-col gap-1 p-3 rounded-xl"
@@ -312,7 +351,7 @@ export default function FediverseSettings() {
           <button onClick={refreshFeed} disabled={isLoadingFeed}
             className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
             <RefreshCw size={10} className={isLoadingFeed ? 'animate-spin' : ''} />
-            {isLoadingFeed ? 'Refreshing…' : `${totalPosts} posts`}
+            {isLoadingFeed ? 'Refreshing…' : `${totalPosts} posts loaded`}
           </button>
         </div>
 
@@ -322,13 +361,14 @@ export default function FediverseSettings() {
             <span className="text-xs">Loading accounts…</span>
           </div>
         ) : accounts.length === 0 ? (
-          <div className="py-6 text-center">
-            <p className="text-white/20 text-sm">No accounts connected yet.</p>
-            <p className="text-white/15 text-xs mt-1">Connect a Mastodon, Bluesky, or Threads account below.</p>
+          <div className="py-8 text-center">
+            <Globe size={24} className="mx-auto mb-3 text-white/10" />
+            <p className="text-white/20 text-sm">No fediverse accounts connected.</p>
+            <p className="text-white/15 text-xs mt-1">Connect below to cross-post Plajah content.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            <AnimatePresence>
+          <AnimatePresence>
+            <div className="flex flex-col gap-2">
               {accounts.map(acc => (
                 <AccountCard
                   key={acc.id}
@@ -336,24 +376,29 @@ export default function FediverseSettings() {
                   onDisconnect={() => disconnectAccount(acc.id)}
                 />
               ))}
-            </AnimatePresence>
-          </div>
+            </div>
+          </AnimatePresence>
         )}
       </div>
 
-      {/* Add account section */}
+      {/* Add account */}
       <div>
         <h3 className="text-xs font-black uppercase tracking-widest text-white/60 mb-3">Add account</h3>
         <div className="flex gap-2 flex-wrap">
           {PROTOCOLS.map(p => (
-            <button key={p.id} onClick={() => setConnectPanel(connectPanel === p.id ? null : p.id)}
+            <button key={p.id}
+              onClick={() => setConnectPanel(connectPanel === p.id ? null : p.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
               style={{
                 background: connectPanel === p.id ? p.color : p.bg,
                 color: connectPanel === p.id ? '#fff' : p.color,
                 border: `1px solid ${p.color}40`,
               }}>
-              {p.icon} {p.label}
+              {p.icon}
+              <span>{p.label}</span>
+              {p.oauthSupported && connectPanel !== p.id && (
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-white/10">OAuth</span>
+              )}
             </button>
           ))}
         </div>
@@ -362,27 +407,26 @@ export default function FediverseSettings() {
           {connectPanel && (() => {
             const meta = PROTOCOLS.find(p => p.id === connectPanel)!;
             return (
-              <motion.div
-                key={connectPanel}
+              <motion.div key={connectPanel}
                 initial={{ opacity: 0, height: 0, marginTop: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
                 exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="overflow-hidden"
-              >
+                className="overflow-hidden">
                 <div className="p-4 rounded-xl" style={{ background: meta.bg, border: `1px solid ${meta.color}20` }}>
-                  <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: meta.color }}>
-                    Connect {meta.label}
-                  </p>
-                  {meta.connectGuide}
-                  {connectPanel === 'mastodon' && (
-                    <MastodonForm onSuccess={() => setConnectPanel(null)} />
-                  )}
-                  {connectPanel === 'bluesky' && (
-                    <BlueskyForm onSuccess={() => setConnectPanel(null)} />
-                  )}
-                  {connectPanel === 'threads' && (
-                    <ThreadsForm onSuccess={() => setConnectPanel(null)} />
-                  )}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-black uppercase tracking-widest" style={{ color: meta.color }}>
+                      Connect {meta.label}
+                    </p>
+                    <button onClick={() => setConnectPanel(null)}
+                      className="text-white/20 hover:text-white/60 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-white/40 mb-1">{meta.description}</p>
+
+                  {connectPanel === 'mastodon' && <MastodonForm onSuccess={() => setConnectPanel(null)} />}
+                  {connectPanel === 'bluesky'  && <BlueskyForm  onSuccess={() => setConnectPanel(null)} />}
+                  {connectPanel === 'threads'  && <ThreadsForm  onSuccess={() => setConnectPanel(null)} />}
                 </div>
               </motion.div>
             );
@@ -399,26 +443,27 @@ export default function FediverseSettings() {
               <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
                 <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-white/40">Feature</th>
                 {PROTOCOLS.map(p => (
-                  <th key={p.id} className="px-3 py-2 font-black uppercase tracking-widest" style={{ color: p.color }}>
-                    {p.label}
-                  </th>
+                  <th key={p.id} className="px-3 py-2 font-black uppercase tracking-widest text-center"
+                    style={{ color: p.color }}>{p.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {[
-                { label: 'Home timeline', vals: ['✅', '✅', '❌'] },
-                { label: 'Publish posts', vals: ['✅', '✅', '✅'] },
-                { label: 'Reply to posts', vals: ['✅', '✅', '✅'] },
-                { label: 'Like / unlike', vals: ['✅', '✅', '❌'] },
-                { label: 'Repost / boost', vals: ['✅', '✅', '❌'] },
-                { label: 'Follow / unfollow', vals: ['✅', '✅', '❌'] },
-                { label: 'Notifications', vals: ['✅', '✅', '❌'] },
-                { label: 'Cross-post', vals: ['✅', '✅', '✅'] },
-              ].map((row, i) => (
+              {([
+                ['OAuth sign-in',     ['✅', '❌', '❌']],
+                ['Home timeline',     ['✅', '✅', '❌']],
+                ['Publish posts',     ['✅', '✅', '✅']],
+                ['Rich link cards',   ['✅', '✅', '❌']],
+                ['Reply threading',   ['✅', '✅', '✅']],
+                ['Like / unlike',     ['✅', '✅', '❌']],
+                ['Repost / boost',    ['✅', '✅', '❌']],
+                ['Follow / unfollow', ['✅', '✅', '❌']],
+                ['Notifications',     ['✅', '✅', '❌']],
+                ['Cross-post',        ['✅', '✅', '✅']],
+              ] as [string, string[]][]).map(([label, vals], i) => (
                 <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td className="px-3 py-2 text-white/50">{row.label}</td>
-                  {row.vals.map((v, j) => (
+                  <td className="px-3 py-2 text-white/50">{label}</td>
+                  {vals.map((v, j) => (
                     <td key={j} className="px-3 py-2 text-center">{v}</td>
                   ))}
                 </tr>

@@ -20,11 +20,14 @@ import type {
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
-const ADAPTERS: Record<FediverseProtocol, FediverseAdapter> = {
+// Exported so server-side auth.ts can resolve adapters without circular imports
+export const ADAPTERS_MAP: Record<FediverseProtocol, FediverseAdapter> = {
   mastodon: mastodonAdapter,
   bluesky:  blueskyadapter,
   threads:  threadsAdapter,
 };
+
+const ADAPTERS = ADAPTERS_MAP;
 
 function accountsRef(uid: string) {
   return collection(db, 'users', uid, 'fediverseAccounts');

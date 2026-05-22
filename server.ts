@@ -856,113 +856,312 @@ async function startServer() {
     }
   });
 
-  // --- Mastodon OAuth Helpers ---
-  // In a real app, these would be in a DB. For this demo, we'll use a memory map.
-  const mastodonApps: Record<string, { clientId: string; clientSecret: string }> = {};
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Decentralized Social Layer (Mastodon + Bluesky + Threads) ─────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // All credential-sensitive operations run server-side.
+  // The browser never sees raw access tokens after connecting an account.
 
-  // Register App on Instance
-  app.post('/api/auth/mastodon/register', async (req, res) => {
-    const { instance } = req.body;
-    if (!instance) return res.status(400).json({ error: 'Instance required' });
+  // Lazy-load to keep cold-start fast; these are ESM modules with node:crypto
+  const getFediverseAuth = async () => {
+    const { decentralizedAuth } = await import('./services/fediverse/auth.js');
+    return decentralizedAuth;
+  };
+  const getBroadcast = async () => {
+    const { broadcastToDecentralizedWeb } = await import('./services/fediverse/broadcast.js');
+    return broadcastToDecentralizedWeb;
+  };
+
+  // ── Mastodon OAuth2 — Step 1: Register app + return authorization URL ───────
+  // The clientSecret is kept server-side; only the authUrl is sent to browser.
+  app.post('/api/fediverse/mastodon/authorize', express.json(), authMiddleware, async (req: any, res) => {
+    const { instanceUrl } = req.body as { instanceUrl?: string };
+    if (!instanceUrl?.trim()) return res.status(400).json({ error: 'instanceUrl required' });
 
     try {
-      if (mastodonApps[instance]) {
-        return res.json(mastodonApps[instance]);
+      const auth = await getFediverseAuth();
+      const appBase = (process.env.VITE_APP_URL ?? `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const redirectUri = `${appBase}/auth/fediverse/callback`;
+      const app = await auth.registerMastodonApp(instanceUrl.trim(), redirectUri);
+      const { authUrl, state } = auth.buildMastodonAuthUrl(app, req.uid);
+      res.json({ authUrl, state, instanceUrl: app.instanceUrl });
+    } catch (err: any) {
+      console.error('[Fediverse] Mastodon authorize error:', err);
+      res.status(500).json({ error: err.message ?? 'Failed to start Mastodon OAuth' });
+    }
+  });
+
+  // ── Mastodon OAuth2 — Callback (popup closer) ───────────────────────────────
+  // Mastodon redirects here after user authorizes. The popup sends code+state
+  // back to the opener via postMessage, then closes itself.
+  app.get('/auth/fediverse/callback', (req, res) => {
+    const { code, state, error } = req.query as Record<string, string>;
+    res.type('html').send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Plajah — Connecting…</title>
+<style>
+  body { margin: 0; background: #0a0a0f; color: #fff; font-family: system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { text-align: center; padding: 40px; max-width: 360px; }
+  .logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px; }
+  .status { font-size: 14px; color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Plajah</div>
+  <p class="status" id="s">Synchronizing…</p>
+</div>
+<script>
+  (function() {
+    const code = ${JSON.stringify(code ?? null)};
+    const state = ${JSON.stringify(state ?? null)};
+    const err = ${JSON.stringify(error ?? null)};
+    const msg = err
+      ? { type: 'FEDIVERSE_AUTH_ERROR', error: err }
+      : { type: 'FEDIVERSE_AUTH_SUCCESS', code, state };
+    if (window.opener) {
+      window.opener.postMessage(msg, window.location.origin);
+      document.getElementById('s').textContent = 'Connected! Closing…';
+      setTimeout(() => window.close(), 600);
+    } else {
+      document.getElementById('s').textContent = 'No opener found. Please close this window.';
+    }
+  })();
+</script>
+</body>
+</html>`);
+  });
+
+  // ── Mastodon OAuth2 — Step 2: Exchange code, verify, save account ───────────
+  app.post('/api/fediverse/mastodon/connect', express.json(), authMiddleware, async (req: any, res) => {
+    const { code, state, instanceUrl } = req.body as {
+      code?: string; state?: string; instanceUrl?: string;
+    };
+    if (!code || !state || !instanceUrl) {
+      return res.status(400).json({ error: 'code, state, and instanceUrl are required' });
+    }
+
+    try {
+      const auth = await getFediverseAuth();
+
+      // Decrypt and validate state token (stateless — no server-side Map needed)
+      const pending = auth.consumeOAuthState(state);
+      if (!pending) {
+        return res.status(400).json({ error: 'Invalid or expired OAuth state — restart the flow' });
+      }
+      if (pending.uid !== req.uid) {
+        return res.status(403).json({ error: 'State mismatch — potential CSRF' });
       }
 
-      const redirectUri = `${req.protocol}://${req.get('host')}/auth/mastodon/callback`;
-      
-      const response = await fetch(`https://${instance}/api/v1/apps`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_name: 'Plajah Social Mesh',
-          redirect_uris: redirectUri,
-          scopes: 'read write follow',
-          website: 'https://ais-dev-ecgniar62eix4hqydxbime-137921939411.us-east5.run.app'
-        }),
-      });
+      // Use redirect URI and client credentials from the encrypted state token
+      const creds = await auth.exchangeMastodonCode(
+        pending.instanceUrl,
+        code,
+        pending.redirectUri,
+        pending.clientId,
+        pending.clientSecret,
+      );
 
-      if (!response.ok) throw new Error('Failed to register app');
-      const data = await response.json();
-      
-      mastodonApps[instance] = {
-        clientId: data.client_id,
-        clientSecret: data.client_secret,
-      };
-
-      res.json(mastodonApps[instance]);
-    } catch (error) {
-      console.error('Mastodon Register Error:', error);
-      res.status(500).json({ error: 'Failed to register with instance' });
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const account = await auth.buildAndSaveAccount(req.uid, 'mastodon', creds, firebaseToken);
+      res.json({ account });
+    } catch (err: any) {
+      console.error('[Fediverse] Mastodon connect error:', err);
+      res.status(500).json({ error: err.message ?? 'Mastodon connection failed' });
     }
   });
 
-  // Mastodon Callback
+  // ── Bluesky — Create session from handle + App Password ────────────────────
+  // App Password never leaves the server. Browser receives only account metadata.
+  app.post('/api/fediverse/bluesky/connect', express.json(), authMiddleware, async (req: any, res) => {
+    const { handle, appPassword } = req.body as { handle?: string; appPassword?: string };
+    if (!handle?.trim() || !appPassword?.trim()) {
+      return res.status(400).json({ error: 'handle and appPassword are required' });
+    }
+
+    try {
+      const auth = await getFediverseAuth();
+      const creds = await auth.createBlueskySession(handle, appPassword);
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const account = await auth.buildAndSaveAccount(req.uid, 'bluesky', creds, firebaseToken);
+      res.json({ account });
+    } catch (err: any) {
+      console.error('[Fediverse] Bluesky connect error:', err);
+      res.status(401).json({ error: err.message ?? 'Bluesky authentication failed' });
+    }
+  });
+
+  // ── Disconnect an account ───────────────────────────────────────────────────
+  app.delete('/api/fediverse/accounts/:accountId', authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      await auth.removeAccount(req.uid, req.params.accountId, firebaseToken);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Failed to disconnect account' });
+    }
+  });
+
+  // ── Unified Broadcast — post to all active networks simultaneously ──────────
+  app.post('/api/fediverse/broadcast', express.json(), authMiddleware, async (req: any, res) => {
+    const { text, uri, title, description, thumbnail, langs, targetAccountIds } = req.body as {
+      text?: string;
+      uri?: string;
+      title?: string;
+      description?: string;
+      thumbnail?: string;
+      langs?: string[];
+      targetAccountIds?: string[];
+    };
+
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
+
+    try {
+      const auth = await getFediverseAuth();
+      const broadcast = await getBroadcast();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+
+      if (!accounts.length) {
+        return res.status(400).json({ error: 'No connected fediverse accounts' });
+      }
+
+      const result = await broadcast(accounts, { text, uri, title, description, thumbnail, langs }, targetAccountIds);
+      res.json(result);
+    } catch (err: any) {
+      console.error('[Fediverse] Broadcast error:', err);
+      res.status(500).json({ error: err.message ?? 'Broadcast failed' });
+    }
+  });
+
+  // ── Unified Timeline ────────────────────────────────────────────────────────
+  app.get('/api/fediverse/timeline', authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+
+      const { getUnifiedTimeline } = await import('./services/fediverse/service.js');
+      const result = await getUnifiedTimeline(accounts);
+      res.json(result);
+    } catch (err: any) {
+      console.error('[Fediverse] Timeline error:', err);
+      res.status(500).json({ error: err.message ?? 'Timeline fetch failed' });
+    }
+  });
+
+  // ── List connected accounts (metadata only, no credentials) ─────────────────
+  app.get('/api/fediverse/accounts', authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const safe = accounts.map(({ credentials: _creds, ...meta }) => meta);
+      res.json({ accounts: safe });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Failed to load accounts' });
+    }
+  });
+
+  // ── Per-post actions (like, unlike, repost, unrepost, reply) ────────────────
+  app.post('/api/fediverse/posts/action', express.json(), authMiddleware, async (req: any, res) => {
+    const { action, post, accountId } = req.body as {
+      action: 'like' | 'unlike' | 'repost' | 'unrepost';
+      post: import('./services/fediverse/types.js').FediversePost;
+      accountId: string;
+    };
+
+    if (!action || !post || !accountId) {
+      return res.status(400).json({ error: 'action, post, and accountId are required' });
+    }
+
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const account = await auth.loadAccount(req.uid, accountId, firebaseToken);
+      if (!account) return res.status(404).json({ error: 'Account not found' });
+
+      const { ADAPTERS_MAP } = await import('./services/fediverse/service.js');
+      const adapter = ADAPTERS_MAP[account.protocol];
+
+      let result: Partial<import('./services/fediverse/types.js').FediversePost> = {};
+      switch (action) {
+        case 'like':   result = await adapter.likePost(account.credentials, post);   break;
+        case 'unlike': await adapter.unlikePost(account.credentials, post);          break;
+        case 'repost': result = await adapter.repost(account.credentials, post);     break;
+        case 'unrepost': await adapter.unrepost(account.credentials, post);          break;
+        default: return res.status(400).json({ error: `Unknown action: ${action}` });
+      }
+      res.json({ success: true, update: result });
+    } catch (err: any) {
+      console.error('[Fediverse] Action error:', err);
+      res.status(500).json({ error: err.message ?? 'Action failed' });
+    }
+  });
+
+  // ── Legacy compat — keep old callback path working ──────────────────────────
   app.get('/auth/mastodon/callback', (req, res) => {
-    // This is just the landing page for the popup
-    res.send(`
-      <html>
-        <body>
-          <script>
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            if (window.opener) {
-              window.opener.postMessage({ type: 'MASTODON_AUTH_SUCCESS', code }, '*');
-              window.close();
-            }
-          </script>
-          <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h2>Intercepting Signal...</h2>
-            <p>Authentication synchronized. This window will close.</p>
-          </div>
-        </body>
-      </html>
-    `);
+    res.redirect(`/auth/fediverse/callback?${new URLSearchParams(req.query as Record<string, string>)}`);
   });
 
-  // Token Exchange
-  app.post('/api/auth/mastodon/token', async (req, res) => {
-    const { instance, code, clientId, clientSecret } = req.body;
-    const redirectUri = `${req.protocol}://${req.get('host')}/auth/mastodon/callback`;
+  // ── Fediverse proxy (CORS bypass for remote instance lookups) ────────────────
+  app.get('/api/social/fediverse/proxy', async (req: any, res: any) => {
+    const { instance, path: apiPath, token } = req.query as Record<string, string>;
+    if (!instance || !apiPath) return res.status(400).json({ error: 'instance and path required' });
 
     try {
-      const response = await fetch(`https://${instance}/oauth/token`, {
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(`https://${instance}${apiPath}`, { headers });
+      if (!response.ok) {
+        return res.status(response.status).json({ error: response.statusText });
+      }
+      const ct = response.headers.get('content-type') ?? '';
+      if (!ct.includes('application/json')) {
+        return res.status(502).json({ error: 'Non-JSON response from instance' });
+      }
+      res.json(await response.json());
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Legacy direct-post shims (kept for back-compat) ─────────────────────────
+  app.post('/api/social/mastodon/post', express.json(), async (req, res) => {
+    const { instance, token, status, inReplyToId } = req.body as Record<string, string>;
+    try {
+      const r = await fetch(`https://${instance}/api/v1/statuses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-          code,
-        }),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, in_reply_to_id: inReplyToId, visibility: 'public' }),
       });
-
-      if (!response.ok) throw new Error('Token exchange failed');
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: 'Token exchange failed' });
-    }
+      res.status(r.status).json(await r.json());
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
-  // --- Bluesky Auth ---
-  app.post('/api/auth/bluesky/login', async (req, res) => {
-    const { identifier, password } = req.body;
-    const agent = new BskyAgent({ service: 'https://bsky.social' });
-
+  app.post('/api/social/bluesky/post', express.json(), async (req, res) => {
+    const { session, text, reply } = req.body as Record<string, unknown>;
     try {
-      const loginRes = await agent.login({ identifier, password });
-      res.json({ session: loginRes.data });
-    } catch (error) {
-      res.status(401).json({ error: 'Bluesky login failed' });
-    }
+      const agent = new BskyAgent({ service: 'https://bsky.social' });
+      await agent.resumeSession(session as any);
+      const post = await agent.post({ text: text as string, reply: reply as any, createdAt: new Date().toISOString() });
+      res.json(post);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
-  // --- Proxy Helpers ---
-  
-  // Generic Proxy for external assets (CORS bypass and streaming support)
+  // ── Legacy Bluesky login shim ────────────────────────────────────────────────
+  app.post('/api/auth/bluesky/login', express.json(), async (req, res) => {
+    const { identifier, password } = req.body as { identifier: string; password: string };
+    try {
+      const agent = new BskyAgent({ service: 'https://bsky.social' });
+      const r = await agent.login({ identifier, password });
+      res.json({ session: r.data });
+    } catch { res.status(401).json({ error: 'Bluesky login failed' }); }
+  });
+
+  // --- Generic Proxy for external assets (CORS bypass and streaming support) ---
   app.get('/api/proxy', async (req: any, res: any) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'URL required' });

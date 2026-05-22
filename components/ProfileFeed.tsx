@@ -227,6 +227,31 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<any[]>([]);
+  const [isPastingMedia, setIsPastingMedia] = useState(false);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.kind === 'file' && item.type.startsWith('image/'));
+    if (!imageItems.length || !auth.currentUser) return;
+    e.preventDefault();
+    setIsPastingMedia(true);
+    try {
+      const { uploadFile } = await import('../services/backendService');
+      const uploads = imageItems.map(async item => {
+        const file = item.getAsFile();
+        if (!file) return null;
+        const ext = file.type.split('/')[1] || 'png';
+        const url = await uploadFile(`posts/${auth.currentUser!.uid}/paste_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`, file);
+        return { type: 'PHOTO' as const, url };
+      });
+      const results = (await Promise.all(uploads)).filter(Boolean) as { type: 'PHOTO'; url: string }[];
+      if (results.length) setSelectedMedia(prev => [...prev, ...results]);
+    } catch (err) {
+      console.error('[ProfileFeed] Paste upload failed:', err);
+    } finally {
+      setIsPastingMedia(false);
+    }
+  }, []);
   const [showMediaPicker, setShowMediaPicker] = useState<'ALBUM' | 'VIDEO' | 'GIF' | 'STICKER' | 'EMOJI' | null>(null);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
@@ -1140,13 +1165,17 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
             <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
               <img src={auth.currentUser?.photoURL || null} alt="Me" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             </div>
-            <textarea 
+            <textarea
               value={postText}
               onChange={handleInputChange}
+              onPaste={handlePaste}
               placeholder={isOwnProfile ? "What's on your mind? Share music, videos, or just vibes..." : `Post something to ${profileName || 'this profile'}...`}
               className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/20 resize-none font-medium leading-relaxed mt-2 relative"
               rows={3}
             />
+            {isPastingMedia && (
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse mt-1 block">Uploading image...</span>
+            )}
           </div>
 
           {showMentionDropdown && (

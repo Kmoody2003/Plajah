@@ -616,6 +616,13 @@ service cloud.firestore {
       match /private/{docId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Fediverse accounts (Mastodon, Bluesky, Threads) — server writes on
+      // behalf of the user using their Firebase ID token. Credentials are
+      // AES-256-GCM encrypted at rest; the raw token never leaves the server.
+      match /fediverseAccounts/{accountId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /follows/{followId} {

@@ -74,7 +74,7 @@ export const createLiveTalk = async (talk: Partial<LiveTalk>) => {
       topic: talk.topic || 'General',
       category: talk.category || 'Discussion',
       isActive: true,
-      speakers: [auth.currentUser.uid],
+      speakers: [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || 'Anonymous', photoURL: auth.currentUser.photoURL || '', isMuted: false }],
       listeners: [],
       sharedAssets: [],
       timestamp: Date.now()

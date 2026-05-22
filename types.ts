@@ -1358,7 +1358,7 @@ export interface LiveTalk {
   topic: string;
   category: string;
   isActive: boolean;
-  speakers: string[]; // UIDs
+  speakers: Array<{ uid: string; name: string; photoURL: string; isMuted: boolean }>;
   listeners: string[]; // UIDs
   sharedAssets: SharedAsset[];
   timestamp: number;
