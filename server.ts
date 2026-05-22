@@ -972,6 +972,31 @@ async function startServer() {
     }
   });
 
+  // ── Fediverse diagnostics — check every config requirement ────────────────
+  app.get('/api/fediverse/diagnostics', authMiddleware, async (req: any, res) => {
+    const encKey = process.env.ENCRYPTION_KEY ?? '';
+    const firebaseApiKey = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
+    const checks: Record<string, unknown> = {
+      uid: req.uid,
+      encryption_key_set: encKey.length >= 16,
+      encryption_key_length: encKey.length,
+      firebase_api_key_set: firebaseApiKey.length > 0,
+      vite_app_url: process.env.VITE_APP_URL ?? '(not set)',
+      node_env: process.env.NODE_ENV ?? '(not set)',
+    };
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      checks.firestore_read = 'ok';
+      checks.accounts_count = accounts.length;
+    } catch (err: any) {
+      checks.firestore_read = 'FAILED';
+      checks.firestore_error = err.message;
+    }
+    res.json(checks);
+  });
+
   // ── Bluesky — Create session from handle + App Password ────────────────────
   // App Password never leaves the server. Browser receives only account metadata.
   app.post('/api/fediverse/bluesky/connect', express.json(), authMiddleware, async (req: any, res) => {
@@ -980,15 +1005,34 @@ async function startServer() {
       return res.status(400).json({ error: 'handle and appPassword are required' });
     }
 
+    // Gate early so the error is unambiguous
+    const encKey = process.env.ENCRYPTION_KEY ?? '';
+    if (encKey.length < 16) {
+      return res.status(500).json({ error: 'Server misconfiguration: ENCRYPTION_KEY env var is not set in Cloud Run' });
+    }
+
     try {
       const auth = await getFediverseAuth();
-      const creds = await auth.createBlueskySession(handle, appPassword);
+
+      let creds;
+      try {
+        creds = await auth.createBlueskySession(handle.trim(), appPassword.trim());
+      } catch (err: any) {
+        console.error('[Fediverse] Bluesky session error:', err);
+        return res.status(401).json({ error: `Bluesky login failed: ${err.message}` });
+      }
+
       const firebaseToken = (req.headers.authorization as string).slice(7);
-      const account = await auth.buildAndSaveAccount(req.uid, 'bluesky', creds, firebaseToken);
-      res.json({ account });
+      try {
+        const account = await auth.buildAndSaveAccount(req.uid, 'bluesky', creds, firebaseToken);
+        res.json({ account });
+      } catch (err: any) {
+        console.error('[Fediverse] Bluesky save error:', err);
+        res.status(500).json({ error: `Account save failed: ${err.message}` });
+      }
     } catch (err: any) {
       console.error('[Fediverse] Bluesky connect error:', err);
-      res.status(401).json({ error: err.message ?? 'Bluesky authentication failed' });
+      res.status(500).json({ error: err.message ?? 'Bluesky connection failed' });
     }
   });
 
