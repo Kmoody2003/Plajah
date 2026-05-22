@@ -1,0 +1,15 @@
+env:
+  - variable: ENCRYPTION_KEY
+    value: fde5fd3b6bcc8abfe4f4188ba4df02b4050388ca8ab30a152c309d39e5235f60
+    availability:
+      - RUNTIME
+  - variable: VITE_FIREBASE_API_KEY
+    value: AIzaSyAhcZm5fKh50H_g9kMTv9wgI-TBAWntd0Y
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: VITE_APP_URL
+    value: https://plajah.com
+    availability:
+      - BUILD
+      - RUNTIME
