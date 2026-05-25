@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Store, Building2, Search, Briefcase, ShoppingBag, Radio, Monitor,
   Star, Users, Globe, MapPin, Tag, ArrowRight, CheckCircle2, Sparkles,
-  Music2, ChevronRight,
+  Music2, ChevronRight, Gift, Zap,
 } from 'lucide-react';
 import { BusinessPage, BrandAccount, UserProfile } from '../types';
 import { fetchAllBusinessPages } from '../services/businessService';
 import { fetchAllPublicBrandAccounts } from '../services/backendService';
+import { DEMO_BUSINESS } from '../data/demoBusiness';
 
 type HubTab = 'BUSINESSES' | 'BRANDS';
 
@@ -307,11 +308,107 @@ const PlajahBusinessHub: React.FC<PlajahBusinessHubProps> = ({ onNavigate, curre
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                {filteredBusinesses.length === 0 ? (
+                {/* Demo Business Spotlight */}
+                {!search && (
+                  <motion.div
+                    className="mb-8 relative overflow-hidden rounded-3xl cursor-pointer group"
+                    onClick={() => handleVisitBusiness(DEMO_BUSINESS)}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    {/* Background */}
+                    <div className="absolute inset-0">
+                      <img
+                        src={DEMO_BUSINESS.coverUrl}
+                        alt=""
+                        className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
+                    </div>
+
+                    <div className="relative z-10 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                      {/* Logo */}
+                      <img
+                        src={DEMO_BUSINESS.logoUrl}
+                        alt=""
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white/20 shadow-2xl flex-shrink-0"
+                      />
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            Demo Business
+                          </span>
+                          <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#FF8C00]">
+                            <CheckCircle2 size={9} /> Verified
+                          </span>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{DEMO_BUSINESS.businessName}</h2>
+                        <p className="text-white/60 text-xs mt-1 line-clamp-1">{DEMO_BUSINESS.tagline}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {DEMO_BUSINESS.radioServiceEnabled && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 rounded-full text-white/50">
+                              <Radio size={8} /> In-Store Radio
+                            </span>
+                          )}
+                          {DEMO_BUSINESS.digitalSignageEnabled && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 rounded-full text-white/50">
+                              <Monitor size={8} /> Digital Signage
+                            </span>
+                          )}
+                          {DEMO_BUSINESS.rewardsEnabled && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 rounded-full text-white/50">
+                              <Gift size={8} /> Loyalty Rewards
+                            </span>
+                          )}
+                          {DEMO_BUSINESS.isAcceptingOrders && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 rounded-full text-white/50">
+                              <ShoppingBag size={8} /> Online Orders
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* CTA */}
+                      <div className="flex-shrink-0">
+                        <div className="flex items-center gap-2 px-5 py-3 bg-[#FF8C00] text-black rounded-2xl text-xs font-black uppercase tracking-widest group-hover:bg-amber-400 transition-colors">
+                          View Demo <ChevronRight size={14} />
+                        </div>
+                        <p className="text-white/30 text-[9px] text-center mt-2">See how your page could look</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Section label */}
+                {!search && businesses.length > 0 && (
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="h-px flex-1 bg-white/5" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/20">All Businesses</span>
+                    <div className="h-px flex-1 bg-white/5" />
+                  </div>
+                )}
+
+                {filteredBusinesses.length === 0 && !search ? (
+                  <div className="text-center py-16 bg-white/[0.02] rounded-[3rem] border border-dashed border-white/10">
+                    <Store size={48} className="mx-auto mb-4 opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-2">
+                      No businesses listed yet
+                    </p>
+                    {isLoggedIn && (
+                      <button
+                        onClick={() => onNavigate('BUSINESS_DASHBOARD')}
+                        className="mt-3 text-[#FF8C00] text-xs font-bold hover:underline"
+                      >
+                        Create your business page →
+                      </button>
+                    )}
+                  </div>
+                ) : filteredBusinesses.length === 0 ? (
                   <div className="text-center py-32 bg-white/[0.02] rounded-[3rem] border border-dashed border-white/10">
                     <Store size={48} className="mx-auto mb-4 opacity-20" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-white/20">
-                      {search ? 'No businesses match your search' : 'No business pages yet'}
+                      No businesses match your search
                     </p>
                   </div>
                 ) : (

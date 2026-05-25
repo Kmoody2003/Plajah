@@ -2042,6 +2042,30 @@ export interface CreatorSplit {
   updatedAt: number;
 }
 
+export interface BusinessMenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  category: string;
+  imageUrl?: string;
+  isFeatured?: boolean;
+  isAvailable?: boolean;
+  tags?: string[];
+}
+
+export interface BusinessEvent {
+  id: string;
+  title: string;
+  description?: string;
+  date: string;
+  time?: string;
+  imageUrl?: string;
+  isFree?: boolean;
+  price?: number;
+  ticketUrl?: string;
+}
+
 export interface BusinessPage {
   id: string;
   ownerId: string;
@@ -2086,6 +2110,11 @@ export interface BusinessPage {
   rewardPointsPerDollar?: number;
   seedRaiserId?: string;
   tags?: string[];
+  menuItems?: BusinessMenuItem[];
+  galleryImages?: string[];
+  events?: BusinessEvent[];
+  promoBanner?: string;
+  isDemo?: boolean;
   createdAt: number;
   updatedAt: number;
 }

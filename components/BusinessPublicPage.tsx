@@ -5,9 +5,10 @@ import {
   Instagram, Twitter, Facebook, ShoppingBag, Radio, Monitor,
   CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Tag,
   Wifi, ParkingCircle, Coffee, Utensils, Music2, Leaf, Shield,
-  Send, AlertCircle, Heart,
+  Send, Heart, UtensilsCrossed, Image as ImageIcon, Calendar,
+  Ticket, Gift, Zap, ChevronRight, X,
 } from 'lucide-react';
-import type { BusinessPage } from '../types';
+import type { BusinessPage, BusinessMenuItem, BusinessEvent } from '../types';
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,10 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 const DAY_LABELS: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
   friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
+};
+const DAY_FULL: Record<string, string> = {
+  monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday',
+  friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
 };
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
@@ -43,6 +48,10 @@ function isOpenNow(hours?: BusinessPage['hours']): boolean {
   return nowMins >= oh * 60 + om && nowMins < ch * 60 + cm;
 }
 
+function formatPrice(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
 function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -54,6 +63,15 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 // ── REVIEW FORM ───────────────────────────────────────────────────────────────
+
+interface Review {
+  id: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  timestamp: number;
+  isVerified?: boolean;
+}
 
 interface ReviewFormProps {
   businessId: string;
@@ -103,53 +121,6 @@ function ReviewForm({ businessId, currentUserName, onSubmit }: ReviewFormProps) 
   );
 }
 
-// ── HOURS TABLE ───────────────────────────────────────────────────────────────
-
-function HoursTable({ hours }: { hours: BusinessPage['hours'] }) {
-  const [expanded, setExpanded] = useState(false);
-  const today = todayKey();
-  const todaySlot = hours?.[today];
-  const open = isOpenNow(hours);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="flex items-center gap-2 text-sm font-semibold text-white"
-      >
-        <span className={open ? 'text-green-400' : 'text-red-400'}>{open ? 'Open now' : 'Closed'}</span>
-        {todaySlot && !todaySlot.closed && (
-          <span className="text-white/40">· {todaySlot.open} – {todaySlot.close}</span>
-        )}
-        {expanded ? <ChevronUp size={14} className="text-white/40 ml-1" /> : <ChevronDown size={14} className="text-white/40 ml-1" />}
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 space-y-1.5">
-              {DAYS.map(day => {
-                const slot = hours?.[day];
-                const isToday = day === today;
-                return (
-                  <div key={day} className={`flex justify-between text-sm ${isToday ? 'text-white font-semibold' : 'text-white/50'}`}>
-                    <span>{DAY_LABELS[day]}</span>
-                    <span>{slot?.closed ? 'Closed' : slot ? `${slot.open} – ${slot.close}` : 'Hours TBD'}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // ── FEATURE BADGES ────────────────────────────────────────────────────────────
 
 function FeaturePill({ icon, label }: { icon: React.ReactNode; label: string }) {
@@ -157,6 +128,250 @@ function FeaturePill({ icon, label }: { icon: React.ReactNode; label: string }) 
     <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-white/70">
       <span className="text-[--small-orange]">{icon}</span>
       {label}
+    </div>
+  );
+}
+
+// ── MENU SECTION ─────────────────────────────────────────────────────────────
+
+function MenuSection({ items }: { items: BusinessMenuItem[] }) {
+  const categories = Array.from(new Set(items.map(i => i.category)));
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [lightboxItem, setLightboxItem] = useState<BusinessMenuItem | null>(null);
+
+  const allCategories = ['All', ...categories];
+  const filtered = activeCategory === 'All' ? items : items.filter(i => i.category === activeCategory);
+  const featured = items.filter(i => i.isFeatured);
+
+  return (
+    <div className="space-y-5">
+      {/* Featured items */}
+      {featured.length > 0 && (
+        <div>
+          <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+            <Zap size={14} className="text-[--small-orange]" /> Featured
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+            {featured.map(item => (
+              <motion.div
+                key={item.id}
+                onClick={() => setLightboxItem(item)}
+                className="flex-shrink-0 w-40 bg-white/5 border border-white/10 rounded-2xl overflow-hidden cursor-pointer hover:border-[--small-orange]/40 transition-colors"
+                whileTap={{ scale: 0.97 }}
+              >
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.name} className="w-full h-24 object-cover" />
+                ) : (
+                  <div className="w-full h-24 bg-gradient-to-br from-[--small-orange]/10 to-white/5 flex items-center justify-center">
+                    <UtensilsCrossed size={24} className="text-white/20" />
+                  </div>
+                )}
+                <div className="p-2.5">
+                  <div className="text-white text-xs font-bold truncate">{item.name}</div>
+                  <div className="text-[--small-orange] text-xs font-black mt-0.5">{formatPrice(item.price)}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category filter */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+        {allCategories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-[--small-orange] text-white' : 'bg-white/5 text-white/50 hover:text-white/80'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Items list */}
+      <div className="space-y-2.5">
+        {filtered.map(item => (
+          <motion.div
+            key={item.id}
+            onClick={() => setLightboxItem(item)}
+            className="flex gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 cursor-pointer hover:border-white/20 transition-colors"
+            whileTap={{ scale: 0.98 }}
+          >
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                <UtensilsCrossed size={20} className="text-white/20" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-bold text-sm text-white truncate">{item.name}</div>
+                <div className="text-[--small-orange] font-black text-sm flex-shrink-0">{formatPrice(item.price)}</div>
+              </div>
+              {item.description && (
+                <p className="text-white/50 text-xs mt-0.5 line-clamp-2">{item.description}</p>
+              )}
+              {item.tags && item.tags.length > 0 && (
+                <div className="flex gap-1 mt-1.5 flex-wrap">
+                  {item.tags.map(tag => (
+                    <span key={tag} className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-white/5 text-white/40 rounded">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Item detail lightbox */}
+      <AnimatePresence>
+        {lightboxItem && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLightboxItem(null)}
+          >
+            <motion.div
+              className="w-full max-w-sm bg-[#151515] border border-white/10 rounded-3xl overflow-hidden"
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {lightboxItem.imageUrl ? (
+                <img src={lightboxItem.imageUrl} alt={lightboxItem.name} className="w-full h-48 object-cover" />
+              ) : (
+                <div className="w-full h-32 bg-gradient-to-br from-[--small-orange]/10 to-white/5 flex items-center justify-center">
+                  <UtensilsCrossed size={40} className="text-white/20" />
+                </div>
+              )}
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="text-white font-black text-lg">{lightboxItem.name}</h3>
+                  <button onClick={() => setLightboxItem(null)} className="p-1 text-white/40 hover:text-white transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="text-[--small-orange] font-black text-xl mb-3">{formatPrice(lightboxItem.price)}</div>
+                {lightboxItem.description && (
+                  <p className="text-white/60 text-sm leading-relaxed">{lightboxItem.description}</p>
+                )}
+                {lightboxItem.tags && lightboxItem.tags.length > 0 && (
+                  <div className="flex gap-1.5 mt-3 flex-wrap">
+                    {lightboxItem.tags.map(tag => (
+                      <span key={tag} className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-white/5 border border-white/10 text-white/50 rounded-full">{tag}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 text-xs text-white/30 text-center">Ask staff to order</div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── GALLERY SECTION ───────────────────────────────────────────────────────────
+
+function GallerySection({ images }: { images: string[] }) {
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {images.map((url, i) => (
+          <motion.div
+            key={i}
+            onClick={() => setLightbox(url)}
+            className={`relative overflow-hidden rounded-2xl cursor-pointer bg-white/5 ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
+            style={{ aspectRatio: i === 0 ? '16/9' : '1/1' }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <img src={url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+          </motion.div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLightbox(null)}
+          >
+            <button className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+            <motion.img
+              src={lightbox}
+              alt=""
+              className="max-w-full max-h-full object-contain rounded-2xl"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+// ── EVENTS SECTION ────────────────────────────────────────────────────────────
+
+function EventsSection({ events }: { events: BusinessEvent[] }) {
+  const now = new Date();
+  const upcoming = events.filter(e => new Date(e.date) >= now);
+  const past = events.filter(e => new Date(e.date) < now);
+  const list = upcoming.length > 0 ? upcoming : past;
+
+  return (
+    <div className="space-y-3">
+      {upcoming.length === 0 && past.length > 0 && (
+        <p className="text-white/30 text-xs text-center mb-4">Showing past events</p>
+      )}
+      {list.map(event => {
+        const d = new Date(event.date);
+        const isPast = d < now;
+        return (
+          <div key={event.id} className={`relative overflow-hidden bg-white/5 border rounded-2xl ${isPast ? 'border-white/5 opacity-60' : 'border-white/10'}`}>
+            {event.imageUrl && (
+              <img src={event.imageUrl} alt="" className="w-full h-32 object-cover" />
+            )}
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 bg-[--small-orange]/10 border border-[--small-orange]/20 rounded-xl px-3 py-2 text-center min-w-[52px]">
+                  <div className="text-[--small-orange] font-black text-lg leading-none">{d.getDate()}</div>
+                  <div className="text-[--small-orange]/70 text-[10px] font-bold uppercase">{d.toLocaleDateString('en', { month: 'short' })}</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-white font-bold text-sm">{event.title}</h4>
+                  {event.time && <div className="text-white/40 text-xs mt-0.5">{event.time}</div>}
+                  {event.description && <p className="text-white/60 text-xs mt-1.5 leading-relaxed">{event.description}</p>}
+                  <div className="flex items-center gap-2 mt-2">
+                    {event.isFree ? (
+                      <span className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Free</span>
+                    ) : event.price !== undefined ? (
+                      <span className="text-xs font-bold text-white/60 bg-white/5 px-2 py-0.5 rounded-full">{formatPrice(event.price)}</span>
+                    ) : null}
+                    {event.ticketUrl && !isPast && (
+                      <a
+                        href={event.ticketUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs font-bold text-[--small-orange] hover:underline"
+                      >
+                        <Ticket size={11} /> Tickets <ExternalLink size={9} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -170,20 +385,14 @@ interface BusinessPublicPageProps {
   currentUserName?: string;
 }
 
-interface Review {
-  id: string;
-  authorName: string;
-  rating: number;
-  text: string;
-  timestamp: number;
-  isVerified?: boolean;
-}
+type TabId = 'ABOUT' | 'MENU' | 'GALLERY' | 'EVENTS' | 'REVIEWS' | 'HOURS';
 
 export default function BusinessPublicPage({ business, onBack, currentUserId, currentUserName }: BusinessPublicPageProps) {
-  const [activeTab, setActiveTab] = useState<'ABOUT' | 'REVIEWS' | 'HOURS'>('ABOUT');
+  const [activeTab, setActiveTab] = useState<TabId>('ABOUT');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [liked, setLiked] = useState(false);
   const [toast, setToast] = useState('');
+  const [showPromoBanner, setShowPromoBanner] = useState(true);
   const open = isOpenNow(business.hours);
 
   const showToast = (msg: string) => {
@@ -209,10 +418,17 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
   const coverUrl = business.coverImageUrl ?? business.coverUrl;
   const priceColor = { '$': '#22c55e', '$$': '#eab308', '$$$': '#f97316', '$$$$': '#ef4444' }[business.priceRange ?? '$'] ?? '#fff';
 
-  const tabs = [
-    { id: 'ABOUT' as const, label: 'About' },
-    { id: 'REVIEWS' as const, label: `Reviews${totalReviews ? ` (${totalReviews})` : ''}` },
-    ...(business.hours ? [{ id: 'HOURS' as const, label: 'Hours' }] : []),
+  const hasMenu = business.menuItems && business.menuItems.length > 0;
+  const hasGallery = business.galleryImages && business.galleryImages.length > 0;
+  const hasEvents = business.events && business.events.length > 0;
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'ABOUT', label: 'About' },
+    ...(hasMenu ? [{ id: 'MENU' as TabId, label: 'Menu' }] : []),
+    ...(hasGallery ? [{ id: 'GALLERY' as TabId, label: 'Gallery' }] : []),
+    ...(hasEvents ? [{ id: 'EVENTS' as TabId, label: 'Events' }] : []),
+    { id: 'REVIEWS', label: `Reviews${totalReviews ? ` (${totalReviews})` : ''}` },
+    ...(business.hours ? [{ id: 'HOURS' as TabId, label: 'Hours' }] : []),
   ];
 
   return (
@@ -228,6 +444,31 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Promo Banner */}
+      <AnimatePresence>
+        {business.promoBanner && showPromoBanner && (
+          <motion.div
+            className="relative bg-gradient-to-r from-[--small-orange] to-amber-600 text-white text-xs font-bold text-center py-2.5 px-10"
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          >
+            {business.promoBanner}
+            <button
+              onClick={() => setShowPromoBanner(false)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Demo Badge */}
+      {business.isDemo && (
+        <div className="bg-purple-900/40 border-b border-purple-500/20 text-center py-2 px-4">
+          <span className="text-purple-300 text-xs font-bold">Demo Business — This page shows how your business can look on Plajah</span>
+        </div>
+      )}
 
       {/* Hero */}
       <div className="relative h-64 sm:h-80 overflow-hidden">
@@ -254,7 +495,6 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
           <Heart size={18} className={liked ? 'text-red-400 fill-red-400' : 'text-white/70'} />
         </button>
 
-        {/* Status pill */}
         {business.hours && (
           <div className={`absolute bottom-4 left-4 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${open ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${open ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
@@ -308,6 +548,14 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
               <ShoppingBag size={15} /> Order Now
             </button>
           )}
+          {business.rewardsEnabled && (
+            <button
+              onClick={() => showToast('Rewards program — join to earn points!')}
+              className="flex items-center gap-2 bg-amber-500/15 text-amber-400 border border-amber-500/20 text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              <Gift size={15} /> Rewards
+            </button>
+          )}
           {business.phone && (
             <a href={`tel:${business.phone}`} className="flex items-center gap-2 bg-white/10 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-white/15 transition-colors">
               <Phone size={15} /> Call
@@ -331,26 +579,107 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white/5 p-1 rounded-2xl mb-5">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${activeTab === t.id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'}`}>
-              {t.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto -mx-4 px-4 mb-5 scrollbar-none">
+          <div className="flex gap-1 bg-white/5 p-1 rounded-2xl w-max min-w-full">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`flex-1 whitespace-nowrap py-2 px-3 rounded-xl text-xs font-semibold transition-colors min-w-[60px] ${activeTab === t.id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Tab content */}
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="pb-16">
+
+            {/* ── ABOUT ─────────────────────────────────────────────────────── */}
             {activeTab === 'ABOUT' && (
               <div className="space-y-5">
-                {/* Description */}
                 {business.description && (
                   <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                     <p className="text-white/70 text-sm leading-relaxed">{business.description}</p>
                   </div>
                 )}
+
+                {/* Platform features showcase */}
+                {(business.radioServiceEnabled || business.digitalSignageEnabled || business.rewardsEnabled || business.crmEnabled) && (
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                    <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                      <Zap size={14} className="text-[--small-orange]" /> Powered by Plajah
+                    </h3>
+                    <div className="space-y-3">
+                      {business.radioServiceEnabled && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[--small-orange]/10 flex items-center justify-center flex-shrink-0">
+                            <Radio size={15} className="text-[--small-orange]" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-bold">Custom In-Store Radio</div>
+                            <div className="text-white/40 text-xs">Music curated for this business's atmosphere</div>
+                          </div>
+                        </div>
+                      )}
+                      {business.digitalSignageEnabled && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                            <Monitor size={15} className="text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-bold">Digital Signage</div>
+                            <div className="text-white/40 text-xs">Dynamic displays for promotions and menus</div>
+                          </div>
+                        </div>
+                      )}
+                      {business.rewardsEnabled && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                            <Gift size={15} className="text-amber-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-bold">Loyalty Rewards</div>
+                            <div className="text-white/40 text-xs">{business.rewardPointsPerDollar ? `${business.rewardPointsPerDollar} pts per $1 spent` : 'Earn points on every visit'}</div>
+                          </div>
+                        </div>
+                      )}
+                      {business.crmEnabled && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                            <MessageSquare size={15} className="text-green-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-bold">Customer Messaging</div>
+                            <div className="text-white/40 text-xs">Direct communication with this business</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upcoming event teaser */}
+                {hasEvents && (() => {
+                  const next = business.events!.find(e => new Date(e.date) >= new Date());
+                  if (!next) return null;
+                  return (
+                    <div
+                      className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors"
+                      onClick={() => setActiveTab('EVENTS')}
+                    >
+                      <div className="flex-shrink-0 bg-[--small-orange]/10 border border-[--small-orange]/20 rounded-xl px-3 py-2 text-center min-w-[52px]">
+                        <div className="text-[--small-orange] font-black text-lg leading-none">{new Date(next.date).getDate()}</div>
+                        <div className="text-[--small-orange]/70 text-[10px] font-bold uppercase">{new Date(next.date).toLocaleDateString('en', { month: 'short' })}</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-0.5">Next Event</div>
+                        <div className="text-white font-bold text-sm truncate">{next.title}</div>
+                        {next.time && <div className="text-white/40 text-xs">{next.time}</div>}
+                      </div>
+                      <ChevronRight size={16} className="text-white/30 flex-shrink-0" />
+                    </div>
+                  );
+                })()}
 
                 {/* Location */}
                 {(business.address || business.city) && (
@@ -447,6 +776,22 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
               </div>
             )}
 
+            {/* ── MENU ──────────────────────────────────────────────────────── */}
+            {activeTab === 'MENU' && hasMenu && (
+              <MenuSection items={business.menuItems!} />
+            )}
+
+            {/* ── GALLERY ───────────────────────────────────────────────────── */}
+            {activeTab === 'GALLERY' && hasGallery && (
+              <GallerySection images={business.galleryImages!} />
+            )}
+
+            {/* ── EVENTS ────────────────────────────────────────────────────── */}
+            {activeTab === 'EVENTS' && hasEvents && (
+              <EventsSection events={business.events!} />
+            )}
+
+            {/* ── HOURS ─────────────────────────────────────────────────────── */}
             {activeTab === 'HOURS' && business.hours && (
               <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
@@ -461,7 +806,7 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
                       <div key={day} className={`flex justify-between py-2 text-sm border-b border-white/5 last:border-0 ${isToday ? 'text-white font-semibold' : 'text-white/50'}`}>
                         <span className="flex items-center gap-2">
                           {isToday && <span className="w-1.5 h-1.5 rounded-full bg-[--small-orange]" />}
-                          {DAYS.indexOf(day) === 0 ? 'Monday' : DAYS.indexOf(day) === 1 ? 'Tuesday' : DAYS.indexOf(day) === 2 ? 'Wednesday' : DAYS.indexOf(day) === 3 ? 'Thursday' : DAYS.indexOf(day) === 4 ? 'Friday' : DAYS.indexOf(day) === 5 ? 'Saturday' : 'Sunday'}
+                          {DAY_FULL[day]}
                         </span>
                         <span className={slot?.closed ? 'text-red-400' : 'text-white/70'}>
                           {slot?.closed ? 'Closed' : slot ? `${slot.open} – ${slot.close}` : '—'}
@@ -473,6 +818,7 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
               </div>
             )}
 
+            {/* ── REVIEWS ───────────────────────────────────────────────────── */}
             {activeTab === 'REVIEWS' && (
               <div className="space-y-4">
                 {currentUserId && (
