@@ -110,6 +110,8 @@ export interface Track {
   hnsSlot1?: { url: string; title: string; uploadedAt: number };
   hnsSlot2?: { url: string; title: string; uploadedAt: number };
   isEclipsa?: boolean;
+  characterIds?: string[];                      // Characters featured in this song
+  trackCharacterImages?: Record<string, string>; // Per-song image override (characterId → imageUrl)
 }
 
 export interface Photo {
@@ -243,6 +245,7 @@ export interface BookChapter {
   isPaywalled?: boolean;
   description?: string;
   tags?: string[];
+  format?: 'EPUB' | 'PDF' | 'TXT' | 'COMIC' | 'DOCX' | 'RTF' | 'FB2' | 'HTML' | 'MOBI' | 'DJVU' | 'FILE';
 }
 
 export interface Book {
@@ -332,6 +335,7 @@ export interface Album {
   gameFeatures?: Record<string, boolean>;
   gameScreenshots?: string[];
   gameVideoUrl?: string;
+  allowPageSharing?: boolean;
 }
 
 // ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
@@ -576,6 +580,33 @@ export interface TimelineEvent {
 }
 
 
+// Character appearance markers on a video timeline (creator-tagged)
+export interface CharacterTimestamp {
+  characterId: string;
+  characterName: string;
+  imageUrl?: string;
+  timestamps: number[]; // seconds into the video
+}
+
+// "What If" interactive branching system
+export interface WhatIfChoice {
+  id: string;
+  label: string;
+  description?: string;
+  jumpsToTimestamp?: number;     // seek to this second in the same video
+  jumpsToVideoId?: string;       // alternate scene / ending video
+  jumpsToVideoTimestamp?: number;
+}
+
+export interface WhatIfBranchPoint {
+  id: string;
+  videoId: string;
+  timestamp: number;   // seconds — pauses playback here and shows the question
+  question: string;
+  choices: WhatIfChoice[];
+  createdBy: string;
+}
+
 export interface Video {
   id: string;
   ownerId: string;
@@ -596,6 +627,8 @@ export interface Video {
   artist?: string; 
   isPrivate?: boolean;
   worldId?: string;
+  characterIds?: string[];        // Characters from this world that appear in this video
+  timelinePointYear?: number;     // In-universe year/timestamp this video is set in
   releaseDate?: number;
   isScheduled?: boolean;
   likesCount?: number;
@@ -619,6 +652,8 @@ export interface Video {
     episodeNumber?: number;
     seriesTitle?: string;
   };
+  characterTimestamps?: CharacterTimestamp[];   // creator-tagged character appearances on timeline
+  whatIfBranchPoints?: WhatIfBranchPoint[];     // interactive branch points
 }
 
 export interface VideoLike {
@@ -1374,7 +1409,7 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'STORE' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'AD_PACKAGES';
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -2011,16 +2046,37 @@ export interface BusinessPage {
   id: string;
   ownerId: string;
   businessName: string;
-  businessType: 'RETAIL' | 'RESTAURANT' | 'SERVICE' | 'ENTERTAINMENT' | 'TECH' | 'HEALTH' | 'OTHER';
+  businessType: 'RETAIL' | 'RESTAURANT' | 'SERVICE' | 'ENTERTAINMENT' | 'TECH' | 'HEALTH' | 'OTHER' | string;
+  tagline?: string;
   description: string;
   logoUrl?: string;
   coverUrl?: string;
+  coverImageUrl?: string;
   address?: string;
   city?: string;
+  state?: string;
+  postalCode?: string;
   phone?: string;
+  email?: string;
   website?: string;
+  socialLinks?: {
+    instagram?: string;
+    twitter?: string;
+    facebook?: string;
+    tiktok?: string;
+    youtube?: string;
+  };
+  hours?: {
+    [day: string]: { open: string; close: string; closed?: boolean };
+  };
+  amenities?: string[];
+  priceRange?: '$' | '$$' | '$$$' | '$$$$';
+  isPublic?: boolean;
   isVerified: boolean;
   plajahUserDiscountPct?: number;
+  discount?: number;
+  rating?: number;
+  reviewCount?: number;
   stripeAccountId?: string;
   isAcceptingOrders: boolean;
   radioServiceEnabled: boolean;
@@ -2187,4 +2243,319 @@ export interface CrmContact {
   visitCount: number;
   lastVisit?: number;
   createdAt: number;
+}
+
+// ── SANCTUARY (TIERED FAN MEMBERSHIP) ────────────────────────────────────────
+
+export interface SanctuaryTier {
+  id: string;
+  creatorId: string;
+  name: string;
+  description: string;
+  price: number;          // monthly USD
+  annualPrice?: number;   // annual discount option
+  color: string;          // accent color for tier card
+  iconEmoji: string;
+  benefits: string[];
+  exclusiveContentIds?: string[];  // Content IDs unlocked at this tier
+  hasPrivateChat: boolean;
+  hasMemberBadge: boolean;
+  memberCount: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export interface SanctuaryMembership {
+  id: string;
+  tierId: string;
+  tierName: string;
+  tierColor: string;
+  creatorId: string;
+  memberId: string;
+  memberName: string;
+  memberPhoto?: string;
+  billingCycle: 'MONTHLY' | 'ANNUAL';
+  status: 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'PENDING';
+  startedAt: number;
+  renewsAt: number;
+  cancelledAt?: number;
+  stripeSubscriptionId?: string;
+}
+
+export interface SanctuaryExclusiveContent {
+  id: string;
+  creatorId: string;
+  title: string;
+  description?: string;
+  type: 'VIDEO' | 'AUDIO' | 'POST' | 'ARTICLE' | 'LIVE' | 'DOWNLOAD';
+  contentUrl?: string;
+  thumbnailUrl?: string;
+  requiredTierIds: string[];  // Must be member of at least one of these tiers
+  isPublicPreview: boolean;
+  publishedAt: number;
+  likesCount: number;
+  commentsCount: number;
+}
+
+export interface SanctuaryCreatorConfig {
+  isEnabled: boolean;
+  tiers: SanctuaryTier[];
+  welcomeMessage?: string;
+  coverImageUrl?: string;
+  totalMembers: number;
+  monthlyRevenue: number;
+}
+
+// ── STORE & E-COMMERCE ────────────────────────────────────────────────────────
+
+export type StoreProductCategory =
+  | 'APPAREL' | 'MUSIC' | 'ACCESSORIES' | 'DIGITAL'
+  | 'COLLECTIBLES' | 'BOOKS' | 'ELECTRONICS' | 'HOME' | 'ART' | 'OTHER';
+
+export interface StoreProductVariant {
+  id: string;
+  name: string;    // e.g. "Large / Black"
+  sku?: string;
+  stock: number;
+  priceModifier?: number; // + or - from base price
+  imageUrl?: string;
+}
+
+export interface StoreProduct {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  sellerPhoto?: string;
+  title: string;
+  description: string;
+  category: StoreProductCategory;
+  price: number;
+  compareAtPrice?: number;  // crossed-out original price
+  images: string[];
+  variants?: StoreProductVariant[];
+  stock: number;            // total across all variants
+  weight?: number;          // grams, for shipping calc
+  isDigital: boolean;
+  digitalFileUrl?: string;
+  tags?: string[];
+  rating?: number;
+  reviewCount?: number;
+  soldCount?: number;
+  isFeatured?: boolean;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+  worldId?: string;         // linked world/brand
+}
+
+export interface StoreOrderItem {
+  productId: string;
+  variantId?: string;
+  title: string;
+  imageUrl?: string;
+  price: number;
+  quantity: number;
+}
+
+export type StoreOrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+
+export interface StoreOrder {
+  id: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail?: string;
+  items: StoreOrderItem[];
+  subtotal: number;
+  shippingCost: number;
+  tax: number;
+  total: number;
+  status: StoreOrderStatus;
+  shippingAddress?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  trackingNumber?: string;
+  stripePaymentIntentId?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface StoreCartItem {
+  product: StoreProduct;
+  variantId?: string;
+  variantName?: string;
+  quantity: number;
+}
+
+export interface StoreReview {
+  id: string;
+  productId: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerPhoto?: string;
+  rating: number;      // 1-5
+  title?: string;
+  body: string;
+  images?: string[];
+  isVerifiedPurchase: boolean;
+  helpfulCount: number;
+  timestamp: number;
+}
+
+// ── GARAGE SALE (AUCTIONS) ────────────────────────────────────────────────────
+
+export type GarageSaleStatus = 'DRAFT' | 'ACTIVE' | 'ENDED' | 'SOLD' | 'CANCELLED';
+export type GarageSaleCondition = 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' | 'PARTS_ONLY';
+
+export interface GarageSaleItem {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  sellerPhoto?: string;
+  title: string;
+  description: string;
+  condition: GarageSaleCondition;
+  category: StoreProductCategory;
+  images: string[];
+  startingBid: number;
+  reservePrice?: number;    // Hidden minimum acceptable price
+  buyItNowPrice?: number;   // Instant purchase option
+  currentBid?: number;
+  currentBidderId?: string;
+  currentBidderName?: string;
+  bidCount: number;
+  watchers: string[];       // UIDs watching this auction
+  startTime: number;
+  endTime: number;
+  status: GarageSaleStatus;
+  winnerId?: string;
+  winnerName?: string;
+  finalPrice?: number;
+  shippingCost?: number;
+  isLocalPickup?: boolean;
+  tags?: string[];
+  createdAt: number;
+}
+
+export interface GarageSaleBid {
+  id: string;
+  itemId: string;
+  bidderId: string;
+  bidderName: string;
+  bidderPhoto?: string;
+  amount: number;
+  isAutoBid?: boolean;
+  maxAutoBid?: number;      // Auto-bidding ceiling
+  timestamp: number;
+}
+
+// ── CHAT EXTENSIONS (REACTIONS, REPLIES, PINS) ────────────────────────────────
+
+export interface ChatReaction {
+  emoji: string;
+  userIds: string[];       // UIDs who reacted with this emoji
+}
+
+export interface ChatPoll {
+  question: string;
+  options: string[];
+  votes: Record<string, string>;  // uid -> optionIndex string
+  endsAt?: number;
+  allowMultiple?: boolean;
+}
+
+// Extended ChatMessage fields (merged into ChatMessage via optional fields)
+// replyToId, reactions, isPinned, poll added to ChatMessage interface above
+
+// ── COMMENT POLLS ─────────────────────────────────────────────────────────────
+
+export interface PostPoll {
+  id: string;
+  postId: string;           // or clubPostId, etc.
+  creatorId: string;
+  question: string;
+  options: string[];
+  votes: Record<string, number[]>; // optionIndex string -> array of voterUIDs
+  allowMultiple: boolean;
+  endsAt?: number;
+  createdAt: number;
+  isAnonymous: boolean;
+}
+
+// ── BRAND PUBLIC PAGE ─────────────────────────────────────────────────────────
+
+export interface BrandPublicPageData {
+  id: string;
+  brandId: string;
+  adminId: string;
+  brandName: string;
+  tagline?: string;
+  about: string;
+  coverImageUrl?: string;
+  logoUrl?: string;
+  accentColor?: string;
+  roster: {
+    artistId: string;
+    artistName: string;
+    artistPhoto?: string;
+    role?: string;          // e.g. "Lead Vocalist", "Manager"
+  }[];
+  featuredReleaseIds: string[];  // Album/Video IDs
+  socialLinks?: {
+    instagram?: string;
+    twitter?: string;
+    spotify?: string;
+    website?: string;
+  };
+  pressKitUrl?: string;
+  contactEmail?: string;
+  isPublic: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── CLASSROOM EXTENSIONS ──────────────────────────────────────────────────────
+
+export interface LiveClassSession {
+  id: string;
+  classroomId: string;
+  hostId: string;
+  title: string;
+  scheduledAt: number;
+  durationMinutes: number;
+  meetingUrl?: string;
+  status: 'SCHEDULED' | 'LIVE' | 'ENDED';
+  recordingUrl?: string;
+  attendeeIds: string[];
+  createdAt: number;
+}
+
+export interface StudentGrade {
+  id: string;
+  classroomId: string;
+  studentId: string;
+  studentName: string;
+  assignmentId: string;
+  grade: number;
+  maxPoints: number;
+  feedback?: string;
+  gradedBy: string;
+  gradedAt: number;
+}
+
+export interface EnrollmentRequest {
+  id: string;
+  classroomId: string;
+  studentId: string;
+  studentName: string;
+  studentPhoto?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAt: number;
+  message?: string;
 }

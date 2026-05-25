@@ -387,15 +387,17 @@ export const fetchArchiveVideos = async (query: string = 'collection:feature_fil
     return docs.map((d: any) => {
       const subjects: string[] = Array.isArray(d.subject) ? d.subject : (d.subject ? [d.subject] : []);
       const collections: string[] = Array.isArray(d.collection) ? d.collection : (d.collection ? [d.collection] : []);
+      const normalizeStr = (v: any, fallback = '') =>
+        String(Array.isArray(v) ? v[0] : v ?? fallback) || fallback;
       return {
         identifier: d.identifier,
-        title: d.title || 'Untitled Archive Film',
-        description: d.description || '',
+        title: normalizeStr(d.title, 'Untitled Archive Film'),
+        description: normalizeStr(d.description),
         mediatype: d.mediatype,
         collection: collections,
         genre: normalizeArchiveGenre(subjects, collections),
-        year: d.year,
-        runtime: d.runtime,
+        year: normalizeStr(d.year),
+        runtime: normalizeStr(d.runtime),
         thumbnailUrl: `https://archive.org/services/img/${d.identifier}`
       };
     });
@@ -461,13 +463,17 @@ export const getArchiveItemFiles = async (identifier: string) => {
 };
 
 export const getBestVideoUrl = (identifier: string, files: any[]) => {
-  const mp4File = files.find((f: any) => f.name.endsWith('.mp4'));
-  if (mp4File) {
-    return `https://archive.org/download/${identifier}/${mp4File.name}`;
-  }
-  const fallback = files.find((f: any) => f.format && f.format.toLowerCase().includes('mpeg'));
-  if (fallback) {
-    return `https://archive.org/download/${identifier}/${fallback.name}`;
-  }
+  const byExt = files.find((f: any) => {
+    const n = (f.name || '').toLowerCase();
+    return n.endsWith('.mp4') || n.endsWith('.mpeg4') || n.endsWith('.m4v');
+  });
+  if (byExt) return `https://archive.org/download/${identifier}/${byExt.name}`;
+
+  const byFormat = files.find((f: any) => {
+    const fmt = (f.format || '').toLowerCase();
+    return fmt.includes('mpeg') || fmt.includes('mp4') || fmt.includes('h.264');
+  });
+  if (byFormat) return `https://archive.org/download/${identifier}/${byFormat.name}`;
+
   return null;
 };

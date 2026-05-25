@@ -40,7 +40,19 @@
       "Bash(cd C:\\\\\\\\Users\\\\\\\\Kenne\\\\\\\\plajah)",
       "Bash(Select-Object FullName)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Kenne\\\\plajah\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem c:\\\\Users\\\\Kenne\\\\plajah -Depth 1)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table)",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\ClassroomsView.tsx\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\ClassroomsView.tsx\"\\)[-100..-1] | Select-Object -Last 100 | ForEach-Object { $_ })",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\SanctuaryView.tsx\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\UserProfileView.tsx\" | Measure-Object -Line\\).Lines)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts',{}\\)\\)\")",
+      "Bash(xargs grep -l \"LoreEntry\\\\|Character\")",
+      "Bash(dir \"C:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\\" | findstr /i \"movie\\\\|taleo\\\\|cinema\")",
+      "Bash(powershell -Command \"\\(Get-Content 'C:\\\\Users\\\\Kenne\\\\plajah\\\\components\\\\MovieUXView.tsx'\\).Count\")",
+      "Bash(Select-Object -First 80)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Kenne\\.claude\\projects\\c--Users-Kenne-plajah\\memory"

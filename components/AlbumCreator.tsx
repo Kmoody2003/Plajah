@@ -59,6 +59,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [slideshowFiles, setSlideshowFiles] = useState<File[]>([]);
   const [bookChapters, setBookChapters] = useState<BookChapter[]>(initialAlbum?.bookChapters || []);
   const [bookPreviewConfig, setBookPreviewConfig] = useState(initialAlbum?.bookPreviewConfig || { type: 'PAGES' as const, allowedPageRange: [1, 5] as [number, number] });
+  const [allowPageSharing, setAllowPageSharing] = useState(initialAlbum?.allowPageSharing || false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(!!initialAlbum);
   const [status, setStatus] = useState({ text: '', percent: 0 });
@@ -82,7 +83,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newVideoThumb, setNewVideoThumb] = useState<File | undefined>(undefined);
   const [newVideoCover, setNewVideoCover] = useState<File | undefined>(undefined);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const detectMobile = () =>
+    window.matchMedia('(pointer: coarse)').matches ||
+    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+    window.innerWidth < 1024;
+  const [isMobile, setIsMobile] = useState(detectMobile);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
@@ -153,7 +158,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
-    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 1024), 150); };
+    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
@@ -230,13 +235,42 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     const fileArray = Array.from(files) as File[];
 
     if (type === 'BOOK') {
+      const BOOK_EXTS = new Set(['epub','pdf','txt','cbz','cbr','docx','rtf','fb2','html','htm','mobi','azw','azw3','djvu']);
+      const getBookFormat = (file: File): BookChapter['format'] => {
+        const ext = file.name.toLowerCase().split('.').pop() || '';
+        if (ext === 'epub') return 'EPUB';
+        if (ext === 'pdf') return 'PDF';
+        if (ext === 'cbz' || ext === 'cbr') return 'COMIC';
+        if (ext === 'docx') return 'DOCX';
+        if (ext === 'rtf') return 'RTF';
+        if (ext === 'fb2') return 'FB2';
+        if (ext === 'html' || ext === 'htm') return 'HTML';
+        if (ext === 'mobi' || ext === 'azw' || ext === 'azw3') return 'MOBI';
+        if (ext === 'djvu') return 'DJVU';
+        if (ext === 'txt' || file.type === 'text/plain') return 'TXT';
+        if (file.type === 'application/epub+zip') return 'EPUB';
+        if (file.type === 'application/pdf') return 'PDF';
+        return 'FILE';
+      };
+      const isBookFile = (file: File) => {
+        const ext = file.name.toLowerCase().split('.').pop() || '';
+        return BOOK_EXTS.has(ext) ||
+          file.type === 'application/pdf' ||
+          file.type === 'application/epub+zip' ||
+          file.type === 'text/plain' ||
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          file.type === 'application/rtf' || file.type === 'text/rtf' ||
+          file.type === 'text/html';
+      };
       const newChapters: BookChapter[] = [];
       for (const file of fileArray) {
-        if (file.type === 'application/pdf' || file.type === 'application/epub+zip' || file.type === 'text/plain') {
+        if (isBookFile(file)) {
+          const fmt = getBookFormat(file);
           newChapters.push({
             id: Math.random().toString(36).substr(2, 9),
-            title: file.name.replace(/\.[^/.]+$/, "").replace(/^\d+\s*[-_]*\s*/, ""),
+            title: file.name.replace(/\.[^/.]+$/, "").replace(/^\d+\s*[-_]*\s*/, "").replace(/[-_]/g, ' ').trim(),
             url: URL.createObjectURL(file),
+            format: fmt,
             price: 0,
             isPaywalled: false
           });
@@ -391,7 +425,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         videoPlaylists,
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
         movieMetadata: (type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES')) ? finalMovieMetadata : undefined,
-        bookChapters, bookPreviewConfig, liveFeedUrl, donationGoal, tags, relatedProjectIds, trackListLabel: trackListLabel || undefined,
+        bookChapters, bookPreviewConfig, allowPageSharing: type === 'BOOK' ? allowPageSharing : undefined, liveFeedUrl, donationGoal, tags, relatedProjectIds, trackListLabel: trackListLabel || undefined,
         gameUrl: type === 'GAME' ? gameUrl : undefined,
         gameVideoUrl: type === 'GAME' ? gameVideoUrl : undefined,
         gameScreenshots: type === 'GAME' ? gameScreenshots : undefined,
@@ -721,14 +755,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && (
         <div className="space-y-4">
           <div className="relative group">
-            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-[3rem] flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
               <div className="p-6 rounded-[1.5rem] bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
                 <p className="text-lg font-black uppercase tracking-widest text-white/60 mb-2">
-                  {type === 'BOOK' ? 'Upload Chapters / Files' : type === 'PHOTO' ? 'Upload Photos' : type === 'VIDEO' ? 'Upload Video' : 'Upload Audio Tracks'}
+                  {type === 'BOOK' ? 'Upload Book Files' : type === 'PHOTO' ? 'Upload Photos' : type === 'VIDEO' ? 'Upload Video' : 'Upload Audio Tracks'}
                 </p>
                 <p className="text-[11px] text-small-orange font-black uppercase tracking-[0.4em] opacity-60">Direct Upload to Google Cloud Storage</p>
+                {type === 'BOOK' && (
+                  <div className="mt-5 flex flex-wrap justify-center gap-2 max-w-sm mx-auto pointer-events-none">
+                    {['EPUB', 'PDF', 'TXT', 'CBZ', 'CBR', 'DOCX', 'RTF', 'FB2', 'HTML', 'MOBI', 'AZW3', 'DJVU'].map(fmt => (
+                      <span key={fmt} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/8 text-[8px] font-black uppercase tracking-widest text-white/30">{fmt}</span>
+                    ))}
+                  </div>
+                )}
                 {type === 'MUSIC' && (
                   <div className="mt-6 flex flex-col gap-2 items-center max-w-md mx-auto pointer-events-none">
                     <div className="flex items-center gap-2 text-[10px] text-white/40 font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5"><Info size={12} className="text-blue-400" /><span>Tips for Album Uploads</span></div>
@@ -764,13 +805,41 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       )}
 
+      {type === 'BOOK' && (
+        <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-widest text-white/70">Allow Page Sharing</h4>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/25 mt-0.5">Readers can share individual pages to their Plajah feed</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAllowPageSharing(!allowPageSharing)}
+              className={`w-14 h-7 rounded-full transition-all duration-300 relative ${allowPageSharing ? 'bg-small-orange' : 'bg-white/10'}`}
+            >
+              <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${allowPageSharing ? 'left-8' : 'left-1'}`} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {type === 'BOOK' && bookChapters.length > 0 && (
         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
           {bookChapters.map((chapter, i) => (
             <div key={chapter.id} className="flex flex-col gap-5 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-5 overflow-hidden flex-1">
-                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10">{i + 1}</div>
+                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
+                  {chapter.format && (
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                      chapter.format === 'EPUB' ? 'bg-[#D0BCFF]/10 text-[#D0BCFF] border-[#D0BCFF]/20' :
+                      chapter.format === 'PDF' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                      chapter.format === 'COMIC' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
+                      chapter.format === 'MOBI' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                      chapter.format === 'HTML' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                      'bg-white/5 text-white/30 border-white/10'
+                    }`}>{chapter.format}</span>
+                  )}
                   <input type="text" value={chapter.title} onChange={(e) => setBookChapters(bookChapters.map(c => c.id === chapter.id ? { ...c, title: e.target.value } : c))} className="bg-transparent border-none focus:outline-none text-xl font-display font-black uppercase tracking-tight truncate flex-1 text-white placeholder:text-white/10" placeholder="Chapter Title" />
                 </div>
                 <button type="button" onClick={() => setBookChapters(bookChapters.filter(c => c.id !== chapter.id))} className="p-4 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"><X size={20} /></button>

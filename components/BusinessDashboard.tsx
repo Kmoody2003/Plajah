@@ -57,9 +57,10 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 
 interface BusinessDashboardProps {
   currentUser: UserProfile;
+  onNavigate?: (target: string, params?: any) => void;
 }
 
-const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser }) => {
+const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<BizTab>('OVERVIEW');
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [activePage, setActivePage] = useState<BusinessPage | null>(null);
@@ -608,12 +609,22 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser }) =>
             <div className="space-y-4">
               <Card>
                 <h3 className="text-sm font-black uppercase tracking-widest text-white mb-4">Business Details</h3>
-                <button
-                  onClick={() => setEditingPage(activePage)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
-                >
-                  <Edit3 size={12} /> Edit Details
-                </button>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => setEditingPage(activePage)}
+                    className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
+                  >
+                    <Edit3 size={12} /> Edit Details
+                  </button>
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate('BUSINESS_PUBLIC', { businessPage: activePage })}
+                      className="flex items-center gap-2 px-5 py-3 bg-white/10 border border-white/20 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/15 transition-all"
+                    >
+                      <Globe size={12} /> View Public Page
+                    </button>
+                  )}
+                </div>
               </Card>
               <Card>
                 <h3 className="text-sm font-black uppercase tracking-widest text-red-400 mb-4">Danger Zone</h3>

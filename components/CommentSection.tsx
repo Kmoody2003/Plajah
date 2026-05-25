@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Send, Heart, Reply, Trash2, Smile, X, ChevronDown,
-  Loader2, MessageCircle, AtSign, LogIn
+  Loader2, MessageCircle, AtSign, LogIn, BarChart2, Plus, Check,
+  Clock, Users,
 } from 'lucide-react';
+import {
+  collection, addDoc, getDocs, query, where, onSnapshot,
+  doc, updateDoc, arrayUnion, arrayRemove, orderBy,
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
 import {
   auth,
   subscribeToPostComments,
@@ -479,6 +485,269 @@ const CommentInput: React.FC<InputProps> = ({ postId, replyTo, onClearReply, onC
   );
 };
 
+// ─── Poll Types ───────────────────────────────────────────────────────────────
+
+interface PollData {
+  id: string;
+  postId: string;
+  creatorId: string;
+  creatorName: string;
+  creatorPhoto?: string;
+  question: string;
+  options: string[];
+  votes: Record<string, string[]>; // optionIndex -> array of voter UIDs
+  allowMultiple: boolean;
+  endsAt?: number;
+  isAnonymous: boolean;
+  createdAt: number;
+}
+
+// ─── PollDisplay ──────────────────────────────────────────────────────────────
+
+const PollDisplay: React.FC<{ poll: PollData; isDark: boolean }> = ({ poll, isDark }) => {
+  const uid = auth.currentUser?.uid;
+  const isExpired = poll.endsAt ? poll.endsAt < Date.now() : false;
+
+  const totalVotes = Object.values(poll.votes).reduce((sum, uids) => sum + uids.length, 0);
+
+  const myVotes = uid
+    ? Object.entries(poll.votes)
+        .filter(([, uids]) => uids.includes(uid))
+        .map(([idx]) => idx)
+    : [];
+  const hasVoted = myVotes.length > 0;
+
+  const handleVote = async (optionIdx: number) => {
+    if (!uid || isExpired) return;
+    const ref = doc(db, 'polls', poll.id);
+    const field = `votes.${optionIdx}`;
+    const alreadyVoted = myVotes.includes(String(optionIdx));
+
+    if (alreadyVoted) {
+      await updateDoc(ref, { [field]: arrayRemove(uid) });
+    } else {
+      if (!poll.allowMultiple) {
+        // Remove previous vote first
+        for (const prev of myVotes) {
+          await updateDoc(ref, { [`votes.${prev}`]: arrayRemove(uid) });
+        }
+      }
+      await updateDoc(ref, { [field]: arrayUnion(uid) });
+    }
+  };
+
+  const bg = isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-black/[0.03] border-black/[0.06]';
+  const textBase = isDark ? 'text-white' : 'text-black';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-2xl border p-4 space-y-3 ${bg}`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <BarChart2 size={14} className="text-small-orange shrink-0" />
+        <span className="text-[9px] font-black uppercase tracking-widest text-small-orange">Poll</span>
+        {isExpired && (
+          <span className="ml-auto text-[8px] font-bold text-white/20 uppercase flex items-center gap-1">
+            <Clock size={9} /> Ended
+          </span>
+        )}
+      </div>
+
+      <p className={`text-sm font-bold leading-snug ${textBase}`}>{poll.question}</p>
+
+      {/* Options */}
+      <div className="space-y-2">
+        {poll.options.map((option, i) => {
+          const count = poll.votes[i]?.length ?? 0;
+          const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          const isMyVote = myVotes.includes(String(i));
+
+          return (
+            <button
+              key={i}
+              onClick={() => handleVote(i)}
+              disabled={isExpired || !uid}
+              className={`w-full relative overflow-hidden rounded-xl border text-left transition-all ${
+                isMyVote
+                  ? 'border-small-orange/50 bg-small-orange/10'
+                  : isDark ? 'border-white/10 hover:border-white/20 bg-white/[0.03]' : 'border-black/10 hover:border-black/20 bg-black/[0.03]'
+              } disabled:cursor-not-allowed`}
+            >
+              {/* Progress bar fill */}
+              {(hasVoted || isExpired) && (
+                <div
+                  className={`absolute inset-y-0 left-0 transition-all duration-700 rounded-xl ${isMyVote ? 'bg-small-orange/15' : isDark ? 'bg-white/5' : 'bg-black/5'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              )}
+              <div className="relative flex items-center justify-between px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isMyVote ? 'bg-small-orange border-small-orange' : isDark ? 'border-white/20' : 'border-black/20'}`}>
+                    {isMyVote && <Check size={9} className="text-white" />}
+                  </div>
+                  <span className={`text-[11px] font-bold ${textBase}`}>{option}</span>
+                </div>
+                {(hasVoted || isExpired) && (
+                  <span className={`text-[9px] font-black ${isMyVote ? 'text-small-orange' : isDark ? 'text-white/30' : 'text-black/30'}`}>{pct}%</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-1 text-[9px] font-bold text-white/20">
+          <Users size={9} /> {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+        </span>
+        {poll.endsAt && !isExpired && (
+          <span className="flex items-center gap-1 text-[9px] font-bold text-white/20">
+            <Clock size={9} />
+            Ends {new Date(poll.endsAt).toLocaleDateString()}
+          </span>
+        )}
+        {poll.isAnonymous && <span className="text-[9px] font-bold text-white/20">· Anonymous</span>}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─── PollComposer ─────────────────────────────────────────────────────────────
+
+const PollComposer: React.FC<{ postId: string; onDone: () => void; isDark: boolean }> = ({ postId, onDone, isDark }) => {
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState(['', '']);
+  const [allowMultiple, setAllowMultiple] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [endsAt, setEndsAt] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addOption = () => { if (options.length < 4) setOptions(prev => [...prev, '']); };
+  const removeOption = (i: number) => { if (options.length > 2) setOptions(prev => prev.filter((_, idx) => idx !== i)); };
+  const updateOption = (i: number, val: string) => setOptions(prev => { const n = [...prev]; n[i] = val; return n; });
+
+  const handleSubmit = async () => {
+    const user = auth.currentUser;
+    if (!user || !question.trim() || options.filter(o => o.trim()).length < 2) return;
+    setIsSubmitting(true);
+    try {
+      const votes: Record<string, string[]> = {};
+      options.forEach((_, i) => { votes[i] = []; });
+
+      await addDoc(collection(db, 'polls'), {
+        postId,
+        creatorId: user.uid,
+        creatorName: user.displayName || 'Anonymous',
+        creatorPhoto: user.photoURL || '',
+        question: question.trim(),
+        options: options.filter(o => o.trim()),
+        votes,
+        allowMultiple,
+        isAnonymous,
+        endsAt: endsAt ? new Date(endsAt).getTime() : null,
+        createdAt: Date.now(),
+      });
+      onDone();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const bg = isDark ? 'bg-white/[0.05] border-white/10' : 'bg-black/[0.04] border-black/10';
+  const inputBase = isDark
+    ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20'
+    : 'bg-black/5 border-black/10 text-black placeholder:text-black/20';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className={`rounded-2xl border p-4 space-y-3 overflow-hidden ${bg}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={14} className="text-small-orange" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-small-orange">Create Poll</span>
+        </div>
+        <button onClick={onDone} className="p-1 hover:bg-white/10 rounded-lg transition-all"><X size={14} /></button>
+      </div>
+
+      <input
+        value={question}
+        onChange={e => setQuestion(e.target.value)}
+        placeholder="Ask a question…"
+        className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all ${inputBase}`}
+      />
+
+      <div className="space-y-2">
+        {options.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={opt}
+              onChange={e => updateOption(i, e.target.value)}
+              placeholder={`Option ${i + 1}`}
+              className={`flex-1 rounded-xl border px-3 py-2 text-[12px] outline-none transition-all ${inputBase}`}
+            />
+            {options.length > 2 && (
+              <button onClick={() => removeOption(i)} className="p-1.5 hover:bg-red-500/10 rounded-lg transition-all shrink-0">
+                <X size={12} className="text-red-400" />
+              </button>
+            )}
+          </div>
+        ))}
+        {options.length < 4 && (
+          <button
+            onClick={addOption}
+            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-all"
+          >
+            <Plus size={11} /> Add option
+          </button>
+        )}
+      </div>
+
+      {/* Settings */}
+      <div className="flex items-center gap-4 flex-wrap">
+        {[
+          { label: 'Multi-choice', value: allowMultiple, set: setAllowMultiple },
+          { label: 'Anonymous', value: isAnonymous, set: setIsAnonymous },
+        ].map(({ label, value, set }) => (
+          <button
+            key={label}
+            onClick={() => set((v: boolean) => !v)}
+            className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${value ? 'text-small-orange' : 'text-white/30 hover:text-white'}`}
+          >
+            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${value ? 'bg-small-orange border-small-orange' : 'border-white/20'}`}>
+              {value && <Check size={9} className="text-white" />}
+            </div>
+            {label}
+          </button>
+        ))}
+
+        <input
+          type="date"
+          value={endsAt}
+          onChange={e => setEndsAt(e.target.value)}
+          className={`text-[9px] rounded-lg border px-2 py-1 outline-none ${inputBase}`}
+          title="Ends at (optional)"
+        />
+      </div>
+
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitting || !question.trim() || options.filter(o => o.trim()).length < 2}
+        className="w-full py-2.5 bg-small-orange text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all disabled:opacity-30"
+      >
+        {isSubmitting ? 'Creating…' : 'Create Poll'}
+      </button>
+    </motion.div>
+  );
+};
+
 // ─── CommentSection (main) ────────────────────────────────────────────────────
 
 const mapLegacyComment = (c: any): PostComment => ({
@@ -516,7 +785,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(!isLegacy);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [polls, setPolls] = useState<PollData[]>([]);
+  const [showPollComposer, setShowPollComposer] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Fetch polls for this post
+  useEffect(() => {
+    if (!postId || isLegacy) return;
+    const q = query(collection(db, 'polls'), where('postId', '==', postId), orderBy('createdAt', 'asc'));
+    const unsub = onSnapshot(q, snap => {
+      setPolls(snap.docs.map(d => ({ id: d.id, ...d.data() } as PollData)));
+    });
+    return unsub;
+  }, [postId, isLegacy]);
 
   // Subscribe only in self-contained mode
   useEffect(() => {
@@ -631,6 +912,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 
       {/* ── Comment list ── */}
       <div ref={listRef} className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 space-y-6 custom-scrollbar">
+        {/* Polls */}
+        {polls.length > 0 && (
+          <div className="space-y-3">
+            {polls.map(poll => (
+              <PollDisplay key={poll.id} poll={poll} isDark={isDark} />
+            ))}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 size={24} className="animate-spin text-small-orange opacity-50" />
@@ -638,7 +928,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               Loading signals…
             </p>
           </div>
-        ) : rootComments.length === 0 ? (
+        ) : rootComments.length === 0 && polls.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -673,16 +963,41 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       </div>
 
       {/* ── Input footer ── */}
-      <div className={`px-5 sm:px-8 py-4 sm:py-5 border-t ${headerBorder} shrink-0 ${isDark ? 'bg-black/30' : 'bg-white/50'}`}>
+      <div className={`px-5 sm:px-8 py-4 sm:py-5 border-t ${headerBorder} shrink-0 ${isDark ? 'bg-black/30' : 'bg-white/50'} space-y-3`}>
+        {/* Poll composer toggle */}
+        {auth.currentUser && postId && !isLegacy && (
+          <AnimatePresence>
+            {showPollComposer ? (
+              <PollComposer
+                key="composer"
+                postId={postId}
+                onDone={() => setShowPollComposer(false)}
+                isDark={isDark}
+              />
+            ) : null}
+          </AnimatePresence>
+        )}
+
         {auth.currentUser ? (
-          <CommentInput
-            postId={safePostId}
-            replyTo={replyTo}
-            onClearReply={() => setReplyTo(null)}
-            onCommentPosted={handleCommentPosted}
-            isDark={isDark}
-            onSubmitOverride={isLegacy ? onPostComment : undefined}
-          />
+          <div className="space-y-2">
+            <CommentInput
+              postId={safePostId}
+              replyTo={replyTo}
+              onClearReply={() => setReplyTo(null)}
+              onCommentPosted={handleCommentPosted}
+              isDark={isDark}
+              onSubmitOverride={isLegacy ? onPostComment : undefined}
+            />
+            {postId && !isLegacy && (
+              <button
+                onClick={() => setShowPollComposer(p => !p)}
+                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${showPollComposer ? 'text-small-orange' : isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
+              >
+                <BarChart2 size={11} />
+                {showPollComposer ? 'Cancel poll' : 'Add poll'}
+              </button>
+            )}
+          </div>
         ) : (
           <button
             onClick={() => setShowSignIn(true)}

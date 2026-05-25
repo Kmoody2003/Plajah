@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Send, Mic, Video, Phone, Plus, Image as ImageIcon, Sparkles,
   ChevronLeft, MoreVertical, X, Play, Pause, Layers, Music,
-  Check, CheckCheck, User, Download, StopCircle,
+  Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
+  Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
+  Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -10,118 +12,154 @@ import {
   sendMessage, listenToMessages, auth,
   createCollabProject, fetchCollabProjects, fetchUserContent,
   updateTypingStatus, markMessageAsSeen, fetchUserProfiles,
+  uploadFile,
 } from '../services/backendService';
-import { uploadFile } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
 import VoiceRecorder from './VoiceRecorder';
+import {
+  doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
+
+// ── Extended ChatMessage with reactions + reply ───────────────────────────────
+type ExtendedMessage = ChatMessage & {
+  replyToId?: string;
+  replyToText?: string;
+  replyToSender?: string;
+  reactions?: Record<string, string[]>;  // emoji → UIDs
+  isPinned?: boolean;
+  forwardedFrom?: string;
+};
 
 interface ChatWindowProps {
   room: ChatRoom;
+  profiles?: Record<string, UserProfile>;
+  currentUserProfile?: UserProfile;
   onBack?: () => void;
   onOpenCollab: (projectId: string) => void;
   onStartVideo?: () => void;
 }
 
-// ── Voice Message Player ──────────────────────────────────────────────────────
-const VoicePlayer: React.FC<{ src: string; accent?: string }> = ({ src, accent = '#FF8C00' }) => {
+const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '🔥', '👏', '💯', '🎯'];
+
+// ── Voice player ──────────────────────────────────────────────────────────────
+const VoicePlayer: React.FC<{ src: string }> = ({ src }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
-    const audio = new Audio(src);
-    audioRef.current = audio;
-    audio.onloadedmetadata = () => setDuration(audio.duration);
-    audio.ontimeupdate = () => setProgress(audio.currentTime / (audio.duration || 1));
-    audio.onended = () => { setPlaying(false); setProgress(0); };
-    return () => { audio.pause(); audio.src = ''; };
+    const a = new Audio(src);
+    audioRef.current = a;
+    a.onloadedmetadata = () => setDuration(a.duration);
+    a.ontimeupdate = () => setProgress(a.currentTime / (a.duration || 1));
+    a.onended = () => { setPlaying(false); setProgress(0); };
+    return () => { a.pause(); a.src = ''; };
   }, [src]);
 
-  const toggle = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (playing) { audio.pause(); setPlaying(false); }
-    else { audio.play(); setPlaying(true); }
-  };
-
-  const fmt = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   return (
-    <div className="flex items-center gap-3 min-w-[180px]">
-      <button onClick={toggle} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all shrink-0">
-        {playing ? <Pause size={14} fill="white" /> : <Play size={14} fill="white" />}
+    <div className="flex items-center gap-3 min-w-[200px]">
+      <button onClick={() => {
+        if (!audioRef.current) return;
+        playing ? audioRef.current.pause() : audioRef.current.play();
+        setPlaying(p => !p);
+      }} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center shrink-0 transition-all">
+        {playing ? <Pause size={13} fill="white" /> : <Play size={13} fill="white" />}
       </button>
       <div className="flex-1 space-y-1">
         <div
-          className="h-1.5 rounded-full bg-white/20 overflow-hidden cursor-pointer"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const ratio = (e.clientX - rect.left) / rect.width;
-            if (audioRef.current) { audioRef.current.currentTime = ratio * (audioRef.current.duration || 0); }
+          className="h-1.5 rounded-full bg-white/20 cursor-pointer overflow-hidden"
+          onClick={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            if (audioRef.current) audioRef.current.currentTime = ((e.clientX - r.left) / r.width) * (audioRef.current.duration || 0);
           }}
         >
-          <div className="h-full rounded-full transition-all" style={{ width: `${progress * 100}%`, background: 'white' }} />
+          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress * 100}%` }} />
         </div>
-        <span className="text-[9px] font-mono opacity-60">
-          {playing ? fmt((audioRef.current?.currentTime) ?? 0) : fmt(duration)}
-        </span>
+        <span className="text-[9px] font-mono opacity-50">{fmt(playing && audioRef.current ? audioRef.current.currentTime : duration)}</span>
       </div>
+      <Volume2 size={12} className="opacity-30 shrink-0" />
     </div>
   );
 };
 
-// ── Room avatar ───────────────────────────────────────────────────────────────
-const RoomIcon: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfile> }> = ({ room, profiles }) => {
-  const currentUid = auth.currentUser?.uid;
+// ── Room Avatar (inline helper) ───────────────────────────────────────────────
+const RoomHeaderAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfile> }> = ({ room, profiles }) => {
+  const uid = auth.currentUser?.uid;
   if (room.type === 'PRIVATE') {
-    const otherId = room.participants.find(uid => uid !== currentUid);
-    const profile = otherId ? profiles[otherId] : null;
+    const otherId = room.participants.find(id => id !== uid);
+    const p = otherId ? profiles[otherId] : null;
     return (
-      <div className="w-11 h-11 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 shadow-xl">
-        {profile?.photoURL
-          ? <img src={profile.photoURL} alt={profile.displayName} className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center"><User size={18} className="text-white/20" /></div>}
+      <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 shrink-0">
+        {p?.photoURL ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-white/10 flex items-center justify-center"><User size={14} className="text-white/20" /></div>}
       </div>
     );
   }
-  const others = room.participants.filter(uid => uid !== currentUid).slice(0, 4);
   return (
-    <div className="w-11 h-11 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 relative shadow-xl">
-      <div className="grid grid-cols-2 grid-rows-2 h-full w-full">
-        {others.map(uid => (
-          <div key={uid} className="border-[0.5px] border-black/20 overflow-hidden">
-            {profiles[uid]?.photoURL
-              ? <img src={profiles[uid].photoURL!} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-white/10" />}
-          </div>
-        ))}
-        {others.length === 0 && <div className="col-span-2 row-span-2 flex items-center justify-center"><User size={18} className="text-white/20" /></div>}
-      </div>
+    <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 shrink-0 flex items-center justify-center">
+      <Hash size={16} className="text-white/40" />
     </div>
   );
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
-const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onStartVideo }) => {
-  const [messages, setMessages]               = useState<ChatMessage[]>([]);
-  const [decryptedMessages, setDecryptedMsgs] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText]             = useState('');
+// ── Reaction badge ────────────────────────────────────────────────────────────
+const ReactionBadge: React.FC<{
+  emoji: string; count: number; hasReacted: boolean;
+  onClick: () => void;
+}> = ({ emoji, count, hasReacted, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-all ${
+      hasReacted ? 'bg-small-orange/20 border-small-orange/40 text-small-orange' : 'bg-white/5 border-white/10 hover:bg-white/10'
+    }`}
+  >
+    <span>{emoji}</span>
+    <span className="font-bold text-[9px]">{count}</span>
+  </button>
+);
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo,
+}) => {
+  const [messages, setMessages] = useState<ExtendedMessage[]>([]);
+  const [decryptedMessages, setDecryptedMsgs] = useState<ExtendedMessage[]>([]);
+  const [inputText, setInputText] = useState('');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [profiles, setProfiles]               = useState<Record<string, UserProfile>>({});
-  const [collabProjects, setCollabProjects]   = useState<CollabProject[]>([]);
-  const [showCollabMenu, setShowCollabMenu]   = useState(false);
+  const [profiles, setProfiles] = useState<Record<string, UserProfile>>(externalProfiles);
+  const [collabProjects, setCollabProjects] = useState<CollabProject[]>([]);
+  const [showCollabMenu, setShowCollabMenu] = useState(false);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
-  const [userMedia, setUserMedia]             = useState<Album[]>([]);
-  const [isTyping, setIsTyping]               = useState(false);
-  const [uploadingImage, setUploadingImage]   = useState(false);
+  const [userMedia, setUserMedia] = useState<Album[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // New UX state
+  const [replyTo, setReplyTo] = useState<ExtendedMessage | null>(null);
+  const [pinnedMessages, setPinnedMessages] = useState<ExtendedMessage[]>([]);
+  const [showPinnedPanel, setShowPinnedPanel] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [contextMenuMsg, setContextMenuMsg] = useState<ExtendedMessage | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null); // messageId
+  const [showFediversePanel, setShowFediversePanel] = useState(false);
+  const [fediverseText, setFediverseText] = useState('');
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const messagesEndRef   = useRef<HTMLDivElement | null>(null);
-  const imageInputRef    = useRef<HTMLInputElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Merge external profiles
+  useEffect(() => {
+    setProfiles(prev => ({ ...externalProfiles, ...prev }));
+  }, [externalProfiles]);
 
   // Decrypt messages
   useEffect(() => {
@@ -130,13 +168,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
     Promise.all(messages.map(async m => ({
       ...m,
       text: m.text ? await decryptText(m.text, room.id) : m.text,
-    }))).then(dec => { if (!cancelled) setDecryptedMsgs(dec); });
+    }))).then(dec => {
+      if (!cancelled) {
+        setDecryptedMsgs(dec as ExtendedMessage[]);
+        setPinnedMessages(dec.filter(m => (m as ExtendedMessage).isPinned) as ExtendedMessage[]);
+      }
+    });
     return () => { cancelled = true; };
   }, [messages, room.id]);
 
   useEffect(() => {
     const unsub = listenToMessages(room.id, (msgs) => {
-      setMessages(msgs);
+      setMessages(msgs as ExtendedMessage[]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
       const last = msgs[msgs.length - 1];
       if (last && last.senderId !== auth.currentUser?.uid && !last.seenBy?.includes(auth.currentUser?.uid ?? '')) {
@@ -147,12 +190,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
     fetchUserProfiles(room.participants).then(ps => {
       const m: Record<string, UserProfile> = {};
       ps.forEach(p => { m[p.uid] = p; });
-      setProfiles(m);
+      setProfiles(prev => ({ ...prev, ...m }));
     });
     fetchCollabProjects(room.id).then(setCollabProjects);
     if (auth.currentUser) fetchUserContent(auth.currentUser.uid).then(setUserMedia);
 
-    return () => { unsub(); if (isTyping) updateTypingStatus(room.id, false); };
+    return () => {
+      unsub();
+      if (isTyping) updateTypingStatus(room.id, false);
+    };
   }, [room.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,13 +211,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
     }, 3000);
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim()) return;
-    if (isTyping) { setIsTyping(false); updateTypingStatus(room.id, false); if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); }
+    if (isTyping) { setIsTyping(false); updateTypingStatus(room.id, false); clearTimeout(typingTimeoutRef.current!); }
+
     const encrypted = await encryptText(inputText, room.id);
-    await sendMessage(room.id, { senderId: auth.currentUser?.uid || '', senderName: auth.currentUser?.displayName || 'Anonymous', senderPhoto: auth.currentUser?.photoURL || '', text: encrypted, type: 'TEXT' });
+    const msgData: any = {
+      senderId: auth.currentUser?.uid || '',
+      senderName: auth.currentUser?.displayName || 'Anonymous',
+      senderPhoto: auth.currentUser?.photoURL || '',
+      text: encrypted,
+      type: 'TEXT',
+    };
+
+    if (replyTo) {
+      msgData.replyToId = replyTo.id;
+      msgData.replyToText = replyTo.text?.slice(0, 80);
+      msgData.replyToSender = replyTo.senderName;
+    }
+
+    await sendMessage(room.id, msgData);
     setInputText('');
+    setReplyTo(null);
   };
 
   const handleSendVoice = async (blob: Blob) => {
@@ -211,8 +273,75 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
     }
   };
 
+  const handleReact = async (msgId: string, emoji: string) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const msg = decryptedMessages.find(m => m.id === msgId);
+    if (!msg) return;
+    const current = (msg.reactions?.[emoji] || []) as string[];
+    const hasReacted = current.includes(uid);
+    const msgRef = doc(db, 'chatRooms', room.id, 'messages', msgId);
+    const field = `reactions.${emoji}`;
+    if (hasReacted) {
+      await updateDoc(msgRef, { [field]: arrayRemove(uid) });
+    } else {
+      await updateDoc(msgRef, { [field]: arrayUnion(uid) });
+    }
+    setShowEmojiPicker(null);
+  };
+
+  const handlePinMessage = async (msgId: string, currentPinned: boolean) => {
+    const msgRef = doc(db, 'chatRooms', room.id, 'messages', msgId);
+    await updateDoc(msgRef, { isPinned: !currentPinned });
+    setContextMenuMsg(null);
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!window.confirm('Delete this message?')) return;
+    await deleteDoc(doc(db, 'chatRooms', room.id, 'messages', msgId));
+    setContextMenuMsg(null);
+  };
+
+  const handleCopyText = (text?: string) => {
+    if (text) navigator.clipboard.writeText(text);
+    setContextMenuMsg(null);
+  };
+
+  const handleForwardMessage = (msg: ExtendedMessage) => {
+    setContextMenuMsg(null);
+    setInputText(`↪ ${msg.text || '[media]'}`);
+    inputRef.current?.focus();
+  };
+
+  const handleBroadcastToFediverse = async () => {
+    if (!fediverseText.trim()) return;
+    try {
+      const res = await fetch('/api/fediverse/broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`,
+        },
+        body: JSON.stringify({ text: fediverseText, url: window.location.href }),
+      });
+      if (res.ok) {
+        setFediverseText('');
+        setShowFediversePanel(false);
+        await sendMessage(room.id, {
+          senderId: auth.currentUser?.uid || '',
+          senderName: auth.currentUser?.displayName || 'Anonymous',
+          senderPhoto: auth.currentUser?.photoURL || '',
+          text: await encryptText(`📡 Posted to Fediverse: "${fediverseText}"`, room.id),
+          type: 'SYSTEM',
+        });
+      }
+    } catch (err) {
+      console.error('Fediverse broadcast failed:', err);
+    }
+  };
+
   const handleCreateCollab = async () => {
-    const name = prompt('Enter collaboration project name:');
+    const name = prompt('Collaboration board name:');
     if (name) {
       const id = await createCollabProject(name, room.id);
       setCollabProjects(prev => [...prev, { id, name, chatRoomId: room.id, assets: [], links: [], updatedAt: Date.now(), ownerId: auth.currentUser?.uid || '' }]);
@@ -227,154 +356,364 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
       senderPhoto: auth.currentUser?.photoURL || '',
       mediaId: media.id,
       mediaType: 'ALBUM',
-      text: `Shared an album: ${media.title}`,
+      text: await encryptText(`Shared: ${media.title}`, room.id),
       type: 'MEDIA',
     });
     setShowMediaSelector(false);
   };
 
-  const typingUsers = room.typingUsers?.filter(uid => uid !== auth.currentUser?.uid) || [];
+  const uid = auth.currentUser?.uid;
+  const typingUsers = room.typingUsers?.filter(id => id !== uid) || [];
   const roomName = room.type === 'PRIVATE'
-    ? (profiles[room.participants.find(uid => uid !== auth.currentUser?.uid) ?? '']?.displayName || 'Direct Message')
-    : (room.name || 'Group Chat');
+    ? (profiles[room.participants.find(id => id !== uid) ?? '']?.displayName || 'Direct Message')
+    : (room.name || (room.type === 'PUBLIC_LIVE' ? 'Live Channel' : 'Group Chat'));
+
+  const displayedMessages = searchMode && searchQuery
+    ? decryptedMessages.filter(m => m.text?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : decryptedMessages;
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-black/20 backdrop-blur-2xl">
-      {/* Hidden image input */}
+    <div className="flex flex-col h-full overflow-hidden bg-black/10">
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
 
-      {/* Header */}
-      <div className="p-4 bg-white/[0.04] backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-3 min-w-0">
-          {onBack && (
-            <button onClick={onBack} className="lg:hidden p-2.5 hover:bg-white/10 rounded-xl transition-all shrink-0">
-              <ChevronLeft size={18} />
-            </button>
-          )}
-          <div className="relative shrink-0">
-            <RoomIcon room={room} profiles={profiles} />
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-black uppercase tracking-widest truncate">{roomName}</h3>
-            <div className="flex items-center gap-1.5">
-              {typingUsers.length > 0
-                ? <span className="text-[9px] font-bold text-small-orange uppercase tracking-widest">typing…</span>
-                : <>
-                    <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{room.type === 'PRIVATE' ? 'Direct' : `${room.participants.length} members`}</span>
-                    <span className="text-[9px] font-bold text-green-500 uppercase tracking-widest">· Active</span>
-                  </>}
-            </div>
+      {/* ── HEADER ──────────────────────────────────────────────────── */}
+      <div className="shrink-0 px-4 py-3 bg-black/30 backdrop-blur-xl border-b border-white/[0.06] flex items-center gap-3 z-20">
+        {onBack && (
+          <button onClick={onBack} className="lg:hidden p-2 hover:bg-white/10 rounded-xl transition-all shrink-0">
+            <ChevronLeft size={18} />
+          </button>
+        )}
+
+        <RoomHeaderAvatar room={room} profiles={profiles} />
+
+        <div className="flex-1 min-w-0" onClick={() => room.type === 'GROUP' && setShowMembersPanel(true)} style={{ cursor: room.type === 'GROUP' ? 'pointer' : 'default' }}>
+          <h3 className="text-sm font-black uppercase tracking-wider truncate">{roomName}</h3>
+          <div className="flex items-center gap-2">
+            {typingUsers.length > 0 ? (
+              <span className="text-[9px] font-bold text-small-orange">typing…</span>
+            ) : (
+              <>
+                <span className="text-[9px] font-bold text-white/25">
+                  {room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
+                </span>
+                {pinnedMessages.length > 0 && (
+                  <button onClick={() => setShowPinnedPanel(p => !p)} className="flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    <Pin size={9} />
+                    {pinnedMessages.length} pinned
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <button className="p-2.5 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-            <Phone size={18} />
+          <button onClick={() => { setSearchMode(p => !p); }} className={`p-2 rounded-xl transition-all ${searchMode ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+            <Search size={17} />
           </button>
-          <button onClick={onStartVideo} className="p-2.5 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-            <Video size={18} />
+          <button className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+            <Phone size={17} />
+          </button>
+          <button onClick={onStartVideo} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+            <Video size={17} />
           </button>
           <button
-            onClick={() => { setShowCollabMenu(!showCollabMenu); setShowMediaSelector(false); }}
-            className={`p-2.5 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+            onClick={() => setShowCollabMenu(p => !p)}
+            className={`p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
           >
-            <Layers size={18} />
+            <Layers size={17} />
           </button>
+          <div className="relative">
+            <button onClick={() => setShowMoreMenu(p => !p)} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+              <MoreVertical size={17} />
+            </button>
+            <AnimatePresence>
+              {showMoreMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  className="absolute right-0 top-full mt-2 bg-[#111] border border-white/10 rounded-2xl p-2 z-50 shadow-2xl min-w-[160px]"
+                >
+                  {[
+                    { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p) },
+                    { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); } },
+                    { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); } },
+                  ].map(({ icon: Icon, label, action }) => (
+                    <button
+                      key={label}
+                      onClick={() => { action(); setShowMoreMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left"
+                    >
+                      <Icon size={14} className="text-white/40" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {/* Collab dropdown */}
+      {/* ── SEARCH BAR ──────────────────────────────────────────────── */}
       <AnimatePresence>
-        {showCollabMenu && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="absolute top-[4.5rem] left-4 right-4 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-5 z-20 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-black uppercase tracking-tightest">Collab Boards</h4>
-              <button onClick={handleCreateCollab} className="px-4 py-2 bg-small-orange text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all">
-                + New
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
-              {collabProjects.map(p => (
-                <button key={p.id} onClick={() => { onOpenCollab(p.id); setShowCollabMenu(false); }}
-                  className="p-4 bg-white/5 border border-white/10 rounded-xl text-left hover:bg-white/10 transition-all">
-                  <div className="p-2 bg-small-orange/20 rounded-lg w-fit mb-2"><Layers size={14} className="text-small-orange" /></div>
-                  <p className="text-[10px] font-black uppercase tracking-widest truncate">{p.name}</p>
-                  <p className="text-[8px] text-white/30 mt-0.5">{p.assets?.length ?? 0} assets</p>
-                </button>
-              ))}
-              {collabProjects.length === 0 && (
-                <p className="col-span-2 text-[9px] text-white/20 font-bold uppercase tracking-widest text-center py-4">No boards yet — create one above</p>
-              )}
+        {searchMode && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="shrink-0 px-4 py-2 bg-black/20 border-b border-white/[0.05] overflow-hidden"
+          >
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search messages…"
+                className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-white/20 outline-none focus:border-small-orange/40 transition-all"
+                autoFocus
+              />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide">
-        {decryptedMessages.map((msg, i) => {
-          const isMe = msg.senderId === auth.currentUser?.uid;
+      {/* ── PINNED PANEL ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showPinnedPanel && pinnedMessages.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="shrink-0 px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 overflow-hidden"
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <Pin size={12} className="text-amber-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">Pinned Messages</span>
+            </div>
+            <div className="space-y-1 max-h-28 overflow-y-auto scrollbar-hide">
+              {pinnedMessages.map(m => (
+                <div key={m.id} className="text-[10px] text-white/60 truncate px-2 py-1 bg-white/[0.03] rounded-lg">
+                  <span className="text-white/30 mr-1">{m.senderName}:</span>
+                  {m.text || '[media]'}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── FEDIVERSE PANEL ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showFediversePanel && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="shrink-0 p-4 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-b border-indigo-500/20 overflow-hidden"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Globe size={14} className="text-indigo-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Broadcast to Fediverse (Mastodon + Bluesky)</span>
+              <button onClick={() => setShowFediversePanel(false)} className="ml-auto p-1 hover:bg-white/10 rounded-lg"><X size={12} /></button>
+            </div>
+            <textarea
+              value={fediverseText}
+              onChange={e => setFediverseText(e.target.value)}
+              placeholder="What's happening? This will post to all your connected fediverse accounts…"
+              rows={2}
+              maxLength={500}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 outline-none focus:border-indigo-500/50 resize-none transition-all"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[9px] text-white/20">{fediverseText.length}/500</span>
+              <button
+                onClick={handleBroadcastToFediverse}
+                disabled={!fediverseText.trim()}
+                className="px-4 py-1.5 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-indigo-400 transition-all disabled:opacity-30"
+              >
+                Broadcast
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── COLLAB DROPDOWN ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showCollabMenu && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute top-[4rem] right-4 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 z-30 shadow-2xl w-72"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black uppercase tracking-widest">Collab Boards</span>
+              <button onClick={handleCreateCollab} className="px-3 py-1.5 bg-small-orange text-white text-[8px] font-black uppercase tracking-widest rounded-full hover:bg-small-orange/80 transition-all">+ New</button>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide">
+              {collabProjects.map(p => (
+                <button key={p.id} onClick={() => { onOpenCollab(p.id); setShowCollabMenu(false); }}
+                  className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-left hover:bg-white/10 transition-all flex items-center gap-3">
+                  <Layers size={14} className="text-small-orange shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-wider truncate">{p.name}</p>
+                    <p className="text-[8px] text-white/25">{p.assets?.length ?? 0} assets</p>
+                  </div>
+                </button>
+              ))}
+              {collabProjects.length === 0 && <p className="text-[9px] text-white/20 text-center py-4">No boards — create one</p>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MESSAGES ────────────────────────────────────────────────── */}
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide"
+        onClick={() => { setContextMenuMsg(null); setShowEmojiPicker(null); setShowMoreMenu(false); }}
+      >
+        {displayedMessages.map((msg, i) => {
+          const isMe = msg.senderId === uid;
           const isSeen = (msg.seenBy?.length ?? 0) > (isMe ? 1 : 0);
           const showName = !isMe && room.type !== 'PRIVATE';
           const senderProfile = profiles[msg.senderId];
+          const hasReactions = msg.reactions && Object.values(msg.reactions).some(uids => uids.length > 0);
 
           if (msg.type === 'SYSTEM') {
             return (
               <div key={msg.id} className="flex justify-center py-1">
-                <span className="text-[8px] font-bold uppercase tracking-widest text-white/20 bg-white/5 px-3 py-1 rounded-full">{msg.text}</span>
+                <span className="text-[8px] font-bold uppercase tracking-widest text-white/20 bg-white/5 px-3 py-1.5 rounded-full">{msg.text}</span>
               </div>
             );
           }
 
           return (
-            <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className={`flex items-end gap-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 bg-white/5">
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
+            >
+              {/* Avatar */}
+              <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 mb-1">
                 {msg.senderPhoto
-                  ? <img src={msg.senderPhoto} alt={msg.senderName} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center"><User size={12} className="text-white/20" /></div>}
+                  ? <img src={msg.senderPhoto} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center"><User size={10} className="text-white/20" /></div>}
               </div>
 
-              <div className={`max-w-[72%] sm:max-w-[60%] space-y-1 ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
+              {/* Bubble */}
+              <div className={`max-w-[72%] sm:max-w-[62%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                 {showName && <span className="text-[8px] font-black uppercase tracking-widest text-white/30 px-1">{senderProfile?.displayName || msg.senderName}</span>}
 
-                <div className={`px-4 py-3 rounded-2xl relative ${
-                  isMe
-                    ? 'bg-small-orange text-white rounded-br-sm'
-                    : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
-                }`}>
+                {/* Reply-to preview */}
+                {msg.replyToId && (
+                  <div className={`px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 text-[9px] max-w-full overflow-hidden ${isMe ? 'rounded-br-sm' : 'rounded-bl-sm'}`}>
+                    <span className="text-small-orange font-black uppercase">{msg.replyToSender}: </span>
+                    <span className="text-white/40 truncate">{msg.replyToText}</span>
+                  </div>
+                )}
+
+                {/* Main bubble */}
+                <div
+                  className={`px-4 py-3 rounded-2xl relative cursor-pointer select-text ${
+                    isMe
+                      ? 'bg-small-orange text-white rounded-br-sm'
+                      : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
+                  } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
+                  onContextMenu={e => {
+                    e.preventDefault();
+                    setContextMenuMsg(msg);
+                    setContextMenuPos({ x: e.clientX, y: e.clientY });
+                  }}
+                  onDoubleClick={() => setReplyTo(msg)}
+                >
+                  {msg.isPinned && <Pin size={9} className="absolute top-1.5 right-1.5 text-amber-400 opacity-60" />}
+
                   {msg.type === 'VOICE' && msg.voiceUrl ? (
                     <VoicePlayer src={msg.voiceUrl} />
                   ) : msg.type === 'IMAGE' && msg.imageUrl ? (
                     <div className="space-y-2">
-                      <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[240px] max-h-[320px] object-cover" loading="lazy" />
+                      <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[260px] max-h-[340px] object-cover" loading="lazy" />
                       <a href={msg.imageUrl} download target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">
-                        <Download size={10} /> Download
+                        <Download size={9} /> Download
                       </a>
                     </div>
                   ) : msg.type === 'MEDIA' ? (
                     <div className="flex items-center gap-3 min-w-[180px]">
                       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                        <Music size={16} className="text-white/50" />
+                        <Music size={14} className="text-white/50" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase truncate">{msg.text?.replace('Shared an album: ', '') || 'Media'}</p>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase truncate">{msg.text?.replace(/^Shared: /, '') || 'Media'}</p>
                         <p className="text-[8px] text-white/40 uppercase">{msg.mediaType}</p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed break-words">{msg.text}</p>
+                    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
                   )}
                 </div>
 
+                {/* Reactions */}
+                {hasReactions && (
+                  <div className="flex flex-wrap gap-1 px-1">
+                    {Object.entries(msg.reactions!).map(([emoji, uids]) =>
+                      uids.length > 0 ? (
+                        <ReactionBadge
+                          key={emoji}
+                          emoji={emoji}
+                          count={uids.length}
+                          hasReacted={uids.includes(uid || '')}
+                          onClick={() => handleReact(msg.id, emoji)}
+                        />
+                      ) : null
+                    )}
+                    <button
+                      onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                    >
+                      <Plus size={9} className="text-white/30" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Emoji picker for this message */}
+                <AnimatePresence>
+                  {showEmojiPicker === msg.id && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex items-center gap-1.5 bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-xl z-40"
+                    >
+                      {QUICK_REACTIONS.map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReact(msg.id, emoji)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-all text-lg"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Timestamp + status */}
                 <div className={`flex items-center gap-1.5 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                   <span className="text-[8px] font-bold text-white/20">
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  {isMe && (isSeen ? <CheckCheck size={11} className="text-blue-400" /> : <Check size={11} className="text-white/20" />)}
+                  {isMe && (isSeen ? <CheckCheck size={10} className="text-blue-400" /> : <Check size={10} className="text-white/20" />)}
+                  <button
+                    onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 hover:opacity-100 text-white/20 hover:text-white transition-all"
+                  >
+                    <Smile size={11} />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -383,68 +722,174 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room, onBack, onOpenCollab, onS
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Media selector */}
+      {/* ── CONTEXT MENU ────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {contextMenuMsg && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed z-[200] bg-[#111] border border-white/10 rounded-2xl p-2 shadow-2xl min-w-[160px]"
+            style={{ top: contextMenuPos.y, left: Math.min(contextMenuPos.x, window.innerWidth - 200) }}
+            onClick={e => e.stopPropagation()}
+          >
+            {[
+              { icon: Reply, label: 'Reply', action: () => { setReplyTo(contextMenuMsg); setContextMenuMsg(null); inputRef.current?.focus(); } },
+              { icon: Smile, label: 'React', action: () => { setShowEmojiPicker(contextMenuMsg.id); setContextMenuMsg(null); } },
+              { icon: Copy, label: 'Copy', action: () => handleCopyText(contextMenuMsg.text) },
+              { icon: Pin, label: contextMenuMsg.isPinned ? 'Unpin' : 'Pin', action: () => handlePinMessage(contextMenuMsg.id, !!contextMenuMsg.isPinned) },
+              { icon: Forward, label: 'Forward', action: () => handleForwardMessage(contextMenuMsg) },
+              ...(contextMenuMsg.senderId === uid ? [{ icon: Trash2, label: 'Delete', action: () => handleDeleteMessage(contextMenuMsg.id) }] : []),
+            ].map(({ icon: Icon, label, action }) => (
+              <button
+                key={label}
+                onClick={action}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left ${label === 'Delete' ? 'text-red-400 hover:bg-red-500/10' : ''}`}
+              >
+                <Icon size={14} className={label === 'Delete' ? 'text-red-400' : 'text-white/40'} />
+                <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MEDIA SELECTOR ──────────────────────────────────────────── */}
       <AnimatePresence>
         {showMediaSelector && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="absolute bottom-20 left-4 right-4 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-5 z-20 shadow-2xl max-h-[50vh] overflow-y-auto scrollbar-hide">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-black uppercase tracking-tightest">Share from Library</h4>
-              <button onClick={() => setShowMediaSelector(false)} className="p-1.5 hover:bg-white/10 rounded-lg"><X size={16} /></button>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="absolute bottom-20 left-4 right-4 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 z-30 shadow-2xl max-h-[45vh] overflow-y-auto scrollbar-hide"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black uppercase tracking-widest">Share from Library</span>
+              <button onClick={() => setShowMediaSelector(false)}><X size={16} /></button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {userMedia.map(media => (
                 <button key={media.id} onClick={() => handleSendMedia(media)}
-                  className="group flex flex-col items-center text-center p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all">
-                  <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 relative">
-                    <img src={media.coverImage || ''} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" loading="lazy" />
+                  className="aspect-square rounded-xl overflow-hidden relative group border border-white/10">
+                  <img src={media.coverImage || ''} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" loading="lazy" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white">{media.title}</span>
                   </div>
-                  <p className="text-[9px] font-black uppercase tracking-widest truncate w-full">{media.title}</p>
                 </button>
               ))}
-              {userMedia.length === 0 && <p className="col-span-3 text-[9px] text-white/20 font-bold uppercase tracking-widest text-center py-8">No media in library</p>}
+              {userMedia.length === 0 && <p className="col-span-3 text-[9px] text-white/20 text-center py-6">No media in library</p>}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Input area */}
-      <div className="shrink-0 p-3 bg-white/[0.03] backdrop-blur-xl border-t border-white/[0.06]">
-        {showVoiceRecorder ? (
-          <VoiceRecorder onSend={handleSendVoice} onCancel={() => setShowVoiceRecorder(false)} />
-        ) : (
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <button type="button" onClick={() => { setShowMediaSelector(!showMediaSelector); setShowCollabMenu(false); }}
-              className="p-2.5 text-white/40 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
-              <Music size={18} />
-            </button>
-            <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
-              className="p-2.5 text-white/40 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0 disabled:opacity-30">
-              {uploadingImage ? <div className="w-4 h-4 border-2 border-small-orange/40 border-t-small-orange rounded-full animate-spin" /> : <ImageIcon size={18} />}
-            </button>
-            <button type="button" onClick={() => setShowVoiceRecorder(true)}
-              className="p-2.5 text-white/40 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
-              <Mic size={18} />
-            </button>
+      {/* ── INPUT AREA ──────────────────────────────────────────────── */}
+      <div className="shrink-0 bg-black/25 backdrop-blur-xl border-t border-white/[0.05]">
+        {/* Reply preview */}
+        <AnimatePresence>
+          {replyTo && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="px-4 pt-2 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 px-3 py-2 bg-small-orange/10 border border-small-orange/20 rounded-xl">
+                <Reply size={12} className="text-small-orange shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black text-small-orange">{replyTo.senderName}</span>
+                  <p className="text-[9px] text-white/40 truncate">{replyTo.text || '[media]'}</p>
+                </div>
+                <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white/10 rounded-lg shrink-0">
+                  <X size={12} className="text-white/30" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div className="flex-1 relative min-w-0">
+        <div className="p-3">
+          {showVoiceRecorder ? (
+            <VoiceRecorder onSend={handleSendVoice} onCancel={() => setShowVoiceRecorder(false)} />
+          ) : (
+            <form onSubmit={handleSend} className="flex items-center gap-2">
+              {/* Attachment menu */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => { setShowMediaSelector(p => !p); setShowCollabMenu(false); }}
+                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all">
+                  <Music size={17} />
+                </button>
+                <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
+                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30">
+                  {uploadingImage
+                    ? <div className="w-4 h-4 border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" />
+                    : <ImageIcon size={17} />}
+                </button>
+              </div>
+
+              {/* Text input */}
               <input
+                ref={inputRef}
                 type="text"
                 value={inputText}
                 onChange={handleInputChange}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSendMessage(); }}
-                placeholder="Message…"
-                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:border-small-orange/50 focus:bg-white/[0.09] transition-all outline-none"
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); }}
+                placeholder={replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
+                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:border-small-orange/40 focus:bg-white/[0.08] transition-all outline-none min-w-0"
               />
-            </div>
 
-            <button type="submit" disabled={!inputText.trim()}
-              className="p-2.5 bg-small-orange text-white rounded-xl hover:bg-small-orange/80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
-              <Send size={18} />
-            </button>
-          </form>
-        )}
+              <button type="button" onClick={() => setShowVoiceRecorder(true)}
+                className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
+                <Mic size={17} />
+              </button>
+
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className="p-2.5 bg-small-orange text-white rounded-xl hover:bg-small-orange/80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Send size={17} />
+              </button>
+            </form>
+          )}
+        </div>
       </div>
+
+      {/* ── MEMBERS SIDE PANEL ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {showMembersPanel && room.type === 'GROUP' && (
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            className="absolute right-0 top-0 bottom-0 w-72 bg-[#0e0e0e] border-l border-white/[0.06] z-40 flex flex-col shadow-2xl"
+          >
+            <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+              <span className="text-sm font-black uppercase tracking-tighter">Members ({room.participants.length})</span>
+              <button onClick={() => setShowMembersPanel(false)} className="p-1.5 hover:bg-white/10 rounded-xl"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-hide">
+              {room.participants.map(participantId => {
+                const p = profiles[participantId];
+                const isOwner = participantId === room.ownerId;
+                return (
+                  <div key={participantId} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                      {p?.photoURL
+                        ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full bg-white/10 flex items-center justify-center"><User size={14} className="text-white/20" /></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wider truncate">{p?.displayName || 'Loading…'}</p>
+                      {isOwner && <p className="text-[8px] text-small-orange font-bold uppercase tracking-widest">Owner</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

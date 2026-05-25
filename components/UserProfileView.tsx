@@ -101,11 +101,13 @@ import SafeAvatarViewer from './SafeAvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
 import ArtistMembersArea from './ArtistMembersArea';
+import SanctuaryView from './SanctuaryView';
 import ProfileFeed from './ProfileFeed';
 import InterestsNotebook from './InterestsNotebook';
 import VideoTab from './VideoTab';
 import ScrollableTabRow from './ScrollableTabRow';
 import WorldManagerView from './WorldManagerView';
+import WorldBadge from './WorldBadge';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
@@ -252,7 +254,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [newGameDesc, setNewGameDesc] = useState('');
   const [isSubmittingGame, setIsSubmittingGame] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const detectMobile = () =>
+    window.matchMedia('(pointer: coarse)').matches ||
+    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+    window.innerWidth < 1024;
+  const [isMobile, setIsMobile] = useState(detectMobile);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [podcastSubTab, setPodcastSubTab] = useState<'PUBLISHED' | 'SUBSCRIBED'>('PUBLISHED');
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
@@ -270,7 +276,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
-    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 1024), 150); };
+    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
@@ -1362,7 +1368,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           </div>
                         </div>
                         <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
-                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">By {album.artist}</p>
+                        {album.worldId && (
+                          <div className="mb-3" onClick={e => e.stopPropagation()}>
+                            <WorldBadge worldId={album.worldId} contentTitle={album.title} compact />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
@@ -1417,7 +1428,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           </div>
                         </div>
                         <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{album.title}</h4>
-                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4">By {album.artist}</p>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">By {album.artist}</p>
+                        {album.worldId && (
+                          <div className="mb-3" onClick={e => e.stopPropagation()}>
+                            <WorldBadge worldId={album.worldId} contentTitle={album.title} compact />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40">{album.genre}</span>
@@ -1655,13 +1671,17 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 />
               </motion.div>
             ) : activeTab === 'MEMBERS' ? (
-              <motion.div 
+              <motion.div
                 key="members"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <ArtistMembersArea artistId={profile.uid} artist={profile} onBack={() => setActiveTab('FEED')} />
+                <SanctuaryView
+                  creatorId={profile.uid}
+                  creatorProfile={profile}
+                  isOwnProfile={isOwnProfile}
+                />
               </motion.div>
             ) : activeTab === 'CONTENT' ? (
               <motion.div 

@@ -239,6 +239,17 @@ export const deleteThemeBackground = async (id: string) => {
   }
 };
 
+export const fetchWorldById = async (worldId: string): Promise<IPWorld | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'worlds', worldId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as IPWorld;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `worlds/${worldId}`);
+    return null;
+  }
+};
+
 export const fetchAllPublicWorlds = async (): Promise<IPWorld[]> => {
   try {
     const q = query(
@@ -563,7 +574,7 @@ export const createCharacter = async (char: Partial<Character>) => {
       role: char.role || '',
       tags: char.tags || [],
       appearanceAt: char.appearanceAt || [],
-      isPublished: char.isPublished || false
+      isPublished: char.isPublished ?? true
     };
     await setDoc(docRef, newChar);
     return newChar;
@@ -600,7 +611,7 @@ export const createLore = async (lore: Partial<LoreEntry>) => {
       tags: lore.tags || [],
       type: lore.type || 'BACKSTORY',
       conflictsDetected: [],
-      isPublished: lore.isPublished || false
+      isPublished: lore.isPublished ?? true
     };
     await setDoc(docRef, newLore);
     return newLore;
@@ -635,7 +646,7 @@ export const createTimelineEvent = async (event: Partial<TimelineEvent>) => {
       title: event.title || 'Untitled Event',
       description: event.description || '',
       year: event.year || 0,
-      isPublished: event.isPublished || false,
+      isPublished: event.isPublished ?? true,
       linkedCharacterIds: event.linkedCharacterIds || [],
       linkedLoreIds: event.linkedLoreIds || [],
       linkedAssetIds: event.linkedAssetIds || []
@@ -728,6 +739,14 @@ export const setAssetTimeline = async (albumId: string, timelineId: string | nul
     await updateDoc(doc(db, 'albums', albumId), { timelineId: timelineId ?? null });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const setVideoTimeline = async (videoId: string, timelineId: string | null) => {
+  try {
+    await updateDoc(doc(db, 'videos', videoId), { timelineId: timelineId ?? null });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `videos/${videoId}`);
   }
 };
 
@@ -2901,6 +2920,21 @@ export const simulateDailySelection = async () => {
 };
 
 export const saveAlbumToCloud = publishToCloud;
+
+export const fetchWorldContentByWorldId = async (worldId: string): Promise<{ albums: Album[]; videos: Video[] }> => {
+  try {
+    const [albumSnap, videoSnap] = await Promise.all([
+      getDocs(query(collection(db, 'albums'), where('worldId', '==', worldId), limit(20))),
+      getDocs(query(collection(db, 'videos'), where('worldId', '==', worldId), where('isPrivate', '==', false), limit(20))),
+    ]);
+    return {
+      albums: albumSnap.docs.map(d => ({ id: d.id, ...d.data() } as Album)),
+      videos: videoSnap.docs.map(d => ({ id: d.id, ...d.data() } as Video)),
+    };
+  } catch {
+    return { albums: [], videos: [] };
+  }
+};
 
 export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
   const path = 'albums';
@@ -5113,6 +5147,7 @@ export const createMuxLiveStream = async (): Promise<{
   streamId: string;
   streamKey: string;
   rtmpUrl: string;
+  srtUrl: string;
   playbackId: string | null;
 }> => {
   const res = await fetch('/api/mux/live/create', { method: 'POST' });
@@ -5143,7 +5178,7 @@ export const fetchAllVideos = async (): Promise<Video[]> => {
     // No orderBy — avoids composite index requirement on named database; sort in JS instead
     const q = query(collection(db, path), where("isPrivate", "==", false), limit(100));
     const snap = await getDocs(q);
-    const videos = snap.docs.map(d => d.data() as Video);
+    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
     return videos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
@@ -5341,6 +5376,18 @@ export const fetchBrandAccounts = async (): Promise<BrandAccount[]> => {
     const q = query(collection(db, path), where('managers', 'array-contains', auth.currentUser.uid));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as BrandAccount);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const fetchAllPublicBrandAccounts = async (): Promise<BrandAccount[]> => {
+  const path = 'brand_accounts';
+  try {
+    const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(100));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BrandAccount));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];

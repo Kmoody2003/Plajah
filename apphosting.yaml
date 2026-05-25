@@ -13,3 +13,15 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: HUE_CLIENT_ID
+    value: 09ba58c2-ddcd-4e51-9cdd-22b16298b2cc
+    availability:
+      - RUNTIME
+  - variable: HUE_CLIENT_SECRET
+    value: 12d13f2401284d9690e79963a0d0abf9
+    availability:
+      - RUNTIME
+  - variable: HUE_REDIRECT_URI
+    value: https://plajah.com/api/hue/callback
+    availability:
+      - RUNTIME

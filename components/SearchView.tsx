@@ -4,6 +4,7 @@ import PageHeader from './PageHeader';
 import { searchUsers, searchLiveChannels, followUser, unfollowUser, isFollowing, fetchUserContent, fetchUserVideos, fetchAllVideos, fetchAllPublicAlbums } from '../services/backendService';
 import { Search, UserPlus, UserMinus, ArrowLeft, User, Tv, Play, Music, Film, LayoutGrid } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
+import WorldBadge from './WorldBadge';
 
 interface SearchViewProps {
   onBack: () => void;
@@ -241,6 +242,11 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
                 </div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-white line-clamp-2 group-hover:text-small-orange transition-colors">{v.title}</h4>
                 <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest mt-0.5">{v.artist || 'Creator'}</p>
+                {(v as any).worldId && (
+                  <div className="mt-1.5">
+                    <WorldBadge worldId={(v as any).worldId} contentTitle={v.title} compact />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -262,6 +268,11 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
                 </div>
                 <h4 className="text-[9px] font-black uppercase tracking-widest text-white line-clamp-2 group-hover:text-small-orange transition-colors">{a.title}</h4>
                 <p className="text-[8px] font-bold text-small-orange/70 uppercase tracking-widest mt-0.5">{a.artist}</p>
+                {a.worldId && (
+                  <div className="mt-1.5">
+                    <WorldBadge worldId={a.worldId} contentTitle={a.title} compact />
+                  </div>
+                )}
               </div>
             ))}
           </div>

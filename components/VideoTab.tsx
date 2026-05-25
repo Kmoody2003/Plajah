@@ -25,6 +25,7 @@ import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
 import LiveStreamViewer from './LiveStreamViewer';
 import PlajahPlusBanner from './PlajahPlusBanner';
+import WorldBadge from './WorldBadge';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -64,7 +65,8 @@ const VideoCard: React.FC<{
   size?: 'default' | 'small' | 'wide';
   showChannel?: boolean;
   currentUser?: UserProfile | null;
-}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser }) => {
+  onAssignWorld?: () => void;
+}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const muxId = (video as any).muxPlaybackId as string | undefined;
   const thumb = muxId
@@ -175,11 +177,144 @@ const VideoCard: React.FC<{
             {(video as any).genre && <><span>Â·</span><span>{(video as any).genre}</span></>}
           </div>
         </div>
-        <button className="p-1 text-white/20 hover:text-white transition-colors opacity-0 group-hover:opacity-100 shrink-0">
-          <MoreVertical size={14} />
-        </button>
+        {onAssignWorld && (
+          <button
+            onClick={e => { e.stopPropagation(); onAssignWorld(); }}
+            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            title="Assign to World"
+          >
+            <MoreVertical size={14} />
+          </button>
+        )}
       </div>
+      {(video as any).worldId && (
+        <div className="mt-2" onClick={e => e.stopPropagation()}>
+          <WorldBadge worldId={(video as any).worldId} contentTitle={video.title} compact />
+        </div>
+      )}
     </motion.div>
+  );
+};
+
+// ── Video World Assign Modal ─────────────────────────────────────────────────
+const VideoWorldAssignModal: React.FC<{
+  video: Video;
+  worlds: { id: string; name: string }[];
+  onClose: () => void;
+  onSaved: (updated: Partial<Video>) => void;
+}> = ({ video, worlds, onClose, onSaved }) => {
+  const [worldId, setWorldId] = useState(video.worldId || '');
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [charIds, setCharIds] = useState<string[]>(video.characterIds || []);
+  const [year, setYear] = useState<string>(video.timelinePointYear?.toString() || '');
+  const [saving, setSaving] = useState(false);
+  const [loadingChars, setLoadingChars] = useState(false);
+
+  useEffect(() => {
+    if (!worldId) { setCharacters([]); return; }
+    setLoadingChars(true);
+    fetchWorldCharacters(worldId, false)
+      .then(c => setCharacters(c))
+      .catch(() => setCharacters([]))
+      .finally(() => setLoadingChars(false));
+  }, [worldId]);
+
+  const toggleChar = (id: string) =>
+    setCharIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const updates: Partial<Video> = {
+      worldId: worldId || undefined,
+      characterIds: charIds.length ? charIds : undefined,
+      timelinePointYear: year ? parseInt(year) : undefined,
+    };
+    try {
+      await updateVideo(video.id, updates);
+      onSaved(updates);
+      onClose();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[#111] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+            <Globe size={16} className="text-small-orange" /> Assign to World
+          </h2>
+          <button onClick={onClose} className="p-2 text-white/30 hover:text-white transition-colors"><X size={18} /></button>
+        </div>
+        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest -mt-2">"{video.title}"</p>
+
+        <div>
+          <label className="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">World</label>
+          <select
+            value={worldId}
+            onChange={e => { setWorldId(e.target.value); setCharIds([]); }}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none text-white"
+          >
+            <option value="" className="bg-[#111]">No World</option>
+            {worlds.map(w => <option key={w.id} value={w.id} className="bg-[#111]">{w.name}</option>)}
+          </select>
+        </div>
+
+        {worldId && (
+          <div>
+            <label className="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Characters (optional)</label>
+            {loadingChars ? (
+              <div className="text-[9px] text-white/30 font-bold uppercase tracking-widest">Loading…</div>
+            ) : characters.length === 0 ? (
+              <div className="text-[9px] text-white/20 font-bold uppercase tracking-widest">No characters in this world yet</div>
+            ) : (
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto custom-scrollbar">
+                {characters.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleChar(c.id)}
+                    className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${
+                      charIds.includes(c.id)
+                        ? 'bg-small-orange/20 border-small-orange/50 text-small-orange'
+                        : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {worldId && (
+          <div>
+            <label className="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">In-Universe Year / Timestamp (optional)</label>
+            <input
+              type="number"
+              placeholder="e.g. 2047"
+              value={year}
+              onChange={e => setYear(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none text-white placeholder-white/20"
+            />
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/40 border border-white/10 hover:border-white/30 transition-all">Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest bg-small-orange text-white hover:bg-small-orange/80 transition-all disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -282,6 +417,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [shortsIndex, setShortsIndex] = useState(0);
   const [shortsMuted, setShortsMuted] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [assigningVideo, setAssigningVideo] = useState<Video | null>(null);
   const [uploadStep, setUploadStep] = useState(1);
   const [thumbPreview, setThumbPreview] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
@@ -967,7 +1103,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {userVideos.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {userVideos.map(video => (
-                    <VideoCard key={video.id} video={video} onPlay={() => handlePlay(video)} currentUser={currentUser} />
+                    <VideoCard
+                      key={video.id}
+                      video={video}
+                      onPlay={() => handlePlay(video)}
+                      currentUser={currentUser}
+                      onAssignWorld={isOwner ? () => setAssigningVideo(video) : undefined}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1597,6 +1739,17 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
       {showYoutubeImport && <YoutubeImportModal onClose={() => setShowYoutubeImport(false)} onImported={() => { setShowYoutubeImport(false); loadData(); }} />}
       {showGoLiveModal && <LiveStreamModal onClose={() => setShowGoLiveModal(false)} onStreamActive={setIsLiveStreamActive} />}
+
+      {assigningVideo && (
+        <VideoWorldAssignModal
+          video={assigningVideo}
+          worlds={userWorlds}
+          onClose={() => setAssigningVideo(null)}
+          onSaved={updates => {
+            setUserVideos(prev => prev.map(v => v.id === assigningVideo.id ? { ...v, ...updates } : v));
+          }}
+        />
+      )}
 
       {activeLiveStream && (
         <LiveStreamViewer

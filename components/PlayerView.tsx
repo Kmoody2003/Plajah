@@ -1,25 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Album, Track, Comment } from '../types';
+import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
+import WorldBadge from './WorldBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId } from '../services/backendService';
 import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Play, Pause, ArrowLeft, Disc, Globe, 
+import {
+  Play, Pause, ArrowLeft, Disc, Globe,
   Copy, Check, X, Loader2, Cloud, Sparkles, Share2, Link as LinkIcon,
   Twitter, Facebook, Linkedin, ExternalLink, Zap,
   Instagram, Youtube, Mail,
-  Layers, Music2, Plus, MessageSquare, Send, User, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
-  AlertCircle, Video, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
+  Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
+  AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
 import DonationModal from './DonationModal';
+import DJModeView from './DJModeView';
+import SmartLightingPanel from './SmartLightingPanel';
 import GlobalPhotosView from './GlobalPhotosView';
 import CommentSection from './CommentSection';
 import The411 from './The411';
@@ -307,6 +310,7 @@ interface PlayerViewProps {
   onUpdate?: (album: Album) => void;
   onPurchase?: (item: any, isAlbum: boolean) => void;
   onVisitUser?: (uid: string) => void;
+  onNavigateToWorld?: (worldId: string) => void;
   isPublic?: boolean;
   isPreview?: boolean;
   user: FirebaseUser | null;
@@ -395,12 +399,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   album,
   onBack,
   onEdit,
-  onUpdate, 
+  onUpdate,
   onPurchase,
   onVisitUser,
-  isPublic = false, 
-  isPreview = false, 
-  user 
+  onNavigateToWorld,
+  isPublic = false,
+  isPreview = false,
+  user
 }) => {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const {
@@ -419,6 +424,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     isSlideshowActive,
     setIsSlideshowActive,
     visualizerType,
+    setVisualizerType,
     setVideoElement,
     setYtPlayer,
     isTVMode,
@@ -446,9 +452,23 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [copied, setCopied] = useState(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  // Detect mobile: touch devices (foldables, phones, tablets) always get mobile UI
+  // regardless of width. pointer:coarse is true on all mobile browsers even when
+  // a Samsung Z Fold's inner screen is wider than 1024px.
+  const detectMobile = () =>
+    window.matchMedia('(pointer: coarse)').matches ||
+    /Mobi|Android|iPhone|iPad|iPod|IEMobile/i.test(navigator.userAgent) ||
+    window.innerWidth < 1024;
+
+  const [isMobile, setIsMobile] = useState(detectMobile);
   const [isVisualizerLayout, setIsVisualizerLayout] = useState(false);
   const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
+  const [isDJMode, setIsDJMode] = useState(false);
+  const [isLightingOpen, setIsLightingOpen] = useState(false);
+
+  // World / character data (loaded when album is linked to a world)
+  const [worldCharacters, setWorldCharacters] = useState<Character[]>([]);
+  const [worldContent, setWorldContent] = useState<{ albums: Album[]; videos: Video[] } | null>(null);
 
   const formatTime = (s: number) => {
     if (!isFinite(s) || s < 0) return '0:00';
@@ -469,13 +489,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
-    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(window.innerWidth < 1024), 150); };
+    const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
 
   // Keep localTracks in sync if album prop changes
   useEffect(() => { setLocalTracks(album.tracks); }, [album.tracks]);
+
+  // Load world characters + content when album is linked to a world
+  useEffect(() => {
+    if (!album.worldId) return;
+    fetchWorldCharacters(album.worldId).then(setWorldCharacters).catch(() => {});
+    fetchWorldContentByWorldId(album.worldId).then(setWorldContent).catch(() => {});
+  }, [album.worldId]);
 
   const currentTrack = localTracks?.[currentTrackIndex] || null;
   const isOwner = user && album.ownerId === user.uid;
@@ -885,7 +912,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {[
             { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracklist'), icon: List },
             { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-            { id: 'MEDIA', label: 'Videos & Art', icon: Video },
+            { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
             { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
             { id: 'INFO', label: 'Notes', icon: Sparkles }
           ].map(tab => (
@@ -993,6 +1020,33 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         })}
                       </div>
                     )}
+
+                    {/* ── In This Song (mobile) ── */}
+                    {t.characterIds && t.characterIds.length > 0 && worldCharacters.length > 0 && (
+                      <div className={`px-4 pt-2 pb-3 border-t border-white/[0.05] ${isActive ? 'bg-gradient-to-br from-[#6B0099]/20 via-transparent to-[#FF8C00]/10 rounded-b-2xl' : 'bg-black/20 rounded-b-2xl'}`}>
+                        <p className="text-[7px] font-black uppercase tracking-[0.35em] text-white/20 mb-2">In This Song</p>
+                        <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
+                          {t.characterIds.map(cid => {
+                            const char = worldCharacters.find(c => c.id === cid);
+                            if (!char) return null;
+                            const imgSrc = t.trackCharacterImages?.[cid] || char.imageUrl;
+                            return (
+                              <div key={cid} className="flex flex-col items-center gap-1 shrink-0 w-11">
+                                <div className="w-9 h-9 rounded-full overflow-hidden border border-[#D0BCFF]/30 bg-white/5">
+                                  <img
+                                    src={imgSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                    alt={char.name}
+                                    className="w-full h-full object-cover"
+                                    onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
+                                  />
+                                </div>
+                                <p className="text-[7px] font-black text-white/35 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1060,7 +1114,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
 
           {activeHUD === 'INFO' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center gap-4 flex-wrap">
                 <img src={album.artistImage || album.coverImage || undefined} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
                 <div>
@@ -1078,6 +1132,62 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <p className="text-sm font-medium leading-relaxed text-white/60 italic font-display">
                 {album.artistBio || album.description}
               </p>
+
+              {album.worldId && (
+                <WorldBadge
+                  worldId={album.worldId}
+                  contentTitle={album.title}
+                  contentType="album"
+                  onNavigate={onNavigateToWorld}
+                />
+              )}
+
+              {worldCharacters.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                    <Users size={10} className="text-white/20" /> Featured Characters
+                  </h4>
+                  <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                    {worldCharacters.slice(0, 8).map(char => (
+                      <div key={char.id} className="flex flex-col items-center gap-1.5 shrink-0 w-14">
+                        <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 bg-white/5">
+                          <img
+                            src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                            alt={char.name}
+                            className="w-full h-full object-cover"
+                            onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
+                          />
+                        </div>
+                        <p className="text-[8px] font-black text-white/40 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {worldContent && ([...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).length > 0) && (
+                <div className="space-y-3">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-white/25">More From This World</h4>
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                    {[...worldContent.videos, ...worldContent.albums]
+                      .filter(c => c.id !== album.id)
+                      .slice(0, 10)
+                      .map((content, i) => {
+                        const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                        return (
+                          <div key={(content as any).id || i} className="shrink-0 w-14">
+                            <div className="w-14 h-[4.5rem] rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1.5">
+                              {thumb
+                                ? <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center"><Music2 size={14} className="text-white/15" /></div>}
+                            </div>
+                            <p className="text-[7px] font-black text-white/35 truncate uppercase tracking-wide">{content.title}</p>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1103,7 +1213,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   {[
                     { id: 'TRACKS', label: 'Playlist', icon: List },
                     { id: 'LYRICS', label: 'Signal', icon: Music2 },
-                    { id: 'MEDIA', label: 'Visuals', icon: Video },
+                    { id: 'MEDIA', label: 'Visuals', icon: VideoIcon },
                     { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
                     { id: 'INFO', label: 'Notes', icon: Sparkles },
                     { id: 'ABOUT', label: 'Identity', icon: User }
@@ -1287,7 +1397,45 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <HUDCommentModule album={album} trackId={currentTrack?.id || null} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
                     )}
                     {activeHUD === 'INFO' && (
-                      <p className="text-sm font-medium leading-relaxed italic text-white/60">{album.linerNotes || "Operational data compilation in progress."}</p>
+                      <div className="space-y-6">
+                        <p className="text-sm font-medium leading-relaxed italic text-white/60">{album.linerNotes || "Operational data compilation in progress."}</p>
+                        {album.worldId && (
+                          <WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} />
+                        )}
+                        {worldCharacters.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Featured Characters</p>
+                            <div className="flex flex-wrap gap-2">
+                              {worldCharacters.slice(0, 6).map(char => (
+                                <div key={char.id} className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-2.5 py-1.5">
+                                  <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
+                                    <img src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`} className="w-full h-full object-cover" />
+                                  </div>
+                                  <p className="text-[9px] font-black text-white/60 uppercase tracking-wide">{char.name}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {worldContent && ([...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).length > 0) && (
+                          <div className="space-y-2">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-white/20">More From This World</p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                              {[...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).slice(0, 8).map((content, i) => {
+                                const thumb = (content as any).coverImage || (content as any).thumbnailUrl;
+                                return (
+                                  <div key={(content as any).id || i} className="shrink-0 w-12">
+                                    <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/8 mb-1">
+                                      {thumb ? <img src={thumb} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Music2 size={12} className="text-white/15" /></div>}
+                                    </div>
+                                    <p className="text-[6px] font-black text-white/30 truncate uppercase">{content.title}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {activeHUD === 'ABOUT' && (
                       <div className="space-y-4">
@@ -1334,17 +1482,73 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   return (
     <div className="h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans">
-      {/* Large Dominant Blurred Background Image */}
+      {/* ── Full-page cover art — clear, fades to transparent at bottom ── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Ambient blurred base (very soft, low opacity) */}
         <img
           src={activeVideo?.coverImageUrl || album.coverImage || undefined}
           alt=""
-          className="w-full h-full object-cover scale-110 blur-[50px] opacity-60 transition-all duration-1000"
+          className="absolute inset-0 w-full h-full object-cover scale-110 blur-[80px] opacity-30 transition-all duration-1000"
           referrerPolicy="no-referrer"
         />
-        {/* Fade artwork into background towards the bottom */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/20 to-black/80" />
-        <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* Crisp full-page cover fading to transparent */}
+        <AnimatePresence mode="wait">
+          {!isSlideshowActive && (
+            <motion.img
+              key={album.coverImage}
+              src={activeVideo?.coverImageUrl || album.coverImage || undefined}
+              alt=""
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2 }}
+              className="absolute inset-0 w-full h-full object-cover transition-all duration-1000"
+              referrerPolicy="no-referrer"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 35%, rgba(0,0,0,0.15) 65%, transparent 90%)',
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 35%, rgba(0,0,0,0.15) 65%, transparent 90%)',
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Slideshow full-page blurred backdrop when active */}
+        <AnimatePresence>
+          {isSlideshowActive && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0"
+            >
+              <AnimatedSlideshow
+                images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage]}
+                isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                themeColor={album.themeColor}
+                artistNotes={undefined}
+              />
+              {/* Soft defocus blur + fade overlay */}
+              <div
+                className="absolute inset-0"
+                style={{ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.08) 70%, transparent 92%)',
+                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.08) 70%, transparent 92%)',
+                  background: 'transparent',
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Vignette edges */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/15 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" />
       </div>
 
       <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
@@ -1400,111 +1604,211 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              })()}
            </div>
          ) : isVisualizerLayout ? (
-           /* ── STAGE MODE: edge-to-edge visualizer palette ── */
-           <div className="w-full h-full relative overflow-hidden group/stage">
-             {/* Full-panel visualizer */}
+           /* ── STAGE MODE: audio-reactive visualizer palette ── */
+           <div className="flex-1 min-h-0 w-full relative overflow-hidden rounded-3xl bg-black/40 border border-white/[0.06] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
+             {/* Full-panel visualizer — always animates (idle or audio-reactive) */}
              <div className="absolute inset-0 z-0">
-               <div style={{ opacity: visualizerType === 'PAINT' ? 0.45 : 1, transition: 'opacity 0.8s ease' }}>
-                 <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+               <div className="absolute inset-0" style={{ opacity: visualizerType === 'PAINT' ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
+                 <Visualizer
+                   analyser={globalAnalyser}
+                   themeColor={album.themeColor}
+                   trackTitle={currentTrack?.title || album.title}
+                   artist={album.artist}
+                   isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                   scrollingText={scrollingText}
+                   alwaysAnimate={true}
+                 />
                </div>
                {visualizerType === 'PAINT' && (
                  <div className="absolute inset-0 pointer-events-none">
-                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
                  </div>
                )}
              </div>
 
              {/* Atmospheric edge gradients */}
              <div className="absolute inset-0 z-10 pointer-events-none">
-               <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/60" />
-               <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent" />
+               <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/50" />
+               <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/80 to-transparent" />
              </div>
 
-             {/* Controls overlay — always visible at top, fades to subtle when idle */}
-             <div className="absolute top-0 left-0 right-0 z-20 p-6 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+             {/* Top controls bar */}
+             <div className="absolute top-0 left-0 right-0 z-20 p-5 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent">
                <button
                  onClick={() => setIsVisualizerLayout(false)}
-                 className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-black/70 transition-all"
+                 className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-black/80 transition-all"
                >
-                 <X size={12} /> Exit Stage
+                 <X size={11} /> Exit
                </button>
+
+               {/* Visualizer type selector */}
+               <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1">
+                 <button
+                   onClick={() => setVisualizerType('FLOW')}
+                   className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${visualizerType === 'FLOW' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+                 >
+                   Flow
+                 </button>
+                 <button
+                   onClick={() => setVisualizerType('PAINT')}
+                   className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${visualizerType === 'PAINT' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+                 >
+                   Paint
+                 </button>
+               </div>
+
                <button
                  onClick={() => setIsVisualizerFullscreen(true)}
-                 className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                 className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
                >
-                 <Maximize2 size={12} /> Full Stage
+                 <Maximize2 size={11} /> Full
                </button>
              </div>
 
-             {/* Centred album title watermark */}
-             <div className="absolute bottom-8 left-0 right-0 z-20 flex flex-col items-center pointer-events-none">
-               <p className="text-[8px] font-black uppercase tracking-[0.5em] text-white/20">{album.artist}</p>
-               <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{currentTrack?.title || album.title}</p>
+             {/* Bottom: album art thumbnail + track info */}
+             <div className="absolute bottom-0 left-0 right-0 z-20 p-5 flex items-end gap-4">
+               <img
+                 src={album.coverImage || undefined}
+                 alt={album.title}
+                 className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-xl shrink-0"
+               />
+               <div className="flex-1 min-w-0 pb-1">
+                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-0.5">{album.artist}</p>
+                 <p className="text-sm font-black uppercase tracking-tight text-white/80 truncate">{currentTrack?.title || album.title}</p>
+                 {!globalIsPlaying && (
+                   <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mt-1">Play music to activate audio reactivity</p>
+                 )}
+               </div>
              </div>
            </div>
          ) : (
-           /* ── DEFAULT MODE: visualizer behind, album art + controls on top ── */
-           <div className="w-full h-full relative">
-             {/* Layer 0 — visualizer fills the entire left panel */}
-             <div className="absolute inset-0">
-               {isSlideshowActive ? (
-                 <AnimatedSlideshow
-                    images={(currentTrack?.images && currentTrack.images.length > 0) ? currentTrack.images : (album.slideshow && album.slideshow.length > 0) ? album.slideshow : [album.coverImage, 'https://picsum.photos/seed/slide1/1920/1080', 'https://picsum.photos/seed/slide2/1920/1080']}
-                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                    themeColor={album.themeColor}
-                    artistNotes={currentTrack?.artistNotes}
-                  />
-               ) : (
-                 <div className="w-full h-full relative pointer-events-none">
-                   <div className="absolute inset-0" style={{ opacity: visualizerType === "PAINT" ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
-                     <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
-                   </div>
-                   {visualizerType === "PAINT" && (
-                     <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.92 }}>
-                       <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-                     </div>
-                   )}
+           /* ── DEFAULT MODE: cover art full-page bg + floating cards ── */
+           <div className="w-full h-full relative flex flex-col">
+             {/* Layer 0 — subtle visualizer at very low opacity for ambient movement */}
+             <div className="absolute inset-0 pointer-events-none opacity-20">
+               <div className="absolute inset-0" style={{ opacity: visualizerType === "PAINT" ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
+                 <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+               </div>
+               {visualizerType === "PAINT" && (
+                 <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.92 }}>
+                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
                  </div>
                )}
              </div>
 
-             {/* Layer 1 — album art + toggle buttons, absolutely centered on top */}
-             <div className="absolute inset-0 flex flex-col items-center justify-center gap-8" style={{ zIndex: 10 }}>
-               {/* Cover Art — display only, no playback trigger on desktop */}
+             {/* Layer 1 — album art card (centered top half) + WorldBadge overlay */}
+             <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
                <motion.div
                  initial={{ scale: 0.9, opacity: 0 }}
-                 animate={{ scale: isSlideshowActive ? 0.9 : 1, opacity: isSlideshowActive ? 0 : 1 }}
-                 className={`relative w-full max-w-[400px] aspect-square rounded-[2.5rem] overflow-hidden shadow-3xl border border-white/10 group ${isSlideshowActive ? 'pointer-events-none' : ''}`}
+                 animate={{ scale: 1, opacity: 1 }}
+                 transition={{ duration: 0.6, type: 'spring', damping: 20 }}
+                 className="relative w-full max-w-[340px] aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group"
                >
                  <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                 <div className="pointer-events-none absolute bottom-6 left-6 right-6 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-                   <h2 className="text-xl font-black uppercase tracking-tightest drop-shadow-md">{album.title}</h2>
-                   <p className="text-xs font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p>
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                 {/* WorldBadge floating over cover art */}
+                 {album.worldId && (
+                   <div className="absolute bottom-4 left-4 right-4">
+                     <WorldBadge
+                       worldId={album.worldId}
+                       contentTitle={album.title}
+                       contentType="album"
+                       onNavigate={onNavigateToWorld}
+                     />
+                   </div>
+                 )}
+
+                 {/* Hover: title reveal */}
+                 <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                   <h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2>
+                   <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p>
                  </div>
                </motion.div>
 
                {/* View mode toggle */}
-               <div className="flex items-center gap-3">
+               <div className="flex items-center gap-2">
                  <button
                    onClick={() => setIsSlideshowActive(false)}
-                   className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+                   className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${!isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
                  >
                    Art
                  </button>
                  <button
                    onClick={() => setIsSlideshowActive(true)}
-                   className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+                   className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSlideshowActive ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
                  >
                    Slideshow
                  </button>
                  <button
                    onClick={() => { setIsVisualizerLayout(true); setIsSlideshowActive(false); }}
-                   className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"
+                   className="px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10 flex items-center gap-2"
                  >
-                   <Activity size={11} /> FX Stage
+                   <Activity size={10} /> FX Stage
                  </button>
                </div>
+             </div>
+
+             {/* Layer 2 — World + character info cards just below album art */}
+             <div className="relative z-10 px-6 pb-6 space-y-3">
+               {/* Featured Characters horizontal scroll */}
+               {worldCharacters.length > 0 && (
+                 <motion.div
+                   initial={{ opacity: 0, y: 12 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   transition={{ delay: 0.2 }}
+                   className="bg-white/[0.06] backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4"
+                 >
+                   <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 flex items-center gap-2">
+                     <Users size={9} /> Featured Characters
+                   </p>
+                   <div className="flex gap-3 overflow-x-auto no-scrollbar">
+                     {worldCharacters.slice(0, 8).map(char => (
+                       <div key={char.id} className="flex flex-col items-center gap-1.5 shrink-0 w-12">
+                         <div className="w-10 h-10 rounded-full overflow-hidden border border-[#D0BCFF]/25 bg-white/5 shadow-lg">
+                           <img
+                             src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                             alt={char.name}
+                             className="w-full h-full object-cover"
+                             onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
+                           />
+                         </div>
+                         <p className="text-[7px] font-black text-white/40 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
+                       </div>
+                     ))}
+                   </div>
+                 </motion.div>
+               )}
+
+               {/* More From This World compact strip */}
+               {worldContent && ([...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).length > 0) && (
+                 <motion.div
+                   initial={{ opacity: 0, y: 12 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   transition={{ delay: 0.35 }}
+                   className="bg-white/[0.06] backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4"
+                 >
+                   <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">More From This World</p>
+                   <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
+                     {[...worldContent.videos, ...worldContent.albums]
+                       .filter(c => c.id !== album.id)
+                       .slice(0, 10)
+                       .map((content, i) => {
+                         const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                         return (
+                           <div key={(content as any).id || i} className="shrink-0 w-12">
+                             <div className="w-12 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1 shadow-md">
+                               {thumb
+                                 ? <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
+                                 : <div className="w-full h-full flex items-center justify-center"><Music2 size={13} className="text-white/15" /></div>}
+                             </div>
+                             <p className="text-[7px] font-black text-white/35 truncate uppercase tracking-wide">{content.title}</p>
+                           </div>
+                         );
+                       })}
+                   </div>
+                 </motion.div>
+               )}
              </div>
            </div>
          )}
@@ -1544,11 +1848,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <Zap size={18} /> Edit Album
                </button>
              )}
-             <button 
+             <button
                onClick={() => setIsTVMode(!isTVMode)}
                className={`flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl ${isTVMode ? 'bg-small-orange text-black' : 'bg-white/10 text-white border border-white/10'}`}
              >
-               <Video size={18} /> {isTVMode ? 'TV Mode On' : 'TV Mode Off'}
+               <VideoIcon size={18} /> {isTVMode ? 'TV Mode On' : 'TV Mode Off'}
+             </button>
+
+             <button
+               onClick={() => setIsDJMode(true)}
+               className="flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl bg-white/10 text-white border border-white/10 hover:bg-[#00D4AA]/20 hover:border-[#00D4AA]/40 hover:text-[#00D4AA]"
+             >
+               <Disc size={18} /> DJ Mode
+             </button>
+
+             <button
+               onClick={() => setIsLightingOpen(true)}
+               className={`flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl border ${isLightingOpen ? 'bg-[#FF8C00]/20 border-[#FF8C00]/40 text-[#FF8C00]' : 'bg-white/10 text-white border-white/10 hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/30 hover:text-[#FF8C00]'}`}
+             >
+               <Zap size={18} /> Lights
              </button>
 
              {!isOwner && !isPreview && (
@@ -1574,7 +1892,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              {[
                { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-               { id: 'MEDIA', label: 'Music Videos & Art', icon: Video },
+               { id: 'MEDIA', label: 'Music Videos & Art', icon: VideoIcon },
                { id: 'COMMENTS', label: 'The Social Feed', icon: MessageSquare },
                { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles }
              ].map(tab => (
@@ -1907,6 +2225,33 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
                                     </div>
                                   )}
+
+                                  {/* ── In This Song characters ── */}
+                                  {t.characterIds && t.characterIds.length > 0 && worldCharacters.length > 0 && (
+                                    <div className="px-4 pt-2 pb-3 border-t border-white/[0.05]">
+                                      <p className="text-[7px] font-black uppercase tracking-[0.35em] text-white/20 mb-2">In This Song</p>
+                                      <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
+                                        {t.characterIds.map(cid => {
+                                          const char = worldCharacters.find(c => c.id === cid);
+                                          if (!char) return null;
+                                          const imgSrc = t.trackCharacterImages?.[cid] || char.imageUrl;
+                                          return (
+                                            <div key={cid} className="flex flex-col items-center gap-1 shrink-0 w-11">
+                                              <div className="w-9 h-9 rounded-full overflow-hidden border border-[#D0BCFF]/30 bg-white/5">
+                                                <img
+                                                  src={imgSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                                  alt={char.name}
+                                                  className="w-full h-full object-cover"
+                                                  onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
+                                                />
+                                              </div>
+                                              <p className="text-[7px] font-black text-white/35 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -1937,7 +2282,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   <div className="p-8 bg-white/[0.04] border border-white/10 rounded-[2.5rem] flex items-center justify-between group hover:bg-white/[0.08] transition-all cursor-pointer" onClick={() => { setActiveVideoId(video.id); playVideo(video); }}>
                                     <div className="flex items-center gap-6">
                                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-xl">
-                                        <Video size={24} className="text-white" />
+                                        <VideoIcon size={24} className="text-white" />
                                       </div>
                                       <div>
                                         <h3 className="text-xl font-black uppercase tracking-tight text-white">{video.title}</h3>
@@ -2007,7 +2352,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         {/* All Videos Grid */}
                         <div className="space-y-6">
                           <div className="flex items-center gap-3">
-                            <Video size={16} className="text-small-orange" />
+                            <VideoIcon size={16} className="text-small-orange" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Music Videos & Art</span>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -2024,7 +2369,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                     <img src={video.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                   ) : (
                                     <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                                      <Video size={24} className="text-white/10" />
+                                      <VideoIcon size={24} className="text-white/10" />
                                     </div>
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
@@ -2102,7 +2447,44 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           </p>
 
                           <The411 itemId={album.id} itemType="MUSIC" title={album.title} author={album.artist} />
-                          
+
+                          {album.worldId && (
+                            <WorldBadge
+                              worldId={album.worldId}
+                              contentTitle={album.title}
+                              contentType="album"
+                              onNavigate={onNavigateToWorld}
+                            />
+                          )}
+
+                          {/* ── Featured Characters ── */}
+                          {worldCharacters.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                                <Users size={11} className="text-white/20" />
+                                Featured Characters
+                              </h4>
+                              <div className="flex flex-wrap gap-2.5">
+                                {worldCharacters.slice(0, 8).map(char => (
+                                  <div key={char.id} className="flex items-center gap-2.5 bg-white/5 border border-white/8 rounded-xl px-3 py-2">
+                                    <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
+                                      <img
+                                        src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                        alt={char.name}
+                                        className="w-full h-full object-cover"
+                                        onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <p className="text-[11px] font-black text-white leading-tight">{char.name}</p>
+                                      {char.role && <p className="text-[8px] text-white/35 uppercase tracking-wider">{char.role}</p>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="pt-8 border-t border-white/5 space-y-4">
                             <h4 className="text-[10px] font-black uppercase tracking-widest text-white/20">Album Metadata</h4>
                             <div className="grid grid-cols-2 gap-6">
@@ -2116,8 +2498,37 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               </div>
                             </div>
                           </div>
+
+                          {/* ── More From This World ── */}
+                          {worldContent && ([...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).length > 0) && (
+                            <div className="pt-8 border-t border-white/5 space-y-4">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/20">More From This World</h4>
+                              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                                {[...worldContent.videos, ...worldContent.albums]
+                                  .filter(c => c.id !== album.id)
+                                  .slice(0, 10)
+                                  .map((content, i) => {
+                                    const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                                    return (
+                                      <div key={(content as any).id || i} className="shrink-0 w-[4.5rem]">
+                                        <div className="w-[4.5rem] h-24 rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1.5">
+                                          {thumb ? (
+                                            <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                              <Music2 size={16} className="text-white/15" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <p className="text-[8px] font-black text-white/40 truncate uppercase tracking-wide">{content.title}</p>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        
+
                         {corsError && (
                           <div className="p-8 bg-red-500/10 border border-red-500/30 rounded-3xl space-y-4">
                             <div className="flex items-center gap-4 text-red-400">
@@ -2163,12 +2574,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           >
             {/* ── Background: full-canvas visualizer ── */}
             <div className="absolute inset-0 z-0">
-              <div style={{ opacity: visualizerType === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
-                <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+              <div className="absolute inset-0" style={{ opacity: visualizerType === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
+                <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} alwaysAnimate={true} />
               </div>
               {visualizerType === 'PAINT' && (
                 <div className="absolute inset-0 pointer-events-none">
-                  <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                  <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
                 </div>
               )}
             </div>
@@ -2176,40 +2587,30 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             {/* ── Right half gradient darkener for lyric readability ── */}
             <div className="absolute right-0 top-0 w-1/2 h-full z-10 pointer-events-none bg-gradient-to-l from-black/85 via-black/60 to-transparent" />
 
-            {/* ── Right half: dominant synced lyrics ── */}
-            <div className="absolute right-0 top-0 w-1/2 h-[calc(100%-88px)] z-20 flex flex-col justify-center px-16 py-16 overflow-hidden pointer-events-none">
+            {/* ── Right half: dominant synced lyrics — active line stays center, others scroll past ── */}
+            <div className="absolute right-0 top-0 w-1/2 h-[calc(100%-88px)] z-20 px-12 py-8">
               {(() => {
                 const track = album.tracks[currentTrackIndex];
                 if (track?.timeCodedLyrics && track.timeCodedLyrics.length > 0) {
                   return (
-                    <div className="space-y-5 overflow-hidden">
-                      {track.timeCodedLyrics.map((line, idx) => {
-                        const isActive = globalCurrentTime >= line.time && (!track.timeCodedLyrics![idx + 1] || globalCurrentTime < track.timeCodedLyrics![idx + 1].time);
-                        const isPast = !isActive && globalCurrentTime > line.time;
-                        return (
-                          <motion.p
-                            key={idx}
-                            animate={{ opacity: isActive ? 1 : isPast ? 0.12 : 0.25, scale: isActive ? 1.02 : 0.97, x: isActive ? 0 : -8 }}
-                            transition={{ duration: 0.55, ease: 'easeOut' }}
-                            className={`font-display font-black uppercase leading-tight tracking-tight ${isActive ? 'text-4xl lg:text-5xl text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.3)]' : 'text-3xl lg:text-4xl text-white/30'}`}
-                          >
-                            {line.text}
-                          </motion.p>
-                        );
-                      })}
-                    </div>
+                    <TimeCodedLyrics
+                      tracks={track.timeCodedLyrics}
+                      currentTime={globalCurrentTime}
+                      seek={seek}
+                      paintMode
+                    />
                   );
                 } else if (track?.lyrics) {
                   return (
-                    <div className="space-y-4 overflow-hidden">
+                    <div className="h-full flex flex-col justify-center space-y-4 overflow-hidden pointer-events-none">
                       {track.lyrics.split('\n').filter(Boolean).map((line, idx) => (
-                        <p key={idx} className="text-4xl lg:text-5xl font-display font-black uppercase leading-tight text-white/20">{line}</p>
+                        <p key={idx} className="text-3xl lg:text-4xl font-display font-black uppercase leading-tight text-white/20">{line}</p>
                       ))}
                     </div>
                   );
                 }
                 return (
-                  <div className="flex flex-col items-center justify-center gap-6 opacity-20">
+                  <div className="h-full flex flex-col items-center justify-center gap-6 opacity-20 pointer-events-none">
                     <Music2 size={64} />
                     <p className="text-sm font-black uppercase tracking-[0.4em]">No lyrics available</p>
                   </div>
@@ -2267,6 +2668,22 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   />
                 </div>
                 <span className="text-[9px] font-black text-white/30 w-8 shrink-0">{formatTime(globalDuration)}</span>
+              </div>
+
+              {/* Visualizer type selector */}
+              <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 shrink-0">
+                <button
+                  onClick={() => setVisualizerType('FLOW')}
+                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${visualizerType === 'FLOW' ? 'bg-white text-black shadow' : 'text-white/30 hover:text-white'}`}
+                >
+                  Flow
+                </button>
+                <button
+                  onClick={() => setVisualizerType('PAINT')}
+                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${visualizerType === 'PAINT' ? 'bg-white text-black shadow' : 'text-white/30 hover:text-white'}`}
+                >
+                  Paint
+                </button>
               </div>
 
               {/* Exit fullscreen */}
@@ -2340,7 +2757,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </div>
       )}
       
-      <DonationModal 
+      <SmartLightingPanel
+        isOpen={isLightingOpen}
+        onClose={() => setIsLightingOpen(false)}
+        analyser={globalAnalyser}
+      />
+
+      <DonationModal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         toId={album.ownerId || ''}
@@ -2348,6 +2771,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         albumId={album.id}
         albumTitle={album.title}
       />
+
+      <AnimatePresence>
+        {isDJMode && (
+          <DJModeView
+            album={album}
+            onClose={() => setIsDJMode(false)}
+            initialTrack={globalTrack}
+            initialTime={globalCurrentTime}
+            initialTrackIndex={currentTrackIndex}
+            onPauseGlobal={pause}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

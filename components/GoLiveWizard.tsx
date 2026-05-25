@@ -1,15 +1,15 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X, ChevronLeft, ChevronRight, Radio, Camera, Monitor, Wifi,
   Mic, MicOff, Video, VideoOff, Check, AlertCircle, Trash2,
   Clock, Type, MessageSquare, Ban, Layers, Copy, Tv2, RefreshCw
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream } from '../services/backendService';
+import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus } from '../services/backendService';
 import { db } from '../services/backendService';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import MuxPlayer from '@mux/mux-player-react';
+import PlajahLivePlayer from './PlajahLivePlayer';
 
 interface GoLiveWizardProps {
   onClose: () => void;
@@ -23,6 +23,7 @@ interface MuxStreamInfo {
   streamId: string;
   streamKey: string;
   rtmpUrl: string;
+  srtUrl: string;
   playbackId: string | null;
 }
 
@@ -113,6 +114,8 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
   const [muxCreating, setMuxCreating] = useState(false);
   const [muxError, setMuxError] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [muxSignalStatus, setMuxSignalStatus] = useState<'idle' | 'waiting' | 'active' | 'error'>('idle');
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const steps: WizardStep[] = ['TYPE', 'DETAILS', 'SIGNAL', 'GRAPHICS', 'GOLIVE'];
   const stepIndex = steps.indexOf(step);
@@ -179,6 +182,25 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
     });
     return unsub;
   }, [isLive, liveFeedId]);
+
+  // Poll Mux for live signal once credentials are issued
+  useEffect(() => {
+    if (!muxStream?.streamId || muxSignalStatus === 'active') return;
+    setMuxSignalStatus('waiting');
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const { status } = await getMuxLiveStreamStatus(muxStream.streamId);
+        if (status === 'active') {
+          setMuxSignalStatus('active');
+          setSignalOk(true);
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        }
+      } catch {
+        setMuxSignalStatus('error');
+      }
+    }, 5000);
+    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+  }, [muxStream?.streamId]);
 
   const deleteMessage = async (msgId: string) => {
     if (!liveFeedId) return;
@@ -445,15 +467,31 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                             <Check size={16} className="text-green-400 shrink-0" />
                             <p className="text-green-400 text-xs font-black uppercase tracking-widest">Stream credentials ready</p>
                           </div>
+                          {/* Signal status banner */}
+                          <div className={`flex items-center gap-3 p-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all ${
+                            muxSignalStatus === 'active' ? 'border-green-500/40 bg-green-500/10 text-green-400'
+                            : muxSignalStatus === 'waiting' ? 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'
+                            : 'border-white/10 bg-white/5 text-white/30'
+                          }`}>
+                            {muxSignalStatus === 'active'
+                              ? <><Check size={14} /> Signal detected — stream is active!</>
+                              : muxSignalStatus === 'waiting'
+                              ? <><RefreshCw size={14} className="animate-spin" /> Waiting for signal from your encoder…</>
+                              : <><AlertCircle size={14} /> Open OBS and start streaming to detect signal</>
+                            }
+                          </div>
+
+                          {/* Credentials */}
                           {[
-                            { label: 'RTMP Server', value: muxStream.rtmpUrl, field: 'rtmp' },
+                            { label: 'RTMP Server (OBS / Streamlabs)', value: muxStream.rtmpUrl, field: 'rtmp' },
+                            { label: 'SRT URL (OBS 29+ / ffmpeg / vMix)', value: muxStream.srtUrl, field: 'srt' },
                             { label: 'Stream Key', value: muxStream.streamKey, field: 'key', secret: true },
                           ].map(({ label, value, field, secret }) => (
                             <div key={field} className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-2">
                               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">{label}</p>
                               <div className="flex items-center gap-2">
                                 <p className="text-white text-xs font-mono flex-1 break-all select-all">
-                                  {secret ? value.replace(/./g, '•').slice(0, 24) + '...' : value}
+                                  {secret ? '•'.repeat(20) + '…' : value}
                                 </p>
                                 <button onClick={() => copyToClipboard(value, field)}
                                   className={`shrink-0 p-2 rounded-xl transition-all ${copiedField === field ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40 hover:text-white'}`}>
@@ -462,22 +500,31 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                               </div>
                             </div>
                           ))}
+
+                          {/* Setup guide */}
                           <div className="p-4 bg-[#ff8c00]/5 border border-[#ff8c00]/20 rounded-2xl text-xs text-white/50 leading-relaxed space-y-1">
-                            <p className="text-[#ff8c00] font-black uppercase tracking-widest text-[10px] mb-2">OBS Setup</p>
-                            <p>Settings → Stream → Service: Custom RTMP</p>
-                            <p>Server: <span className="text-white/80 font-mono">rtmps://global-live.mux.com:443/app</span></p>
-                            <p>Stream Key: <span className="text-white/80">paste your key above</span></p>
+                            <p className="text-[#ff8c00] font-black uppercase tracking-widest text-[10px] mb-2">OBS / Encoder Setup</p>
+                            <p className="font-bold text-white/40">RTMP: Settings → Stream → Custom RTMP → paste Server + Key</p>
+                            <p className="font-bold text-white/40">SRT: Settings → Stream → Custom… → paste full SRT URL (no key needed)</p>
+                            <p className="font-bold text-white/40">ffmpeg: <span className="font-mono text-white/30">ffmpeg -i input … -f mpegts "{muxStream.srtUrl}"</span></p>
                           </div>
+
+                          {/* Live preview — Plajah player, zero Mux UI */}
                           {muxStream.playbackId && (
                             <div className="rounded-2xl overflow-hidden border border-white/10">
-                              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest p-3 pb-0">Live Preview (appears after stream starts)</p>
-                              <MuxPlayer
-                                streamType="live"
-                                playbackId={muxStream.playbackId}
-                                autoPlay
-                                muted
-                                style={{ width: '100%', aspectRatio: '16/9' }}
-                              />
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest px-3 pt-3 pb-2">
+                                {muxSignalStatus === 'active' ? 'Live Preview' : 'Preview (will appear once your encoder connects)'}
+                              </p>
+                              <div className="aspect-video">
+                                <PlajahLivePlayer
+                                  playbackId={muxStream.playbackId}
+                                  isLive
+                                  autoPlay
+                                  muted
+                                  className="w-full h-full"
+                                  onError={() => {}}
+                                />
+                              </div>
                             </div>
                           )}
                         </div>

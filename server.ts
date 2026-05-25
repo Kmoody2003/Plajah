@@ -741,12 +741,16 @@ async function startServer() {
         playback_policy: ['public'],
         new_asset_settings: { playback_policy: ['public'] },
         latency_mode: 'reduced',
+        reconnect_window: 60, // 60s reconnect window for dropped SRT/RTMP connections
       });
+      const streamKey = stream.stream_key ?? '';
       res.json({
         streamId: stream.id,
-        streamKey: stream.stream_key,
+        streamKey,
         rtmpUrl: 'rtmps://global-live.mux.com:443/app',
-        playbackId: stream.playback_ids?.[0]?.id || null,
+        // SRT ingest — OBS 29+, vMix, Haivision, ffmpeg all support this natively
+        srtUrl: `srt://global-live.mux.com:5001?streamid=${streamKey}`,
+        playbackId: stream.playback_ids?.[0]?.id ?? null,
       });
     } catch (error: any) {
       console.error('Mux live create error:', error);
@@ -1507,6 +1511,212 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  // ── Philips Hue OAuth ─────────────────────────────────────────────────────
+  // Step 1: redirect user to Hue login page
+  app.get('/api/hue/auth', (req: any, res: any) => {
+    const clientId  = process.env.HUE_CLIENT_ID;
+    const redirectUri = process.env.HUE_REDIRECT_URI;
+    if (!clientId || !redirectUri) return res.status(500).send('HUE_CLIENT_ID / HUE_REDIRECT_URI not configured');
+    const state = Math.random().toString(36).slice(2);
+    const url = new URL('https://api.meethue.com/oauth2/auth');
+    url.searchParams.set('clientid', clientId);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('state', state);
+    url.searchParams.set('appid', clientId);
+    url.searchParams.set('deviceid', 'plajah-server');
+    url.searchParams.set('devicename', 'Plajah');
+    res.redirect(url.toString());
+  });
+
+  // Step 2: Hue redirects back here with ?code=… — exchange for access token
+  app.get('/api/hue/callback', async (req: any, res: any) => {
+    const { code } = req.query;
+    if (!code) return res.status(400).send('Missing code');
+    const clientId     = process.env.HUE_CLIENT_ID!;
+    const clientSecret = process.env.HUE_CLIENT_SECRET!;
+    const redirectUri  = process.env.HUE_REDIRECT_URI!;
+    try {
+      const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+      const tokenRes = await fetch('https://api.meethue.com/oauth2/token', {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ code: String(code), grant_type: 'authorization_code', redirect_uri: redirectUri }).toString(),
+      });
+      if (!tokenRes.ok) {
+        const err = await tokenRes.text();
+        return res.status(502).send(`Hue token error: ${err}`);
+      }
+      const { access_token, refresh_token } = await tokenRes.json() as any;
+      // Return a tiny page that posts the token back to the opener and closes itself
+      res.send(`<!DOCTYPE html><html><body><script>
+        try { window.opener.postMessage({ type:'hue-auth', accessToken:${JSON.stringify(access_token)}, refreshToken:${JSON.stringify(refresh_token)} }, '*'); }
+        catch(e) {}
+        window.close();
+      </script><p>Hue connected! You can close this window.</p></body></html>`);
+    } catch (e: any) {
+      res.status(500).send(`OAuth error: ${e.message}`);
+    }
+  });
+
+  // ── Smart Lighting Proxy ──────────────────────────────────────────────────
+  // Forwards requests to cloud light APIs (Hue Remote, Govee) and local devices.
+  // The body is wrapped: { targetMethod, body } so we can use POST for all verbs.
+  app.post('/api/lights/proxy', express.json(), async (req: any, res: any) => {
+    const { url: targetUrl, goveeKey, hueToken, method: qMethod } = req.query;
+    if (!targetUrl) return res.status(400).json({ error: 'url required' });
+    const method = (req.body?.targetMethod || qMethod || 'GET').toUpperCase();
+    const bodyPayload = req.body?.body;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
+    if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
+    try {
+      const upstream = await fetch(decodeURIComponent(targetUrl as string), {
+        method,
+        headers,
+        body: bodyPayload && method !== 'GET' ? JSON.stringify(bodyPayload) : undefined,
+      });
+      const data = await upstream.json().catch(() => null);
+      res.status(upstream.status).json(data ?? {});
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Also accept GET for read-only calls
+  app.get('/api/lights/proxy', express.json(), async (req: any, res: any) => {
+    const { url: targetUrl, goveeKey, hueToken } = req.query;
+    if (!targetUrl) return res.status(400).json({ error: 'url required' });
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
+    if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
+    try {
+      const upstream = await fetch(decodeURIComponent(targetUrl as string), { headers });
+      const data = await upstream.json().catch(() => null);
+      res.status(upstream.status).json(data ?? {});
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── Alexa Skill Webhook ────────────────────────────────────────────────────
+  // Point your Alexa custom skill endpoint at /api/alexa (HTTPS required).
+  // Skill intents: PlayArtistIntent (slot: artist), PlayAlbumIntent (slot: album),
+  // plus built-in AMAZON.PauseIntent / AMAZON.ResumeIntent / AMAZON.StopIntent.
+  app.post('/api/alexa', express.json(), async (req: any, res: any) => {
+    const { request, context } = req.body || {};
+    if (!request) return res.status(400).json({ error: 'Invalid Alexa request' });
+
+    const reply = (text: string, end = false, directive?: object) => {
+      const r: any = { version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: end } };
+      if (directive) r.response.directives = [directive];
+      res.json(r);
+    };
+    const audioPlay = (url: string, token: string, offset = 0) => ({
+      type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL',
+      audioItem: { stream: { url, token, offsetInMilliseconds: offset } },
+    });
+
+    try {
+      if (request.type === 'LaunchRequest') {
+        return reply("Welcome to Plajah. Ask me to play an artist, album, or radio station.");
+      }
+      if (request.type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
+
+      if (request.type === 'IntentRequest') {
+        const { name, slots = {} } = request.intent;
+        switch (name) {
+          case 'PlayArtistIntent': {
+            const artist = slots.artist?.value || '';
+            if (!artist) return reply("Which artist would you like to hear?");
+            return reply(`Playing ${artist} on Plajah.`, true,
+              audioPlay(`https://plajah.com/api/alexa/stream?artist=${encodeURIComponent(artist)}`, `artist:${artist}`));
+          }
+          case 'PlayAlbumIntent': {
+            const album = slots.album?.value || '';
+            if (!album) return reply("Which album would you like?");
+            return reply(`Playing ${album} on Plajah.`, true,
+              audioPlay(`https://plajah.com/api/alexa/stream?album=${encodeURIComponent(album)}`, `album:${album}`));
+          }
+          case 'PlayRadioIntent': {
+            const station = slots.station?.value || 'top tracks';
+            return reply(`Playing ${station} radio on Plajah.`, true,
+              audioPlay(`https://plajah.com/api/alexa/stream?radio=${encodeURIComponent(station)}`, `radio:${station}`));
+          }
+          case 'AMAZON.PauseIntent':  return reply('', true, { type: 'AudioPlayer.Stop' });
+          case 'AMAZON.StopIntent':   return reply('Goodbye from Plajah.', true, { type: 'AudioPlayer.Stop' });
+          case 'AMAZON.ResumeIntent': {
+            const token = context?.AudioPlayer?.token || '';
+            const offset = context?.AudioPlayer?.offsetInMilliseconds || 0;
+            return reply('', false, audioPlay(`https://plajah.com/api/alexa/stream?token=${encodeURIComponent(token)}`, token, offset));
+          }
+          default: return reply("I didn't catch that. Try asking Plajah to play an artist or album.");
+        }
+      }
+      res.json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'Something went wrong.' }, shouldEndSession: true } });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Alexa stream resolver — looks up Firestore to find a track URL by artist/album
+  app.get('/api/alexa/stream', async (req: any, res: any) => {
+    const { artist, album } = req.query;
+    // Search Firestore for matching album/artist
+    const projectId = 'gen-lang-client-0665118474';
+    const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+    try {
+      const searchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const field = album ? 'title' : 'artist';
+      const value = String(album || artist || '');
+      const body = { structuredQuery: { from: [{ collectionId: 'albums' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }, limit: 1 } };
+      const r = await fetch(searchUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const results = await r.json();
+      const doc = Array.isArray(results) ? results.find((d: any) => d.document) : null;
+      const tracks = doc?.document?.fields?.tracks?.arrayValue?.values || [];
+      const firstTrackUrl = tracks[0]?.mapValue?.fields?.url?.stringValue;
+      if (firstTrackUrl) {
+        res.redirect(302, firstTrackUrl);
+      } else {
+        res.status(404).json({ error: 'Track not found' });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Google Home / Assistant Webhook ───────────────────────────────────────
+  // Point your Dialogflow / Actions on Google webhook at /api/google-home.
+  // Intents to create: PlayArtist, PlayAlbum, PlayRadio, Pause, Default Fallback.
+  app.post('/api/google-home', express.json(), async (req: any, res: any) => {
+    const { queryResult } = req.body || {};
+    if (!queryResult) return res.status(400).json({ error: 'Invalid webhook' });
+
+    const intent = queryResult.intent?.displayName || '';
+    const params = queryResult.parameters || {};
+
+    const reply = (text: string, ssml?: string) => res.json({
+      fulfillmentText: text,
+      fulfillmentMessages: [{ text: { text: [text] } }],
+      ...(ssml ? { payload: { google: { expectUserResponse: false, richResponse: { items: [{ simpleResponse: { ssml } }] } } } } : {}),
+    });
+
+    try {
+      if (intent === 'PlayArtist' || intent === 'play artist') {
+        const artist = params.artist || params['music-artist'] || '';
+        if (!artist) return reply("Which artist would you like on Plajah?");
+        return reply(`Playing ${artist} on Plajah.`, `<speak>Starting ${artist} on Plajah right now.</speak>`);
+      }
+      if (intent === 'PlayAlbum' || intent === 'play album') {
+        const album = params.album || params['music-album'] || '';
+        if (!album) return reply("Which album would you like?");
+        return reply(`Playing ${album} on Plajah.`, `<speak>Playing ${album} on Plajah.</speak>`);
+      }
+      if (intent === 'PlayRadio' || intent === 'play radio') {
+        const station = params.station || 'top tracks';
+        return reply(`Playing ${station} radio on Plajah.`);
+      }
+      if (intent === 'Pause') return reply('Pausing Plajah.');
+      if (intent === 'Resume') return reply('Resuming Plajah.');
+      reply("You can ask me to play an artist, album, or radio station on Plajah.");
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // oEmbed endpoint — lets Slack, Notion, Mastodon, and other rich-preview platforms embed Plajah links

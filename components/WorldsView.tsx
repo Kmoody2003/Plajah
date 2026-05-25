@@ -18,6 +18,7 @@ import {
   fetchAllPublicAlbums, fetchUserVideos, fetchAllPublicWorlds,
   seedDemoWorld, seedDemoWorlds
 } from '../services/backendService';
+import { onAuthStateChanged } from 'firebase/auth';
 import WorldGraphView from './WorldGraphView';
 import CharacterDetailModal from './CharacterDetailModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -59,7 +60,7 @@ function WorldBackground({ world }: { world: IPWorld | null }) {
     ? (cfg.images ?? [])
     : cfg?.images?.length
     ? [cfg.images[0]]
-    : world?.themeConfig.customBackgroundImage
+    : world?.themeConfig?.customBackgroundImage
     ? [world.themeConfig.customBackgroundImage]
     : [];
 
@@ -281,7 +282,12 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
   const [selectedLore, setSelectedLore] = useState<LoreEntry | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
 
-  const isOwner = auth.currentUser?.uid === artistUid;
+  const [authUid, setAuthUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => setAuthUid(u?.uid ?? null));
+    return unsub;
+  }, []);
+  const isOwner = authUid === artistUid;
 
   useEffect(() => { loadWorlds(); }, [artistUid, isDiscoverMode]);
 
@@ -300,22 +306,26 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
 
   useEffect(() => {
     if (selectedWorld && viewMode === 'DETAIL') loadWorldContent(selectedWorld.id);
-  }, [selectedWorld, viewMode, isPreviewMode]);
+  }, [selectedWorld, viewMode, isPreviewMode, isOwner]);
 
   const loadWorldContent = async (worldId: string) => {
-    const onlyPublished = !isOwner;
-    const [chars, loreEntries, events, albums, videos] = await Promise.all([
-      fetchWorldCharacters(worldId, onlyPublished),
-      fetchWorldLore(worldId, onlyPublished),
-      fetchWorldTimeline(worldId, onlyPublished),
-      fetchAllPublicAlbums(),
-      fetchUserVideos(artistUid),
-    ]);
-    setCharacters(chars);
-    setLore(loreEntries);
-    setTimeline(events);
-    setUserAlbums(albums);
-    setUserVideos(videos);
+    try {
+      const onlyPublished = !isOwner;
+      const [chars, loreEntries, events, albums, videos] = await Promise.all([
+        fetchWorldCharacters(worldId, onlyPublished),
+        fetchWorldLore(worldId, onlyPublished),
+        fetchWorldTimeline(worldId, onlyPublished),
+        fetchAllPublicAlbums(),
+        fetchUserVideos(artistUid),
+      ]);
+      setCharacters(chars);
+      setLore(loreEntries);
+      setTimeline(events);
+      setUserAlbums(albums);
+      setUserVideos(videos);
+    } catch (e) {
+      console.error('loadWorldContent failed:', e);
+    }
   };
 
   const handlePublishAll = async () => {

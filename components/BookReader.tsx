@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
-import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { subscribeToComments, postComment } from '../services/backendService';
+import { subscribeToComments, postComment, createPost } from '../services/backendService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -14,6 +14,16 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 if (pdfjs && pdfjs.GlobalWorkerOptions) {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
+
+interface BookmarkEntry {
+  id: string;
+  chapterIndex: number;
+  pageIndex: number;
+  epubCfi?: string;
+  epubProgress?: number;
+  label: string;
+  createdAt: number;
 }
 
 interface BookReaderProps {
@@ -183,6 +193,16 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [isLoadingContent, setIsLoadingContent] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem(`plajah-bookmarks-${book.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareCaption, setShareCaption] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     // Determine if already saved (basic check)
@@ -426,6 +446,83 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     }
   };
 
+  useEffect(() => {
+    localStorage.setItem(`plajah-bookmarks-${book.id}`, JSON.stringify(bookmarks));
+  }, [bookmarks, book.id]);
+
+  const isCurrentPageBookmarked = bookmarks.some(b =>
+    isEpub
+      ? b.epubCfi === epubLocation
+      : b.chapterIndex === currentChapterIndex && b.pageIndex === currentPageIndex
+  );
+
+  const toggleBookmark = () => {
+    if (isCurrentPageBookmarked) {
+      setBookmarks(prev => prev.filter(b =>
+        isEpub
+          ? b.epubCfi !== epubLocation
+          : !(b.chapterIndex === currentChapterIndex && b.pageIndex === currentPageIndex)
+      ));
+    } else {
+      const label = isEpub
+        ? `${book.title} — ${epubProgress}%`
+        : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} — Page ${currentPageIndex + 1}`;
+      setBookmarks(prev => [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        chapterIndex: currentChapterIndex,
+        pageIndex: currentPageIndex,
+        epubCfi: isEpub ? (epubLocation || undefined) : undefined,
+        epubProgress: isEpub ? epubProgress : undefined,
+        label,
+        createdAt: Date.now(),
+      }]);
+    }
+  };
+
+  const jumpToBookmark = (b: BookmarkEntry) => {
+    if (isEpub && b.epubCfi) {
+      epubRendition?.display(b.epubCfi);
+    } else {
+      setCurrentChapterIndex(b.chapterIndex);
+      setCurrentPageIndex(b.pageIndex);
+    }
+    setShowBookmarks(false);
+  };
+
+  const handleSharePage = async () => {
+    if (!currentUser || isSharing) return;
+    setIsSharing(true);
+    try {
+      const pageRef = isEpub
+        ? `epub:${epubProgress}`
+        : `chapter:${currentChapterIndex}:page:${currentPageIndex}`;
+      const deepLink = `${window.location.origin}/#book/${book.id}?ref=${encodeURIComponent(pageRef)}`;
+      const caption = shareCaption.trim() ||
+        `📖 Reading "${book.title}"${currentChapter?.title ? ` — ${currentChapter.title}` : ''}${!isEpub ? ` — Page ${currentPageIndex + 1}` : ` at ${epubProgress}%`}`;
+      await createPost({
+        text: caption,
+        media: [{
+          type: 'LINK',
+          title: book.title,
+          thumbnail: book.coverImage || undefined,
+          linkPreview: {
+            title: book.title,
+            description: currentChapter?.title || book.description || '',
+            image: book.coverImage || undefined,
+            url: deepLink,
+          },
+          url: deepLink,
+        }],
+      });
+      setShowShareModal(false);
+      setShareCaption('');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const toggleNarration = () => {
     if (isNarrating) {
       audioRef.current?.pause();
@@ -480,7 +577,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           >
             <div className="flex items-center gap-4 lg:gap-6">
               <button
-                onClick={() => { setShowTOC(!showTOC); setShowComments(false); setShowNotes(false); setShowSettings(false); }}
+                onClick={() => { setShowTOC(!showTOC); setShowComments(false); setShowNotes(false); setShowSettings(false); setShowBookmarks(false); }}
                 className={`p-3 rounded-full transition-all ${showTOC ? s.activeBtn : s.btnHover}`}
                 title="Table of Contents"
               >
@@ -508,12 +605,28 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             </div>
 
             <div className="flex items-center gap-2 lg:gap-4">
-              <button 
+              <button
                 onClick={handleSaveBook}
                 className={`p-3 rounded-full transition-all ${isSaved ? 'text-green-500' : s.btnHover} ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
                 title={isSaved ? "Saved to Library" : "Save to Library"}
               >
                 {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Bookmark size={20} className={isSaved ? "fill-green-500" : ""} />}
+              </button>
+
+              <button
+                onClick={toggleBookmark}
+                className={`p-3 rounded-full transition-all ${isCurrentPageBookmarked ? 'text-[#D0BCFF]' : s.btnHover}`}
+                title={isCurrentPageBookmarked ? "Remove Bookmark" : "Bookmark This Page"}
+              >
+                <Bookmark size={20} className={isCurrentPageBookmarked ? 'fill-[#D0BCFF]' : ''} />
+              </button>
+
+              <button
+                onClick={() => { setShowBookmarks(!showBookmarks); setShowComments(false); setShowNotes(false); setShowTOC(false); setShowSettings(false); }}
+                className={`p-3 rounded-full transition-all ${showBookmarks ? s.activeBtn : s.btnHover}`}
+                title="My Bookmarks"
+              >
+                <BookIcon size={20} />
               </button>
 
               <div className="hidden lg:flex items-center bg-white/5 rounded-full p-1 border border-white/10 group overflow-hidden">
@@ -549,7 +662,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </button>
               
               {currentChapter?.url && (
-                <button 
+                <button
                   onClick={() => window.open(currentChapter.url, '_blank')}
                   className={`p-3 rounded-full transition-all ${s.btnHover}`}
                   title="Download Book"
@@ -557,9 +670,19 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   <Download size={20} />
                 </button>
               )}
-              
-              <button 
-                onClick={() => { setShowSettings(!showSettings); setShowComments(false); setShowNotes(false); setShowTOC(false); }}
+
+              {book.allowPageSharing && (
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className={`p-3 rounded-full transition-all ${s.btnHover}`}
+                  title="Share This Page"
+                >
+                  <Share2 size={20} />
+                </button>
+              )}
+
+              <button
+                onClick={() => { setShowSettings(!showSettings); setShowComments(false); setShowNotes(false); setShowTOC(false); setShowBookmarks(false); }}
                 className={`p-3 rounded-full transition-all ${showSettings ? s.activeBtn : s.btnHover}`}
                 title="Reading Settings"
               >
@@ -567,14 +690,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </button>
 
               <button 
-                onClick={() => { setShowNotes(!showNotes); setShowComments(false); setShowTOC(false); setShowSettings(false); }}
+                onClick={() => { setShowNotes(!showNotes); setShowComments(false); setShowTOC(false); setShowSettings(false); setShowBookmarks(false); }}
                 className={`p-3 rounded-full transition-all ${showNotes ? s.activeBtn : s.btnHover}`}
                 title="Notes"
               >
                 <Edit3 size={20} />
               </button>
               <button 
-                onClick={() => { setShowComments(!showComments); setShowNotes(false); setShowTOC(false); setShowSettings(false); }}
+                onClick={() => { setShowComments(!showComments); setShowNotes(false); setShowTOC(false); setShowSettings(false); setShowBookmarks(false); }}
                 className={`p-3 rounded-full transition-all ${showComments ? s.activeBtn : s.btnHover}`}
                 title="Reader Discussion"
               >
@@ -622,7 +745,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     readerArea: {
                       ...ReactReaderStyle.readerArea,
                       backgroundColor: 'transparent',
-                    }
+                    },
+                    tocButton: {
+                      ...ReactReaderStyle.tocButton,
+                      display: 'none',
+                    },
+                    tocArea: {
+                      ...ReactReaderStyle.tocArea,
+                      display: 'none',
+                    },
                   }}
                   getRendition={(rendition) => {
                     setEpubRendition(rendition);
@@ -805,6 +936,63 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                         </div>
                       </button>
                     ))}
+                  </div>
+                )}
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+
+        {/* Bookmarks Sidebar */}
+        <AnimatePresence>
+          {showBookmarks && (
+            <motion.aside
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col`}
+            >
+              <div className="p-8 border-b border-white/10">
+                <h3 className="text-xl font-display font-black uppercase tracking-tight mb-2">Bookmarks</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">
+                  {bookmarks.length} saved {bookmarks.length === 1 ? 'place' : 'places'}
+                </p>
+              </div>
+
+              <div className={`flex-1 overflow-y-auto ${s.scrollbar} p-4`}>
+                {bookmarks.length > 0 ? (
+                  <div className="space-y-2">
+                    {[...bookmarks].sort((a, b) => b.createdAt - a.createdAt).map(bm => (
+                      <div
+                        key={bm.id}
+                        className={`group flex items-center gap-3 p-4 rounded-2xl ${s.card} hover:border-[#D0BCFF]/30 transition-all cursor-pointer`}
+                        onClick={() => jumpToBookmark(bm)}
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-[#D0BCFF]/10 border border-[#D0BCFF]/20 flex items-center justify-center shrink-0">
+                          <Bookmark size={14} className="text-[#D0BCFF] fill-[#D0BCFF]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-black text-white/80 truncate">{bm.label}</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-white/25 mt-0.5">
+                            {new Date(bm.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setBookmarks(prev => prev.filter(b => b.id !== bm.id)); }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-24 text-center">
+                    <Bookmark size={36} className="text-white/10 mx-auto mb-4" />
+                    <p className="text-white/20 font-black uppercase tracking-widest text-sm">No bookmarks yet</p>
+                    <p className="text-white/10 font-black uppercase tracking-widest text-[9px] mt-2">
+                      Tap the bookmark icon while reading to save your place
+                    </p>
                   </div>
                 )}
               </div>
@@ -1009,6 +1197,88 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 </div>
               </div>
             </motion.aside>
+          )}
+        </AnimatePresence>
+
+        {/* Page Share Modal */}
+        <AnimatePresence>
+          {showShareModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+              onClick={() => setShowShareModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.92, y: 20 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 340 }}
+                className="w-full max-w-md bg-[#0C0C1A]/95 backdrop-blur-2xl border border-white/[0.10] rounded-3xl overflow-hidden shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Preview thumbnail */}
+                {book.coverImage && (
+                  <div className="relative h-32 overflow-hidden">
+                    <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(20px) brightness(0.4)' }} />
+                    <div className="absolute inset-0 flex items-center gap-4 px-6">
+                      <img src={book.coverImage} alt="" className="h-20 w-14 object-cover rounded-xl shadow-2xl border border-white/10 shrink-0" />
+                      <div>
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Sharing a Page From</p>
+                        <p className="text-white font-black text-lg leading-tight">{book.title}</p>
+                        <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-1">
+                          {isEpub ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-6 space-y-4">
+                  {!book.coverImage && (
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Sharing a Page</p>
+                      <p className="text-white font-black text-xl">{book.title}</p>
+                      <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-1">
+                        {isEpub ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
+                      </p>
+                    </div>
+                  )}
+
+                  <textarea
+                    value={shareCaption}
+                    onChange={e => setShareCaption(e.target.value)}
+                    placeholder="Add a caption… (optional)"
+                    rows={3}
+                    maxLength={280}
+                    className="w-full bg-white/[0.06] border border-white/[0.10] rounded-2xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#D0BCFF]/30 resize-none font-medium"
+                  />
+                  <p className="text-[8px] text-white/20 font-black uppercase tracking-widest text-right">{shareCaption.length}/280</p>
+
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20 leading-relaxed">
+                    This will post to your Plajah feed. Other readers clicking the post will open this exact page.
+                  </p>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowShareModal(false)}
+                      className="flex-1 py-3 rounded-2xl border border-white/10 text-white/40 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSharePage}
+                      disabled={isSharing}
+                      className="flex-1 py-3 rounded-2xl bg-[#D0BCFF] text-[#1C1B1F] text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                      {isSharing ? 'Posting…' : 'Share to Feed'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 

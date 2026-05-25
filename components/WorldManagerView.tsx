@@ -46,6 +46,7 @@ import {
   updateTimeline,
   deleteTimeline,
   setAssetTimeline,
+  setVideoTimeline,
   fetchAllPublicAlbums,
   auth,
   updateTimelineEvent,
@@ -53,6 +54,7 @@ import {
   uploadWorldPhoto,
   fetchWorldPhotos,
   createIPWorld,
+  updateVideo,
 } from '../services/backendService';
 import WorldGraphView from './WorldGraphView';
 
@@ -142,6 +144,7 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
   const bgImageInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
+  const [assetSearch, setAssetSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'IDENTITY' | 'CONTENT' | 'TIMELINE' | 'CONNECTIONS' | 'ASSETS'>('IDENTITY');
   const [activeEditor, setActiveEditor] = useState<{ type: 'CHARACTER' | 'LORE' | 'TIMELINE' | 'CONNECTION', item?: any } | null>(null);
   const [showGraph, setShowGraph] = useState(false);
@@ -367,13 +370,13 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                             type="number"
                             value={world.timelineConfig?.startYear}
                             className="bg-black/40 p-5 rounded-2xl border border-white/10 text-sm"
-                            onChange={e => setWorld({...world, timelineConfig: { ...world.timelineConfig!, startYear: parseInt(e.target.value) }})}
+                            onChange={e => setWorld({...world, timelineConfig: { ...(world.timelineConfig ?? { startYear: 0, endYear: 2000, unitName: 'Years' }), startYear: parseInt(e.target.value) }})}
                           />
                           <input 
                             type="number"
                             value={world.timelineConfig?.endYear}
                             className="bg-black/40 p-5 rounded-2xl border border-white/10 text-sm"
-                            onChange={e => setWorld({...world, timelineConfig: { ...world.timelineConfig!, endYear: parseInt(e.target.value) }})}
+                            onChange={e => setWorld({...world, timelineConfig: { ...(world.timelineConfig ?? { startYear: 0, endYear: 2000, unitName: 'Years' }), endYear: parseInt(e.target.value) }})}
                           />
                         </div>
                       </div>
@@ -920,15 +923,27 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                  className="space-y-8"
                >
                  <section className="glass p-8 rounded-[2.5rem] border border-white/10">
-                    <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3 mb-8">
-                      <Database className="text-primary" size={20} />
-                      Connected multimedia
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-black uppercase tracking-tight italic flex items-center gap-3">
+                        <Database className="text-primary" size={20} />
+                        Connected Multimedia
+                      </h3>
+                      <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                        {(world.assetIds || []).length} linked
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search assets…"
+                      value={assetSearch}
+                      onChange={e => setAssetSearch(e.target.value)}
+                      className="w-full mb-6 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold outline-none text-white placeholder-white/20 focus:border-primary/50"
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Link Albums</label>
-                        <div className="space-y-2">
-                           {userAlbums.map(album => {
+                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                           {userAlbums.filter(a => !assetSearch || (a.title || '').toLowerCase().includes(assetSearch.toLowerCase())).map(album => {
                              const linked = world.assetIds?.includes(album.id);
                              return (
                                <div
@@ -952,8 +967,12 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                                  {linked && timelines.length > 0 && (
                                    <div className="px-4 pb-3">
                                      <select
-                                       value={album.timelineId || ''}
-                                       onChange={e => setAssetTimeline(album.id, e.target.value || null)}
+                                       value={(album as any).timelineId || ''}
+                                       onChange={async e => {
+                                         const tlId = e.target.value || null;
+                                         await setAssetTimeline(album.id, tlId);
+                                         setUserAlbums(prev => prev.map(a => a.id === album.id ? { ...a, timelineId: tlId } as any : a));
+                                       }}
                                        onClick={e => e.stopPropagation()}
                                        className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 focus:outline-none focus:border-primary"
                                      >
@@ -971,8 +990,8 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                       </div>
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Link Videos</label>
-                        <div className="space-y-2">
-                           {userVideos.map(video => {
+                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                           {userVideos.filter(v => !assetSearch || (v.title || '').toLowerCase().includes(assetSearch.toLowerCase())).map(video => {
                              const linked = world.assetIds?.includes(video.id);
                              return (
                                <div
@@ -984,8 +1003,10 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                                      const ids = [...(world.assetIds || [])];
                                      if (ids.includes(video.id)) {
                                        setWorld({ ...world, assetIds: ids.filter(i => i !== video.id) });
+                                       updateVideo(video.id, { worldId: undefined }).catch(() => {});
                                      } else {
                                        setWorld({ ...world, assetIds: [...ids, video.id] });
+                                       if (world.id) updateVideo(video.id, { worldId: world.id }).catch(() => {});
                                      }
                                    }}
                                    className="w-full flex items-center justify-between p-4"
@@ -997,7 +1018,11 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                                    <div className="px-4 pb-3">
                                      <select
                                        value={(video as any).timelineId || ''}
-                                       onChange={e => setAssetTimeline(video.id, e.target.value || null)}
+                                       onChange={async e => {
+                                         const tlId = e.target.value || null;
+                                         await setVideoTimeline(video.id, tlId);
+                                         setUserVideos(prev => prev.map(v => v.id === video.id ? { ...v, timelineId: tlId } as any : v));
+                                       }}
                                        onClick={e => e.stopPropagation()}
                                        className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 focus:outline-none focus:border-primary"
                                      >
@@ -1163,10 +1188,11 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                   value={world.themeConfig?.customBackgroundImage || ''}
                   className="w-full bg-black/40 p-4 rounded-xl border border-white/10 text-xs"
                   onChange={e => setWorld({
-                    ...world, 
-                    themeConfig: { 
-                      ...world.themeConfig!, 
-                      customBackgroundImage: e.target.value 
+                    ...world,
+                    themeConfig: {
+                      primaryColor: '#000000', secondaryColor: '#ffffff', backgroundId: '',
+                      ...(world.themeConfig || {}),
+                      customBackgroundImage: e.target.value
                     }
                   })}
                 />
@@ -1176,10 +1202,11 @@ const WorldManagerView: React.FC<WorldManagerViewProps> = ({ initialWorld, onSav
                   type="checkbox" 
                   checked={world.themeConfig?.useFrostedGlassDefault !== false}
                   onChange={e => setWorld({
-                    ...world, 
-                    themeConfig: { 
-                      ...world.themeConfig!, 
-                      useFrostedGlassDefault: e.target.checked 
+                    ...world,
+                    themeConfig: {
+                      primaryColor: '#000000', secondaryColor: '#ffffff', backgroundId: '',
+                      ...(world.themeConfig || {}),
+                      useFrostedGlassDefault: e.target.checked
                     }
                   })}
                   className="w-5 h-5 rounded border-white/20 bg-black/50 accent-primary"

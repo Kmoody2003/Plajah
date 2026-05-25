@@ -76,6 +76,13 @@ const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const VideoManager = retryLazy(() => import('./components/VideoManager'));
 const ArtistMembersArea = retryLazy(() => import('./components/ArtistMembersArea'));
 const MerchStorefront = retryLazy(() => import('./components/MerchStorefront'));
+const SanctuaryView = retryLazy(() => import('./components/SanctuaryView'));
+const SanctuaryHubView = retryLazy(() => import('./components/SanctuaryHubView'));
+const StorePageView = retryLazy(() => import('./components/StorePageView'));
+const StoreHubView = retryLazy(() => import('./components/StoreHubView'));
+const GarageSaleView = retryLazy(() => import('./components/GarageSaleView'));
+const BusinessPublicPage = retryLazy(() => import('./components/BusinessPublicPage'));
+const BrandPublicPage = retryLazy(() => import('./components/BrandPublicPage'));
 const MovieUXView = retryLazy(() => import('./components/MovieUXView'));
 const MoviesTVView = retryLazy(() => import('./components/MoviesTVView'));
 const ClubsView = retryLazy(() => import('./components/ClubsView'));
@@ -85,6 +92,7 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
+const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
 
@@ -133,7 +141,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp } from 'lucide-react';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -242,6 +250,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
   const [initialProfileTab, setInitialProfileTab] = useState<string | undefined>(undefined);
+  const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
+  const [selectedBrandPage, setSelectedBrandPage] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
@@ -415,8 +425,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const handleSelectItem = (item: any) => {
     const subType = item.subType || '';
-    const isMovie = item.category === 'MOVIE' || subType === 'MOVIE' || subType === 'Movie' || subType === 'Short Film' || item.genre === 'Movies';
-    const isTV = subType === 'TV_SERIES' || subType === 'TV Series' || item.genre === 'TV Series';
+    const genre = item.genre || '';
+    const TALEO_GENRES = ['Movie', 'Movies', 'Short Film', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
+    const isMovie = item.category === 'MOVIE' || subType === 'MOVIE' || subType === 'Movie' || subType === 'Short Film' || TALEO_GENRES.includes(genre);
+    const isTV = subType === 'TV_SERIES' || subType === 'TV Series' || genre === 'TV Series';
     const isLive = item.ownerName && item.url && item.status !== undefined;
 
     if (isLive) {
@@ -493,11 +505,27 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setCreatorInitialType(params.creatorInitialType);
       }
       setShowCreator(true);
+    } else if (target === 'SANCTUARY_HUB') {
+      setView('SANCTUARY_HUB');
     } else if (target === 'SANCTUARY') {
       setViewedUserId(params?.artistId || user?.uid);
       setView('SANCTUARY');
+    } else if (target === 'STORE_HUB') {
+      setView('STORE_HUB');
     } else if (target === 'STORE') {
       setView('STORE');
+    } else if (target === 'GARAGE_SALE') {
+      setView('GARAGE_SALE');
+    } else if (target === 'PLAJAH_BUSINESS') {
+      setView('PLAJAH_BUSINESS');
+    } else if (target === 'BUSINESS_DASHBOARD') {
+      setView('BUSINESS_DASHBOARD');
+    } else if (target === 'BUSINESS_PUBLIC') {
+      if (params?.businessPage) setSelectedBusinessPage(params.businessPage);
+      setView('BUSINESS_PUBLIC');
+    } else if (target === 'BRAND_PUBLIC') {
+      if (params?.brandPage) setSelectedBrandPage(params.brandPage);
+      setView('BRAND_PUBLIC');
     } else if (target === 'ADMIN_DASHBOARD') {
       setView('ADMIN_DASHBOARD');
     } else if (target === 'ADMIN_AD_DASHBOARD') {
@@ -1178,6 +1206,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'GAMES', order: 4.5, isVisible: true },
                     { id: 'CLUBS', order: 0.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
+                    { id: 'SANCTUARY_HUB', order: 10, isVisible: true },
+                    { id: 'STORE_HUB', order: 10.5, isVisible: true },
                     { id: 'CLASSROOMS', order: 12, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 14, isVisible: true },
                     { id: 'ART_GALLERY', order: 15, isVisible: true },
@@ -1225,6 +1255,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         GAMES: { label: 'Games', icon: Gamepad2 },
                         CLUBS: { label: 'Clubs', icon: Users },
                         CHARITY: { label: 'Charity', icon: Heart },
+                        SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                        STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag },
                         CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
                         GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
@@ -1240,7 +1272,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
                         PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
                         BROWSER: { label: 'Partner Sites', icon: Monitor },
-                        BUSINESS_DASHBOARD: { label: 'My Business', icon: Briefcase },
+                        BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase },
                         AD_PACKAGES: { label: 'Promote', icon: TrendingUp }
                       };
                       const item = items[config.id as keyof typeof items];
@@ -1261,6 +1293,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         GAMES: "Play interactive web games directly in your browser.",
                         CLUBS: "Join free community groups based on shared interests.",
                         CHARITY: "Support non-profits and explore fundraising campaigns.",
+                        SANCTUARY_HUB: "Support your favorite creators with exclusive memberships, private content, and more.",
+                        STORE_HUB: "Shop merch, collectibles, and digital goods from artists across the platform.",
                         CLASSROOMS: "Learn new skills from experts in our interactive classrooms.",
                         PPV_EVENTS: "Join live pay-per-view events and exclusive broadcasts.",
                         GLOBAL_PHOTOS: "Explore a world of photography and visual art.",
@@ -1276,7 +1310,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         ADMIN_AD_DASHBOARD: "Manage platform advertisements and promotions.",
                         PARTNER_DASHBOARD: "Configure cloud storage and partner integrations.",
                         BROWSER: "Access partner websites (Impact, Mainstreem) inside Plajah without iframe restrictions.",
-                        BUSINESS_DASHBOARD: "Manage your business pages, orders, CRM, digital signage, and SeedRaiser campaigns.",
+                        BUSINESS_DASHBOARD: "Browse all businesses and brands on Plajah, or manage your own business dashboard.",
                         AD_PACKAGES: "Boost your content visibility with ad packages and off-platform promotions."
                       }[config.id] || "Navigate to this section.";
 
@@ -1313,7 +1347,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                               } else if (config.id === 'PARTNER_DASHBOARD') {
                                 setView('PARTNER_DASHBOARD');
                               } else if (config.id === 'BUSINESS_DASHBOARD') {
-                                setView('BUSINESS_DASHBOARD');
+                                setView('PLAJAH_BUSINESS');
                               } else if (config.id === 'AD_PACKAGES') {
                                 setView('AD_PACKAGES');
                               } else {
@@ -1581,9 +1615,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
 
+            {view === 'PLAJAH_BUSINESS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PlajahBusinessHub
+                  onNavigate={handleGlobalNavigate}
+                  currentUser={userProfile}
+                  isLoggedIn={!!user}
+                />
+              </Suspense>
+            )}
+
             {view === 'BUSINESS_DASHBOARD' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <BusinessDashboard currentUser={userProfile} />
+                <BusinessDashboard currentUser={userProfile} onNavigate={handleGlobalNavigate} />
               </Suspense>
             )}
 
@@ -1600,17 +1644,77 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
 
-            {view === 'SANCTUARY' && viewedUserId && (
-              <ArtistMembersArea 
-                artistId={viewedUserId} 
-                onBack={() => setView('DASHBOARD')} 
-              />
+            {view === 'SANCTUARY_HUB' && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <SanctuaryHubView
+                  onBack={() => setView('DASHBOARD')}
+                  onVisitProfile={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }}
+                  currentUserId={user?.uid}
+                  currentUserProfile={userProfile ?? undefined}
+                />
+              </Suspense>
+            )}
+
+            {view === 'SANCTUARY' && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <SanctuaryView
+                  creatorId={viewedUserId || user?.uid || ''}
+                  currentUserProfile={userProfile ?? undefined}
+                  isOwnProfile={!viewedUserId || viewedUserId === user?.uid}
+                  onBack={() => setView('SANCTUARY_HUB')}
+                />
+              </Suspense>
+            )}
+
+            {view === 'STORE_HUB' && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <StoreHubView
+                  onBack={() => setView('DASHBOARD')}
+                  onVisitStore={(uid) => { setViewedUserId(uid); setView('STORE'); }}
+                  currentUserId={user?.uid}
+                />
+              </Suspense>
             )}
 
             {view === 'STORE' && (
-              <MerchStorefront 
-                onClose={() => setView('DASHBOARD')} 
-              />
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <StorePageView
+                  onBack={() => setView('STORE_HUB')}
+                  onGarageSale={() => setView('GARAGE_SALE')}
+                  sellerId={viewedUserId ?? undefined}
+                />
+              </Suspense>
+            )}
+
+            {view === 'GARAGE_SALE' && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <GarageSaleView
+                  onBack={() => setView('STORE')}
+                  currentUserId={user?.uid}
+                  currentUserName={user?.displayName ?? undefined}
+                  currentUserPhoto={user?.photoURL ?? undefined}
+                />
+              </Suspense>
+            )}
+
+            {view === 'BUSINESS_PUBLIC' && selectedBusinessPage && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <BusinessPublicPage
+                  business={selectedBusinessPage}
+                  onBack={() => setView('DASHBOARD')}
+                  currentUserId={user?.uid}
+                  currentUserName={user?.displayName ?? undefined}
+                />
+              </Suspense>
+            )}
+
+            {view === 'BRAND_PUBLIC' && selectedBrandPage && (
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <BrandPublicPage
+                  brand={selectedBrandPage}
+                  onBack={() => setView('DASHBOARD')}
+                />
+              </Suspense>
             )}
 
             {view === 'DASHBOARD' && (
@@ -1618,8 +1722,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <div className="flex-1 p-6 lg:p-16 max-w-7xl mx-auto w-full">
                   <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                     <div>
-                      <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">Global Archive</h1>
-                      <p className="text-white/60 mb-6 text-sm lg:text-base leading-relaxed max-w-3xl">Explore and Discover new Music, New Stories, New Creators and New Voices. The Global Archive is your playground to new content experience. Much of it free, We hope you Support the creators generously if you find what they make speaks to you.</p>
+                      <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-4">Plajah Global Archive</h1>
+                      <p className="text-white/60 mb-2 text-sm lg:text-base leading-relaxed max-w-3xl">Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.</p>
+                      <p className="text-white/50 mb-2 text-sm lg:text-base leading-relaxed max-w-3xl">The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white">purpose bigger than the bottom line</span>.</p>
+                      <p className="text-white/30 mb-6 text-xs lg:text-sm tracking-widest uppercase">Explore what inspires you. Upload what defines you.</p>
                       {/* Creators Upload Here — pulsing CTA */}
                       <div className="relative inline-flex items-center justify-center mb-8">
                         <span className="absolute inset-0 rounded-full bg-small-orange opacity-25 animate-ping" style={{ animationDuration: '2s' }} />
@@ -1868,9 +1974,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {(view === 'PLAYER' || view === 'PREVIEW') && selectedAlbum && (
-              <PlayerView 
-                album={selectedAlbum} 
-                onBack={handleBackToDashboard} 
+              <PlayerView
+                album={selectedAlbum}
+                onBack={handleBackToDashboard}
                 onEdit={(alb) => {
                   setEditingAlbum(alb);
                   setShowCreator(true);
@@ -1881,6 +1987,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onPurchase={handlePurchase}
                 onVisitUser={handleVisitUser}
+                onNavigateToWorld={(worldId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setView('WORLDS'); }}
                 isPublic={isPublicView}
                 isPreview={view === 'PREVIEW'}
                 user={user}
@@ -1888,13 +1995,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'MOVIE_UX' && selectedMovieItem && (
               <ErrorBlock componentName="MovieUXView">
-                <MovieUXView 
-                  item={selectedMovieItem} 
+                <MovieUXView
+                  item={selectedMovieItem}
                   onBack={() => {
                     setSelectedMovieItem(null);
                     handleBackToDashboard();
-                  }} 
+                  }}
                   onVisitUser={handleVisitUser}
+                  onNavigateToWorld={(worldId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setView('WORLDS'); }}
                   currentUser={user}
                 />
               </ErrorBlock>
@@ -1908,22 +2016,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
             {view === 'WORLD_MANAGER' && (
-              <WorldManagerView 
-                initialWorld={selectedWorld || undefined}
-                onSave={async (w) => { 
-                  if (w.id) {
-                    await updateIPWorld(w.id, w);
-                  } else {
-                    await createIPWorld({ ...w, creatorId: user?.uid });
-                  }
-                  setSelectedWorld(null);
-                  setView('USER_PROFILE'); 
-                }} 
-                onPreview={(w) => {
-                  setSelectedWorld(w);
-                  setView('WORLDS');
-                }}
-              />
+              <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
+                <ErrorBoundary>
+                  <WorldManagerView
+                    initialWorld={selectedWorld || undefined}
+                    onSave={async (w) => {
+                      if (w.id) {
+                        await updateIPWorld(w.id, w);
+                      } else {
+                        await createIPWorld({ ...w, creatorId: user?.uid });
+                      }
+                      setSelectedWorld(null);
+                      setView('WORLDS');
+                    }}
+                    onPreview={(w) => {
+                      setSelectedWorld(w);
+                      setView('WORLDS');
+                    }}
+                  />
+                </ErrorBoundary>
+              </Suspense>
             )}
             {view === 'AVATAR_STUDIO' && userProfile && (
               <AvatarStudio

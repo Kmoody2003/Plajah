@@ -232,10 +232,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           className="space-y-8 group"
         >
           <p className="text-xl lg:text-2xl font-light group-hover:font-bold transition-all duration-500 text-white/80 leading-relaxed tracking-tight max-w-3xl mx-auto">
-            The most comprehensive content ecosystem on the planet for <span className="text-small-orange">Creators and Artists</span> to connect with fans and their audience.
+            Stream music, movies, and books — then connect directly with the creators who made them. Plajah is the <span className="text-small-orange">social network and streaming platform</span> built to do right by every creator, no matter how or what they create.
           </p>
-          <p className="text-lg lg:text-xl font-light group-hover:font-black transition-all duration-500 text-white/60 tracking-widest uppercase">
-            This is the best place to play, welcome to the playground that is the <span className="text-white">Global Archive</span>.
+          <p className="text-lg lg:text-xl font-light group-hover:font-black transition-all duration-500 text-white/60 leading-relaxed tracking-tight max-w-3xl mx-auto">
+            The simplest, most transparent way to share your work, grow a real audience, and earn from what you love — on a platform with a <span className="text-white">purpose bigger than the bottom line</span>.
+          </p>
+          <p className="text-sm lg:text-base font-light group-hover:font-black transition-all duration-500 text-white/40 tracking-widest uppercase">
+            Explore what inspires you. Upload what defines you.
           </p>
         </motion.div>
 
