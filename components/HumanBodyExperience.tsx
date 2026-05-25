@@ -1,18 +1,22 @@
 'use client';
-import React, { useState, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useRef, useMemo, Suspense, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, RotateCcw, Layers, X, ChevronRight, Info } from 'lucide-react';
+import {
+  ArrowLeft, RotateCcw, Layers, X, ChevronRight, Info,
+  Search, Trophy, CheckCircle2, XCircle, Zap,
+} from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type Gender = 'MALE' | 'FEMALE';
-type Phase  = 'SELECT' | 'BODY';
-type Tab    = 'FULL' | 'SKELETAL' | 'ORGANS' | 'CIRCULATORY' | 'NERVOUS' | 'RESPIRATORY';
+type Gender   = 'MALE' | 'FEMALE';
+type Phase    = 'SELECT' | 'BODY';
+type Tab      = 'FULL' | 'SKELETAL' | 'ORGANS' | 'CIRCULATORY' | 'NERVOUS' | 'RESPIRATORY';
 type DetailTab = 'OVERVIEW' | 'FUNCTIONS' | 'FACTS';
+type AppMode  = 'EXPLORE' | 'QUIZ';
 
 interface OrganDef {
   id: string; name: string; latin: string;
@@ -20,13 +24,13 @@ interface OrganDef {
   position: [number, number, number];
   scale: [number, number, number];
   explodeOffset: [number, number, number];
-  shape: 'brain' | 'capsule' | 'flat-sphere' | 'torus' | 'blob';
+  shape: 'brain' | 'capsule' | 'flat-sphere' | 'torus' | 'blob' | 'sphere';
   systems: Tab[]; genders: Gender[];
   animationType: 'pulse' | 'breathe' | 'neutral' | 'flow';
   description: string; functions: string[]; funFacts: string[];
 }
 
-// ─── Data ───────────────────────────────────────────────────────────────────────
+// ─── Organ Data ─────────────────────────────────────────────────────────────────
 
 const ORGANS: OrganDef[] = [
   {
@@ -101,15 +105,47 @@ const ORGANS: OrganDef[] = [
     functions:['Absorbs 90% of nutrients — glucose, amino acids, fatty acids','Secretes digestive enzymes for carbohydrates, fats, proteins','Mixes food with bile and pancreatic enzymes','Delivers nutrients into blood and lymph'],
     funFacts:['6–7 metres long — longer than most rooms','Surface area with villi equals half a badminton court','Digestion takes 2–6 hours to complete'],
   },
+  {
+    id:'spleen', name:'Spleen', latin:'Splen', color:'#8B4069', emissiveColor:'#4A1535',
+    position:[-0.28,0.06,0.0], scale:[0.10,0.12,0.08], explodeOffset:[-1.2,-0.1,0.6],
+    shape:'flat-sphere', systems:['FULL','ORGANS','CIRCULATORY'], genders:['MALE','FEMALE'], animationType:'neutral',
+    description:'The spleen acts as a blood reservoir and immune outpost, filtering out old red blood cells and housing lymphocytes that fight infection — all while being the only organ that can increase in size during exercise.',
+    functions:['Filters and destroys worn-out red blood cells','Stores platelets and white blood cells','Mounts immune responses to bloodborne pathogens','Recycles iron from haemoglobin','Acts as emergency blood reservoir'],
+    funFacts:['You can live without a spleen (though with higher infection risk)','Stores up to 500 mL of blood','Can double in size during severe infection'],
+  },
+  {
+    id:'pancreas', name:'Pancreas', latin:'Pancreas', color:'#E8B84B', emissiveColor:'#8A6010',
+    position:[0.0,-0.06,-0.06], scale:[0.18,0.06,0.07], explodeOffset:[0.2,-0.8,0.5],
+    shape:'flat-sphere', systems:['FULL','ORGANS'], genders:['MALE','FEMALE'], animationType:'neutral',
+    description:'A dual-function organ: its exocrine cells secrete digestive enzymes into the intestine while its endocrine Islets of Langerhans release insulin and glucagon directly into the blood to regulate blood sugar.',
+    functions:['Produces insulin to lower blood glucose','Produces glucagon to raise blood glucose','Secretes lipase, amylase, and protease for digestion','Neutralises stomach acid entering the intestine via bicarbonate'],
+    funFacts:['Only 2% of pancreas cells (beta cells) produce insulin','Can produce up to 1.5 litres of digestive juice per day','Pancreatic cancer has low survival rates partly due to late detection'],
+  },
+  {
+    id:'bladder', name:'Bladder', latin:'Vesica urinaria', color:'#4A9ACA', emissiveColor:'#1A4A7A',
+    position:[0.0,-0.62,0.06], scale:[0.12,0.10,0.1], explodeOffset:[0,-1.5,0.9],
+    shape:'blob', systems:['FULL','ORGANS'], genders:['MALE','FEMALE'], animationType:'neutral',
+    description:'An elastic muscular sac that stores up to 500 mL of urine. Specialised umbrella cells allow it to stretch dramatically — signalling the brain via stretch receptors when it\'s time to void.',
+    functions:['Stores urine produced by the kidneys','Signals fullness via stretch receptor nerves','Voluntarily expels urine via the urethra','Its mucosal lining resists bacterial adhesion'],
+    funFacts:['Can expand from 50 mL to 500+ mL','The urge to urinate begins at ~150 mL','Adults produce 1–2 litres of urine per day'],
+  },
+  {
+    id:'gallbladder', name:'Gallbladder', latin:'Vesica fellea', color:'#6DB56D', emissiveColor:'#2A5A2A',
+    position:[0.22,-0.02,0.06], scale:[0.07,0.09,0.07], explodeOffset:[1.2,-0.3,0.8],
+    shape:'blob', systems:['FULL','ORGANS'], genders:['MALE','FEMALE'], animationType:'neutral',
+    description:'A small pear-shaped reservoir under the liver that concentrates and stores bile up to 5× its original concentration — releasing it via the bile duct when fat arrives in the intestine.',
+    functions:['Concentrates and stores bile from the liver','Releases bile in response to dietary fat','Aids fat digestion and absorption of fat-soluble vitamins','Triggers the release of cholecystokinin hormone'],
+    funFacts:['Can be removed with minimal long-term effects','Gallstones form in ~10-15% of adults','Bile is 97% water — the 3% remainder causes all the trouble'],
+  },
 ];
 
-const SYSTEMS: { id: Tab; label: string; color: string }[] = [
-  { id:'FULL',        label:'All Systems',  color:'#22d3ee' },
-  { id:'SKELETAL',    label:'Skeletal',     color:'#d4d4cc' },
-  { id:'ORGANS',      label:'Organs',       color:'#f97316' },
-  { id:'CIRCULATORY', label:'Circulatory',  color:'#ef4444' },
-  { id:'NERVOUS',     label:'Nervous',      color:'#a78bfa' },
-  { id:'RESPIRATORY', label:'Respiratory',  color:'#f9a8d4' },
+const SYSTEMS: { id: Tab; label: string; color: string; description: string }[] = [
+  { id:'FULL',        label:'All Systems',  color:'#22d3ee',  description:'View all organs together — the complete integrated machine.' },
+  { id:'SKELETAL',    label:'Skeletal',     color:'#d4d4cc',  description:'206 bones form the structural framework, protecting organs and enabling movement.' },
+  { id:'ORGANS',      label:'Organs',       color:'#f97316',  description:'Specialised structures each performing critical chemical and mechanical functions.' },
+  { id:'CIRCULATORY', label:'Circulatory',  color:'#ef4444',  description:'Heart + 100,000 km of blood vessels delivering oxygen and nutrients to every cell.' },
+  { id:'NERVOUS',     label:'Nervous',      color:'#a78bfa',  description:'86 billion neurons forming the body\'s electrical network — sensing, deciding, and commanding.' },
+  { id:'RESPIRATORY', label:'Respiratory',  color:'#f9a8d4',  description:'Lungs + airways — exchanging 22,000 breaths per day to keep every cell alive.' },
 ];
 
 // ─── Geometry Hook ──────────────────────────────────────────────────────────────
@@ -230,6 +266,17 @@ function OrganMesh({ organ, isExploded, isSelected, isVisible, onClick }: {
 // ─── Body Silhouette ────────────────────────────────────────────────────────────
 
 function BodySilhouette({ gender }: { gender: Gender }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const timeRef = useRef(0);
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    timeRef.current += delta;
+    // Subtle breathing: expand chest slightly
+    const b = Math.sin(timeRef.current * 0.75) * 0.008;
+    meshRef.current.scale.set(1 + b, 1, 1 + b * 0.5);
+  });
+
   const geo = useMemo(() => {
     const male: [number, number][] = [
       [0.0,-1.72],[0.12,-1.6],[0.17,-1.18],[0.14,-0.88],[0.19,-0.48],
@@ -247,7 +294,7 @@ function BodySilhouette({ gender }: { gender: Gender }) {
   }, [gender]);
 
   return (
-    <mesh geometry={geo}>
+    <mesh ref={meshRef} geometry={geo}>
       <meshPhysicalMaterial color="#1e8aff" opacity={0.055} transparent roughness={0.9}
         side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
@@ -258,30 +305,93 @@ function BodySilhouette({ gender }: { gender: Gender }) {
 
 function SkeletonLayer() {
   const c = '#d0d0c6';
+  const mat = <meshStandardMaterial color={c} roughness={0.75} />;
+
+  // Rib pairs: [y, radiusX, radiusZ]
+  const ribs: [number, number, number][] = [
+    [0.70, 0.26, 0.12],[0.62, 0.27, 0.13],[0.53, 0.265, 0.13],
+    [0.45, 0.255, 0.12],[0.37, 0.240, 0.115],[0.28, 0.220, 0.11],
+  ];
+
   return (
     <group>
-      <mesh position={[0, 0.05, -0.05]}>
+      {/* Spine */}
+      <mesh position={[0, 0.05, -0.055]}>
         <cylinderGeometry args={[0.018, 0.022, 1.55, 8]} />
-        <meshStandardMaterial color={c} roughness={0.75} />
+        {mat}
       </mesh>
-      {Array.from({ length: 6 }).map((_, i) => {
-        const y = 0.22 + i * 0.095;
-        const r = 0.23 - i * 0.013;
-        return (
-          <mesh key={i} position={[0, y, 0]}>
-            <torusGeometry args={[r, 0.011, 6, 28, Math.PI]} />
+
+      {/* Skull */}
+      <mesh position={[0, 1.35, 0]}>
+        <sphereGeometry args={[0.215, 20, 16]} />
+        <meshPhysicalMaterial color={c} roughness={0.85} opacity={0.4} transparent />
+      </mesh>
+
+      {/* Jaw */}
+      <mesh position={[0, 1.11, 0.06]} rotation={[0.25, 0, 0]}>
+        <boxGeometry args={[0.17, 0.055, 0.1]} />
+        <meshStandardMaterial color={c} roughness={0.8} opacity={0.5} transparent />
+      </mesh>
+
+      {/* Clavicles */}
+      {([-1, 1] as const).map(side => (
+        <mesh key={side} position={[side * 0.14, 0.99, 0.04]} rotation={[0, 0, side * 0.45]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.22, 6]} />
+          {mat}
+        </mesh>
+      ))}
+
+      {/* Rib cage */}
+      {ribs.map(([y, rx, rz], i) => (
+        <React.Fragment key={i}>
+          {/* Left rib */}
+          <mesh position={[-rx * 0.5, y, 0]} rotation={[0, 0, -0.55 + i * 0.04]}>
+            <torusGeometry args={[rx * 0.72, 0.009, 6, 28, Math.PI * 0.9]} />
             <meshStandardMaterial color={c} roughness={0.75} />
           </mesh>
-        );
-      })}
-      <mesh position={[0, -0.22, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.23, 0.04, 8, 28, Math.PI * 1.6]} />
+          {/* Right rib */}
+          <mesh position={[rx * 0.5, y, 0]} rotation={[0, Math.PI, 0.55 - i * 0.04]}>
+            <torusGeometry args={[rx * 0.72, 0.009, 6, 28, Math.PI * 0.9]} />
+            <meshStandardMaterial color={c} roughness={0.75} />
+          </mesh>
+        </React.Fragment>
+      ))}
+
+      {/* Sternum */}
+      <mesh position={[0, 0.5, 0.09]}>
+        <boxGeometry args={[0.04, 0.52, 0.025]} />
+        {mat}
+      </mesh>
+
+      {/* Pelvis */}
+      <mesh position={[0, -0.42, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.24, 0.045, 8, 32, Math.PI * 1.7]} />
         <meshStandardMaterial color={c} roughness={0.8} />
       </mesh>
-      <mesh position={[0, 1.28, 0]}>
-        <sphereGeometry args={[0.22, 20, 16]} />
-        <meshPhysicalMaterial color={c} roughness={0.85} opacity={0.35} transparent />
-      </mesh>
+
+      {/* Shoulder blades stub */}
+      {([-1, 1] as const).map(side => (
+        <mesh key={side} position={[side * 0.22, 0.75, -0.07]} rotation={[0, side * 0.2, 0]}>
+          <boxGeometry args={[0.09, 0.14, 0.025]} />
+          <meshStandardMaterial color={c} roughness={0.8} opacity={0.6} transparent />
+        </mesh>
+      ))}
+
+      {/* Upper arm stubs */}
+      {([-1, 1] as const).map(side => (
+        <mesh key={side} position={[side * 0.32, 0.65, 0]} rotation={[0, 0, side * 0.3]}>
+          <cylinderGeometry args={[0.025, 0.022, 0.36, 8]} />
+          {mat}
+        </mesh>
+      ))}
+
+      {/* Upper leg stubs */}
+      {([-1, 1] as const).map(side => (
+        <mesh key={side} position={[side * 0.1, -0.85, 0]} rotation={[0, 0, side * 0.08]}>
+          <cylinderGeometry args={[0.036, 0.030, 0.50, 8]} />
+          {mat}
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -289,18 +399,182 @@ function SkeletonLayer() {
 // ─── Circulatory Layer ──────────────────────────────────────────────────────────
 
 function CirculatoryLayer() {
+  const c = '#cc1122';
   return (
     <group>
-      <mesh position={[0, 0.22, 0.06]}>
-        <cylinderGeometry args={[0.024, 0.024, 0.65, 8]} />
-        <meshStandardMaterial color="#cc1122" roughness={0.45} />
+      {/* Aorta */}
+      <mesh position={[0, 0.30, 0.06]}>
+        <cylinderGeometry args={[0.026, 0.022, 0.75, 8]} />
+        <meshStandardMaterial color={c} roughness={0.45} />
       </mesh>
-      {[[-0.18, 0.18, 0.06], [0.18, 0.18, 0.06], [-0.1, -0.3, 0.04], [0.1, -0.3, 0.04]].map(([x,y,z],i) => (
-        <mesh key={i} position={[x,y,z]}>
-          <cylinderGeometry args={[0.012, 0.012, 0.4, 6]} />
-          <meshStandardMaterial color="#aa0011" roughness={0.5} />
+
+      {/* Pulmonary vessels */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.13, 0.48, 0.04]} rotation={[0, 0, side * 0.7]}>
+          <cylinderGeometry args={[0.013, 0.013, 0.22, 6]} />
+          <meshStandardMaterial color="#dd4466" roughness={0.5} />
         </mesh>
       ))}
+
+      {/* Abdominal aorta branches */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.11, 0.05, 0.02]} rotation={[0, 0, side * 0.55]}>
+          <cylinderGeometry args={[0.011, 0.011, 0.26, 6]} />
+          <meshStandardMaterial color={c} roughness={0.5} />
+        </mesh>
+      ))}
+
+      {/* Iliac vessels */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.09, -0.42, 0.02]} rotation={[0, 0, side * 0.35]}>
+          <cylinderGeometry args={[0.013, 0.013, 0.38, 6]} />
+          <meshStandardMaterial color={c} roughness={0.5} />
+        </mesh>
+      ))}
+
+      {/* Superior vena cava */}
+      <mesh position={[0.04, 0.62, 0.05]}>
+        <cylinderGeometry args={[0.018, 0.018, 0.22, 6]} />
+        <meshStandardMaterial color="#2244aa" roughness={0.45} />
+      </mesh>
+
+      {/* Jugular veins */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.065, 0.92, 0.03]} rotation={[0, 0, side * 0.15]}>
+          <cylinderGeometry args={[0.009, 0.009, 0.26, 6]} />
+          <meshStandardMaterial color="#2244aa" roughness={0.5} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ─── Nervous Layer ──────────────────────────────────────────────────────────────
+
+function NervousLayer() {
+  const c = '#a78bfa';
+  const timeRef = useRef(0);
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    if (groupRef.current) {
+      // Subtle pulse along the spine
+      groupRef.current.children.forEach((child, i) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+          child.material.emissiveIntensity = 0.15 + Math.sin(timeRef.current * 2.0 + i * 0.4) * 0.1;
+        }
+      });
+    }
+  });
+
+  const nerveMat = (
+    <meshStandardMaterial color={c} emissive="#5a3fb0" emissiveIntensity={0.2} roughness={0.3} />
+  );
+
+  return (
+    <group ref={groupRef}>
+      {/* Spinal cord */}
+      <mesh position={[0, 0.18, -0.04]}>
+        <cylinderGeometry args={[0.013, 0.013, 1.25, 8]} />
+        {nerveMat}
+      </mesh>
+
+      {/* Cervical plexus (neck) */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.055, 0.98, 0.0]} rotation={[0, 0, side * 1.1]}>
+          <cylinderGeometry args={[0.006, 0.006, 0.18, 6]} />
+          {nerveMat}
+        </mesh>
+      ))}
+
+      {/* Brachial plexus — arm nerves */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.18, 0.72, 0.0]} rotation={[0.1, 0, side * 0.85]}>
+          <cylinderGeometry args={[0.007, 0.007, 0.32, 6]} />
+          {nerveMat}
+        </mesh>
+      ))}
+
+      {/* Intercostal nerves */}
+      {Array.from({ length: 5 }).map((_, i) => {
+        const y = 0.65 - i * 0.14;
+        return ([-1, 1] as const).map((side, j) => (
+          <mesh key={`${i}-${j}`} position={[side * 0.12, y, 0.0]} rotation={[0, 0, side * 1.3]}>
+            <cylinderGeometry args={[0.005, 0.005, 0.22, 5]} />
+            {nerveMat}
+          </mesh>
+        ));
+      })}
+
+      {/* Lumbar plexus */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.10, -0.35, 0.0]} rotation={[0, 0, side * 0.7]}>
+          <cylinderGeometry args={[0.007, 0.007, 0.26, 6]} />
+          {nerveMat}
+        </mesh>
+      ))}
+
+      {/* Sciatic nerves */}
+      {([-1, 1] as const).map((side, i) => (
+        <mesh key={i} position={[side * 0.09, -0.68, -0.03]} rotation={[0.1, 0, side * 0.2]}>
+          <cylinderGeometry args={[0.009, 0.007, 0.50, 6]} />
+          {nerveMat}
+        </mesh>
+      ))}
+
+      {/* Brain stem */}
+      <mesh position={[0, 1.06, 0.0]}>
+        <cylinderGeometry args={[0.028, 0.020, 0.16, 8]} />
+        {nerveMat}
+      </mesh>
+    </group>
+  );
+}
+
+// ─── Respiratory Layer ───────────────────────────────────────────────────────────
+
+function RespiratoryLayer() {
+  const timeRef = useRef(0);
+  const diaphRef = useRef<THREE.Mesh>(null);
+  const tracheaRef = useRef<THREE.Mesh>(null);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    const b = Math.sin(timeRef.current * 0.75);
+    if (diaphRef.current) {
+      diaphRef.current.position.y = -0.07 + b * 0.025;
+    }
+    if (tracheaRef.current) {
+      tracheaRef.current.scale.y = 1 + b * 0.01;
+    }
+  });
+
+  return (
+    <group>
+      {/* Trachea */}
+      <mesh ref={tracheaRef} position={[0, 0.78, 0.04]}>
+        <cylinderGeometry args={[0.022, 0.022, 0.30, 10]} />
+        <meshStandardMaterial color="#f9a8d4" roughness={0.5} opacity={0.7} transparent />
+      </mesh>
+
+      {/* Bronchi — left */}
+      <mesh position={[-0.10, 0.62, 0.04]} rotation={[0, 0, 0.7]}>
+        <cylinderGeometry args={[0.016, 0.016, 0.18, 8]} />
+        <meshStandardMaterial color="#f4a0b8" roughness={0.5} opacity={0.7} transparent />
+      </mesh>
+
+      {/* Bronchi — right */}
+      <mesh position={[0.10, 0.62, 0.04]} rotation={[0, 0, -0.7]}>
+        <cylinderGeometry args={[0.016, 0.016, 0.18, 8]} />
+        <meshStandardMaterial color="#f4a0b8" roughness={0.5} opacity={0.7} transparent />
+      </mesh>
+
+      {/* Diaphragm */}
+      <mesh ref={diaphRef} position={[0, -0.07, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.28, 0.028, 6, 32, Math.PI * 2]} />
+        <meshStandardMaterial color="#f9a8d4" roughness={0.6} opacity={0.5} transparent />
+      </mesh>
     </group>
   );
 }
@@ -312,9 +586,9 @@ function BodyScene({ gender, systemTab, isExploded, selectedOrgan, onSelectOrgan
   selectedOrgan: OrganDef | null; onSelectOrgan: (o: OrganDef | null) => void;
 }) {
   const visibleOrgans = useMemo(() =>
-    ORGANS.filter(o =>
-      o.genders.includes(gender) && o.systems.includes(systemTab)
-    ), [gender, systemTab]);
+    ORGANS.filter(o => o.genders.includes(gender) && o.systems.includes(systemTab)),
+    [gender, systemTab]
+  );
 
   return (
     <>
@@ -328,6 +602,8 @@ function BodyScene({ gender, systemTab, isExploded, selectedOrgan, onSelectOrgan
       <BodySilhouette gender={gender} />
       {systemTab === 'SKELETAL'    && <SkeletonLayer />}
       {systemTab === 'CIRCULATORY' && <CirculatoryLayer />}
+      {systemTab === 'NERVOUS'     && <NervousLayer />}
+      {systemTab === 'RESPIRATORY' && <RespiratoryLayer />}
 
       {ORGANS.map(organ => (
         <OrganMesh
@@ -369,7 +645,6 @@ function OrganDetailPanel({ organ, onClose }: { organ: OrganDef; onClose: () => 
       className="absolute top-0 right-0 h-full w-[340px] flex flex-col z-30"
       style={{ background: 'rgba(2,4,12,0.94)', backdropFilter: 'blur(20px)', borderLeft: `1px solid ${organ.color}25` }}
     >
-      {/* Header */}
       <div className="flex items-start justify-between p-5 pb-3" style={{ borderBottom: `1px solid ${organ.color}20` }}>
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: organ.color }}>
@@ -384,7 +659,6 @@ function OrganDetailPanel({ organ, onClose }: { organ: OrganDef; onClose: () => 
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 px-4 py-3">
         {(['OVERVIEW','FUNCTIONS','FACTS'] as DetailTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -398,12 +672,10 @@ function OrganDetailPanel({ organ, onClose }: { organ: OrganDef; onClose: () => 
         ))}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-6 scrollbar-thin" style={{ scrollbarColor: `${organ.color}30 transparent` }}>
+      <div className="flex-1 overflow-y-auto px-5 pb-6" style={{ scrollbarWidth: 'thin', scrollbarColor: `${organ.color}30 transparent` }}>
         <AnimatePresence mode="wait">
           {tab === 'OVERVIEW' && (
             <motion.div key="ov" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0,y:-8 }}>
-              {/* Animated dot representing organ */}
               <div className="flex justify-center my-5">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center"
                   style={{ background: `radial-gradient(circle, ${organ.color}40, ${organ.color}10)`, border: `2px solid ${organ.color}40` }}>
@@ -445,12 +717,216 @@ function OrganDetailPanel({ organ, onClose }: { organ: OrganDef; onClose: () => 
   );
 }
 
+// ─── System Overview Card ────────────────────────────────────────────────────────
+
+function SystemOverviewCard({ system, organCount }: { system: typeof SYSTEMS[0]; organCount: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      className="absolute bottom-20 right-6 w-64 rounded-2xl p-4 z-30"
+      style={{
+        background: 'rgba(2,4,12,0.88)',
+        backdropFilter: 'blur(16px)',
+        border: `1px solid ${system.color}25`,
+      }}
+    >
+      <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: system.color }}>
+        Active System
+      </p>
+      <p className="text-white font-black text-sm mb-2">{system.label}</p>
+      <p className="text-white/55 text-[11px] leading-relaxed mb-3">{system.description}</p>
+      {organCount > 0 && (
+        <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: system.color }}>
+          {organCount} organ{organCount !== 1 ? 's' : ''} in view · Click to inspect
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Quiz Mode ──────────────────────────────────────────────────────────────────
+
+function QuizMode({ onExit }: { onExit: () => void }) {
+  const questions = useMemo(() => {
+    const all = ORGANS.map(o => ({
+      organ: o,
+      // Generate 3 wrong answer choices from other organs
+      choices: [o.name, ...ORGANS.filter(x => x.id !== o.id)
+        .sort(() => Math.random() - 0.5).slice(0, 3).map(x => x.name)]
+        .sort(() => Math.random() - 0.5),
+      clue: o.funFacts[0] ?? o.description.slice(0, 80) + '…',
+    }));
+    return all.sort(() => Math.random() - 0.5).slice(0, 8);
+  }, []);
+
+  const [idx, setIdx] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const q = questions[idx];
+
+  const handleAnswer = useCallback((choice: string) => {
+    if (selected) return;
+    setSelected(choice);
+    if (choice === q.organ.name) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) { setDone(true); }
+      else { setIdx(i => i + 1); setSelected(null); }
+    }, 1200);
+  }, [selected, q, idx, questions.length]);
+
+  if (done) {
+    const pct = Math.round((score / questions.length) * 100);
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center z-50"
+        style={{ background: 'rgba(1,5,9,0.97)', backdropFilter: 'blur(20px)' }}>
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="flex flex-col items-center gap-5 text-center max-w-sm px-8">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: pct >= 70 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', border: `2px solid ${pct >= 70 ? '#22c55e' : '#ef4444'}` }}>
+            <Trophy size={32} className={pct >= 70 ? 'text-green-400' : 'text-red-400'} />
+          </div>
+          <div>
+            <p className="text-4xl font-black text-white mb-1">{score}/{questions.length}</p>
+            <p className="text-white/50 text-sm">{pct}% correct</p>
+          </div>
+          <p className="text-white/70 text-sm">
+            {pct >= 90 ? 'Excellent! You know the human body well.' :
+             pct >= 70 ? 'Good work! A few more to master.' :
+             'Keep exploring — click organs to learn their facts.'}
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onExit}
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white/60"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              Back to Explorer
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-50 px-6"
+      style={{ background: 'rgba(1,5,9,0.97)', backdropFilter: 'blur(20px)' }}>
+      {/* Header */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+        <button onClick={onExit} className="flex items-center gap-2 text-white/40 text-xs font-bold uppercase tracking-widest">
+          <ArrowLeft size={12} /> Exit Quiz
+        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-white/30 text-xs font-bold uppercase tracking-widest">
+            {idx + 1} / {questions.length}
+          </span>
+          <div className="flex gap-1">
+            {questions.map((_, i) => (
+              <div key={i} className="w-1.5 h-1.5 rounded-full"
+                style={{ background: i < idx ? '#22c55e' : i === idx ? '#FF8C00' : 'rgba(255,255,255,0.15)' }} />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-black text-amber-400">
+            <Zap size={12} /> {score}
+          </div>
+        </div>
+      </div>
+
+      <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md flex flex-col items-center gap-5">
+        {/* Organ indicator dot */}
+        <div className="w-16 h-16 rounded-full flex items-center justify-center"
+          style={{ background: `radial-gradient(circle, ${q.organ.color}30, transparent)`, border: `2px solid ${q.organ.color}40` }}>
+          <div className="w-5 h-5 rounded-full animate-pulse" style={{ background: q.organ.color }} />
+        </div>
+
+        <div className="text-center">
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-3">Identify the organ</p>
+          <p className="text-white/80 text-sm leading-relaxed text-center max-w-xs">"{q.clue}"</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 w-full">
+          {q.choices.map(choice => {
+            const isCorrect = choice === q.organ.name;
+            const isSelected = choice === selected;
+            let bg = 'rgba(255,255,255,0.05)';
+            let border = '1px solid rgba(255,255,255,0.1)';
+            let textColor = 'rgba(255,255,255,0.7)';
+            if (selected) {
+              if (isCorrect) { bg = 'rgba(34,197,94,0.15)'; border = '1px solid rgba(34,197,94,0.4)'; textColor = '#22c55e'; }
+              else if (isSelected) { bg = 'rgba(239,68,68,0.15)'; border = '1px solid rgba(239,68,68,0.4)'; textColor = '#ef4444'; }
+            }
+            return (
+              <motion.button key={choice} onClick={() => handleAnswer(choice)}
+                className="py-3 px-4 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between"
+                style={{ background: bg, border, color: textColor }}
+                whileTap={{ scale: 0.97 }}>
+                <span>{choice}</span>
+                {selected && isCorrect && <CheckCircle2 size={13} />}
+                {selected && isSelected && !isCorrect && <XCircle size={13} />}
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Search Panel ────────────────────────────────────────────────────────────────
+
+function SearchPanel({ onSelect, onClose }: { onSelect: (o: OrganDef) => void; onClose: () => void }) {
+  const [query, setQuery] = useState('');
+  const results = ORGANS.filter(o =>
+    o.name.toLowerCase().includes(query.toLowerCase()) ||
+    o.latin.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="absolute top-14 left-1/2 -translate-x-1/2 z-50 w-72 rounded-2xl overflow-hidden"
+      style={{ background: 'rgba(2,4,12,0.96)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
+        <Search size={13} className="text-white/40 shrink-0" />
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search organs…"
+          className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none"
+        />
+        <button onClick={onClose}><X size={13} className="text-white/30" /></button>
+      </div>
+      <div className="max-h-64 overflow-y-auto py-1">
+        {results.map(o => (
+          <button key={o.id} onClick={() => { onSelect(o); onClose(); }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.04] transition-colors text-left">
+            <div className="w-5 h-5 rounded-full shrink-0" style={{ background: `radial-gradient(circle, ${o.color}60, ${o.color}20)` }} />
+            <div>
+              <p className="text-white text-sm font-semibold">{o.name}</p>
+              <p className="text-white/35 text-[10px]">{o.latin}</p>
+            </div>
+          </button>
+        ))}
+        {results.length === 0 && (
+          <p className="text-white/30 text-xs text-center py-6">No organs found</p>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Gender Select ──────────────────────────────────────────────────────────────
 
 function GenderSelectScreen({ onSelect }: { onSelect: (g: Gender) => void }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative" style={{ background: '#010509' }}>
-      {/* Grid bg */}
       <div className="absolute inset-0 opacity-[0.04]"
         style={{ backgroundImage: 'linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
@@ -469,14 +945,10 @@ function GenderSelectScreen({ onSelect }: { onSelect: (g: Gender) => void }) {
             transition={{ delay: 0.1 + idx * 0.1 }}
             onClick={() => onSelect(g)}
             className="group flex flex-col items-center gap-4 p-8 rounded-3xl transition-all duration-300"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
           >
-            {/* SVG body silhouette icon */}
             <svg width="80" height="160" viewBox="0 0 80 160" fill="none">
               {g === 'MALE' ? (
                 <path d="M40 8 C50 8 56 16 56 24 C56 32 52 37 48 40 L52 55 C58 56 66 62 68 80 L62 82 L60 120 L52 120 L50 160 L30 160 L28 120 L20 120 L18 82 L12 80 C14 62 22 56 28 55 L32 40 C28 37 24 32 24 24 C24 16 30 8 40 8Z"
@@ -491,7 +963,7 @@ function GenderSelectScreen({ onSelect }: { onSelect: (g: Gender) => void }) {
                 style={{ color: g === 'MALE' ? '#22d3ee' : '#f9a8d4' }}>
                 {g === 'MALE' ? 'Male Body' : 'Female Body'}
               </p>
-              <p className="text-[10px] text-white/30 mt-1">9 organs · 6 systems</p>
+              <p className="text-[10px] text-white/30 mt-1">13 organs · 6 systems</p>
             </div>
           </motion.button>
         ))}
@@ -513,18 +985,23 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
   const [systemTab,     setSystemTab]     = useState<Tab>('FULL');
   const [isExploded,    setIsExploded]    = useState(false);
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDef | null>(null);
-
-  const handleGenderSelect = (g: Gender) => {
-    setGender(g);
-    setPhase('BODY');
-  };
+  const [appMode,       setAppMode]       = useState<AppMode>('EXPLORE');
+  const [showSearch,    setShowSearch]    = useState(false);
 
   const activeSystem = SYSTEMS.find(s => s.id === systemTab)!;
+  const visibleOrganCount = ORGANS.filter(o =>
+    o.genders.includes(gender) && o.systems.includes(systemTab)
+  ).length;
+
+  const handleOrganSelect = useCallback((o: OrganDef | null) => {
+    setSelectedOrgan(o);
+    setShowSearch(false);
+  }, []);
 
   return (
     <div className="w-full h-screen relative overflow-hidden bg-[#010509] text-white">
 
-      {/* Back Button — always visible */}
+      {/* Back Button */}
       <button onClick={onBack}
         className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
@@ -534,10 +1011,17 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
       <AnimatePresence mode="wait">
         {phase === 'SELECT' ? (
           <motion.div key="select" className="absolute inset-0" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
-            <GenderSelectScreen onSelect={handleGenderSelect} />
+            <GenderSelectScreen onSelect={g => { setGender(g); setPhase('BODY'); }} />
           </motion.div>
         ) : (
           <motion.div key="body" className="absolute inset-0" initial={{ opacity:0 }} animate={{ opacity:1 }}>
+
+            {/* Quiz mode overlay */}
+            <AnimatePresence>
+              {appMode === 'QUIZ' && (
+                <QuizMode onExit={() => setAppMode('EXPLORE')} />
+              )}
+            </AnimatePresence>
 
             {/* 3D Canvas */}
             <Canvas
@@ -551,7 +1035,7 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                   systemTab={systemTab}
                   isExploded={isExploded}
                   selectedOrgan={selectedOrgan}
-                  onSelectOrgan={setSelectedOrgan}
+                  onSelectOrgan={handleOrganSelect}
                 />
               </Suspense>
             </Canvas>
@@ -570,6 +1054,23 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                 </button>
               ))}
             </div>
+
+            {/* Search */}
+            <button
+              onClick={() => setShowSearch(s => !s)}
+              className="absolute top-4 right-4 z-40 w-9 h-9 flex items-center justify-center rounded-xl transition-all"
+              style={{ background: 'rgba(2,4,12,0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)' }}>
+              <Search size={14} />
+            </button>
+
+            <AnimatePresence>
+              {showSearch && (
+                <SearchPanel
+                  onSelect={o => { handleOrganSelect(o); }}
+                  onClose={() => setShowSearch(false)}
+                />
+              )}
+            </AnimatePresence>
 
             {/* Controls — bottom left */}
             <div className="absolute bottom-6 left-6 z-40 flex flex-col gap-2">
@@ -591,9 +1092,23 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
                 <RotateCcw size={12} />
                 {gender === 'MALE' ? 'Female Body' : 'Male Body'}
               </button>
+
+              <button
+                onClick={() => { setAppMode('QUIZ'); setSelectedOrgan(null); }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                style={{ background: 'rgba(2,4,12,0.85)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', backdropFilter: 'blur(12px)' }}>
+                <Trophy size={12} /> Quiz Mode
+              </button>
             </div>
 
-            {/* Hint — bottom right */}
+            {/* System overview (when no organ selected) */}
+            <AnimatePresence>
+              {!selectedOrgan && !showSearch && (
+                <SystemOverviewCard system={activeSystem} organCount={visibleOrganCount} />
+              )}
+            </AnimatePresence>
+
+            {/* Hint */}
             <div className="absolute bottom-6 right-6 z-40 flex items-center gap-2"
               style={{ color: 'rgba(255,255,255,0.2)' }}>
               <Info size={11} />
