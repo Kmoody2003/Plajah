@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
@@ -80,32 +82,40 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
       }
    }
 
+   const safeTitle = htmlEscape(title);
+   const safeDesc  = htmlEscape(desc);
+   const safeImage = htmlEscape(image);
+   const safeHost  = htmlEscape(host);
+   const safeType  = htmlEscape(String(type));
+   const safeId    = htmlEscape(String(id));
+
    let metaTags = `
     <meta name="twitter:site" content="@plajah" />
-    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:description" content="${desc.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:image" content="${image.replace(/"/g, '&quot;')}" />
-    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="${desc.replace(/"/g, '&quot;')}" />
-    <meta property="og:image" content="${image.replace(/"/g, '&quot;')}" />
-    <meta property="og:url" content="https://${host}/?type=${type}&id=${id}" />
+    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:description" content="${safeDesc}" />
+    <meta name="twitter:image" content="${safeImage}" />
+    <meta property="og:title" content="${safeTitle}" />
+    <meta property="og:description" content="${safeDesc}" />
+    <meta property="og:image" content="${safeImage}" />
+    <meta property="og:url" content="https://${safeHost}/?type=${safeType}&amp;id=${safeId}" />
    `;
 
    if (playerUrl) {
+     const safePlayerUrl = htmlEscape(playerUrl);
      metaTags += `
     <meta name="twitter:card" content="player" />
-    <meta name="twitter:player" content="${playerUrl}" />
+    <meta name="twitter:player" content="${safePlayerUrl}" />
     <meta name="twitter:player:width" content="1280" />
     <meta name="twitter:player:height" content="720" />
     <meta property="og:type" content="video.other" />
-    <meta property="og:video:url" content="${playerUrl}" />
+    <meta property="og:video:url" content="${safePlayerUrl}" />
      `;
    } else {
      metaTags += `<meta name="twitter:card" content="summary_large_image" />`;
    }
 
-   const oEmbedUrl = `https://${host}/oembed?url=${encodeURIComponent(`https://${host}/?type=${type}&id=${id}`)}&format=json`;
-   metaTags += `\n    <link rel="alternate" type="application/json+oembed" href="${oEmbedUrl}" title="${(title || 'Plajah').replace(/"/g, '&quot;')}" />`;
+   const oEmbedUrl = `https://${safeHost}/oembed?url=${encodeURIComponent(`https://${host}/?type=${type}&id=${id}`)}&format=json`;
+   metaTags += `\n    <link rel="alternate" type="application/json+oembed" href="${htmlEscape(oEmbedUrl)}" title="${safeTitle || 'Plajah'}" />`;
    return html.replace('</head>', `${metaTags}\n</head>`);
 };
 
@@ -202,6 +212,47 @@ async function firestoreCreate(collection: string, data: object) {
 
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
 const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
+
+// ── Security helpers ──────────────────────────────────────────────────────────
+
+function htmlEscape(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function isPrivateHost(hostname: string): boolean {
+  return /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|0\.0\.0\.0|169\.254\.)/.test(hostname);
+}
+
+function validateProxyUrl(rawUrl: string): URL {
+  let parsed: URL;
+  try { parsed = new URL(decodeURIComponent(rawUrl)); } catch { throw new Error('Invalid URL'); }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('Only http/https URLs allowed');
+  if (isPrivateHost(parsed.hostname)) throw new Error('Private network access blocked');
+  return parsed;
+}
+
+const LIGHTS_ALLOWED_HOSTS = new Set(['api.meethue.com', 'developer.api.govee.com', 'api.govee.com', 'api2.govee.com']);
+function validateLightsProxyUrl(rawUrl: string): URL {
+  const parsed = validateProxyUrl(rawUrl);
+  const isHueBridgeLocal = /^192\.168\.\d{1,3}\.\d{1,3}$/.test(parsed.hostname);
+  if (!LIGHTS_ALLOWED_HOSTS.has(parsed.hostname) && !isHueBridgeLocal) {
+    throw new Error(`Host '${parsed.hostname}' not allowed for lights proxy`);
+  }
+  return parsed;
+}
+
+function validateFediverseInstance(instance: string): void {
+  if (!instance || typeof instance !== 'string') throw new Error('Instance required');
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/.test(instance)) {
+    throw new Error('Invalid fediverse instance domain');
+  }
+  if (isPrivateHost(instance)) throw new Error('Private network access blocked');
+}
 
 async function startServer() {
   const app = express();
@@ -340,9 +391,40 @@ async function startServer() {
     res.json({ received: true });
   });
 
-  app.use(express.json());
+  // ── Security middleware ───────────────────────────────────────────────────
+  app.use(helmet({
+    contentSecurityPolicy: false,      // SPA served as static — no server-side CSP needed
+    crossOriginEmbedderPolicy: false,  // Required for video/iframe embeds
+  }));
+
+  const isProd = process.env.NODE_ENV === 'production';
+  const allowedOrigins = isProd
+    ? ['https://plajah.com', 'https://www.plajah.com']
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }));
+
+  app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser());
-  app.use(cors());
+
+  // Per-category rate limiters
+  const authLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const apiLimiter   = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const proxyLimiter = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+
+  app.use('/api/stripe/create-checkout-session', authLimiter);
+  app.use('/api/stripe/create-portal-session',   authLimiter);
+  app.use('/api/hue/auth',     authLimiter);
+  app.use('/api/hue/callback', authLimiter);
+  app.use('/api/proxy',        proxyLimiter);
+  app.use('/api/lights/proxy', proxyLimiter);
+  app.use('/api/social',       apiLimiter);
 
   // ── Stripe: Create Subscription Checkout Session ──────────────────────────
   app.post('/api/stripe/create-checkout-session', authMiddleware, async (req: any, res) => {
@@ -1182,26 +1264,32 @@ async function startServer() {
     const { instance, path: apiPath, token } = req.query as Record<string, string>;
     if (!instance || !apiPath) return res.status(400).json({ error: 'instance and path required' });
 
+    try { validateFediverseInstance(instance); }
+    catch (e: any) { return res.status(400).json({ error: e.message }); }
+
+    const pathStr = String(apiPath);
+    if (!pathStr.startsWith('/') || pathStr.includes('..')) {
+      return res.status(400).json({ error: 'Invalid API path' });
+    }
+
     try {
       const headers: Record<string, string> = { Accept: 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const response = await fetch(`https://${instance}${apiPath}`, { headers });
-      if (!response.ok) {
-        return res.status(response.status).json({ error: response.statusText });
-      }
+      const response = await fetch(`https://${instance}${pathStr}`, { headers });
+      if (!response.ok) return res.status(response.status).json({ error: 'Fediverse API error', status: response.status });
       const ct = response.headers.get('content-type') ?? '';
-      if (!ct.includes('application/json')) {
-        return res.status(502).json({ error: 'Non-JSON response from instance' });
-      }
+      if (!ct.includes('application/json')) return res.status(502).json({ error: 'Non-JSON response from instance' });
       res.json(await response.json());
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Fediverse proxy failed' });
     }
   });
 
-  // ── Legacy direct-post shims (kept for back-compat) ─────────────────────────
-  app.post('/api/social/mastodon/post', express.json(), async (req, res) => {
+  // ── Social post routes (require Firebase auth) ───────────────────────────────
+  app.post('/api/social/mastodon/post', authMiddleware, async (req: any, res) => {
     const { instance, token, status, inReplyToId } = req.body as Record<string, string>;
+    try { validateFediverseInstance(instance); }
+    catch (e: any) { return res.status(400).json({ error: e.message }); }
     try {
       const r = await fetch(`https://${instance}/api/v1/statuses`, {
         method: 'POST',
@@ -1209,17 +1297,17 @@ async function startServer() {
         body: JSON.stringify({ status, in_reply_to_id: inReplyToId, visibility: 'public' }),
       });
       res.status(r.status).json(await r.json());
-    } catch (err: any) { res.status(500).json({ error: err.message }); }
+    } catch { res.status(500).json({ error: 'Post failed' }); }
   });
 
-  app.post('/api/social/bluesky/post', express.json(), async (req, res) => {
+  app.post('/api/social/bluesky/post', authMiddleware, async (req: any, res) => {
     const { session, text, reply } = req.body as Record<string, unknown>;
     try {
       const agent = new BskyAgent({ service: 'https://bsky.social' });
       await agent.resumeSession(session as any);
       const post = await agent.post({ text: text as string, reply: reply as any, createdAt: new Date().toISOString() });
       res.json(post);
-    } catch (err: any) { res.status(500).json({ error: err.message }); }
+    } catch { res.status(500).json({ error: 'Post failed' }); }
   });
 
   // ── Legacy Bluesky login shim ────────────────────────────────────────────────
@@ -1237,17 +1325,19 @@ async function startServer() {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'URL required' });
 
+    let parsed: URL;
+    try { parsed = validateProxyUrl(url as string); }
+    catch (e: any) { return res.status(400).json({ error: e.message }); }
+
     const controller = new AbortController();
-    req.on('close', () => {
-      controller.abort();
-    });
+    req.on('close', () => { controller.abort(); });
 
     try {
-      const decodedUrl = decodeURIComponent(url as string);
+      const decodedUrl = parsed.toString();
       const range = req.headers.range;
 
       const headers: Record<string, string> = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (compatible; Plajah/1.0)',
         'Accept': '*/*',
         'Connection': 'keep-alive'
       };
@@ -1256,9 +1346,9 @@ async function startServer() {
         headers['Range'] = range;
       }
 
-      console.log(`[Proxy] ${range ? 'Streaming' : 'Fetching'} (${range || 'full'}): ${decodedUrl}`);
-      
-      const response = await fetch(decodedUrl, { 
+      console.log(`[Proxy] ${range ? 'Streaming' : 'Fetching'}: ${parsed.hostname}${parsed.pathname}`);
+
+      const response = await fetch(decodedUrl, {
         headers,
         redirect: 'follow',
         signal: controller.signal
@@ -1321,9 +1411,9 @@ async function startServer() {
         res.end();
       }
     } catch (error: any) {
-      console.error('Proxy Total Failure:', error);
+      console.error('[Proxy] Failed:', error.message);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to proxy request: ' + error.message });
+        res.status(500).json({ error: 'Proxy request failed' });
       }
     }
   });
@@ -1331,82 +1421,72 @@ async function startServer() {
   // Fediverse Proxy (to avoid CORS and handle remote lookups)
   app.get('/api/social/fediverse/proxy', async (req: any, res: any) => {
     const { instance, path: apiPath, token } = req.query;
-    if (!instance || !apiPath) return res.status(400).json({ error: 'Instance and Path required' });
+    if (!instance || !apiPath) return res.status(400).json({ error: 'Instance and path required' });
 
     try {
-      const headers: Record<string, string> = {
-        'Accept': 'application/json'
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      validateFediverseInstance(instance as string);
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message });
+    }
 
-      const url = `https://${instance}${apiPath}`;
-      console.log(`[MeshProxy] Intercepting: ${url}`);
-      
+    // Only allow well-formed API paths starting with /
+    const pathStr = String(apiPath);
+    if (!pathStr.startsWith('/') || pathStr.includes('..')) {
+      return res.status(400).json({ error: 'Invalid API path' });
+    }
+
+    try {
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const url = `https://${instance}${pathStr}`;
       const response = await fetch(url, { headers });
-      
+
       if (!response.ok) {
-        console.error(`[MeshProxy] Remote Error: ${response.status} ${response.statusText}`);
-        return res.status(response.status).json({ 
-          error: `Fediverse API error: ${response.statusText}`,
-          status: response.status 
-        });
+        return res.status(response.status).json({ error: 'Fediverse API error', status: response.status });
       }
 
       const contentType = response.headers.get('content-type');
       if (contentType && !contentType.includes('application/json')) {
-        console.error(`[MeshProxy] Non-JSON Response: ${contentType}`);
-        const text = await response.text();
-        console.error(`[MeshProxy] Raw Content Sample: ${text.substring(0, 100)}`);
         return res.status(502).json({ error: 'Remote instance returned non-JSON data' });
       }
 
-      const data = await response.json();
-      res.json(data);
+      res.json(await response.json());
     } catch (error: any) {
-      console.error('Fediverse Proxy Error:', error);
-      res.status(500).json({ error: 'Failed to proxy Fediverse request: ' + error.message });
+      res.status(500).json({ error: 'Fediverse proxy failed' });
     }
   });
 
-  // Mastodon Post/Reply
-  app.post('/api/social/mastodon/post', async (req, res) => {
+  // Mastodon Post/Reply — requires Firebase auth
+  app.post('/api/social/mastodon/post', authMiddleware, async (req: any, res) => {
     const { instance, token, status, inReplyToId } = req.body;
+    try {
+      validateFediverseInstance(instance);
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message });
+    }
     try {
       const response = await fetch(`https://${instance}/api/v1/statuses`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status,
-          in_reply_to_id: inReplyToId,
-          visibility: 'public'
-        })
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, in_reply_to_id: inReplyToId, visibility: 'public' }),
       });
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
+      res.json(await response.json());
+    } catch {
       res.status(500).json({ error: 'Post failed' });
     }
   });
 
-  // Bluesky Post/Reply
-  app.post('/api/social/bluesky/post', async (req, res) => {
+  // Bluesky Post/Reply — requires Firebase auth
+  app.post('/api/social/bluesky/post', authMiddleware, async (req: any, res) => {
     const { session, text, reply } = req.body;
     const agent = new BskyAgent({ service: 'https://bsky.social' });
-    
+
     try {
       await agent.resumeSession(session);
-      const post = await agent.post({
-        text,
-        reply,
-        createdAt: new Date().toISOString()
-      });
+      const post = await agent.post({ text, reply, createdAt: new Date().toISOString() });
       res.json(post);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Post failed' });
     }
   });
@@ -1566,13 +1646,16 @@ async function startServer() {
   app.post('/api/lights/proxy', express.json(), async (req: any, res: any) => {
     const { url: targetUrl, goveeKey, hueToken, method: qMethod } = req.query;
     if (!targetUrl) return res.status(400).json({ error: 'url required' });
+    let parsed: URL;
+    try { parsed = validateLightsProxyUrl(targetUrl as string); }
+    catch (e: any) { return res.status(400).json({ error: e.message }); }
     const method = (req.body?.targetMethod || qMethod || 'GET').toUpperCase();
     const bodyPayload = req.body?.body;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
     if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
     try {
-      const upstream = await fetch(decodeURIComponent(targetUrl as string), {
+      const upstream = await fetch(parsed.toString(), {
         method,
         headers,
         body: bodyPayload && method !== 'GET' ? JSON.stringify(bodyPayload) : undefined,
@@ -1580,7 +1663,7 @@ async function startServer() {
       const data = await upstream.json().catch(() => null);
       res.status(upstream.status).json(data ?? {});
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Proxy request failed' });
     }
   });
 
@@ -1588,15 +1671,18 @@ async function startServer() {
   app.get('/api/lights/proxy', express.json(), async (req: any, res: any) => {
     const { url: targetUrl, goveeKey, hueToken } = req.query;
     if (!targetUrl) return res.status(400).json({ error: 'url required' });
+    let parsed: URL;
+    try { parsed = validateLightsProxyUrl(targetUrl as string); }
+    catch (e: any) { return res.status(400).json({ error: e.message }); }
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
     if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
     try {
-      const upstream = await fetch(decodeURIComponent(targetUrl as string), { headers });
+      const upstream = await fetch(parsed.toString(), { headers });
       const data = await upstream.json().catch(() => null);
       res.status(upstream.status).json(data ?? {});
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Proxy request failed' });
     }
   });
 

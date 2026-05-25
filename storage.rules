@@ -1,10 +1,64 @@
 rules_version = '2';
 service firebase.storage {
-  // Storage Rules (Updated)
   match /b/{bucket}/o {
+
+    // ── Shared helpers ────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Content-type must be a recognised media or document type
+    function isAllowedContentType() {
+      return request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('audio/.*') ||
+             request.resource.contentType.matches('video/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/epub.*') ||
+             request.resource.contentType.matches('text/.*');
+    }
+
+    // Maximum 2 GB for any single file
+    function withinSizeLimit() {
+      return request.resource.size < 2 * 1024 * 1024 * 1024;
+    }
+
+    // ── User-scoped files ─────────────────────────────────────────────────────
+    // Only the owning user (or admin) may write here
+    match /users/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+                   || isAdmin();
+    }
+
+    // ── Album content ─────────────────────────────────────────────────────────
+    // Cover images, tracks, slideshow images, season episodes, video assets
+    // Authenticated creators may upload; ownership validated at application layer
+    match /albums/{albumId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── Video content ─────────────────────────────────────────────────────────
+    match /videos/{videoId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── HideNSeek game assets ─────────────────────────────────────────────────
+    match /hideNSeek/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }

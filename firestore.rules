@@ -17,10 +17,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email == "kmoody2003@gmail.com" ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     function hasRequiredFields(fields) {
@@ -523,32 +521,20 @@ service cloud.firestore {
 
     match /notifications/{notifId} {
       allow list: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1" || 
-        request.auth.token.email == "kmoody2003@gmail.com"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow get: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow create: if isAuthenticated() && isValidNotification(request.resource.data);
       allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       ) && (
-        isValidNotification(request.resource.data) || 
+        isValidNotification(request.resource.data) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
       );
       allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isAdmin() || 
-        request.auth.token.email == "kmoody2003@gmail.com" || 
-        request.auth.uid == "hiP7PGj15eTq0r0ZH2XwN00AS2h1"
+        resource.data.userId == request.auth.uid || isAdmin()
       );
     }
 
@@ -735,18 +721,17 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           roomId.matches("^live_chat_.*") || 
           (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) && (
-            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants || 
+            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants ||
             get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.type == 'PUBLIC_LIVE'
           )) ||
-          isAdmin() ||
-          request.auth.token.email == "kmoody2003@gmail.com"
+          isAdmin()
         );
-        allow create: if isAuthenticated() && (isValidChatMessage(request.resource.data) || request.auth.token.email == "kmoody2003@gmail.com");
+        allow create: if isAuthenticated() && isValidChatMessage(request.resource.data);
         allow update: if isAuthenticated() && (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
           request.auth.uid in request.resource.data.seenBy
         );
-        allow delete: if isAdmin() || (isAuthenticated() && resource.data.senderId == request.auth.uid) || request.auth.token.email == "kmoody2003@gmail.com";
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.senderId == request.auth.uid);
       }
     }
 
@@ -1241,10 +1226,10 @@ service cloud.firestore {
         allow create: if isAuthenticated();
       }
 
-      // Viewer signaling docs — any visitor (guest or member) can join as a viewer
+      // Viewer signaling docs — authenticated users can join as a viewer
       match /viewers/{viewerId} {
         allow read: if true;
-        allow create, update, delete: if true;
+        allow create, update, delete: if isAuthenticated();
 
         match /offer/{docId} {
           allow read: if true;
@@ -1252,7 +1237,7 @@ service cloud.firestore {
         }
         match /answer/{docId} {
           allow read: if true;
-          allow write: if true;
+          allow write: if isAuthenticated();
         }
         match /broadcaster_candidates/{candidateId} {
           allow read: if true;
@@ -1260,7 +1245,7 @@ service cloud.firestore {
         }
         match /viewer_candidates/{candidateId} {
           allow read: if true;
-          allow create: if true;
+          allow create: if isAuthenticated();
         }
       }
     }
