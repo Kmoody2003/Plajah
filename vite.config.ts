@@ -45,31 +45,40 @@ export default defineConfig(({ mode }) => {
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-            skipWaiting: true,
-            clientsClaim: true,
+            skipWaiting: true,       // new SW activates immediately, no waiting for tab close
+            clientsClaim: true,      // new SW takes control of all open tabs right away
             cleanupOutdatedCaches: true,
-            // HTML navigation: always try network first so users always get the latest build
             navigateFallback: null,
             runtimeCaching: [
               {
+                // HTML documents: always hit network first. Falls back to cache only when offline.
+                // Combined with no-cache HTTP headers this guarantees users see new deploys.
                 urlPattern: ({ request }: { request: Request }) => request.destination === 'document',
                 handler: 'NetworkFirst' as const,
                 options: {
                   cacheName: 'plajah-html',
-                  networkTimeoutSeconds: 5,
+                  networkTimeoutSeconds: 4,
                   expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 }
                 }
               },
               {
-                urlPattern: ({ request }: { request: Request }) =>
-                  request.destination === 'script' || request.destination === 'style',
-                handler: 'StaleWhileRevalidate' as const,
-                options: { cacheName: 'plajah-assets', expiration: { maxEntries: 100 } }
+                // Hashed JS/CSS: content hash changes on every deploy so CacheFirst is safe.
+                // Server also sends immutable headers for these.
+                urlPattern: ({ request, url }: { request: Request; url: URL }) =>
+                  (request.destination === 'script' || request.destination === 'style') &&
+                  url.pathname.startsWith('/assets/'),
+                handler: 'CacheFirst' as const,
+                options: {
+                  cacheName: 'plajah-assets',
+                  expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 }
+                }
               },
               {
-                urlPattern: ({ url }: { url: URL }) => url.origin === 'https://fonts.googleapis.com',
-                handler: 'StaleWhileRevalidate' as const,
-                options: { cacheName: 'plajah-fonts' }
+                urlPattern: ({ url }: { url: URL }) =>
+                  url.origin === 'https://fonts.googleapis.com' ||
+                  url.origin === 'https://fonts.gstatic.com',
+                handler: 'CacheFirst' as const,
+                options: { cacheName: 'plajah-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } }
               }
             ]
           }

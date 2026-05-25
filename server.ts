@@ -1962,15 +1962,30 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, we don't want to serve index.html via express.static by default
-    // so we configure it to not serve 'index' to let the fallback handle it
+    // Service worker files must never be HTTP-cached — the browser manages their own cache.
+    // Stale sw.js means users keep running old code even after a deploy.
+    app.use((req, res, next) => {
+      if (/^\/(sw\.js|workbox-[^/]+\.js)$/.test(req.path)) {
+        res.setHeader('Cache-Control', 'no-store');
+      } else if (req.path.startsWith('/assets/')) {
+        // Content-hashed filenames — safe to cache forever
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+      next();
+    });
+
     app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
+
     app.get('*all', async (req, res) => {
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
            html = await injectMetaTags(html, req.query, req.get('host') || 'localhost');
         }
+        // Tell browsers to always revalidate index.html so they pick up new deploys
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.send(html);
       } catch (e) {
         res.status(500).send('Server Error');
