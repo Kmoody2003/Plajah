@@ -358,35 +358,43 @@ const VideoRow: React.FC<{
 );
 
 // â"€â"€ Live Feed Card (extracted to avoid hook-in-map) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const LiveFeedCard: React.FC<{ feed: LiveFeed; autoplayUrl: string; onSelect: () => void }> = ({ feed, autoplayUrl, onSelect }) => {
+const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed, onSelect }) => {
   const [hovered, setHovered] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
   return (
     <div
-      className="shrink-0 w-72 aspect-video rounded-2xl overflow-hidden bg-black relative group cursor-pointer shadow-2xl ring-1 ring-red-500/30"
-      onMouseEnter={() => { setHovered(true); setIframeReady(true); }}
+      className="shrink-0 w-72 aspect-video rounded-2xl overflow-hidden bg-black relative cursor-pointer shadow-2xl ring-1 ring-red-500/30"
+      onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onSelect}
     >
-      {/* Placeholder shown when not yet hovered or on top before iframe loads */}
-      <div className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${hovered && iframeReady ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <Radio size={28} className="text-white/20" />
-      </div>
-      {/* Iframe mounts once on first hover, stays mounted; hidden via opacity when not hovered */}
-      {iframeReady && autoplayUrl && (
-        <iframe
-          src={autoplayUrl}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
-      )}
-      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="flex items-center gap-2 mb-1">
+      {/* Static preview — no iframe, no audio */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-black via-zinc-900 to-black">
+        {feed.ownerPhoto ? (
+          <img src={feed.ownerPhoto} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-red-500/50" />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
+            <Radio size={24} className="text-white/30" />
+          </div>
+        )}
+        <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-[8px] font-black uppercase tracking-widest text-red-400">Live</span>
         </div>
+      </div>
+
+      {/* Hover overlay — "tap to watch" prompt */}
+      <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-12 h-12 rounded-full bg-red-500/90 flex items-center justify-center shadow-lg">
+            <Play size={20} className="text-white ml-0.5" fill="white" />
+          </div>
+          <span className="text-[8px] font-black uppercase tracking-widest text-white/80">Watch Live</span>
+        </div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
         <p className="text-[10px] font-black uppercase tracking-widest truncate">{feed.title}</p>
+        <p className="text-[8px] text-white/40 truncate mt-0.5">{feed.ownerName}</p>
       </div>
     </div>
   );
@@ -635,19 +643,6 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
     if (tagInput.trim() && !(newVideo.tags || []).includes(tagInput.trim())) {
       setNewVideo(v => ({ ...v, tags: [...(v.tags || []), tagInput.trim()] }));
       setTagInput('');
-    }
-  };
-
-  const getAutoplayUrl = (url: string) => {
-    if (!url || url === 'live_stream_placeholder') return '';
-    try {
-      const u = new URL(url);
-      u.searchParams.set('autoplay', '1');
-      u.searchParams.set('mute', '1');
-      if (url.includes('youtube.com/watch')) u.pathname = u.pathname.replace('/watch', '/embed');
-      return u.toString();
-    } catch {
-      return `${url.includes('?') ? url + '&' : url + '?'}autoplay=1&mute=1`;
     }
   };
 
@@ -934,7 +929,6 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <LiveFeedCard
                         key={feed.id}
                         feed={feed}
-                        autoplayUrl={feed.url?.startsWith('livestream:') ? '' : getAutoplayUrl(feed.url)}
                         onSelect={() => {
                           if (feed.url?.startsWith('livestream:')) {
                             const sid = feed.url.replace('livestream:', '');
