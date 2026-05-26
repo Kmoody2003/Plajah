@@ -39,6 +39,8 @@ import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
 import ErrorBoundary from './ErrorBoundary';
+import { lazy } from 'react';
+const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 
 interface ClassroomsViewProps {
   onBack: () => void;
@@ -448,11 +450,60 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
       isActive: true
     };
 
+    const nbaDefault: ClassroomModule = {
+      id: 'default_sport_nba', name: 'NBA — How Basketball Works',
+      description: 'Master basketball from tip-off to buzzer. Interactive court, positions, play simulations, and current league rules.',
+      url: 'SPORT_NBA',
+      coverArt: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const nflDefault: ClassroomModule = {
+      id: 'default_sport_nfl', name: 'NFL — How Football Works',
+      description: 'From the line of scrimmage to the end zone. Learn downs, formations, play types, and NFL scoring inside a live field sim.',
+      url: 'SPORT_NFL',
+      coverArt: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const mlbDefault: ClassroomModule = {
+      id: 'default_sport_mlb', name: 'MLB — How Baseball Works',
+      description: "Balls, strikes, innings, and outs — all the fundamentals of America's pastime with an interactive at-bat simulator.",
+      url: 'SPORT_MLB',
+      coverArt: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const nhlDefault: ClassroomModule = {
+      id: 'default_sport_nhl', name: 'NHL — How Hockey Works',
+      description: 'Periods, power plays, and the puck — dive into ice hockey rules, positions, and rink geography.',
+      url: 'SPORT_NHL',
+      coverArt: 'https://images.unsplash.com/photo-1515703407324-5f753afd8be8?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const fifaDefault: ClassroomModule = {
+      id: 'default_sport_fifa', name: 'FIFA — How Soccer Works',
+      description: 'Offside traps, set pieces, and formations — the beautiful game explained with an interactive pitch and live match sim.',
+      url: 'SPORT_FIFA',
+      coverArt: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const mlsDefault: ClassroomModule = {
+      id: 'default_sport_mls', name: 'MLS — Major League Soccer',
+      description: 'Everything you need to follow MLS — rules, teams, positions, and a quick-play match simulation.',
+      url: 'SPORT_MLS',
+      coverArt: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+
     // Check if defaults already exist in data to avoid duplicates if admin added it manually
     const finalModules = [...data];
     if (!data.some(m => m.url === 'SOLAR_SYSTEM')) finalModules.unshift(solarSystemDefault);
     if (!data.some(m => m.url === 'PLANT_BIOLOGY')) finalModules.unshift(plantBiologyDefault);
     if (!data.some(m => m.url === 'HUMAN_BODY')) finalModules.unshift(humanBodyDefault);
+    if (!data.some(m => m.url === 'SPORT_NBA')) finalModules.push(nbaDefault);
+    if (!data.some(m => m.url === 'SPORT_NFL')) finalModules.push(nflDefault);
+    if (!data.some(m => m.url === 'SPORT_MLB')) finalModules.push(mlbDefault);
+    if (!data.some(m => m.url === 'SPORT_NHL')) finalModules.push(nhlDefault);
+    if (!data.some(m => m.url === 'SPORT_FIFA')) finalModules.push(fifaDefault);
+    if (!data.some(m => m.url === 'SPORT_MLS')) finalModules.push(mlsDefault);
 
     setModules(finalModules);
   };
@@ -541,6 +592,26 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
           </div>
         }>
           <HumanBodyExperience onBack={() => setSelectedModule(null)} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  const SPORT_MODULE_MAP: Record<string, 'NBA' | 'NFL' | 'MLB' | 'NHL' | 'FIFA' | 'MLS'> = {
+    SPORT_NBA: 'NBA', SPORT_NFL: 'NFL', SPORT_MLB: 'MLB',
+    SPORT_NHL: 'NHL', SPORT_FIFA: 'FIFA', SPORT_MLS: 'MLS',
+  };
+  if (selectedModule && selectedModule in SPORT_MODULE_MAP) {
+    const league = SPORT_MODULE_MAP[selectedModule];
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FF8C00] animate-pulse">Loading {league} Playbook...</p>
+          </div>
+        }>
+          <SportExplainerModule league={league} onBack={() => setSelectedModule(null)} />
         </Suspense>
       </ErrorBoundary>
     );

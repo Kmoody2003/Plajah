@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
@@ -11,11 +11,12 @@ import {
 import { TeamPageView } from './sports/TeamPageView';
 import { getLeagueStaticTeams, findStaticTeam } from '../data/leagueTeams';
 import ErrorBoundary from './ErrorBoundary';
+const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
   Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
-  BarChart2, Award, Zap, Shield, ChevronRight, X,
+  BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen,
 } from 'lucide-react';
 
 interface Props {
@@ -30,9 +31,12 @@ function loadPins(): string[] {
 }
 function savePins(ids: string[]) { localStorage.setItem(PINS_KEY, JSON.stringify(ids)); }
 
+const EXPLAINER_LEAGUES = new Set(['NBA', 'NFL', 'NHL', 'MLB', 'FIFA', 'MLS']);
+
 export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [teamSearch, setTeamSearch]       = useState('');
   const [leagueTeams, setLeagueTeams]     = useState<SportsTeam[]>([]);
+  const [showExplainer, setShowExplainer] = useState(false);
   const [leagueLoading, setLeagueLoading] = useState(true);  // true so skeleton shows immediately
   const [leagueError, setLeagueError]     = useState(false);
   const [leagueScores, setLeagueScores]   = useState<any[]>([]);
@@ -163,11 +167,29 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       .catch(() => setPlayerLoading(false));
   }, [selectedPlayer, selectedSportsTab]);
 
-  // â”€â”€â”€ RACING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ RACING â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (isRacing) return <RacingCenterView tab={selectedSportsTab} />;
   if (!isLeague) return null;
 
-  // â”€â”€â”€ PLAYER PROFILE MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── SPORT EXPLAINER ────────────────────────────────────────────────────────
+  if (showExplainer && EXPLAINER_LEAGUES.has(selectedSportsTab)) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-10 h-10 border-2 border-[--small-orange]/20 border-t-[--small-orange] rounded-full animate-spin" />
+          </div>
+        }>
+          <SportExplainerModule
+            league={selectedSportsTab as any}
+            onBack={() => setShowExplainer(false)}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  // â"€â"€â"€ PLAYER PROFILE MODAL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (selectedPlayer) {
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -292,7 +314,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     );
   }
 
-  // â”€â”€â”€ TEAM PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ TEAM PAGE â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (selectedTeam) {
     const staticData = findStaticTeam(selectedSportsTab, selectedTeam.name)
       ?? findStaticTeam(selectedSportsTab, selectedTeam.abbreviation);
@@ -365,7 +387,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     );
   }
 
-  // â”€â”€â”€ LEAGUE VIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ LEAGUE VIEW â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   return (
     <div className="space-y-10">
 
@@ -378,7 +400,19 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
         />
       </div>
 
-      {/* â”€â”€ ESPORTS â”€â”€ */}
+      {/* Learn How To Play button */}
+      {EXPLAINER_LEAGUES.has(selectedSportsTab) && (
+        <motion.button
+          onClick={() => setShowExplainer(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 hover:bg-[#FF8C00]/5 transition-all"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <BookOpen size={11} /> Learn How to Play
+        </motion.button>
+      )}
+
+      {/* â"€â"€ ESPORTS â"€â"€ */}
       {isEsports && (
         <>
           {pinnedOrgs.length > 0 && !teamSearch && (
@@ -421,10 +455,10 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
         </>
       )}
 
-      {/* â”€â”€ STANDARD LEAGUE â”€â”€ */}
+      {/* â"€â"€ STANDARD LEAGUE â"€â"€ */}
       {!isEsports && (
         <>
-          {/* Today's Scoreboard â€” always rendered; shows skeleton while loading */}
+          {/* Today's Scoreboard â€" always rendered; shows skeleton while loading */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               {leagueScores.some((e: any) => e.status?.type?.state === 'in') && (
@@ -474,7 +508,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                             </div>
                           </div>
                           <span className={`text-xs font-black ${team?.winner ? 'text-[#FF8C00]' : isPost ? 'text-white/40' : isPre ? 'text-white/15' : 'text-white/70'}`}>
-                            {team?.score ?? (isPre ? '' : 'â€“')}
+                            {team?.score ?? (isPre ? '' : 'â€"')}
                           </span>
                         </button>
                       ))}
@@ -488,7 +522,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
             )}
           </div>
 
-          {/* Standings â€” always rendered */}
+          {/* Standings â€" always rendered */}
           <div className="space-y-3">
             <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><TrendingUp size={10} /> Standings</h4>
             {leagueLoading ? (
@@ -568,7 +602,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                                     {gb    !== '' && <span className="w-5 text-right text-white/20">{gb}</span>}
                                   </div>
                                 )}
-                                <div className="sm:hidden text-[8px] font-bold text-white/35">{wins && losses ? `${wins}â€“${losses}` : ''}</div>
+                                <div className="sm:hidden text-[8px] font-bold text-white/35">{wins && losses ? `${wins}â€"${losses}` : ''}</div>
                               </button>
                             );
                           })}
@@ -711,7 +745,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   );
 };
 
-// â”€â”€â”€ TeamCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€ TeamCard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 const TeamCard: React.FC<{
   team: SportsTeam;
@@ -739,7 +773,7 @@ const TeamCard: React.FC<{
   </div>
 );
 
-// â”€â”€â”€ OrgCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€ OrgCard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 const OrgCard: React.FC<{
   org: EsportsOrg;
@@ -782,7 +816,7 @@ const OrgCard: React.FC<{
   </div>
 );
 
-// â”€â”€â”€ Racing Center View (F1 / NASCAR / IndyCar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€ Racing Center View (F1 / NASCAR / IndyCar) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
   const cfg = getRacingCfg(tab)!;
