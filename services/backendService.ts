@@ -3987,46 +3987,34 @@ export const fetchPurchasedAlbums = async (uid: string): Promise<Album[]> => {
 };
 
 export const fetchFollowedArtists = async (uid: string): Promise<UserProfile[]> => {
-  const q = query(collection(db, 'follows'), where("followerId", "==", uid));
-  const snapshot = await getDocs(q);
-  const followingIds = snapshot.docs.map(d => d.data().followingId);
-  
-  if (followingIds.length === 0) return [];
-  
-  // Fetch profiles for these IDs
-  const profiles: UserProfile[] = [];
-  for (const id of followingIds) {
-    const p = await fetchUserProfile(id);
-    if (p) profiles.push(p);
+  try {
+    const q = query(collection(db, 'follows'), where("followerId", "==", uid), limit(100));
+    const snapshot = await getDocs(q);
+    const followingIds = snapshot.docs.map(d => d.data().followingId);
+    if (followingIds.length === 0) return [];
+    const results = await Promise.all(followingIds.map(id => fetchUserProfile(id).catch(() => null)));
+    return results.filter((p): p is UserProfile => p !== null);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
   }
-  return profiles;
 };
 
 export const fetchFriends = async (uid: string): Promise<UserProfile[]> => {
-  // Friends are mutual follows
-  // 1. Get people I follow
-  const followingQ = query(collection(db, 'follows'), where("followerId", "==", uid));
-  const followingSnap = await getDocs(followingQ);
-  const followingIds = followingSnap.docs.map(d => d.data().followingId);
-
-  if (followingIds.length === 0) return [];
-
-  // 2. Get people who follow me
-  const followersQ = query(collection(db, 'follows'), where("followingId", "==", uid));
-  const followersSnap = await getDocs(followersQ);
-  const followerIds = followersSnap.docs.map(d => d.data().followerId);
-
-  // 3. Find intersection
-  const friendIds = followingIds.filter(id => followerIds.includes(id));
-
-  if (friendIds.length === 0) return [];
-
-  const profiles: UserProfile[] = [];
-  for (const id of friendIds) {
-    const p = await fetchUserProfile(id);
-    if (p) profiles.push(p);
+  try {
+    const [followingSnap, followersSnap] = await Promise.all([
+      getDocs(query(collection(db, 'follows'), where("followerId", "==", uid), limit(200))),
+      getDocs(query(collection(db, 'follows'), where("followingId", "==", uid), limit(200))),
+    ]);
+    const followingIds = new Set(followingSnap.docs.map(d => d.data().followingId));
+    const friendIds = followersSnap.docs.map(d => d.data().followerId).filter(id => followingIds.has(id));
+    if (friendIds.length === 0) return [];
+    const results = await Promise.all(friendIds.slice(0, 50).map(id => fetchUserProfile(id).catch(() => null)));
+    return results.filter((p): p is UserProfile => p !== null);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
   }
-  return profiles;
 };
 
 export const fetchArtistMerch = async (artistId: string): Promise<MerchItem[]> => {

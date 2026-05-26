@@ -282,93 +282,102 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    let unsubArticles: (() => void) | undefined;
+
     const loadData = async () => {
       setLoading(true);
-      let unsubArticles: any;
-      try {
-        const [p, c, f, fr, m, apps, isF, isS, settings] = await Promise.all([
-          fetchUserProfile(uid).catch(() => null),
-          fetchUserContent(uid).catch(() => []),
-          fetchFollowedArtists(uid).catch(() => []),
-          fetchFriends(uid).catch(() => []),
-          fetchArtistMerch(uid).catch(() => []),
-          fetchUserApps(uid).catch(() => []),
-          isFollowing(uid).catch(() => false),
-          isSubscribedToMailingList(uid).catch(() => false),
-          fetchSystemSettingsConfig().catch(() => null),
-        ]);
-        setProfile(p as any);
-        setContent(c as any);
-        setFollowedArtists(f as any);
-        setFriends(fr as any);
-        setMerch(m as any);
-        setUserApps(apps as any);
-        fetchUserWorlds(uid).then(w => setWorlds(w)).catch(() => setWorlds([]));
-        fetchUserThemePresets(uid).then(t => {
-           let allThemes = [...t];
-           if (p && p.savedThemePresets && p.savedThemePresets.length > 0) {
-              fetchThemePresetsByIds(p.savedThemePresets).then(saved => {
-                 setThemes([...allThemes, ...saved.filter(st => !allThemes.some(a => a.id === st.id))]);
-              }).catch(() => setThemes(allThemes));
-           } else {
-              setThemes(allThemes);
-           }
-        }).catch(() => setThemes([]));
 
-        // Load subscribed podcasts for the viewed profile
-        const subIds = (p as any)?.subscribedPodcastIds || [];
-        if (subIds.length > 0) {
-          fetchAlbumsByIds(subIds).then(pods => setSubscribedPodcasts(pods)).catch(() => {});
-        }
-        // Track which podcasts the current user (viewer) is subscribed to
-        if (auth.currentUser) {
-          fetchAlbumsByIds([]).then(() => {}).catch(() => {});
-          const currentUserProfile = await fetchUserProfile(auth.currentUser.uid).catch(() => null);
-          if (currentUserProfile) {
-            setPodcastSubscribedIds(new Set((currentUserProfile as any).subscribedPodcastIds || []));
-          }
-        }
-        setFollowing(isF as boolean);
-        setIsSubscribed(isS as boolean);
-        setSystemSettings(settings as any);
+      // ── Phase 1: critical data — profile + content. Clears the spinner fast. ──
+      const [p, c, isF, isS, settings] = await Promise.all([
+        fetchUserProfile(uid).catch(() => null),
+        fetchUserContent(uid).catch(() => []),
+        isFollowing(uid).catch(() => false),
+        isSubscribedToMailingList(uid).catch(() => false),
+        fetchSystemSettingsConfig().catch(() => null),
+      ]);
 
-        // Set default tab if provided by profile and no initialTab override
-        if (p && p.defaultProfileTab && !initialTab) {
-          setActiveTab(p.defaultProfileTab as any);
-        }
-        
-        // Load articles
-        unsubArticles = listenToUserArticles(uid, (userArticles) => {
-          setArticles(userArticles);
-          // If no articles and it's own profile, create demo
-          if (userArticles.length === 0 && uid === auth.currentUser?.uid) {
-            createDemoArticle().catch(console.error);
-          }
-        });
+      if (cancelled) return;
 
-        // Seed demo worlds if this is the artist's own profile
-        if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
-          seedDemoWorlds().catch(console.error);
-        }
+      setProfile(p as any);
+      setContent(c as any);
+      setFollowing(isF as boolean);
+      setIsSubscribed(isS as boolean);
+      setSystemSettings(settings as any);
 
-        // If no content, default to following tab (Listener view)
-        if (c && c.length === 0 && f && f.length > 0) {
-          setActiveTab('FOLLOWING');
-        } else if (c && c.length === 0 && f && f.length === 0 && fr && fr.length > 0) {
-          setActiveTab('FRIENDS');
-        }
-      } catch (err) {
-        console.error("Error loading user profile:", err);
-      } finally {
-        setLoading(false);
+      if (p && p.defaultProfileTab && !initialTab) {
+        setActiveTab(p.defaultProfileTab as any);
       }
-      return () => {
-        if (unsubArticles) unsubArticles();
+
+      // Articles listener — non-blocking
+      unsubArticles = listenToUserArticles(uid, (userArticles) => {
+        if (cancelled) return;
+        setArticles(userArticles);
+        if (userArticles.length === 0 && uid === auth.currentUser?.uid) {
+          createDemoArticle().catch(console.error);
+        }
+      });
+
+      setLoading(false);  // ← spinner clears here, profile renders
+
+      if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
+        seedDemoWorlds().catch(console.error);
+      }
+
+      // ── Phase 2: secondary data — loaded after the profile is already visible ──
+      const [f, fr, m, apps] = await Promise.all([
+        fetchFollowedArtists(uid).catch(() => []),
+        fetchFriends(uid).catch(() => []),
+        fetchArtistMerch(uid).catch(() => []),
+        fetchUserApps(uid).catch(() => []),
+      ]);
+
+      if (cancelled) return;
+
+      setFollowedArtists(f as any);
+      setFriends(fr as any);
+      setMerch(m as any);
+      setUserApps(apps as any);
+
+      // Default tab based on secondary data
+      if ((c as any[]).length === 0 && (f as any[]).length > 0) {
+        setActiveTab('FOLLOWING');
+      } else if ((c as any[]).length === 0 && (f as any[]).length === 0 && (fr as any[]).length > 0) {
+        setActiveTab('FRIENDS');
+      }
+
+      // Non-critical: worlds, themes, podcasts
+      fetchUserWorlds(uid).then(w => { if (!cancelled) setWorlds(w); }).catch(() => {});
+      fetchUserThemePresets(uid).then(t => {
+        if (cancelled) return;
+        if (p && p.savedThemePresets && p.savedThemePresets.length > 0) {
+          fetchThemePresetsByIds(p.savedThemePresets).then(saved => {
+            if (!cancelled) setThemes([...t, ...saved.filter(st => !t.some(a => a.id === st.id))]);
+          }).catch(() => { if (!cancelled) setThemes(t); });
+        } else {
+          setThemes(t);
+        }
+      }).catch(() => {});
+
+      const subIds = (p as any)?.subscribedPodcastIds || [];
+      if (subIds.length > 0) {
+        fetchAlbumsByIds(subIds).then(pods => { if (!cancelled) setSubscribedPodcasts(pods); }).catch(() => {});
+      }
+      if (auth.currentUser) {
+        fetchUserProfile(auth.currentUser.uid).then(cu => {
+          if (!cancelled && cu) setPodcastSubscribedIds(new Set((cu as any).subscribedPodcastIds || []));
+        }).catch(() => {});
       }
     };
-    const cleanup = loadData();
+
+    loadData().catch(err => {
+      console.error('Error loading user profile:', err);
+      setLoading(false);
+    });
+
     return () => {
-      cleanup.then(fn => fn && fn());
+      cancelled = true;
+      if (unsubArticles) unsubArticles();
     };
   }, [uid, initialTab]);
 

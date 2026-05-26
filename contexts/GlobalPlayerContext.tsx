@@ -312,80 +312,66 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const playTrack = React.useCallback((track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO') => {
     let audio = audioRef.current;
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
-    
+
     initAudioContext();
-    if (audioContextRef.current?.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
 
     stateRef.current.currentTrack = track;
     stateRef.current.currentAlbum = album;
     stateRef.current.audioSource = source;
     stateRef.current.isPlaying = true;
 
-    // Auto-enable spatial audio for Eclipsa files, auto-disable for regular files
     if (isNewTrack) {
       setSpatialAudioEnabled(!!track.isEclipsa);
     }
 
     if (source !== 'VIDEO') {
       if (isNewTrack) {
-        // Only use CORS if it's an external URL (not starting with /api or /)
         const isExternal = track.url.startsWith('http') && !track.url.includes(window.location.host);
-        
         if (isExternal) {
           audio.crossOrigin = "anonymous";
         } else {
           audio.removeAttribute('crossorigin');
         }
-        
         try {
           if (audio.src !== track.url) {
             audio.src = track.url || '';
-            // DO NOT call audio.load() here! It breaks iOS background sequential playback
-            // because it drops the user interaction context required for background audio.
+            // DO NOT call audio.load() — breaks iOS background sequential playback
           }
         } catch (e) {
           console.error("Audio src assignment failed:", e);
         }
       }
 
-      const attemptPlay = (isRetry = false) => {
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(e => {
-            if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
-            
-            console.error(`Playback attempt failed (retry: ${isRetry}):`, e);
+      const attemptPlay = () => {
+        // Resume AudioContext first so it doesn't silently swallow playback
+        const ctx = audioContextRef.current;
+        const doPlay = () => {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(e => {
+              if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
+              console.error('Playback failed:', e.name, e.message);
+              // Retry with a fresh audio element (strips AudioContext + CORS constraint)
+              if (sourceRef.current) {
+                try { sourceRef.current.disconnect(); } catch (_) {}
+                sourceRef.current = null;
+              }
+              const newAud = new Audio();
+              newAud.volume = audio.volume;
+              newAud.src = track.url || '';
+              setAudioElement(newAud);
+              newAud.play().catch(pErr => {
+                if (pErr.name === 'AbortError' || pErr.message?.includes('interrupted')) return;
+                console.error("Final playback attempt failed:", pErr.message || pErr);
+              });
+            });
+          }
+        };
 
-            // If it fails with a media error or blocked by CORS
-            if (!isRetry) {
-              console.warn("Audio playback failed, retrying with fresh element and no-cors fallback.");
-              
-              const resetAudio = () => {
-                if (sourceRef.current) {
-                  sourceRef.current.disconnect();
-                  sourceRef.current = null;
-                }
-
-                const newAud = new Audio();
-                newAud.volume = audio.volume;
-                // Force direct URL attempt without proxy if proxy failed? 
-                // No, let's just try without CORS first on the same URL.
-                newAud.src = track.url || '';
-                
-                // If it's a proxy link, it should work without CORS attribute always
-                setAudioElement(newAud);
-                
-                newAud.play().catch(pErr => {
-                  if (pErr.name === 'AbortError' || pErr.message?.includes('interrupted')) return;
-                  console.error("Final playback attempt failed:", pErr.message || pErr);
-                });
-              };
-              
-              resetAudio();
-            }
-          });
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().then(doPlay).catch(doPlay);
+        } else {
+          doPlay();
         }
       };
 
