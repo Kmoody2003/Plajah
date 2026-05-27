@@ -1113,12 +1113,14 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       {/* Feed Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 p-1 bg-black/40 rounded-2xl border border-white/5">
-          <button 
+          <button
             onClick={() => setFeedType('PERSONAL')}
             className={`px-6 py-3 rounded-xl flex items-center gap-2 transition-all ${feedType === 'PERSONAL' ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
           >
             <Users size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest">My Feed</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {isOwnProfile ? 'My Feed' : (profileName ? `${profileName.split(' ')[0]}'s Posts` : 'Their Posts')}
+            </span>
           </button>
           <button 
             onClick={() => setFeedType('GLOBAL')}

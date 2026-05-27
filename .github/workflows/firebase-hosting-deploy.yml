@@ -21,6 +21,9 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
+          VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
         run: npm run build
 
       - name: Deploy Firebase Hosting

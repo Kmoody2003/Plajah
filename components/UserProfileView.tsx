@@ -233,7 +233,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS'>(initialTab || 'FEED');
-  const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>('GLOBAL');
+  const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
+    () => auth.currentUser?.uid === uid ? 'GLOBAL' : 'PERSONAL'
+  );
   const [feedKey, setFeedKey] = useState(0);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [showPlajahPlusLanding, setShowPlajahPlusLanding] = useState(false);
@@ -380,6 +382,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       if (unsubArticles) unsubArticles();
     };
   }, [uid, initialTab]);
+
+  useEffect(() => {
+    const own = auth.currentUser?.uid === uid;
+    setFeedInitialType(own ? 'GLOBAL' : 'PERSONAL');
+    setFeedKey(k => k + 1);
+    setActiveTab(initialTab || 'FEED');
+  }, [uid]);
 
   const handleFollowToggle = async () => {
     if (!auth.currentUser) { setSignInAction('follow this creator'); return; }
@@ -1161,7 +1170,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {/* Tabs Container (Sticky & Overflow Scroll) */}
         {(() => {
           const allTabs = [
-            { id: 'FEED', label: 'Feed' },
+            { id: 'FEED', label: isOwnProfile ? 'Feed' : 'Their Feed' },
             { id: 'CONTENT', label: 'Creations' },
             { id: 'PODCASTS', label: 'Podcasts' },
             { id: 'WORLDS', label: 'Worlds' },

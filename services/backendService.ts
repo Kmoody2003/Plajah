@@ -2437,19 +2437,12 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
           const videoId = v.id;
           (async () => {
             try {
-              const res = await fetch('/api/mux/create-asset-from-url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: srcUrl }),
+              const muxData = await createMuxAssetFromUrl(srcUrl);
+              await updateDoc(doc(db, videosCollectionPath, videoId), {
+                ...(muxData.assetId   ? { muxAssetId: muxData.assetId }     : {}),
+                ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+                muxUploadId: null,
               });
-              if (!res.ok) return;
-              const muxData = await res.json();
-              if (muxData.assetId || muxData.playbackId) {
-                await updateDoc(doc(db, videosCollectionPath, videoId), {
-                  ...(muxData.assetId   ? { muxAssetId: muxData.assetId }     : {}),
-                  ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
-                });
-              }
             } catch (err) {
               console.error('[Mux] Background transcoding failed for video', videoId, err);
             }
@@ -5055,9 +5048,14 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   let videoUrl = video.url || '';
   let muxUploadId: string | undefined;
   if (video.file) {
-    // Upload directly to Mux — 1 transfer instead of browser→Firebase→Mux
-    muxUploadId = await uploadVideoFileMux(video.file, onProgress);
-    // Keep videoUrl empty until Mux is ready; onSnapshot listener in VideoPlayer will pick up playbackId
+    try {
+      // Preferred path: upload directly to Mux (browser → Mux, no Firebase Storage hop)
+      muxUploadId = await uploadVideoFileMux(video.file, onProgress);
+    } catch {
+      // Server not available in production — fall back to Firebase Storage,
+      // then trigger Mux URL ingestion after the file is in Storage.
+      videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
+    }
   }
   
   let thumbUrl = video.thumbnailUrl || '';
@@ -5112,22 +5110,15 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
       } catch {}
     }, 450, 4000);
   } else if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
-    // URL-based path: ask server to ingest the public URL into Mux.
+    // Firebase Storage fallback path — ingest the URL into Mux in the background.
     (async () => {
       try {
-        const res = await fetch('/api/mux/create-asset-from-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: videoUrl })
+        const muxData = await createMuxAssetFromUrl(videoUrl);
+        await updateDoc(doc(db, 'videos', id), {
+          ...(muxData.assetId   ? { muxAssetId:    muxData.assetId    } : {}),
+          ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
+          muxUploadId: null,
         });
-        if (!res.ok) return;
-        const muxData = await res.json();
-        if (muxData.assetId || muxData.playbackId) {
-          await updateDoc(doc(db, 'videos', id), {
-            ...(muxData.assetId   ? { muxAssetId:    muxData.assetId    } : {}),
-            ...(muxData.playbackId ? { muxPlaybackId: muxData.playbackId } : {}),
-          });
-        }
       } catch (err) {
         console.error('Background Mux transcoding failed for video', id, ':', err);
       }
@@ -6333,17 +6324,65 @@ export const pollMuxUploadUntilReady = async (
   setTimeout(poll, intervalMs);
 };
 
-export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
-  const res = await fetch('/api/mux/create-asset-from-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  });
-  if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || 'Failed to create Mux asset from URL');
+// Direct Mux API call — used as fallback when server.ts API is unreachable in production.
+// VITE_MUX_TOKEN_ID / VITE_MUX_TOKEN_SECRET must be set in .env.local.
+const muxDirectCreateAsset = async (url: string): Promise<{ assetId: string; playbackId: string | undefined } | null> => {
+  const tokenId = import.meta.env.VITE_MUX_TOKEN_ID as string | undefined;
+  const tokenSecret = import.meta.env.VITE_MUX_TOKEN_SECRET as string | undefined;
+  if (!tokenId || !tokenSecret) return null;
+  try {
+    const auth = 'Basic ' + btoa(`${tokenId}:${tokenSecret}`);
+    const createRes = await fetch('https://api.mux.com/video/v1/assets', {
+      method: 'POST',
+      headers: { Authorization: auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: [{ url }], playback_policy: ['public'] }),
+    });
+    if (!createRes.ok) return null;
+    const data = await createRes.json();
+    const assetId: string = data.data?.id;
+    if (!assetId) return null;
+    // Poll up to 90s for the asset to become ready so we get the playback ID immediately
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const poll = await fetch(`https://api.mux.com/video/v1/assets/${assetId}`, {
+        headers: { Authorization: auth },
+      });
+      if (!poll.ok) break;
+      const pollData = await poll.json();
+      const asset = pollData.data;
+      if (asset?.status === 'ready') {
+        return { assetId, playbackId: asset.playback_ids?.[0]?.id };
+      }
+      if (asset?.status === 'errored') break;
+    }
+    // Asset created but not yet ready — return assetId without playbackId;
+    // VideoPlayer's onSnapshot listener will pick up the playbackId once polling finishes
+    return { assetId, playbackId: undefined };
+  } catch {
+    return null;
   }
-  return res.json();
+};
+
+export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
+  // Try the server-side route first (works when server.ts is running locally or deployed)
+  try {
+    const res = await fetch('/api/mux/create-asset-from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(5000), // fast fail if server isn't there
+    });
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      return res.json();
+    }
+  } catch {
+    // Server not available — fall through to direct Mux API call
+  }
+  // Fallback: call Mux API directly from the browser
+  const direct = await muxDirectCreateAsset(url);
+  if (!direct) throw new Error('Mux asset creation failed (server unavailable and direct API call failed)');
+  return direct;
 };
 
 
