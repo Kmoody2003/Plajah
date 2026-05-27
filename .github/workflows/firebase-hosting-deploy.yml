@@ -23,14 +23,27 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to Firebase (hosting + firestore rules)
+      - name: Deploy Firebase Hosting
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "$FIREBASE_SA" > /tmp/firebase-sa.json
+          printf '%s' "$FIREBASE_SA" > /tmp/firebase-sa.json
           GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
             npx firebase-tools deploy \
-              --only hosting,firestore:rules \
+              --only hosting \
+              --project gen-lang-client-0665118474 \
+              --force
+          rm -f /tmp/firebase-sa.json
+
+      - name: Deploy Firestore rules
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        continue-on-error: true
+        run: |
+          printf '%s' "$FIREBASE_SA" > /tmp/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
+            npx firebase-tools deploy \
+              --only firestore:rules \
               --project gen-lang-client-0665118474 \
               --force
           rm -f /tmp/firebase-sa.json
