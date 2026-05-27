@@ -56,6 +56,7 @@
     "stripe": "^22.1.1",
     "tailwindcss": "^4.2.2",
     "three": "^0.184.0",
+    "uuid": "^14.0.0",
     "vite": "^6.2.0"
   },
   "overrides": {
@@ -68,6 +69,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "puppeteer": "^24.42.0",
     "tsx": "^4.21.0",
