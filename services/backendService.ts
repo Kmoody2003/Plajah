@@ -5085,8 +5085,11 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     isPrivate: video.isPrivate || false,
     timestamp: Date.now(),
     likesCount: 0,
-    commentsCount: 0
-  };
+    commentsCount: 0,
+    // Store the Mux direct-upload ID so we can resume polling if the tab is
+    // refreshed before Mux finishes transcoding a large file.
+    ...(muxUploadId ? { muxUploadId } : {}),
+  } as any;
   
   // Save to Firestore immediately so the creator can see the video right away.
   try {
@@ -5098,11 +5101,16 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
 
   if (muxUploadId) {
     // Direct-upload path: poll Mux for the playback ID once the asset is ready.
+    // 450 attempts × 4s = 30 minutes — enough for feature-length movie files.
     pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
       try {
-        await updateDoc(doc(db, 'videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId });
+        await updateDoc(doc(db, 'videos', id), {
+          muxPlaybackId: playbackId,
+          muxAssetId: assetId,
+          muxUploadId: null, // clear once resolved
+        });
       } catch {}
-    }, 60, 4000);
+    }, 450, 4000);
   } else if (videoUrl && !videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be') && !videoUrl.includes('vimeo.com')) {
     // URL-based path: ask server to ingest the public URL into Mux.
     (async () => {

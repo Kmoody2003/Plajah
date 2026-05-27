@@ -511,50 +511,70 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   useEffect(() => { loadData(); }, [profile?.uid]);
 
   // Client-side Mux backfill — runs once per browser session.
-  // Fetches videos via the authenticated Firebase SDK (avoids server-side auth issues),
-  // then fires create-asset-from-url for each video that lacks a muxPlaybackId.
+  // Handles two cases:
+  //   A) Videos with a public URL but no muxPlaybackId → re-ingest via create-asset-from-url
+  //   B) Videos with a muxUploadId (direct upload) but no muxPlaybackId → resume polling
   useEffect(() => {
     if ((window as any).__muxBackfillTriggered) return;
     (window as any).__muxBackfillTriggered = true;
 
     (async () => {
       try {
-        const { fetchAllVideos, updateVideo } = await import('../services/backendService');
+        const { fetchAllVideos, updateVideo, pollMuxUploadUntilReady } = await import('../services/backendService');
         const allVideos = await fetchAllVideos();
+
+        // Case B: direct uploads still processing — resume polling by upload ID
+        const pendingUploads = allVideos.filter(v => !v.muxPlaybackId && (v as any).muxUploadId);
+        for (const v of pendingUploads) {
+          const uploadId = (v as any).muxUploadId as string;
+          console.log(`[Mux Backfill] Resuming poll for direct upload: ${v.id}`);
+          pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+            await updateVideo(v.id, {
+              muxPlaybackId: playbackId,
+              muxAssetId: assetId,
+              muxUploadId: null,
+            } as any);
+            console.log(`[Mux Backfill] ✓ direct upload resolved: ${v.id} → ${playbackId}`);
+          }, 300, 5000);
+        }
+
+        // Case A: URL-based videos not yet in Mux
         const toBackfill = allVideos.filter(v =>
           !v.muxPlaybackId &&
+          !(v as any).muxUploadId &&
           v.url &&
           !v.url.includes('youtube.com') &&
           !v.url.includes('youtu.be') &&
           !v.url.includes('vimeo.com')
         );
-        if (toBackfill.length === 0) {
+        if (toBackfill.length === 0 && pendingUploads.length === 0) {
           console.log('[Mux Backfill] All videos already transcoded.');
           return;
         }
-        console.log(`[Mux Backfill] Queuing ${toBackfill.length} videos for Mux transcoding…`);
-        // Process in small batches to avoid flooding the server
-        for (const v of toBackfill.slice(0, 20)) {
-          (async () => {
-            try {
-              const res = await fetch('/api/mux/create-asset-from-url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: v.url }),
-              });
-              if (!res.ok) return;
-              const { assetId, playbackId } = await res.json();
-              if (assetId || playbackId) {
-                await updateVideo(v.id, {
-                  ...(assetId   ? { muxAssetId:    assetId    } : {}),
-                  ...(playbackId ? { muxPlaybackId: playbackId } : {}),
+        if (toBackfill.length > 0) {
+          console.log(`[Mux Backfill] Queuing ${toBackfill.length} URL-based videos for Mux transcoding…`);
+          for (const v of toBackfill.slice(0, 20)) {
+            (async () => {
+              try {
+                const res = await fetch('/api/mux/create-asset-from-url', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: v.url }),
                 });
-                console.log(`[Mux Backfill] ✓ ${v.id} → ${playbackId}`);
+                if (!res.ok) return;
+                const { assetId, playbackId } = await res.json();
+                if (assetId || playbackId) {
+                  await updateVideo(v.id, {
+                    ...(assetId    ? { muxAssetId:    assetId    } : {}),
+                    ...(playbackId ? { muxPlaybackId: playbackId } : {}),
+                  });
+                  console.log(`[Mux Backfill] ✓ ${v.id} → ${playbackId}`);
+                }
+              } catch (err) {
+                console.warn(`[Mux Backfill] ✗ ${v.id}:`, err);
               }
-            } catch (err) {
-              console.warn(`[Mux Backfill] ✗ ${v.id}:`, err);
-            }
-          })();
+            })();
+          }
         }
       } catch (err) {
         console.warn('[Mux Backfill] failed:', err);

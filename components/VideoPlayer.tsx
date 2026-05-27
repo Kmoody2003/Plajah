@@ -499,6 +499,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     return () => { ytPlayerRef.current?.destroy?.(); ytPlayerRef.current = null; setYtPlayer(null); };
   }, [video.url, setYtPlayer]);
 
+  // Real-time listener: pick up muxPlaybackId / url the moment Mux finishes
+  // processing — even if that's 20 minutes after the upload completed.
+  useEffect(() => {
+    if (video.muxPlaybackId || (video.url && video.url.length > 0)) return;
+    const unsub = onSnapshot(doc(db, 'videos', video.id), snap => {
+      if (!snap.exists()) return;
+      const data = snap.data() as Partial<typeof video>;
+      if (data.muxPlaybackId || (data.url && data.url.length > 0)) {
+        setVideo(v => ({ ...v, ...data }));
+        setVideoError(false);
+      }
+    });
+    return unsub;
+  }, [video.id, video.muxPlaybackId, video.url]);
+
   // Load initial data + start playback
   useEffect(() => {
     const unsub = listenToVideoComments(video.id, setComments);
@@ -696,8 +711,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
             Retry
           </button>
         )}
-        {!videoError && video.muxPlaybackId && (
-          <p className="text-[9px] text-white/20 uppercase tracking-widest">Waiting for stream…</p>
+        {!videoError && (
+          <p className="text-[9px] text-white/20 text-center max-w-xs leading-relaxed px-4">
+            Large videos can take 5–20 min to process. This page will update automatically when ready.
+          </p>
         )}
       </div>
     );
