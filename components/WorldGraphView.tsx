@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useCallback, useEffect, useState } from 'react'
 import ForceGraph3D, { ForceGraphMethods } from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { IPWorld, Character, LoreEntry, TimelineEvent, Album, Video } from '../types';
-import { X, Zap, Volume2, VolumeX, RotateCcw, ExternalLink, ChevronRight } from 'lucide-react';
+import { X, Zap, Volume2, VolumeX, RotateCcw, ExternalLink, ChevronRight, Crosshair } from 'lucide-react';
 
 interface WorldGraphViewProps {
   world: IPWorld;
@@ -33,9 +33,13 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   const nebulaAdded = useRef(false);
   const hasExploded = useRef(false);
   const introAnimDone = useRef(false);
+  // Prevent any auto-camera movement after the user has manually interacted
+  const userHasMoved = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Keep dimensions in a ref too so callbacks always read the latest value
+  const dimensionsRef = useRef({ width: 0, height: 0 });
 
   const [hoveredNode, setHoveredNode] = useState<any>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
@@ -44,11 +48,16 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   const [audioMuted, setAudioMuted] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Track real container size so ForceGraph3D reflows on resize
+  // Track real container size — only update canvas dimensions, never touch the camera
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const measure = () => setDimensions({ width: el.clientWidth, height: el.clientHeight });
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      dimensionsRef.current = { width: w, height: h };
+      setDimensions({ width: w, height: h });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -133,31 +142,39 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     return { nodes, links };
   }, [world, characters, loreEntries, timelineEvents, albums, videos]);
 
-  // ── Force configuration: push nodes far apart ──────────────────────────────
+  // ── Force configuration ────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => {
       const fg = fgRef.current as any;
       if (!fg) return;
-      fg.d3Force('charge')?.strength(-500).distanceMax(600);
-      fg.d3Force('link')?.distance(130).strength(0.4);
-      fg.d3Force('center')?.strength(0.05);
-      fg.d3ReheatSimulation();
+      fg.d3Force('charge')?.strength(-600).distanceMax(700);
+      fg.d3Force('link')?.distance(140).strength(0.35);
+      fg.d3Force('center')?.strength(0.04);
+      // Only reheat if user hasn't moved — avoids snapping nodes under the user's cursor
+      if (!userHasMoved.current) fg.d3ReheatSimulation();
     }, 80);
     return () => clearTimeout(t);
   }, [graphData]);
 
-  // Re-center graph whenever the container resizes
-  useEffect(() => {
-    if (!dimensions.width || !dimensions.height) return;
-    const padding = Math.min(dimensions.width, dimensions.height) * 0.08;
-    fgRef.current?.zoomToFit(400, padding);
-  }, [dimensions]);
-
+  // ── Reset: zoom to fit all, clear selection ────────────────────────────────
   const handleReset = useCallback(() => {
+    userHasMoved.current = false;
     setClickedNode(null);
-    const padding = Math.min(dimensions.width || 400, dimensions.height || 400) * 0.08;
-    fgRef.current?.zoomToFit(800, padding);
-  }, [dimensions]);
+    const { width, height } = dimensionsRef.current;
+    const padding = Math.min(width || 400, height || 400) * 0.08;
+    fgRef.current?.zoomToFit(900, padding);
+  }, []);
+
+  // ── Focus selected orb ─────────────────────────────────────────────────────
+  const handleFocusSelected = useCallback(() => {
+    if (!clickedNode || !fgRef.current) return;
+    const dist = 120;
+    fgRef.current.cameraPosition(
+      { x: clickedNode.x, y: clickedNode.y, z: (clickedNode.z ?? 0) + dist },
+      { x: clickedNode.x, y: clickedNode.y, z: clickedNode.z ?? 0 },
+      800,
+    );
+  }, [clickedNode]);
 
   // ── Nebula background ──────────────────────────────────────────────────────
   const setupNebula = useCallback(() => {
@@ -167,11 +184,11 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     const scene: THREE.Scene = fg.scene();
     const group = new THREE.Group();
 
-    // Star field
-    const starCount = 6000;
+    // Dense star field
+    const starCount = 9000;
     const positions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
-      const radius = 900 + Math.random() * 500;
+      const radius = 900 + Math.random() * 600;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       positions[i * 3]     = radius * Math.sin(phi) * Math.cos(theta);
@@ -180,18 +197,20 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    group.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, transparent: true, opacity: 0.65, sizeAttenuation: false })));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, transparent: true, opacity: 0.7, sizeAttenuation: false });
+    group.add(new THREE.Points(starGeo, starMat));
 
     // Colored nebula blobs
     [
-      { color: 0x3d1a8a, x: 350, y: -180, z: -350, r: 360 },
-      { color: 0x1a2a7a, x: -380, y: 280, z: 220, r: 300 },
-      { color: 0x6a1a3a, x: 180, y: 380, z: -280, r: 330 },
-      { color: 0x1a5a4a, x: -280, y: -320, z: 380, r: 260 },
+      { color: 0x3d1a8a, x: 350, y: -180, z: -350, r: 380 },
+      { color: 0x1a2a7a, x: -380, y: 280, z: 220, r: 320 },
+      { color: 0x6a1a3a, x: 180, y: 380, z: -280, r: 350 },
+      { color: 0x1a5a4a, x: -280, y: -320, z: 380, r: 280 },
+      { color: 0x4a2a1a, x: 420, y: 200, z: 300, r: 260 },
     ].forEach(({ color, x, y, z, r }) => {
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 8, 8),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, side: THREE.BackSide }),
+        new THREE.SphereGeometry(r, 12, 12),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, side: THREE.BackSide }),
       );
       mesh.position.set(x, y, z);
       group.add(mesh);
@@ -199,27 +218,26 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
 
     // Dark outer shell
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(1600, 32, 32),
+      new THREE.SphereGeometry(1700, 32, 32),
       new THREE.MeshBasicMaterial({ color: 0x00000d, side: THREE.BackSide }),
     ));
 
     scene.add(group);
   }, []);
 
-  // ── Node objects: glow halo + canvas sprite (tint baked in) ───────────────
+  // ── Node objects: glow halo + canvas sprite ────────────────────────────────
   const nodeThreeObject = useCallback((node: any) => {
     const r = (node.size || 6) * 2;
     const group = new THREE.Group();
 
-    // Always: outer glow halo
+    // Outer glow halo
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(r * 1.9, 16, 16),
-      new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.07, side: THREE.BackSide }),
+      new THREE.SphereGeometry(r * 2.1, 20, 20),
+      new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.06, side: THREE.BackSide }),
     ));
 
     if (node.img) {
-      // Artwork sprite — color tint baked in, faded at edges
-      const size = 256;
+      const size = 512;
       const canvas = document.createElement('canvas');
       canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d')!;
@@ -241,7 +259,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       image.onload = () => {
         ctx.clearRect(0, 0, size, size);
 
-        // 1. Draw artwork clipped to circle
+        // 1. Artwork clipped to circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
@@ -249,21 +267,21 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         ctx.drawImage(image, 0, 0, size, size);
         ctx.restore();
 
-        // 2. Color tint overlay at 50% — source-atop paints only over existing pixels
+        // 2. Color tint overlay
         ctx.globalCompositeOperation = 'source-atop';
-        ctx.globalAlpha = 0.45;
+        ctx.globalAlpha = 0.4;
         ctx.fillStyle = node.color || '#ffffff';
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        // 3. Soft radial fade — destination-out erases toward the rim
+        // 3. Radial fade at rim
         ctx.globalCompositeOperation = 'destination-out';
-        const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.2, size / 2, size / 2, size / 2);
-        grad.addColorStop(0,   'rgba(0,0,0,0)');
-        grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-        grad.addColorStop(1,   'rgba(0,0,0,1)');
+        const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.25, size / 2, size / 2, size / 2);
+        grad.addColorStop(0,    'rgba(0,0,0,0)');
+        grad.addColorStop(0.55, 'rgba(0,0,0,0)');
+        grad.addColorStop(1,    'rgba(0,0,0,1)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, size);
         ctx.globalCompositeOperation = 'source-over';
@@ -273,47 +291,66 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
       image.onerror = drawFallback;
       image.src = node.img;
 
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.92 }));
-      sprite.scale.set(r * 3.2, r * 3.2, 1);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.95 }));
+      sprite.scale.set(r * 3.4, r * 3.4, 1);
       group.add(sprite);
     } else {
-      // No artwork: plain colored sphere
+      // No artwork: glowing sphere
       group.add(new THREE.Mesh(
-        new THREE.SphereGeometry(r, 16, 16),
-        new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.65 }),
+        new THREE.SphereGeometry(r, 20, 20),
+        new THREE.MeshBasicMaterial({ color: node.color || '#ffffff', transparent: true, opacity: 0.72 }),
       ));
     }
 
     return group;
   }, []);
 
+  // ── Engine stop: intro once, then never touch the camera again ─────────────
+  const handleEngineStop = useCallback(() => {
+    setupNebula();
+    // Only fire the cinematic intro on the very first stop
+    if (introAnimDone.current) return;
+    introAnimDone.current = true;
+    const { width, height } = dimensionsRef.current;
+    const padding = Math.min(width || 400, height || 400) * 0.08;
+    const fg = fgRef.current as any;
+    if (fg?.camera) fg.camera().position.set(0, 0, 4500);
+    setTimeout(() => fgRef.current?.zoomToFit(2200, padding), 80);
+  }, [setupNebula]);
+
   // ── Click: explosion burst on first touch, camera center, info card ─────────
   const handleNodeClick = useCallback((node: any) => {
+    userHasMoved.current = true;
     const fg = fgRef.current as any;
 
     // One-time "explode" burst on first interaction
     if (!hasExploded.current && fg) {
       hasExploded.current = true;
-      fg.d3Force('charge')?.strength(-1400).distanceMax(800);
+      fg.d3Force('charge')?.strength(-1600).distanceMax(900);
       fg.d3ReheatSimulation();
       setTimeout(() => {
-        fg.d3Force('charge')?.strength(-450).distanceMax(600);
+        fg.d3Force('charge')?.strength(-600).distanceMax(700);
         fg.d3ReheatSimulation();
-      }, 2500);
+      }, 2200);
     }
 
     // Smooth camera zoom to node
     if (fgRef.current && node.x != null) {
       fgRef.current.cameraPosition(
-        { x: node.x, y: node.y, z: (node.z ?? 0) + 90 },
+        { x: node.x, y: node.y, z: (node.z ?? 0) + 100 },
         { x: node.x, y: node.y, z: node.z ?? 0 },
-        1200,
+        1000,
       );
     }
 
     setClickedNode(node);
     onNodeClick?.(node);
   }, [onNodeClick]);
+
+  // ── Background click: deselect node ────────────────────────────────────────
+  const handleBackgroundClick = useCallback(() => {
+    setClickedNode(null);
+  }, []);
 
   // ── Hover: tooltip + 2-second preview trigger ──────────────────────────────
   const stopPreview = useCallback(() => {
@@ -327,16 +364,11 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
   const handleNodeHover = useCallback((node: any) => {
     if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
     setHoveredNode(node ?? null);
-
     if (!node) { stopPreview(); return; }
-
     const hasMedia = node.previewUrl || node.mediaUrl;
     if (!hasMedia) return;
-
     hoverTimerRef.current = setTimeout(() => {
       setPreviewNode(node);
-
-      // Audio preview for albums
       if (node.type === 'ALBUM' && node.previewUrl) {
         if (!audioRef.current) audioRef.current = new Audio();
         audioRef.current.src = node.previewUrl;
@@ -347,7 +379,6 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     }, 2000);
   }, [audioMuted, stopPreview]);
 
-  // Toggle mute on the live audio element
   const toggleMute = () => {
     setAudioMuted(m => {
       if (audioRef.current) audioRef.current.volume = m ? 0.55 : 0;
@@ -355,7 +386,6 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
     });
   };
 
-  // Cleanup on unmount
   useEffect(() => () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
@@ -380,6 +410,17 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           </div>
         )}
         <div className="flex items-center gap-3 ml-auto pointer-events-auto">
+          {/* Focus Selected — only visible when an orb is selected */}
+          {clickedNode && (
+            <button
+              onClick={handleFocusSelected}
+              title={`Focus: ${clickedNode.name}`}
+              className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/40 transition-all text-white/40 hover:text-[#FF8C00]"
+            >
+              <Crosshair size={16} />
+              {!isEmbedded && <span className="text-[10px] font-black uppercase tracking-widest">Focus</span>}
+            </button>
+          )}
           <button
             onClick={handleReset}
             title="Reset view"
@@ -408,6 +449,15 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         </div>
       </div>
 
+      {/* Controls hint */}
+      {!isEmbedded && (
+        <div className="absolute bottom-8 right-8 z-20 pointer-events-none text-right">
+          <p className="text-[9px] font-bold text-white/15 uppercase tracking-widest leading-relaxed">
+            Drag to orbit · Scroll to zoom<br />Click orb to select · Right-drag to pan
+          </p>
+        </div>
+      )}
+
       {/* Hover tooltip */}
       {hoveredNode && !isEmbedded && (
         <div
@@ -435,22 +485,14 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
             width: Math.min(200, window.innerWidth - 24),
           }}
         >
-          <video
-            key={previewNode.id}
-            src={previewNode.mediaUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-28 object-cover"
-          />
+          <video key={previewNode.id} src={previewNode.mediaUrl} autoPlay muted loop playsInline className="w-full h-28 object-cover" />
           <div className="bg-black/80 px-3 py-2">
             <p className="text-white text-[9px] font-black uppercase tracking-widest truncate">{previewNode.name}</p>
           </div>
         </div>
       )}
 
-      {/* Video thumbnail panel (YouTube/Vimeo or no direct URL) */}
+      {/* Video thumbnail panel (YouTube/Vimeo) */}
       {previewNode?.type === 'VIDEO' && (previewNode.img && (isYouTubeOrVimeo(previewNode.mediaUrl) || !previewNode.mediaUrl)) && (
         <div
           className="fixed z-40 pointer-events-none shadow-2xl rounded-2xl overflow-hidden border border-white/15"
@@ -467,7 +509,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         </div>
       )}
 
-      {/* Album audio preview indicator */}
+      {/* Album audio preview */}
       {previewNode?.type === 'ALBUM' && previewNode.previewUrl && (
         <div
           className="fixed z-40 pointer-events-auto shadow-2xl rounded-2xl overflow-hidden border border-white/15 bg-black/80 backdrop-blur-md"
@@ -494,13 +536,13 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
 
       {/* Node info card */}
       {clickedNode && (
-        <div className={`absolute z-30 ${isEmbedded ? 'bottom-4 right-4 max-w-[220px]' : 'bottom-8 right-8 max-w-[280px]'} bg-black/85 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden shadow-2xl`}>
+        <div className={`absolute z-30 ${isEmbedded ? 'bottom-4 right-4 max-w-[220px]' : 'bottom-8 right-8 max-w-[300px]'} bg-black/85 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden shadow-2xl`}>
           {clickedNode.img && (
             <div className="relative">
-              <img src={clickedNode.img} alt="" className="w-full h-28 object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <div className="absolute bottom-2 left-3">
-                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full`} style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+              <img src={clickedNode.img} alt="" className="w-full h-32 object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+              <div className="absolute bottom-2 left-3 flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
                   {nodeTypeLabel(clickedNode.type)}
                 </span>
               </div>
@@ -508,7 +550,7 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
           )}
           {!clickedNode.img && (
             <div className="px-4 pt-4 pb-0">
-              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full`} style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
+              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: nodeTypeColor(clickedNode.type) + '33', color: nodeTypeColor(clickedNode.type) }}>
                 {nodeTypeLabel(clickedNode.type)}
               </span>
             </div>
@@ -519,6 +561,13 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
               <p className="text-[11px] text-white/50 leading-relaxed mb-3 line-clamp-3">{clickedNode.description}</p>
             )}
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleFocusSelected}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-[#FF8C00]"
+                title="Re-center camera on this orb"
+              >
+                <Crosshair size={14} />
+              </button>
               {onNavigate && (clickedNode.type === 'VIDEO' || clickedNode.type === 'ALBUM') && (
                 <button
                   onClick={() => { onNavigate(clickedNode.type, clickedNode.id); setClickedNode(null); }}
@@ -554,36 +603,22 @@ const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         backgroundColor="#00000d"
         width={dimensions.width || undefined}
         height={dimensions.height || undefined}
+        rendererConfig={{ antialias: true, powerPreference: 'high-performance' }}
         nodeLabel=""
         nodeThreeObject={nodeThreeObject}
         nodeThreeObjectExtend={false}
-        linkDirectionalArrowLength={3.5}
+        linkDirectionalArrowLength={4}
         linkDirectionalArrowRelPos={1}
-        linkCurvature={0.25}
-        linkColor={() => 'rgba(255,255,255,0.12)'}
+        linkCurvature={0.22}
+        linkOpacity={0.18}
+        linkColor={() => 'rgba(255,255,255,0.18)'}
         linkLabel="label"
-        warmupTicks={120}
+        warmupTicks={150}
+        cooldownTicks={200}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
-        onEngineStop={() => {
-          setupNebula();
-          const padding = Math.min(dimensions.width || 400, dimensions.height || 400) * 0.08;
-          if (!introAnimDone.current) {
-            introAnimDone.current = true;
-            // Jump camera to a distant position first (the "traveling through space" start)
-            const fg = fgRef.current as any;
-            if (fg?.camera) {
-              const cam = fg.camera();
-              cam.position.set(0, 0, 4500);
-            }
-            // Then smoothly rush in to fit all nodes
-            setTimeout(() => {
-              fgRef.current?.zoomToFit(2200, padding);
-            }, 80);
-          } else {
-            fgRef.current?.zoomToFit(500, padding);
-          }
-        }}
+        onBackgroundClick={handleBackgroundClick}
+        onEngineStop={handleEngineStop}
       />
     </div>
   );
