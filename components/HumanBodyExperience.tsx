@@ -768,31 +768,31 @@ function BodySilhouette({ gender }: { gender: Gender }) {
   const limbMat = <meshPhysicalMaterial color="#1e8aff" opacity={0.04} transparent roughness={0.9} />;
 
   return (
-    <group>
-      <mesh ref={meshRef} geometry={geo}>
+    <group raycast={() => null}>
+      <mesh ref={meshRef} geometry={geo} raycast={() => null}>
         <meshPhysicalMaterial {...ghostMat} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       {/* Upper arms */}
       {([-1, 1] as const).map(side => (
-        <mesh key={`ua${side}`} position={[side * 0.42, 0.46, 0]} rotation={[0, 0, side * 0.32]}>
+        <mesh key={`ua${side}`} position={[side * 0.42, 0.46, 0]} rotation={[0, 0, side * 0.32]} raycast={() => null}>
           <capsuleGeometry args={[0.08, 0.48, 4, 8]} />{limbMat}
         </mesh>
       ))}
       {/* Forearms */}
       {([-1, 1] as const).map(side => (
-        <mesh key={`fa${side}`} position={[side * 0.52, 0.06, 0.02]} rotation={[0.08, 0, side * 0.52]}>
+        <mesh key={`fa${side}`} position={[side * 0.52, 0.06, 0.02]} rotation={[0.08, 0, side * 0.52]} raycast={() => null}>
           <capsuleGeometry args={[0.065, 0.42, 4, 8]} />{limbMat}
         </mesh>
       ))}
       {/* Upper legs */}
       {([-1, 1] as const).map(side => (
-        <mesh key={`ul${side}`} position={[side * 0.12, -0.85, 0]} rotation={[0, 0, side * 0.08]}>
+        <mesh key={`ul${side}`} position={[side * 0.12, -0.85, 0]} rotation={[0, 0, side * 0.08]} raycast={() => null}>
           <capsuleGeometry args={[0.10, 0.52, 4, 8]} />{limbMat}
         </mesh>
       ))}
       {/* Lower legs */}
       {([-1, 1] as const).map(side => (
-        <mesh key={`ll${side}`} position={[side * 0.10, -1.40, 0]} rotation={[0, 0, side * 0.05]}>
+        <mesh key={`ll${side}`} position={[side * 0.10, -1.40, 0]} rotation={[0, 0, side * 0.05]} raycast={() => null}>
           <capsuleGeometry args={[0.075, 0.46, 4, 8]} />{limbMat}
         </mesh>
       ))}

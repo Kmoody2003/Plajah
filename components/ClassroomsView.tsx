@@ -708,7 +708,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-color)] via-[var(--bg-color)]/40 to-transparent" />
                       
-                      {isAdmin && module.id !== 'default_solar_system' && module.id !== 'default_plant_biology' && (
+                      {isAdmin && !module.id.startsWith('default_') && (
                         <button 
                           onClick={(e) => handleDeleteModule(module.id, e)}
                           className="absolute top-6 right-6 p-2 bg-red-500/20 text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
