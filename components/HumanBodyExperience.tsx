@@ -1750,9 +1750,14 @@ function SearchPanel({ onSelect, onClose }: { onSelect: (o: OrganDef) => void; o
 
 // ─── Gender Select ──────────────────────────────────────────────────────────────
 
-function GenderSelectScreen({ onSelect }: { onSelect: (g: Gender) => void }) {
+function GenderSelectScreen({ onSelect, onBack }: { onSelect: (g: Gender) => void; onBack: () => void }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative" style={{ background: '#010509' }}>
+      <button onClick={onBack}
+        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+        <ArrowLeft size={12} /> Back
+      </button>
       <div className="absolute inset-0 opacity-[0.04]"
         style={{ backgroundImage: 'linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center mb-12">
@@ -1821,20 +1826,20 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
   return (
     <div className="w-full h-screen relative overflow-hidden bg-[#010509] text-white">
 
-      {/* Back */}
-      <button onClick={onBack}
-        className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
-        <ArrowLeft size={12} /> Back
-      </button>
-
       <AnimatePresence mode="wait">
         {phase === 'SELECT' ? (
-          <motion.div key="select" className="absolute inset-0" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
-            <GenderSelectScreen onSelect={g => { setGender(g); setPhase('BODY'); }} />
+          <motion.div key="select" className="absolute inset-0 z-10" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
+            <GenderSelectScreen onSelect={g => { setGender(g); setPhase('BODY'); }} onBack={onBack} />
           </motion.div>
         ) : (
           <motion.div key="body" className="absolute inset-0" initial={{ opacity:0 }} animate={{ opacity:1 }}>
+
+            {/* Back — only shown in BODY phase */}
+            <button onClick={onBack}
+              className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+              <ArrowLeft size={12} /> Back
+            </button>
 
             <AnimatePresence>
               {appMode === 'QUIZ' && <QuizMode onExit={() => setAppMode('EXPLORE')} />}
