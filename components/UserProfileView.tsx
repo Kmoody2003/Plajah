@@ -611,28 +611,78 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         )}
       </div>
 
-      {/* Header */}
-      <div className={`relative ${isMobile ? 'h-24' : 'h-40 lg:h-56'} w-full overflow-hidden group/header z-10`}>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent z-10" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-theme to-transparent z-10" />
-        <ThreeDImage 
-          src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`} 
-          alt="Banner" 
-          className="w-full h-full object-cover transition-transform duration-1000 group-hover/header:scale-105"
-        />
-        
+      {/* ─── Cinematic Hero ───────────────────────────────────────────────────── */}
+      {/* NO overflow-hidden here — the blurred layer intentionally bleeds below */}
+      <div
+        className={`relative group/header z-10 ${isMobile ? 'h-[44vh] min-h-[240px]' : 'h-[55vh] min-h-[360px]'}`}
+      >
+        {/* Layer 0 — Blurred atmospheric bleed.
+            height: 155% so it extends ~55% below the hero boundary.
+            CSS mask (not a gradient overlay) fades it to transparent — no hard black edge. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 pointer-events-none"
+          style={{
+            height: '155%',
+            zIndex: 0,
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 38%, transparent 100%)',
+            maskImage:       'linear-gradient(to bottom, black 0%, black 38%, transparent 100%)',
+          }}
+        >
+          <img
+            src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`}
+            className="absolute inset-0 w-full h-full object-cover object-top"
+            style={{
+              filter: 'blur(48px) saturate(2.6) brightness(0.55)',
+              transform: 'scale(1.12)',
+              transformOrigin: 'top center',
+            }}
+          />
+          {/* Subtle top darkening only — no black at the bottom */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.28) 0%, transparent 30%)' }}
+          />
+        </div>
+
+        {/* Layer 1 — Sharp banner, mask fades it bottom-to-transparent so no hard edge */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            zIndex: 1,
+            WebkitMaskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
+            maskImage:       'linear-gradient(to bottom, black 40%, transparent 100%)',
+          }}
+        >
+          <ThreeDImage
+            src={profile.coverArt || profile.photoURL || `https://picsum.photos/seed/${profile.uid}/1920/1080`}
+            alt="Banner"
+            containerClassName="w-full h-full"
+            className="w-full h-full object-cover object-top transition-transform duration-[2500ms] group-hover/header:scale-[1.04]"
+          />
+          {/* Top nav darkening for back-button legibility */}
+          <div
+            className="absolute inset-x-0 top-0 pointer-events-none"
+            style={{ height: '35%', background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)', zIndex: 2 }}
+          />
+        </div>
+
+        {/* Layer 2 — Edit overlay (own profile) */}
         {isOwnProfile && (
-          <label className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 group-hover/header:opacity-100 transition-all cursor-pointer backdrop-blur-sm">
+          <label
+            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/header:opacity-100 transition-all cursor-pointer backdrop-blur-sm"
+            style={{ zIndex: 20 }}
+          >
             <div className="flex flex-col items-center gap-4">
               <div className="p-4 bg-white text-black rounded-3xl shadow-2xl">
                 <Camera size={isMobile ? 20 : 24} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.3em]">Update Banner</span>
             </div>
-            <input 
-              type="file" 
-              className="hidden" 
-              accept="image/*" 
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleProfileUpdate('cover', file);
@@ -640,17 +690,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             />
           </label>
         )}
-        
-        <button 
+
+        {/* Layer 3 — Back button */}
+        <button
           onClick={onBack}
-          className={`absolute ${isMobile ? 'top-3 left-3' : 'top-6 left-6'} z-30 p-2 lg:p-3 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full hover:bg-white/20 transition-all`}
+          className={`absolute ${isMobile ? 'top-3 left-3' : 'top-6 left-6'} p-2 lg:p-3 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full hover:bg-white/20 transition-all`}
+          style={{ zIndex: 30 }}
         >
           <ArrowLeft size={isMobile ? 18 : 20} />
         </button>
       </div>
 
-      {/* Profile Info */}
-      <div className={`max-w-7xl mx-auto px-4 lg:px-16 ${isMobile ? '-mt-12' : '-mt-16 lg:-mt-24'} relative z-30`}>
+      {/* Profile Info — floats up over the bleed zone */}
+      <div className={`max-w-7xl mx-auto px-4 lg:px-16 ${isMobile ? '-mt-16' : '-mt-24 lg:-mt-36'} relative z-30`}>
         {isOwnProfile && isCreator && (
           <div className={`mb-8 p-6 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl ${isMobile ? 'mt-4' : 'mt-12 lg:mt-0'}`}>
             <div className={isMobile ? 'text-center' : ''}>
@@ -672,7 +724,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
           <div className="relative group/avatar flex flex-col items-center gap-2">
-            <div className="absolute -inset-2 bg-gradient-to-r from-small-orange to-[#FF8C00] rounded-[3rem] blur opacity-25 group-hover/avatar:opacity-50 transition duration-1000" />
+            <div className="absolute -inset-3 bg-gradient-to-r from-small-orange via-[#D40055] to-[#6B0099] rounded-[3rem] blur-xl opacity-20 group-hover/avatar:opacity-50 transition-all duration-[1200ms]" />
             <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'} rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden border-4 lg:border-8 border-theme bg-white/5`}>
               {profile.avatar?.isActive ? (
                 <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
@@ -753,14 +805,14 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             {/* ── Pill row: stats + badges + action buttons — horizontal above bio ── */}
             <div className={`flex flex-wrap items-center gap-3 mt-4 mb-3 ${isMobile ? 'justify-center' : ''}`}>
               {/* Stats */}
-              <div className="flex items-center gap-5 pr-4 border-r border-white/10">
+              <div className="flex items-center gap-6 pr-5 border-r border-white/10">
                 <div className={isMobile ? 'text-center' : ''}>
-                  <p className="text-lg font-black text-white leading-none">{profile.followerCount}</p>
-                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Followers</p>
+                  <p className="text-2xl font-black text-white leading-none tabular-nums">{profile.followerCount?.toLocaleString()}</p>
+                  <p className="text-[8px] font-black text-white/35 uppercase tracking-[0.3em] mt-0.5">Followers</p>
                 </div>
                 <div className={isMobile ? 'text-center' : ''}>
-                  <p className="text-lg font-black text-white leading-none">{profile.followingCount}</p>
-                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Following</p>
+                  <p className="text-2xl font-black text-white leading-none tabular-nums">{profile.followingCount?.toLocaleString()}</p>
+                  <p className="text-[8px] font-black text-white/35 uppercase tracking-[0.3em] mt-0.5">Following</p>
                 </div>
               </div>
 
@@ -906,9 +958,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             )}
 
             {/* Bio / quote */}
-            <div>
-              <p className={`text-white/60 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                {profile.bio || "No bio yet. This artist is letting their work speak for itself."}
+            <div className={`mt-2 ${profile.bio ? 'pl-4 border-l-2 border-small-orange/40' : ''}`}>
+              <p className={`text-white/55 max-w-2xl font-medium leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                {profile.bio || <span className="italic text-white/25">No bio yet.</span>}
               </p>
             </div>
             
@@ -918,11 +970,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {/* Pinned Items Row */}
         {profile.pinnedItems && profile.pinnedItems.length > 0 && (
           <div className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/80 flex items-center gap-3">
-                <Sparkles size={14} className="text-small-orange" /> Pinned Items
+            <div className="flex items-center gap-4 mb-6">
+              <span className="w-0.5 h-5 bg-gradient-to-b from-small-orange to-[#D40055] rounded-full shrink-0" />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white flex items-center gap-2">
+                <Sparkles size={12} className="text-small-orange" /> Pinned Items
               </h3>
-              <div className="h-px flex-1 bg-white/5 mx-6" />
+              <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                {profile.pinnedItems.map((pin, idx) => {
@@ -1014,8 +1067,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-3">
-              <Sparkles size={14} className="text-small-orange" /> Latest Releases
+            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white flex items-center gap-3">
+              <span className="w-0.5 h-4 bg-gradient-to-b from-small-orange to-[#D40055] rounded-full" />
+              <Sparkles size={12} className="text-small-orange" /> Latest Releases
             </h3>
             <div className="h-px flex-1 bg-white/5 mx-6" />
           </div>

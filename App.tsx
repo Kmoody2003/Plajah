@@ -65,6 +65,7 @@ const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView')
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import WelcomeAchievement from './components/WelcomeAchievement';
+const ReleaseCountdownPage = retryLazy(() => import('./components/ReleaseCountdownPage'));
 const AdminDashboard = retryLazy(() => import('./components/AdminDashboard'));
 const PartnerDashboard = retryLazy(() => import('./components/PartnerDashboard'));
 const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
@@ -223,6 +224,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [countdownAlbumId, setCountdownAlbumId] = useState<string | null>(null);
+  const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
   const [selectedMovieItem, setSelectedMovieItem] = useState<any | null>(null);
   const [selectedBook, setSelectedBook] = useState<Album | null>(null);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
@@ -446,6 +449,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setSelectedMovieItem(item);
       setView('MOVIE_UX');
     } else if (item.tracks) {
+      // Show release countdown page for scheduled albums that haven't dropped yet,
+      // unless the current user is the owner (they can always preview their own work).
+      const isUnreleased = item.isScheduled && item.releaseDate && item.releaseDate > Date.now();
+      const isOwner = user && item.ownerId && user.uid === item.ownerId;
+      if (isUnreleased && !isOwner) {
+        setCountdownInitialAlbum(item as Album);
+        setCountdownAlbumId(item.id);
+        return;
+      }
       setSelectedAlbum(item);
       setSelectedVideo(null);
       setSelectedGame(null);
@@ -688,10 +700,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           // Defaults to album
           const remoteAlbum = await fetchProjectFromCloud(projectId);
           if (remoteAlbum) {
-            setSelectedAlbum(remoteAlbum);
-            setView('PLAYER');
-            setIsPublicView(true);
             document.title = `${remoteAlbum.title} | Plajah`;
+            const isUnreleased = remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now();
+            if (isUnreleased) {
+              setCountdownInitialAlbum(remoteAlbum);
+              setCountdownAlbumId(remoteAlbum.id);
+            } else {
+              setSelectedAlbum(remoteAlbum);
+              setView('PLAYER');
+              setIsPublicView(true);
+            }
             setIsLoading(false);
             return;
           }
@@ -703,6 +721,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (pathParts[1] === 'profile' && pathParts[2]) {
         setViewedUserId(pathParts[2]);
         setView('USER_PROFILE');
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle release landing page deep-links: /release/:albumId
+      if (pathParts[1] === 'release' && pathParts[2]) {
+        const releaseAlbumId = pathParts[2];
+        setCountdownAlbumId(releaseAlbumId);
         setIsLoading(false);
         return;
       }
@@ -2177,10 +2203,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         isMinimizedCreator={isCreatorMinimized} 
         onRestoreCreator={() => setIsCreatorMinimized(false)} 
       />
-      <LiveFeedPlayer 
-        feed={activeLiveFeed} 
-        onClose={() => setActiveLiveFeed(null)} 
+      <LiveFeedPlayer
+        feed={activeLiveFeed}
+        onClose={() => setActiveLiveFeed(null)}
       />
+
+      {/* Release Countdown Page — shown when a scheduled album is opened before its release date */}
+      {countdownAlbumId && (
+        <Suspense fallback={null}>
+          <ReleaseCountdownPage
+            albumId={countdownAlbumId}
+            initialAlbum={countdownInitialAlbum ?? undefined}
+            onClose={() => { setCountdownAlbumId(null); setCountdownInitialAlbum(null); }}
+            onUnlock={(album) => {
+              setCountdownAlbumId(null);
+              setCountdownInitialAlbum(null);
+              setSelectedAlbum(album);
+              setSelectedVideo(null);
+              setSelectedGame(null);
+              setView('PLAYER');
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Achievement Sidebar */}
       <AnimatePresence>

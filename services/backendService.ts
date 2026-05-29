@@ -28,7 +28,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -2927,6 +2927,13 @@ export const fetchWorldContentByWorldId = async (worldId: string): Promise<{ alb
   } catch {
     return { albums: [], videos: [] };
   }
+};
+
+export const fetchAlbumById = async (albumId: string): Promise<Album | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Album) : null;
+  } catch { return null; }
 };
 
 export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
@@ -6592,6 +6599,139 @@ export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlis
     const snap = await getDoc(doc(db, 'personal_playlists', playlistId));
     return snap.exists() ? (snap.data() as Playlist) : null;
   } catch (_) { return null; }
+};
+
+// ─── EARLY ACCESS & REVIEW CODES ──────────────────────────────────────────────
+
+function makeCode(len = 8): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+export const generateReviewCode = async (
+  albumId: string,
+  label: string,
+  maxUses = 1,
+  expiresInDays?: number
+): Promise<ReviewCode | null> => {
+  if (!auth.currentUser) return null;
+  const code = makeCode();
+  const now = Date.now();
+  const reviewCode: ReviewCode = {
+    id: `rc_${now}`,
+    albumId,
+    code,
+    label: label || `Review Code`,
+    createdAt: now,
+    expiresAt: expiresInDays ? now + expiresInDays * 86_400_000 : undefined,
+    maxUses,
+    useCount: 0,
+    isRevoked: false,
+  };
+  try {
+    const albumRef = doc(db, 'albums', albumId);
+    await updateDoc(albumRef, {
+      reviewCodes: arrayUnion(reviewCode),
+      earlyAccessEnabled: true,
+    });
+    return reviewCode;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+    return null;
+  }
+};
+
+export const revokeReviewCode = async (albumId: string, codeId: string): Promise<void> => {
+  try {
+    const albumRef = doc(db, 'albums', albumId);
+    const snap = await getDoc(albumRef);
+    if (!snap.exists()) return;
+    const codes: ReviewCode[] = snap.data().reviewCodes || [];
+    const updated = codes.map(c => c.id === codeId ? { ...c, isRevoked: true } : c);
+    await updateDoc(albumRef, { reviewCodes: updated });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const addEarlyAccessUser = async (
+  albumId: string,
+  entry: { email?: string; uid?: string; displayName?: string; label?: string }
+): Promise<void> => {
+  const earlyEntry: EarlyAccessEntry = {
+    ...entry,
+    addedAt: Date.now(),
+  };
+  try {
+    await updateDoc(doc(db, 'albums', albumId), {
+      earlyAccessList: arrayUnion(earlyEntry),
+      earlyAccessEnabled: true,
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const removeEarlyAccessUser = async (albumId: string, email?: string, uid?: string): Promise<void> => {
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return;
+    const list: EarlyAccessEntry[] = snap.data().earlyAccessList || [];
+    const updated = list.filter(e => {
+      if (email && e.email === email) return false;
+      if (uid && e.uid === uid) return false;
+      return true;
+    });
+    await updateDoc(doc(db, 'albums', albumId), { earlyAccessList: updated });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
+  }
+};
+
+export const checkEarlyAccess = async (albumId: string): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    if (!data.earlyAccessEnabled) return true; // not restricted
+    if (data.ownerId === user.uid) return true;  // owner always has access
+    const list: EarlyAccessEntry[] = data.earlyAccessList || [];
+    return list.some(e => e.uid === user.uid || e.email === user.email);
+  } catch { return false; }
+};
+
+export const redeemReviewCode = async (code: string, albumId: string): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const snap = await getDoc(doc(db, 'albums', albumId));
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    const codes: ReviewCode[] = data.reviewCodes || [];
+    const match = codes.find(c =>
+      c.code === code.toUpperCase().trim() &&
+      !c.isRevoked &&
+      (c.maxUses === 0 || c.useCount < c.maxUses) &&
+      (!c.expiresAt || c.expiresAt > Date.now())
+    );
+    if (!match) return false;
+    // Increment use count
+    const updatedCodes = codes.map(c => c.id === match.id ? { ...c, useCount: c.useCount + 1 } : c);
+    const entry: EarlyAccessEntry = {
+      uid: user.uid,
+      email: user.email ?? undefined,
+      displayName: user.displayName ?? undefined,
+      addedAt: Date.now(),
+      codeUsed: code.toUpperCase().trim(),
+    };
+    await updateDoc(doc(db, 'albums', albumId), {
+      reviewCodes: updatedCodes,
+      earlyAccessList: arrayUnion(entry),
+    });
+    return true;
+  } catch { return false; }
 };
 
 // ─── Stories ─────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
 import WorldBadge from './WorldBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
+import ScrollingWaveform from './ScrollingWaveform';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig } from '../services/backendService';
@@ -1697,6 +1698,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+      <ScrollingWaveform currentTime={globalCurrentTime} duration={globalDuration} trackId={currentTrack?.id || 'unknown'} />
 
       {/* Subtle depth overlay — no blur so background stays visible */}
       <div className="fixed inset-0 bg-black/5 pointer-events-none z-[1]" />

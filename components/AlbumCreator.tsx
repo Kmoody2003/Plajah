@@ -7,9 +7,10 @@ import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
-  Eye, EyeOff, Loader2
+  Eye, EyeOff, Loader2, Lock,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
+import EarlyAccessManager from './EarlyAccessManager';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album) => void;
@@ -1550,6 +1551,37 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
           )}
         </div>
+      </div>
+
+      {/* Early Access & Review Codes */}
+      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-4">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+            <Lock size={18} className="text-amber-400" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest">Early Access &amp; Review Codes</h4>
+            <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
+              Invite press, curators &amp; fans to hear your music before release
+            </p>
+          </div>
+        </div>
+        {/* Only meaningful when we have an album ID (editing existing) */}
+        {initialAlbum?.id ? (
+          <EarlyAccessManager
+            album={{ ...initialAlbum, isScheduled, releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined } as Album}
+            onAlbumUpdate={(partial) => {
+              // Merge updates back into local form state
+              if (partial.earlyAccessEnabled !== undefined) {/* handled inside manager */}
+            }}
+          />
+        ) : (
+          <div className="p-4 rounded-2xl text-center" style={{ border: '1px dashed rgba(255,255,255,0.1)' }}>
+            <p className="text-[9px] text-white/30 uppercase tracking-widest">
+              Save &amp; publish the album first, then configure Early Access from the album settings.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Related Projects */}

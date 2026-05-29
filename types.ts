@@ -340,6 +340,33 @@ export interface Album {
   publishToAudius?: boolean;        // artist toggled "publish to Audius"
   audiusPublishStatus?: 'pending' | 'publishing' | 'published' | 'failed';
   audiusPermalinks?: string[];      // one URL per track published to Audius
+  // Early Access & Review Codes
+  earlyAccessEnabled?: boolean;
+  earlyAccessList?: EarlyAccessEntry[];
+  reviewCodes?: ReviewCode[];
+}
+
+// ─── EARLY ACCESS ────────────────────────────────────────────────────────────
+
+export interface EarlyAccessEntry {
+  email?: string;                   // invited by email
+  uid?: string;                     // invited by Plajah UID
+  displayName?: string;
+  addedAt: number;
+  label?: string;                   // e.g. "Press", "Reviewer"
+  codeUsed?: string;                // review code that was redeemed to grant access
+}
+
+export interface ReviewCode {
+  id: string;
+  albumId: string;
+  code: string;                     // 8-char uppercase alphanumeric
+  label: string;                    // e.g. "Press Copy #1", "Spotify Editorial"
+  createdAt: number;
+  expiresAt?: number;
+  maxUses: number;                  // 1 = single use, 0 = unlimited
+  useCount: number;
+  isRevoked: boolean;
 }
 
 // ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
