@@ -6530,6 +6530,25 @@ export const addTrackToPlaylist = async (playlistId: string, track: Track): Prom
   }
 };
 
+// Add an external (Audius / archive) track to a playlist by converting it to Track format
+export const addExternalTrackToPlaylist = async (
+  playlistId: string,
+  externalTrack: { id: string; title: string; artist: string; url: string; thumbnailUrl?: string; genre?: string; duration?: number }
+): Promise<void> => {
+  const track = {
+    id: externalTrack.id,
+    title: externalTrack.title,
+    artist: externalTrack.artist,
+    url: externalTrack.url,
+    albumCover: externalTrack.thumbnailUrl ?? '',
+    images: externalTrack.thumbnailUrl ? [externalTrack.thumbnailUrl] : [],
+    genre: externalTrack.genre,
+    duration: externalTrack.duration,
+    isGlobalArchive: true,
+  };
+  return addTrackToPlaylist(playlistId, track as any);
+};
+
 export const removeTrackFromPlaylist = async (playlistId: string, trackId: string): Promise<void> => {
   try {
     const ref = doc(db, 'personal_playlists', playlistId);

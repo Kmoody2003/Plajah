@@ -993,6 +993,17 @@ export interface MailingListSubscriber {
   timestamp: number;
 }
 
+export interface ExternalPlaylistTrack {
+  id: string;           // e.g. "audius_abc123" or "ia_xyz"
+  title: string;
+  artist: string;
+  url: string;
+  thumbnailUrl?: string;
+  source: 'AUDIUS' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'SOUND_CLOUD';
+  genre?: string;
+  duration?: number;
+}
+
 export interface Playlist {
   id: string;
   ownerId: string;
@@ -1004,6 +1015,7 @@ export interface Playlist {
   coverImage?: string; // Unified with coverUrl usage in MusiView
   trackIds: string[];
   tracks?: Track[];
+  externalTracks?: ExternalPlaylistTrack[]; // Audius / archive / vault tracks mixed in
   isDraft?: boolean;
   timestamp: number;
 }

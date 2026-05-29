@@ -1485,13 +1485,25 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </button>
             </div>
             {publishToAudius && (
-              <div className="flex items-start gap-3 px-1 pt-1">
-                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a855f7' }} />
-                <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(168,85,247,0.8)' }}>
-                  Your album will be queued for publishing to the Audius decentralized network after saving.
-                  Connect your Audius account in <span className="font-black">Profile → Settings → Audius</span> to enable direct publishing.
-                  Audius pays artists in $AUDIO tokens on every stream — no middlemen.
-                </p>
+              <div className="space-y-3 pt-2 border-t border-purple-900/30">
+                <div className="flex items-start gap-3 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a855f7' }} />
+                  <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(168,85,247,0.8)' }}>
+                    Your album will be queued for publishing to the Audius decentralized network after saving.
+                    Connect your Audius account in <span className="font-black">Profile → Settings → Audius</span> to enable direct publishing.
+                    Audius pays artists in $AUDIO tokens on every stream — no middlemen.
+                  </p>
+                </div>
+                {/* Legal disclaimer */}
+                <div className="px-3 py-3 rounded-xl" style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                  <p className="text-[8px] font-black uppercase tracking-widest mb-1.5" style={{ color: 'rgba(168,85,247,0.7)' }}>⚖ Legal Notice — Required Before Publishing</p>
+                  <p className="text-[8px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    By enabling this toggle you confirm: (1) You are the original creator and sole rights holder of all tracks in this album, or you have secured all necessary licenses from rights holders;
+                    (2) Publishing to Audius constitutes making your content available on a public, decentralized, immutable network — removal may not be technically guaranteed;
+                    (3) Plajah acts only as a technical bridge and bears no liability for rights disputes, royalty claims, or third-party takedown requests arising from content you upload to Audius;
+                    (4) You agree to Audius's <span className="font-black underline cursor-pointer" onClick={() => window.open('https://audius.co/legal/terms-of-use','_blank')}>Terms of Use</span> and accept that $AUDIO token earnings are subject to Audius's creator reward programme rules.
+                  </p>
+                </div>
               </div>
             )}
           </div>

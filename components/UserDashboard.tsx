@@ -1742,6 +1742,17 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </p>
                   </div>
 
+                  {/* Legal notice */}
+                  <div className="px-4 py-3 rounded-2xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(168,85,247,0.15)' }}>
+                    <p className="text-[8px] font-black uppercase tracking-widest mb-1.5" style={{ color: 'rgba(168,85,247,0.6)' }}>⚖ Audius Legal Disclaimer</p>
+                    <p className="text-[8px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      Enabling Audius streams third-party content from the Audius decentralized network. Plajah is not responsible for the content, legality, or rights status of tracks
+                      served by Audius discovery nodes. When publishing your own music to Audius via Plajah you confirm you hold all rights and accept{' '}
+                      <button onClick={() => window.open('https://audius.co/legal/terms-of-use','_blank')} className="underline font-black" style={{ color: 'rgba(168,85,247,0.7)' }}>Audius Terms of Use</button>.
+                      $AUDIO token earnings are governed solely by Audius's creator reward rules — Plajah receives no portion of those earnings.
+                    </p>
+                  </div>
+
                   {/* Info chips */}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {[

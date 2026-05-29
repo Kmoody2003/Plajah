@@ -8,10 +8,10 @@ import {
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers, Upload
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -305,6 +305,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     handlePlayVaultTrack(tracks[0]);
   };
 
+  // Quick-add external track to playlist — shows a mini picker if multiple playlists exist
+  const [externalTrackPicker, setExternalTrackPicker] = useState<ArchiveTrack | null>(null);
+
+  const handleAddExternalToPlaylist = async (track: ArchiveTrack, playlistId: string) => {
+    await addExternalTrackToPlaylist(playlistId, track);
+    setExternalTrackPicker(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-transparent">
@@ -447,17 +455,88 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {sourceBadge(track)}
               </div>
               <h4 className="text-xs font-black uppercase tracking-widest truncate mb-1">{track.title}</h4>
-              <button
-                onClick={() => setSelectedArchiveArtist(track.artist)}
-                className="text-[9px] font-bold uppercase tracking-widest hover:text-small-orange transition-colors"
-                style={{ color: track.source === 'AUDIUS' ? 'rgba(168,85,247,0.8)' : 'rgba(255,255,255,0.4)' }}
-              >
-                {track.artist}
-              </button>
+              <div className="flex items-center justify-between gap-1">
+                <button
+                  onClick={() => setSelectedArchiveArtist(track.artist)}
+                  className="text-[9px] font-bold uppercase tracking-widest hover:text-small-orange transition-colors truncate"
+                  style={{ color: track.source === 'AUDIUS' ? 'rgba(168,85,247,0.8)' : 'rgba(255,255,255,0.4)' }}
+                >
+                  {track.artist}
+                </button>
+                {personalPlaylists.length > 0 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setExternalTrackPicker(track); }}
+                    title="Add to playlist"
+                    className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                  >
+                    <Plus size={10} className="text-white/60" />
+                  </button>
+                )}
+              </div>
             </motion.div>
           ))}
         </div>
-      </div>
+      {/* External track → playlist picker */}
+      <AnimatePresence>
+        {externalTrackPicker && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setExternalTrackPicker(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-80 rounded-3xl p-6 space-y-4"
+              style={{ background: '#0d0d14', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                {externalTrackPicker.thumbnailUrl && <img src={externalTrackPicker.thumbnailUrl} className="w-10 h-10 rounded-xl object-cover shrink-0" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-widest truncate">{externalTrackPicker.title}</p>
+                  <p className="text-[9px] text-white/40 uppercase tracking-widest truncate">{externalTrackPicker.artist}</p>
+                </div>
+                <button onClick={() => setExternalTrackPicker(null)} className="shrink-0 ml-auto text-white/30 hover:text-white"><X size={14} /></button>
+              </div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Add to playlist</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {personalPlaylists.map(pl => (
+                  <button key={pl.id}
+                    onClick={() => handleAddExternalToPlaylist(externalTrackPicker, pl.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all hover:bg-white/[0.06]"
+                    style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    {pl.coverImage || pl.coverUrl
+                      ? <img src={pl.coverImage ?? pl.coverUrl} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                      : <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,140,0,0.15)' }}><ListMusic size={12} className="text-small-orange" /></div>}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest truncate">{pl.title}</p>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">{(pl.trackIds?.length ?? 0) + (pl.tracks?.length ?? 0)} tracks</p>
+                    </div>
+                    <Plus size={12} className="text-white/30 shrink-0" />
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={async () => {
+                  const pl = await createPlaylist({ title: `My Mix ${personalPlaylists.length + 1}` });
+                  if (pl && (pl as any).id) {
+                    setPersonalPlaylists(prev => [pl as any, ...prev]);
+                    await handleAddExternalToPlaylist(externalTrackPicker!, (pl as any).id);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all"
+                style={{ background: 'rgba(255,140,0,0.1)', border: '1px dashed rgba(255,140,0,0.3)', color: 'rgba(255,140,0,0.8)' }}
+              >
+                <Plus size={11} /> New Playlist
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
     );
   };
 
@@ -633,8 +712,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             </div>
                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                           </div>
-                          <p className="text-[9px] font-black uppercase tracking-widest truncate">{track.title}</p>
-                          <p className="text-[8px] truncate mt-0.5" style={{ color: 'rgba(168,85,247,0.7)' }}>{track.artist}</p>
+                          <div className="flex items-center justify-between gap-1 mt-0.5">
+                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.7)' }}>{track.artist}</p>
+                            {personalPlaylists.length > 0 && (
+                              <button onClick={e => { e.stopPropagation(); setExternalTrackPicker(track); }}
+                                className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                style={{ background: 'rgba(126,34,206,0.3)' }}>
+                                <Plus size={9} style={{ color: '#c084fc' }} />
+                              </button>
+                            )}
+                          </div>
                         </motion.div>
                       ))}
                     </div>
