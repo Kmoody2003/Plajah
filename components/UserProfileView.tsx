@@ -112,7 +112,7 @@ import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
 import HideNSeekManager from './HideNSeekManager';
-import { uploadFile } from '../services/backendService';
+import { uploadFile, fetchUpcomingAlbums } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -225,6 +225,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [content, setContent] = useState<Album[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [followedArtists, setFollowedArtists] = useState<UserProfile[]>([]);
+  const [profileUpcomingAlbums, setProfileUpcomingAlbums] = useState<Album[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [merch, setMerch] = useState<MerchItem[]>([]);
   const [userApps, setUserApps] = useState<WebApp[]>([]);
@@ -327,11 +328,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       }
 
       // ── Phase 2: secondary data — loaded after the profile is already visible ──
-      const [f, fr, m, apps] = await Promise.all([
+      const [f, fr, m, apps, upcoming] = await Promise.all([
         fetchFollowedArtists(uid).catch(() => []),
         fetchFriends(uid).catch(() => []),
         fetchArtistMerch(uid).catch(() => []),
         fetchUserApps(uid).catch(() => []),
+        fetchUpcomingAlbums().catch(() => []),
       ]);
 
       if (cancelled) return;
@@ -340,6 +342,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       setFriends(fr as any);
       setMerch(m as any);
       setUserApps(apps as any);
+      setProfileUpcomingAlbums(upcoming);
 
       // Default tab based on secondary data
       if ((c as any[]).length === 0 && (f as any[]).length > 0) {
@@ -1154,7 +1157,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
         {/* Smart Weather + Activity Card */}
         <div className="mt-10">
-          <ProfileSmartCard followedIds={followedArtists.map(a => a.uid)} />
+          <ProfileSmartCard
+            followedIds={followedArtists.map(a => a.uid)}
+            profileUid={uid}
+            upcomingAlbums={profileUpcomingAlbums}
+            onSelectAlbum={onSelectAlbum}
+          />
         </div>
 
         {/* Welcome Card — own profile only */}

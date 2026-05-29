@@ -2961,6 +2961,22 @@ export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
   }
 };
 
+export const fetchUpcomingAlbums = async (): Promise<Album[]> => {
+  const path = 'albums';
+  try {
+    const now = Date.now();
+    const q = query(collection(db, path), where('isPrivate', '==', false), where('isScheduled', '==', true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => !a.isDraft && !!a.releaseDate && a.releaseDate > now && !!a.coverImage)
+      .sort((a, b) => (a.releaseDate || 0) - (b.releaseDate || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
 export const fetchProjectFromCloud = async (id: string): Promise<Album | null> => {
   const path = `albums/${id}`;
   try {

@@ -11,7 +11,7 @@ import {
   Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -72,19 +72,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [bgIndex, setBgIndex] = useState(0);
   const [pulseIdx, setPulseIdx] = useState(0);
   const [sponsoredIdx, setSponsoredIdx] = useState(0);
+  const [upcomingAlbums, setUpcomingAlbums] = useState<Album[]>([]);
 
   const bgAlbums = useMemo(() =>
     [...albums]
       .filter(a => !!a.coverImage)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .slice(0, 5),
-    [albums]
-  );
-
-  const upcomingAlbums = useMemo(() =>
-    albums
-      .filter(a => a.isScheduled && a.releaseDate && a.releaseDate > Date.now() && !!a.coverImage)
-      .sort((a, b) => (a.releaseDate || 0) - (b.releaseDate || 0)),
     [albums]
   );
 
@@ -217,14 +211,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [publicAlbums, allUsers, settings, myPlaylists] = await Promise.all([
+        const [publicAlbums, allUsers, settings, myPlaylists, upcoming] = await Promise.all([
           fetchAllPublicAlbums(),
           searchUsers(''),
           fetchSystemSettingsConfig(),
           fetchPersonalPlaylists(),
+          fetchUpcomingAlbums(),
         ]);
         const musicAlbums = publicAlbums.filter(a => (a.type || 'MUSIC') === 'MUSIC');
         setAlbums(musicAlbums);
+        setUpcomingAlbums(upcoming.filter(a => (a.type || 'MUSIC') === 'MUSIC'));
         setArtists(allUsers.filter(u => u.isArtist));
         setPersonalPlaylists(myPlaylists);
 

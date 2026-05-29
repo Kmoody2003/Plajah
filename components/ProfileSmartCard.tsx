@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { MapPin, TrendingUp, Music, Video, Newspaper, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock } from 'lucide-react';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../services/backendService';
-import { FeedItem } from '../types';
+import { FeedItem, Album } from '../types';
 
 interface WeatherData {
   temp: number;
@@ -46,15 +46,37 @@ function typeColor(type: string) {
   return 'bg-amber-500/20 text-amber-300 border-amber-500/20';
 }
 
-interface ProfileSmartCardProps {
-  followedIds?: string[];
+function timeUntil(ms: number): string {
+  const diff = ms - Date.now();
+  if (diff <= 0) return 'Out Now';
+  const d = Math.floor(diff / 86_400_000);
+  const h = Math.floor((diff % 86_400_000) / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  if (d > 30) return `${Math.ceil(d / 30)}mo`;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
-const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({ followedIds = [] }) => {
+interface ProfileSmartCardProps {
+  followedIds?: string[];
+  profileUid?: string;
+  upcomingAlbums?: Album[];
+  onSelectAlbum?: (album: Album) => void;
+}
+
+type Section = 'following' | 'discover' | 'coming_soon';
+
+const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
+  followedIds = [],
+  profileUid,
+  upcomingAlbums = [],
+  onSelectAlbum,
+}) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [section, setSection] = useState<'following' | 'discover'>('following');
+  const [section, setSection] = useState<Section>('coming_soon');
 
   useEffect(() => {
     let cancelled = false;
@@ -102,14 +124,30 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({ followedIds = [] })
     load();
   }, []);
 
-  if (weatherLoading && feedItems.length === 0) return null;
-  if (!weather && feedItems.length === 0) return null;
+  // Auto-select the most relevant default tab
+  useEffect(() => {
+    if (upcomingAlbums.length > 0) setSection('coming_soon');
+    else setSection('following');
+  }, [upcomingAlbums.length]);
+
+  if (weatherLoading && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
+  if (!weather && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
 
   const ws = weather ? getWeatherStyle(weather.code, weather.isDay) : getWeatherStyle(1, 1);
 
   const followed = feedItems.filter(f => followedIds.includes(f.authorId));
   const discover = feedItems.filter(f => !followedIds.includes(f.authorId));
-  const activeItems = (section === 'following' ? followed : discover).slice(0, 5);
+
+  // Coming soon: own upcoming releases + releases from followed artists
+  const relevantUpcoming = upcomingAlbums.filter(
+    a => a.ownerId === profileUid || followedIds.includes(a.ownerId || '')
+  );
+
+  const tabs: { id: Section; label: string; count?: number }[] = [
+    ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
+    { id: 'following', label: 'Following' },
+    { id: 'discover', label: 'Discover' },
+  ];
 
   return (
     <motion.div
@@ -145,68 +183,150 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({ followedIds = [] })
               <p className="text-xl font-black">{feedItems.length}</p>
             </div>
             <div className="bg-black/20 rounded-xl p-3">
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Trending</p>
-              <TrendingUp size={16} className="text-white/60 mt-1" />
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Upcoming</p>
+              <p className="text-xl font-black">{relevantUpcoming.length}</p>
             </div>
           </div>
         </div>
 
-        {/* ── Activity Panel ── */}
+        {/* ── Activity / Pulse Panel ── */}
         <div className="flex-1 min-w-0 p-7">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.35em] text-white/50">Platform Pulse</h3>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.35em] text-white/50">Platform Pulse</h3>
+            </div>
             <div className="flex gap-1.5">
-              {(['following', 'discover'] as const).map(s => (
+              {tabs.map(t => (
                 <button
-                  key={s}
-                  onClick={() => setSection(s)}
-                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${
-                    section === s ? 'bg-white text-black' : 'bg-white/8 text-white/40 hover:bg-white/15'
+                  key={t.id}
+                  onClick={() => setSection(t.id)}
+                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${
+                    section === t.id
+                      ? t.id === 'coming_soon' ? 'bg-small-orange text-black' : 'bg-white text-black'
+                      : 'bg-white/8 text-white/40 hover:bg-white/15'
                   }`}
                 >
-                  {s === 'following' ? 'Following' : 'Discover'}
+                  {t.id === 'coming_soon' && <Clock size={8} />}
+                  {t.label}
+                  {t.count !== undefined && t.count > 0 && (
+                    <span className={`ml-0.5 text-[7px] font-black px-1 py-0.5 rounded-full ${section === t.id ? 'bg-black/20' : 'bg-white/10'}`}>
+                      {t.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-2">
-            {activeItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
-                <Zap size={24} />
-                <p className="text-[9px] font-black uppercase tracking-widest text-center">
-                  {section === 'following' ? 'Follow creators to see their latest here' : 'Nothing new to discover yet'}
-                </p>
-              </div>
-            ) : (
-              activeItems.map((item, i) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 bg-black/20 hover:bg-black/30 transition-colors rounded-xl p-3 cursor-pointer"
-                >
-                  <img
-                    src={item.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.authorId}`}
-                    className="w-8 h-8 rounded-full shrink-0 border border-white/10 object-cover"
-                    alt=""
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-black text-white/70 truncate">{item.authorName}</span>
-                      <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[7px] font-black uppercase tracking-widest shrink-0 ${typeColor(item.type)}`}>
-                        {typeIcon(item.type)}{item.type}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-white/40 leading-tight line-clamp-1">
-                      {item.title || item.content || 'New activity'}
+          <AnimatePresence mode="wait">
+            {section === 'coming_soon' && (
+              <motion.div
+                key="coming_soon"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-2"
+              >
+                {relevantUpcoming.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
+                    <Clock size={24} />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-center">
+                      No upcoming releases from you or artists you follow
                     </p>
                   </div>
-                </motion.div>
-              ))
+                ) : (
+                  relevantUpcoming.slice(0, 5).map((album, i) => (
+                    <motion.div
+                      key={album.id}
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      onClick={() => onSelectAlbum?.(album)}
+                      className="flex items-center gap-3 bg-black/20 hover:bg-black/35 transition-all rounded-xl p-3 cursor-pointer group"
+                    >
+                      {/* Cover thumbnail */}
+                      <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10">
+                        <img src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.4))' }} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[9px] font-black text-white/80 truncate">{album.title}</span>
+                          {album.ownerId === profileUid && (
+                            <span className="text-[6px] font-black px-1.5 py-0.5 rounded-full shrink-0 bg-small-orange/20 text-small-orange border border-small-orange/20 uppercase tracking-widest">
+                              Yours
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[8px] text-white/40 truncate">{album.artist}</p>
+                      </div>
+
+                      {/* Countdown badge */}
+                      <div className="shrink-0 text-right">
+                        <div className="text-[9px] font-black text-small-orange">{timeUntil(album.releaseDate!)}</div>
+                        <div className="text-[7px] text-white/30 font-bold">
+                          {new Date(album.releaseDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </motion.div>
             )}
-          </div>
+
+            {section !== 'coming_soon' && (
+              <motion.div
+                key={section}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-2"
+              >
+                {(() => {
+                  const items = (section === 'following' ? followed : discover).slice(0, 5);
+                  return items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
+                      <Zap size={24} />
+                      <p className="text-[9px] font-black uppercase tracking-widest text-center">
+                        {section === 'following' ? 'Follow creators to see their latest here' : 'Nothing new to discover yet'}
+                      </p>
+                    </div>
+                  ) : (
+                    items.map((item, i) => (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        className="flex items-center gap-3 bg-black/20 hover:bg-black/30 transition-colors rounded-xl p-3 cursor-pointer"
+                      >
+                        <img
+                          src={item.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.authorId}`}
+                          className="w-8 h-8 rounded-full shrink-0 border border-white/10 object-cover"
+                          alt=""
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[9px] font-black text-white/70 truncate">{item.authorName}</span>
+                            <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[7px] font-black uppercase tracking-widest shrink-0 ${typeColor(item.type)}`}>
+                              {typeIcon(item.type)}{item.type}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-white/40 leading-tight line-clamp-1">
+                            {item.title || item.content || 'New activity'}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))
+                  );
+                })()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>
