@@ -1769,11 +1769,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         <PlajahPlusBanner className="mb-8 max-w-2xl" />
                       </Suspense>
                       <div className="flex items-center gap-6 mt-8 overflow-x-auto no-scrollbar pb-2">
-                        {(['MUSIC', 'WORLDS', 'LIVE_HUB', 'VIDEO', 'MOVIES_TV', 'BOOK', 'GAMES', 'MODULES', 'MY_ARCHIVE'] as const).map(tab => (
-                          <button 
+                        {(['MUSIC', 'WORLDS', 'CLUBS', 'LIVE_HUB', 'VIDEO', 'MOVIES_TV', 'BOOK', 'GAMES', 'MODULES', 'MY_ARCHIVE'] as const).map(tab => (
+                          <button
                             key={tab}
                             onClick={() => {
                               if (tab === 'WORLDS') setView('WORLDS');
+                              else if (tab === 'CLUBS') setView('CLUBS');
                               else if (tab === 'LIVE_HUB') setView('LIVE_HUB');
                               else if (tab === 'GAMES') setView('GAMES');
                               else if (tab === 'VIDEO') setView('VIDEOS');
