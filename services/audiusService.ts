@@ -1,16 +1,25 @@
 // Audius decentralized music platform integration
-// Read: trending, search, stream (no auth required)
+// Read: trending, charts, playlists, artists, search, stream (authenticated)
 // Write: publish albums/tracks to Audius via OAuth + content API
 
 import type { ArchiveTrack } from './archiveContentService';
 import type { Album, Track } from '../types';
 
 const APP_NAME = 'Plajah';
+const AUDIUS_API_KEY = '9504e71d3b7450c321850ca4451aff09e72d6b01';
+const AUDIUS_BEARER = '4kTr0I7iM5Ae1bH_XnfwDYhlhuToV-IcpBdGMe60nMA=';
 const FALLBACK_HOST = 'https://discoveryprovider.audius.co';
 const HOST_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 let _cachedHost: string | null = null;
 let _hostCachedAt = 0;
+
+function audiusHeaders(): HeadersInit {
+  return {
+    'X-API-KEY': AUDIUS_API_KEY,
+    Authorization: `Bearer ${AUDIUS_BEARER}`,
+  };
+}
 
 // ─── Host Discovery ────────────────────────────────────────────────────────────
 
@@ -26,15 +35,38 @@ export async function getAudiusHost(): Promise<string> {
       _hostCachedAt = now;
       return _cachedHost;
     }
-  } catch {
-    // fall through to fallback
-  }
+  } catch { /* fall through */ }
   _cachedHost = FALLBACK_HOST;
   _hostCachedAt = now;
   return _cachedHost;
 }
 
-// ─── Read API ─────────────────────────────────────────────────────────────────
+// ─── Shared Types ─────────────────────────────────────────────────────────────
+
+export interface AudiusPlaylist {
+  id: string;
+  title: string;
+  description?: string;
+  artworkUrl: string;
+  trackCount: number;
+  curator: string;
+  curatorHandle: string;
+  permalink: string;
+}
+
+export interface AudiusArtist {
+  id: string;
+  name: string;
+  handle: string;
+  followerCount: number;
+  trackCount: number;
+  profilePicture: string;
+  coverPhoto?: string;
+  bio?: string;
+  verified: boolean;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapTrack(t: any, host: string): ArchiveTrack {
   return {
@@ -45,28 +77,84 @@ function mapTrack(t: any, host: string): ArchiveTrack {
     thumbnailUrl:
       t.artwork?.['480x480'] ??
       t.artwork?.['150x150'] ??
-      `https://audius.co/artwork/${t.id}/480x480.jpg`,
+      `https://creatornode.audius.co/ipfs/${t.artwork?.['480x480']}`,
     source: 'AUDIUS' as const,
     genre: t.genre ?? undefined,
     duration: t.duration ?? undefined,
   };
 }
 
-export async function fetchAudiusTrending(
-  genre?: string,
-  limit = 20
-): Promise<ArchiveTrack[]> {
+function mapPlaylist(p: any): AudiusPlaylist {
+  return {
+    id: p.id,
+    title: p.playlist_name ?? p.title ?? 'Untitled Playlist',
+    description: p.description ?? undefined,
+    artworkUrl: p.artwork?.['480x480'] ?? p.artwork?.['150x150'] ?? '',
+    trackCount: p.track_count ?? 0,
+    curator: p.user?.name ?? p.user?.handle ?? 'Audius',
+    curatorHandle: p.user?.handle ?? '',
+    permalink: `https://audius.co/${p.user?.handle ?? ''}/${p.permalink ?? p.id}`,
+  };
+}
+
+function mapArtist(u: any): AudiusArtist {
+  return {
+    id: u.id,
+    name: u.name ?? u.handle,
+    handle: u.handle,
+    followerCount: u.follower_count ?? 0,
+    trackCount: u.track_count ?? 0,
+    profilePicture: u.profile_picture?.['480x480'] ?? u.profile_picture?.['150x150'] ?? '',
+    coverPhoto: u.cover_photo?.['2000x'] ?? u.cover_photo?.['640x'] ?? undefined,
+    bio: u.bio ?? undefined,
+    verified: u.is_verified ?? false,
+  };
+}
+
+async function audiusFetch(path: string, params: Record<string, string> = {}): Promise<any> {
+  const host = await getAudiusHost();
+  const p = new URLSearchParams({ app_name: APP_NAME, ...params });
+  const res = await fetch(`${host}${path}?${p}`, {
+    headers: audiusHeaders(),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Audius ${path} → ${res.status}`);
+  return res.json();
+}
+
+// ─── Tracks ───────────────────────────────────────────────────────────────────
+
+export async function fetchAudiusTrending(genre?: string, limit = 20): Promise<ArchiveTrack[]> {
   try {
     const host = await getAudiusHost();
-    const params = new URLSearchParams({ app_name: APP_NAME, limit: String(limit) });
-    if (genre) params.set('genre', genre);
-    const res = await fetch(`${host}/v1/tracks/trending?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    const data = await res.json();
+    const params: Record<string, string> = { app_name: APP_NAME, limit: String(limit) };
+    if (genre) params.genre = genre;
+    const data = await audiusFetch('/v1/tracks/trending', params);
     return (data.data ?? []).map((t: any) => mapTrack(t, host));
   } catch (err) {
-    console.error('[Audius] fetchAudiusTrending error:', err);
+    console.error('[Audius] fetchAudiusTrending:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusUnderground(limit = 20): Promise<ArchiveTrack[]> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch('/v1/tracks/trending/underground', { limit: String(limit) });
+    return (data.data ?? []).map((t: any) => mapTrack(t, host));
+  } catch (err) {
+    console.error('[Audius] fetchAudiusUnderground:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusChartsByGenre(genre: string, limit = 10): Promise<ArchiveTrack[]> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch('/v1/tracks/trending', { genre, limit: String(limit) });
+    return (data.data ?? []).map((t: any) => mapTrack(t, host));
+  } catch (err) {
+    console.error('[Audius] fetchAudiusChartsByGenre:', err);
     return [];
   }
 }
@@ -74,14 +162,10 @@ export async function fetchAudiusTrending(
 export async function searchAudius(query: string, limit = 20): Promise<ArchiveTrack[]> {
   try {
     const host = await getAudiusHost();
-    const params = new URLSearchParams({ app_name: APP_NAME, query, limit: String(limit) });
-    const res = await fetch(`${host}/v1/tracks/search?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    const data = await res.json();
+    const data = await audiusFetch('/v1/tracks/search', { query, limit: String(limit) });
     return (data.data ?? []).map((t: any) => mapTrack(t, host));
   } catch (err) {
-    console.error('[Audius] searchAudius error:', err);
+    console.error('[Audius] searchAudius:', err);
     return [];
   }
 }
@@ -89,23 +173,24 @@ export async function searchAudius(query: string, limit = 20): Promise<ArchiveTr
 export async function fetchAudiusUserTracks(handle: string, limit = 20): Promise<ArchiveTrack[]> {
   try {
     const host = await getAudiusHost();
-    // Resolve handle → userId
-    const userRes = await fetch(
-      `${host}/v1/users/handle/${encodeURIComponent(handle)}?app_name=${APP_NAME}`,
-      { signal: AbortSignal.timeout(6000) }
-    );
-    const userData = await userRes.json();
+    const userData = await audiusFetch(`/v1/users/handle/${encodeURIComponent(handle)}`);
     const userId: string | undefined = userData.data?.id;
     if (!userId) return [];
-
-    const tracksRes = await fetch(
-      `${host}/v1/users/${userId}/tracks?app_name=${APP_NAME}&limit=${limit}`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    const tracksData = await tracksRes.json();
+    const tracksData = await audiusFetch(`/v1/users/${userId}/tracks`, { limit: String(limit) });
     return (tracksData.data ?? []).map((t: any) => mapTrack(t, host));
   } catch (err) {
-    console.error('[Audius] fetchAudiusUserTracks error:', err);
+    console.error('[Audius] fetchAudiusUserTracks:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusArtistTracks(userId: string, limit = 20): Promise<ArchiveTrack[]> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch(`/v1/users/${userId}/tracks`, { limit: String(limit) });
+    return (data.data ?? []).map((t: any) => mapTrack(t, host));
+  } catch (err) {
+    console.error('[Audius] fetchAudiusArtistTracks:', err);
     return [];
   }
 }
@@ -116,9 +201,113 @@ export async function getAudiusStreamUrl(rawTrackId: string): Promise<string> {
   return `${host}/v1/tracks/${id}/stream?app_name=${APP_NAME}`;
 }
 
+// ─── Playlists ────────────────────────────────────────────────────────────────
+
+export async function fetchAudiusTrendingPlaylists(limit = 10): Promise<AudiusPlaylist[]> {
+  try {
+    const data = await audiusFetch('/v1/playlists/trending', { limit: String(limit) });
+    return (data.data ?? []).map(mapPlaylist);
+  } catch (err) {
+    console.error('[Audius] fetchAudiusTrendingPlaylists:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusPlaylistTracks(playlistId: string): Promise<ArchiveTrack[]> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch(`/v1/playlists/${playlistId}/tracks`);
+    return (data.data ?? []).map((t: any) => mapTrack(t, host));
+  } catch (err) {
+    console.error('[Audius] fetchAudiusPlaylistTracks:', err);
+    return [];
+  }
+}
+
+export async function searchAudiusPlaylists(query: string, limit = 10): Promise<AudiusPlaylist[]> {
+  try {
+    const data = await audiusFetch('/v1/playlists/search', { query, limit: String(limit) });
+    return (data.data ?? []).map(mapPlaylist);
+  } catch (err) {
+    console.error('[Audius] searchAudiusPlaylists:', err);
+    return [];
+  }
+}
+
+// ─── Artists ──────────────────────────────────────────────────────────────────
+
+export async function fetchAudiusFeaturedArtists(limit = 12): Promise<AudiusArtist[]> {
+  try {
+    // Use trending tracks and extract unique artists as a proxy for featured artists
+    const data = await audiusFetch('/v1/tracks/trending', { limit: '50' });
+    const tracks: any[] = data.data ?? [];
+    const seen = new Set<string>();
+    const artists: AudiusArtist[] = [];
+    for (const t of tracks) {
+      if (!t.user?.id || seen.has(t.user.id)) continue;
+      seen.add(t.user.id);
+      artists.push(mapArtist(t.user));
+      if (artists.length >= limit) break;
+    }
+    return artists;
+  } catch (err) {
+    console.error('[Audius] fetchAudiusFeaturedArtists:', err);
+    return [];
+  }
+}
+
+export async function searchAudiusArtists(query: string, limit = 12): Promise<AudiusArtist[]> {
+  try {
+    const data = await audiusFetch('/v1/users/search', { query, limit: String(limit) });
+    return (data.data ?? []).map(mapArtist);
+  } catch (err) {
+    console.error('[Audius] searchAudiusArtists:', err);
+    return [];
+  }
+}
+
+// ─── Curations ────────────────────────────────────────────────────────────────
+
+export const AUDIUS_GENRES = [
+  'Electronic', 'Hip-Hop/Rap', 'Alternative', 'Rock', 'Metal',
+  'Pop', 'R&B/Soul', 'Jazz', 'Classical', 'Country', 'Reggae',
+  'Podcasts', 'Spoken Word', 'Comedy', 'Ambient', 'Soundtrack',
+  'World', 'Latin', 'Indie Pop', 'House', 'Techno',
+];
+
+export interface AudiusCuration {
+  trending: ArchiveTrack[];
+  underground: ArchiveTrack[];
+  playlists: AudiusPlaylist[];
+  artists: AudiusArtist[];
+  genreCharts: Record<string, ArchiveTrack[]>;
+}
+
+export async function loadAudiusCuration(genres: string[] = ['Electronic', 'Hip-Hop/Rap', 'Pop', 'R&B/Soul', 'Rock']): Promise<AudiusCuration> {
+  const [trending, underground, playlists, artists, ...genreResults] = await Promise.allSettled([
+    fetchAudiusTrending(undefined, 25),
+    fetchAudiusUnderground(20),
+    fetchAudiusTrendingPlaylists(12),
+    fetchAudiusFeaturedArtists(12),
+    ...genres.map(g => fetchAudiusChartsByGenre(g, 8)),
+  ]);
+
+  const genreCharts: Record<string, ArchiveTrack[]> = {};
+  genres.forEach((g, i) => {
+    const r = genreResults[i];
+    genreCharts[g] = r.status === 'fulfilled' ? r.value : [];
+  });
+
+  return {
+    trending: trending.status === 'fulfilled' ? trending.value : [],
+    underground: underground.status === 'fulfilled' ? underground.value : [],
+    playlists: playlists.status === 'fulfilled' ? playlists.value : [],
+    artists: artists.status === 'fulfilled' ? artists.value : [],
+    genreCharts,
+  };
+}
+
 // ─── OAuth Connect ────────────────────────────────────────────────────────────
-// Audius uses a popup-based OAuth flow. We open audius.co/oauth/auth,
-// capture the returned code via postMessage, then exchange it for a JWT.
 
 const AUDIUS_OAUTH_BASE = 'https://audius.co/oauth/auth';
 
@@ -127,7 +316,7 @@ export interface AudiusConnectResult {
   handle: string;
   name: string;
   profilePicture?: string;
-  token: string; // bearer token for write API calls
+  token: string;
 }
 
 export function openAudiusOAuth(redirectUri: string): Window | null {
@@ -137,23 +326,12 @@ export function openAudiusOAuth(redirectUri: string): Window | null {
     redirect_uri: redirectUri,
     response_type: 'code',
   });
-  return window.open(
-    `${AUDIUS_OAUTH_BASE}?${params}`,
-    'audius_oauth',
-    'width=520,height=680,scrollbars=yes'
-  );
+  return window.open(`${AUDIUS_OAUTH_BASE}?${params}`, 'audius_oauth', 'width=520,height=680,scrollbars=yes');
 }
 
 export async function exchangeAudiusCode(code: string, redirectUri: string): Promise<AudiusConnectResult | null> {
   try {
-    const host = await getAudiusHost();
-    const res = await fetch(`${host}/v1/oauth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirect_uri: redirectUri, app_name: APP_NAME }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await audiusFetch('/v1/oauth/token');
     return {
       userId: data.data?.user_id ?? data.user_id,
       handle: data.data?.handle ?? data.handle,
@@ -161,14 +339,10 @@ export async function exchangeAudiusCode(code: string, redirectUri: string): Pro
       profilePicture: data.data?.profile_picture?.['150x150'],
       token: data.data?.token ?? data.token,
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 // ─── Publish (Chora → Audius) ─────────────────────────────────────────────────
-// Uploads a track's audio file from Firebase Storage to an Audius content node.
-// Requires the user to have completed the OAuth flow (bearerToken stored in UserProfile).
 
 export interface AudiusPublishResult {
   trackId: string;
@@ -183,13 +357,10 @@ export async function publishTrackToAudius(
 ): Promise<AudiusPublishResult | null> {
   try {
     const host = await getAudiusHost();
-
-    // 1. Fetch audio from the platform URL as a Blob
     const audioRes = await fetch(track.url);
     if (!audioRes.ok) throw new Error('Could not fetch audio file');
     const audioBlob = await audioRes.blob();
 
-    // 2. Fetch cover art as a Blob (optional)
     let coverBlob: Blob | null = null;
     const coverUrl = track.albumCover ?? album.coverImage;
     if (coverUrl) {
@@ -199,42 +370,29 @@ export async function publishTrackToAudius(
       } catch { /* continue without cover */ }
     }
 
-    // 3. Build multipart form
     const form = new FormData();
     form.append('track_file', audioBlob, `${track.title ?? 'track'}.mp3`);
     if (coverBlob) form.append('cover_art_file', coverBlob, 'cover.jpg');
-
-    const metadata = {
+    form.append('metadata', JSON.stringify({
       title: track.title ?? album.title,
       genre: track.genre ?? album.genre ?? 'Electronic',
       mood: 'Other',
       description: album.description ?? '',
       is_downloadable: false,
       is_unlisted: false,
-      field_visibility: { mood: true, tags: true, genre: true, share: true, play_count: true, remixes: true },
-    };
-    form.append('metadata', JSON.stringify(metadata));
+    }));
 
-    // 4. POST to Audius upload endpoint
     const uploadRes = await fetch(`${host}/v1/tracks?app_name=${APP_NAME}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}`, 'X-User-ID': audiusUserId },
+      headers: { ...audiusHeaders(), Authorization: `Bearer ${bearerToken}`, 'X-User-ID': audiusUserId },
       body: form,
     });
-
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      console.error('[Audius] Upload failed:', errText);
-      return null;
-    }
-
+    if (!uploadRes.ok) return null;
     const uploadData = await uploadRes.json();
     const trackId: string = uploadData.data?.id ?? uploadData.id;
-    const permalink = `https://audius.co/tracks/${trackId}`;
-
-    return { trackId, permalink };
+    return { trackId, permalink: `https://audius.co/tracks/${trackId}` };
   } catch (err) {
-    console.error('[Audius] publishTrackToAudius error:', err);
+    console.error('[Audius] publishTrackToAudius:', err);
     return null;
   }
 }
@@ -248,27 +406,14 @@ export async function publishAlbumToAudius(
   const tracks = album.tracks ?? [];
   const published: AudiusPublishResult[] = [];
   const failed: string[] = [];
-
   for (let i = 0; i < tracks.length; i++) {
     const result = await publishTrackToAudius(tracks[i], album, bearerToken, audiusUserId);
-    if (result) {
-      published.push(result);
-    } else {
-      failed.push(tracks[i].title ?? `Track ${i + 1}`);
-    }
+    result ? published.push(result) : failed.push(tracks[i].title ?? `Track ${i + 1}`);
     onProgress?.(i + 1, tracks.length);
   }
-
   return { published, failed };
 }
 
-// ─── Deep-link fallback (no OAuth) ───────────────────────────────────────────
-// When the artist hasn't connected Audius, open their upload page with metadata pre-filled.
-
-export function generateAudiusUploadLink(album: Album): string {
-  const params = new URLSearchParams({
-    app_name: APP_NAME,
-    ref: 'plajah',
-  });
-  return `https://audius.co/upload?${params}`;
+export function generateAudiusUploadLink(): string {
+  return `https://audius.co/upload?app_name=${APP_NAME}&ref=plajah`;
 }

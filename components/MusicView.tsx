@@ -20,7 +20,11 @@ import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
 import { PodcastsView } from './PodcastsView';
 import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
-import { fetchAudiusTrending, searchAudius } from '../services/audiusService';
+import {
+  fetchAudiusTrending, searchAudius,
+  loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks,
+  AudiusCuration, AudiusPlaylist, AudiusArtist,
+} from '../services/audiusService';
 import PlajahPlusBanner from './PlajahPlusBanner';
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
@@ -47,6 +51,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [album3D, setAlbum3D] = useState<Album | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [audiusSearchResults, setAudiusSearchResults] = useState<ArchiveTrack[]>([]);
+  const [audiusEnabled, setAudiusEnabled] = useState(false);
+  const [audiusCuration, setAudiusCuration] = useState<AudiusCuration | null>(null);
+  const [audiusLoading, setAudiusLoading] = useState(false);
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
 
@@ -128,6 +135,15 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     }, 400);
     return () => clearTimeout(id);
   }, [vaultSearchQuery, vaultSource]);
+
+  // Load full Audius curation when Audius mode enabled
+  useEffect(() => {
+    if (!audiusEnabled || audiusCuration) return;
+    setAudiusLoading(true);
+    loadAudiusCuration(['Electronic', 'Hip-Hop/Rap', 'Pop', 'R&B/Soul', 'Rock', 'Jazz'])
+      .then(setAudiusCuration)
+      .finally(() => setAudiusLoading(false));
+  }, [audiusEnabled]);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -237,6 +253,30 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         : `Public domain recording from ${track.source}.`
     };
     playTrack(vaultTrack, vaultAlbum, 'RADIO');
+  };
+
+  const handlePlayAudiusPlaylist = async (playlist: AudiusPlaylist) => {
+    const tracks = await fetchAudiusPlaylistTracks(playlist.id);
+    if (!tracks.length) return;
+    const albumTracks: Track[] = tracks.map(t => ({
+      id: t.id, title: t.title, artist: t.artist,
+      url: t.url, albumCover: t.thumbnailUrl, images: [t.thumbnailUrl],
+      genre: t.genre, isGlobalArchive: true,
+    }));
+    const album: Album = {
+      id: `audius_pl_${playlist.id}`, title: playlist.title,
+      artist: playlist.curator, coverImage: playlist.artworkUrl,
+      tracks: albumTracks, createdAt: Date.now(), themeColor: '#7e22ce',
+      description: playlist.description ?? `Audius playlist by ${playlist.curator}`,
+    };
+    playTrack(albumTracks[0], album, 'RADIO');
+  };
+
+  const handlePlayAudiusArtist = async (artist: AudiusArtist) => {
+    const tracks = await fetchAudiusArtistTracks(artist.id, 15);
+    if (!tracks.length) { window.open(`https://audius.co/${artist.handle}`, '_blank'); return; }
+    tracks.forEach(t => handlePlayVaultTrack(t));
+    handlePlayVaultTrack(tracks[0]);
   };
 
   if (isLoading) {
@@ -483,6 +523,18 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   </button>
                 ))}
               </div>
+              {/* Audius toggle */}
+              <button
+                onClick={() => setAudiusEnabled(v => !v)}
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                style={audiusEnabled
+                  ? { background: '#7e22ce', color: '#e9d5ff', boxShadow: '0 0 20px rgba(126,34,206,0.5)' }
+                  : { background: 'rgba(126,34,206,0.15)', color: 'rgba(168,85,247,0.8)', border: '1px solid rgba(168,85,247,0.3)' }}
+              >
+                <Music2 size={13} />
+                {audiusLoading ? 'Loading…' : 'Audius'}
+              </button>
+
               {onUploadMusic && (
                 <button
                   onClick={onUploadMusic}
@@ -534,6 +586,86 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <FeaturedCarousel items={artists.slice(0, 5).map(artist => ({ id: artist.uid, title: artist.displayName, subtitle: "Featured Artist", imageUrl: artist.coverArt || artist.featuredArtistPhoto || artist.photoURL || `https://picsum.photos/seed/${artist.uid}/1280/720`, onClick: () => onVisitUser(artist.uid, 'CONTENT') }))} />
                 </section>
                 
+                {/* ── Audius Trending ── */}
+                {audiusEnabled && audiusCuration && audiusCuration.trending.length > 0 && (
+                  <section className="animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><Music2 size={10} className="text-purple-200" /></div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Trending</h2>
+                      <span className="text-[8px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(126,34,206,0.2)', color: '#c084fc' }}>Decentralized</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {audiusCuration.trending.slice(0, 10).map(track => (
+                        <motion.div key={track.id} whileHover={{ y: -4 }}
+                          className="group cursor-pointer rounded-2xl p-3 transition-all"
+                          style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}
+                          onClick={() => handlePlayVaultTrack(track)}>
+                          <div className="aspect-square rounded-xl overflow-hidden mb-3 relative">
+                            <img src={track.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={14} fill="currentColor" className="text-purple-100 ml-0.5" /></div>
+                            </div>
+                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-widest truncate">{track.title}</p>
+                          <p className="text-[8px] truncate mt-0.5" style={{ color: 'rgba(168,85,247,0.7)' }}>{track.artist}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* ── Audius Playlists ── */}
+                {audiusEnabled && audiusCuration && audiusCuration.playlists.length > 0 && (
+                  <section className="animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><ListMusic size={10} className="text-purple-200" /></div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Featured Playlists</h2>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+                      {audiusCuration.playlists.map(pl => (
+                        <motion.div key={pl.id} whileHover={{ y: -4 }}
+                          className="group cursor-pointer rounded-2xl p-3 transition-all"
+                          style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}
+                          onClick={() => handlePlayAudiusPlaylist(pl)}>
+                          <div className="aspect-square rounded-xl overflow-hidden mb-3 relative">
+                            {pl.artworkUrl ? <img src={pl.artworkUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.3)' }}><ListMusic size={24} style={{ color: '#a855f7' }} /></div>}
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={14} fill="currentColor" className="text-purple-100 ml-0.5" /></div>
+                            </div>
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-widest truncate">{pl.title}</p>
+                          <p className="text-[8px] truncate mt-0.5" style={{ color: 'rgba(168,85,247,0.7)' }}>by {pl.curator} · {pl.trackCount} tracks</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* ── Audius Underground ── */}
+                {audiusEnabled && audiusCuration && audiusCuration.underground.length > 0 && (
+                  <section className="animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><Zap size={10} className="text-purple-200" /></div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Underground</h2>
+                    </div>
+                    <div className="space-y-1">
+                      {audiusCuration.underground.slice(0, 8).map((track, idx) => (
+                        <div key={track.id} onClick={() => handlePlayVaultTrack(track)}
+                          className="flex items-center gap-4 p-3 rounded-xl cursor-pointer group transition-all hover:bg-purple-900/20">
+                          <span className="text-lg font-black w-6 text-center shrink-0" style={{ color: 'rgba(168,85,247,0.4)' }}>#{idx + 1}</span>
+                          <img src={track.thumbnailUrl} className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-purple-400 transition-colors">{track.title}</p>
+                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist} {track.genre ? `· ${track.genre}` : ''}</p>
+                          </div>
+                          <Play size={12} style={{ color: 'rgba(168,85,247,0.5)' }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {curatedPlaylists.length > 0 && (
                   <section className="animate-in fade-in duration-700">
                     <div className="flex items-center gap-3 mb-6">
@@ -919,6 +1051,38 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Audius Artists ── */}
+                    {audiusEnabled && audiusCuration && audiusCuration.artists.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-6 mt-4 pt-8 border-t border-purple-900/30">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><User size={10} className="text-purple-200" /></div>
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Featured Artists</h2>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                          {audiusCuration.artists.map(artist => (
+                            <div key={artist.id}
+                              onClick={() => handlePlayAudiusArtist(artist)}
+                              className="group cursor-pointer text-center">
+                              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 relative"
+                                style={{ border: '1px solid rgba(168,85,247,0.2)' }}>
+                                {artist.profilePicture
+                                  ? <img src={artist.profilePicture} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                                  : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.2)' }}><User size={32} style={{ color: '#a855f7' }} /></div>}
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                                  <Play size={28} style={{ color: '#a855f7' }} />
+                                </div>
+                                {artist.verified && <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Sparkles size={9} className="text-purple-100" /></div>}
+                              </div>
+                              <h4 className="text-xs font-black uppercase tracking-widest truncate">{artist.name}</h4>
+                              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.6)' }}>
+                                {artist.followerCount.toLocaleString()} followers
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </section>
                 )}
 
@@ -977,6 +1141,40 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Audius Playlists in ALBUMS tab ── */}
+                    {audiusEnabled && audiusCuration && audiusCuration.playlists.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-6 pt-8 border-t border-purple-900/30">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><ListMusic size={10} className="text-purple-200" /></div>
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Playlists</h2>
+                          <span className="text-[8px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(126,34,206,0.2)', color: '#c084fc' }}>Decentralized</span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                          {audiusCuration.playlists.map(pl => (
+                            <motion.div key={pl.id} whileHover={{ scale: 1.02 }}
+                              onClick={() => handlePlayAudiusPlaylist(pl)}
+                              className="group cursor-pointer">
+                              <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl relative"
+                                style={{ border: '1px solid rgba(168,85,247,0.2)' }}>
+                                {pl.artworkUrl
+                                  ? <img src={pl.artworkUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                                  : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.2)' }}><ListMusic size={40} style={{ color: '#a855f7' }} /></div>}
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={20} fill="currentColor" className="text-purple-100 ml-1" /></div>
+                                </div>
+                                <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(0,0,0,0.7)' }}>
+                                  <HeadphonesIcon size={9} style={{ color: 'rgba(168,85,247,0.8)' }} />
+                                  <span className="text-[9px] font-black" style={{ color: 'rgba(168,85,247,0.8)' }}>{pl.trackCount} tracks</span>
+                                </div>
+                              </div>
+                              <h4 className="text-xs font-black uppercase tracking-widest truncate">{pl.title}</h4>
+                              <p className="text-[9px] font-bold uppercase tracking-widest truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>by {pl.curator}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </section>
                 )}
 
@@ -1002,7 +1200,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{genreAlbums.length + vaultGenre.length} Items</span>
+                              <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{genreAlbums.length + vaultGenre.length + (audiusEnabled && audiusCuration ? (audiusCuration.genreCharts[genre]?.length ?? 0) : 0)} Items</span>
                             </div>
                             {(genreAlbums.length > 0 || vaultGenre.length > 0) ? (
                               <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-6 px-6">
@@ -1027,6 +1225,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
                                     <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Vault</p>
+                                  </div>
+                                ))}
+                                {/* Audius genre chart tracks */}
+                                {audiusEnabled && audiusCuration && (audiusCuration.genreCharts[genre] ?? []).map(track => (
+                                  <div key={track.id} className="min-w-[150px] group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
+                                    <div className="aspect-square rounded-2xl overflow-hidden mb-3 shadow-xl relative" style={{ border: '1px solid rgba(168,85,247,0.3)' }}>
+                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                                      <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
+                                    </div>
+                                    <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
+                                    <p className="text-[8px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist}</p>
                                   </div>
                                 ))}
                               </div>
