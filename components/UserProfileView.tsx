@@ -745,67 +745,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {profile.displayName}
               </motion.h1>
 
-              {/* Action buttons row — always below the name, wraps cleanly at any width */}
-              {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
-                <div className={`flex flex-wrap items-center gap-2 mt-3 ${isMobile ? 'justify-center' : ''}`}>
-                  {profile.liveStreamConfig?.isActive && (
-                    <div className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2 shrink-0">
-                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                      On Air
-                    </div>
-                  )}
-
-                  {profile.liveStreamConfig?.isActive && (
-                    <button
-                      onClick={() => {
-                        setIsLivePlayerExpanded(!isLivePlayerExpanded);
-                        if (!isLivePlayerExpanded) setIsLivePlaying(true);
-                      }}
-                      className={`px-4 py-2 rounded-full transition-all border flex items-center gap-2 shrink-0 ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}
-                    >
-                      <Tv size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                        {isLivePlayerExpanded ? 'Close' : 'Watch Live'}
-                      </span>
-                    </button>
-                  )}
-
-                  {profile.radioSettings?.enabled && (
-                    <button
-                      onClick={() => {
-                        const event = new CustomEvent('NAVIGATE', {
-                          detail: { target: 'RADIO', artistId: profile.uid }
-                        });
-                        window.dispatchEvent(event);
-                      }}
-                      className="px-4 py-2 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-2 shrink-0"
-                    >
-                      <Radio size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Artist Radio</span>
-                    </button>
-                  )}
-
-                  {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
-                    <button
-                      onClick={() => setShowFastChannel(true)}
-                      className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shrink-0 shadow-[0_0_20px_rgba(107,0,153,0.4)]"
-                    >
-                      <Tv size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Watch Channel</span>
-                    </button>
-                  )}
-
-                  {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
-                    <button
-                      onClick={() => setShowFastChannelManager(true)}
-                      className="px-4 py-2 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-2 shrink-0"
-                    >
-                      <Radio size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Manage Channel</span>
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
 
               </div>
               {/* ↑ closes flex flex-row items-end (avatar + name outer wrapper) */}
@@ -929,6 +869,41 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </button>
               )}
             </div>
+
+            {/* ── Action pill strip — single horizontal scroll row, above bio ── */}
+            {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5 mt-1 mb-3">
+                {profile.liveStreamConfig?.isActive && (
+                  <div className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-1.5 shrink-0">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />On Air
+                  </div>
+                )}
+                {profile.liveStreamConfig?.isActive && (
+                  <button onClick={() => { setIsLivePlayerExpanded(!isLivePlayerExpanded); if (!isLivePlayerExpanded) setIsLivePlaying(true); }}
+                    className={`px-4 py-1.5 rounded-full transition-all border flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isLivePlayerExpanded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 border-white/10'}`}>
+                    <Tv size={12} />{isLivePlayerExpanded ? 'Close' : 'Watch Live'}
+                  </button>
+                )}
+                {profile.radioSettings?.enabled && (
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid } }))}
+                    className="px-4 py-1.5 bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 text-[#00DAF3] rounded-full transition-all border border-[#00DAF3]/30 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <Radio size={12} />Artist Radio
+                  </button>
+                )}
+                {(profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl) && (
+                  <button onClick={() => setShowFastChannel(true)}
+                    className="px-4 py-1.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_14px_rgba(107,0,153,0.35)]">
+                    <Tv size={12} />Watch Channel
+                  </button>
+                )}
+                {isOwnProfile && (profile.fastChannelEnabled || hasFastContent) && (
+                  <button onClick={() => setShowFastChannelManager(true)}
+                    className="px-4 py-1.5 bg-white/10 border border-white/10 text-white rounded-full transition-all hover:bg-white/20 active:scale-95 flex items-center gap-1.5 shrink-0 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <Radio size={12} />Manage Channel
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Bio / quote */}
             <div>
