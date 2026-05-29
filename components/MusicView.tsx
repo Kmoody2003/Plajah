@@ -70,11 +70,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [signInAction, setSignInAction] = useState<string | null>(null);
 
   const [bgIndex, setBgIndex] = useState(0);
+  const [pulseIdx, setPulseIdx] = useState(0);
+  const [sponsoredIdx, setSponsoredIdx] = useState(0);
+
   const bgAlbums = useMemo(() =>
     [...albums]
       .filter(a => !!a.coverImage)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .slice(0, 5),
+    [albums]
+  );
+
+  const upcomingAlbums = useMemo(() =>
+    albums
+      .filter(a => a.isScheduled && a.releaseDate && a.releaseDate > Date.now() && !!a.coverImage)
+      .sort((a, b) => (a.releaseDate || 0) - (b.releaseDate || 0)),
     [albums]
   );
 
@@ -89,6 +99,18 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     }, 6000);
     return () => clearInterval(id);
   }, [bgAlbums.length]);
+
+  useEffect(() => {
+    if (upcomingAlbums.length < 2) return;
+    const id = setInterval(() => setPulseIdx(i => (i + 1) % upcomingAlbums.length), 5000);
+    return () => clearInterval(id);
+  }, [upcomingAlbums.length]);
+
+  useEffect(() => {
+    if (upcomingAlbums.length < 2) return;
+    const id = setInterval(() => setSponsoredIdx(i => (i + 1) % upcomingAlbums.length), 7000);
+    return () => clearInterval(id);
+  }, [upcomingAlbums.length]);
 
   useEffect(() => {
     const loadVault = async () => {
@@ -236,6 +258,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   };
 
   const fmtPlays = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : n.toString();
+
+  const timeUntil = (ms: number): string => {
+    const diff = ms - Date.now();
+    if (diff <= 0) return 'Out Now';
+    const d = Math.floor(diff / 86_400_000);
+    const h = Math.floor((diff % 86_400_000) / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    if (d > 30) return `${Math.ceil(d / 30)}mo`;
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const fmtDate = (ms: number) =>
+    new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const trendingAlbums = useMemo(() =>
     [...albums].filter(a => (a.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 10),
@@ -656,6 +693,41 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">New</h1>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-12">
+
+                {/* ── Coming Soon ── */}
+                {upcomingAlbums.length > 0 && (
+                  <section className="animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 mb-6">
+                      <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-small-orange to-[#D40055] shrink-0" />
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Coming Soon</h2>
+                      <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+                      {upcomingAlbums.map(album => (
+                        <motion.div key={album.id} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                          onClick={() => onSelectAlbum(album)}
+                          className="flex-shrink-0 w-44 cursor-pointer group">
+                          <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
+                            <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
+                            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
+                              style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
+                              <Clock size={8} /> {timeUntil(album.releaseDate!)}
+                            </div>
+                            <div className="absolute bottom-3 inset-x-3 text-center">
+                              <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">
+                                {fmtDate(album.releaseDate!)}
+                              </p>
+                            </div>
+                          </div>
+                          <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
+                          <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 <section>
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Recent Releases</h2>
@@ -824,6 +896,118 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               </div>
 
               <div className="space-y-8 flex flex-col">
+
+                {/* ── Platform Pulse ── */}
+                {upcomingAlbums.length > 0 && (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`pulse-${pulseIdx}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                      className="relative rounded-[2rem] overflow-hidden cursor-pointer group"
+                      style={{ border: '1px solid rgba(255,140,0,0.2)' }}
+                      onClick={() => onSelectAlbum(upcomingAlbums[pulseIdx])}
+                    >
+                      {/* Blurred bg */}
+                      <img
+                        src={upcomingAlbums[pulseIdx].coverImage}
+                        className="absolute inset-0 w-full h-full object-cover scale-125"
+                        style={{ filter: 'blur(24px) brightness(0.28) saturate(2.2)' }}
+                      />
+                      <div className="relative p-5">
+                        {/* Header row */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse shrink-0" />
+                          <span className="text-[8px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
+                          {upcomingAlbums.length > 1 && (
+                            <div className="ml-auto flex gap-1">
+                              {upcomingAlbums.slice(0, 5).map((_, i) => (
+                                <div key={i} className="w-1 h-1 rounded-full transition-all duration-300"
+                                  style={{ background: i === pulseIdx ? '#ff8c00' : 'rgba(255,255,255,0.2)', transform: i === pulseIdx ? 'scale(1.4)' : 'scale(1)' }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {/* Cover + info */}
+                        <div className="flex gap-3 items-start">
+                          <img
+                            src={upcomingAlbums[pulseIdx].coverImage}
+                            className="w-16 h-16 rounded-xl object-cover shrink-0 shadow-xl group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[8px] text-white/45 uppercase tracking-widest font-bold mb-0.5 truncate">{upcomingAlbums[pulseIdx].artist}</p>
+                            <h4 className="text-sm font-black uppercase tracking-tight text-white leading-tight mb-2 truncate">{upcomingAlbums[pulseIdx].title}</h4>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[9px] font-black px-2 py-0.5 rounded-full"
+                                style={{ background: 'rgba(255,140,0,0.18)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.3)' }}>
+                                {timeUntil(upcomingAlbums[pulseIdx].releaseDate!)}
+                              </span>
+                              <span className="text-[8px] text-white/25 font-bold">{fmtDate(upcomingAlbums[pulseIdx].releaseDate!)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+
+                {/* ── Sponsored · Upcoming Releases ── */}
+                {upcomingAlbums.length > 0 && (
+                  <div>
+                    <p className="text-[7px] font-black uppercase tracking-[0.35em] text-white/18 mb-2 pl-1">Sponsored · Upcoming</p>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`sponsored-${sponsoredIdx}`}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                        className="relative rounded-[2rem] overflow-hidden cursor-pointer aspect-[3/4] group shadow-2xl"
+                        onClick={() => onSelectAlbum(upcomingAlbums[sponsoredIdx])}
+                      >
+                        <img
+                          src={upcomingAlbums[sponsoredIdx].coverImage}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700"
+                        />
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, transparent 25%, rgba(0,0,0,0.88) 100%)' }} />
+
+                        {/* Pagination dots */}
+                        {upcomingAlbums.length > 1 && (
+                          <div className="absolute top-4 right-4 flex gap-1.5">
+                            {upcomingAlbums.slice(0, 5).map((_, i) => (
+                              <div key={i} className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                                style={{ background: i === sponsoredIdx ? '#ff8c00' : 'rgba(255,255,255,0.3)', transform: i === sponsoredIdx ? 'scale(1.3)' : 'scale(1)' }} />
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="absolute inset-x-0 bottom-0 p-5">
+                          <span className="inline-flex items-center gap-1 text-[7px] font-black px-2 py-1 rounded-full mb-3"
+                            style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
+                            <Clock size={8} /> Coming {new Date(upcomingAlbums[sponsoredIdx].releaseDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                          <h4 className="text-base font-black uppercase tracking-tight text-white leading-tight">{upcomingAlbums[sponsoredIdx].title}</h4>
+                          <p className="text-[9px] text-white/50 uppercase tracking-widest font-bold mt-0.5">{upcomingAlbums[sponsoredIdx].artist}</p>
+                          {/* Countdown progress bar */}
+                          <div className="mt-4 flex items-center gap-2">
+                            <div className="flex-1 h-0.5 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div
+                                className="h-full rounded-full bg-gradient-to-r from-small-orange to-[#D40055]"
+                                initial={{ width: '5%' }}
+                                animate={{ width: `${Math.max(5, Math.min(95, 100 - (upcomingAlbums[sponsoredIdx].releaseDate! - Date.now()) / (45 * 86_400_000) * 100))}%` }}
+                                transition={{ duration: 1, ease: 'easeOut' }}
+                              />
+                            </div>
+                            <span className="text-[8px] font-black text-small-orange shrink-0">{timeUntil(upcomingAlbums[sponsoredIdx].releaseDate!)}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                )}
+
                 <div className="bg-white/[0.02] border border-white/5 p-6 rounded-[2rem]">
                   <div className="flex items-center gap-2 mb-6">
                     <Zap className="text-small-orange" size={16} />
@@ -891,6 +1075,39 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           {activeTab === 'FOR_YOU' && !selectedArchiveArtist && userProfile && (
              <div className="px-6 lg:px-12 pt-8 mb-6 space-y-12 animate-in fade-in">
                <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">For You</h1>
+
+               {/* ── Coming Soon ── */}
+               {upcomingAlbums.length > 0 && (
+                 <section>
+                   <div className="flex items-center gap-3 mb-6">
+                     <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-small-orange to-[#D40055] shrink-0" />
+                     <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Coming Soon</h2>
+                     <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                   </div>
+                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+                     {upcomingAlbums.map(album => (
+                       <motion.div key={album.id} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                         onClick={() => onSelectAlbum(album)}
+                         className="flex-shrink-0 w-44 cursor-pointer group">
+                         <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
+                           <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                           <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
+                           <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
+                             style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
+                             <Clock size={8} /> {timeUntil(album.releaseDate!)}
+                           </div>
+                           <div className="absolute bottom-3 inset-x-3 text-center">
+                             <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">{fmtDate(album.releaseDate!)}</p>
+                           </div>
+                         </div>
+                         <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
+                         <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
+                       </motion.div>
+                     ))}
+                   </div>
+                 </section>
+               )}
+
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
@@ -1208,6 +1425,38 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         <span className="text-[9px] font-black uppercase tracking-widest">{sortOrder === 'RECENT' ? 'Newest First' : 'Alphabetical'}</span>
                       </button>
                     </div>
+
+                    {/* ── Coming Soon ── */}
+                    {upcomingAlbums.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-6">
+                          <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-small-orange to-[#D40055] shrink-0" />
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Coming Soon</h2>
+                          <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+                          {upcomingAlbums.map(album => (
+                            <motion.div key={album.id} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                              onClick={() => onSelectAlbum(album)}
+                              className="flex-shrink-0 w-44 cursor-pointer group">
+                              <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
+                                <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
+                                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
+                                  style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
+                                  <Clock size={8} /> {timeUntil(album.releaseDate!)}
+                                </div>
+                                <div className="absolute bottom-3 inset-x-3 text-center">
+                                  <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">{fmtDate(album.releaseDate!)}</p>
+                                </div>
+                              </div>
+                              <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
+                              <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Top Charts */}
                     {trendingAlbums.length > 0 && (
