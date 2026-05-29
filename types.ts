@@ -830,6 +830,7 @@ export interface UserProfile {
     isChatIconPinned?: boolean;
     lastTheme?: ThemeType;
     isSpatialModeEnabled?: boolean;
+    audiusEnabled?: boolean;
     syncedFolders?: { id: string; name: string }[];
     backgroundSlideshow?: {
       enabled: boolean;

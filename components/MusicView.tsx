@@ -11,7 +11,7 @@ import {
   Headphones as HeadphonesIcon, BarChart2, Flame, Plus, Trash2, ChevronDown, ChevronUp, Layers, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, auth } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -51,7 +51,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [album3D, setAlbum3D] = useState<Album | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [audiusSearchResults, setAudiusSearchResults] = useState<ArchiveTrack[]>([]);
-  const [audiusEnabled, setAudiusEnabled] = useState(false);
+  const [audiusEnabled, setAudiusEnabled] = useState(() => {
+    // Fast localStorage seed; profile value wins once loaded
+    const saved = localStorage.getItem('chora_audiusEnabled');
+    return saved !== null ? JSON.parse(saved) : (userProfile?.uiSettings?.audiusEnabled ?? false);
+  });
   const [audiusCuration, setAudiusCuration] = useState<AudiusCuration | null>(null);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
@@ -136,6 +140,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return () => clearTimeout(id);
   }, [vaultSearchQuery, vaultSource]);
 
+  // Sync profile's audiusEnabled into state once profile loads (wins over localStorage seed)
+  useEffect(() => {
+    if (userProfile?.uiSettings?.audiusEnabled !== undefined) {
+      setAudiusEnabled(userProfile.uiSettings.audiusEnabled);
+    }
+  }, [userProfile?.uid]);
+
   // Load full Audius curation when Audius mode enabled
   useEffect(() => {
     if (!audiusEnabled || audiusCuration) return;
@@ -144,6 +155,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       .then(setAudiusCuration)
       .finally(() => setAudiusLoading(false));
   }, [audiusEnabled]);
+
+  const toggleAudiusEnabled = async () => {
+    const next = !audiusEnabled;
+    setAudiusEnabled(next);
+    localStorage.setItem('chora_audiusEnabled', JSON.stringify(next));
+    if (auth.currentUser) {
+      try {
+        await updateUserProfile(auth.currentUser.uid, {
+          uiSettings: { ...userProfile?.uiSettings, audiusEnabled: next },
+        });
+      } catch (err) {
+        console.error('[Chora] Failed to persist audiusEnabled:', err);
+      }
+    }
+  };
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -525,7 +551,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               </div>
               {/* Audius toggle */}
               <button
-                onClick={() => setAudiusEnabled(v => !v)}
+                onClick={toggleAudiusEnabled}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
                 style={audiusEnabled
                   ? { background: '#7e22ce', color: '#e9d5ff', boxShadow: '0 0 20px rgba(126,34,206,0.5)' }

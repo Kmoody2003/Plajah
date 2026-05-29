@@ -11,7 +11,7 @@ import RevenueDashboard from './RevenueDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
 import {
-  User, Settings, Database, Video as VideoIcon, Music, Image as ImageIcon, BookOpen,
+  User, Settings, Database, Video as VideoIcon, Music, Music2, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2
@@ -1670,8 +1670,95 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
               <header>
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Social Networks</h1>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Connect Mastodon, Bluesky &amp; Threads to unify your fediverse presence</p>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Connect Mastodon, Bluesky, Threads &amp; Audius to unify your presence</p>
               </header>
+
+              {/* ── Audius Settings ── */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Music2 size={12} className="text-purple-200" /></div>
+                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius — Decentralized Music</h2>
+                </div>
+
+                <div className="p-6 rounded-[2rem] space-y-5"
+                  style={{ background: profile?.uiSettings?.audiusEnabled ? 'rgba(126,34,206,0.12)' : 'rgba(255,255,255,0.03)', border: profile?.uiSettings?.audiusEnabled ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+
+                  {/* Enable / Disable toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-2xl flex items-center justify-center border" style={{ background: 'rgba(126,34,206,0.15)', borderColor: 'rgba(168,85,247,0.3)' }}>
+                        <Music2 size={18} style={{ color: '#a855f7' }} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest">Audius Mode in Chora</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'rgba(168,85,247,0.6)' }}>
+                          {profile?.uiSettings?.audiusEnabled ? 'ON — Audius curations injected into all music tabs' : 'OFF — Plajah-only content'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!profile) return;
+                        const next = !profile.uiSettings?.audiusEnabled;
+                        const updated = { ...profile, uiSettings: { ...profile.uiSettings, audiusEnabled: next } };
+                        setProfile(updated);
+                        localStorage.setItem('chora_audiusEnabled', JSON.stringify(next));
+                        await updateUserProfile(user.uid, { uiSettings: updated.uiSettings });
+                      }}
+                      className="w-12 h-7 rounded-full transition-all relative shrink-0"
+                      style={{ background: profile?.uiSettings?.audiusEnabled ? '#7e22ce' : 'rgba(255,255,255,0.1)' }}
+                    >
+                      <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${profile?.uiSettings?.audiusEnabled ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {/* Audius handle (optional) */}
+                  <div className="space-y-2 pt-1 border-t border-purple-900/30">
+                    <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.7)' }}>Your Audius Handle (optional)</label>
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        placeholder="@yourhandle"
+                        defaultValue={profile?.audiusHandle ?? ''}
+                        className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-purple-500/50 transition-all"
+                        style={{ color: 'rgba(255,255,255,0.8)' }}
+                        onBlur={async (e) => {
+                          if (!profile) return;
+                          const handle = e.target.value.trim();
+                          const updated = { ...profile, audiusHandle: handle || undefined };
+                          setProfile(updated);
+                          await updateUserProfile(user.uid, { audiusHandle: handle || undefined });
+                        }}
+                      />
+                      <a href="https://audius.co" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest shrink-0"
+                        style={{ background: '#7e22ce', color: '#e9d5ff' }}>
+                        <ExternalLink size={11} /> Audius.co
+                      </a>
+                    </div>
+                    <p className="text-[8px]" style={{ color: 'rgba(168,85,247,0.5)' }}>
+                      Linking your handle lets Chora surface your Audius catalog on your profile and enables direct publishing from the album editor.
+                    </p>
+                  </div>
+
+                  {/* Info chips */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      '⚡ Trending tracks on every tab',
+                      '◈ Decentralized streaming',
+                      '💜 Artists earn $AUDIO tokens',
+                      '🎵 Curated genre charts',
+                      '▶ Playlist playback',
+                    ].map(chip => (
+                      <span key={chip} className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(126,34,206,0.15)', color: 'rgba(168,85,247,0.8)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
               <FediverseSettings />
             </motion.div>
           )}
