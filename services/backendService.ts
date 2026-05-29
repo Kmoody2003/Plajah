@@ -6429,6 +6429,29 @@ export const uploadHideNSeekAlternate = async (
   return alt;
 };
 
+// Assign an existing album track as a HNS slot alternate (no file upload needed)
+export const assignTrackAsHnsSlot = async (
+  albumId: string,
+  parentTrackId: string,
+  slot: 1 | 2,
+  sourceTrack: { id: string; title: string; artist: string; url: string; duration?: number }
+): Promise<HideNSeekAlternate> => {
+  const altId = `${parentTrackId}_slot${slot}`;
+  const alt: HideNSeekAlternate = {
+    id: altId,
+    albumId,
+    parentTrackId,
+    slot,
+    title: sourceTrack.title,
+    artist: sourceTrack.artist,
+    url: sourceTrack.url,
+    duration: sourceTrack.duration,
+    uploadedAt: Date.now(),
+  };
+  await setDoc(doc(db, 'albums', albumId, 'hideNSeekAlternates', altId), alt);
+  return alt;
+};
+
 export const deleteHideNSeekAlternate = async (albumId: string, altId: string) => {
   const path = `albums/${albumId}/hideNSeekAlternates/${altId}`;
   try {

@@ -5,7 +5,7 @@ import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig } from '../services/backendService';
 import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,7 +16,7 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward
+  SkipBack, SkipForward, ChevronRight
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -486,6 +486,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null); // "{trackId}_slot{1|2}"
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({}); // key -> 0-100
   const [slotSavedKey, setSlotSavedKey] = useState<string | null>(null); // shows "Saved" flash
+  // Track-as-slot assignment
+  const [hnsTrackPicker, setHnsTrackPicker] = useState<{ trackId: string; slot: 1 | 2 } | null>(null);
+  const [hnsModified, setHnsModified] = useState(false);
+  const [hnsSaving, setHnsSaving] = useState(false);
+  const [hnsShowSchedule, setHnsShowSchedule] = useState(false);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -540,6 +545,40 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     finally {
       setUploadingSlot(null);
       setUploadProgress(prev => { const n = { ...prev }; delete n[key]; return n; });
+    }
+  };
+
+  const handlePickTrackForHnsSlot = async (sourceTrack: Track) => {
+    if (!hnsTrackPicker) return;
+    const { trackId, slot } = hnsTrackPicker;
+    setHnsTrackPicker(null);
+    // Update local track state immediately
+    const updatedTracks = localTracks.map(t =>
+      t.id === trackId
+        ? { ...t, [`hnsSlot${slot}`]: { url: sourceTrack.url, title: sourceTrack.title, uploadedAt: Date.now() } }
+        : t
+    );
+    setLocalTracks(updatedTracks);
+    setHnsModified(true);
+    setHnsShowSchedule(false);
+    // Persist the alternate to Firestore
+    try {
+      await assignTrackAsHnsSlot(album.id, trackId, slot, sourceTrack);
+    } catch (e) { console.error('HnS slot assign failed', e); }
+  };
+
+  const handleSaveHns = async () => {
+    setHnsSaving(true);
+    try {
+      // Persist track slot data
+      await updateAlbum(album.id, { tracks: localTracks });
+      // Ensure config is saved (enable HNS if not already)
+      const config = album.hideNSeekConfig ?? { isEnabled: true, globalEnabled: false, windows: [], trackConfigs: [] };
+      if (!config.isEnabled) await saveHideNSeekConfig(album.id, { ...config, isEnabled: true });
+      setHnsModified(false);
+      setHnsShowSchedule(true);
+    } finally {
+      setHnsSaving(false);
     }
   };
 
@@ -934,6 +973,97 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 z-10 relative">
           {activeHUD === 'TRACKS' && (
             <div className="space-y-2 animate-in slide-in-from-bottom-4 duration-500">
+
+              {/* HNS Save bar — appears when slots are assigned */}
+              {isOwner && hnsModified && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl mb-2 animate-in fade-in duration-300"
+                  style={{ background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.35)' }}>
+                  <div className="flex items-center gap-2">
+                    <Eye size={13} className="text-small-orange shrink-0" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-small-orange">Slot assignments unsaved</p>
+                  </div>
+                  <button onClick={handleSaveHns} disabled={hnsSaving}
+                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all hover:scale-105 disabled:opacity-50"
+                    style={{ background: '#ff8c00', color: '#000' }}>
+                    {hnsSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                    {hnsSaving ? 'Saving…' : 'Save & Schedule'}
+                  </button>
+                </div>
+              )}
+
+              {/* HNS Schedule — shown after save */}
+              {isOwner && hnsShowSchedule && album.hideNSeekConfig?.windows?.length ? (
+                <div className="px-4 py-3 rounded-2xl mb-2 space-y-2 animate-in fade-in duration-300"
+                  style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.2)' }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye size={12} className="text-small-orange" />
+                      <p className="text-[8px] font-black uppercase tracking-widest text-small-orange">Hide &amp; Seek Schedule Active</p>
+                    </div>
+                    <button onClick={() => setHnsShowSchedule(false)} className="text-white/20 hover:text-white"><X size={12} /></button>
+                  </div>
+                  {album.hideNSeekConfig.windows.map((win, idx) => {
+                    const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                    const [hh, mm] = win.startTime.split(':').map(Number);
+                    const fmt = (h: number) => `${h > 12 ? h - 12 : h || 12}:${mm.toString().padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-2 text-[8px]">
+                        <div className="w-1 h-1 rounded-full bg-small-orange shrink-0" />
+                        <span className="font-black text-white/60">{win.daysOfWeek.map(d => DAY[d]).join(', ')}</span>
+                        <span className="text-white/30">{fmt(hh)} – {fmt(hh + 3)} (3 hrs)</span>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[7px] text-white/25">Fans earn discovery points for finding hidden alternates during these windows.</p>
+                </div>
+              ) : isOwner && hnsShowSchedule ? (
+                <div className="px-4 py-3 rounded-2xl mb-2 animate-in fade-in duration-300"
+                  style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.2)' }}>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-1">Slots saved!</p>
+                  <p className="text-[8px] text-white/40">Add schedule windows in the Hide &amp; Seek Manager to activate your slots.</p>
+                </div>
+              ) : null}
+
+              {/* HNS Track Picker Modal */}
+              {hnsTrackPicker && (
+                <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+                  onClick={() => setHnsTrackPicker(null)}>
+                  <div className="w-80 rounded-3xl p-5 space-y-3" style={{ background: '#0d0d14', border: '1px solid rgba(255,140,0,0.3)' }}
+                    onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-widest">Pick Track → Slot {hnsTrackPicker.slot}</p>
+                      <button onClick={() => setHnsTrackPicker(null)} className="text-white/30 hover:text-white"><X size={14} /></button>
+                    </div>
+                    <p className="text-[8px] text-white/30 uppercase tracking-widest">Track #1 cannot be a slot source. Each track can fill max 2 slots.</p>
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {localTracks.map((t, idx) => {
+                        const isParent = t.id === hnsTrackPicker.trackId;
+                        const isFirst = idx === 0;
+                        const disabled = isParent || isFirst;
+                        const usedCount = localTracks.reduce((acc, tr) =>
+                          acc + ((tr as any).hnsSlot1?.url === t.url ? 1 : 0) + ((tr as any).hnsSlot2?.url === t.url ? 1 : 0), 0);
+                        const atLimit = !disabled && usedCount >= 2;
+                        return (
+                          <button key={t.id} type="button" disabled={disabled || atLimit}
+                            onClick={() => handlePickTrackForHnsSlot(t)}
+                            className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left transition-all hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed"
+                            style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <span className="w-4 text-[9px] font-black shrink-0" style={{ color: idx === 0 ? 'rgba(255,255,255,0.2)' : '#ff8c00' }}>{idx + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[9px] font-black uppercase tracking-widest truncate">{t.title}</p>
+                              <p className="text-[7px] text-white/25">
+                                {isFirst ? '#1 — cannot be a source' : isParent ? 'Current track' : atLimit ? 'At 2-slot limit' : `${2 - usedCount} slot${2 - usedCount !== 1 ? 's' : ''} left`}
+                              </p>
+                            </div>
+                            {!disabled && !atLimit && <ChevronRight size={10} className="text-white/30 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {localTracks.map((t, i) => {
                 const isActive = currentTrackIndex === i;
                 const isExpanded = expandedTrackId === t.id;
@@ -984,6 +1114,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             Hide & Seek Alternates — {hnsOn ? 'Active' : 'Hidden from public'}
                           </span>
                         </div>
+                        {i === 0 && (
+                          <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mb-1">Track #1 can receive slots · cannot be a slot source</p>
+                        )}
                         {([1, 2] as const).map(slot => {
                           const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
                           const existing = t[slotKey];
@@ -992,30 +1125,42 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           const progress = uploadProgress[key] ?? 0;
                           const saved = slotSavedKey === key;
                           return (
-                            <label key={slot} className={`flex flex-col gap-2 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
-                              <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/20'}`}>
-                                  {uploading ? <Loader2 size={12} className="animate-spin" /> : saved ? <Check size={12} className="text-green-400" /> : `S${slot}`}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
-                                  <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'Upload alternate track…'}</p>
-                                </div>
-                                {!uploading && !saved && <Upload size={12} className="text-white/20 shrink-0" />}
+                            <div key={slot} className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5'}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/20'}`}>
+                                {uploading ? <Loader2 size={12} className="animate-spin" /> : saved ? <Check size={12} className="text-green-400" /> : `S${slot}`}
                               </div>
-                              {uploading && (
-                                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                                  <div className="h-full bg-small-orange rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
-                                </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
+                                <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'No track assigned'}</p>
+                              </div>
+                              {/* Pick from album tracks */}
+                              <button type="button"
+                                onClick={() => setHnsTrackPicker({ trackId: t.id, slot })}
+                                className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
+                                style={{ background: 'rgba(255,140,0,0.12)', color: 'rgba(255,140,0,0.8)', border: '1px solid rgba(255,140,0,0.25)' }}>
+                                <Music2 size={9} /> Pick
+                              </button>
+                              {/* Upload new file */}
+                              <label className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
+                                style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <Upload size={9} />
+                                <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHnsSlotUpload(t, slot, f); }} />
+                              </label>
+                              {existing && (
+                                <button type="button"
+                                  onClick={() => {
+                                    const updated = localTracks.map(tr => tr.id === t.id ? { ...tr, [`hnsSlot${slot}`]: undefined } : tr);
+                                    setLocalTracks(updated); setHnsModified(true);
+                                  }}
+                                  className="shrink-0 p-1 rounded-lg text-white/20 hover:text-red-400 transition-all">
+                                  <X size={12} />
+                                </button>
                               )}
-                              <input
-                                type="file"
-                                accept="audio/*,video/*"
-                                className="hidden"
-                                disabled={uploading}
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHnsSlotUpload(t, slot, f); }}
-                              />
-                            </label>
+                              {uploading && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-small-orange rounded-full transition-all" style={{ width: `${progress}%` }} />
+                              )}
+                            </div>
                           );
                         })}
                       </div>

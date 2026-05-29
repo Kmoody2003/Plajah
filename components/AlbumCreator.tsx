@@ -141,6 +141,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [hnsSlotUploading, setHnsSlotUploading] = useState<string | null>(null);
   const [hnsSlotProgress, setHnsSlotProgress] = useState<Record<string, number>>({});
   const [hnsSlotSaved, setHnsSlotSaved] = useState<string | null>(null);
+  // Track-as-slot assignment (new feature)
+  const [hnsTrackPicker, setHnsTrackPicker] = useState<{ trackId: string; slot: 1 | 2 } | null>(null);
+  const [hnsSlotsDirty, setHnsSlotsDirty] = useState(false);
+  const [hnsScheduleSaved, setHnsScheduleSaved] = useState(false);
 
   // Cast & production credits (Movie / TV)
   const [castMembers, setCastMembers] = useState<CastMember[]>(initialAlbum?.movieMetadata?.castMembers || []);
@@ -1691,6 +1695,53 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         )}
       </div>
 
+      {/* HnS Save + Schedule (appears when slots are assigned) */}
+      {hnsEnabled && hnsSlotsDirty && !hnsScheduleSaved && (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-2xl animate-in fade-in duration-300"
+          style={{ background: 'rgba(255,140,0,0.08)', border: '1px solid rgba(255,140,0,0.3)' }}>
+          <div className="flex items-center gap-3">
+            <Eye size={16} className="text-small-orange shrink-0" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-small-orange">Slot assignments ready</p>
+              <p className="text-[8px] text-white/40 mt-0.5">Save to lock in your Hide &amp; Seek schedule</p>
+            </div>
+          </div>
+          <button type="button"
+            onClick={() => setHnsScheduleSaved(true)}
+            className="shrink-0 px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105"
+            style={{ background: '#ff8c00', color: '#000' }}>
+            Save & Get Schedule
+          </button>
+        </div>
+      )}
+
+      {/* Schedule Summary — shown after save */}
+      {hnsEnabled && hnsScheduleSaved && hnsWindows.length > 0 && (
+        <div className="p-5 rounded-2xl space-y-3 animate-in fade-in duration-300"
+          style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.25)' }}>
+          <div className="flex items-center gap-2">
+            <Eye size={14} className="text-small-orange" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-small-orange">Your Hide &amp; Seek Schedule</p>
+          </div>
+          {hnsWindows.map((win: any, i: number) => {
+            const [hh, mm] = (win.startTime as string).split(':').map(Number);
+            const endH = ((hh + 3) % 24).toString().padStart(2, '0');
+            const days = (win.daysOfWeek as number[]).map((d: number) => DAY_LABELS[d]).join(', ');
+            const ampm = (h: number) => h >= 12 ? `${h === 12 ? 12 : h - 12}:${mm.toString().padStart(2,'0')} PM` : `${h || 12}:${mm.toString().padStart(2,'0')} AM`;
+            return (
+              <div key={i} className="flex items-center gap-3 text-[9px]">
+                <div className="w-1.5 h-1.5 rounded-full bg-small-orange shrink-0" />
+                <span className="font-black text-white/70">{days}</span>
+                <span className="text-white/40">{ampm(hh)} – {ampm(hh + 3)} (3 hrs)</span>
+              </div>
+            );
+          })}
+          <p className="text-[8px] text-white/30 mt-1">
+            Listeners who play this album during these windows will hear your hidden alternate tracks. Each 3-hour window is a fresh discovery session — fans get points for finding them first.
+          </p>
+        </div>
+      )}
+
       {/* Track List — rename, reorder, HnS slots */}
       {tracks.length === 0 ? (
         <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[2.5rem] opacity-30">
@@ -1740,7 +1791,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               {/* HnS Slot uploads */}
               {hnsEnabled && (
                 <div className="px-5 pb-5 pt-2 space-y-2 border-t border-white/5">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Alternate Slots</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Alternate Slots</p>
+                    {i === 0 && <span className="text-[7px] px-2 py-0.5 rounded-full bg-white/5 text-white/30 font-black uppercase">Can receive slots · cannot be a slot source</span>}
+                  </div>
                   {([1, 2] as const).map(slot => {
                     const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
                     const existing = (track as any)[slotKey];
@@ -1749,26 +1803,42 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     const progress = hnsSlotProgress[key] ?? 0;
                     const saved = hnsSlotSaved === key;
                     return (
-                      <label key={slot} className={`flex flex-col gap-1.5 p-3 rounded-xl border cursor-pointer transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5 hover:bg-small-orange/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/30'}`}>
-                            {uploading ? <Loader2 size={11} className="animate-spin" /> : saved ? <Check size={11} className="text-green-400" /> : `S${slot}`}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Slot {slot}</p>
-                            <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'Click to upload alternate…'}</p>
-                          </div>
-                          {!uploading && !saved && <Upload size={11} className="text-white/20 shrink-0" />}
+                      <div key={slot} className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${existing ? 'border-small-orange/30 bg-small-orange/5' : 'border-white/10 bg-white/5'}`}>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black ${existing ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/30'}`}>
+                          {uploading ? <Loader2 size={11} className="animate-spin" /> : saved ? <Check size={11} className="text-green-400" /> : `S${slot}`}
                         </div>
-                        {uploading && (
-                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-small-orange rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Slot {slot}</p>
+                          <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'No track assigned'}</p>
+                        </div>
+                        {/* Pick from album tracks */}
+                        <button type="button"
+                          onClick={() => setHnsTrackPicker({ trackId: track.id, slot })}
+                          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
+                          style={{ background: 'rgba(255,140,0,0.12)', color: 'rgba(255,140,0,0.8)', border: '1px solid rgba(255,140,0,0.25)' }}>
+                          <Music2 size={9} /> Pick
+                        </button>
+                        {/* Upload new file */}
+                        <label className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
+                          style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <Upload size={9} /> File
+                          <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
+                        </label>
+                        {existing && (
+                          <button type="button"
+                            onClick={() => setTracks(tracks.map(t => t.id === track.id ? { ...t, [`hnsSlot${slot}`]: undefined } : t))}
+                            className="shrink-0 p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                            <X size={12} />
+                          </button>
                         )}
-                        <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
-                      </label>
+                      </div>
                     );
                   })}
+                  {hnsSlotUploading?.startsWith(track.id) && (
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-small-orange rounded-full transition-all duration-200" style={{ width: `${hnsSlotProgress[hnsSlotUploading || ''] ?? 0}%` }} />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1778,10 +1848,66 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     </div>
   );
 
+  // Handle track-as-slot assignment from picker
+  const handlePickTrackForSlot = (sourceTrack: Track) => {
+    if (!hnsTrackPicker) return;
+    const { trackId, slot } = hnsTrackPicker;
+    setTracks(tracks.map(t => t.id === trackId
+      ? { ...t, [`hnsSlot${slot}`]: { url: sourceTrack.url, title: sourceTrack.title, uploadedAt: Date.now() } }
+      : t
+    ));
+    setHnsSlotsDirty(true);
+    setHnsScheduleSaved(false);
+    setHnsTrackPicker(null);
+  };
+
   const stepContent = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7];
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl flex items-center justify-center z-[200] p-4 md:p-8">
+
+      {/* HNS Track Picker Modal */}
+      {hnsTrackPicker && (
+        <div className="absolute inset-0 z-[400] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-96 rounded-3xl p-6 space-y-4" style={{ background: '#0d0d14', border: '1px solid rgba(255,140,0,0.3)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest">Pick a Track for Slot {hnsTrackPicker.slot}</p>
+                <p className="text-[9px] text-white/30 mt-0.5 uppercase tracking-widest">Select which album track to hide in this slot</p>
+              </div>
+              <button type="button" onClick={() => setHnsTrackPicker(null)} className="text-white/30 hover:text-white"><X size={16} /></button>
+            </div>
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {tracks.map((t, idx) => {
+                const isParent = t.id === hnsTrackPicker.trackId;
+                const isFirst = idx === 0;
+                const disabled = isParent || isFirst;
+                const usedCount = tracks.reduce((acc, tr) => {
+                  return acc + ((tr as any).hnsSlot1?.url === t.url ? 1 : 0) + ((tr as any).hnsSlot2?.url === t.url ? 1 : 0);
+                }, 0);
+                const atLimit = !disabled && usedCount >= 2;
+                return (
+                  <button key={t.id} type="button"
+                    disabled={disabled || atLimit}
+                    onClick={() => handlePickTrackForSlot(t)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span className="w-5 text-center text-[9px] font-black shrink-0" style={{ color: idx === 0 ? 'rgba(255,255,255,0.2)' : '#ff8c00' }}>{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest truncate">{t.title}</p>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">
+                        {isFirst ? 'Track #1 — cannot be a slot source' : isParent ? 'Current track' : atLimit ? 'Already used in 2 slots' : `${2 - usedCount} slot${2 - usedCount !== 1 ? 's' : ''} remaining`}
+                      </p>
+                    </div>
+                    {!disabled && !atLimit && <ChevronRight size={12} className="text-white/30 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl w-full bg-[#0a0a0a] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col lg:flex-row shadow-3xl h-full lg:h-[90vh] max-h-[1000px] animate-in zoom-in-95 duration-300">
 
         {/* Deploy Overlay */}
