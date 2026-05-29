@@ -5,6 +5,7 @@ import type {
   FediverseAccount, FediversePost, FediverseNotification,
   FediverseProtocol, CreatePostOptions,
 } from '../services/fediverse/types';
+import type { BskyConversation, BskyMessage } from '../services/fediverse/bluesky';
 import {
   removeFediverseAccount,
   connectThreads,
@@ -68,6 +69,14 @@ interface FediverseContextValue {
 
   accountsByProtocol: (protocol: FediverseProtocol) => FediverseAccount[];
   hasProtocol: (protocol: FediverseProtocol) => boolean;
+
+  // Bluesky DMs
+  dmConversations: BskyConversation[];
+  dmMessages: Record<string, BskyMessage[]>;
+  isDmLoading: boolean;
+  loadDmConversations: () => Promise<void>;
+  loadDmMessages: (convoId: string) => Promise<void>;
+  sendDmMessage: (convoId: string, text: string) => Promise<void>;
 }
 
 const FediverseContext = createContext<FediverseContextValue | undefined>(undefined);
@@ -83,6 +92,9 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isLoadingFeed, setIsLoadingFeed]         = useState(false);
   const [isCrossPosting, setIsCrossPosting]       = useState(false);
+  const [dmConversations, setDmConversations]     = useState<BskyConversation[]>([]);
+  const [dmMessages, setDmMessages]               = useState<Record<string, BskyMessage[]>>({});
+  const [isDmLoading, setIsDmLoading]             = useState(false);
   const feedRefreshRef = useRef(false);
 
   // ─── Load accounts via server (handles encrypted credentials) ───────────────
@@ -339,6 +351,49 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const hasProtocol = useCallback((protocol: FediverseProtocol) =>
     accounts.some(a => a.protocol === protocol && a.isActive), [accounts]);
 
+  // ─── DMs ────────────────────────────────────────────────────────────────────
+
+  const loadDmConversations = useCallback(async () => {
+    const token = await getToken();
+    if (!token) return;
+    setIsDmLoading(true);
+    try {
+      const data = await serverJson<{ conversations: BskyConversation[] }>(
+        '/api/fediverse/bluesky/dm/conversations', token
+      );
+      setDmConversations(data.conversations ?? []);
+    } catch (err) {
+      console.error('[Fediverse] DM conversations failed:', err);
+    } finally {
+      setIsDmLoading(false);
+    }
+  }, []);
+
+  const loadDmMessages = useCallback(async (convoId: string) => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const data = await serverJson<{ messages: BskyMessage[] }>(
+        `/api/fediverse/bluesky/dm/messages?convoId=${encodeURIComponent(convoId)}`, token
+      );
+      setDmMessages(prev => ({ ...prev, [convoId]: data.messages ?? [] }));
+    } catch (err) {
+      console.error('[Fediverse] DM messages failed:', err);
+    }
+  }, []);
+
+  const sendDmMessage = useCallback(async (convoId: string, text: string) => {
+    const token = await getToken();
+    if (!token) return;
+    const data = await serverJson<{ message: BskyMessage }>(
+      '/api/fediverse/bluesky/dm/send', token,
+      { method: 'POST', body: JSON.stringify({ convoId, text }) }
+    );
+    if (data.message) {
+      setDmMessages(prev => ({ ...prev, [convoId]: [...(prev[convoId] ?? []), data.message] }));
+    }
+  }, []);
+
   const value: FediverseContextValue = {
     accounts, feed, notifications, feedErrors,
     isLoadingAccounts, isLoadingFeed, isCrossPosting,
@@ -347,6 +402,8 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshFeed, refreshNotifications,
     crossPost, broadcast, toggleLike, toggleRepost,
     accountsByProtocol, hasProtocol,
+    dmConversations, dmMessages, isDmLoading,
+    loadDmConversations, loadDmMessages, sendDmMessage,
   };
 
   return (

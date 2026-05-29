@@ -422,3 +422,97 @@ export const blueskyadapter: FediverseAdapter = {
     return mapProfile(data);
   },
 };
+
+// ─── Bluesky DMs (chat.bsky.convo) ────────────────────────────────────────────
+// Bluesky DMs live at https://api.bsky.chat/xrpc/ and require a service auth token.
+
+const BSKY_CHAT_URL = 'https://api.bsky.chat';
+
+async function getChatToken(creds: FediverseCredentials): Promise<string> {
+  const pds = (creds.pdsUrl ?? DEFAULT_PDS).replace(/\/$/, '');
+  const res = await fetch(`${pds}/xrpc/com.atproto.server.getServiceAuth`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${creds.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  // getServiceAuth via query param
+  const url = `${pds}/xrpc/com.atproto.server.getServiceAuth?aud=did:web:api.bsky.chat&lxm=chat.bsky.convo.sendMessage&exp=${Math.floor(Date.now() / 1000) + 3600}`;
+  const res2 = await fetch(url, { headers: { Authorization: `Bearer ${creds.accessToken}` } });
+  if (!res2.ok) {
+    // fallback to access token directly
+    return creds.accessToken;
+  }
+  const data = await res2.json() as { token: string };
+  return data.token ?? creds.accessToken;
+}
+
+async function chatXrpc(method: string, params: Record<string, string> | null, body: unknown | null, token: string): Promise<unknown> {
+  let url = `${BSKY_CHAT_URL}/xrpc/${method}`;
+  if (params) url += `?${new URLSearchParams(params).toString()}`;
+  const res = await fetch(url, {
+    method: body !== null ? 'POST' : 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body !== null ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`Bluesky chat ${method} → ${res.status}`);
+  return res.json();
+}
+
+export interface BskyConversation {
+  id: string;
+  lastMessage?: { text: string; sentAt: string };
+  unreadCount: number;
+  muted: boolean;
+  members: { did: string; handle: string; displayName?: string; avatarUrl?: string }[];
+}
+
+export interface BskyMessage {
+  id: string;
+  text: string;
+  sentAt: string;
+  senderDid: string;
+  senderHandle: string;
+}
+
+export async function bskyListConversations(creds: FediverseCredentials): Promise<BskyConversation[]> {
+  const token = await getChatToken(creds);
+  const data = await chatXrpc('chat.bsky.convo.listConvos', null, null, token) as { convos: any[] };
+  return (data.convos ?? []).map((c: any) => ({
+    id: c.id,
+    unreadCount: c.unreadCount ?? 0,
+    muted: c.muted ?? false,
+    lastMessage: c.lastMessage ? { text: c.lastMessage.text ?? '', sentAt: c.lastMessage.sentAt ?? '' } : undefined,
+    members: (c.members ?? []).map((m: any) => ({
+      did: m.did,
+      handle: m.handle,
+      displayName: m.displayName,
+      avatarUrl: m.avatar,
+    })),
+  }));
+}
+
+export async function bskyGetMessages(creds: FediverseCredentials, convoId: string): Promise<BskyMessage[]> {
+  const token = await getChatToken(creds);
+  const data = await chatXrpc('chat.bsky.convo.getMessages', { convoId, limit: '50' }, null, token) as { messages: any[] };
+  return (data.messages ?? []).map((m: any) => ({
+    id: m.id,
+    text: m.text ?? m.message?.text ?? '',
+    sentAt: m.sentAt ?? '',
+    senderDid: m.sender?.did ?? '',
+    senderHandle: m.sender?.handle ?? '',
+  }));
+}
+
+export async function bskySendMessage(creds: FediverseCredentials, convoId: string, text: string): Promise<BskyMessage> {
+  const token = await getChatToken(creds);
+  const data = await chatXrpc('chat.bsky.convo.sendMessage', null, { convoId, message: { text } }, token) as any;
+  return {
+    id: data.id ?? '',
+    text: data.text ?? text,
+    sentAt: data.sentAt ?? new Date().toISOString(),
+    senderDid: creds.did ?? '',
+    senderHandle: '',
+  };
+}

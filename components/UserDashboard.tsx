@@ -17,6 +17,7 @@ import {
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2
 } from 'lucide-react';
 import FediverseSettings from './FediverseSettings';
+import FediverseHub from './FediverseHub';
 import { motion } from 'motion/react';
 
 import AlbumCreator from './AlbumCreator';
@@ -1770,7 +1771,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </div>
               </section>
 
-              <FediverseSettings />
+              {/* ── Fediverse Hub — native feed + DMs + compose ── */}
+              <section className="space-y-4">
+                <FediverseHub onOpenSettings={() => setActiveTab('NETWORKS')} />
+              </section>
+
+              <div className="pt-8 border-t border-white/[0.06]">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-6">Connect / Manage Accounts</h2>
+                <FediverseSettings />
+              </div>
             </motion.div>
           )}
         </div>

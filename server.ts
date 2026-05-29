@@ -1254,6 +1254,58 @@ async function startServer() {
     }
   });
 
+  // ── Bluesky DMs — list conversations ─────────────────────────────────────────
+  app.get('/api/fediverse/bluesky/dm/conversations', authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const bskyAccount = accounts.find(a => a.protocol === 'bluesky');
+      if (!bskyAccount) return res.status(404).json({ error: 'No Bluesky account connected' });
+      const { bskyListConversations } = await import('./services/fediverse/bluesky.js');
+      const convos = await bskyListConversations(bskyAccount.credentials);
+      res.json({ conversations: convos });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'DM fetch failed' });
+    }
+  });
+
+  // ── Bluesky DMs — get messages in conversation ────────────────────────────────
+  app.get('/api/fediverse/bluesky/dm/messages', authMiddleware, async (req: any, res) => {
+    const { convoId } = req.query as { convoId?: string };
+    if (!convoId) return res.status(400).json({ error: 'convoId required' });
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const bskyAccount = accounts.find(a => a.protocol === 'bluesky');
+      if (!bskyAccount) return res.status(404).json({ error: 'No Bluesky account connected' });
+      const { bskyGetMessages } = await import('./services/fediverse/bluesky.js');
+      const messages = await bskyGetMessages(bskyAccount.credentials, convoId);
+      res.json({ messages });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Message fetch failed' });
+    }
+  });
+
+  // ── Bluesky DMs — send message ────────────────────────────────────────────────
+  app.post('/api/fediverse/bluesky/dm/send', express.json(), authMiddleware, async (req: any, res) => {
+    const { convoId, text } = req.body as { convoId?: string; text?: string };
+    if (!convoId || !text?.trim()) return res.status(400).json({ error: 'convoId and text required' });
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const bskyAccount = accounts.find(a => a.protocol === 'bluesky');
+      if (!bskyAccount) return res.status(404).json({ error: 'No Bluesky account connected' });
+      const { bskySendMessage } = await import('./services/fediverse/bluesky.js');
+      const message = await bskySendMessage(bskyAccount.credentials, convoId, text);
+      res.json({ message });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Send failed' });
+    }
+  });
+
   // ── Legacy compat — keep old callback path working ──────────────────────────
   app.get('/auth/mastodon/callback', (req, res) => {
     res.redirect(`/auth/fediverse/callback?${new URLSearchParams(req.query as Record<string, string>)}`);
