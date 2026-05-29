@@ -91,6 +91,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
+  const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
   const [availableAlbums, setAvailableAlbums] = useState<Album[]>([]);
   const [movieMetadata, setMovieMetadata] = useState<MovieMetadata>(initialAlbum?.movieMetadata || {
     cast: [], crew: [], trailerUrl: '', releaseYear: new Date().getFullYear(), specialFeatures: []
@@ -433,6 +434,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         createdAt: initialAlbum?.createdAt || Date.now(),
         isPublic: !isPrivate && !isDraft,
         isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
+        publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
+        audiusPublishStatus: (type === 'MUSIC' && publishToAudius) ? 'pending' as const : initialAlbum?.audiusPublishStatus,
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
         worldId: finalWorldId,
         characterIds: createdCharacterIds.length > 0 ? createdCharacterIds : initialAlbum?.characterIds,
@@ -1460,6 +1463,39 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </button>
           </div>
         </div>
+
+        {type === 'MUSIC' && (
+          <div className="p-6 rounded-[2.5rem] space-y-3"
+            style={{ background: publishToAudius ? 'rgba(126,34,206,0.12)' : 'rgba(255,255,255,0.03)', border: publishToAudius ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center border"
+                  style={{ background: 'rgba(126,34,206,0.15)', borderColor: 'rgba(168,85,247,0.3)' }}>
+                  <Music2 size={18} style={{ color: '#a855f7' }} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest">Publish to Audius</h4>
+                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.7)' }}>Decentralized · Artist earns on every stream</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setPublishToAudius(!publishToAudius)}
+                className="w-12 h-7 rounded-full transition-all relative shrink-0"
+                style={{ background: publishToAudius ? '#7e22ce' : 'rgba(255,255,255,0.1)' }}>
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${publishToAudius ? 'left-5' : 'left-0.5'}`} />
+              </button>
+            </div>
+            {publishToAudius && (
+              <div className="flex items-start gap-3 px-1 pt-1">
+                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a855f7' }} />
+                <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(168,85,247,0.8)' }}>
+                  Your album will be queued for publishing to the Audius decentralized network after saving.
+                  Connect your Audius account in <span className="font-black">Profile → Settings → Audius</span> to enable direct publishing.
+                  Audius pays artists in $AUDIO tokens on every stream — no middlemen.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {type === 'VIDEO' && (
           <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem]">

@@ -336,6 +336,10 @@ export interface Album {
   gameScreenshots?: string[];
   gameVideoUrl?: string;
   allowPageSharing?: boolean;
+  // Audius decentralized publishing
+  publishToAudius?: boolean;        // artist toggled "publish to Audius"
+  audiusPublishStatus?: 'pending' | 'publishing' | 'published' | 'failed';
+  audiusPermalinks?: string[];      // one URL per track published to Audius
 }
 
 // ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
@@ -931,6 +935,10 @@ export interface UserProfile {
   threadsHandle?: string; // e.g., username
   subscribedPodcastIds?: string[]; // Album IDs of podcasts user has subscribed to from the podcast section
   avatar?: AvatarConfig;
+  // Audius decentralized music platform
+  audiusHandle?: string;       // e.g., "@myartist" on audius.co
+  audiusUserId?: string;       // internal Audius user ID after OAuth
+  audiusBearerToken?: string;  // OAuth bearer token for write API (stored encrypted in practice)
 }
 
 export interface SystemStats {

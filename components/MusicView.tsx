@@ -20,6 +20,7 @@ import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
 import { PodcastsView } from './PodcastsView';
 import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
+import { fetchAudiusTrending, searchAudius } from '../services/audiusService';
 import PlajahPlusBanner from './PlajahPlusBanner';
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
@@ -41,10 +42,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'NEW');
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'RECENT' | 'ALPHA'>('RECENT');
-  const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO'>('ALL');
-  const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS'>('ALL');
+  const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
+  const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS' | 'TRENDING'>('ALL');
   const [album3D, setAlbum3D] = useState<Album | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
+  const [audiusSearchResults, setAudiusSearchResults] = useState<ArchiveTrack[]>([]);
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
 
@@ -81,21 +83,33 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     const loadVault = async () => {
       try {
         let tracks: ArchiveTrack[] = [];
-        if (vaultCategory === 'JAZZ') {
-          tracks = await fetchArchiveMusic('Jazz', 40);
+        if (vaultCategory === 'TRENDING') {
+          tracks = await fetchAudiusTrending(undefined, 50);
+        } else if (vaultCategory === 'JAZZ') {
+          const [ia, audius] = await Promise.all([
+            fetchArchiveMusic('Jazz', 30),
+            fetchAudiusTrending('Jazz', 20),
+          ]);
+          tracks = [...ia, ...audius];
         } else if (vaultCategory === 'CLASSICAL') {
-          tracks = await fetchArchiveMusic('Classical', 40);
+          const [ia, audius] = await Promise.all([
+            fetchArchiveMusic('Classical', 30),
+            fetchAudiusTrending('Classical', 20),
+          ]);
+          tracks = [...ia, ...audius];
         } else if (vaultCategory === 'AUDIOBOOKS') {
           tracks = await fetchArchiveAudiobooks(40);
         } else if (vaultCategory === 'PODCASTS') {
           tracks = await fetchArchivePodcasts(40);
         } else {
-          const [ia, wiki, jam] = await Promise.all([
-            fetchArchiveMusic('All', 20),
-            fetchWikimediaAudio('Classical', 20),
-            fetchJamendoMusic(20)
+          // ALL — mix all sources including Audius
+          const [ia, wiki, jam, audius] = await Promise.all([
+            fetchArchiveMusic('All', 15),
+            fetchWikimediaAudio('Classical', 10),
+            fetchJamendoMusic(15),
+            fetchAudiusTrending(undefined, 20),
           ]);
-          tracks = [...ia, ...wiki, ...jam];
+          tracks = [...ia, ...wiki, ...jam, ...audius];
         }
         setVaultTracks(tracks.sort(() => Math.random() - 0.5));
       } catch (err) {
@@ -104,6 +118,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     };
     if (activeTab === 'VAULT') loadVault();
   }, [activeTab, vaultCategory]);
+
+  // Audius live search when source = AUDIUS
+  useEffect(() => {
+    if (!vaultSearchQuery || vaultSource !== 'AUDIUS') { setAudiusSearchResults([]); return; }
+    const id = setTimeout(async () => {
+      const results = await searchAudius(vaultSearchQuery, 30);
+      setAudiusSearchResults(results);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [vaultSearchQuery, vaultSource]);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -208,7 +232,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       tracks: [vaultTrack],
       createdAt: Date.now(),
       themeColor: '#ff8c00',
-      description: `Public domain recording from ${track.source}.`
+      description: track.source === 'AUDIUS'
+        ? `Streaming via Audius — the decentralized music network. Artist earns on every play.`
+        : `Public domain recording from ${track.source}.`
     };
     playTrack(vaultTrack, vaultAlbum, 'RADIO');
   };
@@ -225,83 +251,140 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   }
 
   const renderVault = () => {
-    let filteredVault = vaultSource === 'ALL' ? vaultTracks : vaultTracks.filter(t => t.source === vaultSource);
-    if (vaultSearchQuery) {
-      const query = vaultSearchQuery.toLowerCase();
-      filteredVault = filteredVault.filter(t => 
-        t.title.toLowerCase().includes(query) || 
-        t.artist.toLowerCase().includes(query)
+    // When AUDIUS source + search query → use live Audius search results
+    const baseVault = (vaultSource === 'AUDIUS' && vaultSearchQuery && audiusSearchResults.length)
+      ? audiusSearchResults
+      : vaultSource === 'ALL' ? vaultTracks : vaultTracks.filter(t => t.source === vaultSource);
+
+    let filteredVault = baseVault;
+    if (vaultSearchQuery && !(vaultSource === 'AUDIUS' && audiusSearchResults.length)) {
+      const q = vaultSearchQuery.toLowerCase();
+      filteredVault = filteredVault.filter(t =>
+        t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
       );
     }
+
+    const sourceBadge = (track: ArchiveTrack) => {
+      const isAudius = track.source === 'AUDIUS';
+      return (
+        <div
+          className="absolute top-2 right-2 px-2 py-1 backdrop-blur-md rounded-lg text-[7px] font-black uppercase tracking-widest"
+          style={isAudius
+            ? { background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }
+            : { background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
+        >
+          {isAudius ? 'AUDIUS' : track.source.split('_')[0]}
+        </div>
+      );
+    };
+
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="shrink-0">
             <PageHeader wrapperClassName="mb-12">Plajah Vault</PageHeader>
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 px-1">Public Domain & Historical Archives</p>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 px-1">
+              Public Domain · Creative Commons · Audius Decentralized
+            </p>
           </div>
 
           <div className="flex-1 max-w-sm">
             <div className="flex items-center gap-4 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl">
               <Search size={16} className="text-white/20" />
-              <input 
-                type="text" 
-                placeholder="Search Archive Artists & Tracks..." 
+              <input
+                type="text"
+                placeholder={vaultSource === 'AUDIUS' ? 'Search Audius…' : 'Search Archive Artists & Tracks…'}
                 value={vaultSearchQuery}
-                onChange={(e) => setVaultSearchQuery(e.target.value)}
+                onChange={e => setVaultSearchQuery(e.target.value)}
                 className="bg-transparent border-none outline-none text-xs font-bold w-full placeholder:text-white/10"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
+            {/* Category chips */}
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-              {(['ALL', 'JAZZ', 'CLASSICAL', 'AUDIOBOOKS', 'PODCASTS'] as const).map(cat => (
-                <button 
+              {(['ALL', 'TRENDING', 'JAZZ', 'CLASSICAL', 'AUDIOBOOKS', 'PODCASTS'] as const).map(cat => (
+                <button
                   key={cat}
-                  onClick={() => setVaultCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${vaultCategory === cat ? 'bg-small-orange border-small-orange text-black' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                  onClick={() => { setVaultCategory(cat); if (cat === 'TRENDING') setVaultSource('ALL'); }}
+                  className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all"
+                  style={vaultCategory === cat
+                    ? cat === 'TRENDING'
+                      ? { background: '#7e22ce', borderColor: '#7e22ce', color: '#e9d5ff' }
+                      : { background: 'var(--color-small-orange, #ff8c00)', borderColor: 'var(--color-small-orange, #ff8c00)', color: '#000' }
+                    : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
                 >
-                  {cat}
+                  {cat === 'TRENDING' ? '⚡ Trending' : cat}
                 </button>
               ))}
             </div>
+            {/* Source chips */}
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-              {(['ALL', 'INTERNET_ARCHIVE', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
-                <button 
+              {(['ALL', 'AUDIUS', 'INTERNET_ARCHIVE', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
+                <button
                   key={source}
                   onClick={() => setVaultSource(source)}
-                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${vaultSource === source ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40'}`}
+                  className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all"
+                  style={vaultSource === source
+                    ? source === 'AUDIUS'
+                      ? { background: '#7e22ce', borderColor: '#7e22ce', color: '#e9d5ff' }
+                      : { background: '#fff', borderColor: '#fff', color: '#000' }
+                    : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
                 >
-                  {source.replace('_', ' ')}
+                  {source === 'AUDIUS' ? '◈ Audius' : source.replace(/_/g, ' ')}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
+        {/* Audius hero strip when TRENDING or AUDIUS source selected */}
+        {(vaultCategory === 'TRENDING' || vaultSource === 'AUDIUS') && (
+          <div className="flex items-center gap-4 px-6 py-4 rounded-2xl"
+            style={{ background: 'linear-gradient(135deg,rgba(126,34,206,0.25),rgba(168,85,247,0.1))', border: '1px solid rgba(168,85,247,0.25)' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}>
+              <Music2 size={14} className="text-purple-200" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-0.5">Audius — Decentralized Music</p>
+              <p className="text-[10px] text-white/50 leading-tight truncate">
+                {vaultCategory === 'TRENDING' ? 'Top trending tracks on the Audius blockchain network · streams pay artists directly' : 'Streaming live from the Audius decentralized network · zero middlemen'}
+              </p>
+            </div>
+            <a href="https://audius.co" target="_blank" rel="noopener noreferrer"
+              className="shrink-0 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest"
+              style={{ background: '#7e22ce', color: '#e9d5ff' }}>
+              Open Audius
+            </a>
+          </div>
+        )}
+
+        {/* Track grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {filteredVault.map(track => (
-            <motion.div 
+            <motion.div
               key={track.id}
               whileHover={{ y: -5 }}
               className="group bg-white/[0.03] border border-white/5 rounded-3xl p-4 transition-all hover:bg-white/[0.08]"
+              style={track.source === 'AUDIUS' ? { borderColor: 'rgba(168,85,247,0.15)' } : undefined}
             >
-              <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative" onClick={() => handlePlayVaultTrack(track)}>
+              <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                 <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                  <div className="w-12 h-12 rounded-full bg-small-orange flex items-center justify-center text-black">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-black"
+                    style={{ background: track.source === 'AUDIUS' ? '#a855f7' : 'var(--color-small-orange,#ff8c00)' }}>
                     <Play size={24} fill="currentColor" className="ml-1" />
                   </div>
                 </div>
-                <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[7px] font-black uppercase tracking-widest">
-                  {track.source.split('_')[0]}
-                </div>
+                {sourceBadge(track)}
               </div>
               <h4 className="text-xs font-black uppercase tracking-widest truncate mb-1">{track.title}</h4>
-              <button 
+              <button
                 onClick={() => setSelectedArchiveArtist(track.artist)}
-                className="text-[9px] font-bold text-white/40 uppercase tracking-widest hover:text-small-orange transition-colors"
+                className="text-[9px] font-bold uppercase tracking-widest hover:text-small-orange transition-colors"
+                style={{ color: track.source === 'AUDIUS' ? 'rgba(168,85,247,0.8)' : 'rgba(255,255,255,0.4)' }}
               >
                 {track.artist}
               </button>

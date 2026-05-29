@@ -28,7 +28,7 @@ export interface ArchiveTrack {
   artist: string;
   url: string;
   thumbnailUrl: string;
-  source: 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'SOUND_CLOUD';
+  source: 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'SOUND_CLOUD' | 'AUDIUS';
   genre?: string;
   year?: string;
   license?: string;
