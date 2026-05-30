@@ -369,6 +369,22 @@ export interface ReviewCode {
   isRevoked: boolean;
 }
 
+export interface EarlyAccessRequest {
+  id: string;
+  albumId: string;
+  albumTitle: string;
+  albumCover?: string;
+  requesterId: string;
+  requesterName: string;
+  requesterPhoto?: string;
+  creatorId: string;
+  status: 'PENDING' | 'GRANTED' | 'DENIED';
+  generatedCode?: string;           // set when creator grants access
+  message?: string;                 // optional note from requester
+  requestedAt: number;
+  respondedAt?: number;
+}
+
 // ─── HIDE N SEEK ─────────────────────────────────────────────────────────────
 
 export interface HideNSeekAlternate {

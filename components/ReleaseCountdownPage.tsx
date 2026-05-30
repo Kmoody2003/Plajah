@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Bell, Share2, Copy, Check, ChevronRight, Lock } from 'lucide-react';
-import type { Album } from '../types';
-import { redeemReviewCode, checkEarlyAccess, fetchAlbumById } from '../services/backendService';
+import { Calendar, Share2, Check, ChevronRight, Lock, Send, MessageSquare } from 'lucide-react';
+import type { Album, EarlyAccessRequest } from '../types';
+import { redeemReviewCode, checkEarlyAccess, fetchAlbumById, requestEarlyAccess, fetchMyEarlyAccessRequest } from '../services/backendService';
+import { auth } from '../services/backendService';
 
 // ─── Image brightness analysis ────────────────────────────────────────────────
 // Samples a remote image via canvas and returns 0–255 average brightness.
@@ -146,6 +147,13 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
   const [loading, setLoading] = useState(!initialAlbum);
   const slideTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Early access request state ──────────────────────────────────────────────
+  const [myRequest, setMyRequest] = useState<EarlyAccessRequest | null>(null);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+
   // Load album if not provided
   useEffect(() => {
     if (initialAlbum) return;
@@ -159,6 +167,11 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
   // Check existing access
   useEffect(() => {
     checkEarlyAccess(albumId).then(setHasAccess);
+    if (auth.currentUser) {
+      fetchMyEarlyAccessRequest(albumId).then(req => {
+        if (req) { setMyRequest(req); setRequestSent(req.status !== 'PENDING' ? false : true); }
+      });
+    }
   }, [albumId]);
 
   // Countdown tick
@@ -210,6 +223,26 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
     }
   };
 
+  const handleSendRequest = async () => {
+    if (requesting || !album) return;
+    if (!auth.currentUser) { alert('Sign in to request early access.'); return; }
+    setRequesting(true);
+    const reqId = await requestEarlyAccess(
+      albumId,
+      album.title,
+      album.coverImage,
+      album.ownerId || '',
+      requestMessage.trim() || undefined
+    );
+    setRequesting(false);
+    if (reqId) {
+      setMyRequest({ id: reqId, albumId, albumTitle: album.title, requesterId: auth.currentUser.uid, requesterName: auth.currentUser.displayName || '', creatorId: album.ownerId || '', status: 'PENDING', requestedAt: Date.now() });
+      setRequestSent(true);
+      setShowRequestForm(false);
+      setRequestMessage('');
+    }
+  };
+
   const shareUrl = `${window.location.origin}/release/${albumId}`;
   const handleShare = () => {
     if (navigator.share) {
@@ -250,9 +283,12 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
   }
 
   return (
-    <div className="fixed inset-0 z-[300] overflow-hidden select-none">
+    <div className="fixed inset-0 z-[300] overflow-hidden select-none bg-[#060608]">
 
-      {/* ── Background slideshow ── */}
+      {/* ── Solid dark base — blocks platform content entirely ── */}
+      <div className="absolute inset-0 bg-[#060608]" />
+
+      {/* ── Background slideshow — sits on top of the solid base ── */}
       <AnimatePresence>
         <motion.div key={bgIndex}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -262,15 +298,16 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
             backgroundImage: `url(${images[bgIndex] ?? ''})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'blur(2px) brightness(0.38) saturate(1.4)',
+            filter: 'blur(3px) brightness(0.28) saturate(1.6)',
             transform: 'scale(1.08)',
+            opacity: 0.9,
           }}
         />
       </AnimatePresence>
 
-      {/* Dark overlay gradient — stronger at top/bottom */}
+      {/* Near-solid dark overlay — platform beneath is invisible */}
       <div className="absolute inset-0"
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 45%, rgba(0,0,0,0.72) 100%)' }} />
+        style={{ background: 'linear-gradient(to bottom, rgba(6,6,8,0.75) 0%, rgba(6,6,8,0.35) 45%, rgba(6,6,8,0.82) 100%)' }} />
 
       {/* ── Content ── */}
       <div className="relative h-full flex flex-col items-center justify-between px-6 py-10 overflow-y-auto">
@@ -357,16 +394,73 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
             </button>
           </div>
 
-          {/* Early Access / Review Code */}
+          {/* ── Early Access block ── */}
           {!released && album.earlyAccessEnabled && !hasAccess && (
-            <div className="w-full">
-              {!showCodeEntry ? (
+            <div className="w-full space-y-2">
+
+              {/* 1. Request pending state */}
+              {requestSent && myRequest?.status === 'PENDING' && (
+                <div className="flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <MessageSquare size={11} className="text-white/40" />
+                  <span className="text-white/50">Request sent — check your DMs for a code</span>
+                </div>
+              )}
+
+              {/* 2. Granted — prompt to enter code */}
+              {myRequest?.status === 'GRANTED' && !showCodeEntry && (
                 <button onClick={() => setShowCodeEntry(true)}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02]"
-                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
-                  <Lock size={11} /> Have a Review Code? Enter it here
+                  style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  <Check size={11} /> Access approved — enter your code
                 </button>
-              ) : (
+              )}
+
+              {/* 3. Request form */}
+              {!requestSent && !myRequest && (
+                <AnimatePresence mode="wait">
+                  {!showRequestForm ? (
+                    <motion.div key="request-btns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="flex gap-2">
+                      <button onClick={() => setShowRequestForm(true)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02]"
+                        style={{ background: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}35` }}>
+                        <MessageSquare size={11} /> Request Early Access
+                      </button>
+                      <button onClick={() => setShowCodeEntry(true)}
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02]"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <Lock size={11} />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="request-form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="space-y-2">
+                      <textarea
+                        value={requestMessage}
+                        onChange={e => setRequestMessage(e.target.value)}
+                        placeholder="Add a note to the creator (optional)…"
+                        rows={2}
+                        className="w-full bg-white/8 border border-white/15 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/30 resize-none transition-all"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
+                          className="px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+                          Cancel
+                        </button>
+                        <button onClick={handleSendRequest} disabled={requesting}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 transition-all hover:scale-[1.02]"
+                          style={{ background: accentColor, color: '#000' }}>
+                          {requesting ? '…' : <><Send size={11} /> Send Request</>}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
+
+              {/* 4. Code entry (shown after grant OR manually opened) */}
+              {showCodeEntry && (
                 <AnimatePresence>
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                     className="space-y-2">
@@ -377,7 +471,8 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
                         onKeyDown={e => e.key === 'Enter' && handleRedeem()}
                         placeholder="ENTER CODE"
                         maxLength={12}
-                        className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-sm font-black tracking-[0.3em] text-white placeholder:text-white/20 outline-none focus:border-white/40 backdrop-blur-md transition-all text-center"
+                        autoFocus
+                        className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-sm font-black tracking-[0.3em] text-white placeholder:text-white/20 outline-none focus:border-white/40 transition-all text-center"
                       />
                       <button onClick={handleRedeem} disabled={!codeInput.trim() || redeeming}
                         className="flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 disabled:opacity-40"
@@ -392,6 +487,10 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
                         ✓ Access granted — loading…
                       </motion.p>
                     )}
+                    <button onClick={() => setShowCodeEntry(false)}
+                      className="w-full text-[8px] text-white/20 hover:text-white/40 transition-colors py-1">
+                      ← Back
+                    </button>
                   </motion.div>
                 </AnimatePresence>
               )}

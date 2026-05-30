@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock, Plus, Copy, Trash2, Check, RefreshCw,
-  Mail, User, Tag, ExternalLink, Eye, EyeOff, X,
+  Mail, User, Tag, ExternalLink, X, CheckCircle, XCircle, Clock,
 } from 'lucide-react';
-import type { Album, EarlyAccessEntry, ReviewCode } from '../types';
+import type { Album, EarlyAccessEntry, ReviewCode, EarlyAccessRequest } from '../types';
 import {
   generateReviewCode, revokeReviewCode,
   addEarlyAccessUser, removeEarlyAccessUser, updateAlbum,
+  fetchEarlyAccessRequests, grantEarlyAccessRequest, denyEarlyAccessRequest,
 } from '../services/backendService';
 import { searchUsers } from '../services/backendService';
 import type { UserProfile } from '../types';
@@ -33,7 +34,34 @@ export default function EarlyAccessManager({ album, onAlbumUpdate }: Props) {
   const [labelInput, setLabelInput] = useState('Press');
 
   const [copied, setCopied] = useState<string | null>(null);
-  const [tab, setTab] = useState<'codes' | 'list'>('codes');
+  const [tab, setTab] = useState<'codes' | 'list' | 'requests'>('codes');
+  const [requests, setRequests] = useState<EarlyAccessRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
+
+  // Load requests when tab opens
+  useEffect(() => {
+    if (tab !== 'requests') return;
+    setRequestsLoading(true);
+    fetchEarlyAccessRequests(album.id).then(reqs => { setRequests(reqs); setRequestsLoading(false); });
+  }, [tab, album.id]);
+
+  const handleGrant = async (req: EarlyAccessRequest) => {
+    setGrantingId(req.id);
+    const code = await grantEarlyAccessRequest(req.id, album.id, req.requesterId, req.requesterName);
+    if (code) {
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'GRANTED', generatedCode: code } : r));
+      // Optimistically update local earlyAccessList
+      const entry: EarlyAccessEntry = { uid: req.requesterId, displayName: req.requesterName, addedAt: Date.now(), label: 'Access Request', codeUsed: code };
+      onAlbumUpdate({ earlyAccessList: [...list, entry] });
+    }
+    setGrantingId(null);
+  };
+
+  const handleDeny = async (req: EarlyAccessRequest) => {
+    await denyEarlyAccessRequest(req.id);
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'DENIED' } : r));
+  };
 
   // --- User search ---
   useEffect(() => {
@@ -155,11 +183,15 @@ export default function EarlyAccessManager({ album, onAlbumUpdate }: Props) {
         <div className="space-y-4">
           {/* Tab bar */}
           <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            {(['codes', 'list'] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
+            {([
+              { id: 'codes', label: `Codes (${activeCodes.length})` },
+              { id: 'list',  label: `List (${list.length})` },
+              { id: 'requests', label: `Requests${requests.filter(r => r.status === 'PENDING').length > 0 ? ` · ${requests.filter(r => r.status === 'PENDING').length}` : ''}` },
+            ] as { id: typeof tab; label: string }[]).map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
                 className="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-                style={tab === t ? { background: '#ff8c00', color: '#000' } : { color: 'rgba(255,255,255,0.4)' }}>
-                {t === 'codes' ? `Review Codes (${activeCodes.length})` : `Access List (${list.length})`}
+                style={tab === t.id ? { background: '#ff8c00', color: '#000' } : { color: 'rgba(255,255,255,0.4)' }}>
+                {t.label}
               </button>
             ))}
           </div>
@@ -321,12 +353,71 @@ export default function EarlyAccessManager({ album, onAlbumUpdate }: Props) {
                 </div>
               </motion.div>
             )}
+
+            {/* ── REQUESTS TAB ── */}
+            {tab === 'requests' && (
+              <motion.div key="requests" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <p className="text-[8px] text-white/30 uppercase tracking-widest">
+                  Users who requested early access. Grant sends them a code via DM.
+                </p>
+
+                {requestsLoading ? (
+                  <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-white/20 border-t-orange-400 rounded-full animate-spin" /></div>
+                ) : requests.length === 0 ? (
+                  <p className="text-[9px] text-white/20 text-center py-8 uppercase tracking-widest">No access requests yet</p>
+                ) : (
+                  requests.map(req => (
+                    <div key={req.id} className="flex items-center gap-3 p-3 rounded-2xl"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <img
+                        src={req.requesterPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.requesterId}`}
+                        className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                        alt=""
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest truncate">{req.requesterName}</p>
+                        {req.message && <p className="text-[8px] text-white/30 truncate mt-0.5">"{req.message}"</p>}
+                        <p className="text-[7px] text-white/20 mt-0.5">{new Date(req.requestedAt).toLocaleDateString()}</p>
+                      </div>
+                      {/* Status / actions */}
+                      {req.status === 'PENDING' && (
+                        <div className="flex gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleGrant(req)}
+                            disabled={grantingId === req.id}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all disabled:opacity-40 hover:scale-105"
+                            style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                            {grantingId === req.id ? '…' : <><CheckCircle size={10} /> Grant</>}
+                          </button>
+                          <button
+                            onClick={() => handleDeny(req)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-red-400 transition-all"
+                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <XCircle size={10} />
+                          </button>
+                        </div>
+                      )}
+                      {req.status === 'GRANTED' && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl shrink-0"
+                          style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                          <CheckCircle size={10} className="text-green-400" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-green-400">Granted</span>
+                        </div>
+                      )}
+                      {req.status === 'DENIED' && (
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/20 shrink-0">Denied</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </motion.div>
+            )}
           </AnimatePresence>
 
-          {/* Redeem code widget (for preview/testing) */}
+          {/* Helper text */}
           <div className="pt-3 border-t border-white/[0.05]">
             <p className="text-[7px] text-white/15 uppercase tracking-widest text-center">
-              Share codes or the landing page link — listeners redeem the code on the release page to unlock early access.
+              Early access is off by default — enable the toggle above to restrict this release. Codes and access requests let you control who gets in early.
             </p>
           </div>
         </div>

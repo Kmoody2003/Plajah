@@ -28,7 +28,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -6648,7 +6648,7 @@ export const generateReviewCode = async (
     const albumRef = doc(db, 'albums', albumId);
     await updateDoc(albumRef, {
       reviewCodes: arrayUnion(reviewCode),
-      earlyAccessEnabled: true,
+      // earlyAccessEnabled is controlled explicitly by the creator toggle — not auto-set here
     });
     return reviewCode;
   } catch (e) {
@@ -6681,7 +6681,7 @@ export const addEarlyAccessUser = async (
   try {
     await updateDoc(doc(db, 'albums', albumId), {
       earlyAccessList: arrayUnion(earlyEntry),
-      earlyAccessEnabled: true,
+      // earlyAccessEnabled is controlled explicitly by the creator toggle — not auto-set here
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, `albums/${albumId}`);
@@ -6748,6 +6748,141 @@ export const redeemReviewCode = async (code: string, albumId: string): Promise<b
     });
     return true;
   } catch { return false; }
+};
+
+// ─── Early Access Requests ────────────────────────────────────────────────────
+
+export const requestEarlyAccess = async (
+  albumId: string,
+  albumTitle: string,
+  albumCover: string | undefined,
+  creatorId: string,
+  message?: string
+): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const docRef = doc(collection(db, 'earlyAccessRequests'));
+    const request: EarlyAccessRequest = {
+      id: docRef.id,
+      albumId,
+      albumTitle,
+      albumCover,
+      requesterId: user.uid,
+      requesterName: user.displayName || 'User',
+      requesterPhoto: user.photoURL || undefined,
+      creatorId,
+      status: 'PENDING',
+      message: message || undefined,
+      requestedAt: Date.now(),
+    };
+    await setDoc(docRef, removeUndefined(request));
+
+    // Notify creator via DM
+    const roomId = await createChatRoom([user.uid, creatorId], 'PRIVATE');
+    await sendMessage(roomId, {
+      senderId: 'system',
+      senderName: 'Plajah',
+      senderPhoto: '',
+      type: 'ACTION',
+      text: `${user.displayName || 'A user'} is requesting early access to "${albumTitle}"${message ? ` — "${message}"` : ''}.`,
+      metadata: { action: 'EARLY_ACCESS_REQUEST', url: docRef.id },
+    });
+
+    return docRef.id;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'earlyAccessRequests');
+    return null;
+  }
+};
+
+export const fetchMyEarlyAccessRequest = async (albumId: string): Promise<EarlyAccessRequest | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const q = query(
+      collection(db, 'earlyAccessRequests'),
+      where('albumId', '==', albumId),
+      where('requesterId', '==', user.uid)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as EarlyAccessRequest;
+  } catch { return null; }
+};
+
+export const fetchEarlyAccessRequests = async (albumId: string): Promise<EarlyAccessRequest[]> => {
+  try {
+    const q = query(collection(db, 'earlyAccessRequests'), where('albumId', '==', albumId));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as EarlyAccessRequest))
+      .sort((a, b) => b.requestedAt - a.requestedAt);
+  } catch { return []; }
+};
+
+export const grantEarlyAccessRequest = async (
+  requestId: string,
+  albumId: string,
+  requesterId: string,
+  requesterName: string
+): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    const code = makeCode();
+    const now = Date.now();
+    const reviewCode: ReviewCode = {
+      id: `rc_req_${now}`,
+      albumId,
+      code,
+      label: `Granted to ${requesterName}`,
+      createdAt: now,
+      maxUses: 1,
+      useCount: 0,
+      isRevoked: false,
+    };
+    // Add code to album (pre-redeemed for this user)
+    const albumRef = doc(db, 'albums', albumId);
+    const earlyEntry: EarlyAccessEntry = {
+      uid: requesterId,
+      displayName: requesterName,
+      addedAt: now,
+      label: 'Access Request',
+      codeUsed: code,
+    };
+    await updateDoc(albumRef, {
+      reviewCodes: arrayUnion(reviewCode),
+      earlyAccessList: arrayUnion(earlyEntry),
+    });
+    // Update request status
+    await updateDoc(doc(db, 'earlyAccessRequests', requestId), {
+      status: 'GRANTED',
+      generatedCode: code,
+      respondedAt: now,
+    });
+    // Send code to requester via DM
+    const roomId = await createChatRoom([user.uid, requesterId], 'PRIVATE');
+    await sendMessage(roomId, {
+      senderId: 'system',
+      senderName: 'Plajah',
+      senderPhoto: '',
+      type: 'ACTION',
+      text: `Your early access request was approved! Enter this code on the release page: ${code}`,
+      metadata: { action: 'EARLY_ACCESS_CODE', url: albumId },
+    });
+    return code;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, 'earlyAccessRequests');
+    return null;
+  }
+};
+
+export const denyEarlyAccessRequest = async (requestId: string): Promise<void> => {
+  await updateDoc(doc(db, 'earlyAccessRequests', requestId), {
+    status: 'DENIED',
+    respondedAt: Date.now(),
+  });
 };
 
 // ─── Stories ─────────────────────────────────────────────────────────────────
