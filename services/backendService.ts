@@ -7310,6 +7310,52 @@ export const deleteClubGalleryItem = async (itemId: string) => {
   await deleteDoc(doc(db, 'clubGallery', itemId));
 };
 
+// ── Club Events ───────────────────────────────────────────────────────────────
+
+export const createClubEvent = async (event: Partial<ClubEvent>): Promise<ClubEvent | null> => {
+  if (!auth.currentUser) return null;
+  const docRef = doc(collection(db, 'clubEvents'));
+  const newEvent: ClubEvent = {
+    id: docRef.id,
+    clubId: event.clubId!,
+    hostId: auth.currentUser.uid,
+    title: event.title || 'Untitled Event',
+    description: event.description,
+    type: event.type || 'LIVE_TALK',
+    scheduledAt: event.scheduledAt || Date.now(),
+    isExclusive: event.isExclusive ?? false,
+    isActive: false,
+    attendeeIds: [],
+    timestamp: Date.now(),
+  };
+  await setDoc(docRef, removeUndefined(newEvent));
+  return newEvent;
+};
+
+export const fetchClubEvents = async (clubId: string): Promise<ClubEvent[]> => {
+  try {
+    const q = query(collection(db, 'clubEvents'), where('clubId', '==', clubId));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as ClubEvent))
+      .sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'clubEvents');
+    return [];
+  }
+};
+
+export const deleteClubEvent = async (eventId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'clubEvents', eventId));
+};
+
+export const rsvpClubEvent = async (eventId: string, uid: string, attending: boolean): Promise<void> => {
+  const ref = doc(db, 'clubEvents', eventId);
+  await updateDoc(ref, {
+    attendeeIds: attending ? arrayUnion(uid) : arrayRemove(uid),
+  });
+};
+
 // Club Chat
 export const sendClubChatMessage = async (clubId: string, content: string): Promise<void> => {
   if (!auth.currentUser) return;

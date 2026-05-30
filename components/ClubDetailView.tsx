@@ -5,18 +5,21 @@ import {
   ArrowLeft, Users, MessageSquare, Image, Newspaper, Settings,
   Plus, Send, Heart, Pin, Trash2, Shield, Crown, Pen, Lock, Globe,
   X, Check, Calendar, Play, Music, BookOpen, Link2, Upload, Zap,
-  UserPlus, UserMinus, Ban, Sparkles, Radio, Eye
+  UserPlus, UserMinus, Ban, Sparkles, Radio, Eye,
+  Mic, Video as VideoIcon2, Ticket, UserCheck, Clock, Film,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, UserProfile } from '../types';
+import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video } from '../types';
 import {
   fetchClubMembers, getUserClubMembership, joinClub, leaveClub,
   listenToClubPosts, createClubPost, deleteClubPost, toggleClubPostLike,
   pinClubPost, fetchClubGallery, addClubGalleryItem, deleteClubGalleryItem,
   listenToClubChat, sendClubChatMessage, deleteClubChatMessage,
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
-  uploadClubImage, claimClubAsFounder, uploadFile, db
+  uploadClubImage, claimClubAsFounder, uploadFile, db,
+  createClubEvent, fetchClubEvents, deleteClubEvent, rsvpClubEvent,
+  fetchUserContent, fetchUserVideos,
 } from '../services/backendService';
 import { LiveStreamModal } from './LiveStreamModal';
 import LiveStreamViewer from './LiveStreamViewer';
@@ -123,6 +126,23 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
   } as UserProfile : null, [currentUser?.uid]);
 
+  // ── Events ───────────────────────────────────────────────────────────────
+  const [events, setEvents] = useState<ClubEvent[]>([]);
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    title: '', description: '', type: 'LIVE_TALK' as ClubEvent['type'],
+    scheduledAt: '', isExclusive: false,
+  });
+  const [savingEvent, setSavingEvent] = useState(false);
+
+  // ── Gallery platform picker ───────────────────────────────────────────────
+  const [showPlatformPicker, setShowPlatformPicker] = useState(false);
+  const [platformTab, setPlatformTab] = useState<'MUSIC' | 'VIDEO' | 'AUDIO'>('MUSIC');
+  const [platformAlbums, setPlatformAlbums] = useState<Album[]>([]);
+  const [platformVideos, setPlatformVideos] = useState<Video[]>([]);
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const audioUploadRef = useRef<HTMLInputElement>(null);
+
   const handlePostBulletin = async () => {
     if (!bulletinInput.trim() || !currentUser || bulletinPosting) return;
     setBulletinPosting(true);
@@ -149,6 +169,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
   useEffect(() => {
     if (activeTab === 'MEMBERS') fetchClubMembers(club.id).then(setMembers);
+    if (activeTab === 'EVENTS') fetchClubEvents(club.id).then(setEvents);
     if (activeTab === 'GALLERY') fetchClubGallery(club.id).then(setGallery);
   }, [activeTab, club.id]);
 
@@ -200,14 +221,73 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   };
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !currentUser) return;
-    const url = await uploadClubImage(file, club.id, 'cover');
-    if (!url) return;
-    const type = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO';
-    await addClubGalleryItem({ clubId: club.id, type, url, thumbnailUrl: type === 'PHOTO' ? url : undefined, title: file.name });
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !currentUser) return;
+    for (const file of files) {
+      const url = await uploadClubImage(file, club.id, 'cover');
+      if (!url) continue;
+      const isVideo = file.type.startsWith('video/');
+      const isAudio = file.type.startsWith('audio/');
+      const type: ClubGalleryItem['type'] = isVideo ? 'VIDEO' : isAudio ? 'MUSIC' : 'PHOTO';
+      await addClubGalleryItem({ clubId: club.id, type, url, thumbnailUrl: type === 'PHOTO' ? url : undefined, title: file.name });
+    }
     const updated = await fetchClubGallery(club.id);
     setGallery(updated);
+    e.target.value = '';
+  };
+
+  const openPlatformPicker = async () => {
+    if (!currentUser) return;
+    setShowPlatformPicker(true);
+    setPlatformLoading(true);
+    const [albums, videos] = await Promise.all([
+      fetchUserContent(currentUser.uid).catch(() => []),
+      fetchUserVideos(currentUser.uid).catch(() => []),
+    ]);
+    setPlatformAlbums(albums as Album[]);
+    setPlatformVideos(videos as Video[]);
+    setPlatformLoading(false);
+  };
+
+  const addPlatformAlbum = async (album: Album) => {
+    await addClubGalleryItem({ clubId: club.id, type: 'MUSIC', url: '', thumbnailUrl: album.coverImage, title: album.title, assetId: album.id, description: album.artist });
+    const updated = await fetchClubGallery(club.id);
+    setGallery(updated);
+    setShowPlatformPicker(false);
+  };
+
+  const addPlatformVideo = async (video: Video) => {
+    await addClubGalleryItem({ clubId: club.id, type: 'VIDEO', url: video.url, thumbnailUrl: video.thumbnailUrl, title: video.title, assetId: video.id });
+    const updated = await fetchClubGallery(club.id);
+    setGallery(updated);
+    setShowPlatformPicker(false);
+  };
+
+  const addPlatformTrack = async (track: import('../types').Track, album: Album) => {
+    await addClubGalleryItem({ clubId: club.id, type: 'MUSIC', url: track.url, thumbnailUrl: track.images?.[0] || album.coverImage, title: track.title, assetId: track.id, description: track.artist });
+    const updated = await fetchClubGallery(club.id);
+    setGallery(updated);
+    setShowPlatformPicker(false);
+  };
+
+  const handleCreateEvent = async () => {
+    if (!eventForm.title.trim() || !eventForm.scheduledAt || savingEvent) return;
+    setSavingEvent(true);
+    try {
+      const ev = await createClubEvent({
+        clubId: club.id,
+        title: eventForm.title.trim(),
+        description: eventForm.description.trim() || undefined,
+        type: eventForm.type,
+        scheduledAt: new Date(eventForm.scheduledAt).getTime(),
+        isExclusive: eventForm.isExclusive,
+      });
+      if (ev) setEvents(prev => [...prev, ev].sort((a, b) => a.scheduledAt - b.scheduledAt));
+      setShowEventForm(false);
+      setEventForm({ title: '', description: '', type: 'LIVE_TALK', scheduledAt: '', isExclusive: false });
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -586,17 +666,105 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           {/* GALLERY */}
           {activeTab === 'GALLERY' && (
             <motion.div key="gallery" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xs font-black uppercase tracking-widest opacity-60">Gallery - {gallery.length} items</h2>
+              <div className="flex flex-wrap items-center gap-3 mb-8">
+                <h2 className="text-xs font-black uppercase tracking-widest opacity-60 mr-auto">Gallery — {gallery.length} items</h2>
                 {isMember && (
                   <>
-                    <button onClick={() => galleryUploadRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                      <Upload size={12} /> Add to Gallery
+                    {/* Device upload buttons */}
+                    <button onClick={() => galleryUploadRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                      <Image size={12} /> Photo / Video
                     </button>
-                    <input ref={galleryUploadRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleGalleryUpload} />
+                    <button onClick={() => audioUploadRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                      <Mic size={12} /> Audio
+                    </button>
+                    {/* Platform picker button */}
+                    <button onClick={openPlatformPicker}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+                      style={{ background: 'rgba(255,140,0,0.12)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.25)' }}>
+                      <Sparkles size={12} /> From Platform
+                    </button>
+                    {/* Hidden file inputs */}
+                    <input ref={galleryUploadRef} type="file" accept="image/*,video/*" className="hidden" multiple onChange={handleGalleryUpload} />
+                    <input ref={audioUploadRef} type="file" accept="audio/*" className="hidden" multiple onChange={handleGalleryUpload} />
                   </>
                 )}
               </div>
+
+              {/* Platform picker modal */}
+              <AnimatePresence>
+                {showPlatformPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
+                    className="mb-6 bg-white/[0.03] border border-white/10 rounded-3xl p-5 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Add from Platform</h3>
+                      <button onClick={() => setShowPlatformPicker(false)} className="text-white/30 hover:text-white transition-colors"><X size={14} /></button>
+                    </div>
+                    <div className="flex gap-2">
+                      {(['MUSIC', 'VIDEO', 'AUDIO'] as const).map(t => (
+                        <button key={t} onClick={() => setPlatformTab(t)}
+                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${platformTab === t ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                          {t === 'AUDIO' ? 'Tracks' : t}
+                        </button>
+                      ))}
+                    </div>
+                    {platformLoading ? (
+                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-white/20 border-t-small-orange rounded-full animate-spin" /></div>
+                    ) : (
+                      <>
+                        {platformTab === 'MUSIC' && (
+                          <div className="grid grid-cols-3 md:grid-cols-5 gap-3 max-h-56 overflow-y-auto no-scrollbar">
+                            {platformAlbums.length === 0 && <p className="col-span-5 text-[9px] text-white/20 text-center py-6 uppercase tracking-widest">No albums yet</p>}
+                            {platformAlbums.map(album => (
+                              <button key={album.id} onClick={() => addPlatformAlbum(album)}
+                                className="group rounded-xl overflow-hidden border border-white/5 hover:border-small-orange/50 transition-all">
+                                <img src={album.coverImage} className="w-full aspect-square object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                                <p className="text-[7px] font-black truncate px-1 py-1 opacity-60">{album.title}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {platformTab === 'AUDIO' && (
+                          <div className="space-y-1 max-h-56 overflow-y-auto no-scrollbar">
+                            {platformAlbums.flatMap(a => a.tracks || []).length === 0 && <p className="text-[9px] text-white/20 text-center py-6 uppercase tracking-widest">No tracks yet</p>}
+                            {platformAlbums.flatMap(a => (a.tracks || []).map(t => ({ track: t, album: a }))).slice(0, 40).map(({ track, album }) => (
+                              <button key={track.id} onClick={() => addPlatformTrack(track, album)}
+                                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-all group text-left">
+                                <img src={track.images?.[0] || album.coverImage} className="w-9 h-9 rounded-lg object-cover shrink-0" loading="lazy" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] font-black uppercase tracking-wide truncate group-hover:text-small-orange transition-colors">{track.title}</p>
+                                  <p className="text-[8px] text-white/30 truncate">{track.artist}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {platformTab === 'VIDEO' && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-56 overflow-y-auto no-scrollbar">
+                            {platformVideos.length === 0 && <p className="col-span-4 text-[9px] text-white/20 text-center py-6 uppercase tracking-widest">No videos yet</p>}
+                            {platformVideos.slice(0, 20).map(video => (
+                              <button key={video.id} onClick={() => addPlatformVideo(video)}
+                                className="group rounded-xl overflow-hidden border border-white/5 hover:border-small-orange/50 transition-all">
+                                <div className="relative aspect-video bg-black">
+                                  {video.thumbnailUrl
+                                    ? <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                                    : <div className="w-full h-full flex items-center justify-center"><Film size={16} className="text-white/20" /></div>}
+                                </div>
+                                <p className="text-[7px] font-black truncate px-1 py-1 opacity-60">{video.title}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {gallery.length === 0 ? (
                 <EmptyState icon={<Image size={32} />} label="Gallery is empty - push platform assets here" />
               ) : (
@@ -701,8 +869,182 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
           {/* EVENTS */}
           {activeTab === 'EVENTS' && (
-            <motion.div key="events" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <EmptyState icon={<Calendar size={32} />} label="No exclusive events scheduled yet" />
+            <motion.div key="events" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+
+              {/* Admin toolbar */}
+              {isAdmin && !showEventForm && (
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60">Events</h2>
+                  <button
+                    onClick={() => setShowEventForm(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'rgba(255,140,0,0.12)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.25)' }}
+                  >
+                    <Plus size={12} /> Schedule Event
+                  </button>
+                </div>
+              )}
+
+              {/* Event creation form */}
+              <AnimatePresence>
+                {showEventForm && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Schedule New Event</h3>
+                        <button onClick={() => setShowEventForm(false)} className="text-white/30 hover:text-white transition-colors"><X size={14} /></button>
+                      </div>
+
+                      {/* Title */}
+                      <input
+                        value={eventForm.title}
+                        onChange={e => setEventForm(f => ({ ...f, title: e.target.value }))}
+                        placeholder="Event title…"
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all"
+                      />
+
+                      {/* Description */}
+                      <textarea
+                        value={eventForm.description}
+                        onChange={e => setEventForm(f => ({ ...f, description: e.target.value }))}
+                        placeholder="Description (optional)…"
+                        rows={2}
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3 text-sm font-medium text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all resize-none"
+                      />
+
+                      {/* Type + Date row */}
+                      <div className="flex gap-3 flex-wrap">
+                        {/* Event type */}
+                        <div className="flex gap-2">
+                          {([
+                            { id: 'LIVE_TALK', icon: <Mic size={10} />, label: 'Talk' },
+                            { id: 'LIVE_STREAM', icon: <Radio size={10} />, label: 'Stream' },
+                            { id: 'WATCH_PARTY', icon: <Film size={10} />, label: 'Watch Party' },
+                          ] as { id: ClubEvent['type']; icon: React.ReactNode; label: string }[]).map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => setEventForm(f => ({ ...f, type: t.id }))}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${eventForm.type === t.id ? 'bg-small-orange text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                            >
+                              {t.icon} {t.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Date/time picker */}
+                        <input
+                          type="datetime-local"
+                          value={eventForm.scheduledAt}
+                          onChange={e => setEventForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                          className="flex-1 min-w-[200px] bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-white/30 transition-all"
+                        />
+                      </div>
+
+                      {/* Exclusive toggle */}
+                      <div className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-xs font-bold">Members Only</p>
+                          <p className="text-[9px] text-white/30">Only club members can attend</p>
+                        </div>
+                        <button
+                          onClick={() => setEventForm(f => ({ ...f, isExclusive: !f.isExclusive }))}
+                          className={`w-11 h-6 rounded-full transition-all relative ${eventForm.isExclusive ? 'bg-small-orange' : 'bg-white/10'}`}
+                        >
+                          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${eventForm.isExclusive ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </button>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-1">
+                        <button onClick={() => setShowEventForm(false)} className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Cancel</button>
+                        <button
+                          onClick={handleCreateEvent}
+                          disabled={!eventForm.title.trim() || !eventForm.scheduledAt || savingEvent}
+                          className="flex items-center gap-2 px-6 py-2 bg-small-orange text-black rounded-full text-[9px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          {savingEvent ? '…' : <><Calendar size={11} /> Schedule</>}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Events list */}
+              {events.length === 0 && !showEventForm ? (
+                <EmptyState icon={<Calendar size={32} />} label="No events scheduled yet" />
+              ) : (
+                <div className="space-y-4">
+                  {events.map(ev => {
+                    const isPast = ev.scheduledAt < Date.now();
+                    const attending = currentUser ? ev.attendeeIds.includes(currentUser.uid) : false;
+                    const EVENT_ICONS: Record<ClubEvent['type'], React.ReactNode> = {
+                      LIVE_TALK: <Mic size={14} />, LIVE_STREAM: <Radio size={14} />, WATCH_PARTY: <Film size={14} />
+                    };
+                    return (
+                      <div key={ev.id} className={`relative bg-white/[0.03] border rounded-3xl p-5 transition-all ${isPast ? 'opacity-50 border-white/5' : 'border-white/10 hover:bg-white/[0.05]'}`}>
+                        {/* Header row */}
+                        <div className="flex items-start gap-4">
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${isPast ? 'bg-white/5' : 'bg-small-orange/15'}`}>
+                            <span className={isPast ? 'text-white/30' : 'text-small-orange'}>{EVENT_ICONS[ev.type]}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <h4 className="text-sm font-black uppercase tracking-wide truncate">{ev.title}</h4>
+                              {ev.isExclusive && (
+                                <span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/40">Members Only</span>
+                              )}
+                              {isPast && (
+                                <span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 text-white/25">Past</span>
+                              )}
+                            </div>
+                            {ev.description && <p className="text-xs text-white/40 leading-relaxed mb-2">{ev.description}</p>}
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">
+                                <Clock size={10} /> {new Date(ev.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              </span>
+                              <span className="flex items-center gap-1 text-[9px] text-white/30 font-bold">
+                                <UserCheck size={10} /> {ev.attendeeIds.length} attending
+                              </span>
+                            </div>
+                          </div>
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!isPast && currentUser && (
+                              <button
+                                onClick={() => {
+                                  rsvpClubEvent(ev.id, currentUser.uid, !attending);
+                                  setEvents(evs => evs.map(e => e.id === ev.id ? {
+                                    ...e,
+                                    attendeeIds: attending
+                                      ? e.attendeeIds.filter(id => id !== currentUser.uid)
+                                      : [...e.attendeeIds, currentUser.uid]
+                                  } : e));
+                                }}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${attending ? 'bg-small-orange/20 text-small-orange border border-small-orange/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'}`}
+                              >
+                                <Ticket size={10} /> {attending ? 'Going ✓' : 'RSVP'}
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={() => deleteClubEvent(ev.id).then(() => setEvents(evs => evs.filter(e => e.id !== ev.id)))}
+                                className="p-2 rounded-full text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
 
