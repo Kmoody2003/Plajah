@@ -2961,6 +2961,25 @@ export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
   }
 };
 
+export const fetchPublicBooks = async (): Promise<Album[]> => {
+  const path = 'albums';
+  try {
+    const q = query(
+      collection(db, path),
+      where('isPrivate', '==', false),
+      where('type', '==', 'BOOK')
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => !a.isDraft && !a.isPrivate)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
 export const fetchUpcomingAlbums = async (): Promise<Album[]> => {
   const path = 'albums';
   try {

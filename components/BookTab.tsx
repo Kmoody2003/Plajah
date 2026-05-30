@@ -3,7 +3,7 @@ import { Book, Album } from '../types';
 import PageHeader from './PageHeader';
 import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
-import { fetchAllPublicAlbums, syncPublicDomainAsset } from '../services/backendService';
+import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,11 @@ const GENRES = [
   { id: 'art', name: 'Museum & Art', topic: 'collection:metropolitanmuseumofart-gallery' },
   { id: 'history', name: 'History', topic: 'history' },
 ];
+
+// Module-level caches — survive tab switches, only fetch once per session
+const _classicCache: Map<string, ArchiveBook[]> = new Map();
+const _archiveCache: Map<string, ArchiveBook[]> = new Map();
+let _marketplaceCache: import('../types').Album[] | null = null;
 
 const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
   const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('GLOBAL');
@@ -44,7 +49,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
         fetchClassicBooks('').then(books => setArchiveBooks(books));
       }
       if (marketplaceBooks.length === 0) {
-        fetchAllPublicAlbums().then(albums => setMarketplaceBooks(albums.filter(a => a.type === 'BOOK')));
+        fetchPublicBooks().then(books => { _marketplaceCache = books; setMarketplaceBooks(books); });
       }
     }
   }, [activeGenre, activeTab]);
@@ -71,10 +76,12 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
   };
 
   const loadMarketplaceBooks = async () => {
+    if (_marketplaceCache) { setMarketplaceBooks(_marketplaceCache); setIsLoading(false); return; }
     setIsLoading(true);
     try {
-      const allBooks = await fetchAllPublicAlbums();
-      setMarketplaceBooks(allBooks.filter(a => a.type === 'BOOK'));
+      const books = await fetchPublicBooks();
+      _marketplaceCache = books;
+      setMarketplaceBooks(books);
     } catch (e) {
       console.error(e);
     } finally {
@@ -83,6 +90,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
   };
 
   const loadClassicBooks = async () => {
+    const cacheKey = activeGenre.id;
+    const cache = (activeGenre.id === 'loc' || activeGenre.id === 'art') ? _archiveCache : _classicCache;
+    if (cache.has(cacheKey)) { setArchiveBooks(cache.get(cacheKey)!); setIsLoading(false); return; }
     setIsLoading(true);
     let books: ArchiveBook[] = [];
     if (activeGenre.id === 'loc' || activeGenre.id === 'art') {
@@ -90,6 +100,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
     } else {
       books = await fetchClassicBooks(activeGenre.topic);
     }
+    cache.set(cacheKey, books);
     setArchiveBooks(books);
     setIsLoading(false);
   };
