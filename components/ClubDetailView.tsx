@@ -26,6 +26,7 @@ import LiveStreamViewer from './LiveStreamViewer';
 import UniversalPostComposer from './UniversalPostComposer';
 import DualPanelTimeline from './DualPanelTimeline';
 import ArticleEditor from './ArticleEditor';
+import ClubRichPostCard from './ClubRichPostCard';
 
 interface ClubDetailViewProps {
   club: Club;
@@ -506,7 +507,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   {posts.filter(p => !p.isBulletin).length === 0
                     ? <EmptyState icon={<Zap size={32} />} label="No posts yet — be the first to share!" />
                     : posts.filter(p => !p.isBulletin).map(post => (
-                        <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                        <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
                           onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                           onDelete={() => deleteClubPost(post.id)}
                           onPin={() => pinClubPost(post.id, !post.isPinned)}
@@ -523,7 +524,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   syncScroll={syncScroll}
                   posts={posts.filter(p => !p.isBulletin)}
                   renderPost={(post) => (
-                    <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                    <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
                       onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                       onDelete={() => deleteClubPost(post.id)}
                       onPin={() => pinClubPost(post.id, !post.isPinned)}
@@ -631,7 +632,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   {posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').length === 0
                     ? <EmptyState icon={<Newspaper size={32} />} label="No announcements yet" />
                     : posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').map(post => (
-                        <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                        <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
                           onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                           onDelete={() => deleteClubPost(post.id)}
                           onPin={() => pinClubPost(post.id, !post.isPinned)}
