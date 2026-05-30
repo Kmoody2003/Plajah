@@ -21,6 +21,7 @@ import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
+import DualPanelTimeline from './DualPanelTimeline';
 import SignInPrompt from './SignInPrompt';
 import PlajahPlusPill from './PlajahPlusPill';
 
@@ -1163,6 +1164,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const { playTrack, theme } = useGlobalPlayerState();
   const { feed: fediverseFeed, accounts: fediverseAccounts, isLoadingFeed: fediverseLoading, refreshFeed: refreshFediverse, toggleLike: fediverseToggleLike, toggleRepost: fediverseToggleRepost } = useFediverse();
   const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
+  const [feedPanelMode, setFeedPanelMode] = useState<'SINGLE' | 'DUAL'>('SINGLE');
+  const [feedSyncScroll, setFeedSyncScroll] = useState(true);
 
   // Compute at render scope so React always sees changes — avoids IIFE-in-JSX issues
   const displayedPosts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;
@@ -3353,6 +3356,52 @@ const toggleFavoriteTeam = async (team: string) => {
           <div ref={feedScrollRef} className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="pb-8">
 
+          {/* Panel mode toggle */}
+          <div className="flex items-center gap-2 mb-4 px-4 pt-3">
+            {(['SINGLE', 'DUAL'] as const).map(m => (
+              <button key={m} onClick={() => setFeedPanelMode(m)}
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${feedPanelMode === m ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                {m}
+              </button>
+            ))}
+            {feedPanelMode === 'DUAL' && (
+              <button onClick={() => setFeedSyncScroll(s => !s)}
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${feedSyncScroll ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                {feedSyncScroll ? 'Sync' : 'Async'}
+              </button>
+            )}
+          </div>
+
+          {/* DUAL panel layout */}
+          {feedPanelMode === 'DUAL' ? (
+            <div className="grid grid-cols-2 gap-4 h-[calc(100vh-200px)] px-4">
+              <div className="overflow-y-auto pr-2 scrollbar-hide space-y-4">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Posts</p>
+                {displayedPosts.map((post) => (
+                  <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
+                ))}
+              </div>
+              <div className="overflow-y-auto pr-2 scrollbar-hide">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Media</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {displayedPosts.flatMap(p => p.media || []).filter(m => m.type === 'PHOTO' || m.type === 'VIDEO').map((m, i) => (
+                    <div key={i} className="aspect-square rounded-2xl overflow-hidden">
+                      {m.type === 'VIDEO'
+                        ? <video src={m.url} className="w-full h-full object-cover" muted />
+                        : <img src={m.url} className="w-full h-full object-cover" loading="lazy" alt="" />}
+                    </div>
+                  ))}
+                  {displayedPosts.flatMap(p => p.media || []).filter(m => m.type === 'PHOTO' || m.type === 'VIDEO').length === 0 && (
+                    <div className="col-span-2 py-12 text-center text-[9px] font-black uppercase tracking-widest text-white/20">No media yet</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* SINGLE mode: Timeline header + posts */}
+          {feedPanelMode === 'SINGLE' && (
+            <>
           {/* Timeline header */}
           {displayedPosts.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 mt-3">
@@ -3406,6 +3455,8 @@ const toggleFavoriteTeam = async (team: string) => {
             )}
           </AnimatePresence>
           </div>{/* end bordered list */}
+            </>
+          )}{/* end SINGLE mode */}
 
           </div>{/* end pb-8 */}
           </div>{/* end posts scroll area */}

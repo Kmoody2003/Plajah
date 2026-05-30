@@ -96,6 +96,7 @@ const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
+const RelloView = retryLazy(() => import('./components/RelloView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
 
@@ -2035,6 +2036,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBlock>
             )}
             {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} />}
+            {view === 'RELLO' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <RelloView onBack={handleBackToDashboard} currentUser={user} />
+              </Suspense>
+            )}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
             {view === 'DISCUSSION' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>

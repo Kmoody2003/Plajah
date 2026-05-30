@@ -20,6 +20,8 @@ import {
 } from '../services/backendService';
 import { LiveStreamModal } from './LiveStreamModal';
 import LiveStreamViewer from './LiveStreamViewer';
+import UniversalPostComposer from './UniversalPostComposer';
+import DualPanelTimeline from './DualPanelTimeline';
 
 interface ClubDetailViewProps {
   club: Club;
@@ -63,8 +65,9 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [gallery, setGallery] = useState<ClubGalleryItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ClubChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [postInput, setPostInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [timelineMode, setTimelineMode] = useState<'SINGLE' | 'DUAL'>('SINGLE');
+  const [syncScroll, setSyncScroll] = useState(true);
   const [joining, setJoining] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<ClubGalleryItem | null>(null);
@@ -147,17 +150,6 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     await leaveClub(club.id);
     setMembership(null);
     setClub(c => ({ ...c, memberCount: Math.max(0, c.memberCount - 1) }));
-  };
-
-  const handleSendPost = async () => {
-    if (!postInput.trim() || !currentUser) return;
-    const rateCheck = checkPostRateLimit('plajah_last_club_post');
-    if (!rateCheck.allowed) { alert(`Please wait ${rateCheck.waitSecs}s before posting again.`); return; }
-    const spamReason = detectSpam(postInput);
-    if (spamReason) { alert(spamReason); return; }
-    await createClubPost({ clubId: club.id, content: postInput });
-    recordPost('plajah_last_club_post');
-    setPostInput('');
   };
 
   const handleSendChat = async () => {
@@ -337,25 +329,62 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           {activeTab === 'TIMELINE' && (
             <motion.div key="timeline" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               {canPost && (
-                <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                  <textarea value={postInput} onChange={e => setPostInput(e.target.value)}
-                    placeholder="Share something with the club..."
-                    className="w-full bg-transparent text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[80px]"
-                    onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleSendPost(); }}
-                  />
-                  <div className="flex justify-end mt-3">
-                    <button onClick={handleSendPost} disabled={!postInput.trim()} className="px-6 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-white/90 transition-all">Post</button>
-                  </div>
-                </div>
-              )}
-              {posts.filter(p => !p.isBulletin).map(post => (
-                <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
-                  onLike={() => toggleClubPostLike(post.id, currentUser!.uid, post.likes.includes(currentUser!.uid))}
-                  onDelete={() => deleteClubPost(post.id)}
-                  onPin={() => pinClubPost(post.id, !post.isPinned)}
+                <UniversalPostComposer
+                  currentUser={currentUser}
+                  placeholder="Share something with the club..."
+                  avatarUrl={currentUser?.photoURL || undefined}
+                  onPost={async (data) => {
+                    if (!data.text.trim() && data.attachments.length === 0 && !data.assetEmbed) return;
+                    const rateCheck = checkPostRateLimit('plajah_last_club_post');
+                    if (!rateCheck.allowed) { alert(`Please wait ${rateCheck.waitSecs}s before posting again.`); return; }
+                    const spamReason = detectSpam(data.text);
+                    if (spamReason) { alert(spamReason); return; }
+                    await createClubPost({
+                      clubId: club.id,
+                      content: data.text,
+                      attachments: [
+                        ...data.attachments.map(a => ({ type: a.type, url: a.url, title: a.title })),
+                        ...(data.assetEmbed ? [{ type: data.assetEmbed.type, url: data.assetEmbed.imageUrl || '', title: data.assetEmbed.title, assetId: data.assetEmbed.id }] : []),
+                      ],
+                    });
+                    recordPost('plajah_last_club_post');
+                  }}
+                  onMakeStory={(_url, _type) => { /* story creator integration placeholder */ }}
+                  onSendToRello={(_url, _title) => { /* rello integration placeholder */ }}
+                  onMakeShort={(_url, _title) => { /* shorts integration placeholder */ }}
                 />
-              ))}
-              {posts.filter(p => !p.isBulletin).length === 0 && <EmptyState icon={<Zap size={32} />} label="No posts yet - be the first to share!" />}
+              )}
+
+              {/* Mode toggle */}
+              <div className="flex items-center gap-2 justify-end">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/30">View</span>
+                {(['SINGLE', 'DUAL'] as const).map(m => (
+                  <button key={m} onClick={() => setTimelineMode(m)}
+                    className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${timelineMode === m ? 'bg-white text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                    {m}
+                  </button>
+                ))}
+                {timelineMode === 'DUAL' && (
+                  <button onClick={() => setSyncScroll(s => !s)}
+                    className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${syncScroll ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                    {syncScroll ? 'Sync' : 'Async'}
+                  </button>
+                )}
+              </div>
+
+              <DualPanelTimeline
+                mode={timelineMode}
+                syncScroll={syncScroll}
+                posts={posts.filter(p => !p.isBulletin)}
+                renderPost={(post) => (
+                  <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                    onLike={() => toggleClubPostLike(post.id, currentUser!.uid, post.likes.includes(currentUser!.uid))}
+                    onDelete={() => deleteClubPost(post.id)}
+                    onPin={() => pinClubPost(post.id, !post.isPinned)}
+                  />
+                )}
+                emptyState={<EmptyState icon={<Zap size={32} />} label="No posts yet - be the first to share!" />}
+              />
             </motion.div>
           )}
 
@@ -897,6 +926,24 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUserId, isMod, onLike,
             <span className="text-[8px] opacity-30">{new Date(post.timestamp).toLocaleDateString()}</span>
           </div>
           <p className="text-sm opacity-80 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+          {post.attachments && post.attachments.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {post.attachments.map((att, i) => (
+                <div key={i} className="relative rounded-2xl overflow-hidden bg-white/5 border border-white/10">
+                  {att.type === 'PHOTO' || att.type === 'VIDEO' ? (
+                    att.type === 'VIDEO'
+                      ? <video src={att.url} className="w-48 h-32 object-cover" controls={false} />
+                      : <img src={att.url} className="w-48 h-32 object-cover" loading="lazy" alt="" />
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white/60">
+                      <span className="w-1 h-4 bg-gradient-to-b from-small-orange to-[#D40055] rounded-full" />
+                      {att.title || att.type}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/5">
