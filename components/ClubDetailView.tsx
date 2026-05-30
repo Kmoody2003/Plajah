@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -16,7 +16,7 @@ import {
   pinClubPost, fetchClubGallery, addClubGalleryItem, deleteClubGalleryItem,
   listenToClubChat, sendClubChatMessage, deleteClubChatMessage,
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
-  uploadClubImage, claimClubAsFounder, db, createArticle
+  uploadClubImage, claimClubAsFounder, uploadFile, db
 } from '../services/backendService';
 import { LiveStreamModal } from './LiveStreamModal';
 import LiveStreamViewer from './LiveStreamViewer';
@@ -112,7 +112,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [bulletinPostType, setBulletinPostType] = useState<'POST' | 'ANNOUNCEMENT'>('ANNOUNCEMENT');
   const [bulletinPosting, setBulletinPosting] = useState(false);
 
-  const editorUserProfile: UserProfile | null = currentUser ? {
+  const editorUserProfile = useMemo<UserProfile | null>(() => currentUser ? {
     uid: currentUser.uid,
     displayName: currentUser.displayName || 'Member',
     photoURL: currentUser.photoURL || '',
@@ -121,7 +121,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     followingCount: 0,
     storageLimit: 0,
     storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
-  } as UserProfile : null;
+  } as UserProfile : null, [currentUser?.uid]);
 
   const handlePostBulletin = async () => {
     if (!bulletinInput.trim() || !currentUser || bulletinPosting) return;
@@ -375,11 +375,23 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                     if (!rateCheck.allowed) { alert(`Please wait ${rateCheck.waitSecs}s before posting again.`); return; }
                     const spamReason = detectSpam(data.text);
                     if (spamReason) { alert(spamReason); return; }
+                    // Upload blob URLs to Firebase Storage so they persist across sessions
+                    const resolvedAttachments = await Promise.all(
+                      data.attachments.map(async (att) => {
+                        if (att.file && att.url.startsWith('blob:')) {
+                          try {
+                            const stored = await uploadFile(`club_posts/${club.id}/${Date.now()}_${att.file.name}`, att.file);
+                            return { type: att.type, url: stored, title: att.title };
+                          } catch { /* fall back to blob if upload fails */ }
+                        }
+                        return { type: att.type, url: att.url, title: att.title };
+                      })
+                    );
                     await createClubPost({
                       clubId: club.id,
                       content: data.text,
                       attachments: [
-                        ...data.attachments.map(a => ({ type: a.type, url: a.url, title: a.title })),
+                        ...resolvedAttachments,
                         ...(data.assetEmbed ? [{ type: data.assetEmbed.type, url: data.assetEmbed.imageUrl || '', title: data.assetEmbed.title, assetId: data.assetEmbed.id }] : []),
                       ],
                     });
