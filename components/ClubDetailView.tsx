@@ -9,19 +9,20 @@ import {
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole } from '../types';
+import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, UserProfile } from '../types';
 import {
   fetchClubMembers, getUserClubMembership, joinClub, leaveClub,
   listenToClubPosts, createClubPost, deleteClubPost, toggleClubPostLike,
   pinClubPost, fetchClubGallery, addClubGalleryItem, deleteClubGalleryItem,
   listenToClubChat, sendClubChatMessage, deleteClubChatMessage,
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
-  uploadClubImage, claimClubAsFounder, db
+  uploadClubImage, claimClubAsFounder, db, createArticle
 } from '../services/backendService';
 import { LiveStreamModal } from './LiveStreamModal';
 import LiveStreamViewer from './LiveStreamViewer';
 import UniversalPostComposer from './UniversalPostComposer';
 import DualPanelTimeline from './DualPanelTimeline';
+import ArticleEditor from './ArticleEditor';
 
 interface ClubDetailViewProps {
   club: Club;
@@ -103,6 +104,41 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const isMod = isAdmin || membership?.role === 'MODERATOR';
   const isMember = !!membership && membership.status === 'ACTIVE';
   const canPost = isMember;
+  const canAuthor = isMod || membership?.role === 'WRITER';
+
+  // ── Bulletin / Article authoring ─────────────────────────────────────────
+  const [bulletinMode, setBulletinMode] = useState<'NONE' | 'BULLETIN' | 'ARTICLE'>('NONE');
+  const [bulletinInput, setBulletinInput] = useState('');
+  const [bulletinPostType, setBulletinPostType] = useState<'POST' | 'ANNOUNCEMENT'>('ANNOUNCEMENT');
+  const [bulletinPosting, setBulletinPosting] = useState(false);
+
+  const editorUserProfile: UserProfile | null = currentUser ? {
+    uid: currentUser.uid,
+    displayName: currentUser.displayName || 'Member',
+    photoURL: currentUser.photoURL || '',
+    email: currentUser.email || '',
+    followerCount: 0,
+    followingCount: 0,
+    storageLimit: 0,
+    storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
+  } as UserProfile : null;
+
+  const handlePostBulletin = async () => {
+    if (!bulletinInput.trim() || !currentUser || bulletinPosting) return;
+    setBulletinPosting(true);
+    try {
+      await createClubPost({
+        clubId: club.id,
+        content: bulletinInput.trim(),
+        type: bulletinPostType,
+        isBulletin: true,
+      });
+      setBulletinInput('');
+      setBulletinMode('NONE');
+    } finally {
+      setBulletinPosting(false);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) { setLoading(false); return; }
@@ -409,32 +445,127 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
           {/* BULLETIN */}
           {activeTab === 'BULLETIN' && (
-            <motion.div key="bulletin" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <div className="flex flex-col lg:flex-row gap-8">
-                <div className="flex-1 space-y-4">
-                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60 mb-6">Announcements</h2>
-                  {posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').map(post => (
-                    <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
-                      onLike={() => toggleClubPostLike(post.id, currentUser!.uid, post.likes.includes(currentUser!.uid))}
-                      onDelete={() => deleteClubPost(post.id)}
-                      onPin={() => pinClubPost(post.id, !post.isPinned)}
-                      bulletinStyle
-                    />
-                  ))}
-                  {posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').length === 0 && <EmptyState icon={<Newspaper size={32} />} label="No announcements yet" />}
+            <motion.div key="bulletin" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+
+              {/* ── Author toolbar ── */}
+              {canAuthor && bulletinMode === 'NONE' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBulletinMode('BULLETIN')}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}
+                  >
+                    <Newspaper size={12} /> New Bulletin
+                  </button>
+                  <button
+                    onClick={() => setBulletinMode('ARTICLE')}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'rgba(255,140,0,0.12)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.25)' }}
+                  >
+                    <Pen size={12} /> Write Article
+                  </button>
                 </div>
-                <div className="w-full lg:w-80 shrink-0">
-                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60 mb-6">Articles</h2>
-                  <div className="space-y-3">
-                    {posts.filter(p => p.type === 'ARTICLE_LINK').map(post => (
-                      <div key={post.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-white/8 transition-all">
-                        {post.isNewArticle && <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/30 rounded px-2 py-0.5 mb-2 inline-block">New Article</span>}
-                        <p className="text-xs font-black uppercase tracking-wide truncate">{post.content}</p>
-                        <p className="text-[9px] opacity-30 mt-1">{post.authorName}</p>
+              )}
+
+              {/* ── Inline bulletin composer ── */}
+              <AnimatePresence>
+                {bulletinMode === 'BULLETIN' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-amber-500/[0.07] border border-amber-500/20 rounded-3xl p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-400">New Bulletin</h3>
+                        <button onClick={() => { setBulletinMode('NONE'); setBulletinInput(''); }} className="text-white/30 hover:text-white transition-colors">
+                          <X size={14} />
+                        </button>
                       </div>
-                    ))}
-                    {posts.filter(p => p.type === 'ARTICLE_LINK').length === 0 && <div className="text-[10px] uppercase tracking-widest opacity-20 font-bold text-center py-8">No articles published</div>}
-                  </div>
+
+                      {/* Type selector */}
+                      <div className="flex gap-2">
+                        {(['ANNOUNCEMENT', 'POST'] as const).map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setBulletinPostType(t)}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                              bulletinPostType === t
+                                ? 'bg-amber-500 text-black'
+                                : 'bg-white/5 text-white/40 hover:bg-white/10'
+                            }`}
+                          >
+                            {t === 'ANNOUNCEMENT' ? 'Announcement' : 'General Post'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <textarea
+                        value={bulletinInput}
+                        onChange={e => setBulletinInput(e.target.value)}
+                        placeholder={bulletinPostType === 'ANNOUNCEMENT' ? 'Write an announcement for the club…' : 'Share a bulletin post…'}
+                        rows={4}
+                        autoFocus
+                        className="w-full bg-transparent text-sm font-medium resize-none outline-none placeholder:text-white/20 leading-relaxed"
+                      />
+
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => { setBulletinMode('NONE'); setBulletinInput(''); }}
+                          className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handlePostBulletin}
+                          disabled={!bulletinInput.trim() || bulletinPosting}
+                          className="flex items-center gap-2 px-6 py-2 bg-amber-500 text-black rounded-full text-[9px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          {bulletinPosting ? '…' : <><Send size={11} /> Publish</>}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Two-column layout ── */}
+              <div className="flex flex-col lg:flex-row gap-8">
+
+                {/* Announcements */}
+                <div className="flex-1 space-y-4">
+                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60">Announcements</h2>
+                  {posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').length === 0
+                    ? <EmptyState icon={<Newspaper size={32} />} label="No announcements yet" />
+                    : posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').map(post => (
+                        <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                          onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
+                          onDelete={() => deleteClubPost(post.id)}
+                          onPin={() => pinClubPost(post.id, !post.isPinned)}
+                          bulletinStyle
+                        />
+                      ))
+                  }
+                </div>
+
+                {/* Articles sidebar */}
+                <div className="w-full lg:w-80 shrink-0 space-y-3">
+                  <h2 className="text-xs font-black uppercase tracking-widest opacity-60">Articles</h2>
+                  {posts.filter(p => p.type === 'ARTICLE_LINK').length === 0
+                    ? <div className="text-[10px] uppercase tracking-widest opacity-20 font-bold text-center py-8">No articles published yet</div>
+                    : posts.filter(p => p.type === 'ARTICLE_LINK').map(post => (
+                        <div key={post.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-white/8 transition-all group">
+                          {post.isNewArticle && (
+                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/30 rounded px-2 py-0.5 mb-2 inline-block">
+                              New Article
+                            </span>
+                          )}
+                          <p className="text-xs font-black uppercase tracking-wide truncate group-hover:text-small-orange transition-colors">{post.content}</p>
+                          <p className="text-[9px] opacity-30 mt-1">{post.authorName} · {new Date(post.timestamp).toLocaleDateString()}</p>
+                        </div>
+                      ))
+                  }
                 </div>
               </div>
             </motion.div>
@@ -917,6 +1048,36 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
               <p className="text-xs font-black uppercase tracking-widest">{selectedGalleryItem.title}</p>
               <p className="text-[9px] opacity-40 mt-1">{selectedGalleryItem.uploaderName}</p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Full-screen Article Editor overlay ── */}
+      <AnimatePresence>
+        {bulletinMode === 'ARTICLE' && editorUserProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-y-auto"
+          >
+            <ArticleEditor
+              user={editorUserProfile}
+              onCancel={() => setBulletinMode('NONE')}
+              onSave={async (articleId, articleTitle) => {
+                // Post an article-link reference to the club bulletin board
+                await createClubPost({
+                  clubId: club.id,
+                  content: articleTitle || 'New Article',
+                  type: 'ARTICLE_LINK',
+                  isBulletin: false,
+                  isNewArticle: true,
+                  attachments: [{ type: 'LINK', url: `/articles?id=${articleId}`, assetId: articleId, title: articleTitle || 'Article' }],
+                });
+                setBulletinMode('NONE');
+                setActiveTab('BULLETIN');
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -47,11 +47,7 @@ const THEMES: { id: ComposerPostData['theme']; label: string }[] = [
 
 const COMMON_EMOJIS = ['😀','😂','🥺','😍','🔥','👏','🎵','🎨','🌟','💯','🚀','❤️','🎉','👀','🤔','😎','🙏','💪','🌈','✨'];
 
-const GIF_MOCKS = [
-  'https://media.tenor.com/1.gif',
-  'https://media.tenor.com/2.gif',
-  'https://media.tenor.com/3.gif',
-];
+const GIPHY_KEY = 'dc6zaTOxFJmzC';
 
 type AssetTab = 'Albums' | 'Worlds' | 'More';
 const MORE_TYPES: { label: string; type: AssetEmbed['type'] }[] = [
@@ -81,6 +77,8 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
+  const [gifResults, setGifResults] = useState<any[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
   const [assetTab, setAssetTab] = useState<AssetTab>('Albums');
   const [moreAssetType, setMoreAssetType] = useState<AssetEmbed['type'] | null>(null);
@@ -134,9 +132,26 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     }
   };
 
-  const addGifMock = (url: string) => {
-    setAttachments(prev => [...prev, { type: 'GIF', url, title: 'GIF' }]);
+  const searchGifs = async (q: string) => {
+    if (!q.trim()) { setGifResults([]); return; }
+    setGifLoading(true);
+    try {
+      const res = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg`
+      );
+      const data = await res.json();
+      setGifResults(data.data || []);
+    } catch { setGifResults([]); }
+    finally { setGifLoading(false); }
+  };
+
+  const addGif = (gif: any) => {
+    const url = gif?.images?.fixed_height?.url || gif?.images?.original?.url || '';
+    if (!url) return;
+    setAttachments(prev => [...prev, { type: 'GIF', url, title: gif.title || 'GIF' }]);
     setShowGif(false);
+    setGifQuery('');
+    setGifResults([]);
   };
 
   const embedAlbum = (album: Album) => {
@@ -231,7 +246,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         <div className="flex gap-2 overflow-x-auto pl-12 pb-1 scrollbar-hide">
           {attachments.map((att, i) => (
             <div key={i} className="relative shrink-0 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-              {att.type === 'PHOTO' ? (
+              {att.type === 'PHOTO' || att.type === 'GIF' ? (
                 <img src={att.url} className="w-24 h-20 object-cover" alt="" loading="lazy" />
               ) : att.type === 'VIDEO' ? (
                 <video src={att.url} className="w-24 h-20 object-cover" muted playsInline controls />
@@ -321,21 +336,39 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         <div className="pl-12 space-y-2">
           <input
             value={gifQuery}
-            onChange={e => setGifQuery(e.target.value)}
-            placeholder="Search GIFs..."
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30"
+            onChange={e => { setGifQuery(e.target.value); searchGifs(e.target.value); }}
+            placeholder="Search GIFs… (powered by GIPHY)"
+            autoFocus
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30 focus:border-white/30 transition-all"
           />
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {GIF_MOCKS.map((url, i) => (
-              <button
-                key={i}
-                onClick={() => addGifMock(url)}
-                className="shrink-0 w-24 h-16 bg-white/10 rounded-xl flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-white/30 hover:bg-white/20 transition-all border border-white/10"
-              >
-                GIF {i + 1}
-              </button>
-            ))}
-          </div>
+          {gifLoading && (
+            <p className="text-[9px] text-white/30 text-center py-2 uppercase tracking-widest">Searching…</p>
+          )}
+          {!gifLoading && gifQuery && gifResults.length === 0 && (
+            <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">No results</p>
+          )}
+          {!gifLoading && !gifQuery && (
+            <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">Type to search</p>
+          )}
+          {gifResults.length > 0 && (
+            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto no-scrollbar">
+              {gifResults.map((gif: any) => (
+                <button
+                  key={gif.id}
+                  onClick={() => addGif(gif)}
+                  className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-all group aspect-square"
+                >
+                  <img
+                    src={gif?.images?.fixed_height_small?.url || gif?.images?.original?.url}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                    alt={gif.title}
+                    loading="lazy"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-[7px] text-white/15 text-right font-bold">Powered by GIPHY</p>
         </div>
       )}
 

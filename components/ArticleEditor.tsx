@@ -28,7 +28,7 @@ import { createArticle, updateArticle, uploadFile } from '../services/backendSer
 
 interface ArticleEditorProps {
   article?: Article;
-  onSave: (articleId: string) => void;
+  onSave: (articleId: string, title?: string) => void;
   onCancel: () => void;
   user: UserProfile;
 }
@@ -100,7 +100,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
         id = await createArticle(articleData);
       }
 
-      if (id) onSave(id);
+      if (id) onSave(id, title);
     } catch (error) {
       console.error("Save failed:", error);
     } finally {
