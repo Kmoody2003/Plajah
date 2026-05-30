@@ -234,7 +234,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
               {att.type === 'PHOTO' ? (
                 <img src={att.url} className="w-24 h-20 object-cover" alt="" loading="lazy" />
               ) : att.type === 'VIDEO' ? (
-                <video src={att.url} className="w-24 h-20 object-cover" />
+                <video src={att.url} className="w-24 h-20 object-cover" muted playsInline controls />
               ) : (
                 <div className="w-24 h-20 flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-white/40 p-2 text-center">
                   {att.title || att.type}

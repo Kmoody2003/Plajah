@@ -355,7 +355,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 />
               )}
 
-              {/* Mode toggle */}
+              {/* View mode toggle */}
               <div className="flex items-center gap-2 justify-end">
                 <span className="text-[8px] font-black uppercase tracking-widest text-white/30">View</span>
                 {(['SINGLE', 'DUAL'] as const).map(m => (
@@ -372,19 +372,38 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 )}
               </div>
 
-              <DualPanelTimeline
-                mode={timelineMode}
-                syncScroll={syncScroll}
-                posts={posts.filter(p => !p.isBulletin)}
-                renderPost={(post) => (
-                  <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
-                    onLike={() => toggleClubPostLike(post.id, currentUser!.uid, post.likes.includes(currentUser!.uid))}
-                    onDelete={() => deleteClubPost(post.id)}
-                    onPin={() => pinClubPost(post.id, !post.isPinned)}
-                  />
-                )}
-                emptyState={<EmptyState icon={<Zap size={32} />} label="No posts yet - be the first to share!" />}
-              />
+              {/* SINGLE mode: render directly for reliability */}
+              {timelineMode === 'SINGLE' && (
+                <>
+                  {posts.filter(p => !p.isBulletin).length === 0
+                    ? <EmptyState icon={<Zap size={32} />} label="No posts yet — be the first to share!" />
+                    : posts.filter(p => !p.isBulletin).map(post => (
+                        <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                          onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
+                          onDelete={() => deleteClubPost(post.id)}
+                          onPin={() => pinClubPost(post.id, !post.isPinned)}
+                        />
+                      ))
+                  }
+                </>
+              )}
+
+              {/* DUAL mode: split panel via DualPanelTimeline */}
+              {timelineMode === 'DUAL' && (
+                <DualPanelTimeline
+                  mode="DUAL"
+                  syncScroll={syncScroll}
+                  posts={posts.filter(p => !p.isBulletin)}
+                  renderPost={(post) => (
+                    <PostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                      onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
+                      onDelete={() => deleteClubPost(post.id)}
+                      onPin={() => pinClubPost(post.id, !post.isPinned)}
+                    />
+                  )}
+                  emptyState={<EmptyState icon={<Zap size={32} />} label="No posts yet — be the first to share!" />}
+                />
+              )}
             </motion.div>
           )}
 
@@ -932,7 +951,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUserId, isMod, onLike,
                 <div key={i} className="relative rounded-2xl overflow-hidden bg-white/5 border border-white/10">
                   {att.type === 'PHOTO' || att.type === 'VIDEO' ? (
                     att.type === 'VIDEO'
-                      ? <video src={att.url} className="w-48 h-32 object-cover" controls={false} />
+                      ? <video src={att.url} className="w-48 h-32 object-cover rounded-2xl" controls muted playsInline />
                       : <img src={att.url} className="w-48 h-32 object-cover" loading="lazy" alt="" />
                   ) : (
                     <div className="flex items-center gap-2 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white/60">

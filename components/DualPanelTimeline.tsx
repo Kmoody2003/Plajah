@@ -113,6 +113,7 @@ function DualPanelTimeline<T extends PostWithAttachments>({
                         src={m.url}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         muted
+                        playsInline
                       />
                     ) : (
                       <img
