@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -28,21 +28,23 @@ jobs:
 
       - name: Deploy Firebase Hosting
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
         run: |
-          npx firebase-tools deploy \
+          echo "$FIREBASE_SA" > /tmp/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx firebase-tools deploy \
             --only hosting \
             --project gen-lang-client-0665118474 \
-            --token "$FIREBASE_TOKEN" \
             --force
+          rm -f /tmp/firebase-sa.json
 
       - name: Deploy Firestore rules
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
         continue-on-error: true
         run: |
-          npx firebase-tools deploy \
+          echo "$FIREBASE_SA" > /tmp/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx firebase-tools deploy \
             --only firestore:rules \
             --project gen-lang-client-0665118474 \
-            --token "$FIREBASE_TOKEN" \
             --force
+          rm -f /tmp/firebase-sa.json
