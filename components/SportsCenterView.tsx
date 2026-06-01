@@ -12,15 +12,17 @@ import { TeamPageView } from './sports/TeamPageView';
 import { getLeagueStaticTeams, findStaticTeam } from '../data/leagueTeams';
 import ErrorBoundary from './ErrorBoundary';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
+const StatCardBuilder       = lazy(() => import('./sports/StatCardBuilder').then(m => ({ default: m.StatCardBuilder })));
+const RaceHistoryView       = lazy(() => import('./sports/RaceHistoryView').then(m => ({ default: m.RaceHistoryView })));
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
   Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
-  BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen,
+  BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen, CreditCard, History,
 } from 'lucide-react';
 
 interface Props {
-  selectedSportsTab: string;
+  selectedSportsTab: 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'FIFA' | 'MLS' | 'ESPORTS' | 'F1' | 'NASCAR' | 'INDYCAR' | string;
 }
 
 const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS'] as const;
@@ -44,6 +46,9 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [standings, setStandings]         = useState<any[]>([]);
   const [leagueLeaders, setLeagueLeaders] = useState<LeaderCategory[]>([]);
   const [pinnedIds, setPinnedIds]         = useState<string[]>(() => loadPins());
+  const [predictions, setPredictions]     = useState<Record<string, 'home' | 'away'>>({});
+  const [showStatCard, setShowStatCard]   = useState(false);
+  const [showRaceHistory, setShowRaceHistory] = useState(false);
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
@@ -389,6 +394,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   // â"€â"€â"€ LEAGUE VIEW â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   return (
+    <>
     <div className="space-y-10">
 
       {/* Search */}
@@ -398,6 +404,26 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           placeholder={`Search ${selectedSportsTab} ${isEsports ? 'organizations' : 'teams'}...`}
           className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-bold placeholder:text-white/20 focus:outline-none focus:border-[#FF8C00]/50 transition-all"
         />
+      </div>
+
+      {/* Action buttons row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <motion.button
+          onClick={() => setShowStatCard(true)}
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#FF8C00]/10 border border-[#FF8C00]/30 rounded-full text-[9px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all"
+        >
+          <CreditCard size={11} /> Stat Cards
+        </motion.button>
+        {(selectedSportsTab === 'F1' || selectedSportsTab === 'NASCAR' || selectedSportsTab === 'INDYCAR') && (
+          <motion.button
+            onClick={() => setShowRaceHistory(true)}
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
+          >
+            <History size={11} /> Race Deep Dive
+          </motion.button>
+        )}
       </div>
 
       {/* Learn How To Play button */}
@@ -514,6 +540,26 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                       ))}
                       {isPre && comps?.date && (
                         <p className="text-[7px] font-bold text-white/20 text-right">{new Date(comps.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+                      )}
+                      {isPre && away && home && (
+                        <div className="flex gap-1.5 pt-1 border-t border-white/5">
+                          {predictions[event.id] ? (
+                            <p className="text-[7px] font-black uppercase tracking-widest text-[#FF8C00] w-full text-center">
+                              Picked: {predictions[event.id] === 'away' ? away.team?.abbreviation : home.team?.abbreviation} ✓
+                            </p>
+                          ) : (
+                            <>
+                              <button
+                                onClick={e => { e.stopPropagation(); setPredictions(p => ({ ...p, [event.id]: 'away' })); }}
+                                className="flex-1 py-1 rounded-lg bg-white/5 hover:bg-[#FF8C00]/20 border border-white/5 text-[6px] font-black uppercase tracking-widest text-white/40 hover:text-[#FF8C00] transition-all"
+                              >{away.team?.abbreviation} wins</button>
+                              <button
+                                onClick={e => { e.stopPropagation(); setPredictions(p => ({ ...p, [event.id]: 'home' })); }}
+                                className="flex-1 py-1 rounded-lg bg-white/5 hover:bg-[#FF8C00]/20 border border-white/5 text-[6px] font-black uppercase tracking-widest text-white/40 hover:text-[#FF8C00] transition-all"
+                              >{home.team?.abbreviation} wins</button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -742,6 +788,46 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
         </>
       )}
     </div>
+      {/* ── Stat Card Builder ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showStatCard && (
+          <Suspense fallback={null}>
+            <StatCardBuilder
+              onClose={() => setShowStatCard(false)}
+              currentUser={null}
+              initialTab={isEsports ? 'NBA' : selectedSportsTab}
+            />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      {/* ── Race Deep Dive ─────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showRaceHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-xl overflow-y-auto custom-scrollbar"
+          >
+            <div className="max-w-4xl mx-auto px-4 py-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">Deep Dive</p>
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-white">{selectedSportsTab} Race History</h2>
+                </div>
+                <button onClick={() => setShowRaceHistory(false)} className="p-2.5 text-white/40 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
+                  <X size={18} />
+                </button>
+              </div>
+              <Suspense fallback={<div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" /></div>}>
+                <RaceHistoryView tab={selectedSportsTab} />
+              </Suspense>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
@@ -1004,6 +1090,21 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
             <div className="py-16 text-center space-y-4">
               <Flag size={32} className="mx-auto text-white/10" />
               <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">No {cfg.label} data available right now</p>
+            </div>
+          )}
+
+          {/* ── F1 Race Deep Dive (OpenF1 data) ───────────────────────────── */}
+          {tab === 'F1' && (
+            <div className="mt-4">
+              <div className="border-t border-white/8 pt-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <History size={14} className="text-[#FF8C00]" />
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/50">Race Deep Dive · OpenF1 Data</h4>
+                </div>
+                <Suspense fallback={<div className="h-24 bg-white/5 rounded-2xl animate-pulse" />}>
+                  <RaceHistoryView tab="F1" />
+                </Suspense>
+              </div>
             </div>
           )}
         </>

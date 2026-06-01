@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Video, Album, Character, IPWorld, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp } from '../types';
+import { Video, Album, Character, IPWorld, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
 import {
   Play, Plus, Share2, ArrowLeft, Star,
-  Info, Film, Globe,
-  X, Users, Maximize2, Minimize2,
-  Bookmark, Sparkles, RefreshCw,
-  Pause, Volume2, VolumeX, Award,
+  Info, Film, Globe, MessageCircle,
+  X, Users, Maximize2, Minimize2, Check,
+  Bookmark, Sparkles, RefreshCw, Calendar,
+  Pause, Volume2, VolumeX, Award, ChevronRight,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
@@ -13,9 +13,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { getDoc, doc, onSnapshot } from 'firebase/firestore';
 import {
-  db,
+  db, auth,
   fetchWorldCharacters,
   fetchWorldContentByWorldId,
+  addToWatchlist, removeFromWatchlist, isInWatchlist,
+  fetchUserClubs, createClubEvent,
+  fetchDiscussionPostsByContentId,
 } from '../services/backendService';
 import The411 from './The411';
 import CharacterWorldView from './CharacterWorldView';
@@ -486,6 +489,21 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const [hoveredCharId, setHoveredCharId] = useState<string | null>(null);
   const [whatIfAchieved, setWhatIfAchieved] = useState(false);
 
+  // Watchlist
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+
+  // Watch with Club
+  const [showWatchWithClub, setShowWatchWithClub] = useState(false);
+  const [userClubs, setUserClubs] = useState<Club[]>([]);
+  const [watchPartyClubId, setWatchPartyClubId] = useState('');
+  const [watchPartyDate, setWatchPartyDate] = useState('');
+  const [watchPartySubmitting, setWatchPartySubmitting] = useState(false);
+  const [watchPartyDone, setWatchPartyDone] = useState(false);
+
+  // Discussions panel
+  const [filmDiscussions, setFilmDiscussions] = useState<any[]>([]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -508,6 +526,62 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       comment: text,
       timestamp: Date.now(),
     }, ...prev]);
+  };
+
+  // Load watchlist status, user clubs, and film discussions when item changes
+  useEffect(() => {
+    const itemId = item.id || (item as any).identifier;
+    if (auth.currentUser && itemId) {
+      isInWatchlist(itemId).then(setInWatchlist);
+      fetchUserClubs(auth.currentUser.uid).then(setUserClubs);
+    }
+    fetchDiscussionPostsByContentId(itemId).then(setFilmDiscussions);
+  }, [item.id, (item as any).identifier]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWatchlistToggle = async () => {
+    if (!auth.currentUser) return;
+    setWatchlistLoading(true);
+    try {
+      const itemId = item.id || (item as any).identifier;
+      if (inWatchlist) {
+        await removeFromWatchlist(itemId);
+        setInWatchlist(false);
+      } else {
+        await addToWatchlist({
+          id: itemId,
+          title: item.title,
+          type: (item as any).type === 'VIDEO' || (item as any).subType ? 'VIDEO' : 'ALBUM',
+          thumbnailUrl: (item as Album).coverImage || (item as Video).thumbnailUrl || (item as any).coverImageUrl,
+          genre: (item as any).genre || (item as any).subType,
+        });
+        setInWatchlist(true);
+      }
+    } finally {
+      setWatchlistLoading(false);
+    }
+  };
+
+  const handleScheduleWatchParty = async () => {
+    if (!watchPartyClubId || !watchPartyDate) return;
+    setWatchPartySubmitting(true);
+    try {
+      await createClubEvent({
+        clubId: watchPartyClubId,
+        title: `Watch Party: ${item.title}`,
+        description: `Join us to watch "${item.title}" together!`,
+        eventType: 'WATCH_PARTY',
+        date: new Date(watchPartyDate).getTime(),
+        linkedContentId: item.id || (item as any).identifier,
+        linkedContentTitle: item.title,
+        linkedContentThumb: (item as Album).coverImage || (item as Video).thumbnailUrl,
+        isVirtual: true,
+        rsvps: [],
+      } as any);
+      setWatchPartyDone(true);
+      setTimeout(() => { setShowWatchWithClub(false); setWatchPartyDone(false); }, 2000);
+    } finally {
+      setWatchPartySubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -820,9 +894,26 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     >
                       <Play fill="currentColor" size={18} /> Watch Now
                     </motion.button>
-                    <button className="h-12 px-6 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] text-white/65 hover:text-white font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-all">
-                      <Bookmark size={17} /> Watchlist
+                    <button
+                      onClick={handleWatchlistToggle}
+                      disabled={watchlistLoading}
+                      className={`h-12 px-6 backdrop-blur-sm border font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-all ${
+                        inWatchlist
+                          ? 'bg-[#D0BCFF]/20 border-[#D0BCFF]/40 text-[#D0BCFF]'
+                          : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/[0.10] text-white/65 hover:text-white'
+                      }`}
+                    >
+                      {inWatchlist ? <Check size={17} /> : <Bookmark size={17} />}
+                      {inWatchlist ? 'Saved' : 'Watchlist'}
                     </button>
+                    {auth.currentUser && (
+                      <button
+                        onClick={() => setShowWatchWithClub(true)}
+                        className="h-12 px-5 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] text-white/65 hover:text-white font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all"
+                      >
+                        <Calendar size={16} /> Watch with Club
+                      </button>
+                    )}
                     <button className="h-12 w-12 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] rounded-full flex items-center justify-center text-white/45 hover:text-white transition-all">
                       <Share2 size={17} />
                     </button>
@@ -1009,6 +1100,37 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 </section>
               )}
 
+              {/* ── DISCUSSIONS ───────────────────────────────────────────────── */}
+              {filmDiscussions.length > 0 && (
+                <section className="mt-14 space-y-5">
+                  <div className="flex items-end justify-between">
+                    <div className="border-l-2 border-[#D0BCFF] pl-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Community</p>
+                      <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white">Discussions</h3>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/25 border border-white/10 px-2 py-0.5 rounded-lg">{filmDiscussions.length} thread{filmDiscussions.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {filmDiscussions.slice(0, 4).map(post => (
+                      <div key={post.id} className="flex items-start gap-4 p-4 bg-white/[0.04] border border-white/[0.07] rounded-2xl hover:border-[#D0BCFF]/20 transition-all">
+                        <div className="w-8 h-8 rounded-full bg-[#D0BCFF]/15 flex items-center justify-center shrink-0 mt-0.5">
+                          <MessageCircle size={14} className="text-[#D0BCFF]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-white leading-tight line-clamp-2">{post.title}</p>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-[9px] font-black text-[#D0BCFF] uppercase tracking-widest">↑ {post.upvotes || 0}</span>
+                            <span className="text-[9px] text-white/25 font-black uppercase tracking-widest">{post.commentCount || 0} replies</span>
+                            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">{post.boardName}</span>
+                          </div>
+                        </div>
+                        <ChevronRight size={14} className="text-white/20 shrink-0 mt-1" />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* ── COMMENTS ──────────────────────────────────────────────────── */}
               <section className="mt-14">
                 <div className="border-l-2 border-white/15 pl-3 mb-6">
@@ -1024,6 +1146,110 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 </div>
               </section>
             </motion.main>
+          )}
+        </AnimatePresence>
+
+        {/* ── Watch with Club Modal ─────────────────────────────────────────── */}
+        <AnimatePresence>
+          {showWatchWithClub && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[220] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+              onClick={() => setShowWatchWithClub(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.92, y: 20 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-6 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#D0BCFF] mb-1">Club Event</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-white">Watch with Club</h3>
+                  </div>
+                  <button onClick={() => setShowWatchWithClub(false)} className="p-2 text-white/30 hover:text-white transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="p-4 bg-white/[0.04] border border-white/[0.07] rounded-2xl flex items-center gap-4">
+                  <div className="w-12 h-16 rounded-xl overflow-hidden bg-white/5 shrink-0">
+                    {((item as Album).coverImage || (item as Video).thumbnailUrl) && (
+                      <img src={(item as Album).coverImage || (item as Video).thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-white truncate">{item.title}</p>
+                    <p className="text-[9px] text-[#D0BCFF] font-black uppercase tracking-widest mt-0.5">Watch Party</p>
+                  </div>
+                </div>
+
+                {watchPartyDone ? (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                      <Check size={20} className="text-green-400" />
+                    </div>
+                    <p className="text-sm font-black text-white uppercase tracking-widest">Watch Party Scheduled!</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Select Club</label>
+                      {userClubs.length === 0 ? (
+                        <p className="text-[10px] text-white/25 font-black uppercase tracking-widest">You haven't joined any clubs yet.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
+                          {userClubs.map(club => (
+                            <button
+                              key={club.id}
+                              onClick={() => setWatchPartyClubId(club.id)}
+                              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                                watchPartyClubId === club.id
+                                  ? 'bg-[#D0BCFF]/15 border-[#D0BCFF]/40'
+                                  : 'bg-white/[0.03] border-white/[0.07] hover:border-white/20'
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-white/10 overflow-hidden shrink-0">
+                                {club.iconImage && <img src={club.iconImage} className="w-full h-full object-cover" alt="" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-black text-white truncate">{club.name}</p>
+                                <p className="text-[9px] text-white/30 font-black uppercase tracking-widest">{club.memberCount || 0} members</p>
+                              </div>
+                              {watchPartyClubId === club.id && <Check size={14} className="text-[#D0BCFF] ml-auto shrink-0" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Date &amp; Time</label>
+                      <input
+                        type="datetime-local"
+                        value={watchPartyDate}
+                        onChange={e => setWatchPartyDate(e.target.value)}
+                        className="w-full bg-white/[0.05] border border-white/[0.10] focus:border-[#D0BCFF]/50 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none transition-all"
+                        style={{ colorScheme: 'dark' }}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleScheduleWatchParty}
+                      disabled={!watchPartyClubId || !watchPartyDate || watchPartySubmitting}
+                      className="w-full h-12 bg-[#D0BCFF] hover:bg-[#E8DAFF] disabled:opacity-40 text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Calendar size={16} /> {watchPartySubmitting ? 'Scheduling…' : 'Schedule Watch Party'}
+                    </button>
+                  </>
+                )}
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 

@@ -25,3 +25,27 @@ env:
     value: https://plajah.com/api/hue/callback
     availability:
       - RUNTIME
+
+  # ── Merch Fulfillment ────────────────────────────────────────────────────────
+  # Replace placeholder values with your real keys before deploying.
+  - variable: PRINTFUL_API_KEY
+    value: YOUR_PRINTFUL_API_KEY_HERE
+    availability:
+      - RUNTIME
+  - variable: GELATO_API_KEY
+    value: YOUR_GELATO_API_KEY_HERE
+    availability:
+      - RUNTIME
+  # Platform fee % taken from each merch sale (default 15).
+  # Artist receives the remainder after fulfillment cost is deducted by Printful/Gelato.
+  - variable: PLATFORM_MERCH_FEE_PCT
+    value: "15"
+    availability:
+      - RUNTIME
+  # Stripe webhook secret for /api/merch/stripe-webhook
+  # Create a separate webhook endpoint in Stripe dashboard pointing to:
+  # https://plajah.com/api/merch/stripe-webhook
+  - variable: STRIPE_MERCH_WEBHOOK_SECRET
+    value: YOUR_STRIPE_MERCH_WEBHOOK_SECRET_HERE
+    availability:
+      - RUNTIME

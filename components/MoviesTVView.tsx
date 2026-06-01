@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Info, ChevronRight, ChevronLeft, Star,
-  Plus, Share2, Users, Rocket,
+  Plus, Share2, Users, Rocket, UserPlus,
   BookOpen, Moon, CloudLightning, Ghost, Zap, Sparkles,
   Calendar, Film, Bookmark, Settings, Search, Menu, Globe,
   Monitor, Shield, Bell, CreditCard, Home, Map as ExploreIcon,
@@ -23,6 +23,8 @@ import { MoviesSpecificView } from './MoviesSpecificView';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ScrollableTabRow from './ScrollableTabRow';
 import PlajahPlusBanner from './PlajahPlusBanner';
+import { fetchPublicClubs } from '../services/backendService';
+import type { Club } from '../types';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -159,11 +161,12 @@ const HomeView: React.FC<{
   platformVideos?: any[];
   worlds?: IPWorld[];
   featuredCharacters?: Character[];
+  filmClubs?: Club[];
 }> = ({
   universes, movies, tvSeries, genreCollections, curatedPlaylists,
   featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView,
   setActiveAllyUrl, onSelectCuratedPlaylist, tabNav, onRequestSignIn,
-  platformVideos = [], worlds = [], featuredCharacters = [],
+  platformVideos = [], worlds = [], featuredCharacters = [], filmClubs = [],
 }) => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [worldBannerIdx, setWorldBannerIdx] = useState(0);
@@ -556,6 +559,45 @@ const HomeView: React.FC<{
           </section>
         )}
 
+        {/* Film Clubs */}
+        {filmClubs.length > 0 && (
+          <section>
+            <SectionHeader label="Fan Communities" title="Film Clubs" accent="#D0BCFF" />
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+              {filmClubs.map(club => (
+                <motion.div
+                  key={club.id}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  className="w-52 flex-shrink-0 group cursor-pointer"
+                >
+                  <div className="aspect-[3/2] rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[#D0BCFF]/40 transition-all relative mb-3">
+                    {club.coverImage ? (
+                      <img src={club.coverImage} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={club.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
+                        <Users size={28} className="text-white/20" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute bottom-2 left-3 right-3 flex items-center gap-2">
+                      {club.iconImage && (
+                        <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/10 shrink-0 border border-white/10">
+                          <img src={club.iconImage} className="w-full h-full object-cover" alt="" />
+                        </div>
+                      )}
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF] truncate">{club.memberCount || 0} members</p>
+                    </div>
+                  </div>
+                  <h4 className="text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{club.name}</h4>
+                  {club.description && (
+                    <p className="text-[8px] text-white/30 mt-0.5 line-clamp-2 leading-relaxed">{club.description}</p>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Curated Collections */}
         {curatedPlaylists.length > 0 && (
           <section>
@@ -732,6 +774,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const [featuredCharacters, setFeaturedCharacters] = useState<Character[]>([]);
   const [activeAllyUrl, setActiveAllyUrl] = useState<string | null>(null);
   const [featuredItem, setFeaturedItem] = useState<ArchiveVideo | Album | null>(null);
+  const [filmClubs, setFilmClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentSubView, setCurrentSubView] = useState<SubView>('HOME');
   const [activePlaylistItem, setActivePlaylistItem] = useState<any | null>(null);
@@ -805,6 +848,11 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         const curPls = await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists);
         setCuratedPlaylists(curPls);
       }
+
+      // Load film-focused clubs
+      fetchPublicClubs('Film')
+        .then(clubs => setFilmClubs(clubs.slice(0, 8)))
+        .catch(() => {});
 
       const featureItems = featureGenre?.items ?? [];
       if (featureItems.length > 0) setFeaturedItem(featureItems[0]);
@@ -1011,6 +1059,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               platformVideos={adaptedPlatformVideos}
               worlds={worlds}
               featuredCharacters={featuredCharacters}
+              filmClubs={filmClubs}
             />
           )}
           {currentSubView === 'TV' && (

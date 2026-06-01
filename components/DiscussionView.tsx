@@ -10,8 +10,12 @@ import {
   fetchDiscussionBoards, createDiscussionBoard,
   fetchDiscussionPosts, createDiscussionPost, voteDiscussionPost, deleteDiscussionPost,
   fetchDiscussionComments, createDiscussionComment, voteDiscussionComment,
-  fetchMyDiscussionAliases, createDiscussionAlias
+  fetchMyDiscussionAliases, createDiscussionAlias,
+  listenToDiscussionPosts, listenToDiscussionComments,
+  reportDiscussionPost, reportDiscussionComment,
+  removeDiscussionPost, deleteDiscussionComment, pinDiscussionPost,
 } from '../services/backendService';
+import { renderDiscussionMarkdown } from '../src/lib/discussionMarkdown';
 import SignInPrompt from './SignInPrompt';
 
 interface Props {
@@ -20,7 +24,7 @@ interface Props {
 }
 
 type SortMode = 'hot' | 'new' | 'top';
-type DiscussionScreen = 'BOARDS' | 'FEED' | 'POST';
+type DiscussionScreen = 'BOARDS' | 'HOME' | 'FEED' | 'POST';
 
 export default function DiscussionView({ onBack, currentUser }: Props) {
   const [screen, setScreen] = useState<DiscussionScreen>('BOARDS');
@@ -43,6 +47,10 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<any | null>(null);
+  const [homePosts, setHomePosts] = useState<any[]>([]);
+  const [showModPanel, setShowModPanel] = useState(false);
+  const [reportedPosts, setReportedPosts] = useState<any[]>([]);
+  const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
   // New post form
   const [newPostTitle, setNewPostTitle] = useState('');
@@ -67,17 +75,36 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
     }
   }, [currentUser]);
 
+  // Real-time posts subscription for FEED screen
   useEffect(() => {
-    if (screen === 'FEED') {
-      loadPosts();
-    }
-  }, [screen, selectedBoard, sortMode]);
+    if (screen !== 'FEED' || !selectedBoard) return;
+    setLoading(true);
+    const unsub = listenToDiscussionPosts(selectedBoard.id, (data) => {
+      const sorted = [...data];
+      if (sortMode === 'new') sorted.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      else if (sortMode === 'top') sorted.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+      else sorted.sort((a, b) => ((b.upvotes || 0) - (b.downvotes || 0)) - ((a.upvotes || 0) - (a.downvotes || 0)));
+      setPosts(sorted);
+      setLoading(false);
+    });
+    return unsub;
+  }, [screen, selectedBoard?.id, sortMode]);
 
+  // Real-time home feed (all boards)
   useEffect(() => {
-    if (screen === 'POST' && selectedPost) {
-      fetchDiscussionComments(selectedPost.id).then(setComments);
-    }
-  }, [screen, selectedPost]);
+    if (screen !== 'HOME') return;
+    const unsub = listenToDiscussionPosts(null, (data) => {
+      setHomePosts(data.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0)));
+    });
+    return unsub;
+  }, [screen]);
+
+  // Real-time comments subscription
+  useEffect(() => {
+    if (screen !== 'POST' || !selectedPost) return;
+    const unsub = listenToDiscussionComments(selectedPost.id, setComments);
+    return unsub;
+  }, [screen, selectedPost?.id]);
 
   const loadBoards = async () => {
     setLoading(true);
@@ -116,6 +143,7 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
   const goBack = () => {
     if (screen === 'POST') { setScreen('FEED'); setSelectedPost(null); }
     else if (screen === 'FEED') { setScreen('BOARDS'); setSelectedBoard(null); }
+    else if (screen === 'HOME') { setScreen('BOARDS'); }
     else onBack();
   };
 
@@ -215,12 +243,28 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
 
   const handleVoteComment = async (comment: any, value: 1 | -1) => {
     if (!requireAuth('vote')) return;
-    try {
-      await voteDiscussionComment(comment.id, value);
-      const updated = await fetchDiscussionComments(selectedPost.id);
-      setComments(updated);
-    } catch {}
+    try { await voteDiscussionComment(comment.id, value); } catch {}
   };
+
+  const handleReportPost = async (postId: string) => {
+    if (!requireAuth('report content')) return;
+    await reportDiscussionPost(postId);
+  };
+
+  const handleReportComment = async (commentId: string) => {
+    if (!requireAuth('report content')) return;
+    await reportDiscussionComment(commentId);
+  };
+
+  const handleRemovePost = async (postId: string) => {
+    await removeDiscussionPost(postId, 'Removed by moderator');
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    await deleteDiscussionComment(commentId);
+  };
+
+  const isCurrentUserBoardCreator = selectedBoard && auth.currentUser && selectedBoard.creatorId === auth.currentUser.uid;
 
   const filteredBoards = boards.filter(b =>
     !searchQuery || b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -251,9 +295,13 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
         <MessageCircle size={20} className="text-violet-400" />
         <div className="flex-1 min-w-0">
           <h1 className="font-bold text-sm leading-tight">
-            {screen === 'BOARDS' ? 'Discussion' : screen === 'FEED' ? `d/${selectedBoard?.name}` : selectedPost?.title}
+            {screen === 'BOARDS' ? 'Discussion'
+             : screen === 'HOME' ? 'Home Feed'
+             : screen === 'FEED' ? `d/${selectedBoard?.name}`
+             : selectedPost?.title}
           </h1>
           {screen === 'BOARDS' && <p className="text-xs text-white/40">Reddit-style forums</p>}
+          {screen === 'HOME' && <p className="text-xs text-white/40">All boards · real-time</p>}
         </div>
 
         {/* Identity switcher */}
@@ -268,12 +316,16 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
         )}
 
         {screen === 'BOARDS' && (
-          <button
-            onClick={() => requireAuth('create a board') && setShowNewBoard(true)}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-violet-400"
-          >
-            <Plus size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setScreen('HOME')}
+              className="px-3 py-1.5 text-xs font-semibold text-white/40 hover:text-white hover:bg-white/8 rounded-lg transition-colors flex items-center gap-1">
+              <TrendingUp size={12} /> Home
+            </button>
+            <button onClick={() => requireAuth('create a board') && setShowNewBoard(true)}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-violet-400">
+              <Plus size={18} />
+            </button>
+          </div>
         )}
         {screen === 'FEED' && (
           <button
@@ -340,6 +392,52 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
         </div>
       )}
 
+      {/* HOME Screen — aggregated feed across all boards */}
+      {screen === 'HOME' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex items-center gap-1 px-4 py-2 border-b border-white/[0.06]">
+            {(['hot', 'new', 'top'] as SortMode[]).map(mode => (
+              <button key={mode} onClick={() => setSortMode(mode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortMode === mode ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
+                {mode === 'hot' && <Flame size={12} />}{mode === 'new' && <Clock size={12} />}{mode === 'top' && <TrendingUp size={12} />}
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
+          </div>
+          {homePosts.length === 0 ? (
+            <div className="text-center py-16 text-white/30 text-sm">No posts yet across any boards.</div>
+          ) : (
+            <div className="divide-y divide-white/[0.04]">
+              {homePosts.filter(p => !p.isRemoved).map(post => (
+                <div key={post.id} className="flex gap-3 p-4 hover:bg-white/[0.02] transition-colors">
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <button onClick={() => handleVotePost(post, 1)} className="p-1 hover:text-orange-400 text-white/30 transition-colors"><ChevronUp size={16} /></button>
+                    <span className="text-xs font-bold text-white/70 min-w-[20px] text-center">{(post.upvotes || 0) - (post.downvotes || 0)}</span>
+                    <button onClick={() => handleVotePost(post, -1)} className="p-1 hover:text-blue-400 text-white/30 transition-colors"><ChevronDown size={16} /></button>
+                  </div>
+                  <button onClick={() => { setSelectedBoard({ id: post.boardId, name: post.boardName }); openPost(post); }} className="flex-1 text-left">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 bg-violet-500/20 text-violet-300 text-xs rounded-full">d/{post.boardName}</span>
+                      {post.flair && <span className="px-1.5 py-0.5 bg-white/8 text-white/50 text-xs rounded-full">{post.flair}</span>}
+                    </div>
+                    <h3 className="font-semibold text-sm leading-snug mb-1">{post.title}</h3>
+                    {post.body && <p className="text-xs text-white/50 line-clamp-2 mb-1">{post.body}</p>}
+                    <div className="flex items-center gap-3 text-xs text-white/30">
+                      <span>{post.displayName}</span>
+                      <span>{formatTime(post.timestamp)}</span>
+                      <span className="flex items-center gap-1"><MessageCircle size={11} />{post.commentCount || 0}</span>
+                    </div>
+                  </button>
+                  <button onClick={() => handleReportPost(post.id)} className="p-1.5 text-white/15 hover:text-red-400 transition-colors self-start flex-shrink-0" title="Report">
+                    <MoreHorizontal size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Feed Screen */}
       {screen === 'FEED' && (
         <div className="flex-1 overflow-y-auto">
@@ -389,18 +487,14 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
                   {/* Content */}
                   <button onClick={() => openPost(post)} className="flex-1 text-left">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {post.flair && (
-                        <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-300 text-xs rounded-full">{post.flair}</span>
-                      )}
+                      {post.flair && <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-300 text-xs rounded-full">{post.flair}</span>}
+                      {post.isPinned && <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 text-xs rounded-full">📌 Pinned</span>}
                     </div>
                     <h3 className="font-semibold text-sm leading-snug mb-1">{post.title}</h3>
-                    {post.body && (
-                      <p className="text-xs text-white/50 line-clamp-2 mb-2">{post.body}</p>
-                    )}
+                    {post.body && <p className="text-xs text-white/50 line-clamp-2 mb-2">{post.body}</p>}
                     {post.linkUrl && (
                       <div className="flex items-center gap-1 text-xs text-blue-400 mb-2">
-                        <Eye size={11} />
-                        <span className="truncate max-w-[200px]">{post.linkUrl}</span>
+                        <Eye size={11} /><span className="truncate max-w-[200px]">{post.linkUrl}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-3 text-xs text-white/30">
@@ -409,11 +503,19 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
                         {post.displayName}
                       </span>
                       <span>{formatTime(post.timestamp)}</span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle size={11} />{post.commentCount || 0}
-                      </span>
+                      <span className="flex items-center gap-1"><MessageCircle size={11} />{post.commentCount || 0}</span>
                     </div>
                   </button>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button onClick={() => handleReportPost(post.id)} className="p-1.5 text-white/15 hover:text-red-400 transition-colors" title="Report">
+                      <MoreHorizontal size={13} />
+                    </button>
+                    {isCurrentUserBoardCreator && (
+                      <button onClick={() => handleRemovePost(post.id)} className="p-1.5 text-white/15 hover:text-red-400 transition-colors" title="Remove">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -440,7 +542,10 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
               </div>
               <div className="flex-1">
                 <h2 className="font-bold text-base leading-snug mb-2">{selectedPost.title}</h2>
-                {selectedPost.body && <p className="text-sm text-white/70 mb-3 whitespace-pre-wrap">{selectedPost.body}</p>}
+                {selectedPost.body && (
+                  <div className="text-sm text-white/70 mb-3 leading-relaxed prose-discussion"
+                    dangerouslySetInnerHTML={{ __html: renderDiscussionMarkdown(selectedPost.body) }} />
+                )}
                 {selectedPost.linkUrl && (
                   <a href={selectedPost.linkUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 underline break-all">
                     {selectedPost.linkUrl}
@@ -496,6 +601,9 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
                   comment={comment}
                   onVote={handleVoteComment}
                   onReply={(c: any) => { setReplyTo(c); }}
+                  onReport={handleReportComment}
+                  onDelete={handleDeleteComment}
+                  isCreator={isCurrentUserBoardCreator}
                   formatTime={formatTime}
                 />
               ))
@@ -658,22 +766,41 @@ export default function DiscussionView({ onBack, currentUser }: Props) {
   );
 }
 
-function CommentCard({ comment, onVote, onReply, formatTime }: any) {
+function CommentCard({ comment, onVote, onReply, onReport, onDelete, formatTime, isCreator }: any) {
+  if (comment.isRemoved) {
+    return (
+      <div className={`flex gap-2 px-4 py-3 ${comment.depth > 0 ? `ml-${Math.min(comment.depth * 4, 16)}` : ''}`}>
+        <div className="flex-1">
+          <p className="text-xs text-white/20 italic">[comment removed]</p>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={`flex gap-2 px-4 py-3 ${comment.depth > 0 ? 'ml-' + Math.min(comment.depth * 4, 16) : ''}`}>
+    <div className={`flex gap-2 px-4 py-3 hover:bg-white/[0.01] transition-colors ${comment.depth > 0 ? `ml-${Math.min(comment.depth * 4, 16)}` : ''}`}>
       {comment.depth > 0 && <div className="w-0.5 bg-white/10 shrink-0" />}
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           {comment.isAnonymous ? <Shield size={12} className="text-violet-400" /> : <UserCircle size={12} className="text-white/40" />}
           <span className="text-xs font-semibold text-white/70">{comment.displayName}</span>
           <span className="text-xs text-white/30">{formatTime(comment.timestamp)}</span>
+          {(comment.reportedBy?.length ?? 0) > 0 && isCreator && (
+            <span className="text-[9px] text-red-400 font-black uppercase tracking-widest">⚑ {comment.reportedBy.length} report{comment.reportedBy.length !== 1 ? 's' : ''}</span>
+          )}
         </div>
-        <p className="text-sm text-white/80 leading-relaxed mb-2">{comment.body}</p>
+        <div className="text-sm text-white/80 leading-relaxed mb-2"
+          dangerouslySetInnerHTML={{ __html: renderDiscussionMarkdown(comment.body) }} />
         <div className="flex items-center gap-3">
           <button onClick={() => onVote(comment, 1)} className="p-0.5 hover:text-orange-400 text-white/30 transition-colors"><ChevronUp size={14} /></button>
           <span className="text-xs text-white/50">{(comment.upvotes || 0) - (comment.downvotes || 0)}</span>
           <button onClick={() => onVote(comment, -1)} className="p-0.5 hover:text-blue-400 text-white/30 transition-colors"><ChevronDown size={14} /></button>
           <button onClick={() => onReply(comment)} className="text-xs text-white/30 hover:text-white/60 transition-colors ml-1">Reply</button>
+          <button onClick={() => onReport(comment.id)} className="text-xs text-white/20 hover:text-red-400 transition-colors">Report</button>
+          {isCreator && (
+            <button onClick={() => onDelete(comment.id)} className="text-xs text-white/15 hover:text-red-400 transition-colors">
+              <Trash2 size={11} />
+            </button>
+          )}
         </div>
       </div>
     </div>

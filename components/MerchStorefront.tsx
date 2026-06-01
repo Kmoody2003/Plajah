@@ -247,7 +247,19 @@ const MerchStorefront: React.FC<MerchStorefrontProps> = ({ onClose }) => {
                   </div>
                   
                   <div className="space-y-4">
-                    <button className="w-full py-5 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] hover:scale-[1.02] transition-all shadow-2xl flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => {
+                        // Route checkout based on fulfillment source of first cart item
+                        const firstItem = cart[0]?.item;
+                        if (firstItem?.fulfillmentSource === 'external' && firstItem?.externalStoreUrl) {
+                          window.open(firstItem.externalStoreUrl, '_blank');
+                        } else {
+                          // TODO: Open Printful order flow / payment modal
+                          alert('Checkout coming soon — integrate Stripe + placePrintfulOrder()');
+                        }
+                      }}
+                      className="w-full py-5 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] hover:scale-[1.02] transition-all shadow-2xl flex items-center justify-center gap-3"
+                    >
                       Checkout Now <ArrowRight size={18} />
                     </button>
                     <div className="flex items-center justify-center gap-6 text-white/20">

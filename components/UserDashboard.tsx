@@ -14,7 +14,8 @@ import {
   User, Settings, Database, Video as VideoIcon, Music, Music2, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
-  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2
+  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2,
+  Film, BarChart2, FileText, Users,
 } from 'lucide-react';
 import FediverseSettings from './FediverseSettings';
 import FediverseHub from './FediverseHub';
@@ -24,6 +25,21 @@ import AlbumCreator from './AlbumCreator';
 import InterestsNotebook from './InterestsNotebook';
 import MailingListManager from './MailingListManager';
 import FileUploader from './FileUploader';
+import FilmOnboardingWizard from './FilmOnboardingWizard';
+import FilmDistributionHub from './FilmDistributionHub';
+import FilmRightsDashboard from './FilmRightsDashboard';
+import FilmAnalyticsView from './FilmAnalyticsView';
+// Music Studio
+import MusicDistributionHub from './MusicDistributionHub';
+import ArtistRadioBuilder from './ArtistRadioBuilder';
+import PodcastDistributionHub from './PodcastDistributionHub';
+// Books Studio
+import BookCreatorWizard from './BookCreatorWizard';
+import SerialScheduler from './SerialScheduler';
+import BookClubCreator from './BookClubCreator';
+// Classrooms
+import ClassroomAnalyticsView from './ClassroomAnalyticsView';
+import CertificateGenerator from './CertificateGenerator';
 
 interface UserDashboardProps {
   user: any;
@@ -44,7 +60,18 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
 
 const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' | 'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' | 'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS'>('ACCOUNT');
+  const [activeTab, setActiveTab] = useState<
+    'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
+    'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
+    'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' |
+    'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
+    'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' |
+    'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
+    'CLASSROOM_ANALYTICS' | 'CERTIFICATES'
+  >('ACCOUNT');
+  const [showFilmWizard, setShowFilmWizard]   = useState(false);
+  const [showBookWizard, setShowBookWizard]   = useState(false);
+  const [showBookClubCreator, setShowBookClubCreator] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [userPhotos, setUserPhotos] = useState<Photo[]>([]);
@@ -218,13 +245,92 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           ))}
 
           {profile?.accountType !== 'FAN' && (
-            <button 
+            <button
               onClick={() => setActiveTab('STORE_MANAGEMENT')}
               className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'STORE_MANAGEMENT' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
             >
               <ShoppingBag size={18} />
               <span className="text-[10px] font-black uppercase tracking-widest">Store Management</span>
             </button>
+          )}
+
+          {/* ── Film Studio group ── */}
+          {profile?.accountType !== 'FAN' && (
+            <>
+              <div className="px-4 pt-4 pb-1">
+                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-[#FF8C00]/60">Film Studio</span>
+              </div>
+              {[
+                { id: 'FILM_STUDIO',    label: 'Distribution Hub',  icon: Film      },
+                { id: 'FILM_RIGHTS',    label: 'Rights & Docs',     icon: FileText  },
+                { id: 'FILM_ANALYTICS', label: 'Film Analytics',    icon: BarChart2 },
+              ].map(item => (
+                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-[#FF8C00] text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+                  <item.icon size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* ── Music Studio group ── */}
+          {profile?.accountType !== 'FAN' && (
+            <>
+              <div className="px-4 pt-4 pb-1">
+                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-purple-400/60">Music Studio</span>
+              </div>
+              {[
+                { id: 'MUSIC_STUDIO',  label: 'Music Hub',     icon: Music2  },
+                { id: 'ARTIST_RADIO',  label: 'Artist Radio',  icon: Radio   },
+                { id: 'PODCAST_HUB',   label: 'Podcast RSS',   icon: Tv      },
+              ].map(item => (
+                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-purple-500 text-white shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+                  <item.icon size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* ── Books Studio group ── */}
+          {profile?.accountType !== 'FAN' && (
+            <>
+              <div className="px-4 pt-4 pb-1">
+                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-amber-400/60">Books Studio</span>
+              </div>
+              {[
+                { id: 'BOOKS_STUDIO',     label: 'Books Hub',        icon: BookOpen  },
+                { id: 'SERIAL_SCHEDULER', label: 'Serial Scheduler', icon: BarChart2 },
+                { id: 'BOOK_CLUBS',       label: 'Book Clubs',       icon: Users     },
+              ].map(item => (
+                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-amber-500 text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+                  <item.icon size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* ── Classrooms group ── */}
+          {profile?.accountType !== 'FAN' && (
+            <>
+              <div className="px-4 pt-4 pb-1">
+                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-sky-400/60">Classrooms</span>
+              </div>
+              {[
+                { id: 'CLASSROOM_ANALYTICS', label: 'Analytics',     icon: BarChart2     },
+                { id: 'CERTIFICATES',        label: 'Certificates',  icon: CheckSquare   },
+              ].map(item => (
+                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-sky-500 text-white shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+                  <item.icon size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                </button>
+              ))}
+            </>
           )}
 
           {profile?.accountType !== 'FAN' && (
@@ -1782,8 +1888,124 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
               </div>
             </motion.div>
           )}
+
+          {/* ── Film Studio Tabs ─────────────────────────────────────────── */}
+          {activeTab === 'FILM_STUDIO' && profile && (
+            <FilmDistributionHub
+              user={profile}
+              onDistributeFilm={() => setShowFilmWizard(true)}
+            />
+          )}
+
+          {activeTab === 'FILM_RIGHTS' && (
+            <FilmRightsDashboard />
+          )}
+
+          {activeTab === 'FILM_ANALYTICS' && (
+            <FilmAnalyticsView />
+          )}
+
+          {/* ── Music Studio Tabs ─────────────────────────────────────────── */}
+          {activeTab === 'MUSIC_STUDIO' && profile && (
+            <MusicDistributionHub
+              user={profile}
+              onCreateAlbum={() => setShowCreator({ active: true, type: 'MUSIC' })}
+            />
+          )}
+          {activeTab === 'ARTIST_RADIO' && profile && (
+            <ArtistRadioBuilder user={profile} />
+          )}
+          {activeTab === 'PODCAST_HUB' && (
+            <PodcastDistributionHub />
+          )}
+
+          {/* ── Books Studio Tabs ─────────────────────────────────────────── */}
+          {activeTab === 'BOOKS_STUDIO' && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div>
+                <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">Books<br />Studio</h1>
+                <p className="text-white/30 text-sm font-bold uppercase tracking-widest mt-2">Create · Serialize · Sell · Build community</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: 'Publish a Book',        desc: 'Guided wizard: novel, serial, graphic novel, textbook', action: () => setShowBookWizard(true),           color: '#f59e0b' },
+                  { label: 'Serial Scheduler',      desc: 'Schedule chapter drops — weekly, bi-weekly, custom',   action: () => setActiveTab('SERIAL_SCHEDULER'),  color: '#818cf8' },
+                  { label: 'Book Clubs',            desc: 'Create fan communities linked to your books',          action: () => setActiveTab('BOOK_CLUBS'),         color: '#22c55e' },
+                ].map(item => (
+                  <button key={item.label} onClick={item.action}
+                    className="flex flex-col gap-4 p-7 rounded-[2rem] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${item.color}15` }}>
+                      <BookOpen size={18} style={{ color: item.color }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-widest text-white">{item.label}</p>
+                      <p className="text-[10px] text-white/30 mt-1">{item.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+          {activeTab === 'SERIAL_SCHEDULER' && (
+            <SerialScheduler />
+          )}
+          {activeTab === 'BOOK_CLUBS' && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">Book<br />Clubs</h1>
+                  <p className="text-white/30 text-sm font-bold uppercase tracking-widest mt-2">Reader communities linked to your books</p>
+                </div>
+                <button onClick={() => setShowBookClubCreator(true)}
+                  className="flex items-center gap-2 px-7 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-amber-400 text-black hover:scale-105 transition-all">
+                  <BookOpen size={14} /> Create Book Club
+                </button>
+              </div>
+              <div className="p-8 rounded-[2.5rem] border border-dashed border-white/8 text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Your book clubs will appear here</p>
+                <p className="text-[9px] text-white/12 mt-1">Create a book club above or from any book's page</p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Classroom Tabs ────────────────────────────────────────────── */}
+          {activeTab === 'CLASSROOM_ANALYTICS' && (
+            <ClassroomAnalyticsView />
+          )}
+          {activeTab === 'CERTIFICATES' && (
+            <CertificateGenerator />
+          )}
         </div>
       </main>
+
+      {/* Film Onboarding Wizard */}
+      {showFilmWizard && (
+        <FilmOnboardingWizard
+          onCancel={() => setShowFilmWizard(false)}
+          onLaunchCreator={(albumPartial) => {
+            setShowFilmWizard(false);
+            setShowCreator({ active: true, album: albumPartial as any });
+          }}
+        />
+      )}
+
+      {/* Book Creator Wizard */}
+      {showBookWizard && (
+        <BookCreatorWizard
+          onCancel={() => setShowBookWizard(false)}
+          onLaunchCreator={(albumPartial) => {
+            setShowBookWizard(false);
+            setShowCreator({ active: true, album: albumPartial as any });
+          }}
+        />
+      )}
+
+      {/* Book Club Creator */}
+      {showBookClubCreator && (
+        <BookClubCreator
+          onClose={() => setShowBookClubCreator(false)}
+        />
+      )}
     </div>
   );
 };

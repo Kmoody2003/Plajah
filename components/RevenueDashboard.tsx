@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  DollarSign, TrendingUp, Users, ShoppingBag, Radio, Wallet, 
+import {
+  DollarSign, TrendingUp, Users, ShoppingBag, Radio, Wallet,
   ArrowUpRight, ArrowDownRight, CreditCard, Bitcoin, Shield,
-  ChevronRight, ExternalLink, Activity, PieChart, Heart
+  ChevronRight, ExternalLink, Activity, PieChart, Heart,
+  Film, Ticket, Play, Star,
 } from 'lucide-react';
 import { UserRevenue, UserProfile } from '../types';
 import { updateCryptoWallet } from '../services/backendService';
@@ -29,6 +30,22 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
   };
 
   const totalRevenue = revenue.donations + revenue.merch + revenue.adRevenue + revenue.subscriptions;
+
+  const filmRentals           = revenue.filmRentals           ?? 0;
+  const filmPurchases         = revenue.filmPurchases         ?? 0;
+  const filmPPVTickets        = revenue.filmPPVTickets        ?? 0;
+  const filmFastAdIncome      = revenue.filmFastAdIncome      ?? 0;
+  const filmReviewCodeLicenses= revenue.filmReviewCodeLicenses?? 0;
+  const totalFilmRevenue      = filmRentals + filmPurchases + filmPPVTickets + filmFastAdIncome + filmReviewCodeLicenses;
+
+  const filmStats = [
+    { label: 'Film Total',    value: totalFilmRevenue,       icon: Film,   color: 'text-orange-400',  bg: 'bg-orange-400/20' },
+    { label: 'Rentals',       value: filmRentals,            icon: Play,   color: 'text-sky-400',     bg: 'bg-sky-400/20'    },
+    { label: 'Purchases',     value: filmPurchases,          icon: ShoppingBag, color: 'text-violet-400', bg: 'bg-violet-400/20' },
+    { label: 'PPV Tickets',   value: filmPPVTickets,         icon: Ticket, color: 'text-pink-400',    bg: 'bg-pink-400/20'   },
+    { label: 'FAST Ads',      value: filmFastAdIncome,       icon: Radio,  color: 'text-green-400',   bg: 'bg-green-400/20'  },
+    { label: 'Review Codes',  value: filmReviewCodeLicenses, icon: Star,   color: 'text-yellow-400',  bg: 'bg-yellow-400/20' },
+  ];
 
   const handleSaveCrypto = async () => {
     await updateCryptoWallet(cryptoWallet);
@@ -70,6 +87,42 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
           </motion.div>
         ))}
       </div>
+
+      {/* ── Film Distribution Revenue ─────────────────────────────────── */}
+      <section className="bg-white/[0.02] border border-white/5 rounded-[3rem] p-10">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-4 bg-orange-400/15 rounded-2xl">
+            <Film className="text-orange-400" size={24} />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black uppercase tracking-tightest">Film Distribution</h3>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Rentals · Purchases · PPV · FAST · Press Codes</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {filmStats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06 }}
+              className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-5 hover:bg-white/[0.05] transition-all group"
+            >
+              <div className={`p-3 ${stat.bg} rounded-xl w-fit mb-4 group-hover:scale-110 transition-transform`}>
+                <stat.icon className={stat.color} size={18} />
+              </div>
+              <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">{stat.label}</p>
+              <h4 className="text-xl font-black uppercase tracking-tight">${stat.value.toLocaleString()}</h4>
+            </motion.div>
+          ))}
+        </div>
+        {totalFilmRevenue === 0 && (
+          <div className="mt-6 p-6 rounded-2xl border border-dashed border-white/8 text-center">
+            <p className="text-[10px] text-white/20 font-black uppercase tracking-widest">No film revenue yet</p>
+            <p className="text-[9px] text-white/12 mt-1">Upload your first film in Film Studio to start earning</p>
+          </div>
+        )}
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Crypto Wallet Section */}

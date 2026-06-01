@@ -132,6 +132,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ initialUrl = 'https://impac
           src={toProxyUrl(loadedUrl)}
           className="w-full h-full border-none block"
           title="Plajah Browser"
+          sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts"
           onLoad={() => setLoading(false)}
           onError={() => setLoading(false)}
           allow="autoplay; fullscreen; encrypted-media"

@@ -1,11 +1,12 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character } from '../types';
+import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character, Club } from '../types';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
   fetchVideosByInterests, fetchUserVideos, auth, fetchAllPublicAlbums,
   publishToCloud, fetchAllLiveFeeds, fetchSystemSettingsConfig, fetchVideoPlaylistsByIds,
   fetchVideosByIds, fetchUserWorlds, fetchWorldCharacters, fetchUserProfile, updateVideo,
-  fetchAllUsers, fetchFollowedArtists, followUser, unfollowUser
+  fetchAllUsers, fetchFollowedArtists, followUser, unfollowUser,
+  fetchUserClubs, createClubPost,
 } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
@@ -66,7 +67,8 @@ const VideoCard: React.FC<{
   showChannel?: boolean;
   currentUser?: UserProfile | null;
   onAssignWorld?: () => void;
-}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld }) => {
+  onShareToClub?: () => void;
+}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld, onShareToClub }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const muxId = (video as any).muxPlaybackId as string | undefined;
   const thumb = muxId
@@ -184,6 +186,15 @@ const VideoCard: React.FC<{
             title="Assign to World"
           >
             <MoreVertical size={14} />
+          </button>
+        )}
+        {onShareToClub && (
+          <button
+            onClick={e => { e.stopPropagation(); onShareToClub(); }}
+            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            title="Share to Club"
+          >
+            <Users size={13} />
           </button>
         )}
       </div>
@@ -441,6 +452,20 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [activeLiveStream, setActiveLiveStream] = useState<{ streamId: string; title: string; ownerName: string } | null>(null);
 
+  // Share to Club
+  const [shareToClubVideo, setShareToClubVideo] = useState<Video | Album | null>(null);
+  const [userClubs, setUserClubs] = useState<Club[]>([]);
+  const [shareClubId, setShareClubId] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
+  const [shareSubmitting, setShareSubmitting] = useState(false);
+  const [shareDone, setShareDone] = useState(false);
+
+  // Load user's clubs for Share to Club
+  useEffect(() => {
+    const uid = currentUser?.uid || auth.currentUser?.uid;
+    if (uid) fetchUserClubs(uid).then(setUserClubs).catch(() => {});
+  }, [currentUser?.uid]);
+
   // Fetch discoverable channels — always load public channels, personalize when logged in
   useEffect(() => {
     const loadChannels = async () => {
@@ -520,7 +545,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
     (async () => {
       try {
-        const { fetchAllVideos, updateVideo, pollMuxUploadUntilReady } = await import('../services/backendService');
+        const { fetchAllVideos, updateVideo, pollMuxUploadUntilReady, createMuxAssetFromUrl } = await import('../services/backendService');
         const allVideos = await fetchAllVideos();
 
         // Case B: direct uploads still processing — resume polling by upload ID
@@ -556,13 +581,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           for (const v of toBackfill.slice(0, 20)) {
             (async () => {
               try {
-                const res = await fetch('/api/mux/create-asset-from-url', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ url: v.url }),
-                });
-                if (!res.ok) return;
-                const { assetId, playbackId } = await res.json();
+                const { assetId, playbackId } = await createMuxAssetFromUrl(v.url);
                 if (assetId || playbackId) {
                   await updateVideo(v.id, {
                     ...(assetId    ? { muxAssetId:    assetId    } : {}),
@@ -657,6 +676,32 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
     const isCinema = sub === 'MOVIE' || sub === 'Movie' || sub === 'Short Film' || sub === 'TV_SERIES' || sub === 'TV Series';
     if (!isCinema && (item as any).type === 'VIDEO' && sub) playVideo(item as any);
     onSelectVideo?.(item);
+  };
+
+  const handleShareToClub = async () => {
+    if (!shareClubId || !shareToClubVideo) return;
+    setShareSubmitting(true);
+    try {
+      const thumb = (shareToClubVideo as any).muxPlaybackId
+        ? `https://image.mux.com/${(shareToClubVideo as any).muxPlaybackId}/thumbnail.png?width=400&height=225&time=5`
+        : (shareToClubVideo as any).thumbnailUrl || (shareToClubVideo as any).coverImage || '';
+      await createClubPost({
+        clubId: shareClubId,
+        content: shareMessage || `Check out "${shareToClubVideo.title}" on Reelo!`,
+        type: 'POST',
+        attachments: [{
+          type: 'VIDEO',
+          url: (shareToClubVideo as any).url || '',
+          title: shareToClubVideo.title,
+          thumbnailUrl: thumb,
+          assetId: shareToClubVideo.id,
+        }],
+      });
+      setShareDone(true);
+      setTimeout(() => { setShareToClubVideo(null); setShareDone(false); setShareMessage(''); setShareClubId(''); }, 2000);
+    } finally {
+      setShareSubmitting(false);
+    }
   };
 
   const addTag = () => {
@@ -861,7 +906,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   {filteredVideos.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                       {filteredVideos.map(v => (
-                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} />
+                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} />
                       ))}
                     </div>
                   ) : (
@@ -933,6 +978,36 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {/* Music Videos section */}
               {mode === 'VIDEOS' && musicVideos.length > 0 && (
                 <VideoRow title="Music Videos" icon={Music2} videos={musicVideos} onSelect={handlePlay} />
+              )}
+
+              {/* Club Picks — videos shared in clubs */}
+              {mode === 'VIDEOS' && auth.currentUser && userClubs.length > 0 && (
+                <section className="mb-14">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5">
+                      <Users className="text-small-orange" size={16} /> Club Picks
+                    </h2>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/25 border border-white/10 px-2 py-0.5 rounded-lg">{userClubs.length} clubs</span>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                    {userClubs.map(club => (
+                      <div key={club.id} className="shrink-0 w-52 p-4 bg-white/[0.03] border border-white/8 hover:border-small-orange/30 rounded-2xl transition-all group cursor-pointer space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl overflow-hidden bg-white/10 shrink-0">
+                            {club.iconImage
+                              ? <img src={club.iconImage} className="w-full h-full object-cover" alt="" loading="lazy" />
+                              : <div className="w-full h-full flex items-center justify-center"><Users size={14} className="text-white/20" /></div>}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-tight truncate group-hover:text-small-orange transition-colors">{club.name}</p>
+                            <p className="text-[7px] text-white/25 font-bold uppercase">{club.memberCount || 0} members</p>
+                          </div>
+                        </div>
+                        <p className="text-[8px] text-white/30 line-clamp-2">{club.description || 'A community for fans'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               )}
 
               {/* Trending */}
@@ -1123,6 +1198,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       onPlay={() => handlePlay(video)}
                       currentUser={currentUser}
                       onAssignWorld={isOwner ? () => setAssigningVideo(video) : undefined}
+                      onShareToClub={auth.currentUser ? () => setShareToClubVideo(video) : undefined}
                     />
                   ))}
                 </div>
@@ -1777,6 +1853,107 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       <AnimatePresence>
         {signInAction && (
           <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Share to Club Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {shareToClubVideo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => { setShareToClubVideo(null); setShareDone(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 20 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-5 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-1">Reelo → Club</p>
+                  <h3 className="text-xl font-black uppercase tracking-tight text-white">Share to Club</h3>
+                </div>
+                <button onClick={() => setShareToClubVideo(null)} className="p-2 text-white/30 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/[0.07] rounded-2xl">
+                <div className="w-16 h-10 rounded-xl overflow-hidden bg-white/5 shrink-0">
+                  {(() => {
+                    const thumb = (shareToClubVideo as any).muxPlaybackId
+                      ? `https://image.mux.com/${(shareToClubVideo as any).muxPlaybackId}/thumbnail.png?width=300&height=169&time=5`
+                      : (shareToClubVideo as any).thumbnailUrl || (shareToClubVideo as any).coverImage || '';
+                    return thumb ? <img src={thumb} className="w-full h-full object-cover" alt="" /> : null;
+                  })()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white truncate">{shareToClubVideo.title}</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest">{(shareToClubVideo as any).genre || 'Video'}</p>
+                </div>
+              </div>
+
+              {shareDone ? (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                    <Check size={20} className="text-green-400" />
+                  </div>
+                  <p className="text-sm font-black text-white uppercase tracking-widest">Shared to Club!</p>
+                </div>
+              ) : (
+                <>
+                  {userClubs.length === 0 ? (
+                    <p className="text-[10px] text-white/25 font-black uppercase tracking-widest text-center py-4">You haven't joined any clubs yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
+                      {userClubs.map(club => (
+                        <button
+                          key={club.id}
+                          onClick={() => setShareClubId(club.id)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                            shareClubId === club.id
+                              ? 'bg-small-orange/15 border-small-orange/40'
+                              : 'bg-white/[0.03] border-white/[0.07] hover:border-white/20'
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-white/10 overflow-hidden shrink-0">
+                            {club.iconImage && <img src={club.iconImage} className="w-full h-full object-cover" alt="" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-white truncate">{club.name}</p>
+                            <p className="text-[9px] text-white/30 font-black uppercase tracking-widest">{club.memberCount || 0} members</p>
+                          </div>
+                          {shareClubId === club.id && <Check size={14} className="text-small-orange shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <textarea
+                    value={shareMessage}
+                    onChange={e => setShareMessage(e.target.value)}
+                    placeholder="Add a message… (optional)"
+                    rows={2}
+                    className="w-full bg-white/[0.05] border border-white/[0.10] focus:border-small-orange/50 rounded-xl px-4 py-3 text-sm font-bold text-white placeholder-white/20 outline-none resize-none transition-all"
+                  />
+
+                  <button
+                    onClick={handleShareToClub}
+                    disabled={!shareClubId || shareSubmitting}
+                    className="w-full h-12 bg-small-orange hover:bg-small-orange/80 disabled:opacity-40 text-white font-black text-sm uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Share2 size={16} /> {shareSubmitting ? 'Sharing…' : 'Share to Club'}
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

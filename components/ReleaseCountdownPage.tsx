@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Share2, Check, ChevronRight, Lock, Send, MessageSquare } from 'lucide-react';
+import { Calendar, Share2, Check, ChevronRight, Lock, Send, MessageSquare, Play, Users, ChevronLeft } from 'lucide-react';
 import type { Album, EarlyAccessRequest } from '../types';
+import FilmPremierModal from './FilmPremierModal';
 import { redeemReviewCode, checkEarlyAccess, fetchAlbumById, requestEarlyAccess, fetchMyEarlyAccessRequest } from '../services/backendService';
 import { auth } from '../services/backendService';
 
@@ -153,6 +154,9 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [showPremier, setShowPremier] = useState(false);
+  const [castPage, setCastPage] = useState(0);
 
   // Load album if not provided
   useEffect(() => {
@@ -298,7 +302,7 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
             backgroundImage: `url(${images[bgIndex] ?? ''})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'blur(3px) brightness(0.28) saturate(1.6)',
+            filter: 'blur(3px) brightness(0.48) saturate(1.6)',
             transform: 'scale(1.08)',
             opacity: 0.9,
           }}
@@ -307,7 +311,7 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
 
       {/* Near-solid dark overlay — platform beneath is invisible */}
       <div className="absolute inset-0"
-        style={{ background: 'linear-gradient(to bottom, rgba(6,6,8,0.75) 0%, rgba(6,6,8,0.35) 45%, rgba(6,6,8,0.82) 100%)' }} />
+        style={{ background: 'linear-gradient(to bottom, rgba(6,6,8,0.55) 0%, rgba(6,6,8,0.15) 45%, rgba(6,6,8,0.65) 100%)' }} />
 
       {/* ── Content ── */}
       <div className="relative h-full flex flex-col items-center justify-between px-6 py-10 overflow-y-auto">
@@ -331,6 +335,17 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
             </span>
           )}
           <p className="text-white/50 text-sm font-medium tracking-widest uppercase">{album.artist}</p>
+
+          {/* Trailer play button (if trailerUrl exists) */}
+          {album.movieMetadata?.trailerUrl && (
+            <button
+              onClick={() => setShowTrailer(true)}
+              className="flex items-center gap-2 mt-1 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.2)' }}
+            >
+              <Play size={11} fill="currentColor" /> Watch Trailer
+            </button>
+          )}
         </motion.div>
 
         {/* Center — album title + countdown */}
@@ -373,6 +388,47 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
               {album.description.slice(0, 160)}{album.description.length > 160 ? '…' : ''}
             </motion.p>
           )}
+
+          {/* Cast carousel */}
+          {(album.movieMetadata?.castMembers ?? []).length > 0 && (() => {
+            const cast = album.movieMetadata!.castMembers!;
+            const perPage = 4;
+            const totalPages = Math.ceil(cast.length / perPage);
+            const visible = cast.slice(castPage * perPage, castPage * perPage + perPage);
+            return (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+                className="w-full max-w-md">
+                <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/20 text-center mb-3">Cast</p>
+                <div className="flex items-center gap-2">
+                  {totalPages > 1 && (
+                    <button onClick={() => setCastPage(p => Math.max(0, p - 1))} disabled={castPage === 0}
+                      className="p-1.5 rounded-full text-white/20 hover:text-white transition-all disabled:opacity-0">
+                      <ChevronLeft size={14} />
+                    </button>
+                  )}
+                  <div className="flex-1 flex items-center justify-center gap-3">
+                    {visible.map(cm => (
+                      <div key={cm.id} className="flex flex-col items-center gap-1.5 text-center">
+                        <div className="w-10 h-10 rounded-2xl bg-white/8 border border-white/10 flex items-center justify-center overflow-hidden">
+                          <span className="text-[10px] font-black text-white/30 uppercase">
+                            {(cm.actorName || '?').slice(0, 1)}
+                          </span>
+                        </div>
+                        <span className="text-[8px] font-bold text-white/35 leading-none max-w-[52px] truncate">{cm.actorName}</span>
+                        {cm.characterName && <span className="text-[7px] text-white/20 leading-none">{cm.characterName}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  {totalPages > 1 && (
+                    <button onClick={() => setCastPage(p => Math.min(totalPages - 1, p + 1))} disabled={castPage >= totalPages - 1}
+                      className="p-1.5 rounded-full text-white/20 hover:text-white transition-all disabled:opacity-0">
+                      <ChevronRight size={14} />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })()}
         </div>
 
         {/* Bottom — actions + early access */}
@@ -380,7 +436,7 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
           className="flex flex-col items-center gap-4 w-full max-w-sm">
 
           {/* CTA row */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap justify-center gap-3">
             <button onClick={handleCalendar}
               className="flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
               style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}>
@@ -391,6 +447,12 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
               style={{ background: `${accentColor}22`, color: accentColor, backdropFilter: 'blur(12px)', border: `1px solid ${accentColor}40` }}>
               {copied ? <Check size={13} /> : <Share2 size={13} />}
               {copied ? 'Copied!' : 'Share'}
+            </button>
+            {/* Watch Party / Premiere button (only the album owner sees this) */}
+            <button onClick={() => setShowPremier(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+              style={{ background: 'rgba(244,114,182,0.15)', color: '#f472b6', backdropFilter: 'blur(12px)', border: '1px solid rgba(244,114,182,0.3)' }}>
+              <Users size={13} /> Host Premiere
             </button>
           </div>
 
@@ -516,6 +578,49 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
           <p className="text-[8px] text-white/15 uppercase tracking-[0.4em]">Plajah · Release Page</p>
         </motion.div>
       </div>
+
+      {/* Trailer lightbox */}
+      <AnimatePresence>
+        {showTrailer && album.movieMetadata?.trailerUrl && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            onClick={() => setShowTrailer(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              className="relative w-full max-w-3xl mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setShowTrailer(false)}
+                className="absolute -top-10 right-0 p-2 text-white/40 hover:text-white transition-all">
+                ✕
+              </button>
+              <div className="aspect-video w-full rounded-3xl overflow-hidden bg-black">
+                <iframe
+                  src={album.movieMetadata.trailerUrl}
+                  className="w-full h-full"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                  title="Trailer"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Premiere/Watch Party scheduler */}
+      <AnimatePresence>
+        {showPremier && (
+          <FilmPremierModal
+            albumId={albumId}
+            albumTitle={album.title}
+            coverImage={album.coverImage}
+            onClose={() => setShowPremier(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

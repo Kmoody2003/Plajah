@@ -224,6 +224,19 @@ function htmlEscape(str: string): string {
     .replace(/'/g, '&#x27;');
 }
 
+function xmlEscape(str: string): string {
+  return htmlEscape(str);
+}
+
+function safeYouTubeEmbedUrl(mediaUrl: string): string | null {
+  let id = '';
+  const vMatch = mediaUrl.match(/[?&]v=([^&#]*)/);
+  if (vMatch?.[1]) id = vMatch[1];
+  else if (mediaUrl.includes('youtu.be/')) id = mediaUrl.split('youtu.be/')[1].split('?')[0];
+  if (!/^[a-zA-Z0-9_-]{6,32}$/.test(id)) return null;
+  return `https://www.youtube.com/embed/${id}`;
+}
+
 function isPrivateHost(hostname: string): boolean {
   return /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|0\.0\.0\.0|169\.254\.)/.test(hostname);
 }
@@ -727,8 +740,25 @@ async function startServer() {
     return undefined;
   }
 
+  // Per-user rate limiter for live stream creation (max 5 per 10 minutes)
+  const muxLiveRateLimit = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req: any) => {
+      // Prefer per-user UID when available; otherwise use connection remote address
+      // Use remoteAddress/header instead of req.ip to avoid express-rate-limit IPv6 keyGenerator validation
+      if (req && req.uid) return `uid:${req.uid}`;
+      const forwarded = req?.headers?.['x-forwarded-for'];
+      const remote = forwarded ? String(forwarded).split(',')[0].trim() : (req?.socket?.remoteAddress || 'unknown');
+      return `ip:${remote}`;
+    },
+    message: { error: 'Too many live stream requests. Please wait before creating another stream.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // POST /api/mux/upload — browser gets an upload URL and PUTs directly to Mux
-  app.post('/api/mux/upload', async (req, res) => {
+  app.post('/api/mux/upload', authMiddleware, async (req, res) => {
     try {
       const mux = await getMux();
       const corsOrigin = req.headers.origin || '*';
@@ -745,7 +775,7 @@ async function startServer() {
   });
 
   // GET /api/mux/asset — poll upload status until asset_id is present
-  app.get('/api/mux/asset', async (req, res) => {
+  app.get('/api/mux/asset', authMiddleware, async (req, res) => {
     try {
       const { uploadId } = req.query;
       if (!uploadId) return res.status(400).json({ error: 'Missing uploadId' });
@@ -761,14 +791,17 @@ async function startServer() {
   // POST /api/mux/create-asset-from-url — ingest a public URL into Mux
   // Returns playbackId as soon as it's available (usually within a few seconds
   // of the first segments being ready — full transcoding continues in background).
-  app.post('/api/mux/create-asset-from-url', express.json(), async (req, res) => {
+  app.post('/api/mux/create-asset-from-url', authMiddleware, express.json(), async (req, res) => {
     try {
       const { url } = req.body;
       if (!url) return res.status(400).json({ error: 'Missing url' });
+      let parsedUrl: URL;
+      try { parsedUrl = validateProxyUrl(String(url)); }
+      catch (e: any) { return res.status(400).json({ error: e.message }); }
 
       const mux = await getMux();
       const asset = await mux.video.assets.create({
-        inputs: [{ url }],
+        inputs: [{ url: parsedUrl.toString() }],
         ...MUX_ASSET_SETTINGS,
       });
 
@@ -783,7 +816,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/mux/playback', async (req, res) => {
+  app.get('/api/mux/playback', authMiddleware, async (req, res) => {
     try {
       const { assetId } = req.query;
       if (!assetId) return res.status(400).json({ error: 'Missing assetId' });
@@ -811,7 +844,8 @@ async function startServer() {
   });
 
   // --- Mux Live Streaming ---
-  app.post('/api/mux/live/create', express.json(), async (req, res) => {
+  // Auth + per-user rate limit protects against stream creation abuse and billing attacks
+  app.post('/api/mux/live/create', authMiddleware, muxLiveRateLimit, express.json(), async (req, res) => {
     try {
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
@@ -840,7 +874,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/mux/live/:streamId', async (req, res) => {
+  app.delete('/api/mux/live/:streamId', authMiddleware, async (req, res) => {
     try {
       const { streamId } = req.params;
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
@@ -857,7 +891,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/mux/live/:streamId/status', async (req, res) => {
+  app.get('/api/mux/live/:streamId/status', authMiddleware, async (req, res) => {
     try {
       const { streamId } = req.params;
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
@@ -875,7 +909,12 @@ async function startServer() {
   });
 
   // --- Mux Backfill: transcode all existing Firestore videos that lack muxPlaybackId ---
-  app.post('/api/mux/backfill-videos', async (req, res) => {
+  // Admin-only: this triggers expensive batch API calls and must not be publicly accessible
+  app.post('/api/mux/backfill-videos', authMiddleware, async (req: any, res) => {
+    // Verify admin status by checking the admins Firestore collection
+    const isAdmin = await fetchFirebaseDoc('admins', req.uid);
+    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+    // Original handler continues below
     try {
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
@@ -1550,16 +1589,13 @@ async function startServer() {
     const { url } = req.query;
     if (!url) return res.status(400).send('URL required');
 
-    let targetUrl: string;
+    let parsed: URL;
     try {
-      targetUrl = decodeURIComponent(url as string);
-      const parsed = new URL(targetUrl);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return res.status(400).send('Only http/https URLs are supported');
-      }
-    } catch {
-      return res.status(400).send('Invalid URL');
+      parsed = validateProxyUrl(url as string);
+    } catch (e: any) {
+      return res.status(400).send(e.message || 'Invalid URL');
     }
+    const targetUrl = parsed.toString();
 
     try {
       const upstream = await fetch(targetUrl, {
@@ -1573,13 +1609,14 @@ async function startServer() {
 
       const contentType = upstream.headers.get('content-type') || 'text/html; charset=utf-8';
       res.setHeader('Content-Type', contentType);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       // Strip iframe-blocking headers — intentionally NOT forwarding X-Frame-Options or CSP
 
       if (contentType.includes('text/html')) {
         let html = await upstream.text();
         // Inject <base> tag so relative URLs resolve against the original origin
-        const origin = new URL(targetUrl).origin;
-        const baseTag = `<base href="${origin}/">`;
+        const origin = parsed.origin;
+        const baseTag = `<base href="${htmlEscape(origin)}/">`;
         if (/<head(\s[^>]*)?>/.test(html)) {
           html = html.replace(/<head(\s[^>]*)?>/, (m) => `${m}${baseTag}`);
         } else {
@@ -1683,7 +1720,7 @@ async function startServer() {
       const { access_token, refresh_token } = await tokenRes.json() as any;
       // Return a tiny page that posts the token back to the opener and closes itself
       res.send(`<!DOCTYPE html><html><body><script>
-        try { window.opener.postMessage({ type:'hue-auth', accessToken:${JSON.stringify(access_token)}, refreshToken:${JSON.stringify(refresh_token)} }, '*'); }
+        try { window.opener.postMessage({ type:'hue-auth', accessToken:${JSON.stringify(access_token)}, refreshToken:${JSON.stringify(refresh_token)} }, window.location.origin); }
         catch(e) {}
         window.close();
       </script><p>Hue connected! You can close this window.</p></body></html>`);
@@ -1882,24 +1919,28 @@ async function startServer() {
     const title = dbData.fields?.title?.stringValue || 'Plajah';
     const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
     const embedUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
+    const safeTitle = htmlEscape(title);
+    const safeHost = htmlEscape(host);
+    const safeCover = htmlEscape(cover);
+    const safeEmbedUrl = htmlEscape(embedUrl);
 
     const response = {
       version: '1.0',
       type: type === 'album' ? 'rich' : 'video',
-      title,
+      title: safeTitle,
       provider_name: 'Plajah',
-      provider_url: `https://${host}`,
-      thumbnail_url: cover,
+      provider_url: `https://${safeHost}`,
+      thumbnail_url: safeCover,
       thumbnail_width: 1200,
       thumbnail_height: 630,
-      html: `<iframe src="${embedUrl}" width="560" height="315" style="border:none;border-radius:12px;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`,
+      html: `<iframe src="${safeEmbedUrl}" width="560" height="315" style="border:none;border-radius:12px;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`,
       width: 560,
       height: 315,
     };
 
     if (format === 'xml') {
       res.set('Content-Type', 'text/xml');
-      return res.send(`<?xml version="1.0" encoding="utf-8"?><oembed>${Object.entries(response).map(([k, v]) => `<${k}>${v}</${k}>`).join('')}</oembed>`);
+      return res.send(`<?xml version="1.0" encoding="utf-8"?><oembed>${Object.entries(response).map(([k, v]) => `<${k}>${xmlEscape(String(v))}</${k}>`).join('')}</oembed>`);
     }
     res.json(response);
   });
@@ -1946,31 +1987,28 @@ async function startServer() {
 
     if (!mediaUrl) return res.status(404).send('No Media Found');
 
+    const safeMediaUrl = htmlEscape(mediaUrl);
+    const safeCover = htmlEscape(cover);
+    const safeTitle = htmlEscape(title);
     let playerHtml = '';
     if (isYoutube) {
-        let embedLink = mediaUrl;
-        const vMatch = mediaUrl.match(/[?&]v=([^&#]*)/);
-        if (vMatch && vMatch[1]) {
-            embedLink = `https://www.youtube.com/embed/${vMatch[1]}`;
-        } else if (mediaUrl.includes('youtu.be/')) {
-            const shortId = mediaUrl.split('youtu.be/')[1].split('?')[0];
-            embedLink = `https://www.youtube.com/embed/${shortId}`;
-        }
-        playerHtml = `<iframe src="${embedLink}" width="100%" height="100%" style="border:none" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+        const embedLink = safeYouTubeEmbedUrl(mediaUrl);
+        if (!embedLink) return res.status(400).send('Invalid YouTube URL');
+        playerHtml = `<iframe src="${htmlEscape(embedLink)}" width="100%" height="100%" style="border:none" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
     } else if (mediaUrl.endsWith('.mp4') || mediaUrl.includes('/videos%2F') || type === 'video' || type === 'feed') {
-        playerHtml = `<video src="${mediaUrl}" controls width="100%" height="100%" style="background:black" poster="${cover}"></video>`;
+        playerHtml = `<video src="${safeMediaUrl}" controls width="100%" height="100%" style="background:black" poster="${safeCover}"></video>`;
     } else {
         playerHtml = `
         <div style="position:relative;background:#0a0a0a;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;">
-          ${cover ? `<img src="${cover}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;filter:blur(40px);transform:scale(1.1);" />` : ''}
+          ${cover ? `<img src="${safeCover}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;filter:blur(40px);transform:scale(1.1);" />` : ''}
           <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.5) 60%,rgba(0,0,0,0.3) 100%);"></div>
           <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:20px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;">
-            ${cover ? `<img src="${cover}" style="width:140px;height:140px;border-radius:16px;object-fit:cover;box-shadow:0 20px 60px rgba(0,0,0,0.6);" />` : ''}
+            ${cover ? `<img src="${safeCover}" style="width:140px;height:140px;border-radius:16px;object-fit:cover;box-shadow:0 20px 60px rgba(0,0,0,0.6);" />` : ''}
             <div style="text-align:center;">
               <p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#ff8c00;">Now Playing on Plajah</p>
-              <h3 style="margin:0;font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;">${title}</h3>
+              <h3 style="margin:0;font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;">${safeTitle}</h3>
             </div>
-            <audio src="${mediaUrl}" controls autoplay style="width:100%;accent-color:#ff8c00;"></audio>
+            <audio src="${safeMediaUrl}" controls autoplay style="width:100%;accent-color:#ff8c00;"></audio>
           </div>
         </div>`;
     }
@@ -1981,7 +2019,7 @@ async function startServer() {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>${title}</title>
+        <title>${safeTitle}</title>
         <style>body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:black;}</style>
       </head>
       <body>
@@ -2044,6 +2082,468 @@ async function startServer() {
       }
     });
   }
+
+  // ── MUX Webhook — receives live stream state changes ──────────────────────
+  // Register MUX webhook at: https://dashboard.mux.com/webhooks
+  // Point it to: https://your-domain.com/api/mux/webhook
+  app.post('/api/mux/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['mux-signature'] as string;
+    const secret = process.env.MUX_WEBHOOK_SECRET;
+
+    // If webhook secret is configured, verify the signature
+    if (secret && sig) {
+      try {
+        const body = req.body.toString('utf8');
+        const ts = sig.split(',').find(p => p.startsWith('t='))?.split('=')[1];
+        const v1 = sig.split(',').find(p => p.startsWith('v1='))?.split('=')[1];
+        if (!ts || !v1) return res.status(400).json({ error: 'Invalid signature header' });
+        const crypto = await import('crypto');
+        const expected = crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
+        if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))) {
+          return res.status(401).json({ error: 'Signature mismatch' });
+        }
+      } catch (err) {
+        console.error('[MUX webhook] Signature verification error:', err);
+        return res.status(400).json({ error: 'Signature verification failed' });
+      }
+    }
+
+    try {
+      const event = JSON.parse(req.body.toString('utf8'));
+      const { type, data } = event;
+
+      if (type === 'video.live_stream.active') {
+        // Stream is receiving signal — update Firestore live_feeds status
+        const streamId = data?.id;
+        if (streamId) {
+          console.log(`[MUX] Stream ${streamId} is now ACTIVE`);
+          // Find the live feed doc with this muxStreamId and update it
+          // (Using REST Firestore query — no admin SDK needed)
+        }
+      }
+
+      if (type === 'video.live_stream.idle') {
+        const streamId = data?.id;
+        if (streamId) console.log(`[MUX] Stream ${streamId} is now IDLE/ended`);
+      }
+
+      if (type === 'video.asset.ready') {
+        // VOD asset finished processing — update video doc with final playback ID
+        const assetId = data?.id;
+        const playbackId = data?.playback_ids?.[0]?.id;
+        if (assetId && playbackId) {
+          console.log(`[MUX] Asset ${assetId} ready with playbackId ${playbackId}`);
+        }
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      console.error('[MUX webhook] Parse error:', err);
+      res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+  });
+
+  // ── Stripe: Club Membership Checkout ─────────────────────────────────────
+  app.post('/api/stripe/club-membership', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { clubId, clubName, monthlyPrice } = req.body;
+      if (!clubId || !clubName || typeof monthlyPrice !== 'number' || monthlyPrice <= 0) {
+        return res.status(400).json({ error: 'Missing or invalid club membership parameters' });
+      }
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            recurring: { interval: 'month' },
+            product_data: { name: `${clubName} — Fan Club Membership` },
+            unit_amount: Math.round(monthlyPrice * 100),
+          },
+          quantity: 1,
+        }],
+        success_url: `${req.headers.origin ?? process.env.VITE_APP_URL ?? ''}/?club_join=${clubId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin ?? process.env.VITE_APP_URL ?? ''}/?club=${clubId}`,
+        metadata: { type: 'club_membership', clubId, uid: req.uid },
+        client_reference_id: req.uid,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] club-membership checkout error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MERCH API — Printful + Gelato proxy + Stripe checkout + platform fee payout
+  // All keys stay server-side. Frontend calls /api/merch/* with a Firebase token.
+  // Platform fee: PLATFORM_MERCH_FEE_PCT env var (default 15%)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const PRINTFUL_API = 'https://api.printful.com';
+  const GELATO_API   = 'https://product.gelatoapis.com/v3';
+  const GELATO_ORDER_API = 'https://order.gelatoapis.com';
+  const PLATFORM_FEE = parseFloat(process.env.PLATFORM_MERCH_FEE_PCT ?? '15') / 100;
+
+  const printfulHeaders = () => ({
+    'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY ?? ''}`,
+    'Content-Type': 'application/json',
+  });
+
+  const gelatoHeaders = () => ({
+    'X-API-KEY': process.env.GELATO_API_KEY ?? '',
+    'Content-Type': 'application/json',
+  });
+
+  // ── Printful: fetch product catalog ─────────────────────────────────────────
+  app.get('/api/merch/printful/catalog', authMiddleware, async (_req, res) => {
+    try {
+      const r = await fetch(`${PRINTFUL_API}/products?limit=20`, { headers: printfulHeaders() });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Printful: fetch variants for a product ───────────────────────────────────
+  app.get('/api/merch/printful/products/:id', authMiddleware, async (req, res) => {
+    try {
+      const r = await fetch(`${PRINTFUL_API}/products/${req.params.id}`, { headers: printfulHeaders() });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Printful: upload design file ─────────────────────────────────────────────
+  // Accepts multipart/form-data with field "file"
+  app.post('/api/merch/printful/files', authMiddleware, async (req: any, res) => {
+    try {
+      // Stream the incoming multipart body directly to Printful
+      const contentType = req.headers['content-type'] ?? 'multipart/form-data';
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      await new Promise(resolve => req.on('end', resolve));
+      const body = Buffer.concat(chunks);
+
+      const r = await fetch(`${PRINTFUL_API}/files`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY ?? ''}`,
+          'Content-Type': contentType,
+          'Content-Length': String(body.length),
+        },
+        body,
+      });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Printful: generate mockup task ───────────────────────────────────────────
+  app.post('/api/merch/printful/mockup/:productId', authMiddleware, express.json(), async (req, res) => {
+    try {
+      const r = await fetch(`${PRINTFUL_API}/mockup-generator/create-task/${req.params.productId}`, {
+        method: 'POST',
+        headers: printfulHeaders(),
+        body: JSON.stringify(req.body),
+      });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Printful: poll mockup task result ────────────────────────────────────────
+  app.get('/api/merch/printful/mockup/task', authMiddleware, async (req, res) => {
+    try {
+      const r = await fetch(`${PRINTFUL_API}/mockup-generator/task?task_key=${req.query.task_key}`, { headers: printfulHeaders() });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Printful: create sync product (publish to Plajah's Printful store) ───────
+  app.post('/api/merch/printful/products', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const r = await fetch(`${PRINTFUL_API}/store/products`, {
+        method: 'POST',
+        headers: printfulHeaders(),
+        body: JSON.stringify(req.body),
+      });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Gelato: fetch product catalog ────────────────────────────────────────────
+  app.get('/api/merch/gelato/catalog', authMiddleware, async (_req, res) => {
+    try {
+      const r = await fetch(`${GELATO_API}/products?limit=20&category=apparel`, { headers: gelatoHeaders() });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Gelato: fetch variants ────────────────────────────────────────────────────
+  app.get('/api/merch/gelato/products/:uid/variants', authMiddleware, async (req, res) => {
+    try {
+      const r = await fetch(`${GELATO_API}/products/${req.params.uid}/variants`, { headers: gelatoHeaders() });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Gelato: generate mockup ───────────────────────────────────────────────────
+  app.post('/api/merch/gelato/mockup/:uid', authMiddleware, express.json(), async (req, res) => {
+    try {
+      const r = await fetch(`${GELATO_API}/products/${req.params.uid}/mockup`, {
+        method: 'POST',
+        headers: gelatoHeaders(),
+        body: JSON.stringify(req.body),
+      });
+      const data = await r.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: create merch checkout session ─────────────────────────────────────
+  // Calculates platform fee, creates Stripe session, stores order intent in Firestore
+  app.post('/api/merch/checkout', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { items, artistId, fulfillmentSource } = req.body as {
+        items: { title: string; imageUrl: string; price: number; quantity: number; printfulVariantId?: number; printfulSyncProductId?: number }[];
+        artistId: string;
+        fulfillmentSource: 'printful' | 'gelato';
+      };
+
+      if (!items?.length || !artistId) return res.status(400).json({ error: 'Missing items or artistId' });
+
+      const stripe = getStripe();
+      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const orderId = `merch-${Date.now()}-${req.uid.slice(0, 6)}`;
+
+      // Build Stripe line items (retail price — Plajah takes fee from revenue share)
+      const lineItems = items.map(item => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.title,
+            images: item.imageUrl ? [item.imageUrl] : [],
+          },
+          unit_amount: Math.round(item.price * 100), // cents
+        },
+        quantity: item.quantity,
+      }));
+
+      const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+      const platformFeeAmount = Math.round(subtotal * PLATFORM_FEE * 100); // cents
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        success_url: `${origin}/?merch_success=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?merch_cancel=1`,
+        metadata: {
+          type: 'merch_order',
+          orderId,
+          artistId,
+          buyerUid: req.uid,
+          fulfillmentSource,
+          platformFeeUsd: (platformFeeAmount / 100).toFixed(2),
+          artistPayoutUsd: ((subtotal * 100 - platformFeeAmount) / 100).toFixed(2),
+        },
+        client_reference_id: req.uid,
+        payment_intent_data: {
+          // Transfer artist portion automatically if you use Stripe Connect (optional)
+          // transfer_data: { destination: artistStripeAccountId },
+          // application_fee_amount: platformFeeAmount,
+          metadata: { orderId, artistId },
+        },
+      });
+
+      // Record pending order in Firestore so webhook can fulfil it
+      await firestoreWrite('merch_orders', orderId, {
+        orderId,
+        buyerUid: req.uid,
+        artistId,
+        fulfillmentSource,
+        status: 'pending_payment',
+        stripeSessionId: session.id,
+        subtotalUsd: subtotal,
+        platformFeeUsd: platformFeeAmount / 100,
+        artistPayoutUsd: (subtotal * 100 - platformFeeAmount) / 100,
+        itemsJson: JSON.stringify(items),
+        timestamp: Date.now(),
+      });
+
+      res.json({ url: session.url, orderId });
+    } catch (err: any) {
+      console.error('[Merch] checkout error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe webhook: fulfil merch order after payment ─────────────────────────
+  // Re-uses the existing /api/stripe/webhook handler pattern — add this case there.
+  // Here we handle it inline via a dedicated route for clarity:
+  app.post('/api/merch/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    const secret = process.env.STRIPE_MERCH_WEBHOOK_SECRET ?? process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) return res.status(500).json({ error: 'Webhook secret not configured' });
+
+    let event: any;
+    try {
+      const stripe = getStripe();
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err: any) {
+      console.error('[Merch Webhook] signature verification failed:', err.message);
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      if (session.metadata?.type !== 'merch_order') return res.json({ received: true });
+
+      const { orderId, artistId, fulfillmentSource, artistPayoutUsd } = session.metadata;
+
+      try {
+        // 1. Mark order paid in Firestore
+        await firestoreWrite('merch_orders', orderId, {
+          status: 'paid',
+          stripePaymentIntentId: session.payment_intent ?? '',
+          paidAt: Date.now(),
+        });
+
+        // 2. Submit fulfillment order to Printful or Gelato
+        // Shipping address comes from Stripe session — available in session.customer_details
+        const addr = session.customer_details?.address;
+        const name = session.customer_details?.name ?? '';
+        const email = session.customer_details?.email ?? '';
+
+        if (fulfillmentSource === 'printful' && addr) {
+          const projectId = 'gen-lang-client-0665118474';
+          const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+          const orderDoc = await fetchFirebaseDoc('merch_orders', orderId);
+          const items = JSON.parse(orderDoc?.fields?.itemsJson?.stringValue ?? '[]');
+
+          const pfOrder = await fetch(`${PRINTFUL_API}/orders`, {
+            method: 'POST',
+            headers: printfulHeaders(),
+            body: JSON.stringify({
+              external_id: orderId,
+              shipping: 'STANDARD',
+              recipient: {
+                name,
+                email,
+                address1: addr.line1 ?? '',
+                city: addr.city ?? '',
+                state_code: addr.state ?? '',
+                country_code: addr.country ?? 'US',
+                zip: addr.postal_code ?? '',
+              },
+              items: items.map((i: any) => ({
+                sync_variant_id: i.printfulSyncProductId,
+                quantity: i.quantity,
+                retail_price: i.price.toFixed(2),
+              })),
+            }),
+          });
+          const pfData = await pfOrder.json();
+          await firestoreWrite('merch_orders', orderId, {
+            status: 'fulfillment_submitted',
+            printfulOrderId: String(pfData.result?.id ?? ''),
+          });
+        }
+
+        if (fulfillmentSource === 'gelato' && addr) {
+          const orderDoc = await fetchFirebaseDoc('merch_orders', orderId);
+          const items = JSON.parse(orderDoc?.fields?.itemsJson?.stringValue ?? '[]');
+
+          const glOrder = await fetch(`${GELATO_ORDER_API}/v4/orders`, {
+            method: 'POST',
+            headers: gelatoHeaders(),
+            body: JSON.stringify({
+              orderReferenceId: orderId,
+              customerReferenceId: orderId,
+              currency: 'USD',
+              items: items.map((i: any, idx: number) => ({
+                itemReferenceId: `${orderId}-${idx}`,
+                productUid: i.gelatoProductUid ?? '',
+                files: [{ type: 'default', url: i.designUrl ?? '' }],
+                quantity: i.quantity,
+              })),
+              shippingAddress: {
+                name,
+                email,
+                addressLine1: addr.line1 ?? '',
+                city: addr.city ?? '',
+                postCode: addr.postal_code ?? '',
+                country: addr.country ?? 'US',
+              },
+            }),
+          });
+          const glData = await glOrder.json();
+          await firestoreWrite('merch_orders', orderId, {
+            status: 'fulfillment_submitted',
+            gelatoOrderId: String(glData.id ?? ''),
+          });
+        }
+
+        // 3. Record artist payout in Firestore (processed via your existing payout flow)
+        const payoutId = `payout-merch-${orderId}`;
+        await firestoreWrite('pending_payouts', payoutId, {
+          type: 'merch',
+          artistId,
+          orderId,
+          amountUsd: parseFloat(artistPayoutUsd ?? '0'),
+          status: 'pending',
+          createdAt: Date.now(),
+        });
+
+        console.log(`[Merch] Order ${orderId} fulfilled via ${fulfillmentSource}. Artist payout: $${artistPayoutUsd}`);
+      } catch (err: any) {
+        console.error(`[Merch] fulfillment error for ${orderId}:`, err.message);
+        // Don't return 500 — Stripe will retry. Log and move on.
+      }
+    }
+
+    res.json({ received: true });
+  });
+
+  // ── Merch: get order status ───────────────────────────────────────────────────
+  app.get('/api/merch/orders/:orderId', authMiddleware, async (req: any, res) => {
+    try {
+      const doc = await fetchFirebaseDoc('merch_orders', req.params.orderId);
+      if (!doc) return res.status(404).json({ error: 'Order not found' });
+      // Only allow buyer or artist to read their own order
+      const buyerUid = doc.fields?.buyerUid?.stringValue;
+      const artistId = doc.fields?.artistId?.stringValue;
+      if (req.uid !== buyerUid && req.uid !== artistId) return res.status(403).json({ error: 'Forbidden' });
+      res.json(doc.fields);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── END MERCH API ─────────────────────────────────────────────────────────────
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);

@@ -446,22 +446,106 @@ const TSDB_SPORT: Record<string, string> = {
   MLS:  'Soccer',
 };
 
-async function fetchTheSportsDBTeam(fullName: string, sport?: string): Promise<any | null> {
+// Static TSDB team ID fallback map (ESPN abbr → TSDB idTeam)
+// Used when dynamic search fails. IDs verified from TSDB API.
+// Static TSDB IDs verified by sequential lookupteam.php scan.
+// Only confirmed IDs are included — unverified teams fall back to search_all_teams.
+const TSDB_STATIC_IDS: Record<string, Record<string, string>> = {
+  // NBA: IDs 134860-134885 confirmed by lookupteam.php scan
+  NBA: {
+    atl: '134880', bos: '134860', bkn: '134861', cha: '134881', chi: '134870',
+    cle: '134871', dal: '134875', den: '134885', det: '134872', gs:  '134865',
+    hou: '134876', ind: '134873', lac: '134866', lal: '134867', mem: '134877',
+    mia: '134882', mil: '134874', no:  '134878', ny:  '134862', orl: '134883',
+    phi: '134863', phx: '134868', sac: '134869', sa:  '134879', tor: '134864',
+    wsh: '134884',
+    // OKC, Portland, Utah, Minnesota IDs not confirmed — omitted to prevent wrong player data
+  },
+  // NFL: only confirmed IDs from search_all_teams + Cowboys direct lookup
+  NFL: {
+    ari: '134946', atl: '134942', dal: '134934',
+  },
+  // NHL + MLB: only confirmed from search_all_teams results
+  NHL: { ana: '134846', bos: '134830' },
+  MLB: { ari: '135267', oak: '135261' },
+};
+
+// Map ESPN tab → TSDB league name for search_all_teams
+const TSDB_LEAGUE_NAME: Record<string, string> = {
+  NBA:  'NBA',
+  NFL:  'NFL',
+  NHL:  'NHL',
+  MLB:  'MLB',
+  NCAA: 'NCAAB',
+  FIFA: 'English Premier League',
+  MLS:  'Major League Soccer',
+};
+
+// Fetch all teams from TSDB by league, detecting pagination loops (free tier returns same 10 on every page)
+async function fetchTSDBAllTeamsByLeague(tab: string): Promise<any[]> {
+  const league = TSDB_LEAGUE_NAME[tab];
+  if (!league) return [];
+  const key = `tsdb:allteams:${tab}`;
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+  const allTeams: any[] = [];
+  const seenIds = new Set<string>();
+  for (let p = 1; p <= 4; p++) {
+    const data = await safeFetch(`${TSDB}/search_all_teams.php?l=${encodeURIComponent(league)}&p=${p}`);
+    const batch: any[] = data?.teams ?? [];
+    if (batch.length === 0) break;
+    // Detect pagination loop — stop if we see duplicate IDs
+    const newTeams = batch.filter(t => !seenIds.has(t.idTeam));
+    if (newTeams.length === 0) break; // free tier looping, stop
+    newTeams.forEach(t => seenIds.add(t.idTeam));
+    allTeams.push(...newTeams);
+    if (batch.length < 10) break;
+  }
+  toCache(key, allTeams);
+  return allTeams;
+}
+
+async function fetchTheSportsDBTeamById(tsdbId: string): Promise<any | null> {
+  const key = `tsdb:teambyid:${tsdbId}`;
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+  const data = await safeFetch(`${TSDB}/lookupteam.php?id=${tsdbId}`);
+  const team = data?.teams?.[0] ?? null;
+  toCache(key, team);
+  return team;
+}
+
+async function fetchTheSportsDBTeam(fullName: string, sport?: string, tab?: string, knownTsdbId?: string, espnAbbr?: string): Promise<any | null> {
+  // Priority 1: known TSDB ID from static data (fastest, most reliable)
+  if (knownTsdbId) {
+    return fetchTheSportsDBTeamById(knownTsdbId);
+  }
+
+  // Priority 2: static ID map keyed by ESPN abbreviation
+  if (tab && espnAbbr && TSDB_STATIC_IDS[tab]?.[espnAbbr]) {
+    return fetchTheSportsDBTeamById(TSDB_STATIC_IDS[tab][espnAbbr]);
+  }
+
   const key = `tsdb:team:${fullName}:${sport ?? ''}`;
   const c = fromCache(key, TTL.teams);
   if (c !== null) return c;
-  const nickname = fullName.split(' ').pop() || fullName;
-  const data = await safeFetch(`${TSDB}/searchteams.php?t=${encodeURIComponent(nickname)}`);
-  const teams: any[] = data?.teams ?? [];
+
   const lc = fullName.toLowerCase();
-  // Filter by sport type first, then match by name
-  const sameSport = sport ? teams.filter(t => t.strSport === sport) : teams;
-  const match =
-    sameSport.find(t => t.strTeam?.toLowerCase() === lc) ??
-    sameSport.find(t => t.strTeam?.toLowerCase().includes(nickname.toLowerCase())) ??
-    sameSport[0] ?? null;
-  toCache(key, match);
-  return match;
+
+  // Priority 3: search_all_teams by league (free tier returns up to 10 unique teams)
+  if (tab && TSDB_LEAGUE_NAME[tab]) {
+    const allTeams = await fetchTSDBAllTeamsByLeague(tab);
+    const match = allTeams.find(t =>
+      t.strTeam?.toLowerCase() === lc ||
+      lc.includes(t.strTeam?.toLowerCase() ?? '') ||
+      t.strTeam?.toLowerCase().includes(lc)
+    ) ?? null;
+    toCache(key, match);
+    return match;
+  }
+
+  toCache(key, null);
+  return null;
 }
 
 async function fetchTheSportsDBPlayers(tsdbTeamId: string): Promise<LegendPlayer[]> {
@@ -932,6 +1016,7 @@ export async function fetchRichTeamPage(
   teamId: string,
   nickname: string,
   location: string,
+  tsdbId?: string,
 ): Promise<RichTeamPage | null> {
   const key = `rich:${tab}:${teamId}`;
   const c = fromCache(key, TTL.roster);
@@ -944,9 +1029,13 @@ export async function fetchRichTeamPage(
     return fetchSoccerRichTeamPage(teamId, fullName, nickname, location, key);
   }
 
+  // teamId is either an ESPN abbreviation (e.g. 'lal') or a numeric ID ('13')
+  // Use it as espnAbbr for the static ID map lookup when it looks like an abbr (non-numeric)
+  const espnAbbr = /^\d+$/.test(teamId) ? undefined : teamId;
+
   const [base, tsdbTeam, wikiText] = await Promise.all([
     fetchTeamPage(tab, teamId),
-    fetchTheSportsDBTeam(fullName, TSDB_SPORT[tab]),
+    fetchTheSportsDBTeam(fullName, TSDB_SPORT[tab], tab, tsdbId, espnAbbr),
     fetchWikiSummary(fullName),
   ]);
 

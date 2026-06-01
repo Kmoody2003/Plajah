@@ -27,7 +27,7 @@ const CATEGORIES = [
   { id: 'PODCASTS', label: 'Podcasts', icon: Mic },
   { id: 'LIVE_NEWS', label: 'Live News', icon: Radio },
   { id: 'GENERAL', label: 'Global News', icon: Globe },
-  { id: 'SPORTS_ALL', label: 'Sports Center', icon: Zap },
+  { id: 'SPORTS_ALL', label: 'Plajah Sports', icon: Zap },
   { id: 'SCIENCE', label: 'Science & Research', icon: Radio },
   { id: 'FINANCE', label: 'Markets & Finance', icon: TrendingUp }
 ];
