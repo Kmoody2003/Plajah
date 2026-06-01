@@ -6,7 +6,7 @@ import {
   Plus, Send, Heart, Pin, Trash2, Shield, Crown, Pen, Lock, Globe,
   X, Check, Calendar, Play, Music, BookOpen, Link2, Upload, Zap,
   UserPlus, UserMinus, Ban, Sparkles, Radio, Eye,
-  Mic, Video as VideoIcon2, Ticket, UserCheck, Clock, Film,
+  Mic, Video as VideoIcon2, Ticket, UserCheck, Clock, Film, ShoppingBag,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -27,6 +27,12 @@ import UniversalPostComposer from './UniversalPostComposer';
 import DualPanelTimeline from './DualPanelTimeline';
 import ArticleEditor from './ArticleEditor';
 import ClubRichPostCard from './ClubRichPostCard';
+import ClubAnalyticsDashboard from './ClubAnalyticsDashboard';
+import MerchManager from './MerchManager';
+import ClubInviteLink from './ClubInviteLink';
+import ClubMembershipPaywall from './ClubMembershipPaywall';
+import ClubChannelSidebar from './ClubChannelSidebar';
+import type { ClubChannel } from '../types';
 
 interface ClubDetailViewProps {
   club: Club;
@@ -36,17 +42,19 @@ interface ClubDetailViewProps {
   initialTab?: TabId;
 }
 
-type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'LIVE' | 'SETTINGS';
+type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'LIVE' | 'MERCH' | 'SETTINGS' | 'ANALYTICS';
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'TIMELINE', label: 'Timeline', icon: <Zap size={14} /> },
-  { id: 'BULLETIN', label: 'Bulletin', icon: <Newspaper size={14} /> },
-  { id: 'GALLERY', label: 'Gallery', icon: <Image size={14} /> },
-  { id: 'MEMBERS', label: 'Members', icon: <Users size={14} /> },
-  { id: 'CHAT', label: 'Live Chat', icon: <MessageSquare size={14} /> },
-  { id: 'EVENTS', label: 'Events', icon: <Calendar size={14} /> },
-  { id: 'LIVE', label: 'Live', icon: <Radio size={14} /> },
-  { id: 'SETTINGS', label: 'Settings', icon: <Settings size={14} /> },
+const TABS: { id: TabId; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
+  { id: 'TIMELINE',  label: 'Timeline',  icon: <Zap size={14} /> },
+  { id: 'BULLETIN',  label: 'Bulletin',  icon: <Newspaper size={14} /> },
+  { id: 'GALLERY',   label: 'Gallery',   icon: <Image size={14} /> },
+  { id: 'MEMBERS',   label: 'Members',   icon: <Users size={14} /> },
+  { id: 'CHAT',      label: 'Live Chat', icon: <MessageSquare size={14} /> },
+  { id: 'EVENTS',    label: 'Events',    icon: <Calendar size={14} /> },
+  { id: 'LIVE',      label: 'Live',      icon: <Radio size={14} /> },
+  { id: 'MERCH',     label: 'Merch',     icon: <ShoppingBag size={14} /> },
+  { id: 'ANALYTICS', label: 'Analytics', icon: <Shield size={14} />, adminOnly: true },
+  { id: 'SETTINGS',  label: 'Settings',  icon: <Settings size={14} />, adminOnly: true },
 ];
 
 const ROLE_LABELS: Record<ClubRole, string> = {
@@ -104,9 +112,13 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [viewingStreamOwner, setViewingStreamOwner] = useState('');
   const [clubStreams, setClubStreams] = useState<{ id: string; title: string; ownerName: string; ownerPhoto: string; viewerCount: number; isPrivate?: boolean }[]>([]);
 
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [clubChannels, setClubChannels] = useState<ClubChannel[]>(initialClub.channels ?? []);
+
   const isAdmin = membership?.role === 'OWNER' || membership?.role === 'ADMIN';
   const isMod = isAdmin || membership?.role === 'MODERATOR';
   const isMember = !!membership && membership.status === 'ACTIVE';
+  const isPaidClub = (club.monthlyPrice ?? 0) > 0;
   const canPost = isMember;
   const canAuthor = isMod || membership?.role === 'WRITER';
 
@@ -391,8 +403,11 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
             ) : membership?.status === 'PENDING' ? (
               <span className="px-5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest">Pending</span>
             ) : (
-              <button onClick={() => setShowJoinModal(true)} disabled={joining} className="px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all flex items-center gap-2">
-                <UserPlus size={12} /> Join Club
+              <button
+                onClick={() => setShowJoinModal(true)}
+                disabled={joining}
+                className="px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all flex items-center gap-2">
+                <UserPlus size={12} /> {isPaidClub ? `Join · $${club.monthlyPrice}/mo` : 'Join Club'}
               </button>
             ))}
           </div>
@@ -442,9 +457,22 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-8" style={club.customFont ? { fontFamily: club.customFont } : {}}>
         <AnimatePresence mode="wait">
-          {/* TIMELINE */}
+          {/* TIMELINE — with optional channel sidebar */}
           {activeTab === 'TIMELINE' && (
-            <motion.div key="timeline" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="timeline" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="flex gap-0 -mx-4 md:-mx-8 min-h-[60vh]">
+              {/* Channel sidebar (shown when club has channels or user is admin) */}
+              {(clubChannels.length > 0 || isAdmin) && (
+                <ClubChannelSidebar
+                  club={{ ...club, channels: clubChannels }}
+                  activeChannelId={activeChannelId}
+                  onSelectChannel={setActiveChannelId}
+                  isAdmin={isAdmin}
+                  onChannelsChanged={setClubChannels}
+                />
+              )}
+              {/* Timeline posts filtered by channel */}
+              <div className="flex-1 px-4 md:px-8 space-y-6 py-2">
               {canPost && (
                 <UniversalPostComposer
                   currentUser={currentUser}
@@ -471,6 +499,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                     await createClubPost({
                       clubId: club.id,
                       content: data.text,
+                      channelId: activeChannelId ?? undefined,
                       attachments: [
                         ...resolvedAttachments,
                         ...(data.assetEmbed ? [{ type: data.assetEmbed.type, url: data.assetEmbed.imageUrl || '', title: data.assetEmbed.title, assetId: data.assetEmbed.id }] : []),
@@ -522,7 +551,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 <DualPanelTimeline
                   mode="DUAL"
                   syncScroll={syncScroll}
-                  posts={posts.filter(p => !p.isBulletin)}
+                  posts={posts.filter(p => !p.isBulletin && (activeChannelId ? p.channelId === activeChannelId : !p.channelId))}
                   renderPost={(post) => (
                     <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
                       onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
@@ -533,6 +562,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   emptyState={<EmptyState icon={<Zap size={32} />} label="No posts yet — be the first to share!" />}
                 />
               )}
+              </div>{/* end timeline posts wrapper */}
             </motion.div>
           )}
 
@@ -1124,6 +1154,32 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
             </motion.div>
           )}
 
+          {/* MERCH */}
+          {activeTab === 'MERCH' && (
+            <motion.div key="merch" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {isAdmin ? (
+                <MerchManager artistId={club.creatorId} initialMerch={[]} onUpdate={() => {}} />
+              ) : (
+                <div className="flex flex-col items-center gap-6 py-16 text-center">
+                  <div className="w-16 h-16 rounded-3xl bg-small-orange/10 border border-small-orange/20 flex items-center justify-center">
+                    <ShoppingBag size={28} className="text-small-orange" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-widest text-white mb-2">Club Merch</p>
+                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Only club admins can manage merch.<br />Check back for new drops.</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ANALYTICS */}
+          {activeTab === 'ANALYTICS' && isAdmin && (
+            <motion.div key="analytics" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <ClubAnalyticsDashboard club={club} />
+            </motion.div>
+          )}
+
           {/* SETTINGS */}
           {activeTab === 'SETTINGS' && isAdmin && (
             <motion.div key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5 max-w-2xl pb-16">
@@ -1139,6 +1195,9 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   <p className="text-xs text-white/40 leading-relaxed max-w-xs">Set up your club's identity, pick who can join, and unlock features. Your community starts here.</p>
                 </div>
               )}
+
+              {/* Invite Link */}
+              <ClubInviteLink club={club} isAdmin={isAdmin} />
 
               {/* Cover + Icon hero */}
               <div className="relative">
@@ -1340,25 +1399,34 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
         </AnimatePresence>
       </div>
 
-      {/* Join Modal */}
+      {/* Join Modal — paid clubs show Stripe paywall, free clubs show standard confirm */}
       <AnimatePresence>
         {showJoinModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 max-w-md w-full">
-              <h2 className="text-2xl font-black uppercase tracking-tight mb-2">Join {club.name}</h2>
-              {club.description && <p className="text-xs opacity-40 font-bold mb-6 leading-relaxed">{club.description}</p>}
-              {club.rules && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
-                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Club Rules</p>
-                  <p className="text-xs opacity-60 leading-relaxed whitespace-pre-wrap">{club.rules}</p>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#0a0a0a] border border-white/10 rounded-3xl max-w-md w-full overflow-hidden">
+              <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-white/5">
+                <h2 className="text-xl font-black uppercase tracking-tight">Join {club.name}</h2>
+                <button onClick={() => setShowJoinModal(false)} className="p-2 text-white/30 hover:text-white transition-colors rounded-xl"><X size={16} /></button>
+              </div>
+              {isPaidClub ? (
+                <ClubMembershipPaywall club={club} onJoined={() => { setShowJoinModal(false); handleJoin(); }} />
+              ) : (
+                <div className="p-8">
+                  {club.description && <p className="text-xs opacity-40 font-bold mb-6 leading-relaxed">{club.description}</p>}
+                  {club.rules && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
+                      <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Club Rules</p>
+                      <p className="text-xs opacity-60 leading-relaxed whitespace-pre-wrap">{club.rules}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowJoinModal(false)} className="flex-1 py-3 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">Cancel</button>
+                    <button onClick={() => { handleJoin(); setShowJoinModal(false); }} disabled={joining} className="flex-1 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-white/90 transition-all">
+                      {club.joinProcess === 'AUTO' ? 'Join Now' : 'Request to Join'}
+                    </button>
+                  </div>
                 </div>
               )}
-              <div className="flex gap-3">
-                <button onClick={() => setShowJoinModal(false)} className="flex-1 py-3 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">Cancel</button>
-                <button onClick={handleJoin} disabled={joining} className="flex-1 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-white/90 transition-all">
-                  {club.joinProcess === 'AUTO' ? 'Join Now' : 'Request to Join'}
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}

@@ -866,15 +866,15 @@ const FeedItemComponent: React.FC<{
   return (
     <div ref={inViewRef} className="w-full flex flex-col items-center my-12 md:my-20">
       <motion.div
-        className="w-[98vw] max-w-7xl backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[3rem] md:rounded-[4rem] p-8 md:p-16 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
+        className="w-full backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[3rem] md:rounded-[4rem] p-8 md:p-16 xl:p-20 2xl:p-24 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         whileInView={{ opacity: 1, y: 0, scale: 1 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="flex flex-col md:flex-row items-start gap-12 md:gap-20">
+        <div className="flex flex-col md:flex-row items-start gap-12 md:gap-20 xl:gap-24">
           <div
-            className="w-24 h-24 md:w-32 md:h-32 rounded-[2.5rem] overflow-hidden bg-white/10 ring-8 ring-white/5 cursor-pointer hover:ring-small-orange transition-all flex-shrink-0 relative group/avatar shadow-[0_30px_60px_rgba(0,0,0,0.4)]"
+            className="w-24 h-24 md:w-32 md:h-32 xl:w-44 xl:h-44 2xl:w-52 2xl:h-52 rounded-[2.5rem] overflow-hidden bg-white/10 ring-8 ring-white/5 cursor-pointer hover:ring-small-orange transition-all flex-shrink-0 relative group/avatar shadow-[0_30px_60px_rgba(0,0,0,0.4)]"
             onClick={() => item.authorId !== 'system' && onVisitUser(item.authorId)}
             onMouseEnter={() => setHoveredUserId(item.authorId)}
             onMouseLeave={() => setHoveredUserId(null)}
@@ -1071,7 +1071,7 @@ const FeedItemComponent: React.FC<{
             initial={{ height: 0, opacity: 0, y: -20 }}
             animate={{ height: '70vh', opacity: 1, y: -40 }}
             exit={{ height: 0, opacity: 0, y: -20 }}
-            className="w-[98vw] max-w-7xl backdrop-blur-[80px] bg-black/40 border-x border-b border-white/20 rounded-b-[4rem] flex flex-col z-0 overflow-hidden shadow-2xl"
+            className="w-full backdrop-blur-[80px] bg-black/40 border-x border-b border-white/20 rounded-b-[4rem] flex flex-col z-0 overflow-hidden shadow-2xl"
           >
             <div className="flex-1 overflow-hidden p-2 md:p-6">
               <CommentSection 
@@ -1144,7 +1144,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [selectedSportsTab, setSelectedSportsTab] = useState<'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'SCIENCE' | 'FINANCE'>('HEADLINES');
+  const [selectedSportsTab, setSelectedSportsTab] = useState<'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS' | 'F1' | 'NASCAR' | 'INDYCAR' | 'SCIENCE' | 'FINANCE'>('HEADLINES');
   const [selectedScienceCategory, setSelectedScienceCategory] = useState<'ALL' | 'BIOLOGY' | 'PHYSICS' | 'SPACE' | 'TECH' | 'CHEMISTRY'>('ALL');
   const [selectedFinanceSubTab, setSelectedFinanceSubTab] = useState<'MARKETS' | 'NEWS' | 'LEARN' | 'LOCAL' | 'GLOBAL'>('MARKETS');
   const [sportsScores, setSportsScores] = useState<any[]>([]);
@@ -1468,11 +1468,17 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
       else {
         // Sports specific tabs
         const tabMap: Record<string, string> = {
-          'NBA': 'SPORTS_NBA',
-          'NFL': 'SPORTS_NFL',
-          'NHL': 'SPORTS_NHL',
-          'MLB': 'SPORTS_MLB',
-          'NCAA': 'SPORTS_NCAA'
+          'NBA':     'SPORTS_NBA',
+          'NFL':     'SPORTS_NFL',
+          'NHL':     'SPORTS_NHL',
+          'MLB':     'SPORTS_MLB',
+          'NCAA':    'SPORTS_NCAA',
+          'FIFA':    'SPORTS_ALL',
+          'MLS':     'SPORTS_ALL',
+          'ESPORTS': 'SPORTS_ALL',
+          'F1':      'SPORTS_ALL',
+          'NASCAR':  'SPORTS_ALL',
+          'INDYCAR': 'SPORTS_ALL',
         };
         mappedRssCategory = tabMap[selectedSportsTab] || 'SPORTS_ALL';
       }
@@ -1549,11 +1555,14 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
 
   const fetchSportsScores = async () => {
     const endpoints: Record<string, string> = {
-      NBA: 'basketball/nba',
-      NFL: 'football/nfl',
-      NHL: 'hockey/nhl',
-      MLB: 'baseball/mlb',
-      NCAA: 'basketball/mens-college-basketball'
+      NBA:    'basketball/nba',
+      NFL:    'football/nfl',
+      NHL:    'hockey/nhl',
+      MLB:    'baseball/mlb',
+      NCAA:   'basketball/mens-college-basketball',
+      FIFA:   'soccer/eng.1',
+      MLS:    'soccer/usa.1',
+      // Racing handled by RacingCenterView directly — no generic scoreboard endpoint
     };
 
     try {
@@ -1814,7 +1823,7 @@ const toggleFavoriteTeam = async (team: string) => {
   return (
     <>
     <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-transparent`}>
-      <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-4 md:p-12 max-w-full mx-auto w-full`}>
+      <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-4 md:p-8 max-w-full mx-auto w-full`}>
         {/* BOLDER HEADER */}
         <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-20'} space-y-12`}>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b-8 border-white/5 pb-12">
@@ -1930,7 +1939,7 @@ const toggleFavoriteTeam = async (team: string) => {
         <div className="px-6 lg:px-20 max-w-[1600px] mx-auto w-full space-y-12 pb-20">
            {/* SPORTS & SCIENCE & FINANCE SUB NAVIGATION */}
            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-6 sticky top-0 bg-transparent z-40 backdrop-blur-sm">
-             {['HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'ESPORTS', 'SCIENCE', 'FINANCE'].map((tab) => (
+             {['HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR', 'SCIENCE', 'FINANCE'].map((tab) => (
                <button
                  key={tab}
                  onClick={() => setSelectedSportsTab(tab as any)}
@@ -2245,7 +2254,7 @@ const toggleFavoriteTeam = async (team: string) => {
            )}
 
            {/* ── SPORTS CENTER (per-league) ─────────────────────────── */}
-           {['NBA','NFL','NHL','MLB','NCAA','ESPORTS'].includes(selectedSportsTab) && (
+           {['NBA','NFL','NHL','MLB','NCAA','FIFA','MLS','ESPORTS','F1','NASCAR','INDYCAR'].includes(selectedSportsTab) && (
              <SportsCenterView selectedSportsTab={selectedSportsTab} />
            )}
 
@@ -2950,7 +2959,7 @@ const toggleFavoriteTeam = async (team: string) => {
         </div>
       ) : activeTab === 'GLOBAL' ? (
         /* ── Plajah Social Canvas ───────────────────────────── */
-        <div className="w-full max-w-2xl mx-auto flex flex-col flex-1 overflow-hidden">
+        <div className="w-full max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
 
           {/* ── Stories Bar ── */}
           {currentUser && (
