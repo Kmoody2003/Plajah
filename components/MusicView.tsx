@@ -23,9 +23,11 @@ import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchive
 import {
   fetchAudiusTrending, searchAudius,
   loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks,
-  AudiusCuration, AudiusPlaylist, AudiusArtist,
+  AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
 import PlajahPlusBanner from './PlajahPlusBanner';
+const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
+const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
 
@@ -59,6 +61,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [audiusCuration, setAudiusCuration] = useState<AudiusCuration | null>(null);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
+  const [selectedAudiusArtist, setSelectedAudiusArtist] = useState<AudiusArtist | null>(null);
+  const [selectedAudiusAlbum, setSelectedAudiusAlbum]   = useState<AudiusAlbum | null>(null);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
 
   const [personalPlaylists, setPersonalPlaylists] = useState<Playlist[]>([]);
@@ -207,6 +211,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const s = getThemeStyles();
   const carouselRef = useRef<HTMLDivElement>(null);
 
+  // Listen for artist navigation events from AudiusArtistPage related-artists section
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const artist = (e as CustomEvent).detail as AudiusArtist;
+      if (artist?.id) { setSelectedAudiusArtist(artist); setSelectedAudiusAlbum(null); }
+    };
+    window.addEventListener('audius-artist', handler);
+    return () => window.removeEventListener('audius-artist', handler);
+  }, []);
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -314,24 +328,36 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     playTrack(vaultTrack, vaultAlbum, 'RADIO');
   };
 
-  const handlePlayAudiusPlaylist = async (playlist: AudiusPlaylist) => {
-    const tracks = await fetchAudiusPlaylistTracks(playlist.id);
-    if (!tracks.length) return;
-    const albumTracks: Track[] = tracks.map(t => ({
-      id: t.id, title: t.title, artist: t.artist,
-      url: t.url, albumCover: t.thumbnailUrl, images: [t.thumbnailUrl],
-      genre: t.genre, isGlobalArchive: true,
-    }));
-    const album: Album = {
-      id: `audius_pl_${playlist.id}`, title: playlist.title,
-      artist: playlist.curator, coverImage: playlist.artworkUrl,
-      tracks: albumTracks, createdAt: Date.now(), themeColor: '#7e22ce',
-      description: playlist.description ?? `Audius playlist by ${playlist.curator}`,
+  // Open the full album/playlist view instead of immediately playing
+  const handleOpenAudiusPlaylist = (playlist: AudiusPlaylist) => {
+    const album: AudiusAlbum = {
+      id: playlist.id,
+      title: playlist.title,
+      artworkUrl: playlist.artworkUrl,
+      trackCount: playlist.trackCount,
+      isAlbum: false,
+      curatorId: playlist.curatorHandle,
+      curator: playlist.curator,
+      description: playlist.description,
     };
-    playTrack(albumTracks[0], album, 'RADIO');
+    setSelectedAudiusAlbum(album);
+    setSelectedAudiusArtist(null);
+  };
+
+  // Keep the play-directly path for quick-play from search etc.
+  const handlePlayAudiusPlaylist = async (playlist: AudiusPlaylist) => {
+    handleOpenAudiusPlaylist(playlist);
+  };
+
+  // Open the full artist page instead of immediately playing
+  const handleOpenAudiusArtist = (artist: AudiusArtist) => {
+    setSelectedAudiusArtist(artist);
+    setSelectedAudiusAlbum(null);
   };
 
   const handlePlayAudiusArtist = async (artist: AudiusArtist) => {
+    handleOpenAudiusArtist(artist);
+    return; // navigation only now
     const tracks = await fetchAudiusArtistTracks(artist.id, 15);
     if (!tracks.length) { window.open(`https://audius.co/${artist.handle}`, '_blank'); return; }
     tracks.forEach(t => handlePlayVaultTrack(t));
@@ -621,6 +647,44 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       </motion.div>
     );
   };
+
+  // ── Audius Artist Page overlay ─────────────────────────────────────────────
+  if (selectedAudiusArtist) {
+    return (
+      <div className="flex-1 bg-[#0a0a0a] text-white overflow-y-auto custom-scrollbar pb-40">
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+          </div>
+        }>
+          <AudiusArtistPage
+            artist={selectedAudiusArtist}
+            onBack={() => setSelectedAudiusArtist(null)}
+            onSelectAlbum={(album) => { setSelectedAudiusAlbum(album); setSelectedAudiusArtist(null); }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // ── Audius Album/Playlist view overlay ─────────────────────────────────────
+  if (selectedAudiusAlbum) {
+    return (
+      <div className="flex-1 bg-[#0a0a0a] text-white overflow-y-auto custom-scrollbar pb-40">
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+          </div>
+        }>
+          <AudiusAlbumView
+            album={selectedAudiusAlbum}
+            onBack={() => setSelectedAudiusAlbum(null)}
+            onViewArtist={(artist) => { setSelectedAudiusArtist(artist); setSelectedAudiusAlbum(null); }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
@@ -1389,7 +1453,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
                           {audiusCuration.artists.map(artist => (
                             <div key={artist.id}
-                              onClick={() => handlePlayAudiusArtist(artist)}
+                              onClick={() => handleOpenAudiusArtist(artist)}
                               className="group cursor-pointer text-center">
                               <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 relative"
                                 style={{ border: '1px solid rgba(168,85,247,0.2)' }}>

@@ -256,6 +256,84 @@ export async function fetchAudiusFeaturedArtists(limit = 12): Promise<AudiusArti
   }
 }
 
+export async function fetchAudiusArtistById(userId: string): Promise<AudiusArtist | null> {
+  try {
+    const data = await audiusFetch(`/v1/users/${userId}`);
+    const u = data.data;
+    return u ? mapArtist(u) : null;
+  } catch (err) {
+    console.error('[Audius] fetchAudiusArtistById:', err);
+    return null;
+  }
+}
+
+export interface AudiusAlbum {
+  id: string;
+  title: string;
+  artworkUrl: string;
+  trackCount: number;
+  isAlbum: boolean;
+  curatorId: string;
+  curator: string;
+  description?: string;
+  releaseDate?: string;
+}
+
+function mapAlbum(p: any): AudiusAlbum {
+  return {
+    id: p.id,
+    title: p.playlist_name ?? p.title ?? 'Untitled',
+    artworkUrl: p.artwork?.['480x480'] ?? p.artwork?.['150x150'] ?? '',
+    trackCount: p.track_count ?? 0,
+    isAlbum: !!p.is_album,
+    curatorId: p.user?.id ?? '',
+    curator: p.user?.name ?? p.user?.handle ?? 'Unknown',
+    description: p.description ?? undefined,
+    releaseDate: p.release_date ?? undefined,
+  };
+}
+
+export async function fetchAudiusArtistAlbums(userId: string): Promise<AudiusAlbum[]> {
+  try {
+    const data = await audiusFetch(`/v1/users/${userId}/albums`);
+    return (data.data ?? []).map(mapAlbum);
+  } catch (err) {
+    console.error('[Audius] fetchAudiusArtistAlbums:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusArtistPlaylists(userId: string): Promise<AudiusAlbum[]> {
+  try {
+    const data = await audiusFetch(`/v1/users/${userId}/playlists`);
+    return (data.data ?? []).map(mapAlbum);
+  } catch (err) {
+    console.error('[Audius] fetchAudiusArtistPlaylists:', err);
+    return [];
+  }
+}
+
+export async function fetchAudiusAlbumById(albumId: string): Promise<AudiusAlbum | null> {
+  try {
+    const data = await audiusFetch(`/v1/playlists/${albumId}`);
+    const p = Array.isArray(data.data) ? data.data[0] : data.data;
+    return p ? mapAlbum(p) : null;
+  } catch (err) {
+    console.error('[Audius] fetchAudiusAlbumById:', err);
+    return null;
+  }
+}
+
+export async function fetchAudiusRelatedArtists(userId: string, limit = 6): Promise<AudiusArtist[]> {
+  try {
+    const data = await audiusFetch(`/v1/users/${userId}/related`);
+    return (data.data ?? []).slice(0, limit).map(mapArtist);
+  } catch {
+    // Fallback: pull from trending if related endpoint fails
+    return fetchAudiusFeaturedArtists(limit);
+  }
+}
+
 export async function searchAudiusArtists(query: string, limit = 12): Promise<AudiusArtist[]> {
   try {
     const data = await audiusFetch('/v1/users/search', { query, limit: String(limit) });
