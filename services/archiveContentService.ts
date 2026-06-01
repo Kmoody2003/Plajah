@@ -415,11 +415,21 @@ export const ARCHIVE_GENRE_SOURCES: { genre: string; query: string }[] = [
   { genre: 'Animation',      query: 'collection:animationandcartoons' },
   { genre: 'Horror',         query: 'subject:horror AND mediatype:movies' },
   { genre: 'Comedy',         query: 'subject:comedy AND mediatype:movies' },
+  { genre: 'Drama',          query: 'subject:drama AND mediatype:movies' },
+  { genre: 'Action',         query: 'subject:action AND mediatype:movies' },
+  { genre: 'Romance',        query: 'subject:romance AND mediatype:movies' },
   { genre: 'Sci-Fi',         query: 'subject:"science fiction" AND mediatype:movies' },
   { genre: 'Western',        query: 'subject:western AND mediatype:movies' },
   { genre: 'Documentary',    query: 'subject:documentary AND mediatype:movies' },
+  { genre: 'Thriller',       query: 'subject:thriller AND mediatype:movies' },
+  { genre: 'Adventure',      query: 'subject:adventure AND mediatype:movies' },
+  { genre: 'Musical',        query: 'subject:musical AND mediatype:movies' },
   { genre: 'Film Noir',      query: 'subject:"film noir" AND mediatype:movies' },
   { genre: 'Silent Film',    query: 'subject:silent AND mediatype:movies' },
+  { genre: 'Short Films',    query: 'collection:shortfilms AND mediatype:movies' },
+  { genre: 'Sports',         query: 'collection:sports AND mediatype:movies' },
+  { genre: 'Prelinger',      query: 'collection:prelinger AND mediatype:movies' },
+  { genre: 'TV Archive',     query: 'collection:tvarchive AND mediatype:movies' },
 ];
 
 export const fetchArchiveByAllGenres = async (limitPerGenre = 12): Promise<GenreCollection[]> => {

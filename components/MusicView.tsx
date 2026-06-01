@@ -648,38 +648,39 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               <PlajahPlusBanner variant="COMPACT" />
             </div>
           </div>
-          <nav className={`px-6 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-4 ${s.nav} transition-all duration-500`}>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-8 overflow-x-auto no-scrollbar flex-1">
-                {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); }}
-                    className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-2 border-b-2 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
-                  >
-                    {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-              {/* Audius toggle */}
+          <nav className={`px-4 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
+            {/* Row 1: swipeable tabs — always full-width */}
+            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-2">
+              {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); }}
+                  className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-1 border-b-2 shrink-0 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
+                >
+                  {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            {/* Row 2: action buttons — below tabs on mobile, inline on md+ */}
+            <div className="flex items-center gap-2 pt-2 md:pt-0 md:absolute md:right-12 md:top-1/2 md:-translate-y-1/2">
               <button
                 onClick={toggleAudiusEnabled}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
                 style={audiusEnabled
-                  ? { background: '#7e22ce', color: '#e9d5ff', boxShadow: '0 0 20px rgba(126,34,206,0.5)' }
+                  ? { background: '#7e22ce', color: '#e9d5ff', boxShadow: '0 0 16px rgba(126,34,206,0.5)' }
                   : { background: 'rgba(126,34,206,0.15)', color: 'rgba(168,85,247,0.8)', border: '1px solid rgba(168,85,247,0.3)' }}
               >
-                <Music2 size={13} />
+                <Music2 size={12} />
                 {audiusLoading ? 'Loading…' : 'Audius'}
               </button>
-
               {onUploadMusic && (
                 <button
                   onClick={onUploadMusic}
-                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.4)] whitespace-nowrap"
+                  className="flex items-center gap-2 px-3 py-2 bg-small-orange text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(255,140,0,0.4)] whitespace-nowrap"
                 >
-                  <Upload size={13} />
-                  Upload Music
+                  <Upload size={12} />
+                  <span className="hidden sm:inline">Upload Music</span>
+                  <span className="sm:hidden">Upload</span>
                 </button>
               )}
             </div>

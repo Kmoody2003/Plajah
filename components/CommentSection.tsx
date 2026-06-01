@@ -22,6 +22,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import SignInPrompt from './SignInPrompt';
+import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -980,13 +981,54 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 
         {auth.currentUser ? (
           <div className="space-y-2">
-            <CommentInput
-              postId={safePostId}
-              replyTo={replyTo}
-              onClearReply={() => setReplyTo(null)}
-              onCommentPosted={handleCommentPosted}
-              isDark={isDark}
-              onSubmitOverride={isLegacy ? onPostComment : undefined}
+            {/* Reply-to indicator */}
+            <AnimatePresence>
+              {replyTo && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center justify-between px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest bg-small-orange/10 text-small-orange overflow-hidden"
+                >
+                  <span className="flex items-center gap-2">
+                    <Reply size={10} /> Replying to @{replyTo.name}
+                  </span>
+                  <button type="button" onClick={() => setReplyTo(null)} className="hover:opacity-60 transition-opacity">
+                    <X size={12} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Rich composer — same as Plajah Social */}
+            <UniversalPostComposer
+              currentUser={auth.currentUser}
+              compact={true}
+              placeholder={replyTo ? `Reply to ${replyTo.name}…` : 'Write a comment…'}
+              avatarUrl={auth.currentUser.photoURL || undefined}
+              onPost={async (data: ComposerPostData) => {
+                if (!data.text.trim()) return;
+                const user = auth.currentUser!;
+                const now = Date.now();
+                const optimistic: PostComment = {
+                  id: `pending-${now}`,
+                  text: data.text.trim(),
+                  authorId: user.uid,
+                  authorName: user.displayName || 'Anonymous',
+                  authorPhoto: user.photoURL || '',
+                  timestamp: now,
+                  parentId: replyTo?.id ?? null,
+                  likedBy: [],
+                  likesCount: 0,
+                };
+                handleCommentPosted(optimistic);
+                const parentId = replyTo?.id;
+                setReplyTo(null);
+                if (isLegacy && onPostComment) {
+                  await onPostComment(data.text.trim(), parentId);
+                } else {
+                  await addPostComment(safePostId, data.text.trim(), parentId);
+                }
+              }}
             />
             {postId && !isLegacy && (
               <button
