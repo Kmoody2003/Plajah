@@ -100,15 +100,15 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
           {artist.coverPhoto ? (
             <img src={artist.coverPhoto} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${PURPLE.accent} 0%, #1a0035 100%)` }} />
+            <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${PURPLE.accent}60 0%, transparent 100%)` }} />
           )}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.85) 100%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)' }} />
         </div>
 
         {/* Back button */}
         <button
           onClick={onBack}
-          className="absolute top-6 left-6 z-10 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-all"
+          className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-all"
         >
           <ArrowLeft size={16} />
           <span className="text-[9px] font-black uppercase tracking-widest">Back</span>

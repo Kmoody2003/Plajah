@@ -108,15 +108,15 @@ const AudiusAlbumView: React.FC<Props> = ({ album, onBack, onViewArtist }) => {
           {album.artworkUrl ? (
             <img src={album.artworkUrl} className="w-full h-full object-cover scale-110 blur-2xl opacity-40" alt="" />
           ) : (
-            <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${PURPLE.accent} 0%, #0d001a 100%)` }} />
+            <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${PURPLE.accent}60 0%, transparent 100%)` }} />
           )}
-          <div className="absolute inset-0 bg-black/60" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)' }} />
         </div>
 
         {/* Back */}
         <button
           onClick={onBack}
-          className="absolute top-6 left-6 z-10 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-all"
+          className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-all"
         >
           <ArrowLeft size={16} />
           <span className="text-[9px] font-black uppercase tracking-widest">Back</span>

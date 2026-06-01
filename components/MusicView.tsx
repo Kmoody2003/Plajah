@@ -651,7 +651,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   // ── Audius Artist Page overlay ─────────────────────────────────────────────
   if (selectedAudiusArtist) {
     return (
-      <div className="flex-1 bg-[#0a0a0a] text-white overflow-y-auto custom-scrollbar pb-40">
+      <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40">
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">
             <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
@@ -670,7 +670,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   // ── Audius Album/Playlist view overlay ─────────────────────────────────────
   if (selectedAudiusAlbum) {
     return (
-      <div className="flex-1 bg-[#0a0a0a] text-white overflow-y-auto custom-scrollbar pb-40">
+      <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40">
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">
             <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
@@ -718,7 +718,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); }}
+                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); }}
                   className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-1 border-b-2 shrink-0 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
                 >
                   {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
