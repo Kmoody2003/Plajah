@@ -334,15 +334,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   if (isNanoView && !isPhoneMode) {
     return (
       <>
-      {/* Persistent expand-to-full-bar button — always accessible from nano view */}
-      <button
-        onClick={() => setIsNanoView?.(false)}
-        className="fixed bottom-8 right-8 z-[201] flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_0_20px_rgba(107,0,153,0.3)] hover:scale-105 active:scale-95 transition-all"
-        title="Expand to full player bar"
-      >
-        <Logo size={16} />
-        <Maximize2 size={12} className="text-white/40" />
-      </button>
+      {/* Expand button removed — use the Controller button in the left sidebar */}
       <div className={`fixed bottom-8 left-8 z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-30'}`} style={{ perspective: '1200px' }}>
         <motion.div
           drag

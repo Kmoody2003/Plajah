@@ -26,6 +26,7 @@ import SignInPrompt from './SignInPrompt';
 import PlajahPlusPill from './PlajahPlusPill';
 import { lazy, Suspense } from 'react';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
+const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -71,10 +72,11 @@ interface FeedViewProps {
 
 type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED';
 
-const LiveTalkDiscovery: React.FC<{ 
+const LiveTalkDiscovery: React.FC<{
   currentUser: FirebaseUser | null;
   onJoin: (id: string) => void;
-}> = ({ currentUser, onJoin }) => {
+  onStartTalk?: () => void;
+}> = ({ currentUser, onJoin, onStartTalk }) => {
   const [talks, setTalks] = useState<LiveTalk[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('ALL');
@@ -107,14 +109,23 @@ const LiveTalkDiscovery: React.FC<{
            <div className="flex flex-col gap-4 w-full md:w-auto">
               <div className="relative">
                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={20} />
-                 <input 
-                   type="text" 
+                 <input
+                   type="text"
                    value={searchTerm}
                    onChange={e => setSearchTerm(e.target.value)}
-                   placeholder="Search frequency / topic..."
+                   placeholder="Search live talk / topic..."
                    className="w-full md:w-[400px] bg-white/5 border border-white/10 rounded-[2rem] py-6 pl-16 pr-8 text-sm outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 transition-all shadow-2xl"
                  />
               </div>
+              {currentUser && onStartTalk && (
+                <button
+                  onClick={onStartTalk}
+                  className="flex items-center justify-center gap-3 px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_24px_rgba(239,68,68,0.4)]"
+                >
+                  <Mic size={16} className="animate-pulse" />
+                  Start Live Talk
+                </button>
+              )}
            </div>
         </div>
       </div>
@@ -1124,6 +1135,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [activeTab, setActiveTab] = useState<FeedTab>('GLOBAL');
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
   const [showGoLive, setShowGoLive] = useState(false);
+  const [showStartTalk, setShowStartTalk] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
   const [timelineValue, setTimelineValue] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
@@ -1843,7 +1855,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <PageHeader>
                 {activeTab === 'SOCIAL' ? 'Interstellar' :
                  activeTab === 'GLOBAL' ? 'Plajah Social' :
-                 activeTab === 'LIVETALK' ? 'Talks' :
+                 activeTab === 'LIVETALK' ? 'Live Talk' :
                  activeTab === 'NEWS' ? 'Broadcast' : 'Signal'}
               </PageHeader>
             </div>
@@ -1858,7 +1870,7 @@ const toggleFavoriteTeam = async (team: string) => {
               { id: 'SOCIAL', label: 'Interstellar Social', description: 'Timelines across external networks', icon: Globe },
               { id: 'GLOBAL', label: 'Plajah Social', description: 'On-platform aggregated experience', icon: Cloud },
               { id: 'NEWS', label: 'Broadcast News', description: 'Real-time global events & sports', icon: Newspaper },
-              { id: 'LIVETALK', label: 'Satellite Talks', description: 'Live audio & video broadcasts', icon: Mic },
+              { id: 'LIVETALK', label: 'Live Talk', description: 'Live audio & video broadcasts', icon: Mic },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1929,13 +1941,12 @@ const toggleFavoriteTeam = async (team: string) => {
 
       {activeTab === 'LIVETALK' ? (
         <div className="pt-4 lg:pt-12 px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
-           <LiveTalkDiscovery 
-             currentUser={currentUser} 
+           <LiveTalkDiscovery
+             currentUser={currentUser}
              onJoin={(id) => {
-               // Logic to open drawer and join talk will be handled by context or event
-               // For now, we can use a custom event or just let the user open the drawer
                window.dispatchEvent(new CustomEvent('open-drawer', { detail: { tab: 'LIVETALK', talkId: id } }));
-             }} 
+             }}
+             onStartTalk={() => setShowStartTalk(true)}
            />
         </div>
       ) : activeTab === 'NEWS' ? (
@@ -3618,6 +3629,17 @@ const toggleFavoriteTeam = async (team: string) => {
      <Suspense fallback={null}>
        <GoLiveWizard onClose={() => setShowGoLive(false)} currentUser={currentUser} />
      </Suspense>
+   )}
+
+   {showStartTalk && (
+     <div className="fixed inset-0 z-[500] bg-black">
+       <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+         <LiveTalkView
+           initialShowSetup={true}
+           onBrowse={() => setShowStartTalk(false)}
+         />
+       </Suspense>
+     </div>
    )}
    </>
   );

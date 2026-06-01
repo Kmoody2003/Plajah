@@ -1415,26 +1415,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
-                <button
-                  onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
-                  className={`w-full flex items-center transition-all group overflow-hidden relative ${
-                    (isSidebarCollapsed || theme === 'BIG_SCREEN') ? 'justify-center p-3 rounded-2xl' : 'gap-5 px-6 py-5 rounded-[2rem]'
-                  } bg-gradient-to-br from-violet-500/20 to-purple-600/20 border border-violet-500/30 text-violet-400 hover:from-violet-500/30 hover:to-purple-600/30 shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all`}
-                  title="Open Controller"
-                >
-                  <div className="absolute inset-0 bg-violet-400/5 blur-xl pointer-events-none animate-pulse" />
-                  <div className="relative flex items-center justify-center min-w-[22px] shrink-0">
-                    <Zap size={22} className="text-violet-400 shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+                {/* Notification row — player restore pill lives here when nano player is active */}
+                <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
+                  <div className="flex-1">
+                    <NotificationCenter />
                   </div>
-                  {!(isSidebarCollapsed || theme === 'BIG_SCREEN') && (
-                    <div className="flex flex-col items-start leading-tight">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Controller</span>
-                      <span className="text-[8px] font-bold opacity-40 uppercase tracking-widest">Open Player</span>
-                    </div>
+                  {isNanoView && (
+                    <button
+                      onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
+                      title="Restore player"
+                      className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-500/20 border border-violet-500/30 text-violet-400 rounded-xl hover:bg-violet-500/30 transition-all shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+                    >
+                      <Zap size={13} />
+                      {!isSidebarCollapsed && <span className="text-[8px] font-black uppercase tracking-widest">Player</span>}
+                    </button>
                   )}
-                </button>
-                <div className={`${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
-                  <NotificationCenter />
                 </div>
               </div>
 
