@@ -1576,7 +1576,9 @@ export interface ChatMessage {
   mediaId?: string;
   mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO';
   timestamp: number;
-  type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE';
+  type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE' | 'VIDEO_NOTE';
+  videoNoteUrl?: string;
+  burnAfter?: number;
   metadata?: {
     action?: string;
     time?: number;

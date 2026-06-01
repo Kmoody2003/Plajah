@@ -88,8 +88,9 @@ const RoomRow: React.FC<{
   onDelete?: () => void;
   onMenuToggle?: () => void;
   onMenuClose?: () => void;
+  onToggleIntimate?: () => void;
   intimateMode?: boolean;
-}> = ({ room, profiles, isActive, isDeleting, menuOpen, onSelect, onRename, onDelete, onMenuToggle, onMenuClose, intimateMode }) => {
+}> = ({ room, profiles, isActive, isDeleting, menuOpen, onSelect, onRename, onDelete, onMenuToggle, onMenuClose, onToggleIntimate, intimateMode }) => {
   const uid = auth.currentUser?.uid;
   const isOwner = room.ownerId === uid;
 
@@ -162,6 +163,19 @@ const RoomRow: React.FC<{
                   className="absolute right-0 top-full mt-1 bg-[#111] border border-white/10 rounded-2xl p-1.5 z-50 shadow-2xl min-w-[148px]"
                   onClick={e => e.stopPropagation()}
                 >
+                  {room.type === 'PRIVATE' && (
+                    <button
+                      onClick={() => { onMenuClose?.(); onToggleIntimate?.(); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left ${
+                        intimateMode ? 'text-rose-300 hover:bg-rose-500/10' : 'hover:bg-white/5'
+                      }`}
+                    >
+                      <Heart size={13} fill={intimateMode ? 'currentColor' : 'none'} className={intimateMode ? 'text-rose-400' : 'text-white/40'} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {intimateMode ? 'Intimate On' : 'Intimate Mode'}
+                      </span>
+                    </button>
+                  )}
                   {room.type === 'GROUP' && isOwner && (
                     <button
                       onClick={() => { onMenuClose?.(); onRename?.(); }}
@@ -894,6 +908,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                           onDelete={() => handleDeleteRoom(room.id)}
                           onMenuToggle={() => setRoomMenu(prev => prev === room.id ? null : room.id)}
                           onMenuClose={() => setRoomMenu(null)}
+                          onToggleIntimate={() => toggleIntimate(room.id)}
                         />
                       ))}
                     </AnimatePresence>

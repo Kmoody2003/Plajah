@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Video, 
   Mic, 
@@ -30,15 +30,56 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [layout, setLayout] = useState<'GRID' | 'SPEAKER'>('GRID');
+  const [camError, setCamError] = useState<string | null>(null);
+
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    // In a real app, we'd use WebRTC here. For this demo, we'll simulate the session.
     const initSession = async () => {
       const s = await startVideoChat(room.id);
       if (s) setSession(s);
     };
     initSession();
+
+    // Real getUserMedia for local camera
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        localStreamRef.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+      })
+      .catch(err => {
+        setCamError(err.name === 'NotAllowedError' ? 'Camera permission denied' : 'Camera unavailable');
+      });
+
+    return () => {
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+    };
   }, [room.id]);
+
+  const toggleMute = () => {
+    const audio = localStreamRef.current?.getAudioTracks()[0];
+    if (audio) { audio.enabled = isMuted; setIsMuted(m => !m); }
+  };
+
+  const toggleVideo = () => {
+    const video = localStreamRef.current?.getVideoTracks()[0];
+    if (video) { video.enabled = isVideoOff; setIsVideoOff(v => !v); }
+  };
+
+  const shareScreen = async () => {
+    try {
+      const screenStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
+      if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+      setIsSharingScreen(true);
+      screenStream.getVideoTracks()[0].onended = () => {
+        if (localVideoRef.current && localStreamRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+        setIsSharingScreen(false);
+      };
+    } catch { /* user cancelled */ }
+  };
 
   const participants = session?.participants || [];
 
@@ -87,18 +128,32 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
               animate={{ opacity: 1, scale: 1 }}
               className="relative aspect-video bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden group shadow-2xl"
             >
-              {/* Simulated Video Stream */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center">
-                {p.isVideoOff ? (
-                  <div className="w-24 h-24 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
-                    <Users size={48} className="text-white/20" />
-                  </div>
+                  {/* Video tile — real stream for self, avatar for remote */}
+              <div className="absolute inset-0 bg-black flex items-center justify-center">
+                {p.uid === user?.uid ? (
+                  isVideoOff ? (
+                    <div className="w-24 h-24 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                      <VideoOff size={36} className="text-white/20" />
+                    </div>
+                  ) : (
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                  )
                 ) : (
-                  <img 
-                    src={`https://picsum.photos/seed/${p.uid}/800/450`} 
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000" 
-                    alt="" 
-                  />
+                  p.isVideoOff ? (
+                    <div className="w-24 h-24 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                      <Users size={36} className="text-white/20" />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-white/5 to-black flex items-center justify-center">
+                      <Users size={48} className="text-white/10" />
+                    </div>
+                  )
                 )}
               </div>
 
@@ -132,22 +187,25 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
 
       {/* Controls Bar */}
       <div className="p-8 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-6">
-        <button 
-          onClick={() => setIsMuted(!isMuted)}
+        {camError && (
+          <p className="absolute bottom-32 text-[9px] font-black uppercase tracking-widest text-red-400 bg-black/70 px-3 py-1.5 rounded-full">{camError}</p>
+        )}
+        <button
+          onClick={toggleMute}
           className={`p-6 rounded-full transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
         >
           {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
         </button>
-        
-        <button 
-          onClick={() => setIsVideoOff(!isVideoOff)}
+
+        <button
+          onClick={toggleVideo}
           className={`p-6 rounded-full transition-all hover:scale-110 ${isVideoOff ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
         >
           {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
         </button>
 
-        <button 
-          onClick={() => setIsSharingScreen(!isSharingScreen)}
+        <button
+          onClick={shareScreen}
           className={`p-6 rounded-full transition-all hover:scale-110 ${isSharingScreen ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
         >
           <Monitor size={24} />

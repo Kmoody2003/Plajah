@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus } from 'lucide-react';
+import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic } from 'lucide-react';
+import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld } from '../types';
 
 export interface ComposerAttachment {
@@ -85,6 +86,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [moreAssetId, setMoreAssetId] = useState('');
   const [moreAssetTitle, setMoreAssetTitle] = useState('');
   const [posting, setPosting] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,6 +252,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
                 <img src={att.url} className="w-24 h-20 object-cover" alt="" loading="lazy" />
               ) : att.type === 'VIDEO' ? (
                 <video src={att.url} className="w-24 h-20 object-cover" muted playsInline controls />
+              ) : att.type === 'AUDIO' ? (
+                <div className="w-36 h-12 flex items-center gap-2 px-3">
+                  <Mic size={12} className="text-small-orange shrink-0" />
+                  <audio src={att.url} controls className="w-full h-8" style={{ minWidth: 0 }} />
+                </div>
               ) : (
                 <div className="w-24 h-20 flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-white/40 p-2 text-center">
                   {att.title || att.type}
@@ -461,6 +468,20 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* Voice recorder panel */}
+      {showVoiceRecorder && (
+        <div className="pl-12">
+          <VoiceRecorder
+            onSend={(blob) => {
+              const url = URL.createObjectURL(blob);
+              setAttachments(prev => [...prev, { type: 'AUDIO', url, title: 'Voice note', file: new File([blob], 'voice.webm', { type: 'audio/webm' }) }]);
+              setShowVoiceRecorder(false);
+            }}
+            onCancel={() => setShowVoiceRecorder(false)}
+          />
+        </div>
+      )}
+
       {/* Toolbar + post button */}
       <div className="flex items-center gap-1 pl-12">
         {/* File picker */}
@@ -478,6 +499,14 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           title="Photo / Video"
         >
           <Image size={16} />
+        </button>
+
+        <button
+          onClick={() => { setShowVoiceRecorder(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); }}
+          className={`p-2 rounded-xl transition-all ${showVoiceRecorder ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+          title="Voice note"
+        >
+          <Mic size={16} />
         </button>
 
         <button

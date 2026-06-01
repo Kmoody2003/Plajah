@@ -5,6 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
+  Flame, Timer, Camera,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -29,6 +30,8 @@ type ExtendedMessage = ChatMessage & {
   reactions?: Record<string, string[]>;  // emoji → UIDs
   isPinned?: boolean;
   forwardedFrom?: string;
+  burnAfter?: number;   // epoch ms when message auto-deletes after being seen
+  videoNoteUrl?: string;
 };
 
 interface ChatWindowProps {
@@ -151,6 +154,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  // Burn-after-read (self-destructing) toggle
+  const [burnMode, setBurnMode]             = useState(false);
+  // Video note recording
+  const [showVideoNote, setShowVideoNote]   = useState(false);
+  const [videoRecording, setVideoRecording] = useState(false);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoStreamRef  = useRef<MediaStream | null>(null);
+  const videoRecorderRef = useRef<MediaRecorder | null>(null);
+  const videoChunksRef  = useRef<Blob[]>([]);
+
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -231,10 +244,76 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       msgData.replyToSender = replyTo.senderName;
     }
 
+    if (burnMode) {
+      msgData.burnAfter = Date.now() + 30_000; // 30 s after send
+    }
+
     await sendMessage(room.id, msgData);
     setInputText('');
     setReplyTo(null);
   };
+
+  // ── Video note handlers ───────────────────────────────────────────────────────
+  const openVideoNote = async () => {
+    setShowVideoNote(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      videoStreamRef.current = stream;
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+        videoPreviewRef.current.play().catch(() => {});
+      }
+    } catch {
+      setShowVideoNote(false);
+    }
+  };
+
+  const startVideoRecord = () => {
+    if (!videoStreamRef.current) return;
+    videoChunksRef.current = [];
+    const recorder = new MediaRecorder(videoStreamRef.current);
+    recorder.ondataavailable = e => { if (e.data.size > 0) videoChunksRef.current.push(e.data); };
+    recorder.onstop = async () => {
+      const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        await sendMessage(room.id, {
+          senderId: auth.currentUser?.uid || '',
+          senderName: auth.currentUser?.displayName || 'Anonymous',
+          senderPhoto: auth.currentUser?.photoURL || '',
+          videoNoteUrl: reader.result as string,
+          type: 'VIDEO_NOTE',
+          ...(burnMode ? { burnAfter: Date.now() + 30_000 } : {}),
+        });
+        closeVideoNote();
+      };
+    };
+    recorder.start();
+    videoRecorderRef.current = recorder;
+    setVideoRecording(true);
+  };
+
+  const stopVideoRecord = () => {
+    videoRecorderRef.current?.stop();
+    setVideoRecording(false);
+  };
+
+  const closeVideoNote = () => {
+    videoStreamRef.current?.getTracks().forEach(t => t.stop());
+    videoStreamRef.current = null;
+    setShowVideoNote(false);
+    setVideoRecording(false);
+  };
+
+  // ── Auto-delete burned messages ───────────────────────────────────────────────
+  useEffect(() => {
+    const now = Date.now();
+    const toDelete = decryptedMessages.filter(
+      m => m.burnAfter && m.burnAfter <= now
+    );
+    toDelete.forEach(m => deleteDoc(doc(db, 'chatRooms', room.id, 'messages', m.id)).catch(() => {}));
+  }, [decryptedMessages, room.id]);
 
   const handleSendVoice = async (blob: Blob) => {
     const reader = new FileReader();
@@ -631,8 +710,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onDoubleClick={() => setReplyTo(msg)}
                 >
                   {msg.isPinned && <Pin size={9} className="absolute top-1.5 right-1.5 text-amber-400 opacity-60" />}
+                  {msg.burnAfter && (
+                    <div className="absolute top-1.5 left-1.5 flex items-center gap-1 text-[8px] font-black text-orange-400 opacity-70">
+                      <Flame size={9} /> Burn
+                    </div>
+                  )}
 
-                  {msg.type === 'VOICE' && msg.voiceUrl ? (
+                  {msg.type === 'VIDEO_NOTE' && msg.videoNoteUrl ? (
+                    <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white/20 relative">
+                      <video src={msg.videoNoteUrl} className="w-full h-full object-cover" controls playsInline loop />
+                    </div>
+                  ) : msg.type === 'VOICE' && msg.voiceUrl ? (
                     <VoicePlayer src={msg.voiceUrl} />
                   ) : msg.type === 'IMAGE' && msg.imageUrl ? (
                     <div className="space-y-2">
@@ -825,6 +913,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     ? <div className="w-4 h-4 border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" />
                     : <ImageIcon size={17} />}
                 </button>
+                {/* Video note */}
+                <button type="button" onClick={openVideoNote}
+                  className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all">
+                  <Camera size={17} />
+                </button>
+                {/* Burn-after-read toggle */}
+                <button
+                  type="button"
+                  onClick={() => setBurnMode(m => !m)}
+                  title="Burn after read (30s)"
+                  className={`p-2 rounded-xl transition-all ${burnMode ? 'text-orange-400 bg-orange-400/15' : 'text-white/30 hover:text-orange-400 hover:bg-white/5'}`}
+                >
+                  <Flame size={17} />
+                </button>
               </div>
 
               {/* Text input */}
@@ -834,8 +936,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 value={inputText}
                 onChange={handleInputChange}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); }}
-                placeholder={replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
-                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:border-small-orange/40 focus:bg-white/[0.08] transition-all outline-none min-w-0"
+                placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
+                className={`flex-1 bg-white/[0.06] border rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:bg-white/[0.08] transition-all outline-none min-w-0 ${
+                  burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'
+                }`}
               />
 
               <button type="button" onClick={() => setShowVoiceRecorder(true)}
@@ -854,6 +958,51 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
         </div>
       </div>
+
+      {/* ── VIDEO NOTE MODAL ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showVideoNote && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[500] flex flex-col items-center justify-center gap-6 p-8"
+          >
+            <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-small-orange/40 bg-black relative shadow-2xl">
+              <video ref={videoPreviewRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+              {videoRecording && (
+                <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-red-500/80 rounded-full">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  <span className="text-[8px] font-black text-white uppercase tracking-widest">REC</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              {!videoRecording ? (
+                <button
+                  onClick={startVideoRecord}
+                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all"
+                >
+                  <div className="w-6 h-6 rounded-full bg-white" />
+                </button>
+              ) : (
+                <button
+                  onClick={stopVideoRecord}
+                  className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all"
+                >
+                  <div className="w-6 h-6 rounded-sm bg-white" />
+                </button>
+              )}
+              <button onClick={closeVideoNote} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30">
+              {videoRecording ? 'Recording — tap square to stop & send' : 'Tap circle to record a video note'}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── MEMBERS SIDE PANEL ──────────────────────────────────────── */}
       <AnimatePresence>
