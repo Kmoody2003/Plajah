@@ -39,6 +39,9 @@ interface DepthData {
   map: Float32Array;
   width: number;
   height: number;
+  // additional diagnostic maps exposed for improved rendering
+  contrast?: Float32Array;
+  edges?: Float32Array;
 }
 
 // ── Gaussian blur ─────────────────────────────────────────────────────────────
@@ -222,7 +225,29 @@ async function computeDepth(
       const preSmooth = gaussianBlur1D(raw, res, res, 5);
       const bil1      = bilateralSmooth(preSmooth, edges, res, res, 7, 8);
       const bil2      = bilateralSmooth(bil1,      edges, res, res, 3, 6);
-      const norm      = normalise(bil2);
+
+      // Small median filter to remove speckle noise from depth estimates
+      function medianFilter(src: Float32Array, w: number, h: number): Float32Array {
+        const out = new Float32Array(src.length);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const vals: number[] = [];
+            for (let ky = -1; ky <= 1; ky++) {
+              const ny = Math.max(0, Math.min(h - 1, y + ky));
+              for (let kx = -1; kx <= 1; kx++) {
+                const nx = Math.max(0, Math.min(w - 1, x + kx));
+                vals.push(src[ny * w + nx]);
+              }
+            }
+            vals.sort((a, b) => a - b);
+            out[y * w + x] = vals[4];
+          }
+        }
+        return out;
+      }
+
+      const denoised = medianFilter(bil2, res, res);
+      const norm      = normalise(denoised);
 
       const depth = new Float32Array(n);
       if (depthLayers >= 2) {
@@ -234,7 +259,7 @@ async function computeDepth(
         for (let i = 0; i < n; i++) depth[i] = Math.pow(norm[i], 0.60);
       }
 
-      resolve({ map: depth, width: res, height: res });
+      resolve({ map: depth, width: res, height: res, contrast, edges });
     };
     img.onerror = () => resolve(null);
     img.src = imgSrc;
@@ -277,7 +302,12 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
         map[y1 * width + x0] * (1 - fx) * fy       +
         map[y1 * width + x1] * fx       * fy
       );
-      pos.setZ(i, (d - 0.5) * depthScale);
+      // Apply a slight non-linear depth curve to increase perceptual parallax
+      const signed = d - 0.5;
+      const curved = Math.sign(signed) * Math.pow(Math.abs(signed), 1.08);
+      // Clamp to avoid extreme vertex displacement that tears the texture
+      const z = Math.max(-depthScale * 1.5, Math.min(depthScale * 1.5, curved * depthScale));
+      pos.setZ(i, z);
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
@@ -286,8 +316,17 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
     const loader = new THREE.TextureLoader();
     loader.crossOrigin = 'anonymous';
     const tex = loader.load(imgSrc);
-    try { tex.colorSpace = THREE.SRGBColorSpace; } catch (_) {}
-    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
+    // Improve texture sampling to keep the image crisp while moving/zooming
+    try {
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      // preserve color space where available (anisotropy set after renderer is created below)
+      if ((tex as any).colorSpace !== undefined) (tex as any).colorSpace = THREE.SRGBColorSpace;
+      else if ((tex as any).encoding !== undefined) (tex as any).encoding = (THREE as any).sRGBEncoding;
+    } catch (e) {}
+
+    const mat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.FrontSide, roughness: 0.95, metalness: 0.0 });
 
     // ── Scene ──────────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
@@ -302,46 +341,49 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(renderer.domElement);
 
+    // Now that renderer exists we can set texture GPU hints like anisotropy
+    try {
+      const maxAniso = (renderer.capabilities && (renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1)) || 1;
+      if ((tex as any).anisotropy !== undefined) (tex as any).anisotropy = maxAniso;
+    } catch (e) {}
+
+    // Add subtle lighting to provide shading cues so the displaced surface keeps context
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.6);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(0.5, 1, 0.5);
+    scene.add(dir);
+
     // ── Camera ─────────────────────────────────────────────────────────────
     const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
 
-    // ── Orbit state ────────────────────────────────────────────────────────
-    let theta = 0;
-    let phi   = Math.PI / 2;
-    let r     = 9;
+    // Smooth orbit state with damping to avoid tearing when moving quickly
+    let targetTheta = 0;
+    let targetPhi = Math.PI / 2;
+    let targetR = 9;
+    let curTheta = 0;
+    let curPhi = Math.PI / 2;
+    let curR = 9;
     let auto  = true;
     let drag  = false;
     let lx = 0, ly = 0;
 
-    const syncCamera = () => {
-      camera.position.set(
-        r * Math.sin(phi) * Math.sin(theta),
-        r * Math.cos(phi),
-        r * Math.sin(phi) * Math.cos(theta),
-      );
-      camera.lookAt(0, 0, 0);
-    };
-    syncCamera();
+    const clampPhi   = (v: number) => Math.max(Math.PI * 0.22, Math.min(Math.PI * 0.78, v));
+    const clampR     = (v: number) => Math.max(5, Math.min(24, v));
 
-    const clampPhi   = (v: number) => Math.max(Math.PI * 0.25, Math.min(Math.PI * 0.75, v));
-    const clampR     = (v: number) => Math.max(5, Math.min(16, v));
-
-    // ── Mouse ──────────────────────────────────────────────────────────────
     const cv = renderer.domElement;
 
     const onDown = (e: MouseEvent) => { drag = true; auto = false; lx = e.clientX; ly = e.clientY; };
     const onMove = (e: MouseEvent) => {
       if (!drag) return;
-      theta -= (e.clientX - lx) * 0.006;
-      phi    = clampPhi(phi - (e.clientY - ly) * 0.006);
+      targetTheta -= (e.clientX - lx) * 0.006;
+      targetPhi    = clampPhi(targetPhi - (e.clientY - ly) * 0.006);
       lx = e.clientX; ly = e.clientY;
-      syncCamera();
     };
     const onUp   = () => { drag = false; };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      r = clampR(r + e.deltaY * 0.012);
-      syncCamera();
+      targetR = clampR(targetR + e.deltaY * 0.012);
     };
 
     // ── Touch ──────────────────────────────────────────────────────────────
@@ -353,10 +395,9 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!drag || e.touches.length !== 1) return;
-      theta -= (e.touches[0].clientX - lt.x) * 0.006;
-      phi    = clampPhi(phi - (e.touches[0].clientY - lt.y) * 0.006);
+      targetTheta -= (e.touches[0].clientX - lt.x) * 0.006;
+      targetPhi    = clampPhi(targetPhi - (e.touches[0].clientY - lt.y) * 0.006);
       lt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      syncCamera();
     };
     const onTouchEnd = () => { drag = false; };
 
@@ -381,7 +422,22 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
     let raf: number;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      if (auto) { theta += 0.0022; syncCamera(); }
+      // auto-rotate target
+      if (auto) targetTheta += 0.0022;
+
+      // smooth interpolation
+      const damp = 0.12;
+      curTheta += (targetTheta - curTheta) * damp;
+      curPhi   += (targetPhi - curPhi) * damp;
+      curR     += (targetR - curR) * damp;
+
+      camera.position.set(
+        curR * Math.sin(curPhi) * Math.sin(curTheta),
+        curR * Math.cos(curPhi),
+        curR * Math.sin(curPhi) * Math.cos(curTheta),
+      );
+      camera.lookAt(0, 0, 0);
+
       renderer.render(scene, camera);
     };
     tick();

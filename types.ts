@@ -776,6 +776,11 @@ export interface MerchItem {
   isDigitalAsset?: boolean;
   linkedAssetId?: string; // ID of Track or Video if it's a media asset
   worldId?: string; // ID of the specific World this item belongs to
+  // Printful fulfillment fields
+  printfulSyncProductId?: number;
+  printfulVariantId?: number;
+  fulfillmentSource?: 'printful' | 'gelato' | 'manual' | 'external'; // 'external' = linked web store
+  externalStoreUrl?: string; // e.g. Shopify/WooCommerce product URL
 }
 
 export interface UserRevenue {
@@ -783,11 +788,30 @@ export interface UserRevenue {
   merch: number;
   adRevenue: number;
   subscriptions: number;
+  // Film distribution revenue
+  filmRentals?: number;
+  filmPurchases?: number;
+  filmPPVTickets?: number;
+  filmFastAdIncome?: number;
+  filmReviewCodeLicenses?: number;
   cryptoWallet?: {
     bitcoin?: string;
     ethereum?: string;
     solana?: string;
   };
+}
+
+export interface FilmVideoAnalytics {
+  videoId: string;
+  title: string;
+  completionRate: number;       // 0–1
+  avgWatchDuration: number;     // seconds
+  dropOffSegments: { pct: number; dropOffRate: number }[]; // pct 0-100 in 10% steps
+  rentalCount: number;
+  purchaseCount: number;
+  ppvCount: number;
+  uniqueViewers: number;
+  sourceAttribution: { source: string; conversions: number }[];
 }
 
 export interface StoreSettings {
@@ -1196,6 +1220,17 @@ export interface FanPage {
   timestamp: number;
 }
 
+export type ClubChannelType = 'TEXT' | 'ANNOUNCEMENT' | 'MEDIA' | 'EVENTS';
+
+export interface ClubChannel {
+  id: string;
+  name: string;
+  type: ClubChannelType;
+  description?: string;
+  isReadOnly?: boolean;   // only admins/writers can post
+  createdAt: number;
+}
+
 export type ClubType = 'CLUB' | 'CHARITY' | 'SANCTUARY';
 export type ClubJoinProcess = 'AUTO' | 'REVIEW' | 'QUESTIONNAIRE';
 export type ClubRole = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'WRITER' | 'MEMBER';
@@ -1235,6 +1270,9 @@ export interface Club {
   slowMode?: boolean;
   slowModeSeconds?: number;
   isDemo?: boolean;
+  linkedBookId?: string;    // links club to a specific book (Album type: BOOK)
+  inviteToken?: string;     // shareable invite token for join links
+  channels?: ClubChannel[]; // sub-channels (optional; default = single general channel)
   timestamp: number;
   updatedAt: number;
 }
@@ -1265,6 +1303,7 @@ export interface ClubPost {
   isPinned: boolean;
   isBulletin: boolean;
   isNewArticle: boolean;
+  channelId?: string;  // null = general channel
   timestamp: number;
 }
 
@@ -1446,6 +1485,11 @@ export interface Article {
   commentsCount: number;
   readTime?: number; // in minutes
   category?: string;
+  // News/sports aggregator fields
+  url?: string;
+  imageUrl?: string;
+  source?: string;
+  content?: string;
 }
 
 export interface LiveTalk {
@@ -1474,7 +1518,7 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO';
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -1926,6 +1970,9 @@ export interface DiscussionPost {
   timestamp: number;
   isPinned?: boolean;
   flair?: string;
+  reportedBy?: string[];  // UIDs who reported this post
+  isRemoved?: boolean;
+  removedReason?: string;
 }
 
 export interface DiscussionComment {
@@ -1943,6 +1990,8 @@ export interface DiscussionComment {
   replyCount: number;
   timestamp: number;
   depth: number;
+  reportedBy?: string[];
+  isRemoved?: boolean;
 }
 
 export interface DiscussionAlias {
