@@ -16,7 +16,8 @@ import {
   addPostComment,
   deletePostComment,
   toggleCommentLike,
-  searchUserProfiles
+  searchUserProfiles,
+  uploadFile,
 } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { UserProfile } from '../types';
@@ -37,6 +38,8 @@ export interface PostComment {
   likedBy?: string[];
   likesCount?: number;
   isPending?: boolean;
+  videoUrl?: string;  // video response attachment
+  audioUrl?: string;  // voice note attachment
 }
 
 interface CommentSectionProps {
@@ -153,9 +156,21 @@ const CommentBubble: React.FC<BubbleProps> = ({
                 </span>
               )}
             </div>
-            <div className={`text-sm leading-relaxed font-medium whitespace-pre-wrap break-words ${isDark ? 'text-white/85' : 'text-black/85'}`}>
-              {renderMentions(comment.text, onVisitUser)}
-            </div>
+            {comment.text && (
+              <div className={`text-sm leading-relaxed font-medium whitespace-pre-wrap break-words ${isDark ? 'text-white/85' : 'text-black/85'}`}>
+                {renderMentions(comment.text, onVisitUser)}
+              </div>
+            )}
+            {(comment as any).videoUrl && (
+              <div className="mt-2 rounded-2xl overflow-hidden border border-white/10 max-w-[280px]">
+                <video src={(comment as any).videoUrl} controls playsInline className="w-full max-h-[200px] object-cover" />
+              </div>
+            )}
+            {(comment as any).audioUrl && (
+              <div className="mt-2">
+                <audio src={(comment as any).audioUrl} controls className="w-full h-8 max-w-[240px]" />
+              </div>
+            )}
           </div>
 
           {/* Action strip */}
@@ -1006,9 +1021,23 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               placeholder={replyTo ? `Reply to ${replyTo.name}…` : 'Write a comment…'}
               avatarUrl={auth.currentUser.photoURL || undefined}
               onPost={async (data: ComposerPostData) => {
-                if (!data.text.trim()) return;
+                if (!data.text.trim() && data.attachments.length === 0) return;
                 const user = auth.currentUser!;
                 const now = Date.now();
+
+                // Upload any video/audio attachments to Firebase Storage
+                let videoUrl: string | undefined;
+                let audioUrl: string | undefined;
+                for (const att of data.attachments) {
+                  if ((att.type === 'VIDEO' || att.type === 'AUDIO') && att.file) {
+                    try {
+                      const path = `comments/${safePostId}/${now}_${att.file.name}`;
+                      const url = await uploadFile(path, att.file);
+                      if (url) { att.type === 'VIDEO' ? (videoUrl = url) : (audioUrl = url); }
+                    } catch { /* skip failed upload */ }
+                  }
+                }
+
                 const optimistic: PostComment = {
                   id: `pending-${now}`,
                   text: data.text.trim(),
@@ -1019,6 +1048,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   parentId: replyTo?.id ?? null,
                   likedBy: [],
                   likesCount: 0,
+                  ...(videoUrl ? { videoUrl } : {}),
+                  ...(audioUrl ? { audioUrl } : {}),
                 };
                 handleCommentPosted(optimistic);
                 const parentId = replyTo?.id;
@@ -1026,7 +1057,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 if (isLegacy && onPostComment) {
                   await onPostComment(data.text.trim(), parentId);
                 } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId);
+                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl);
                 }
               }}
             />

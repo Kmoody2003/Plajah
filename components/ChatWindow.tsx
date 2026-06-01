@@ -30,7 +30,8 @@ type ExtendedMessage = ChatMessage & {
   reactions?: Record<string, string[]>;  // emoji → UIDs
   isPinned?: boolean;
   forwardedFrom?: string;
-  burnAfter?: number;   // epoch ms when message auto-deletes after being seen
+  burnAfterSeen?: boolean; // arm flag — countdown starts when recipient sees it
+  burnAfter?: number;      // epoch ms set by markMessageAsSeen when recipient views
   videoNoteUrl?: string;
 };
 
@@ -245,7 +246,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     if (burnMode) {
-      msgData.burnAfter = Date.now() + 30_000; // 30 s after send
+      msgData.burnAfterSeen = true; // countdown starts when recipient sees it, not now
     }
 
     await sendMessage(room.id, msgData);
@@ -284,7 +285,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           senderPhoto: auth.currentUser?.photoURL || '',
           videoNoteUrl: reader.result as string,
           type: 'VIDEO_NOTE',
-          ...(burnMode ? { burnAfter: Date.now() + 30_000 } : {}),
+          ...(burnMode ? { burnAfterSeen: true } : {}),
         });
         closeVideoNote();
       };
@@ -710,9 +711,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onDoubleClick={() => setReplyTo(msg)}
                 >
                   {msg.isPinned && <Pin size={9} className="absolute top-1.5 right-1.5 text-amber-400 opacity-60" />}
-                  {msg.burnAfter && (
+                  {(msg.burnAfterSeen || msg.burnAfter) && (
                     <div className="absolute top-1.5 left-1.5 flex items-center gap-1 text-[8px] font-black text-orange-400 opacity-70">
-                      <Flame size={9} /> Burn
+                      <Flame size={9} />
+                      {msg.burnAfter ? 'Burning…' : 'Burns on read'}
                     </div>
                   )}
 

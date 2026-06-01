@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic, Camera, Square } from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld } from '../types';
 
@@ -87,6 +87,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [moreAssetTitle, setMoreAssetTitle] = useState('');
   const [posting, setPosting] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [videoCapturing, setVideoCapturing] = useState(false);
+  const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const videoCamStream = useRef<MediaStream | null>(null);
+  const videoCamRecorder = useRef<MediaRecorder | null>(null);
+  const videoCamChunks = useRef<Blob[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,6 +182,45 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     });
     setShowAssetPicker(false);
   };
+
+  const openCameraCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      videoCamStream.current = stream;
+      setVideoCapturing(true);
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+        videoPreviewRef.current.play().catch(() => {});
+      }
+    } catch { /* user denied */ }
+  };
+
+  const startCameraRecord = () => {
+    if (!videoCamStream.current) return;
+    videoCamChunks.current = [];
+    const rec = new MediaRecorder(videoCamStream.current);
+    rec.ondataavailable = e => { if (e.data.size > 0) videoCamChunks.current.push(e.data); };
+    rec.onstop = () => {
+      const blob = new Blob(videoCamChunks.current, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      setAttachments(prev => [...prev, { type: 'VIDEO', url, title: 'Video response', file: new File([blob], 'video.webm', { type: 'video/webm' }) }]);
+      closeCameraCapture();
+    };
+    rec.start();
+    videoCamRecorder.current = rec;
+  };
+
+  const stopCameraRecord = () => { videoCamRecorder.current?.stop(); };
+
+  const closeCameraCapture = () => {
+    videoCamStream.current?.getTracks().forEach(t => t.stop());
+    videoCamStream.current = null;
+    videoCamRecorder.current = null;
+    setVideoCapturing(false);
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => () => { videoCamStream.current?.getTracks().forEach(t => t.stop()); }, []);
 
   const embedMoreAsset = () => {
     if (!moreAssetType || !moreAssetTitle.trim()) return;
@@ -468,6 +512,35 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* Camera capture panel */}
+      {videoCapturing && (
+        <div className="pl-12 space-y-2">
+          <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-h-40">
+            <video ref={videoPreviewRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+            {videoCamRecorder.current?.state === 'recording' && (
+              <div className="absolute top-2 right-2 flex items-center gap-1 bg-red-600/80 px-2 py-0.5 rounded-full">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-white uppercase tracking-widest">REC</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {videoCamRecorder.current?.state !== 'recording' ? (
+              <button onClick={startCameraRecord}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">
+                <div className="w-3 h-3 rounded-full bg-white" /> Record
+              </button>
+            ) : (
+              <button onClick={stopCameraRecord}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/90 transition-all">
+                <Square size={11} fill="currentColor" /> Stop & Attach
+              </button>
+            )}
+            <button onClick={closeCameraCapture} className="p-2 text-white/40 hover:text-white rounded-xl transition-all"><X size={14} /></button>
+          </div>
+        </div>
+      )}
+
       {/* Voice recorder panel */}
       {showVoiceRecorder && (
         <div className="pl-12">
@@ -502,11 +575,18 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </button>
 
         <button
-          onClick={() => { setShowVoiceRecorder(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); }}
+          onClick={() => { setShowVoiceRecorder(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); setVideoCapturing(false); closeCameraCapture(); }}
           className={`p-2 rounded-xl transition-all ${showVoiceRecorder ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
           title="Voice note"
         >
           <Mic size={16} />
+        </button>
+        <button
+          onClick={() => { if (videoCapturing) { closeCameraCapture(); } else { openCameraCapture(); setShowVoiceRecorder(false); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); } }}
+          className={`p-2 rounded-xl transition-all ${videoCapturing ? 'text-red-400 bg-red-400/15' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+          title="Video response"
+        >
+          <Camera size={16} />
         </button>
 
         <button

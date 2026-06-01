@@ -1578,6 +1578,7 @@ export interface ChatMessage {
   timestamp: number;
   type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE' | 'VIDEO_NOTE';
   videoNoteUrl?: string;
+  burnAfterSeen?: boolean;
   burnAfter?: number;
   metadata?: {
     action?: string;

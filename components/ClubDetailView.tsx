@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video } from '../types';
+import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video, MerchItem } from '../types';
 import {
   fetchClubMembers, getUserClubMembership, joinClub, leaveClub,
   listenToClubPosts, createClubPost, deleteClubPost, toggleClubPostLike,
@@ -20,7 +20,7 @@ import {
   stickyClubChatMessage, updateClub, updateMemberRole, banMember,
   uploadClubImage, claimClubAsFounder, uploadFile, db,
   createClubEvent, fetchClubEvents, deleteClubEvent, rsvpClubEvent,
-  fetchUserContent, fetchUserVideos,
+  fetchUserContent, fetchUserVideos, fetchArtistMerch,
 } from '../services/backendService';
 import { LiveStreamModal } from './LiveStreamModal';
 import LiveStreamViewer from './LiveStreamViewer';
@@ -153,6 +153,8 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [showPlatformPicker, setShowPlatformPicker] = useState(false);
   const [platformTab, setPlatformTab] = useState<'MUSIC' | 'VIDEO' | 'AUDIO'>('MUSIC');
   const [showGoLive, setShowGoLive] = useState(false);
+  const [clubMerch, setClubMerch] = useState<MerchItem[]>([]);
+  const [clubMerchLoading, setClubMerchLoading] = useState(false);
   const [platformAlbums, setPlatformAlbums] = useState<Album[]>([]);
   const [platformVideos, setPlatformVideos] = useState<Video[]>([]);
   const [platformLoading, setPlatformLoading] = useState(false);
@@ -186,6 +188,10 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
     if (activeTab === 'MEMBERS') fetchClubMembers(club.id).then(setMembers);
     if (activeTab === 'EVENTS') fetchClubEvents(club.id).then(setEvents);
     if (activeTab === 'GALLERY') fetchClubGallery(club.id).then(setGallery);
+    if (activeTab === 'MERCH' && !isAdmin && clubMerch.length === 0) {
+      setClubMerchLoading(true);
+      fetchArtistMerch(club.creatorId).then(items => { setClubMerch(items); setClubMerchLoading(false); }).catch(() => setClubMerchLoading(false));
+    }
   }, [activeTab, club.id]);
 
   useEffect(() => {
@@ -1172,14 +1178,52 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
               {isAdmin ? (
                 <MerchManager artistId={club.creatorId} initialMerch={[]} onUpdate={() => {}} />
               ) : (
-                <div className="flex flex-col items-center gap-6 py-16 text-center">
-                  <div className="w-16 h-16 rounded-3xl bg-small-orange/10 border border-small-orange/20 flex items-center justify-center">
-                    <ShoppingBag size={28} className="text-small-orange" />
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShoppingBag size={20} className="text-small-orange" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-white">Club Merch</h3>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-widest text-white mb-2">Club Merch</p>
-                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Only club admins can manage merch.<br />Check back for new drops.</p>
-                  </div>
+                  {clubMerchLoading ? (
+                    <div className="flex justify-center py-16">
+                      <div className="w-8 h-8 border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" />
+                    </div>
+                  ) : clubMerch.length === 0 ? (
+                    <div className="flex flex-col items-center gap-4 py-16 text-center">
+                      <ShoppingBag size={32} className="text-white/10" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/25">No merch available yet</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {clubMerch.map(item => (
+                        <div key={item.id} className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden group">
+                          <div className="aspect-square overflow-hidden bg-white/5">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center"><ShoppingBag size={24} className="text-white/20" /></div>
+                            )}
+                          </div>
+                          <div className="p-3 space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-white truncate">{item.title}</p>
+                            <p className="text-[9px] font-bold text-white/40">{item.category}</p>
+                            <p className="text-sm font-black text-small-orange">${Number(item.price ?? 0).toFixed(2)}</p>
+                            {item.externalStoreUrl && (
+                              <a
+                                href={item.externalStoreUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full text-center px-3 py-1.5 bg-small-orange text-black text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-small-orange/80 transition-all mt-2"
+                              >
+                                Buy Now
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>

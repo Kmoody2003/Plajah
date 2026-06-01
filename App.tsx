@@ -1514,6 +1514,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     );
                   })}
 
+                  {/* Player restore — only when nano player is active */}
+                  {isNanoView && (
+                    <button
+                      onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
+                      title="Restore player"
+                      className="flex flex-col items-center justify-center py-1.5 android-press shrink-0"
+                      style={{ minHeight: 48, width: 36 }}
+                    >
+                      <div className="w-8 h-7 rounded-xl flex items-center justify-center bg-violet-500/20 border border-violet-500/30">
+                        <Zap size={13} className="text-violet-400" />
+                      </div>
+                    </button>
+                  )}
+
                   {/* Narrow More button — chevron only, no label */}
                   <button
                     onClick={() => setIsBottomSectionExpanded(v => !v)}

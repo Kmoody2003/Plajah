@@ -336,7 +336,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       artworkUrl: playlist.artworkUrl,
       trackCount: playlist.trackCount,
       isAlbum: false,
-      curatorId: playlist.curatorHandle,
+      curatorId: playlist.curatorId,
       curator: playlist.curator,
       description: playlist.description,
     };
@@ -355,14 +355,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     setSelectedAudiusAlbum(null);
   };
 
-  const handlePlayAudiusArtist = async (artist: AudiusArtist) => {
-    handleOpenAudiusArtist(artist);
-    return; // navigation only now
-    const tracks = await fetchAudiusArtistTracks(artist.id, 15);
-    if (!tracks.length) { window.open(`https://audius.co/${artist.handle}`, '_blank'); return; }
-    tracks.forEach(t => handlePlayVaultTrack(t));
-    handlePlayVaultTrack(tracks[0]);
-  };
+  const handlePlayAudiusArtist = (artist: AudiusArtist) => handleOpenAudiusArtist(artist);
 
   // Quick-add external track to playlist — shows a mini picker if multiple playlists exist
   const [externalTrackPicker, setExternalTrackPicker] = useState<ArchiveTrack | null>(null);

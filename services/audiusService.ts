@@ -51,6 +51,7 @@ export interface AudiusPlaylist {
   trackCount: number;
   curator: string;
   curatorHandle: string;
+  curatorId: string;  // Audius user ID (not handle) — needed for fetchAudiusArtistById
   permalink: string;
 }
 
@@ -93,6 +94,7 @@ function mapPlaylist(p: any): AudiusPlaylist {
     trackCount: p.track_count ?? 0,
     curator: p.user?.name ?? p.user?.handle ?? 'Audius',
     curatorHandle: p.user?.handle ?? '',
+    curatorId: p.user?.id ?? '',
     permalink: `https://audius.co/${p.user?.handle ?? ''}/${p.permalink ?? p.id}`,
   };
 }

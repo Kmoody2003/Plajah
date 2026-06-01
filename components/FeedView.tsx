@@ -806,6 +806,7 @@ const RenderTextWithMentions: React.FC<{ text: string; onVisitUser: (uid: string
 const FeedItemComponent: React.FC<{
   item: FeedItem;
   allFeedItems: FeedItem[];
+  onStartTalk?: () => void;
   currentUser: FirebaseUser | null;
   onVisitUser: (uid: string) => void;
   onMessage?: (uid: string) => void;
@@ -814,7 +815,7 @@ const FeedItemComponent: React.FC<{
   isPosting: boolean;
   onSelectGame?: (game: Game) => void;
   availableBackgrounds: PostThemeBackground[];
-}> = ({ item, allFeedItems, currentUser, onVisitUser, onMessage, depth = 0, onReply, isPosting, onSelectGame, availableBackgrounds }) => {
+}> = ({ item, allFeedItems, currentUser, onVisitUser, onMessage, depth = 0, onReply, isPosting, onSelectGame, availableBackgrounds, onStartTalk }) => {
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
@@ -1052,6 +1053,16 @@ const FeedItemComponent: React.FC<{
               >
                 <X size={22} />
               </button>
+
+              {currentUser && onStartTalk && (
+                <button
+                  onClick={onStartTalk}
+                  className="flex items-center gap-3 text-white/40 hover:text-red-400 transition-all px-4 py-4 rounded-3xl hover:bg-red-500/10"
+                  title="Start Live Talk"
+                >
+                  <Radio size={20} />
+                </button>
+              )}
 
               <PayItForwardButton />
 
@@ -3518,6 +3529,7 @@ const toggleFavoriteTeam = async (team: string) => {
                   isPosting={isPosting}
                   onSelectGame={onSelectGame}
                   availableBackgrounds={availableBackgrounds}
+                  onStartTalk={() => setShowStartTalk(true)}
                 />
               </RolodexCard>
             ))

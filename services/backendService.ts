@@ -1319,21 +1319,26 @@ export const subscribeToPostComments = (postId: string, callback: (comments: any
   }, err => handleFirestoreError(err, OperationType.LIST, `posts/${postId}/comments`));
 };
 
-export const addPostComment = async (postId: string, text: string, parentId?: string | null) => {
+export const addPostComment = async (
+  postId: string, text: string, parentId?: string | null,
+  videoUrl?: string, audioUrl?: string,
+) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
-  const commentData = {
-    author: displayName,          // required by isValidPostComment Firestore rule
+  const commentData: Record<string, any> = {
+    author: displayName,
     text: text.trim(),
     authorId: auth.currentUser.uid,
     authorName: displayName,
     authorPhoto: auth.currentUser.photoURL || '',
-    uid: auth.currentUser.uid,    // needed for delete rule: resource.data.uid == request.auth.uid
+    uid: auth.currentUser.uid,
     timestamp: Date.now(),
     parentId: parentId || null,
     likedBy: [] as string[],
-    likesCount: 0
+    likesCount: 0,
   };
+  if (videoUrl) commentData.videoUrl = videoUrl;
+  if (audioUrl) commentData.audioUrl = audioUrl;
   const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
   updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };
@@ -4769,9 +4774,16 @@ export const markMessageAsSeen = async (roomId: string, messageId: string) => {
   const path = `chat_rooms/${roomId}/messages/${messageId}`;
   try {
     const msgRef = doc(db, 'chat_rooms', roomId, 'messages', messageId);
-    await updateDoc(msgRef, {
-      seenBy: arrayUnion(auth.currentUser.uid)
-    });
+    // Read first to check burnAfterSeen flag — only triggers countdown when recipient (not sender) sees it
+    const snap = await getDoc(msgRef);
+    const data = snap.data();
+    const uid = auth.currentUser.uid;
+    const updates: Record<string, any> = { seenBy: arrayUnion(uid) };
+    // If burn-after-read is armed and NOT yet stamped, set the 30s countdown now
+    if (data?.burnAfterSeen && !data?.burnAfter && data?.senderId !== uid) {
+      updates.burnAfter = Date.now() + 30_000;
+    }
+    await updateDoc(msgRef, updates);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }

@@ -323,7 +323,7 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
       tex.generateMipmaps = false;
       // preserve color space where available (anisotropy set after renderer is created below)
       if ((tex as any).colorSpace !== undefined) (tex as any).colorSpace = THREE.SRGBColorSpace;
-      else if ((tex as any).encoding !== undefined) (tex as any).encoding = (THREE as any).sRGBEncoding;
+      else if ((tex as any).encoding !== undefined) (tex as any).encoding = (THREE as any)['sRGBEncoding'] ?? 3001;
     } catch (e) {}
 
     const mat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.FrontSide, roughness: 0.95, metalness: 0.0 });
