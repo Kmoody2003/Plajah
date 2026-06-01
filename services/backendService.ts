@@ -5,7 +5,7 @@ import {
   getDownloadURL 
 } from 'firebase/storage';
 import { 
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, limit, onSnapshot, Timestamp, increment,
   arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer
 } from 'firebase/firestore';
@@ -4716,6 +4716,28 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
   }
 };
 
+export const deleteChatRoom = async (roomId: string): Promise<void> => {
+  const path = `chat_rooms/${roomId}`;
+  try {
+    // Delete all messages in batches of 400 (Firestore batch limit is 500)
+    const msgsSnap = await getDocs(collection(db, 'chat_rooms', roomId, 'messages'));
+    const chunks: typeof msgsSnap.docs[] = [];
+    for (let i = 0; i < msgsSnap.docs.length; i += 400) {
+      chunks.push(msgsSnap.docs.slice(i, i + 400));
+    }
+    await Promise.all(chunks.map(chunk => {
+      const batch = writeBatch(db);
+      chunk.forEach(d => batch.delete(d.ref));
+      return batch.commit();
+    }));
+    // Delete the room document itself
+    await deleteDoc(doc(db, 'chat_rooms', roomId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+    throw e;
+  }
+};
+
 export const renameChatRoom = async (roomId: string, newName: string) => {
   const path = `chat_rooms/${roomId}`;
   try {
@@ -4786,12 +4808,15 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
       });
     }
     
-    // Use setDoc with merge instead of updateDoc to allow lazy creation of the room document (especially for live chats)
+    // Update room metadata — preserve existing type for already-created rooms (PRIVATE, GROUP, etc.)
+    // Only default type for truly new rooms (lazy-created live chats that have no document yet)
+    const existingType = roomSnap.exists() ? roomSnap.data().type : null;
+    const roomType = existingType || (roomId.startsWith('live_chat_') ? 'PUBLIC_LIVE' : 'GROUP');
     await setDoc(doc(db, 'chat_rooms', roomId), {
       lastMessage: message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : ''),
       updatedAt: Date.now(),
-      type: roomId.startsWith('live_chat_') ? 'PUBLIC_LIVE' : 'GROUP', // Default type for lazy creation
-      participants: arrayUnion(auth.currentUser?.uid) // Ensure sender is in participants
+      type: roomType,
+      ...(roomSnap.exists() ? {} : { participants: arrayUnion(auth.currentUser?.uid) }),
     }, { merge: true });
 
     // If it's a media message, update the album's sharedWith list
@@ -5172,6 +5197,12 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
 
 // --- Mux Live Streaming ---
 
+const getRequiredIdToken = async (): Promise<string> => {
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) throw new Error('Sign in required.');
+  return idToken;
+};
+
 export const createMuxLiveStream = async (): Promise<{
   streamId: string;
   streamKey: string;
@@ -5179,7 +5210,11 @@ export const createMuxLiveStream = async (): Promise<{
   srtUrl: string;
   playbackId: string | null;
 }> => {
-  const res = await fetch('/api/mux/live/create', { method: 'POST' });
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/mux/live/create', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Failed to create live stream' }));
     throw new Error(err.error || 'Failed to create Mux live stream');
@@ -5188,7 +5223,11 @@ export const createMuxLiveStream = async (): Promise<{
 };
 
 export const endMuxLiveStream = async (streamId: string): Promise<void> => {
-  const res = await fetch(`/api/mux/live/${streamId}`, { method: 'DELETE' });
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/live/${streamId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Failed to end stream' }));
     throw new Error(err.error || 'Failed to end Mux live stream');
@@ -5196,7 +5235,10 @@ export const endMuxLiveStream = async (streamId: string): Promise<void> => {
 };
 
 export const getMuxLiveStreamStatus = async (streamId: string): Promise<{ status: string; playbackId: string | null }> => {
-  const res = await fetch(`/api/mux/live/${streamId}/status`);
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/live/${streamId}/status`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) throw new Error('Failed to fetch stream status');
   return res.json();
 };
@@ -6327,7 +6369,11 @@ export const deleteThemePreset = async (presetId: string): Promise<void> => {
 };
 
 export const createMuxDirectUpload = async (): Promise<{ id: string; url: string }> => {
-  const res = await fetch('/api/mux/upload', { method: 'POST' });
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/mux/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || 'Failed to create Mux upload');
@@ -6336,7 +6382,10 @@ export const createMuxDirectUpload = async (): Promise<{ id: string; url: string
 };
 
 export const getMuxPlaybackId = async (assetId: string): Promise<string | null> => {
-  const res = await fetch(`/api/mux/playback?assetId=${assetId}`);
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/mux/playback?assetId=${assetId}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!res.ok) return null;
   const data = await res.json();
   return data.playbackId || null;
@@ -6352,7 +6401,10 @@ export const pollMuxUploadUntilReady = async (
   let attempts = 0;
   const poll = async () => {
     try {
-      const res = await fetch(`/api/mux/asset?uploadId=${uploadId}`);
+      const idToken = await getRequiredIdToken();
+      const res = await fetch(`/api/mux/asset?uploadId=${uploadId}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
       if (!res.ok) return;
       const { status, assetId } = await res.json();
       if (status === 'asset_created' && assetId) {
@@ -6367,10 +6419,9 @@ export const pollMuxUploadUntilReady = async (
 };
 
 // Direct Mux API call — used as fallback when server.ts API is unreachable in production.
-// VITE_MUX_TOKEN_ID / VITE_MUX_TOKEN_SECRET must be set in .env.local.
-const muxDirectCreateAsset = async (url: string): Promise<{ assetId: string; playbackId: string | undefined } | null> => {
-  const tokenId = import.meta.env.VITE_MUX_TOKEN_ID as string | undefined;
-  const tokenSecret = import.meta.env.VITE_MUX_TOKEN_SECRET as string | undefined;
+/*
+const muxDirectCreateAsset = async (_url: string): Promise<{ assetId: string; playbackId: string | undefined } | null> => {
+  return null;
   if (!tokenId || !tokenSecret) return null;
   try {
     const auth = 'Basic ' + btoa(`${tokenId}:${tokenSecret}`);
@@ -6404,13 +6455,16 @@ const muxDirectCreateAsset = async (url: string): Promise<{ assetId: string; pla
     return null;
   }
 };
+*/
 
 export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
+  const idToken = await getRequiredIdToken();
+
   // Try the server-side route first (works when server.ts is running locally or deployed)
   try {
     const res = await fetch('/api/mux/create-asset-from-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({ url }),
       signal: AbortSignal.timeout(5000), // fast fail if server isn't there
     });
@@ -6421,10 +6475,7 @@ export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: str
   } catch {
     // Server not available — fall through to direct Mux API call
   }
-  // Fallback: call Mux API directly from the browser
-  const direct = await muxDirectCreateAsset(url);
-  if (!direct) throw new Error('Mux asset creation failed (server unavailable and direct API call failed)');
-  return direct;
+  throw new Error('Mux processing unavailable. Check the server MUX_TOKEN_ID/MUX_TOKEN_SECRET configuration.');
 };
 
 
@@ -7701,4 +7752,199 @@ export const voteDiscussionComment = async (commentId: string, value: 1 | -1) =>
     await setDoc(voteRef, { id: voteId, userId: auth.currentUser.uid, targetId: commentId, targetType: 'COMMENT', value, timestamp: Date.now() });
     await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(1) });
   }
+};
+
+// ── Club Invite Links ──────────────────────────────────────────────────────────
+
+export const generateClubInviteToken = async (clubId: string): Promise<string> => {
+  const token = Math.random().toString(36).slice(2, 10).toUpperCase();
+  await updateDoc(doc(db, 'clubs', clubId), { inviteToken: token });
+  return token;
+};
+
+export const joinClubByInviteToken = async (clubId: string, token: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  if (!clubDoc.exists()) return false;
+  const club = clubDoc.data() as any;
+  if (club.inviteToken !== token) return false;
+  await joinClub(clubId, 'MEMBER');
+  return true;
+};
+
+// ── Club Channels ─────────────────────────────────────────────────────────────
+
+export const addClubChannel = async (clubId: string, channel: { name: string; type: string; description?: string; isReadOnly?: boolean }): Promise<void> => {
+  const newChannel = { id: `ch_${Date.now()}`, ...channel, createdAt: Date.now() };
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  const existing: any[] = clubDoc.data()?.channels ?? [];
+  await updateDoc(doc(db, 'clubs', clubId), { channels: [...existing, newChannel] });
+};
+
+export const deleteClubChannel = async (clubId: string, channelId: string): Promise<void> => {
+  const clubDoc = await getDoc(doc(db, 'clubs', clubId));
+  const channels: any[] = (clubDoc.data()?.channels ?? []).filter((c: any) => c.id !== channelId);
+  await updateDoc(doc(db, 'clubs', clubId), { channels });
+};
+
+// ── Club Analytics ────────────────────────────────────────────────────────────
+
+export const fetchClubAnalytics = async (clubId: string) => {
+  try {
+    const [postsSnap, membersSnap, eventsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(200))),
+      getDocs(query(collection(db, 'clubMemberships'), where('clubId', '==', clubId))),
+      getDocs(query(collection(db, 'clubEvents'), where('clubId', '==', clubId))),
+    ]);
+    const posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    const members = membersSnap.docs.map(d => d.data() as any);
+    const events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    return { posts, members, events };
+  } catch (e) {
+    console.error('[fetchClubAnalytics]', e);
+    return { posts: [], members: [], events: [] };
+  }
+};
+
+// ── Discussion real-time listeners ────────────────────────────────────────────
+
+export const listenToDiscussionPosts = (boardId: string | null, callback: (posts: any[]) => void) => {
+  const q = boardId
+    ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+    : query(collection(db, 'discussionPosts'), limit(100));
+  return onSnapshot(q, snap => {
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+    posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    callback(posts);
+  }, err => console.error('[listenToDiscussionPosts]', err));
+};
+
+export const listenToDiscussionComments = (postId: string, callback: (comments: any[]) => void) => {
+  const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+  return onSnapshot(q, snap => {
+    const comments = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+    comments.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    callback(comments);
+  }, err => console.error('[listenToDiscussionComments]', err));
+};
+
+// ── Discussion moderation ─────────────────────────────────────────────────────
+
+export const reportDiscussionPost = async (postId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'discussionPosts', postId), {
+    reportedBy: arrayUnion(auth.currentUser.uid),
+  });
+};
+
+export const reportDiscussionComment = async (commentId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'discussionComments', commentId), {
+    reportedBy: arrayUnion(auth.currentUser.uid),
+  });
+};
+
+export const removeDiscussionPost = async (postId: string, reason?: string): Promise<void> => {
+  await updateDoc(doc(db, 'discussionPosts', postId), {
+    isRemoved: true,
+    removedReason: reason ?? 'Removed by moderator',
+    body: '[removed]',
+  });
+};
+
+export const removeDiscussionComment = async (commentId: string): Promise<void> => {
+  await updateDoc(doc(db, 'discussionComments', commentId), {
+    isRemoved: true,
+    body: '[removed]',
+  });
+};
+
+export const deleteDiscussionComment = async (commentId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'discussionComments', commentId));
+};
+
+export const pinDiscussionPost = async (postId: string, pinned: boolean): Promise<void> => {
+  await updateDoc(doc(db, 'discussionPosts', postId), { isPinned: pinned });
+};
+
+export const fetchReportedDiscussionContent = async (boardId: string) => {
+  try {
+    const [postsSnap, commentsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'discussionPosts'), where('boardId', '==', boardId))),
+      getDocs(query(collection(db, 'discussionComments'))),
+    ]);
+    const posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(p => (p.reportedBy?.length ?? 0) > 0 && !p.isRemoved);
+    return { reportedPosts: posts };
+  } catch (e) {
+    return { reportedPosts: [] };
+  }
+};
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+
+export interface WatchlistItem {
+  id: string;
+  title: string;
+  type: 'VIDEO' | 'ALBUM';
+  thumbnailUrl?: string;
+  genre?: string;
+  addedAt: number;
+}
+
+export const addToWatchlist = async (item: Omit<WatchlistItem, 'addedAt'>): Promise<void> => {
+  if (!auth.currentUser) return;
+  const ref = doc(db, 'users', auth.currentUser.uid, 'watchlist', item.id);
+  await setDoc(ref, { ...item, addedAt: Date.now() });
+};
+
+export const removeFromWatchlist = async (itemId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+};
+
+export const fetchWatchlist = async (): Promise<WatchlistItem[]> => {
+  if (!auth.currentUser) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', auth.currentUser.uid, 'watchlist'));
+    return snap.docs.map(d => d.data() as WatchlistItem).sort((a, b) => b.addedAt - a.addedAt);
+  } catch { return []; }
+};
+
+export const isInWatchlist = async (itemId: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  try {
+    const d = await getDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+    return d.exists();
+  } catch { return false; }
+};
+
+// ── Discussion posts linked to content ────────────────────────────────────────
+
+export const fetchDiscussionPostsByContentId = async (contentId: string): Promise<any[]> => {
+  try {
+    const q = query(collection(db, 'discussionPosts'), where('linkedContentId', '==', contentId), limit(10));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0));
+  } catch { return []; }
+};
+
+// ── Club membership Stripe checkout ───────────────────────────────────────────
+
+export const startClubMembershipCheckout = async (
+  clubId: string,
+  clubName: string,
+  monthlyPrice: number,
+  userIdToken: string,
+): Promise<void> => {
+  const res = await fetch('/api/stripe/club-membership', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userIdToken}` },
+    body: JSON.stringify({ clubId, clubName, monthlyPrice }),
+  });
+  if (!res.ok) throw new Error('Failed to create club membership checkout');
+  const { url } = await res.json();
+  if (url) window.location.href = url;
 };

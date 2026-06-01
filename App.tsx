@@ -71,6 +71,7 @@ const PartnerDashboard = retryLazy(() => import('./components/PartnerDashboard')
 const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
 const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
+const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
@@ -1225,7 +1226,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'WORLDS', order: 1.5, isVisible: true },
                     { id: 'MUSIC', order: 2, isVisible: true },
                     { id: 'VIDEOS', order: 3, isVisible: true },
-                    { id: 'MOVIES_TV', order: 4, isVisible: true },
+                    { id: 'MOVIES_TV', order: 4.5, isVisible: true },
+                    { id: 'PLAJAH_SPORTS', order: 4, isVisible: true },
                     { id: 'ARTICLES', order: 5, isVisible: true },
                     { id: 'BOOKS', order: 6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
@@ -1274,6 +1276,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         WORLDS: { label: 'Worlds', icon: Globe },
                         VIDEOS: { label: 'Reello', icon: VideoIcon },
                         MOVIES_TV: { label: 'Taleo', icon: Film },
+                        PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap },
                         ARTICLES: { label: 'The Newstand', icon: Newspaper },
                         BOOKS: { label: 'The Book Shelf', icon: BookOpen },
                         RADIO: { label: 'Radio', icon: Radio },
@@ -1289,7 +1292,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                         ART_GALLERY: { label: 'Art Gallery', icon: Sparkles },
                         PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart },
-                        CHAT: { label: 'Messages', icon: MessageSquare },
+                        CHAT: { label: 'Chat', icon: MessageSquare },
                         DISCUSSION: { label: 'Discussion', icon: MessageCircle },
                         POSTMAN: { label: 'The Postman', icon: Mail },
                         FEED: { label: 'Plajah Social', icon: Rss },
@@ -1369,6 +1372,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                 }
                               } else if (config.id === 'MUSIC') {
                                 setView('MUSIC');
+                              } else if (config.id === 'PLAJAH_SPORTS') {
+                                setView('PLAJAH_SPORTS');
                               } else if (config.id === 'ADMIN_AD_DASHBOARD') {
                                 setView('ADMIN_AD_DASHBOARD');
                               } else if (config.id === 'PARTNER_DASHBOARD') {
@@ -1487,43 +1492,46 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           {/* Mobile Bottom Tab Bar */}
           {(isMobile || theme === 'PHONE') && (
             <>
-              {/* Fixed bottom tab bar — 5 primary destinations */}
+              {/* Fixed bottom tab bar — 5 primary destinations + narrow More trigger */}
               <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
-                <div className="flex items-center justify-around px-1 pt-1 pb-android-nav">
+                <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
                   {[
-                    { id: 'MUSIC', icon: Music2, label: 'Chora' },
-                    { id: 'ARTICLES', icon: Newspaper, label: 'News' },
-                    { id: 'DASHBOARD', icon: Home, label: 'Home' },
-                    { id: 'SEARCH', icon: Search, label: 'Search' },
-                    { id: '__MORE__', icon: ChevronUp, label: 'More' },
+                    { id: 'MUSIC',     icon: Music2,        label: 'Chora' },
+                    { id: 'ARTICLES',  icon: Newspaper,     label: 'News'  },
+                    { id: 'DASHBOARD', icon: Home,          label: 'Home'  },
+                    { id: 'CHAT',      icon: MessageSquare, label: 'Chat'  },
+                    { id: 'SEARCH',    icon: Search,        label: 'Search'},
                   ].map(tab => {
                     const Icon = tab.icon;
-                    const isActive = tab.id !== '__MORE__' && view === tab.id;
-                    const isMore = tab.id === '__MORE__';
+                    const isActive = view === tab.id;
                     return (
                       <button
                         key={tab.id}
-                        onClick={() => {
-                          if (isMore) {
-                            setIsBottomSectionExpanded(v => !v);
-                          } else if (tab.id === 'USER_PROFILE') {
-                            if (user) handleVisitUser(user.uid);
-                            else loginWithGoogle();
-                          } else {
-                            setView(tab.id as any);
-                            setIsBottomSectionExpanded(false);
-                          }
-                        }}
+                        onClick={() => { setView(tab.id as any); setIsBottomSectionExpanded(false); }}
                         className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"
-                        style={{ minHeight: 48, minWidth: 48 }}
+                        style={{ minHeight: 48 }}
                       >
-                        <div className={`w-12 h-8 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : (isMore && isBottomSectionExpanded) ? 'bg-white/10' : ''}`}>
-                          <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/50'} />
+                        <div className={`w-10 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-small-orange/20' : ''}`}>
+                          <Icon size={20} className={isActive ? 'text-small-orange' : 'text-white/50'} />
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'text-small-orange' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
                     );
                   })}
+
+                  {/* Narrow More button — chevron only, no label */}
+                  <button
+                    onClick={() => setIsBottomSectionExpanded(v => !v)}
+                    className="flex flex-col items-center justify-center py-1.5 android-press shrink-0"
+                    style={{ minHeight: 48, width: 32 }}
+                  >
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${isBottomSectionExpanded ? 'bg-white/15' : 'hover:bg-white/8'}`}>
+                      <ChevronUp
+                        size={14}
+                        className={`transition-transform duration-200 ${isBottomSectionExpanded ? 'rotate-180 text-white/70' : 'text-white/35'}`}
+                      />
+                    </div>
+                  </button>
                 </div>
               </nav>
 
@@ -1557,7 +1565,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'GAMES', icon: Gamepad2, label: 'Games' },
                         { id: 'APPS', icon: AppWindow, label: 'Apps' },
                         { id: 'CLUBS', icon: Users, label: 'Clubs' },
-                        { id: 'CHAT', icon: MessageSquare, label: 'Messages' },
+                        { id: 'CHAT', icon: MessageSquare, label: 'Chat' },
                         { id: 'FEED', icon: Rss, label: 'Social' },
                         { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classes' },
                         { id: 'GLOBAL_PHOTOS', icon: Camera, label: 'Photos' },
@@ -1613,6 +1621,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onNewArticle={() => setView('ARTICLE_EDITOR')}
                 currentUser={userProfile}
               />
+            )}
+
+            {view === 'PLAJAH_SPORTS' && (
+              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} />
             )}
 
             {view === 'ARTICLE_EDITOR' && userProfile && (
