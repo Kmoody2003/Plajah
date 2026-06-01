@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { fetchAllVideos } from '../services/backendService';
 import { Video } from '../types';
+
+const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 
 interface RelloViewProps {
   onBack: () => void;
@@ -13,6 +15,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showGoLive, setShowGoLive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -45,6 +48,24 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 bg-black/50 backdrop-blur rounded-full">
         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Rello</span>
       </div>
+
+      {/* Go Live button */}
+      {currentUser && (
+        <button
+          onClick={() => setShowGoLive(true)}
+          className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-full transition-all shadow-lg"
+        >
+          <Radio size={13} className="text-white animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-white">Go Live</span>
+        </button>
+      )}
+
+      {/* GoLiveWizard */}
+      {showGoLive && (
+        <Suspense fallback={null}>
+          <GoLiveWizard onClose={() => setShowGoLive(false)} currentUser={currentUser} />
+        </Suspense>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center gap-4 text-white/40">

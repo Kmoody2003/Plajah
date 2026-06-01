@@ -24,6 +24,8 @@ import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
 import SignInPrompt from './SignInPrompt';
 import PlajahPlusPill from './PlajahPlusPill';
+import { lazy, Suspense } from 'react';
+const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 
 const RolodexCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -1121,6 +1123,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [globalComposerTheme, setGlobalComposerTheme] = useState<FeedItem['theme']>('STANDARD');
   const [activeTab, setActiveTab] = useState<FeedTab>('GLOBAL');
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
+  const [showGoLive, setShowGoLive] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
   const [timelineValue, setTimelineValue] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
@@ -2961,6 +2964,19 @@ const toggleFavoriteTeam = async (team: string) => {
         /* ── Plajah Social Canvas ───────────────────────────── */
         <div className="w-full max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
 
+          {/* ── Go Live button ── */}
+          {currentUser && (
+            <div className="shrink-0 px-4 pt-3 flex justify-end">
+              <button
+                onClick={() => setShowGoLive(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(239,68,68,0.35)]"
+              >
+                <Radio size={13} className="animate-pulse" />
+                Go Live
+              </button>
+            </div>
+          )}
+
           {/* ── Stories Bar ── */}
           {currentUser && (
             <div className="shrink-0 border-b border-white/5">
@@ -3597,6 +3613,12 @@ const toggleFavoriteTeam = async (team: string) => {
        <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
      )}
    </AnimatePresence>
+
+   {showGoLive && (
+     <Suspense fallback={null}>
+       <GoLiveWizard onClose={() => setShowGoLive(false)} currentUser={currentUser} />
+     </Suspense>
+   )}
    </>
   );
 };

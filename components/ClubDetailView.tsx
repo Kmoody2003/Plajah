@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -151,6 +152,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   // ── Gallery platform picker ───────────────────────────────────────────────
   const [showPlatformPicker, setShowPlatformPicker] = useState(false);
   const [platformTab, setPlatformTab] = useState<'MUSIC' | 'VIDEO' | 'AUDIO'>('MUSIC');
+  const [showGoLive, setShowGoLive] = useState(false);
   const [platformAlbums, setPlatformAlbums] = useState<Album[]>([]);
   const [platformVideos, setPlatformVideos] = useState<Video[]>([]);
   const [platformLoading, setPlatformLoading] = useState(false);
@@ -473,6 +475,16 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
               )}
               {/* Timeline posts filtered by channel */}
               <div className="flex-1 px-4 md:px-8 space-y-6 py-2">
+              {/* Go Live quick-start */}
+              {isMember && (
+                <button
+                  onClick={() => setShowGoLive(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 text-red-400 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all"
+                >
+                  <Radio size={12} className="animate-pulse" />
+                  Go Live from this Club
+                </button>
+              )}
               {canPost && (
                 <UniversalPostComposer
                   currentUser={currentUser}
@@ -1504,6 +1516,12 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showGoLive && (
+        <Suspense fallback={null}>
+          <GoLiveWizard onClose={() => setShowGoLive(false)} currentUser={currentUser as import('firebase/auth').User | null} />
+        </Suspense>
+      )}
     </div>
   );
 };
