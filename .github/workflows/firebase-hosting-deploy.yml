@@ -29,25 +29,14 @@ jobs:
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
         run: npm run build
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+
       - name: Deploy Firebase Hosting
-        env:
-          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
-        run: |
-          echo "$FIREBASE_SA" > /tmp/firebase-sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx firebase-tools deploy \
-            --only hosting \
-            --project gen-lang-client-0665118474 \
-            --force
-          rm -f /tmp/firebase-sa.json
+        run: npx firebase-tools deploy --only hosting --project gen-lang-client-0665118474 --force
 
       - name: Deploy Firestore rules
-        env:
-          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
         continue-on-error: true
-        run: |
-          echo "$FIREBASE_SA" > /tmp/firebase-sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx firebase-tools deploy \
-            --only firestore:rules \
-            --project gen-lang-client-0665118474 \
-            --force
-          rm -f /tmp/firebase-sa.json
+        run: npx firebase-tools deploy --only firestore:rules --project gen-lang-client-0665118474 --force
