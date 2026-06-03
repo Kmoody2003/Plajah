@@ -8273,3 +8273,110 @@ export const startClubMembershipCheckout = async (
   const { url } = await res.json();
   if (url) window.location.href = url;
 };
+
+// ─── EVENTS & TICKETING ───────────────────────────────────────────────────────
+
+export const createOrUpdateEvent = async (event: any): Promise<string> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to save event'); }
+  const d = await res.json();
+  return d.id;
+};
+
+export const fetchEvent = async (eventId: string): Promise<any> => {
+  const res = await fetch(`/api/events/${eventId}`);
+  if (!res.ok) return null;
+  return res.json();
+};
+
+export const fetchPublicEvents = async (): Promise<any[]> => {
+  const res = await fetch('/api/events/list');
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.events ?? [];
+};
+
+export const fetchCreatorEvents = async (uid: string): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/creator/${uid}`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.events ?? [];
+};
+
+export const purchaseTickets = async (params: {
+  eventId: string; tierId: string; quantity: number;
+  holderName: string; holderEmail: string;
+  physicalRequested?: boolean; customPackagingRequested?: boolean;
+  shippingAddress?: any; promoCode?: string;
+}): Promise<{ url: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${params.eventId}/tickets/purchase`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to initiate purchase'); }
+  return res.json();
+};
+
+export const fetchMyTickets = async (): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/tickets', { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.tickets ?? [];
+};
+
+export const fetchTicket = async (ticketId: string): Promise<any> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return null;
+  return res.json();
+};
+
+export const validateTicket = async (ticketId: string): Promise<{ valid: boolean; holderName?: string; tierName?: string; reason?: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/validate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) return { valid: false, reason: 'Server error' };
+  return res.json();
+};
+
+export const fetchEventAttendees = async (eventId: string): Promise<any[]> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${eventId}/attendees`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return d.attendees ?? [];
+};
+
+export const printTicket = async (ticketId: string, printerId: string, printNodeApiKey?: string, copies = 1): Promise<{ success: boolean; printJobId?: number }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/print`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ printerId, printNodeApiKey, copies }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Print failed'); }
+  return res.json();
+};
+
+export const startKioskSession = async (eventId: string, deviceLabel?: string): Promise<string> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/events/${eventId}/kiosk/session`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceLabel }),
+  });
+  if (!res.ok) throw new Error('Failed to start kiosk session');
+  const d = await res.json();
+  return d.sessionId;
+};

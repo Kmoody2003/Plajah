@@ -1699,6 +1699,7 @@ export type ExperienceMode =
   | 'SCIENCE_ENGINEER';
 
 export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS'
+  | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
   | 'PITCH_MUSIC' | 'PITCH_FILM' | 'PITCH_WRITER'
   // Book Authoring Studio
@@ -3016,3 +3017,159 @@ export interface PitchDeck {
 }
 
 // AppView addition for PitchDeck Studio is in the AppView type — see above in types.ts
+
+// ── Events & Ticketing ────────────────────────────────────────────────────────
+
+export type EventType = 'IN_PERSON' | 'VIRTUAL' | 'HYBRID';
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'ON_SALE' | 'SOLD_OUT' | 'CANCELLED' | 'COMPLETED';
+export type TicketStatus = 'VALID' | 'USED' | 'REFUNDED' | 'CANCELLED' | 'TRANSFERRED';
+export type RefundPolicy = 'NO_REFUND' | '24H' | '48H' | '7D' | '30D';
+
+export interface TicketTier {
+  id: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  quantity: number;
+  sold: number;
+  perOrderMin: number;
+  perOrderMax: number;
+  isVisible: boolean;
+  saleStartDate?: number;
+  saleEndDate?: number;
+  benefits: string[];
+  color: string;
+  physicalTicketAvailable: boolean;
+  customPackagingAvailable: boolean;
+  customPackagingFeeCents: number;
+}
+
+export interface ItineraryItem {
+  id: string;
+  time: string;
+  title: string;
+  description?: string;
+  performer?: string;
+  type: 'DOORS' | 'PERFORMANCE' | 'BREAK' | 'WORKSHOP' | 'MEET_GREET' | 'CEREMONY' | 'OTHER';
+  durationMins?: number;
+}
+
+export interface PlajahEvent {
+  id: string;
+  creatorUid: string;
+  creatorName: string;
+  creatorPhotoURL?: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  coverImage?: string;
+  heroVideoUrl?: string;
+  galleryImages?: string[];
+  type: EventType;
+  status: EventStatus;
+  // Location
+  venueName?: string;
+  venueAddress?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  lat?: number;
+  lng?: number;
+  // Virtual
+  streamUrl?: string;
+  streamPassword?: string;
+  virtualPlatform?: string;
+  // Timing
+  startDate: number;
+  endDate: number;
+  doorsOpenDate?: number;
+  timezone: string;
+  // Tickets
+  tiers: TicketTier[];
+  totalCapacity: number;
+  totalSold: number;
+  // Itinerary
+  itinerary: ItineraryItem[];
+  // Settings
+  requiresApproval: boolean;
+  refundPolicy: RefundPolicy;
+  ageRestriction?: string;
+  dresscode?: string;
+  accessibilityInfo?: string;
+  faqItems?: { question: string; answer: string }[];
+  // Promo
+  promoCodes?: { code: string; discountPct: number; usesLeft: number }[];
+  // Platform integrations
+  linkedAlbumId?: string;
+  sanctuaryMembersOnly?: boolean;
+  plajahPlusDiscount?: number;
+  linkedFastChannelId?: string;
+  linkedLiveStreamId?: string;
+  // Kiosk
+  kioskEnabled: boolean;
+  // Printing
+  printingEnabled: boolean;
+  printNodeApiKey?: string;
+  printNodePrinterId?: string;
+  customTicketDesignUrl?: string;
+  // Sharing / SEO
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  // Analytics
+  viewCount: number;
+  shareCount: number;
+  // Meta
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface EventTicket {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventStartDate: number;
+  eventVenue?: string;
+  eventCoverImage?: string;
+  tierId: string;
+  tierName: string;
+  tierColor: string;
+  holderName: string;
+  holderEmail: string;
+  holderUid?: string;
+  orderNumber: string;
+  quantity: number;
+  unitPriceCents: number;
+  totalPriceCents: number;
+  status: TicketStatus;
+  checkedInAt?: number;
+  checkedInBy?: string;
+  stripePaymentIntentId?: string;
+  // Physical
+  physicalRequested: boolean;
+  customPackagingRequested: boolean;
+  shippingAddress?: {
+    name: string; line1: string; line2?: string;
+    city: string; state: string; zip: string; country: string;
+  };
+  printedAt?: number;
+  mailedAt?: number;
+  trackingNumber?: string;
+  // Transfer
+  transferredTo?: string;
+  transferredAt?: number;
+  createdAt: number;
+}
+
+export interface EventKioskSession {
+  id: string;
+  eventId: string;
+  creatorUid: string;
+  deviceLabel: string;
+  startedAt: number;
+  lastActivityAt: number;
+  ordersCount: number;
+  totalRevenueCents: number;
+  isActive: boolean;
+}

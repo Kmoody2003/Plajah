@@ -373,6 +373,43 @@ async function startServer() {
             });
           }
 
+          // ── Event ticket fulfillment ──────────────────────────────────────────
+          if (mode === 'payment' && meta.type === 'event_ticket' && meta.eventId) {
+            const orderNum = `PLJ-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+            const ticketId = `tkt_${meta.eventId.slice(-6)}_${Date.now().toString(36)}`;
+            await firestoreCreate('eventTickets', {
+              id: ticketId,
+              eventId: meta.eventId,
+              eventTitle: meta.eventId,
+              tierId: meta.tierId || '',
+              tierName: meta.tierName || '',
+              tierColor: meta.tierColor || '#a78bfa',
+              holderName: meta.holderName || '',
+              holderEmail: meta.holderEmail || '',
+              holderUid: meta.uid || '',
+              orderNumber: orderNum,
+              quantity: parseInt(meta.quantity || '1'),
+              totalPriceCents: parseInt(meta.subtotal || String(session.amount_total || 0)),
+              status: 'VALID',
+              physicalRequested: meta.physicalRequested === 'true',
+              customPackagingRequested: meta.customPackagingRequested === 'true',
+              shippingAddress: meta.shippingAddress || '',
+              stripePaymentIntentId: session.payment_intent || '',
+              createdAt: now,
+            });
+            // Increment tier sold count in event
+            try {
+              const evDoc = await fetchFirebaseDoc('plajahEvents', meta.eventId);
+              if (evDoc?.fields) {
+                const tiers = JSON.parse(evDoc.fields.tiers?.stringValue ?? '[]');
+                const tierIdx = tiers.findIndex((t: any) => t.id === meta.tierId);
+                if (tierIdx >= 0) { tiers[tierIdx].sold = (tiers[tierIdx].sold || 0) + parseInt(meta.quantity || '1'); }
+                const totalSold = parseInt(evDoc.fields.totalSold?.integerValue ?? '0') + parseInt(meta.quantity || '1');
+                await firestoreWrite('plajahEvents', meta.eventId, { tiers: JSON.stringify(tiers), totalSold, updatedAt: now });
+              }
+            } catch {}
+          }
+
           // ── Record earnings + process splits for all creator-facing payments ──
           const CREATOR_PAYMENT_TYPES: Record<string, string> = {
             live_tip: 'tip',
@@ -729,6 +766,203 @@ async function startServer() {
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── EVENTS & TICKETING ────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Create or update an event
+  app.post('/api/events', authMiddleware, express.json(), async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const body = req.body;
+      const eventId = body.id || `evt_${uid.slice(0,8)}_${Date.now()}`;
+      await firestoreWrite('plajahEvents', eventId, {
+        ...body, id: eventId, creatorUid: uid, updatedAt: Date.now(),
+        createdAt: body.createdAt || Date.now(), viewCount: body.viewCount || 0,
+        shareCount: body.shareCount || 0, totalSold: body.totalSold || 0, status: body.status || 'DRAFT',
+        tiers: JSON.stringify(body.tiers || []), itinerary: JSON.stringify(body.itinerary || []),
+        promoCodes: JSON.stringify(body.promoCodes || []), faqItems: JSON.stringify(body.faqItems || []),
+        galleryImages: JSON.stringify(body.galleryImages || []), tags: JSON.stringify(body.tags || []),
+      });
+      res.json({ id: eventId });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Get event by ID (public)
+  app.get('/api/events/list', async (req, res) => {
+    try {
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'plajahEvents' }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'IN', value: { arrayValue: { values: [{ stringValue: 'ON_SALE' }, { stringValue: 'PUBLISHED' }] } } } }, orderBy: [{ field: { fieldPath: 'startDate' }, direction: 'ASCENDING' }], limit: 50 } };
+      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const docs: any[] = await qRes.json();
+      const events = docs.filter((d: any) => d.document).map((d: any) => {
+        const f = d.document.fields;
+        return { id: d.document.name.split('/').pop(), title: f.title?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), coverImage: f.coverImage?.stringValue, city: f.city?.stringValue, venueName: f.venueName?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, totalSold: parseInt(f.totalSold?.integerValue ?? '0'), totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0') };
+      });
+      res.json({ events });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/events/creator/:uid', authMiddleware, async (req: any, res) => {
+    if (req.uid !== req.params.uid) return res.status(403).json({ error: 'Forbidden' });
+    try {
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'plajahEvents' }], where: { fieldFilter: { field: { fieldPath: 'creatorUid' }, op: 'EQUAL', value: { stringValue: req.params.uid } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 50 } };
+      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const docs: any[] = await qRes.json();
+      const events = docs.filter((d: any) => d.document).map((d: any) => {
+        const f = d.document.fields;
+        return { id: d.document.name.split('/').pop(), title: f.title?.stringValue, status: f.status?.stringValue, type: f.type?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), coverImage: f.coverImage?.stringValue, totalSold: parseInt(f.totalSold?.integerValue ?? '0'), totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), city: f.city?.stringValue, venueName: f.venueName?.stringValue };
+      });
+      res.json({ events });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/events/:eventId', async (req, res) => {
+    try {
+      const doc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
+      if (!doc?.fields) return res.status(404).json({ error: 'Event not found' });
+      const f = doc.fields;
+      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
+      firestoreWrite('plajahEvents', req.params.eventId, { viewCount: event.viewCount + 1, updatedAt: Date.now() }).catch(() => {});
+      res.json(event);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Purchase tickets — creates Stripe Checkout session
+  app.post('/api/events/:eventId/tickets/purchase', authMiddleware, express.json(), async (req: any, res) => {
+    const uid: string = req.uid;
+    const { tierId, quantity = 1, holderName, holderEmail, physicalRequested, customPackagingRequested, shippingAddress, promoCode } = req.body;
+    try {
+      const stripe = getStripe();
+      const eventDoc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
+      if (!eventDoc?.fields) return res.status(404).json({ error: 'Event not found' });
+      const f = eventDoc.fields;
+      const tiers = JSON.parse(f.tiers?.stringValue ?? '[]');
+      const tier = tiers.find((t: any) => t.id === tierId);
+      if (!tier) return res.status(400).json({ error: 'Ticket tier not found' });
+      if (tier.sold + quantity > tier.quantity) return res.status(400).json({ error: 'Not enough tickets available' });
+
+      let unitPrice = tier.priceCents;
+      const promoCodes = JSON.parse(f.promoCodes?.stringValue ?? '[]');
+      const promo = promoCodes.find((p: any) => p.code?.toLowerCase() === promoCode?.toLowerCase() && p.usesLeft > 0);
+      if (promo) unitPrice = Math.round(unitPrice * (1 - promo.discountPct / 100));
+      const packagingFee = (physicalRequested && customPackagingRequested) ? (tier.customPackagingFeeCents ?? 0) : 0;
+      const subtotal = unitPrice * quantity + packagingFee;
+
+      const origin = req.headers.origin || 'https://plajah.com';
+      const lineItems: any[] = [{ price_data: { currency: 'usd', product_data: { name: `${f.title?.stringValue} — ${tier.name}`, description: tier.description, ...(f.coverImage?.stringValue ? { images: [f.coverImage.stringValue] } : {}) }, unit_amount: unitPrice }, quantity }];
+      if (packagingFee > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Custom Ticket Packaging' }, unit_amount: packagingFee }, quantity: 1 });
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment', payment_method_types: ['card'], line_items: lineItems,
+        metadata: { type: 'event_ticket', eventId: req.params.eventId, tierId, tierName: tier.name, tierColor: tier.color || '#a78bfa', quantity: String(quantity), uid, holderName: holderName || '', holderEmail: holderEmail || '', physicalRequested: String(!!physicalRequested), customPackagingRequested: String(!!customPackagingRequested), shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : '', subtotal: String(subtotal) },
+        success_url: `${origin}?event_success=${req.params.eventId}`,
+        cancel_url: `${origin}/event/${req.params.eventId}`,
+        customer_email: holderEmail,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Validate / check-in a ticket
+  app.post('/api/tickets/:ticketId/validate', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.json({ valid: false, reason: 'Ticket not found' });
+      const f = doc.fields;
+      if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue });
+      if (f.status?.stringValue !== 'VALID') return res.json({ valid: false, reason: `Ticket is ${f.status?.stringValue}` });
+      await firestoreWrite('eventTickets', req.params.ticketId, { status: 'USED', checkedInAt: Date.now(), checkedInBy: req.uid });
+      res.json({ valid: true, holderName: f.holderName?.stringValue, tierName: f.tierName?.stringValue, eventTitle: f.eventTitle?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1') });
+    } catch (err: any) { res.status(500).json({ error: err.message, valid: false }); }
+  });
+
+  // Get user's tickets
+  app.get('/api/tickets', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'eventTickets' }], where: { fieldFilter: { field: { fieldPath: 'holderUid' }, op: 'EQUAL', value: { stringValue: uid } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 50 } };
+      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const docs: any[] = await qRes.json();
+      const tickets = docs.filter((d: any) => d.document).map((d: any) => {
+        const f = d.document.fields;
+        return { id: d.document.name.split('/').pop(), eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+      });
+      res.json({ tickets });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Get single ticket (holder only)
+  app.get('/api/tickets/:ticketId', authMiddleware, async (req: any, res) => {
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
+      const f = doc.fields;
+      if (f.holderUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
+      res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // List event attendees (creator only)
+  app.get('/api/events/:eventId/attendees', authMiddleware, async (req: any, res) => {
+    try {
+      const eventDoc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
+      if (eventDoc?.fields?.creatorUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'eventTickets' }], where: { fieldFilter: { field: { fieldPath: 'eventId' }, op: 'EQUAL', value: { stringValue: req.params.eventId } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 500 } };
+      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const docs: any[] = await qRes.json();
+      const attendees = docs.filter((d: any) => d.document).map((d: any) => {
+        const f = d.document.fields;
+        return { id: d.document.name.split('/').pop(), holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, quantity: parseInt(f.quantity?.integerValue ?? '1'), physicalRequested: f.physicalRequested?.booleanValue, createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+      });
+      res.json({ attendees });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Print ticket via PrintNode
+  app.post('/api/tickets/:ticketId/print', authMiddleware, express.json(), async (req: any, res) => {
+    const { printNodeApiKey, printerId, copies = 1 } = req.body;
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
+      const f = doc.fields;
+      const eventDoc = await fetchFirebaseDoc('plajahEvents', f.eventId?.stringValue);
+      if (f.holderUid?.stringValue !== req.uid && eventDoc?.fields?.creatorUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
+      const apiKey = printNodeApiKey || process.env.PRINTNODE_API_KEY;
+      if (!apiKey) return res.status(503).json({ error: 'Printer not configured — add PRINTNODE_API_KEY to env or pass in request' });
+      const ticketPdfUrl = `${req.headers.origin || 'https://plajah.com'}/print-ticket/${req.params.ticketId}`;
+      const printRes = await fetch('https://api.printnode.com/printjobs', {
+        method: 'POST',
+        headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printerId: parseInt(printerId), title: `Ticket — ${f.eventTitle?.stringValue}`, contentType: 'pdf_uri', content: ticketPdfUrl, source: 'Plajah', copies }),
+      });
+      if (!printRes.ok) return res.status(502).json({ error: 'PrintNode rejected print job' });
+      const job = await printRes.json();
+      await firestoreWrite('eventTickets', req.params.ticketId, { printedAt: Date.now() });
+      res.json({ success: true, printJobId: job.id });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Kiosk session start
+  app.post('/api/events/:eventId/kiosk/session', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const sessionId = `kiosk_${req.params.eventId}_${Date.now()}`;
+      await firestoreCreate('eventKioskSessions', { id: sessionId, eventId: req.params.eventId, creatorUid: req.uid, deviceLabel: req.body.deviceLabel || 'Kiosk 1', startedAt: Date.now(), lastActivityAt: Date.now(), ordersCount: 0, totalRevenueCents: 0, isActive: true });
+      res.json({ sessionId });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
   // ── Stripe: Create Subscription Checkout Session ──────────────────────────
@@ -2483,6 +2717,39 @@ async function startServer() {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
            html = await injectMetaTags(html, req.query, req.get('host') || 'localhost');
+        }
+        // Event page social OG injection: /event/:eventId
+        const pathParts = req.path.split('/').filter(Boolean);
+        if (pathParts[0] === 'event' && pathParts[1]) {
+          try {
+            const eventDoc = await fetchFirebaseDoc('plajahEvents', pathParts[1]);
+            if (eventDoc?.fields) {
+              const ef = eventDoc.fields;
+              const title = ef.title?.stringValue ?? 'Event on Plajah';
+              const desc = ef.subtitle?.stringValue || ef.description?.stringValue?.slice(0, 160) || 'Get your tickets on Plajah';
+              const image = ef.coverImage?.stringValue ?? '';
+              const host = req.get('host') || 'plajah.com';
+              const dateStr = ef.startDate?.integerValue ? new Date(parseInt(ef.startDate.integerValue)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+              const venue = ef.venueName?.stringValue ?? ef.city?.stringValue ?? '';
+              const richDesc = `${dateStr}${venue ? ` · ${venue}` : ''} — ${desc}`;
+              const safeT = htmlEscape(title); const safeD = htmlEscape(richDesc); const safeI = htmlEscape(image); const safeH = htmlEscape(host); const safeEid = htmlEscape(pathParts[1]);
+              const eventMeta = `
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/event/${safeEid}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta name="description" content="${safeD}" />`;
+              html = html.replace('</head>', `${eventMeta}\n</head>`);
+            }
+          } catch {}
         }
         // Tell browsers to always revalidate index.html so they pick up new deploys
         res.setHeader('Cache-Control', 'no-cache, must-revalidate');

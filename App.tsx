@@ -105,6 +105,12 @@ const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const CreatorPaymentDashboard = retryLazy(() => import('./components/CreatorPaymentDashboard'));
+const EventCreationWizard = retryLazy(() => import('./components/EventCreationWizard'));
+const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
+const EventTicketingDashboard = retryLazy(() => import('./components/EventTicketingDashboard'));
+const TicketView = retryLazy(() => import('./components/TicketView'));
+const KioskMode = retryLazy(() => import('./components/KioskMode'));
+const TicketScanner = retryLazy(() => import('./components/TicketScanner'));
 const VideoManager = retryLazy(() => import('./components/VideoManager'));
 const ArtistMembersArea = retryLazy(() => import('./components/ArtistMembersArea'));
 const MerchStorefront = retryLazy(() => import('./components/MerchStorefront'));
@@ -304,6 +310,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [kioskEventId, setKioskEventId] = useState<string | null>(null);
+  const [scannerEventId, setScannerEventId] = useState<string | null>(null);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
@@ -629,6 +639,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
       setView('CREATOR_PAYMENTS');
+    } else if (target === 'EVENTS') {
+      setView('EVENTS');
+    } else if (target === 'EVENT_DETAIL') {
+      if (params?.eventId) setSelectedEventId(params.eventId);
+      setView('EVENT_DETAIL');
+    } else if (target === 'EVENT_CREATE') {
+      if (!user) { loginWithGoogle(); return; }
+      setView('EVENT_CREATE');
+    } else if (target === 'EVENT_DASHBOARD') {
+      if (!user) { loginWithGoogle(); return; }
+      setView('EVENT_DASHBOARD');
+    } else if (target === 'MY_TICKETS') {
+      if (!user) { loginWithGoogle(); return; }
+      setView('MY_TICKETS');
+    } else if (target === 'EVENT_KIOSK') {
+      if (!user) { loginWithGoogle(); return; }
+      if (params?.eventId) setKioskEventId(params.eventId);
+      setView('EVENT_KIOSK');
     } else if (target === 'VIDEO_MANAGER') {
       setView('VIDEO_MANAGER');
     } else if (target === 'PLAYER') {
@@ -2018,6 +2046,37 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'CREATOR_PAYMENTS' && userProfile && (
               <CreatorPaymentDashboard currentUser={userProfile} />
+            )}
+
+            {view === 'EVENT_DETAIL' && selectedEventId && (
+              <EventLandingPage eventId={selectedEventId} currentUser={userProfile} onBack={() => setView('EVENTS')} onSignIn={() => loginWithGoogle()} />
+            )}
+
+            {view === 'EVENT_CREATE' && userProfile && (
+              <EventCreationWizard currentUser={userProfile} onSaved={id => { setSelectedEventId(id); setView('EVENT_DETAIL'); }} onBack={() => setView('EVENT_DASHBOARD')} />
+            )}
+
+            {view === 'EVENT_DASHBOARD' && userProfile && (
+              <EventTicketingDashboard
+                currentUser={userProfile}
+                onCreateEvent={() => setView('EVENT_CREATE')}
+                onEditEvent={id => { setSelectedEventId(id); setView('EVENT_CREATE'); }}
+                onViewEvent={id => { setSelectedEventId(id); setView('EVENT_DETAIL'); }}
+                onLaunchKiosk={id => { setKioskEventId(id); setView('EVENT_KIOSK'); }}
+                onLaunchScanner={id => { setScannerEventId(id); setView('EVENT_DASHBOARD'); }}
+              />
+            )}
+
+            {view === 'MY_TICKETS' && selectedTicketId && userProfile && (
+              <TicketView ticketId={selectedTicketId} currentUser={userProfile} onBack={() => setView('MY_TICKETS')} />
+            )}
+
+            {view === 'EVENT_KIOSK' && kioskEventId && userProfile && (
+              <KioskMode eventId={kioskEventId} eventTitle="Live Event" creatorUid={userProfile.uid} currentUser={userProfile} onExit={() => { setKioskEventId(null); setView('EVENT_DASHBOARD'); }} />
+            )}
+
+            {scannerEventId && (
+              <TicketScanner eventId={scannerEventId} onBack={() => setScannerEventId(null)} />
             )}
             {view === 'HELP_CENTER' && (
               <HelpCenter onBack={() => setView('DASHBOARD')} />
