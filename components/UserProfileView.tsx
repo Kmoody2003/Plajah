@@ -118,6 +118,9 @@ import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
 import PlajahPlusLanding from './PlajahPlusLanding';
 import ProfileSmartCard from './ProfileSmartCard';
+import ArtistModeLanding from './ArtistModeLanding';
+import ArtistServicesTab from './ArtistServicesTab';
+import PlajahBrandConnect from './PlajahBrandConnect';
 
 interface UserProfileViewProps {
   uid: string;
@@ -233,7 +236,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
     () => auth.currentUser?.uid === uid ? 'GLOBAL' : 'PERSONAL'
   );
@@ -276,6 +279,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
   const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
   const [signInAction, setSignInAction] = useState<string | null>(null);
+  const [showArtistMode, setShowArtistMode] = useState(false);
+  const artistModeDismissedRef = useRef(false);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -322,6 +327,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       });
 
       setLoading(false);  // ← spinner clears here, profile renders
+
+      // Show Artist Mode landing for visitors (not own profile) if enabled
+      if (p && (p as any).artistModeEnabled && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
+        artistModeDismissedRef.current = true;
+        setShowArtistMode(true);
+      }
 
       if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
         seedDemoWorlds().catch(console.error);
@@ -391,6 +402,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     setFeedInitialType(own ? 'GLOBAL' : 'PERSONAL');
     setFeedKey(k => k + 1);
     setActiveTab(initialTab || 'FEED');
+    artistModeDismissedRef.current = false;
+    setShowArtistMode(false);
   }, [uid]);
 
   const handleFollowToggle = async () => {
@@ -596,6 +609,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   return (
     <div className="min-h-screen bg-transparent text-white pb-32 relative selection:bg-small-orange selection:text-black">
+      {/* Artist Mode Landing */}
+      {showArtistMode && profile && (
+        <ArtistModeLanding
+          profile={profile}
+          onDismiss={() => setShowArtistMode(false)}
+          onSelectArticle={article => { setShowArtistMode(false); onSelectArticle?.(article); }}
+        />
+      )}
+
       {/* Background Slideshow */}
       {profile.backgroundSlideshow?.enabled && profile.backgroundSlideshow.items.length > 0 && (
         <div className="fixed inset-0 z-0 pointer-events-none">
@@ -1237,6 +1259,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
             ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
             ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Sanctuary' }] : [])
           ];
 
@@ -1748,6 +1772,24 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   creatorProfile={profile}
                   isOwnProfile={isOwnProfile}
                 />
+              </motion.div>
+            ) : activeTab === 'ARTIST_SERVICES' && isOwnProfile ? (
+              <motion.div
+                key="artist-services"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <ArtistServicesTab currentUser={profile} onNavigate={onNavigate} />
+              </motion.div>
+            ) : activeTab === 'BRAND_CONNECT' && isOwnProfile ? (
+              <motion.div
+                key="brand-connect"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <PlajahBrandConnect currentUser={profile} />
               </motion.div>
             ) : activeTab === 'CONTENT' ? (
               <motion.div 

@@ -8,6 +8,13 @@ import {
 } from 'lucide-react';
 import { UserProfile, AppView } from '../types';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
+import LabsDisciplineView from './LabsDisciplineView';
+import LabsNotebook from './LabsNotebook';
+import LabsCitationManager from './LabsCitationManager';
+import LabsFormulaEditor from './LabsFormulaEditor';
+import LabsGrantTracker from './LabsGrantTracker';
+import LabsTeamSpaces from './LabsTeamSpaces';
+import type { LabsDisciplineId } from '../services/labsApiService';
 
 interface PlajahLabsViewProps {
   currentUser: UserProfile | null;
@@ -64,11 +71,40 @@ const TOOLS = [
   },
 ];
 
+const DISC_ID_MAP: Record<string, LabsDisciplineId> = {
+  astronomy: 'astronomy', physics: 'physics', chemistry: 'chemistry',
+  biology: 'biology', cs: 'cs', engineering: 'engineering',
+  mathematics: 'mathematics', neuroscience: 'neuroscience', earth: 'earth',
+  data: 'data', environment: 'environment', medicine: 'medicine',
+  networks: 'networks', archaeology: 'archaeology', linguistics: 'linguistics',
+};
+
 const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDisc, setActiveDisc] = useState<string | null>(null);
   const [activeLivesCat, setActiveLivesCat] = useState<ScienceCategory | 'ALL'>('ALL');
   const [fullScreenStream, setFullScreenStream] = useState<ScienceStream | null>(null);
+  const [openDiscipline, setOpenDiscipline] = useState<LabsDisciplineId | null>(null);
+  type LabsTool = 'notebook' | 'citations' | 'formula' | 'grants' | 'teams' | null;
+  const [openTool, setOpenTool] = useState<LabsTool>(null);
+
+  // Discipline view
+  if (openDiscipline) {
+    return (
+      <LabsDisciplineView
+        disciplineId={openDiscipline}
+        onBack={() => setOpenDiscipline(null)}
+        currentUser={currentUser}
+      />
+    );
+  }
+
+  // Lab tool views
+  if (openTool === 'notebook')  return <LabsNotebook currentUser={currentUser} onBack={() => setOpenTool(null)} />;
+  if (openTool === 'citations') return <LabsCitationManager currentUser={currentUser} onBack={() => setOpenTool(null)} />;
+  if (openTool === 'formula')   return <LabsFormulaEditor currentUser={currentUser} onBack={() => setOpenTool(null)} />;
+  if (openTool === 'grants')    return <LabsGrantTracker currentUser={currentUser} onBack={() => setOpenTool(null)} />;
+  if (openTool === 'teams')     return <LabsTeamSpaces currentUser={currentUser} onBack={() => setOpenTool(null)} />;
 
   return (
     <div className="min-h-screen text-white">
@@ -279,11 +315,12 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
           {DISCIPLINES.map(disc => {
             const Icon = disc.icon;
             const isActive = activeDisc === disc.id;
+            const mappedId = DISC_ID_MAP[disc.id];
             return (
               <button
                 key={disc.id}
-                onClick={() => setActiveDisc(isActive ? null : disc.id)}
-                className="group p-3 rounded-xl text-center border transition-all duration-200"
+                onClick={() => mappedId ? setOpenDiscipline(mappedId) : setActiveDisc(isActive ? null : disc.id)}
+                className="group p-3 rounded-xl text-center border transition-all duration-200 hover:scale-[1.02]"
                 style={{
                   backgroundColor: isActive ? `${disc.color}12` : 'rgba(255,255,255,0.025)',
                   borderColor: isActive ? `${disc.color}40` : 'rgba(255,255,255,0.06)',
@@ -292,6 +329,9 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                 <Icon size={20} className="mx-auto mb-2" style={{ color: disc.color }} />
                 <p className="text-[9px] font-black text-white uppercase tracking-wide leading-tight">{disc.label}</p>
                 <p className="text-[8px] text-white/22 mt-0.5 hidden sm:block">{disc.desc}</p>
+                {mappedId && (
+                  <p className="text-[7px] text-white/15 mt-1 hidden sm:block uppercase tracking-widest">Explore →</p>
+                )}
               </button>
             );
           })}
@@ -363,33 +403,138 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
       </div>
       )}
 
-      {/* ── Coming Soon banner ───────────────────────────────────────────── */}
+      {/* ── Labs Researcher Toolkit — live tools ─────────────────────────── */}
       <div className="px-6 pb-16 max-w-7xl mx-auto">
-        <div className="p-6 lg:p-8 rounded-[2rem] border border-[#00B4D8]/12 bg-gradient-to-br from-[#00B4D8]/5 via-[#0077B6]/4 to-[#03045E]/4">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-[#00B4D8]/10 border border-[#00B4D8]/20 flex items-center justify-center shrink-0 mt-0.5">
-              <Gauge size={18} className="text-[#00B4D8]" />
-            </div>
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#00B4D8] mb-1">Coming to Plajah Labs</p>
-              <h3 className="text-base lg:text-lg font-black text-white mb-2 leading-snug">
-                Lab Notebooks · Experiment Logs · Data Visualizer · Citation Manager
-              </h3>
-              <p className="text-xs text-white/28 leading-relaxed max-w-2xl">
-                We're building dedicated tools for researchers and engineers — from experiment tracking to citation management.
-                Plajah Labs is a growing home for the STEM community and academia, with rich interconnections across the entire platform.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {['arXiv Integration', 'Formula Editor', 'Dataset Hosting', 'Grant Tracker', 'Lab Team Spaces'].map(feature => (
-                  <span
-                    key={feature}
-                    className="px-2.5 py-1 bg-[#00B4D8]/10 border border-[#00B4D8]/20 rounded-full text-[8px] font-black uppercase tracking-widest text-[#00B4D8]/70"
-                  >
-                    {feature}
-                  </span>
-                ))}
+        <div className="flex items-center gap-3 mb-5">
+          <FlaskConical size={14} className="text-[#00B4D8]" />
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Researcher Toolkit</p>
+          <div className="h-px flex-1 bg-white/5" />
+          <span className="px-2 py-0.5 bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/25 rounded-full text-[7px] font-black uppercase tracking-widest">All Live</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            {
+              key: 'notebook' as const,
+              icon: BookOpen,
+              color: '#60a5fa',
+              label: 'Lab Notebook',
+              sublabel: 'Notes · Experiments · Hypotheses · Data',
+              desc: 'A personal research journal. Write structured experiment logs with hypothesis, method, results, and conclusion. Tag by discipline. Export to markdown.',
+              badge: 'New',
+            },
+            {
+              key: 'citations' as const,
+              icon: Star,
+              color: '#fbbf24',
+              label: 'Citation Manager',
+              sublabel: 'DOI · arXiv · BibTeX · APA · MLA',
+              desc: 'Paste a DOI or arXiv ID — we auto-import the full reference. Export your library in BibTeX, APA, MLA, or Chicago with one click.',
+              badge: 'New',
+            },
+            {
+              key: 'formula' as const,
+              icon: Calculator,
+              color: '#a78bfa',
+              label: 'Formula Editor',
+              sublabel: 'LaTeX · KaTeX · 60+ symbols',
+              desc: 'Write LaTeX formulas with a live KaTeX preview. Choose from 60+ symbols, Greek letters, and templates. Copy as inline or display format.',
+              badge: 'New',
+            },
+            {
+              key: 'grants' as const,
+              icon: TrendingUp,
+              color: '#34d399',
+              label: 'Grant Tracker',
+              sublabel: 'Deadlines · Pipeline · Success rate',
+              desc: 'Track every grant application through the full pipeline — Drafting → Submitted → Under Review → Awarded. Deadline alerts, funding totals, success rate.',
+              badge: 'New',
+            },
+            {
+              key: 'teams' as const,
+              icon: Users,
+              color: '#06D6A0',
+              label: 'Lab Team Spaces',
+              sublabel: 'Shared boards · Invite codes · Posts',
+              desc: 'Create a collaborative workspace for your research group. Share findings, pin important updates, and invite collaborators via a 6-character code.',
+              badge: 'New',
+            },
+          ].map(tool => {
+            const Icon = tool.icon;
+            return (
+              <motion.button
+                key={tool.key}
+                onClick={() => setOpenTool(tool.key)}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="group p-5 bg-white/[0.04] border border-white/8 rounded-[2rem] text-left hover:border-white/18 hover:bg-white/[0.06] transition-all relative overflow-hidden"
+              >
+                {/* Background glow */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-[2rem]"
+                  style={{ background: `radial-gradient(ellipse at 20% 30%, ${tool.color}10 0%, transparent 60%)` }} />
+
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: `${tool.color}15`, border: `1px solid ${tool.color}25` }}>
+                      <Icon size={20} style={{ color: tool.color }} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest" style={{ background: `${tool.color}15`, color: tool.color }}>{tool.badge}</span>
+                      <ChevronRight size={14} className="text-white/20 group-hover:text-white/50 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </div>
+
+                  <p className="text-base font-black text-white mb-0.5">{tool.label}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest mb-3" style={{ color: tool.color }}>{tool.sublabel}</p>
+                  <p className="text-[10px] text-white/35 leading-relaxed">{tool.desc}</p>
+                </div>
+              </motion.button>
+            );
+          })}
+
+          {/* Data Visualizer card — opens discipline view */}
+          <motion.button
+            onClick={() => setOpenDiscipline('earth')}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            className="group p-5 bg-white/[0.04] border border-white/8 rounded-[2rem] text-left hover:border-white/18 hover:bg-white/[0.06] transition-all relative overflow-hidden"
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-[2rem]"
+              style={{ background: 'radial-gradient(ellipse at 20% 30%, rgba(76,175,80,0.08) 0%, transparent 60%)' }} />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#4CAF50]/15 border border-[#4CAF50]/25">
+                  <Globe size={20} className="text-[#4CAF50]" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex w-1.5 h-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" /><span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-400" /></span>
+                  <ChevronRight size={14} className="text-white/20 group-hover:text-white/50 group-hover:translate-x-0.5 transition-all" />
+                </div>
               </div>
+              <p className="text-base font-black text-white mb-0.5">Data Visualizer</p>
+              <p className="text-[8px] font-black uppercase tracking-widest mb-3 text-[#4CAF50]">Maps · Charts · Live Feeds</p>
+              <p className="text-[10px] text-white/35 leading-relaxed">Live earthquake maps, arXiv submission trends, NASA NEO data, and more — one per discipline. All shareable to the Plajah feed.</p>
             </div>
+          </motion.button>
+        </div>
+
+        {/* arXiv + OpenStax live call-out */}
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 bg-white/[0.02] border border-white/6 rounded-2xl flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-[#B31B1B]/10 border border-[#B31B1B]/20 flex items-center justify-center shrink-0 text-base">📄</div>
+            <div>
+              <p className="text-xs font-black text-white">arXiv Integration — Live</p>
+              <p className="text-[9px] text-white/35 mt-0.5">Search and read the latest preprints across 15 disciplines. New papers every day, directly in Plajah Labs.</p>
+            </div>
+            <button onClick={() => setOpenDiscipline('physics')} className="shrink-0 flex items-center gap-1 px-3 py-2 bg-[#B31B1B]/15 border border-[#B31B1B]/25 rounded-xl text-[8px] font-black text-white/60 hover:text-white transition-all uppercase">Browse <ChevronRight size={9} /></button>
+          </div>
+          <div className="p-4 bg-white/[0.02] border border-white/6 rounded-2xl flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-[#6D9700]/10 border border-[#6D9700]/20 flex items-center justify-center shrink-0 text-base">📚</div>
+            <div>
+              <p className="text-xs font-black text-white">OpenStax Textbooks — Native Reader</p>
+              <p className="text-[9px] text-white/35 mt-0.5">14 peer-reviewed open-access textbooks. Read in Plajah's e-reader — notes, bookmarks, text-to-speech, all included.</p>
+            </div>
+            <button onClick={() => setOpenDiscipline('biology')} className="shrink-0 flex items-center gap-1 px-3 py-2 bg-[#6D9700]/15 border border-[#6D9700]/25 rounded-xl text-[8px] font-black text-white/60 hover:text-white transition-all uppercase">Read <ChevronRight size={9} /></button>
           </div>
         </div>
       </div>

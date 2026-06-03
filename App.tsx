@@ -76,6 +76,8 @@ const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Plajah Research Manifesto
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
+// TV Studio — browser production switcher
+const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
@@ -2171,7 +2173,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onOpenAudioStudio={() => setView('AUDIO_BOOK_STUDIO')}
               />
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} />}
             {view === 'SEARCH' && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} />}
             {view === 'FEED' && (
               <FeedView 
@@ -2183,13 +2185,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {view === 'LIVE_HUB' && (
-              <LiveHubView 
-                onBack={() => setView('DASHBOARD')} 
-                currentUser={user} 
+              <LiveHubView
+                onBack={() => setView('DASHBOARD')}
+                currentUser={user}
                 onJoinPool={(poolId) => {
                   setSelectedPoolId(poolId);
                   setView('EVENT_PHOTO_POOL');
                 }}
+                onOpenTVStudio={() => setView('TV_STUDIO')}
               />
             )}
             {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
@@ -2370,6 +2373,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <span className="text-4xl">🔒</span>
                 <p className="text-[10px] font-black uppercase tracking-widest">Admin access required</p>
               </div>
+            )}
+            {/* ── TV Studio ── */}
+            {view === 'TV_STUDIO' && (
+              <Suspense fallback={<div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#6B0099]/30 border-t-[#6B0099] rounded-full animate-spin" /></div>}>
+                <TVStudio
+                  currentUser={user}
+                  onBack={() => setView('LIVE_HUB')}
+                />
+              </Suspense>
             )}
             {/* ── Pitch Deck Studio ── */}
             {view === 'PITCH_DECK_STUDIO' && (

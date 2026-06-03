@@ -405,3 +405,242 @@ All platforms prepped in codebase:
 ---
 
 *Updated June 2026. Reflects current codebase state, active API integrations, and Stripe payment status.*
+
+---
+
+## 12. Feature-Driven GTM Update — June 2026
+
+### What Was Just Built (New Capabilities That Change The Pitch)
+
+**1. Event Production Manager**
+A full project management tool for live events — tasks, checklists, vendor management, Stripe payroll, template contracts, budget tracking, and Muse AI as a built-in guide. First event is free; $29.99/event or $4.99/mo (Artist Services add-on).
+
+*GTM angle:* This is a Trojan horse. No competing platform helps artists actually run their events. SeatGeek, Eventbrite, and Patreon don't build your production checklist, help you find sound companies, or draft your vendor contracts. This is a standalone product — and it's bundled into Plajah.
+
+*New pitch (concert musician):*
+> "Every artist with a show next month is juggling 40 tabs — venue, sound company, caterer, marketing, ticket sales, payroll. We replaced all of it with one dashboard. And Muse AI knows what you're missing."
+
+**2. Artist Services — Unified Ad Dashboard**
+Run ads on Plajah, Google, Meta, TikTok, and Bing from one place. Muse AI writes the copy. The platform handles the API accounts. Artists see analytics in a unified dashboard.
+
+*GTM angle:* This directly targets the #4 creator pain point (brand deal / paid promotion fragmentation). Independent artists currently need: a Google Ads account, a Meta Business Suite account, a TikTok Ads Manager account, a graphic design tool, and a copywriter — all separate. Plajah collapses this into one screen with AI copywriting.
+
+*New revenue projection (Artist Services only):*
+| Timeline | Active subscribers | MRR (platform) |
+|---|---|---|
+| Month 3 | 50 | $250 ($4.99/mo plan) |
+| Month 6 | 200 | $1,000 |
+| Month 12 | 800 | $4,000 + per-event fees |
+
+**3. Artist Mode Landing Page**
+When a visitor lands on an artist's profile, they see a 30-second cinematic showcase before the platform UI loads. Gorgeous, full-screen, parallax, brand-colored — shows latest works, bio, tracks, videos. Dismissable with a large X. Fades to standard profile.
+
+*GTM angle:* Every artist's Plajah profile URL is now a premium landing page. Not a Linktree. Not a social media bio link. A 30-second immersive first impression. The pitch writes itself: "Your Plajah link IS your press kit."
+
+---
+
+## 13. Pain Point Research — Biggest User Frustrations on Social Media (2024–2025)
+
+Based on validated research across Sprinklr, Influencer Marketing Hub, Creator Spotlight, and Cropink:
+
+### Creator Pain Points (Ranked by Impact)
+
+| Rank | Pain Point | % Affected | Current Solution | Plajah Answer |
+|---|---|---|---|---|
+| 1 | Monetization poverty wages | 57% earn below living wage | Patreon (8-12% cut), Spotify ($0.003/stream) | Sanctuary 90% rev share |
+| 2 | Platform dependency / algorithm risk | "Shadow-banning" real for 62% of creators | Diversify to Substack, Patreon, Linktree | One profile, creator owns list |
+| 3 | Fragmented tooling | Avg creator uses 5+ platforms | No unified solution exists | Everything in one profile |
+| 4 | No live event infrastructure | 0 major platforms help run events | Eventbrite + 40 other apps | **Event Production Manager** |
+| 5 | Paid promotion fragmentation | Multiple ad platforms, no unified view | Hootsuite (expensive), manual | **Artist Services ad dashboard** |
+| 6 | Follower-to-paying conversion difficulty | Only 1-2% of followers pay | Patreon link, newsletter gate | Sanctuary join prompt integrated |
+| 7 | Brand deal inconsistency | Unpredictable income | Creator marketplaces (high fees) | Not yet built — opportunity |
+
+### Fan / User Pain Points (Ranked by Impact)
+
+| Rank | Pain Point | % Affected | Root Cause | Plajah Answer |
+|---|---|---|---|---|
+| 1 | **Doom-scroll addiction** | 25% feel addicted | Infinite algorithm feed designed for engagement | See Section 14 — "The Edge Feature" |
+| 2 | **Loneliness despite "connection"** | 40% feel lonely/isolated | Algorithmic feeds remove real interaction | See Section 14 |
+| 3 | Inauthentic content / ads everywhere | 70%+ trust eroding | Platform incentivizes brand content | Plajah's social layer is creator-first |
+| 4 | Mentally exhausting UX | 50% of teens anxious | Metrics anxiety (likes, views) | Reduced metric prominence on Plajah |
+| 5 | Can't find emerging creators | Concentrated at top 1% | Algorithmic recommendation | Hide N Seek, Newsstand (non-algo) |
+
+---
+
+## 14. The Edge Feature — "Right Now" Mode (Build This Next)
+
+### The Research-Validated Problem
+
+Social media is paradoxically the loneliest place online. 40% of adults feel isolated on these platforms. The core mechanic is broken: you're shown content the algorithm thinks will keep you engaged — not content your actual community is experiencing RIGHT NOW.
+
+**The result:** You scroll alone through a feed curated for you in isolation. Nobody on TikTok is watching what their friend is watching at the same time. Nobody on Spotify knows a friend just discovered the same artist. The shared cultural moment is gone.
+
+### The Plajah-Unique Solution: "Right Now"
+
+**Concept:** A persistent feed mode (toggle-on) that shows ONLY content currently being experienced by people you follow — in real time. Not "recently posted." Not "you might like." *Right now.*
+
+**How it looks:**
+- A "Now" tab or filter on the home feed
+- Shows: "[Artist Name] is listening to [Track] · 3 min ago" with a join button
+- Shows: "[Fan] just started watching [Film] — join them?" with a watch party button
+- Shows: "[Creator] went live 2 minutes ago — [X friends] are already there"
+- Mutual presence indicators on profiles ("3 friends are here right now")
+
+**Why Plajah can build this uniquely:**
+1. All content is native — no API bridging to Spotify/YouTube needed
+2. All users are already in one ecosystem — music + video + film + live in the same session
+3. The social graph already exists (follows, friends, Sanctuary members)
+4. The real-time infrastructure is already partially built (live chat, live stream)
+
+**Why it wins:**
+- Solves loneliness (#1 unaddressed fan pain point) — shared experience beats solo scrolling
+- Kills doom-scrolling — finite, social context replaces infinite algorithmic queue
+- Generates organic discovery — fans find new creators through their friends' real-time activity
+- Differentiates from every major platform — Spotify, YouTube, TikTok, Instagram don't do this
+- Zero content cost — the feature runs on content already uploaded by creators
+
+**Implementation scope (3-4 weeks):**
+- Presence tracking service (Firestore `now_active` collection with TTL documents)
+- `RightNowFeed` component — real-time listener on followed users' activity
+- `WatchPartyInvite` component — one-tap join a friend's current session
+- `NowIndicator` overlay on profile cards — green dot + "X friends here"
+
+**Pitch to users:**
+> "Stop scrolling. See what your people are actually listening to right now."
+
+**Pitch to creators:**
+> "When a fan joins a session and sees 3 of their friends already there, your conversion rate triples."
+
+**Viral mechanic:** When you join a Right Now session and love what you find — you share the shared moment, not a link to a song. "Me and @friend were both listening to this at midnight" is more shareworthy than "check out this track."
+
+---
+
+## 15. Simplified Adoption Vectors — One Size Does Not Fit All
+
+### Vector A: The "First Show" Musician
+
+**Who:** 1k–20k Instagram followers, playing their first 200-person venue, terrified of logistics.
+
+**Hook:** Not the 90% revenue pitch. Not the FAST channel. The Event Production Manager.
+
+> "You have a show in 60 days and you don't know where to start. We do. Plajah gives you the full checklist — every vendor, every contract template, every due date — and Muse AI checks in when you fall behind."
+
+**Path:** Event Manager (free first event) → sees how good the platform is → uploads music → activates Sanctuary memberships → converts fans from the show
+
+**Time to value:** Day 1 — they create the event, see the checklist, feel immediately helped.
+
+---
+
+### Vector B: The "Monetization-Frustrated" Creator
+
+**Who:** 50k–500k TikTok followers, making music or film, aware their streaming revenue is a joke.
+
+**Hook:** The revenue math comparison.
+
+> "Your last 1M TikTok views paid $30. On Plajah, 50 of those same fans subscribing at $10/month = $450 recurring — every month — and you keep 90%."
+
+**Path:** Profile setup → Sanctuary → Artist Radio activates → existing audience migrates gradually
+
+**Time to value:** Week 2 — first Sanctuary subscriber from their first TikTok CTA pointing to Plajah.
+
+---
+
+### Vector C: The "Ad Budget" Creator
+
+**Who:** Has money to spend on promotion, currently manually managing Google/Meta/TikTok Ads separately.
+
+**Hook:** The unified ad dashboard.
+
+> "You're running 3 separate ad accounts for the same campaign. Plajah runs them all from one screen. Muse AI writes the copy. You set the budget."
+
+**Path:** Artist Services tab → first campaign → sees analytics → subscribes to $4.99/mo plan → starts using more of the platform
+
+**Time to value:** Same day — they build an ad in the wizard, see the Muse-generated copy, feel the simplicity.
+
+---
+
+### Vector D: The "Worldbuilder" Fan
+
+**Who:** Fantasy/sci-fi fan, manga/anime fan, deeply invested in a creator's fictional universe.
+
+**Hook:** Artist Mode landing + IP World feature.
+
+> "When you visit your favorite creator on Plajah, you don't get a bio page. You get a cinematic 30-second showcase — their world, their characters, their music. Then you can explore their entire universe: every character, every lore entry, every piece of music linked to the story."
+
+**Path:** Artist Mode impresses → explores IP World → discovers characters → finds related music/film through hold-to-navigate → becomes a Sanctuary member for exclusive lore
+
+**Time to value:** Immediate — the 30-second Artist Mode is the wow moment.
+
+---
+
+### Vector E: The Casual Fan (The Loneliness Solve)
+
+**Who:** Regular social media user, follows 10-20 creators loosely, overwhelmed by every other platform.
+
+**Hook:** Right Now Mode.
+
+> "See what your friends are listening to right now. One tap to join them."
+
+**Path:** Right Now feed → discovers creator their friend is listening to → follows creator → gets Sanctuary invite → converts
+
+**Time to value:** Immediate — they see friends' activity, feel connected, stop doom-scrolling.
+
+---
+
+## 16. Updated Revenue Forecasts (Post-New Features)
+
+Artist Services and Event Production Manager add two new revenue streams not in the original model:
+
+### Artist Services Revenue Layer
+| Plan | Price | Platform Take |
+|---|---|---|
+| Per Event (ad boost) | $29.99 | $29.99 |
+| Monthly Add-On | $4.99/mo | $4.99/mo |
+| Off-platform ad spend | Variable | 15% management fee |
+
+**Revised Scenario B (Month 6, 1,000 creators):**
+Adding Artist Services at 15% adoption rate (150 monthly subscribers):
+- 150 × $4.99 = $748.50/mo additional
+- 50 per-event one-offs × $29.99 = $1,499.50/mo additional
+- **Revised Scenario B total: ~$12,578/mo (vs. $10,330 original)**
+
+**Revised Scenario C (Month 12, 10,000 creators):**
+- 1,500 Artist Services monthly × $4.99 = $7,485/mo
+- 500 per-event × $29.99 = $14,995/mo
+- **Revised Scenario C total: ~$184,230/mo (vs. $161,750 original)**
+
+### Event Production Manager Revenue Layer
+Event Pro unlocks at event #2 ($29.99) or via Artist Services add-on.
+
+Conservatively: 20% of active musicians run ≥2 events/year:
+- Month 6 (1,000 creators, 200 event-active): 200 × $29.99 = $5,998
+- Month 12 (10,000 creators, 2,000 event-active): 2,000 × $29.99 = $59,980/mo
+
+**Revised Scenario C total with Event PM: ~$244,210/mo**
+
+---
+
+## 17. Pitch Refresh — With New Features Incorporated
+
+### Updated Music Pitch (45 seconds)
+> "You're about to play your first real show. You have 45 days.
+> Plajah gives you a full production checklist — venue, sound company, security, contracts, payroll — all in one dashboard. Muse AI checks in when a deadline is coming.
+> After the show? Your Plajah profile is the thing fans go back to. 50 of them subscribe at $10/month. You keep $450, every month, without Spotify in the middle.
+> And when someone Googles you for the first time? They get 30 seconds of your world before they even see the platform. Your face. Your music. Your story.
+> First 100 musicians: free for life."
+
+### Updated Film Pitch (45 seconds)
+> "You finished a film. Now what? Eventbrite for the premiere. Filmhub for distribution. Google Ads for marketing. Three separate bills, three separate logins.
+> On Plajah, the premiere is a project. We walk you through finding a venue, booking AV, setting up a red carpet, marketing the night, and paying vendors — all in one tool.
+> Then your film goes on your 24/7 FAST channel, running on FireTV and Samsung TV while you sleep.
+> Your Plajah URL is your press kit. 30 seconds of cinematic showcase — before anyone sees a button.
+> First 100 directors: free for life."
+
+### Artist Services Pitch (30 seconds, standalone)
+> "You're running three ad accounts for the same campaign. Google Ads, Meta Business Suite, TikTok Ads Manager — three logins, three dashboards, zero unified view.
+> Artist Services is one screen. All five platforms. Muse AI writes the headline. You set the budget.
+> $4.99/month. Plajah handles the tech. You handle the creative."
+
+---
+
+*Updated June 2026. Incorporates Event Production Manager, Artist Services Tab, Artist Mode Landing Page, and "Right Now" social layer proposal. Based on research from Sprinklr, Influencer Marketing Hub, Creator Spotlight (2025 Monetization Report), and Cropink social media statistics.*

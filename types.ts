@@ -1094,6 +1094,39 @@ export interface UserProfile {
   stripeConnectAccountId?: string;   // acct_... Express account ID
   stripeConnectOnboarded?: boolean;  // details_submitted && charges_enabled
   stripeConnectPayoutsEnabled?: boolean;
+  // Artist Mode — immersive landing page shown to visitors for 30 seconds
+  artistModeEnabled?: boolean;
+  // Artist Services
+  artistServicesSubscription?: ArtistServicesSubscription;
+  adCampaigns?: ArtistAdCampaign[];
+  // Right Now — real-time presence sharing (opt-in)
+  presenceEnabled?: boolean;
+}
+
+// ── Right Now Presence ────────────────────────────────────────────────────────
+
+export interface NowActiveEntry {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  type: 'TRACK' | 'VIDEO' | 'RADIO' | 'LIVE';
+  // Track
+  trackId?: string;
+  trackTitle?: string;
+  trackArtist?: string;
+  albumId?: string;
+  albumTitle?: string;
+  albumCover?: string;
+  // Video
+  videoId?: string;
+  videoTitle?: string;
+  videoThumbnail?: string;
+  // Creator of the content
+  creatorUid?: string;
+  creatorName?: string;
+  // Timing
+  startedAt: number;
+  expiresAt: number;
 }
 
 // ── Creator Earnings ──────────────────────────────────────────────────────────
@@ -1700,6 +1733,7 @@ export type ExperienceMode =
 
 export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
+  | 'EVENT_PRODUCTION' | 'EVENT_PRODUCTION_DETAIL' | 'ARTIST_SERVICES'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
   | 'PITCH_MUSIC' | 'PITCH_FILM' | 'PITCH_WRITER'
   // Book Authoring Studio
@@ -1719,7 +1753,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Science & Engineering hub
   | 'PLAJAH_LABS'
   // Plajah Research Manifesto — 5-section research platform pitch
-  | 'RESEARCH_MANIFESTO';
+  | 'RESEARCH_MANIFESTO'
+  // TV Studio — browser production switcher (Blackmagic-style)
+  | 'TV_STUDIO';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -3172,4 +3208,141 @@ export interface EventKioskSession {
   ordersCount: number;
   totalRevenueCents: number;
   isActive: boolean;
+}
+
+// ── Event Production Management ───────────────────────────────────────────────
+
+export type EventProductionType = 'CONCERT' | 'FILM_PREMIERE' | 'BOOK_SIGNING' | 'GAME_LAUNCH' | 'PODCAST_LIVE' | 'ART_SHOW' | 'COMEDY_SHOW' | 'CUSTOM';
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED';
+export type VendorStatus = 'PROSPECTING' | 'CONTACTED' | 'NEGOTIATING' | 'CONTRACTED' | 'PAID' | 'CANCELLED';
+export type ContractType = 'VENUE' | 'SOUND_AV' | 'CATERING' | 'SECURITY' | 'PHOTOGRAPHER' | 'MUSICIAN_PERFORMER' | 'MARKETING_PR' | 'LIGHTING' | 'TRANSPORT' | 'CUSTOM';
+
+export interface EventTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  dueDate?: number;
+  assignedTo?: string;
+  category: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  isAiSuggested?: boolean;
+  completedAt?: number;
+  notes?: string;
+}
+
+export interface EventVendor {
+  id: string;
+  name: string;
+  type: ContractType;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  quoteCents?: number;
+  finalCents?: number;
+  status: VendorStatus;
+  contractSigned: boolean;
+  contractUrl?: string;
+  depositPaidCents?: number;
+  depositDueDate?: number;
+  finalPaymentDueDate?: number;
+  stripePaymentIntentId?: string;
+  notes?: string;
+  introLetterDraft?: string;
+  createdAt: number;
+}
+
+export interface EventBudgetItem {
+  id: string;
+  category: string;
+  label: string;
+  estimatedCents: number;
+  actualCents?: number;
+  vendorId?: string;
+  dueDate?: number;
+  isPaid: boolean;
+  paidAt?: number;
+  stripePaymentIntentId?: string;
+  notes?: string;
+}
+
+export interface EventProductionProject {
+  id: string;
+  creatorUid: string;
+  eventId?: string;
+  title: string;
+  type: EventProductionType;
+  eventDate?: number;
+  venue?: string;
+  city?: string;
+  status: 'PLANNING' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELLED';
+  tasks: EventTask[];
+  vendors: EventVendor[];
+  budgetItems: EventBudgetItem[];
+  totalBudgetCents: number;
+  isFreeEvent: boolean;
+  museChatHistory?: { role: 'user' | 'assistant'; content: string; timestamp: number }[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── Artist Services & Ads ─────────────────────────────────────────────────────
+
+export type ArtistAdPlatform = 'PLAJAH' | 'GOOGLE' | 'META' | 'BING' | 'TIKTOK';
+export type ArtistAdStatus = 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'REJECTED';
+export type ArtistAdObjective = 'AWARENESS' | 'TRAFFIC' | 'ENGAGEMENT' | 'TICKET_SALES' | 'MERCH_SALES' | 'FOLLOWERS' | 'STREAMS';
+
+export interface ArtistAdCreative {
+  headline: string;
+  description: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  ctaText: string;
+  destinationUrl: string;
+}
+
+export interface ArtistAdCampaign {
+  id: string;
+  creatorUid: string;
+  name: string;
+  objective: ArtistAdObjective;
+  platforms: ArtistAdPlatform[];
+  status: ArtistAdStatus;
+  creative: ArtistAdCreative;
+  dailyBudgetCents: number;
+  totalBudgetCents: number;
+  spentCents: number;
+  startDate: number;
+  endDate?: number;
+  targeting?: {
+    ageMin?: number; ageMax?: number;
+    locations?: string[];
+    interests?: string[];
+    lookalike?: boolean;
+  };
+  analytics: {
+    impressions: number; clicks: number; ctr: number;
+    conversions: number; cpc: number; spend: number;
+  };
+  externalCampaignIds?: Record<string, string>;
+  linkedEventId?: string;
+  linkedAlbumId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ArtistServicesSubscription {
+  uid: string;
+  plan: 'PER_EVENT' | 'MONTHLY';
+  status: 'ACTIVE' | 'CANCELLED' | 'TRIAL';
+  stripeSubscriptionId?: string;
+  monthlyFeeCents: 499;
+  perEventFeeCents: 2999;
+  freeEventsUsed: number;
+  currentPeriodEnd?: number;
+  adBudgetCents: number;
+  adBudgetUsedCents: number;
+  createdAt: number;
 }

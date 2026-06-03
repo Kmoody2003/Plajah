@@ -37,6 +37,8 @@ export const DISCIPLINE_LABELS: Record<ScienceDiscipline, string> = {
   MEDICINE:         'Medicine',
   ARCHAEOLOGY:      'Archaeology',
   LINGUISTICS:      'Linguistics',
+  HISTORY:          'History',
+  ARCHITECTURE:     'Architecture',
 };
 
 // ── Score calculation ─────────────────────────────────────────────────────────

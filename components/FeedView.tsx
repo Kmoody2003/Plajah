@@ -19,6 +19,9 @@ import ProfileFeed from './ProfileFeed';
 import PayItForwardButton from './PayItForwardButton';
 import PostCard from './PostCard';
 import FediversePostCard from './FediversePostCard';
+import RightNowFeed, { PresenceSync } from './RightNowFeed';
+import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY as NOW_STORAGE_KEY } from './RightNowOnboarding';
+import { updateUserProfile as _updatePresence } from '../services/backendService';
 import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import StoriesBar from './StoriesBar';
@@ -72,7 +75,7 @@ interface FeedViewProps {
   onSelectGame?: (game: Game) => void;
 }
 
-type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED';
+type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED' | 'NOW';
 
 const LiveTalkDiscovery: React.FC<{
   currentUser: FirebaseUser | null;
@@ -1199,6 +1202,10 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [globalComposerTheme, setGlobalComposerTheme] = useState<FeedItem['theme']>('STANDARD');
   const [activeTab, setActiveTab] = useState<FeedTab>('GLOBAL');
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
+  const [showNowOnboarding, setShowNowOnboarding] = useState(false);
+  const [showNowBanner, setShowNowBanner] = useState(() => {
+    try { return !localStorage.getItem(NOW_STORAGE_KEY); } catch { return false; }
+  });
   const [showGoLive, setShowGoLive] = useState(false);
   const [showStartTalk, setShowStartTalk] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
@@ -1939,7 +1946,8 @@ const toggleFavoriteTeam = async (team: string) => {
               { id: 'GLOBAL', label: 'Plajah Social', description: 'On-platform aggregated experience', icon: Cloud },
               { id: 'NEWS', label: 'Broadcast News', description: 'Real-time global events & sports', icon: Newspaper },
               { id: 'LIVETALK', label: 'Live Talk', description: 'Live audio & video broadcasts', icon: Mic },
-            ].map(tab => (
+              { id: 'NOW', label: 'Right Now', description: 'What your people are experiencing this moment', icon: Zap, isNew: true },
+            ].map((tab: any) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as FeedTab)}
@@ -1950,7 +1958,14 @@ const toggleFavoriteTeam = async (team: string) => {
                 }`}
               >
                 <div className="relative z-10 flex flex-col gap-8 w-full">
-                  <tab.icon size={32} className={activeTab === tab.id ? 'text-small-orange' : 'text-white/20 group-hover/tab:text-white transition-colors'} />
+                  <div className="flex items-start justify-between">
+                    <tab.icon size={32} className={tab.id === 'NOW' ? 'text-green-400' : activeTab === tab.id ? 'text-small-orange' : 'text-white/20 group-hover/tab:text-white transition-colors'} />
+                    {tab.isNew && activeTab !== tab.id && (
+                      <span className="px-2 py-0.5 bg-green-500/20 border border-green-500/40 text-green-400 text-[7px] font-black uppercase tracking-widest rounded-full flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" /> New
+                      </span>
+                    )}
+                  </div>
                   <div>
                      <span className={`text-[8px] font-black uppercase tracking-widest block mb-1 ${activeTab === tab.id ? 'text-black/40' : 'text-white/10'}`}>Frequency Node</span>
                      <h4 className="text-xl md:text-3xl font-black uppercase tracking-tight italic leading-tight">{tab.label}</h4>
@@ -2007,7 +2022,35 @@ const toggleFavoriteTeam = async (team: string) => {
           )}
         </header>
 
-      {activeTab === 'LIVETALK' ? (
+      {/* ── Right Now announcement banner ── */}
+      {showNowBanner && activeTab !== 'NOW' && (
+        <RightNowAnnouncementBanner
+          onLearnMore={() => { setShowNowBanner(false); setShowNowOnboarding(true); try { localStorage.setItem(NOW_STORAGE_KEY, '1'); } catch {} }}
+          onDismiss={() => { setShowNowBanner(false); try { localStorage.setItem(NOW_STORAGE_KEY, '1'); } catch {}; }}
+        />
+      )}
+
+      {/* ── PresenceSync — writes to Firestore when user plays content ── */}
+      {userProfile && <PresenceSync currentUser={userProfile} />}
+
+      {/* ── Right Now Onboarding Modal ── */}
+      <RightNowOnboardingController
+        show={showNowOnboarding}
+        onActivate={async () => {
+          if (userProfile?.uid) await _updatePresence(userProfile.uid, { presenceEnabled: true });
+        }}
+        onDismiss={() => setShowNowOnboarding(false)}
+      />
+
+      {activeTab === 'NOW' ? (
+        <div className="flex-1 overflow-y-auto">
+          <RightNowFeed
+            currentUser={userProfile}
+            followingUids={userProfile?.following ?? []}
+            onVisitUser={onVisitUser}
+          />
+        </div>
+      ) : activeTab === 'LIVETALK' ? (
         <div className="pt-4 lg:pt-12 px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
            <LiveTalkDiscovery
              currentUser={currentUser}

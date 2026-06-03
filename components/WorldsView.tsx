@@ -21,6 +21,8 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import WorldGraphView from './WorldGraphView';
 import CharacterDetailModal from './CharacterDetailModal';
+import CharacterCard from './CharacterCard';
+import { HoldNavigate } from './HoldNavigate';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface WorldsViewProps {
@@ -28,6 +30,8 @@ interface WorldsViewProps {
   onEdit?: (world: IPWorld) => void;
   userProfile: UserProfile | null;
   artistUid: string;
+  onSelectAlbum?: (album: Album) => void;
+  onSelectVideo?: (video: Video) => void;
 }
 
 // ── World Background ──────────────────────────────────────────────────────────
@@ -262,7 +266,7 @@ function EventDetailPanel({ event, characters, onClose }: { event: TimelineEvent
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile, artistUid }) => {
+const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile, artistUid, onSelectAlbum, onSelectVideo }) => {
   const [worlds, setWorlds] = useState<IPWorld[]>([]);
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -547,50 +551,203 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
               className="bg-black/50 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 md:p-12 min-h-[460px]">
 
               {/* ── OVERVIEW ── */}
-              {activeTab === 'Overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
-                      <Sparkles className="text-small-orange" size={20} /> World Narrative
-                    </h3>
-                    <p className="text-white/60 font-medium leading-loose">
-                      {selectedWorld?.status === 'PUBLISHED'
-                        ? 'This living universe is accessible to all. Explore the full experience below.'
-                        : 'This world is under active development.'}
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: 'Characters', value: characters.length, icon: Users },
-                        { label: 'Lore Entries', value: lore.length, icon: Scroll },
-                        { label: 'Timeline Events', value: timeline.length, icon: History },
-                      ].map(stat => (
-                        <div key={stat.label} className="p-5 bg-white/5 rounded-2xl border border-white/10 text-center">
-                          <stat.icon size={16} className="text-small-orange mx-auto mb-2" />
-                          <p className="text-2xl font-black text-white">{stat.value}</p>
-                          <p className="text-[7px] font-black uppercase tracking-widest text-white/30 mt-0.5">{stat.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Recent Activity</h4>
-                    {[...characters, ...lore, ...timeline].slice(0, 5).map((item: any, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5">
-                        {item.imageUrl && <img src={item.imageUrl} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="" />}
-                        {!item.imageUrl && (
-                          <div className="w-8 h-8 bg-small-orange/20 rounded-lg flex items-center justify-center text-small-orange flex-shrink-0">
-                            {item.name ? <Users size={13} /> : <Scroll size={13} />}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-black uppercase tracking-tight text-white truncate">{item.name || item.title}</p>
-                          <p className="text-[7px] font-bold text-white/20 uppercase tracking-widest">{item.role || item.type || 'Event'}</p>
+              {activeTab === 'Overview' && (() => {
+                const worldAlbums = userAlbums.filter(a => a.worldId === selectedWorld?.id);
+                const worldVideos = userVideos.filter(v => v.worldId === selectedWorld?.id);
+                return (
+                  <div className="space-y-14">
+                    {/* Stats + narrative */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
+                          <Sparkles className="text-small-orange" size={20} /> World Narrative
+                        </h3>
+                        <p className="text-white/60 font-medium leading-loose">
+                          {selectedWorld?.status === 'PUBLISHED'
+                            ? 'This living universe is accessible to all. Explore the full experience below.'
+                            : 'This world is under active development.'}
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: 'Characters', value: characters.length, icon: Users },
+                            { label: 'Lore Entries', value: lore.length, icon: Scroll },
+                            { label: 'Timeline Events', value: timeline.length, icon: History },
+                          ].map(stat => (
+                            <div key={stat.label} className="p-5 bg-white/5 rounded-2xl border border-white/10 text-center">
+                              <stat.icon size={16} className="text-small-orange mx-auto mb-2" />
+                              <p className="text-2xl font-black text-white">{stat.value}</p>
+                              <p className="text-[7px] font-black uppercase tracking-widest text-white/30 mt-0.5">{stat.label}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                      <div className="space-y-4">
+                        <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Recent Activity</h4>
+                        {[...characters, ...lore, ...timeline].slice(0, 5).map((item: any, i) => (
+                          <div key={i} className={`flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5 transition-all ${item.name ? 'cursor-pointer hover:bg-white/10 hover:border-white/15' : ''}`}
+                            onClick={() => { if (item.name && item.bio !== undefined) setSelectedCharacter(item); }}
+                          >
+                            {item.imageUrl && <img src={item.imageUrl} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="" />}
+                            {!item.imageUrl && (
+                              <div className="w-8 h-8 bg-small-orange/20 rounded-lg flex items-center justify-center text-small-orange flex-shrink-0">
+                                {item.name ? <Users size={13} /> : <Scroll size={13} />}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black uppercase tracking-tight text-white truncate">{item.name || item.title}</p>
+                              <p className="text-[7px] font-bold text-white/20 uppercase tracking-widest">{item.role || item.type || 'Event'}</p>
+                            </div>
+                            {item.name && item.bio !== undefined && <ChevronRight size={12} className="text-white/20 shrink-0" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Characters quick-access ── */}
+                    {characters.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2"><Users size={11} /> Characters in This World</h4>
+                          <button onClick={() => setActiveTab('Characters')} className="text-[8px] font-black uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors flex items-center gap-1">
+                            See All <ChevronRight size={10} />
+                          </button>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                          {characters.slice(0, 8).map(char => (
+                            <button
+                              key={char.id}
+                              onClick={() => setSelectedCharacter(char)}
+                              className="flex-shrink-0 flex flex-col items-center gap-2 group"
+                            >
+                              <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/30 transition-all shadow-lg">
+                                <img src={char.imageUrl || `https://picsum.photos/seed/${char.id}/200/200`}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={char.name} />
+                                {char.accentColor && (
+                                  <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: char.accentColor }} />
+                                )}
+                              </div>
+                              <div className="text-center max-w-[72px]">
+                                <p className="text-[9px] font-black uppercase tracking-tight text-white/80 group-hover:text-white transition-colors truncate">{char.name}</p>
+                                <p className="text-[7px] text-white/30 uppercase tracking-widest truncate">{char.role}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Music in This World ── */}
+                    {worldAlbums.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2"><Music2 size={11} /> Music in This World</h4>
+                          <p className="text-[7px] text-white/20 uppercase tracking-widest">Hold 5s to open</p>
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                          {worldAlbums.map(album => (
+                            <HoldNavigate
+                              key={album.id}
+                              onNavigate={() => onSelectAlbum?.(album)}
+                              className="flex-shrink-0 group"
+                            >
+                              <div className="relative w-36 h-36 rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/30 transition-all shadow-xl">
+                                {album.coverImage ? (
+                                  <img src={album.coverImage} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                ) : (
+                                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                                    <Music2 size={24} className="text-white/20" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 p-3">
+                                  <p className="text-[10px] font-black text-white truncate leading-tight">{album.title}</p>
+                                  <p className="text-[8px] text-white/40 uppercase tracking-widest">{album.tracks?.length ?? 0} tracks</p>
+                                </div>
+                                {/* Hold indicator ring on hover */}
+                                <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-white/20 transition-all" />
+                              </div>
+                              {/* Character pills for this album */}
+                              {(album.characterIds?.length ?? 0) > 0 && (
+                                <div className="flex gap-1 mt-2 flex-wrap max-w-[144px]">
+                                  {album.characterIds!.slice(0, 3).map(cid => {
+                                    const c = characters.find(ch => ch.id === cid);
+                                    return c ? (
+                                      <button key={cid}
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={e => { e.stopPropagation(); setSelectedCharacter(c); }}
+                                        className="flex items-center gap-1 px-1.5 py-0.5 bg-white/8 border border-white/10 rounded-full hover:border-white/30 hover:bg-white/15 transition-all"
+                                      >
+                                        <img src={c.imageUrl} className="w-3.5 h-3.5 rounded-full object-cover" alt="" />
+                                        <span className="text-[7px] font-black text-white/50 hover:text-white transition-colors truncate max-w-[50px]">{c.name}</span>
+                                      </button>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                            </HoldNavigate>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Videos in This World ── */}
+                    {worldVideos.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-5">
+                          <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2"><Play size={11} /> Videos in This World</h4>
+                          <p className="text-[7px] text-white/20 uppercase tracking-widest">Hold 5s to open</p>
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                          {worldVideos.map(video => (
+                            <HoldNavigate
+                              key={video.id}
+                              onNavigate={() => onSelectVideo?.(video)}
+                              className="flex-shrink-0 group"
+                            >
+                              <div className="relative w-48 h-28 rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/30 transition-all shadow-xl">
+                                {video.thumbnailUrl ? (
+                                  <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                ) : (
+                                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                                    <Play size={24} className="text-white/20" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                                    <Play size={16} className="text-white" />
+                                  </div>
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 p-3">
+                                  <p className="text-[10px] font-black text-white truncate leading-tight">{video.title}</p>
+                                </div>
+                              </div>
+                              {/* Character pills */}
+                              {(video.characterIds?.length ?? 0) > 0 && (
+                                <div className="flex gap-1 mt-2 flex-wrap max-w-[192px]">
+                                  {video.characterIds!.slice(0, 4).map(cid => {
+                                    const c = characters.find(ch => ch.id === cid);
+                                    return c ? (
+                                      <button key={cid}
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={e => { e.stopPropagation(); setSelectedCharacter(c); }}
+                                        className="flex items-center gap-1 px-1.5 py-0.5 bg-white/8 border border-white/10 rounded-full hover:border-white/30 hover:bg-white/15 transition-all"
+                                      >
+                                        <img src={c.imageUrl} className="w-3.5 h-3.5 rounded-full object-cover" alt="" />
+                                        <span className="text-[7px] font-black text-white/50 hover:text-white transition-colors truncate max-w-[60px]">{c.name}</span>
+                                      </button>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                            </HoldNavigate>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── CHARACTERS ── */}
               {activeTab === 'Characters' && (

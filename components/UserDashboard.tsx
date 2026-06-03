@@ -46,6 +46,7 @@ interface UserDashboardProps {
   onBack: () => void;
   currentTheme?: ThemeType;
   onSetTheme?: (t: ThemeType) => void;
+  onOpenTVStudio?: () => void;
 }
 
 const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
@@ -58,7 +59,7 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
   { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
 ];
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
@@ -1472,6 +1473,25 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">TV & Broadcast Studio</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your live stream, FAST channel, and global broadcast status</p>
               </header>
+
+              {/* TV Studio launch tile */}
+              {onOpenTVStudio && (
+                <button
+                  onClick={onOpenTVStudio}
+                  className="w-full flex items-center gap-6 p-6 rounded-[2rem] bg-gradient-to-r from-[#6B0099]/30 to-[#D40055]/20 border border-[#6B0099]/40 hover:border-[#6B0099]/70 hover:from-[#6B0099]/40 hover:to-[#D40055]/30 transition-all group text-left"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-[#6B0099]/30 border border-[#6B0099]/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Tv size={26} className="text-[#a855f7]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-black text-white tracking-tight">TV Studio</p>
+                    <p className="text-sm text-white/40 mt-0.5">Browser production switcher — cameras, graphics, transitions, audio mixing, EDL export</p>
+                  </div>
+                  <div className="px-4 py-2 rounded-xl bg-[#6B0099] text-white text-xs font-black uppercase tracking-widest shrink-0 group-hover:bg-[#7d00b4] transition-colors">
+                    Open
+                  </div>
+                </button>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-8">

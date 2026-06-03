@@ -15,6 +15,7 @@ interface LiveHubViewProps {
   onBack: () => void;
   currentUser: FirebaseUser | null;
   onJoinPool: (poolId: string) => void;
+  onOpenTVStudio?: () => void;
 }
 
 // Hover-triggered stream preview: loads iframe once on first hover, stays mounted
@@ -62,7 +63,7 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
   );
 }
 
-const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool }) => {
+const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool, onOpenTVStudio }) => {
   const { triggerAction } = useAchievements();
   const [activeTab, setActiveTab] = useState<'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS'>('STREAMS');
   const [scienceCat, setScienceCat] = useState<ScienceCategory | 'ALL'>('ALL');
@@ -256,6 +257,14 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
               <Radio size={18} className="text-white" /> Go Live
             </button>
+            {onOpenTVStudio && (
+              <button
+                onClick={onOpenTVStudio}
+                className="flex items-center justify-center gap-3 px-8 py-4 bg-[#6B0099]/80 hover:bg-[#7d00b4] border border-[#6B0099] rounded-2xl font-black text-xs uppercase tracking-widest transition-all group"
+              >
+                <Tv size={18} className="text-white group-hover:scale-110 transition-transform" /> TV Studio
+              </button>
+            )}
             <button
               onClick={handleFeelingLucky}
               className="flex items-center justify-center gap-3 px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all group"
