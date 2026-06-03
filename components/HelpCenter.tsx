@@ -6,7 +6,8 @@ import {
   Gamepad2, GraduationCap, Ticket, Camera,
   MessageSquare, Settings, Database, Megaphone,
   ArrowLeft, Info, Sparkles, ShieldCheck, Tv, Trash2,
-  Film, Users, Globe, Award, ShoppingBag
+  Film, Users, Globe, Award, ShoppingBag,
+  FlaskConical, DollarSign, Zap, Split, CreditCard, Wallet,
 } from 'lucide-react';
 
 interface HelpSection {
@@ -359,6 +360,122 @@ const helpSections: HelpSection[] = [
       {
         name: 'Live Classroom Sessions',
         description: 'As a classroom creator, schedule live sessions that appear in enrolled students\' feeds and send notifications. During a live session, stream directly through Plajah\'s live system, present lesson materials, and interact with students in real time. Live sessions are recorded automatically and archived in the course after they end.'
+      }
+    ]
+  },
+  {
+    id: 'plajahplus',
+    title: 'Plajah+',
+    icon: Zap,
+    description: 'Plajah+ is the creator subscription tier that unlocks monetization, extra storage, monthly points, and more.',
+    features: [
+      {
+        name: 'What Plajah+ Includes',
+        description: 'Plajah+ has three tiers — Spark ($4.99/mo), Glow ($9.99/mo), and Nova ($14.99/mo). All tiers unlock monetization features, creator storage, and monthly loyalty points. Higher tiers unlock additional features like Live TV and PPV monetization, bigger storage allocations, more monthly points, and larger discounts on Plajah For Business purchases.'
+      },
+      {
+        name: 'Spark Tier ($4.99/month)',
+        description: 'The Spark tier is the entry-level creator subscription. It unlocks Radio monetization, 50 GB of creator storage, 100 monthly loyalty points, and a 10% discount on Plajah For Business purchases. Ideal for emerging creators who want to start earning from their radio station and need reliable storage for their uploads.'
+      },
+      {
+        name: 'Glow Tier ($9.99/month)',
+        description: 'Glow unlocks Radio + Live TV + PPV monetization, 75 GB of creator storage, 300 monthly loyalty points, and a 15% discount on Plajah For Business. The right tier for active creators running live shows, PPV events, or TV-format content who want additional earning streams beyond just Sanctuary memberships.'
+      },
+      {
+        name: 'Nova Tier ($14.99/month)',
+        description: 'Nova is the full monetization tier — all earning streams unlocked including radio, TV, PPV, and exclusive content gating. 100 GB storage, 1,000 monthly loyalty points, and a 20% discount on Plajah For Business. For professional creators building a full income on the platform.'
+      },
+      {
+        name: 'Binding a Subscription to a Creator',
+        description: 'When subscribing to Plajah+, you can "bind" your subscription to a specific creator. This means the creator share of your subscription ($3.00–$11.00 depending on tier) goes directly to that creator every month via their Stripe payout. You can rebind to a different creator for a one-time $2.99 fee.'
+      },
+      {
+        name: 'Morph Mode',
+        description: 'Morph Mode is an alternative to binding — instead of locking your subscription to one creator, it distributes your creator share across up to 3 creators per billing cycle automatically. Great if you follow many creators and want your support to spread across your favorites. No rebind fee — the rotation happens automatically.'
+      },
+      {
+        name: 'Managing or Cancelling Plajah+',
+        description: 'Go to Settings → Subscriptions to view your current Plajah+ tier, next billing date, and bound creator. Click "Manage Subscription" to open the Stripe billing portal where you can upgrade, downgrade, or cancel. Cancellations take effect at the end of the current billing period — you keep all benefits until then.'
+      }
+    ]
+  },
+  {
+    id: 'earnings',
+    title: 'Earnings & Payouts',
+    icon: DollarSign,
+    description: 'Connect your bank account, track all revenue streams, and manage automatic splits with collaborators.',
+    features: [
+      {
+        name: 'Connecting to Get Paid (Stripe Connect)',
+        description: 'To receive payments for tips, sales, memberships, and subscriptions, you need to connect your Stripe Express account. In Creator Studio, go to Earnings & Payouts and click "Connect with Stripe." You\'ll be taken through a 5-minute Stripe Express onboarding — enter your details and bank account. Once completed, all future payments transfer to your bank automatically.'
+      },
+      {
+        name: 'How Payouts Work',
+        description: 'When a fan tips you, buys your content, or subscribes to your Sanctuary, Stripe processes the payment and automatically transfers your share (90% of the total) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
+      },
+      {
+        name: 'Earnings Dashboard — Overview',
+        description: 'The Overview tab shows your total gross, net earnings, pending transfers, and paid-out amounts for the selected period (7 days, 30 days, 90 days, or 1 year). A revenue bar chart breaks down earnings by category — tips, digital sales, Sanctuary memberships, Plajah+ subscriptions, store orders, club memberships, and SeedRaiser pledges.'
+      },
+      {
+        name: 'Earnings by Category',
+        description: 'The By Category tab shows each revenue stream as its own card — gross charged, your net after platform fee, and transaction count. This lets you see at a glance which monetization streams are performing for you and where to focus your energy. Categories with zero activity are grayed out.'
+      },
+      {
+        name: 'Transaction Log',
+        description: 'The Transactions tab shows every individual payment — the source (tip from a specific fan, a digital sale, a membership renewal), the amount you received, the timestamp, and the transfer status (Pending, Transferred, or Paid Out). Click any transaction for full details including the gross amount and platform fee taken.'
+      },
+      {
+        name: 'Revenue Splits with Collaborators',
+        description: 'In the Split Config tab, you can configure automatic revenue splits with other creators. Search for a creator by name, add them, and set a percentage of your net earnings to route to them. Splits fire automatically on every payment — you don\'t need to manually send money. Splits can be limited to specific categories (e.g. only apply to tips, not store orders).'
+      },
+      {
+        name: 'Platform Fee',
+        description: 'Plajah takes a 10% platform fee on all creator-to-fan transactions (tips, sales, memberships, store orders). For SeedRaiser crowdfunding, the platform fee is 5%. Plajah+ subscription revenue goes to creators at a fixed dollar amount per tier — not a percentage. The Earnings Dashboard always shows your fee alongside your net so there are no surprises.'
+      },
+      {
+        name: 'Stripe Express Dashboard',
+        description: 'Click "Stripe Dashboard" in the Earnings panel to open your Stripe Express dashboard in a new tab. This is Stripe\'s own interface showing your full payout history, upcoming payouts, bank account details, and tax documents. Plajah\'s dashboard shows categorized platform-level data; Stripe\'s dashboard shows the full bank transfer picture.'
+      }
+    ]
+  },
+  {
+    id: 'labs',
+    title: 'Plajah Labs',
+    icon: FlaskConical,
+    description: 'A scientific research and discovery community spanning 17 disciplines, with live data from 20+ APIs auto-attached to every science post.',
+    features: [
+      {
+        name: 'What is Plajah Labs?',
+        description: 'Plajah Labs is the scientific and academic community layer of the platform. It spans 17 disciplines — Physics, Chemistry, Biology, Computer Science, Engineering, Mathematics, Neuroscience, Earth Science, Astronomy, Data Science, Environment, Networks, Medicine, Archaeology, Linguistics, Architecture, and History. Researchers, educators, and science communicators post findings, hypotheses, replications, and open questions — and the platform automatically attaches live scientific data to every post.'
+      },
+      {
+        name: 'Making a Science Post',
+        description: 'Navigate to Plajah Labs and click "New Science Post." In the composer, toggle "Science Mode" to unlock the science metadata panel. Select your discipline(s), choose a Claim Type (Hypothesis, Observation, Established Finding, Replication, Peer Review, Extension, Null Result, Dataset, or Preprint), and set your confidence level with the slider. The platform automatically detects DOIs, arXiv IDs, SMILES strings, GPS coordinates, and LaTeX equations in your text and badges them inline.'
+      },
+      {
+        name: 'Live Data Auto-Enrichment',
+        description: 'When you publish a science post, the platform\'s enrichment pipeline automatically fetches live data relevant to your content — based on your discipline and detected content. A biology post with GPS coordinates fetches GBIF biodiversity occurrence data. A chemistry post with a SMILES string pulls compound data from PubChem. An astronomy post pulls NASA\'s Astronomy Picture of the Day and Near-Earth Object feed. A geology post with coordinates attaches USGS seismic data and Macrostrat geological formation data. This snapshot is captured at the moment of posting and permanently attached to the record.'
+      },
+      {
+        name: 'Discipline-Specific Live Data',
+        description: 'Each discipline has dedicated data sources: Physics and Mathematics get Wolfram Alpha computation. Meteorology gets NOAA Climate Data Online historical station data. Earth Science gets USGS earthquake and volcano alerts. Biology and Medicine get NCBI PubMed papers, Gene data, and Taxonomy. Architecture gets OpenStreetMap building data, Getty Art & Architecture Thesaurus terms, and Wikidata heritage site information. History gets Wikipedia summaries, Library of Congress records, and Europeana cultural collections. Materials Science gets crystal structure and band gap data from the Materials Project.'
+      },
+      {
+        name: 'Muse AI — Plain-Language Translation',
+        description: 'Muse is the platform\'s AI science assistant, powered by Claude. Every science post has a "Muse Summary" panel that translates the post into plain English for non-specialist readers — key finding, why it matters, and what disciplines it connects to. You can also @mention Muse in any comment thread to ask a specific question about the post. Muse responds with contextual answers grounded in the post\'s data and claims.'
+      },
+      {
+        name: 'Peer Review & Replication',
+        description: 'Comment types on science posts go beyond simple replies. You can submit a structured Peer Review (with verdict: Strong, Adequate, Needs Revision, or Rejected), or a Replication attempt (with outcome: Confirmed, Partial, Failed, or Inconclusive). Replications from credentialed experts in the discipline contribute to the post\'s Reproducibility Score — a 0–1 metric shown on every science post.'
+      },
+      {
+        name: 'Discipline Feed & Discovery',
+        description: 'Navigate to any discipline from the Plajah Labs homepage to see a filtered feed of posts in that area. Posts are ranked by a combination of recency, reproducibility score, engagement, and expertise of the author. The Live Data Widget at the top of each discipline page shows real-time data relevant to that field — seismic activity for geology, latest APOD for astronomy, current biodiversity occurrences for ecology.'
+      },
+      {
+        name: 'LaTeX & SMILES Rendering',
+        description: 'Plajah Labs renders mathematical notation and chemical structure strings natively. Wrap LaTeX in $...$ for inline math or $$...$$ for display equations — they render as formatted equations in the post. Type a SMILES string prefixed with "SMILES:" and the platform fetches the compound from PubChem and renders its molecular formula, weight, and IUPAC name alongside the text. Paste a DOI like 10.1234/example and it resolves to a full citation card via CrossRef.'
       }
     ]
   },

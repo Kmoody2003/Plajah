@@ -1,145 +1,211 @@
 # Plajah — Platform Features & Differentiators
+**Updated: June 2026 · 250+ components · 30+ services · 14 science disciplines**
+
+---
 
 ## What Plajah Is
 
-Plajah is a multi-format creative media platform that unifies music, video, film, TV, books, games, sports, and education under a single identity for every creator. Unlike single-format platforms (music-only, video-only), Plajah gives creators one home for every piece of work they produce — and gives fans one place to consume all of it.
+Plajah is a multi-format creative media platform unifying music, video, film, TV, books, games, live streaming, education, science, and commerce under a single creator identity. Unlike single-format platforms, Plajah gives creators one home for every piece of work they produce — and gives fans one place to consume all of it, with 90% of revenue going directly to the creator.
 
 ---
 
-## Standout & Unique Features
+## Core Differentiators
 
 ### 1. FAST Channel — 24/7 Creator-Owned Broadcast TV
-Every creator on Plajah can run their own Free Ad-Supported Streaming TV channel. What makes this unique:
-
-- **Zero-setup auto-scheduling**: Toggle FAST on, add videos to the channel, and the platform automatically generates a 24/7 looping broadcast. No manual schedule building required.
-- **Dual-feed simultaneously**: A creator's FAST channel and live stream run at the same time. Viewers tab between them in the player.
-- **Owner-scheduled live interruptions**: From the Channel Manager, a creator schedules a "live interrupt" — at the exact set time, the FAST channel automatically hands off to the live feed, then returns to FAST after a configured max duration. No viewer action needed.
-- **Channel bumpers**: Creators upload short intro, outro, station ID, and transition clips. The platform inserts them automatically between content blocks — broadcast-quality production with no editing required.
-- **Per-video ad markers**: Set exact timestamps within individual videos as ad insertion points for mid-roll commercial breaks.
-- **Cross-creator asset licensing**: Any creator can grant another creator access to their FAST channel content — per video or their entire library — for free or at a monthly price. This creates a content economy between creators.
-- **Platform-wide FAST library**: Creators can add their videos to a shared library that any creator can pull into their own channel schedule.
-- **Public domain integration**: Classic films from the Internet Archive (public domain) can be added to any user's FAST channel schedule at no cost.
-
----
-
-### 2. World Builder — Interactive Creative Universe System
-Most platforms let you publish content. Plajah lets you build the *world* your content lives in:
-
-- **3D Force Graph visualization**: All entities in a world — characters, lore entries, timeline events, linked content — render as an interactive, glowing 3D node graph. Fans click any node to navigate to it.
-- **Lore conflict detection**: The platform automatically flags contradictions between lore entries, helping creators maintain consistency in complex universes.
-- **Custom timeline units**: Creators define their own time units (Ages, Eras, Cycles — anything), then place events along a visual scrollable timeline that can branch into alternate histories.
-- **Per-world visual themes**: Each world has its own color palette, background, and font style — completely independent of the creator's main profile theme.
-- **Content linking**: Music, videos, articles, and characters can be cross-linked inside a world so fans discover how everything connects.
+Every creator on Plajah can run their own Free Ad-Supported Streaming TV channel:
+- **Zero-setup auto-scheduling**: Toggle FAST on, add videos, platform generates a 24/7 looping broadcast
+- **Dual-feed**: FAST channel + live stream run simultaneously; viewers tab between them
+- **Owner-scheduled live interruptions**: Creator schedules a "live interrupt" — at the exact set time the FAST channel hands off to live, then returns automatically
+- **Channel bumpers**: Short intro/outro/station ID/transition clips inserted automatically between content blocks
+- **Per-video ad markers**: Set exact timestamps within videos as mid-roll commercial break points
+- **Cross-creator asset licensing**: Creators grant others access to their FAST content (free or paid monthly)
+- **Public domain integration**: Classic Internet Archive films add to any FAST schedule at no cost
+- **Runs on**: FireTV, Samsung Tizen, Roku, Chromecast, iOS, Android, web
 
 ---
 
-### 3. Guest Browsing — No Account Wall
-All platform content is publicly accessible without creating an account. Music plays, videos stream, movies load — everything works for guests. Sign-in is required only for interactions (upload, follow, tip, comment). This removes the #1 friction point that causes visitor drop-off on most platforms.
+### 2. Plajah Labs — Scientific Research Community
+The only social platform with a dedicated science layer across 15 disciplines:
+
+**Disciplines:** Physics, Chemistry, Biology, Computer Science, Engineering, Mathematics, Neuroscience, Earth Science, Astronomy, Data Science, Environment, Networks, Medicine, Archaeology, Linguistics, **Architecture**, **History**
+
+**Live data integrations (no key required):**
+- Open-Meteo — weather for any GPS coordinate
+- USGS — earthquake + volcano alert feeds
+- Macrostrat — geological formations (NSF-funded)
+- PubChem (NIH) — chemical compound data
+- CrossRef — DOI paper resolution
+- arXiv — physics, math, CS preprints
+- RCSB PDB — protein crystal structures
+- GBIF — global biodiversity occurrences
+- FEMA — flood hazard zones
+- Wikidata — linked open data for history/architecture
+- OpenStreetMap Overpass — architectural building data
+- Wikipedia REST — article summaries
+- Library of Congress — historical records
+- Getty Art & Architecture Thesaurus — architectural vocabulary
+- OpenContext — archaeological datasets
+
+**Live data integrations (API key configured):**
+- NASA APOD + Near-Earth Objects (astronomy/physics)
+- NOAA Climate Data Online (meteorology/ecology)
+- NCBI: PubMed, Gene, Taxonomy (biology/medicine/neuroscience)
+- Wolfram Alpha Short Answers (mathematics/physics)
+- Materials Project (materials science — crystal structures, band gaps)
+
+**Muse AI (ANTHROPIC_API_KEY required):** Plain-language translation of scientific posts for any audience, `@Muse` question answering in comment threads, cross-discipline connection discovery
+
+**Science post types:** Hypothesis, Observation, Established Finding, Replication, Peer Review, Extension, Null Result, Dataset, Preprint
 
 ---
 
-### 4. Artist Radio — Algorithmic Channel from Any Artist's Catalog
-One click on any artist's profile launches a continuous radio station algorithmically built from their catalog and similar music on the platform. No playlist curation required by the creator — the algorithm builds the station automatically based on genre, mood, and listening patterns.
+### 3. Stripe Connect Creator Payout System
+Full creator monetization stack with automatic payouts:
+- **Stripe Express onboarding**: Creator connects bank account in under 5 minutes
+- **Auto-transfer on payment**: Every tip, sale, membership payment transfers to the creator's account automatically — no manual withdrawal needed
+- **Revenue splits**: Creator designates up to 100% of their net to collaborators — transfers fire automatically per payment
+- **Per-category split control**: Splits can apply to tips only, all categories, or any combination
+- **Earnings dashboard**: 4-tab dashboard — Overview (KPIs + revenue bar chart), By Category, Transaction log, Split Config
+- **Direct Stripe Express dashboard link**: Creator accesses full Stripe portal from within Plajah
+
+**Payment categories tracked:**
+Tips & gifts · Digital sales (music/books/movies) · Sanctuary memberships · Plajah+ subscriptions · Store orders · Club memberships · SeedRaiser pledges
 
 ---
 
-### 5. Hide N Seek — Discovery as a Game
-Creators hide tracks across the platform. Fans search for the "?" icon while browsing. Finding a hidden track plays it and rewards the fan with PlajahBucks. This turns music discovery into an active experience instead of passive browsing, driving deeper platform engagement and rewarding the creator's most dedicated fans.
+### 4. World Builder — Interactive Creative Universe System
+- **3D Force Graph visualization**: All entities (characters, lore, timeline events, linked content) render as an interactive glowing 3D node graph
+- **Lore conflict detection**: Platform automatically flags contradictions between lore entries
+- **Custom timeline units**: Creators define their own time units (Ages, Eras, Cycles), place events along a visual branching timeline
+- **Per-world visual themes**: Each world has independent color palette, background, fonts
+- **Content linking**: Music, videos, articles, and characters cross-linked inside a world
 
 ---
 
-### 6. Pay-It-Forward — Built-In Charitable Redistribution
-When a creator receives tips or payments, they can designate a percentage to automatically pass forward to other creators or causes. This appears as a visible badge on their profile and is tracked transparently. No other major creative platform has charitable redistribution built directly into the payment flow.
+### 5. Guest Browsing — No Account Wall
+All platform content is publicly accessible without an account. Music plays, videos stream, movies load — everything works for guests. Sign-in required only for interactions (upload, follow, tip, comment). Removes the #1 friction point that causes visitor drop-off.
 
 ---
 
-### 7. Sanctuary — Tiered Fan Membership
-Sanctuary is a native membership system built into every creator account — not a third-party add-on:
-
-- Set a monthly price (or free) and any visitor can join.
-- Every piece of content has a toggle: Public, Private, or Members Only. Locked content shows a gold lock icon; clicking it takes non-members directly to the join flow.
-- Members get a private chat room, exclusive content, and broadcast messages via Postman.
-- Multi-tier membership levels with different benefit sets per tier.
+### 6. Artist Radio — Algorithmic Channel from Any Catalog
+One click launches a continuous radio station algorithmically built from an artist's catalog and similar music. No playlist curation required — algorithm builds automatically from genre, mood, and listening patterns.
 
 ---
 
-### 8. Full TV & Film Stack — Not Just Video Uploads
-Plajah has a dedicated cinematic layer (Taleo) with:
-
-- **Season/episode organization** for TV series — full episode browsers with runtime, season dropdowns, and resume-from-position.
-- **Trailers as a content subtype** — filter any section to trailers only with a single chip tap.
-- **Cast & crew metadata** on film detail pages.
-- **Public domain film library** pulled from the Internet Archive — free, no restrictions, available to any creator's FAST channel.
+### 7. Hide N Seek — Discovery as a Game
+Creators hide tracks across the platform. Fans search for the "?" icon while browsing. Finding a hidden track plays it and rewards the fan with PlajahBucks — turning music discovery into an active experience.
 
 ---
 
-### 9. Digital Avatar Studio
-Creators build a digital avatar — fully customized appearance, outfit, accessories, and animation — that represents them across the platform. Avatars can appear on profiles, in feeds, and in future interactive product experiences.
+### 8. Pay-It-Forward — Built-In Charitable Redistribution
+When a creator receives tips or payments, they designate a percentage to automatically pass forward to other creators or causes. Visible as a badge on the profile. No other major creative platform has charitable redistribution built into the payment flow.
 
 ---
 
-### 10. PlajahBucks Gamification System
-A full points economy:
-
-- Earn points through uploads, engagement, Hide N Seek discoveries, and platform challenges.
-- Unlock achievements (animated celebration on screen when triggered).
-- Collect badges (Pioneer, Artist, Admin-awarded Custom) that appear publicly next to your name.
-- Track points history and transactions.
-- Points are usable for platform features and rewards — creating a closed incentive loop.
+### 9. Sanctuary — Tiered Fan Membership
+Native membership system — not a third-party add-on:
+- Set a monthly price (or free); any visitor can join
+- Per-content toggle: Public, Private, or Members Only — locked content shows a gold lock icon
+- Members get private chat, exclusive content, and broadcast messages via Postman
+- Multi-tier membership levels with different benefit sets
 
 ---
 
-### 11. Spatial / 3D UI Modes
-The platform includes optional Spatial UI mode with depth effects, 3D album art viewers, Nebula audio visualizers, and background frequency graph animations. These are part of the core UI — not a separate app or extension.
+### 10. SeedRaiser — Integrated Crowdfunding
+- Campaign types: Music, Video, Art, Tech, Community, Business
+- Tiered rewards with limited counts and delivery estimates
+- Anonymous pledging supported
+- 5% platform fee; creator keeps 95%
+- Campaign status lifecycle: DRAFT → ACTIVE → FUNDED / FAILED / CANCELLED
 
 ---
 
-### 12. Classroom System — Course Publishing Inside the Platform
-Creators can build and host full courses with:
-
-- Structured lesson blocks (video, audio, or text).
-- Assignments with student submission.
-- Student progress tracking and enrollment management.
-- Live session integration — schedule live lessons that notify enrolled students automatically and are recorded and archived after.
+### 11. Full TV & Film Stack (Taleo)
+- Season/episode organization with runtime, season dropdowns, resume-from-position
+- Trailers as a content subtype — filter any section to trailers only
+- Cast & crew metadata on film detail pages
+- Public domain film library from the Internet Archive
+- AI film assistant for distribution planning
 
 ---
 
-### 13. Multi-Format Content from a Single Identity
+### 12. Classroom System
+- Structured lesson blocks (video, audio, or text)
+- Assignments with student submission
+- Student progress tracking and enrollment management
+- Live session integration — schedule live lessons, auto-notify enrolled students, archive recordings
+
+---
+
+### 13. Digital Avatar Studio
+Fully customized avatar — appearance, outfit, accessories, animation — representing the creator across the platform. Appears on profiles, feeds, and interactive experiences.
+
+---
+
+### 14. PlajahBucks Gamification System
+- Earn points through uploads, engagement, Hide N Seek discoveries, platform challenges
+- Unlock achievements (animated on-screen celebration when triggered)
+- Collect badges (Pioneer, Artist, Admin-awarded Custom) visible publicly
+- Points usable for platform features and rewards — closed incentive loop
+
+---
+
+### 15. Theme System — Per-Creator Visual Identity
+- 9 built-in themes (Dark, Light, Pastel, Plajah, Big Screen, Phone, Ethereal, Nebula, Citrus)
+- Custom theme builder: color picker, background image/video, glass/blur control
+- Theme applies to the creator's profile for ALL visitors — every artist's channel looks like their brand
+- World Builder has its own independent per-world theme
+- **Custom theme marketplace**: Creators can publish and sell preset themes to other creators
+
+---
+
+### 16. Pitch Deck Studio
+- Professional investor pitch deck builder built into the platform
+- Pre-built templates for music, film, tech, and business pitches
+- Export to PDF or present directly from the browser
+- Deck viewer shareable via direct link with analytics (views, time spent per slide)
+
+---
+
+### 17. Fediverse Integration
+- Cross-post to Bluesky (AT Protocol) and Mastodon simultaneously from every Plajah post
+- Unified fediverse timeline inside the platform
+- Followers from Bluesky/Mastodon show on Plajah profile
+- Direct messages via Bluesky DMs routed through Plajah's chat system
+
+---
+
+### 18. Multi-Format Content from a Single Identity
 A creator on Plajah can publish:
-- Music albums and singles
-- Podcast episodes
-- Short films and feature videos
-- TV series with seasons/episodes
-- Books (text, audiobook, graphic novel)
-- Articles and editorial content
-- Games (HTML5/WebGL)
-- Merch
-- Courses
-- Live streams
-- FAST channel content
-- Stories (24h ephemeral)
+Music · Podcasts · Short and long-form video · TV series · Movies · Books · Audiobooks · Articles · Games · Merch · Courses · Live streams · Stories · FAST channel content · Science research posts · Pitch decks · Worlds/lore
 
-All under one profile, one link, one fan subscription. No other major platform combines all of these under a single creator identity.
+All under one profile, one link, one fan subscription.
 
 ---
 
-### 14. Theme System — Per-Creator Visual Identity
-Every creator's public profile renders in a fully customizable theme:
-
-- 9 built-in themes (Dark, Light, Pastel, Plajah, Big Screen, Phone, Ethereal, Nebula, Citrus).
-- Custom theme builder with color picker, background image or video, and glass/blur effect control.
-- The theme applies to the creator's profile for *all visitors* — not just the creator's own session. Every artist's channel looks and feels like their brand.
-- World Builder has its own independent per-world theme.
+### 19. Book Authoring Studio
+Full in-browser book writing environment:
+- Chapter-by-chapter composition with rich text editor
+- Cover art generator
+- EPUB + PDF export
+- Audiobook narration via Muse voice synthesis (Lorea / MAI Voice 2)
+- Publish directly to the Library section from the studio
 
 ---
 
-### 15. Stories + Live + FAST — Three Simultaneous Broadcast Modes
-A single creator can simultaneously:
-1. Run a 24/7 FAST channel (automated broadcast)
-2. Stream a live feed that interrupts the FAST channel on schedule
-3. Post Stories (24-hour ephemeral content)
-
-Most platforms offer one or two of these. All three, coordinated from one dashboard, is unique to Plajah.
+### 20. Platform Expansion (All Prepped)
+| Platform | Status |
+|---|---|
+| Web (PWA) | Live |
+| Android (Capacitor + Compose 3) | In development |
+| iOS (Capacitor) | Shell ready |
+| Amazon FireTV | Leanback + D-pad complete |
+| Samsung Tizen TV | config.xml complete |
+| Roku | SceneGraph channel complete |
+| Google Chromecast | Cast provider wired |
+| Amazon Alexa | Skill fulfillment live |
+| Google Home / Assistant | Actions webhook live |
+| Windows (WinUI 3) | Shell + SMTC + Jump List complete |
 
 ---
 
@@ -149,30 +215,37 @@ Most platforms offer one or two of these. All three, coordinated from one dashbo
 |---|---|
 | Music, Albums, Singles | Chora |
 | Podcasts | Chora |
+| Audiobooks | Chora / Library |
 | Short & Long-Form Video | Reello |
 | Movies | Taleo |
 | TV Series | Taleo |
-| Books, Audiobooks | Library |
+| Books (EPUB) | Library |
 | Articles, Editorial | Newsstand |
 | Radio Stations | Radio |
-| FAST Channels | FAST Channel |
+| FAST Channels | Live Hub |
 | Live Streams | Live Hub |
 | Stories (24h) | Feed |
+| Science Posts | Plajah Labs |
+| Pitch Decks | Pitch Deck Studio |
 | Games | Arcade |
 | Sports & Teams | Sports Center |
 | Courses & Lessons | Classrooms |
 | Merch | Store |
 | Digital Worlds | World Builder |
+| Business Pages | Plajah Business |
+| Crowdfunding | SeedRaiser |
 
 ---
 
-## Technical Foundation Notes
+## Technical Foundation
 
-- **Firebase named database** with custom Firestore rules covering all content collections.
-- **Mux streaming integration** for professional video delivery and adaptive bitrate playback.
-- **WebRTC live streaming** for real-time broadcasts.
-- **Internet Archive API integration** for public domain content discovery.
-- **3D force graph rendering** via react-force-graph for World Builder visualization.
-- **Motion/Framer Motion animations** throughout — every state transition is animated.
-- **Lazy-loaded component architecture** with retry logic for resilient loading on slow connections.
-- **Guest-first data access** — all public content queries work without auth tokens.
+- **Firebase named database** with custom Firestore rules across 40+ collections
+- **Mux** for professional video delivery, adaptive bitrate, and live streaming
+- **WebRTC** for real-time peer-to-peer broadcast
+- **Stripe Connect** for direct creator payouts with automatic split transfers
+- **Internet Archive API** for public domain content discovery
+- **3D force graph rendering** (react-force-graph) for World Builder
+- **Framer Motion** animations throughout — every state transition animated
+- **Lazy-loaded component architecture** with retry logic for resilient loading
+- **Guest-first data access** — all public content queries work without auth tokens
+- **Science enrichment pipeline** — 20+ live APIs auto-enrich science posts at publish time

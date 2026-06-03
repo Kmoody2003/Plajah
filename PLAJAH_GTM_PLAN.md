@@ -266,12 +266,15 @@ All platforms prepped in codebase:
 
 ## 9. Risks & Mitigations
 
-1. **"Unknown brand"** → Defuse with data export tool (prominently advertised), transparent ToS, public roadmap
-2. **TikTok ban risk** → Plajah subscriber list is owned — creators WANT to diversify away from TikTok
-3. **Storage cost explosion if creator goes viral** → Tier limits + soft caps in dashboard
-4. **DMCA risk** → DMCA form built, fast-response SLA, legal ToS clause
-5. **Two-sided cold start** → Founding Creator program (supply first, demand follows)
-6. **Compete with established platforms** → Never compete directly; always position as complementary
+1. **"Unknown brand"** → Data export tool prominently advertised, transparent ToS, public roadmap, Founding Creator program builds social proof before public launch
+2. **TikTok ban risk** → Plajah subscriber list is creator-owned — creators actively WANT to diversify away from TikTok dependency
+3. **Storage cost explosion** → Tier limits + soft caps in dashboard; storage costs fully covered by platform take at all tiers
+4. **DMCA risk** → DMCA form built, fast-response SLA, legal ToS clause with clear content policy
+5. **Two-sided cold start** → Founding Creator program seeds supply first; demand follows content
+6. **Compete with established platforms** → Never compete directly; always position as complementary and additive
+7. **Feature overwhelm for new users** → Experience Picker on first login routes to the right section; onboarding tour active for first 7 days
+8. **Payment not live** → Stripe integration completing June 2026; payouts functional same day
+9. **Science community adoption** → Plajah Labs is a beachhead no competitor has — STEM is an uncontested segment
 
 ---
 
@@ -285,7 +288,120 @@ All platforms prepped in codebase:
 | Daily active users | 50 | 300 | 1,500 |
 | Paid Sanctuary memberships | 0 | 20 | 100 |
 | TikTok → Plajah referrals/week | 50 | 300 | 1,000 |
+| Plajah Labs science posts | 0 | 50 | 300 |
+| Stripe Connect creators onboarded | 0 | 40 | 150 |
 
 ---
 
-*Generated from actual codebase scan. All pitches, features, and landing page copy reflect what Plajah currently ships.*
+## 11. Economic Re-Analysis — June 2026
+
+### What Changed Since v1
+- Stripe Connect payouts going live (June 2026) — the platform can now actually pay creators
+- Science layer fully built with 20+ live data APIs — opens an entirely new beachhead segment
+- Creator payment dashboard with split config — enables collaborative revenue sharing
+- Full multi-platform expansion ready — Android, iOS, TV platforms, Windows
+
+### Revenue Model Completeness Score
+
+| Revenue stream | Built? | Paying? |
+|---|---|---|
+| Plajah+ subscriptions (Tier 1/2/3) | ✅ | ⏳ Keys pending |
+| Sanctuary memberships | ✅ | ⏳ Keys pending |
+| Tips & live gifts | ✅ | ⏳ Keys pending |
+| Digital sales (music/books/movies) | ✅ | ⏳ Keys pending |
+| Store / merch orders | ✅ | ⏳ Keys pending |
+| Club memberships | ✅ | ⏳ Keys pending |
+| SeedRaiser crowdfunding | ✅ | ⏳ Keys pending |
+| Ad packages (on-platform) | ✅ | ✅ (no key needed) |
+| Off-platform promotion | ✅ | ✅ |
+| Revenue splits to collaborators | ✅ | ⏳ Keys pending |
+
+**With Stripe webhook + price IDs in place today, all 10 streams go live.**
+
+### Realistic Revenue Scenarios
+
+**Scenario A — Conservative (100 active creators, 500 fans)**
+| Stream | Monthly |
+|---|---|
+| 200 Plajah+ subscribers (blended tier 2) | $598 platform take |
+| 50 Sanctuary memberships @ $9.99 avg | $50 platform take |
+| $500 in tips/sales @ 10% | $50 |
+| 20 ad packages (Basic avg) | $100 |
+| **Total** | **~$800/mo** |
+
+**Scenario B — Momentum (1,000 active creators, 10,000 fans)**
+| Stream | Monthly |
+|---|---|
+| 2,000 Plajah+ subscribers (blended) | $5,580 platform take |
+| 500 Sanctuary memberships | $500 platform take |
+| $20,000 tips/sales @ 10% | $2,000 |
+| 200 ad packages (blended) | $1,500 |
+| 5 SeedRaiser campaigns @ $3,000 avg | $750 (5%) |
+| **Total** | **~$10,330/mo** |
+
+**Scenario C — Scale (10,000 creators, 200,000 fans)**
+| Stream | Monthly |
+|---|---|
+| 25,000 Plajah+ subscribers | $69,750 platform take |
+| 5,000 Sanctuary memberships | $5,000 |
+| $500,000 tips/digital sales | $50,000 |
+| 2,000 ad packages | $18,000 |
+| 50 SeedRaiser campaigns @ $5k avg | $12,500 |
+| 100 off-platform promotions @ $65 avg | $6,500 |
+| **Total** | **~$161,750/mo** |
+
+### Actual Weaknesses (Honest Assessment)
+
+**Critical:**
+1. **Zero users today** — The platform has no audience. Technical readiness ≠ market readiness. The gap between "built" and "used" is the whole problem.
+2. **Payments not fully live until today** — Without Stripe webhook + price IDs, the entire monetization stack has been non-functional. Fixing today.
+3. **Anthropic key missing** — Muse AI, the science layer's core feature, is dark until ANTHROPIC_API_KEY is set.
+4. **No mobile app shipped** — Android/iOS are Capacitor shells but haven't shipped to stores. TV/Smart device deployment also pending.
+
+**Structural:**
+5. **Feature breadth creates messaging confusion** — A musician doesn't care about Plajah Labs. A researcher doesn't need a FAST channel. The experience picker helps but isn't enough. Need segment-specific onboarding flows.
+6. **Cold start on both sides** — Creators need fans, fans need creators. Breaking this requires seeding one side aggressively with a loss-leader offer (Founding Creator free tier is the right move).
+7. **Science community is small** — Plajah Labs is genuinely unique and unchallenged, but academic researchers are not high-spending consumers. The value is differentiation + press coverage + word-of-mouth, not direct revenue.
+8. **Storage at scale** — Tier 3 storage cost is roughly break-even. A viral creator with heavy video output could cost more than they generate in subscription revenue. Mitigation: overage pricing after tier limit.
+
+**Competitive:**
+9. **Spotify/YouTube for discovery** — These platforms have billions of tracks and recommendation algorithms trained on years of data. Plajah can't out-recommend them on day one. Solution: don't compete on discovery — compete on creator revenue and ownership.
+10. **Patreon for memberships** — Patreon has strong brand recognition. Counter: Plajah memberships are integrated with streaming, not bolted on — and the platform take is lower (10% vs Patreon's 8-12% + payment processing).
+
+### Solutions & User Acquisition Strategy
+
+**Immediate (this week):**
+1. **Complete Stripe** (webhook + price IDs) — monetization live today
+2. **Set ANTHROPIC_API_KEY** — Muse AI live, science layer fully functional
+3. **Post demo videos** — 60 seconds showing the music → FAST channel → Sanctuary funnel
+4. **Set up @plajah on X and YouTube** — two posts per day minimum
+
+**Week 1–2: Creator-first seeding**
+- DM 50 TikTok artists (10k–200k followers) with personalized Founding Creator offers
+- Post in r/WeAreTheMusicMakers, r/indiefilm, r/journalism — genuine contributions, no pitching
+- Identify 3 real creators willing to set up full profiles before public launch
+- Film a walkthrough of the Creator Payment Dashboard showing the 90% payout math
+
+**Week 3–4: Science community**
+- Post to r/science, r/AskScience, r/MachineLearning: "We built a social platform where science posts auto-attach live data from NOAA, NASA, NCBI, USGS..." — this is genuinely novel and will get attention
+- Reach out to science communicators on YouTube (Kurzgesagt, SciShow, etc.) — FAST channel angle
+- Post on ResearchGate, Academia.edu about Plajah Labs as a researcher-to-public bridge
+
+**Week 5–8: Soft launch hooks**
+- "Plajah vs Spotify payout calculator" — interactive tool showing revenue comparison, shareable, drives organic traffic
+- "Build your FAST channel in 5 minutes" — demo video targeting Roku/FireTV creators
+- Product Hunt teaser (not launch yet — wait until 50+ active creators with content live)
+
+**Get first 10 paying users (the hardest step):**
+- Find 10 music creators who already use Patreon — show them the revenue comparison directly
+- Offer white-glove setup: personal call, help them migrate their Patreon tiers to Sanctuary
+- These 10 creators become case studies for the Founding Creator pitch
+- Even at $4.99/month × 10 subscribers each = $50/mo per creator. Not life-changing, but it's proof.
+
+**Science-specific acquisition:**
+- Twitter/X science community: tweet the enricher.ts capabilities — "paste a DOI and Plajah pulls live citation data. Paste GPS coords and it attaches USGS seismic + NOAA weather automatically."
+- This is PR-worthy, not just marketing — science journalists will write about this
+
+---
+
+*Updated June 2026. Reflects current codebase state, active API integrations, and Stripe payment status.*
