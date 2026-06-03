@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Send, Heart, Reply, Trash2, Smile, X, ChevronDown,
   Loader2, MessageCircle, AtSign, LogIn, BarChart2, Plus, Check,
-  Clock, Users,
+  Clock, Users, Sparkles,
 } from 'lucide-react';
+import GifStickerPicker from './GifStickerPicker';
 import {
   collection, addDoc, getDocs, query, where, onSnapshot,
   doc, updateDoc, arrayUnion, arrayRemove, orderBy,
@@ -50,6 +51,7 @@ interface CommentSectionProps {
   // Legacy pass-through mode (albums, articles, videos)
   comments?: any[];
   onPostComment?: (text: string, parentId?: string, mediaTimestamp?: number) => Promise<void>;
+  onPostGif?: (gifUrl: string, parentId?: string) => Promise<void>;
   currentUser?: any;
   title?: string;
   themeColor?: string;
@@ -169,6 +171,16 @@ const CommentBubble: React.FC<BubbleProps> = ({
             {(comment as any).audioUrl && (
               <div className="mt-2">
                 <audio src={(comment as any).audioUrl} controls className="w-full h-8 max-w-[240px]" />
+              </div>
+            )}
+            {(comment as any).gifUrl && (
+              <div className="mt-2 rounded-2xl overflow-hidden max-w-[220px]">
+                <img
+                  src={(comment as any).gifUrl}
+                  alt=""
+                  className="w-full h-auto"
+                  loading="lazy"
+                />
               </div>
             )}
           </div>
@@ -784,6 +796,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   initialCount = 0,
   comments: externalComments,
   onPostComment,
+  onPostGif,
   currentUser: _currentUser,
   title: _title,
   themeColor: _themeColor,
@@ -803,6 +816,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [showSignIn, setShowSignIn] = useState(false);
   const [polls, setPolls] = useState<PollData[]>([]);
   const [showPollComposer, setShowPollComposer] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Fetch polls for this post
@@ -1028,6 +1042,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 // Upload any video/audio attachments to Firebase Storage
                 let videoUrl: string | undefined;
                 let audioUrl: string | undefined;
+                let gifUrl: string | undefined;
                 for (const att of data.attachments) {
                   if ((att.type === 'VIDEO' || att.type === 'AUDIO') && att.file) {
                     try {
@@ -1035,6 +1050,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                       const url = await uploadFile(path, att.file);
                       if (url) { att.type === 'VIDEO' ? (videoUrl = url) : (audioUrl = url); }
                     } catch { /* skip failed upload */ }
+                  } else if (att.type === 'GIF' && att.url) {
+                    gifUrl = att.url;
                   }
                 }
 
@@ -1050,26 +1067,79 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   likesCount: 0,
                   ...(videoUrl ? { videoUrl } : {}),
                   ...(audioUrl ? { audioUrl } : {}),
+                  ...(gifUrl   ? { gifUrl   } : {}),
                 };
                 handleCommentPosted(optimistic);
                 const parentId = replyTo?.id;
                 setReplyTo(null);
                 if (isLegacy && onPostComment) {
                   await onPostComment(data.text.trim(), parentId);
+                  if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
                 } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl);
+                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl);
                 }
               }}
             />
-            {postId && !isLegacy && (
-              <button
-                onClick={() => setShowPollComposer(p => !p)}
-                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${showPollComposer ? 'text-small-orange' : isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
-              >
-                <BarChart2 size={11} />
-                {showPollComposer ? 'Cancel poll' : 'Add poll'}
-              </button>
-            )}
+            <div className="flex items-center gap-4">
+              {postId && !isLegacy && (
+                <button
+                  onClick={() => setShowPollComposer(p => !p)}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${showPollComposer ? 'text-small-orange' : isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
+                >
+                  <BarChart2 size={11} />
+                  {showPollComposer ? 'Cancel poll' : 'Add poll'}
+                </button>
+              )}
+
+              {/* GIF / Sticker quick-send */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowGifPicker(v => !v)}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${showGifPicker ? 'text-small-orange' : isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
+                >
+                  <Sparkles size={11} />
+                  GIF / Sticker
+                </button>
+
+                <AnimatePresence>
+                  {showGifPicker && (
+                    <>
+                      <div className="fixed inset-0 z-[190]" onClick={() => setShowGifPicker(false)} />
+                      <GifStickerPicker
+                        onClose={() => setShowGifPicker(false)}
+                        anchorClass="bottom-full mb-2 left-0"
+                        onSelect={async (url, type) => {
+                          setShowGifPicker(false);
+                          const user = auth.currentUser;
+                          if (!user) return;
+                          const now = Date.now();
+                          const optimistic: PostComment = {
+                            id: `pending-${now}`,
+                            text: '',
+                            authorId: user.uid,
+                            authorName: user.displayName || 'Anonymous',
+                            authorPhoto: user.photoURL || '',
+                            timestamp: now,
+                            parentId: replyTo?.id ?? null,
+                            likedBy: [],
+                            likesCount: 0,
+                            gifUrl: url,
+                          } as any;
+                          handleCommentPosted(optimistic);
+                          const parentId = replyTo?.id;
+                          setReplyTo(null);
+                          if (isLegacy) {
+                            if (onPostGif) await onPostGif(url, parentId);
+                          } else {
+                            await addPostComment(safePostId, '', parentId, undefined, undefined, url);
+                          }
+                        }}
+                      />
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         ) : (
           <button

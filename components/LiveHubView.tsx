@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { LiveFeed, UserProfile } from '../types';
 import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels } from '../services/backendService';
-import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play } from 'lucide-react';
+import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
+import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
 import { useAchievements } from '../contexts/AchievementContext';
 import TVView from './TVView';
@@ -63,7 +64,8 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
 
 const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool }) => {
   const { triggerAction } = useAchievements();
-  const [activeTab, setActiveTab] = useState<'STREAMS' | 'LIVE_TV' | 'EVENTS'>('STREAMS');
+  const [activeTab, setActiveTab] = useState<'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS'>('STREAMS');
+  const [scienceCat, setScienceCat] = useState<ScienceCategory | 'ALL'>('ALL');
   const [feeds, setFeeds] = useState<LiveFeed[]>([]);
   const [liveArtists, setLiveArtists] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -227,13 +229,18 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           <div>
             <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Live Hub</PageHeader>
             <div className="flex items-center gap-6 border-b border-white/5 pb-2 overflow-x-auto no-scrollbar">
-              {(['STREAMS', 'LIVE_TV', 'EVENTS'] as const).map(tab => (
-                <button 
-                  key={tab}
-                  onClick={() => setActiveTab(tab)} 
-                  className={`text-xs font-black uppercase tracking-[0.3em] transition-all whitespace-nowrap pb-2 border-b-2 ${activeTab === tab ? 'text-small-orange border-small-orange' : 'text-white/20 border-transparent hover:text-white/40'}`}
+              {([
+                { id: 'STREAMS',  label: 'Studio Streams' },
+                { id: 'SCIENCE',  label: '🔭 Science Live' },
+                { id: 'LIVE_TV',  label: 'Live TV'        },
+                { id: 'EVENTS',   label: 'Live Events'    },
+              ] as const).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`text-xs font-black uppercase tracking-[0.3em] transition-all whitespace-nowrap pb-2 border-b-2 ${activeTab === tab.id ? 'text-small-orange border-small-orange' : 'text-white/20 border-transparent hover:text-white/40'}`}
                 >
-                  {tab === 'STREAMS' ? 'Studio Streams' : tab === 'LIVE_TV' ? 'Live TV' : 'Live Events'}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -371,6 +378,99 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           </div>
         )}
         
+        {/* ── Science Live Tab ─────────────────────────────────────────── */}
+        {activeTab === 'SCIENCE' && (
+          <div className="px-8 lg:px-24 w-full max-w-7xl mx-auto pb-12 overflow-y-auto">
+            {/* Category filter pills */}
+            <div className="flex flex-wrap gap-2 mb-8 pt-2">
+              <button
+                onClick={() => setScienceCat('ALL')}
+                className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${scienceCat === 'ALL' ? 'bg-[#00B4D8] text-white' : 'bg-white/5 text-white/40 hover:text-white border border-white/8'}`}
+              >
+                All Sources
+              </button>
+              {SCIENCE_CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setScienceCat(cat.id)}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${scienceCat === cat.id ? 'text-white' : 'bg-white/5 text-white/40 hover:text-white border border-white/8'}`}
+                  style={scienceCat === cat.id ? { backgroundColor: cat.accent } : {}}
+                >
+                  <span>{cat.emoji}</span> {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Per-category sections */}
+            {(scienceCat === 'ALL' ? SCIENCE_CATEGORIES : SCIENCE_CATEGORIES.filter(c => c.id === scienceCat)).map(cat => {
+              const streams = SCIENCE_STREAMS.filter(s => s.category === cat.id);
+              if (!streams.length) return null;
+              return (
+                <div key={cat.id} className="mb-12">
+                  <div className="flex items-center gap-3 mb-5">
+                    <span className="text-2xl">{cat.emoji}</span>
+                    <h2 className="text-sm font-black uppercase tracking-widest text-white">{cat.label}</h2>
+                    <div className="h-px flex-1 bg-white/5" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {streams.map(stream => (
+                      <div
+                        key={stream.id}
+                        className="group bg-theme-card border border-theme rounded-[2rem] overflow-hidden shadow-xl transition-all hover:scale-[1.01] cursor-pointer"
+                        onClick={() => {
+                          if (stream.isEmbeddable) {
+                            setFullScreenFeed({ id: stream.id, title: stream.title, url: stream.embedUrl, ownerName: stream.source });
+                          } else {
+                            window.open(stream.directUrl, '_blank', 'noopener');
+                          }
+                        }}
+                      >
+                        {/* Preview area */}
+                        <div className="relative aspect-video bg-black overflow-hidden">
+                          {stream.isEmbeddable ? (
+                            <HoverStreamPreview url={stream.embedUrl} mutedUrl={stream.embedUrl} />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-3"
+                                 style={{ background: `linear-gradient(135deg, ${stream.accent}20, ${stream.accent}08)` }}>
+                              <span className="text-5xl">{stream.emoji}</span>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Opens in new tab</p>
+                            </div>
+                          )}
+                          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-white"
+                               style={{ backgroundColor: stream.isLive ? '#dc2626' : `${stream.accent}cc` }}>
+                            {stream.isLive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                            {stream.isLive ? 'Live 24/7' : 'Event-based'}
+                          </div>
+                          {!stream.isEmbeddable && (
+                            <div className="absolute top-3 right-3 p-1.5 bg-black/50 backdrop-blur rounded-full">
+                              <ExternalLink size={11} className="text-white/60" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="p-5">
+                          <p className="text-[8px] font-black uppercase tracking-widest mb-1" style={{ color: stream.accent }}>
+                            {stream.source}
+                          </p>
+                          <h3 className="font-black text-sm text-white mb-1 leading-tight">{stream.title}</h3>
+                          <p className="text-[10px] text-white/35 leading-relaxed line-clamp-2">{stream.description}</p>
+                          <div className="flex items-center gap-2 mt-3">
+                            {stream.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="px-2 py-0.5 bg-white/5 border border-white/8 rounded-full text-[7px] font-bold text-white/30 uppercase tracking-widest">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {activeTab === 'LIVE_TV' && (
           <div className="absolute inset-0 pb-16">
             <TVView />

@@ -4,7 +4,7 @@ import {
   Shield, Star, Crown, Zap, Check, Lock, Unlock, Users, MessageSquare,
   Play, Music, FileText, Video, Download, Heart, ChevronRight, Plus,
   Edit3, Trash2, X, Globe, Eye, EyeOff, Calendar, ChevronLeft,
-  Sparkles, Trophy, Gift, Radio,
+  Sparkles, Trophy, Gift, Radio, Presentation,
 } from 'lucide-react';
 import { auth } from '../services/backendService';
 import {
@@ -14,8 +14,9 @@ import {
   deleteExclusiveContent, fetchCreatorMembers,
   saveSanctuaryTier, updateSanctuaryTier, deleteSanctuaryTier,
 } from '../services/sanctuaryService';
-import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent } from '../types';
+import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, PitchDeck } from '../types';
 import { UserProfile } from '../types';
+import { generateSanctuaryDeck } from '../services/pitchDeckTemplates';
 
 // ── Tier color palettes ────────────────────────────────────────────────────────
 const TIER_PRESETS = [
@@ -564,10 +565,11 @@ interface SanctuaryViewProps {
   currentUserProfile?: UserProfile;
   onBack?: () => void;
   isOwnProfile?: boolean;
+  onCreatePitchDeck?: (deck: PitchDeck) => void;
 }
 
 const SanctuaryView: React.FC<SanctuaryViewProps> = ({
-  creatorId, creatorProfile, currentUserProfile, onBack, isOwnProfile,
+  creatorId, creatorProfile, currentUserProfile, onBack, isOwnProfile, onCreatePitchDeck,
 }) => {
   const [tiers, setTiers] = useState<SanctuaryTier[]>([]);
   const [myMembership, setMyMembership] = useState<SanctuaryMembership | null>(null);
@@ -681,7 +683,20 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
 
           {/* Creator setup or fan tabs */}
           {isOwnProfile ? (
-            <CreatorSetupPanel creatorId={creatorId} />
+            <>
+              {onCreatePitchDeck && (
+                <button
+                  onClick={() => {
+                    const profile = creatorProfile ?? { uid: creatorId, displayName: 'Creator', photoURL: '', email: '', followerCount: 0, followingCount: 0, storageLimit: 0, storageUsage: { total: 0, audio: 0, video: 0, photos: 0 } } as UserProfile;
+                    onCreatePitchDeck(generateSanctuaryDeck(profile, tiers));
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-2xl bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs font-bold hover:bg-orange-500/20 transition-colors"
+                >
+                  <Presentation size={14} /> Create Pitch Deck
+                </button>
+              )}
+              <CreatorSetupPanel creatorId={creatorId} />
+            </>
           ) : (
             <>
               <div className="flex items-center gap-2 p-1 bg-black/30 rounded-2xl mb-6">

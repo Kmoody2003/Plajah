@@ -3,18 +3,19 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown, Crown } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { User as FirebaseUser } from 'firebase/auth';
-import { Club, ClubJoinProcess } from '../types';
+import { Club, ClubJoinProcess, PitchDeck } from '../types';
 import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
 import ClubDetailView from './ClubDetailView';
 
 interface ClubsViewProps {
   onBack: () => void;
   currentUser: FirebaseUser | null;
+  onCreatePitchDeck?: (deck: PitchDeck) => void;
 }
 
 const CATEGORIES = ['All', 'Music', 'Art', 'Film', 'Gaming', 'Literature', 'Tech', 'Sports', 'Lifestyle', 'Charity'];
 
-const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
+const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitchDeck }) => {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [myClubs, setMyClubs] = useState<Club[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -93,6 +94,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser }) => {
           setClubs(cs => cs.map(c => c.id === updated.id ? updated : c));
           setMyClubs(cs => cs.map(c => c.id === updated.id ? updated : c));
         }}
+        onCreatePitchDeck={onCreatePitchDeck}
       />
     );
   }

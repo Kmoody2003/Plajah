@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Mic, X, Radio, MessageCircle, Users, Eye, Settings2, MicOff, VideoOff, Share2 } from 'lucide-react';
 import { auth } from '../services/backendService';
 import { db } from '../services/firebase';
+import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 import {
   doc, setDoc, collection, addDoc, onSnapshot,
   deleteDoc, updateDoc, increment, serverTimestamp, Timestamp
@@ -36,6 +37,7 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
   const [isLive, setIsLive] = useState(false);
+  const [streamStartTime, setStreamStartTime] = useState(0);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [viewerCount, setViewerCount] = useState(0);
@@ -139,6 +141,7 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
     });
 
     unsubscribesRef.current.push(unsubViewers, unsubChat);
+    setStreamStartTime(Date.now());
     setIsLive(true);
     onStreamActive(true);
   };
@@ -232,6 +235,35 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
     setCopyLabel('Copied!');
     setTimeout(() => setCopyLabel('Copy Link'), 2000);
   };
+
+  // While live → hand off to the broadcast control panel
+  if (isLive) {
+    const sendChatText = async (text: string) => {
+      if (!text.trim() || !streamId || !auth.currentUser) return;
+      await addDoc(collection(db, 'live_streams', streamId, 'chat'), {
+        user: auth.currentUser.displayName || 'Broadcaster',
+        text: text.trim(),
+        ts: Date.now(),
+      });
+    };
+    return (
+      <LiveBroadcastControlPanel
+        streamId={streamId}
+        title={title}
+        shareUrl={shareUrl}
+        localStream={mediaStreamRef.current}
+        videoEnabled={cameraEnabled}
+        audioEnabled={micEnabled}
+        onToggleVideo={() => toggleTrack('video')}
+        onToggleAudio={() => toggleTrack('audio')}
+        viewerCount={viewerCount}
+        startTime={streamStartTime}
+        chatMessages={chatMessages.map((m, i) => ({ id: `${i}`, user: m.user, text: m.text, ts: m.ts }))}
+        onSendChat={sendChatText}
+        onEndStream={stopBroadcast}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-3xl">

@@ -45,6 +45,7 @@ const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'))
 interface ClassroomsViewProps {
   onBack: () => void;
   user: any;
+  onNavigate?: (view: string) => void;
 }
 
 // ── DEMO CLASSROOM SEEDER ─────────────────────────────────────────────────────
@@ -389,7 +390,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, onClose, onCr
 
 // ── MAIN VIEW ─────────────────────────────────────────────────────────────────
 
-const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
+const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigate }) => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [modules, setModules] = useState<ClassroomModule[]>([]);
   const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
@@ -650,6 +651,53 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user }) => {
             </button>
           </div>
         </div>
+
+        {/* Featured learning hero card */}
+        {onNavigate && (
+          <div className="mb-8">
+            <button
+              onClick={() => onNavigate('MATH_CLASSROOM')}
+              className="relative w-full rounded-[1.75rem] overflow-hidden group hover:scale-[1.01] transition-all duration-300 shadow-2xl"
+              style={{ border: '1px solid rgba(167,139,250,0.3)', height: 160 }}
+            >
+              {/* Animated gradient bg */}
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-950/90 via-indigo-900/70 to-purple-950/90" />
+              {/* Decorative math symbols */}
+              <div className="absolute inset-0 flex items-center justify-end pr-8 pointer-events-none select-none">
+                <span className="text-[10rem] font-black text-white/5 leading-none">π</span>
+              </div>
+              <div className="absolute top-4 left-1/3 text-6xl opacity-5 select-none">∑</div>
+              <div className="absolute bottom-4 left-1/2 text-5xl opacity-5 select-none">√</div>
+              {/* Grid of floating number tiles */}
+              <div className="absolute inset-0 grid grid-cols-8 gap-2 p-4 pointer-events-none opacity-10">
+                {['1+1','2×3','7−4','9÷3','¼','%','∞','x²'].map((s, i) => (
+                  <div key={i} className="flex items-center justify-center bg-white/20 rounded-lg text-[8px] font-black text-white">{s}</div>
+                ))}
+              </div>
+              <div className="relative h-full flex flex-col justify-between p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-amber-400">New · Beta</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-[7px] font-black text-amber-400 uppercase tracking-widest">BETA</span>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-purple-300/80 mb-1">Grades 1–8 · Flash Cards · Quizzes</p>
+                    <h3 className="text-2xl font-black text-white leading-tight">Math Classroom</h3>
+                    <p className="text-[10px] text-white/50 mt-1">The most addictive way to learn math →</p>
+                  </div>
+                  <div className="flex gap-2 pb-1">
+                    {['1','2','3','4','5','6','7','8'].map(g => (
+                      <div key={g} className="w-6 h-6 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-[8px] font-black text-white/60">{g}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-10 p-1 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-full w-fit">

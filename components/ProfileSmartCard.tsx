@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock } from 'lucide-react';
+import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../services/backendService';
 import { FeedItem, Album } from '../types';
@@ -63,15 +64,17 @@ interface ProfileSmartCardProps {
   profileUid?: string;
   upcomingAlbums?: Album[];
   onSelectAlbum?: (album: Album) => void;
+  onNavigateHistory?: (view: 'CHORA_HISTORY' | 'TALEO_HISTORY') => void;
 }
 
-type Section = 'following' | 'discover' | 'coming_soon';
+type Section = 'following' | 'discover' | 'coming_soon' | 'history';
 
 const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   followedIds = [],
   profileUid,
   upcomingAlbums = [],
   onSelectAlbum,
+  onNavigateHistory,
 }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
@@ -147,6 +150,7 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
     ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
     { id: 'following', label: 'Following' },
     { id: 'discover', label: 'Discover' },
+    { id: 'history', label: '🎵 History' },
   ];
 
   return (
@@ -277,7 +281,35 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
               </motion.div>
             )}
 
-            {section !== 'coming_soon' && (
+            {section === 'history' && (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-3"
+              >
+                <HistoryMomentPulseCard
+                  uid={profileUid}
+                  category="MUSIC"
+                  size="profile"
+                  onNavigate={onNavigateHistory}
+                  rotationIntervalSeconds={9}
+                  startOffset={0}
+                />
+                <HistoryMomentPulseCard
+                  uid={profileUid}
+                  category="FILM_TV"
+                  size="profile"
+                  onNavigate={onNavigateHistory}
+                  rotationIntervalSeconds={11}
+                  startOffset={2}
+                />
+              </motion.div>
+            )}
+
+            {section !== 'coming_soon' && section !== 'history' && (
               <motion.div
                 key={section}
                 initial={{ opacity: 0, y: 6 }}

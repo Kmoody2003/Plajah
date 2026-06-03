@@ -1321,7 +1321,7 @@ export const subscribeToPostComments = (postId: string, callback: (comments: any
 
 export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
-  videoUrl?: string, audioUrl?: string,
+  videoUrl?: string, audioUrl?: string, gifUrl?: string,
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1339,6 +1339,7 @@ export const addPostComment = async (
   };
   if (videoUrl) commentData.videoUrl = videoUrl;
   if (audioUrl) commentData.audioUrl = audioUrl;
+  if (gifUrl)   commentData.gifUrl   = gifUrl;
   const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
   updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };
@@ -1364,6 +1365,63 @@ export const toggleCommentLike = async (postId: string, commentId: string): Prom
       likesCount: increment(liked ? -1 : 1)
     });
     return !liked;
+  });
+};
+
+// ─── CLUB POST COMMENTS ───────────────────────────────────────────────────────
+
+export const subscribeToClubPostComments = (postId: string, callback: (comments: any[]) => void) => {
+  const q = query(
+    collection(db, 'clubPosts', postId, 'comments'),
+    orderBy('timestamp', 'asc')
+  );
+  return onSnapshot(q, snapshot => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, err => handleFirestoreError(err, OperationType.LIST, `clubPosts/${postId}/comments`));
+};
+
+export const addClubPostComment = async (
+  postId: string, text: string, parentId?: string | null, gifUrl?: string,
+) => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const displayName = auth.currentUser.displayName || 'Anonymous';
+  const commentData: Record<string, any> = {
+    author: displayName,
+    text: text.trim(),
+    authorId: auth.currentUser.uid,
+    authorName: displayName,
+    authorPhoto: auth.currentUser.photoURL || '',
+    uid: auth.currentUser.uid,
+    timestamp: Date.now(),
+    parentId: parentId || null,
+    likedBy: [],
+    likesCount: 0,
+  };
+  if (gifUrl) commentData.gifUrl = gifUrl;
+  const docRef = await addDoc(collection(db, 'clubPosts', postId, 'comments'), commentData);
+  updateDoc(doc(db, 'clubPosts', postId), { commentCount: increment(1) }).catch(() => {});
+  return { id: docRef.id, ...commentData };
+};
+
+export const deleteClubPostComment = async (postId: string, commentId: string) => {
+  if (!auth.currentUser) return;
+  await deleteDoc(doc(db, 'clubPosts', postId, 'comments', commentId));
+  updateDoc(doc(db, 'clubPosts', postId), { commentCount: increment(-1) }).catch(() => {});
+};
+
+export const toggleClubPostCommentLike = async (postId: string, commentId: string) => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, 'clubPosts', postId, 'comments', commentId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const likedBy: string[] = snap.data().likedBy || [];
+    const liked = likedBy.includes(uid);
+    tx.update(ref, {
+      likedBy: liked ? arrayRemove(uid) : arrayUnion(uid),
+      likesCount: increment(liked ? -1 : 1),
+    });
   });
 };
 
@@ -1412,6 +1470,40 @@ export const listenToGlobalPosts = (callback: (posts: Post[]) => void) => {
   }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
 
   return unsubscribePosts;
+};
+
+/**
+ * Genre-based FOR_YOU feed — no ML needed.
+ * Strategy: query posts where genre matches any of the user's preferred genres.
+ * Falls back to recency if no preferences are set.
+ * Requires a Firestore index on: posts(genre ASC, timestamp DESC).
+ * Add to firestore.indexes.json:
+ *   { "collectionGroup":"posts","queryScope":"COLLECTION","fields":[{"fieldPath":"genre","order":"ASCENDING"},{"fieldPath":"timestamp","order":"DESCENDING"}] }
+ */
+export const listenToForYouPosts = (
+  preferredGenres: string[],
+  callback: (posts: Post[]) => void
+): (() => void) => {
+  if (!preferredGenres.length) {
+    // No preferences → fall back to global feed
+    return listenToGlobalPosts(callback);
+  }
+  // Firestore 'in' supports up to 10 values
+  const genres = preferredGenres.slice(0, 10);
+  const q = query(
+    collection(db, 'posts'),
+    where('genre', 'in', genres),
+    orderBy('timestamp', 'desc'),
+    limit(60)
+  );
+  return onSnapshot(q, snapshot => {
+    const posts = snapshot.docs.map(d => ({
+      id: d.id, ...d.data(),
+      sourceCollection: 'posts',
+      timestamp: safeToMillis(d.data().timestamp),
+    } as Post)).filter(p => p.timestamp > 0).sort((a, b) => b.timestamp - a.timestamp);
+    callback(posts);
+  }, err => handleFirestoreError(err, OperationType.LIST, 'posts'));
 };
 
 export const listenToLikedPosts = (uid: string, callback: (posts: Post[]) => void): (() => void) => {
@@ -2041,10 +2133,137 @@ export const postToFeed = async (item: Omit<FeedItem, 'id' | 'timestamp'>) => {
   try {
     await addDoc(collection(db, path), {
       ...removeUndefined(item),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      score: 0,
+      scoreUpdatedAt: Date.now(),
+      interactions: { deep: {}, medium: {}, base: {}, dmSharerIds: [] },
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
+  }
+};
+
+// ── Feed Scoring ──────────────────────────────────────────────────────────────
+
+import {
+  computeFeedScore,
+  buildDebateSignals,
+  emptyInteractions,
+  type DeepAction, type MediumAction, type BaseAction,
+  type PostInteractions, type CreatorSignals,
+} from './feedScoreEngine';
+
+type AnyAction = DeepAction | MediumAction | BaseAction;
+type ActionBucket = 'deep' | 'medium' | 'base';
+
+const ACTION_BUCKET_MAP: Record<AnyAction, ActionBucket> = {
+  // deep
+  SANCTUARY_SUBSCRIBE: 'deep', PITCH_DECK_CONVERT: 'deep', SEED_RAISER_CONTRIB: 'deep',
+  TIP_DONATION: 'deep', PAY_IT_FORWARD: 'deep', BOOK_PURCHASE: 'deep',
+  // medium
+  FEDIVERSE_BROADCAST: 'medium', DM_SHARE: 'medium', LONG_COMMENT: 'medium',
+  DEBATE_REPLY: 'medium',
+  NATIVE_SHARE: 'medium', CLUB_SHARE: 'medium', BOOKMARK: 'medium', PLAYLIST_ADD: 'medium',
+  // base
+  LIKE: 'base', SONG_PLAY_START: 'base', SONG_PLAY_COMPLETE: 'base', DWELL_10S: 'base',
+};
+
+/** Record a single interaction on a feed post and re-derive the score. */
+export const recordFeedInteraction = async (
+  postId: string,
+  action: AnyAction,
+  sourceCollection: 'feed' | 'posts' = 'feed',
+  opts?: { isDMShare?: boolean; sharerId?: string },
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = sourceCollection;
+  try {
+    const ref = doc(db, path, postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const interactions: PostInteractions = data.interactions ?? emptyInteractions();
+    const bucket = ACTION_BUCKET_MAP[action];
+
+    // Increment the action counter in the appropriate bucket
+    const currentCount = (interactions as any)[bucket][action] ?? 0;
+    // Hard-cap dwell at 6 events client-side (60s max contribution)
+    const newCount = action === 'DWELL_10S'
+      ? Math.min(currentCount + 1, 6)
+      : currentCount + 1;
+
+    (interactions as any)[bucket][action] = newCount;
+
+    // Track DM sharers for word-of-mouth detection
+    if (opts?.isDMShare && opts.sharerId) {
+      const dmSharerIds: string[] = interactions.dmSharerIds ?? [];
+      if (!dmSharerIds.includes(opts.sharerId)) {
+        dmSharerIds.push(opts.sharerId);
+        interactions.dmSharerIds = dmSharerIds;
+      }
+    }
+
+    // Recompute score using creator signals already stored on the doc
+    const creatorSignals: CreatorSignals = data.creatorSignals ?? {
+      hasPaidSanctuaryMembers: false, hasActivePitchDeck: false,
+      hasActiveFundraiser: false, isNewProjectLaunch: false,
+      isFediverseConnected: false, isVerifiedIndependent: false,
+    };
+
+    // Track comment author IDs for debate detection
+    const isDiscourseAction = action === 'LONG_COMMENT' || action === 'DEBATE_REPLY';
+    const uid = auth.currentUser?.uid;
+    if (isDiscourseAction && uid) {
+      const commentAuthorIds: string[] = interactions.commentAuthorIds ?? [];
+      if (!commentAuthorIds.includes(uid)) {
+        commentAuthorIds.push(uid);
+        interactions.commentAuthorIds = commentAuthorIds;
+      }
+    }
+
+    const debateSignals = buildDebateSignals(interactions);
+
+    const newScore = computeFeedScore({
+      interactions,
+      createdAt: data.timestamp ?? Date.now(),
+      creatorSignals,
+      debateSignals,
+      // δ_discovery = 1.0 server-side; applied client-side per viewer by useViewerDiscovery
+    });
+
+    await updateDoc(ref, {
+      [`interactions.${bucket}.${action}`]: newCount,
+      ...(opts?.isDMShare && opts.sharerId ? { 'interactions.dmSharerIds': arrayUnion(opts.sharerId) } : {}),
+      ...(isDiscourseAction && uid ? { 'interactions.commentAuthorIds': arrayUnion(uid) } : {}),
+      score: newScore,
+      scoreUpdatedAt: Date.now(),
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `${path}/${postId}`);
+  }
+};
+
+/** Attach creator signals to a post (call after Sanctuary/pitch deck state changes). */
+export const updatePostCreatorSignals = async (
+  postId: string,
+  signals: CreatorSignals,
+  sourceCollection: 'feed' | 'posts' = 'feed',
+): Promise<void> => {
+  try {
+    const ref = doc(db, sourceCollection, postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const interactions: PostInteractions = data.interactions ?? emptyInteractions();
+    const newScore = computeFeedScore({
+      interactions, creatorSignals: signals,
+      debateSignals: buildDebateSignals(interactions),
+      createdAt: data.timestamp ?? Date.now(),
+    });
+    await updateDoc(ref, { creatorSignals: signals, score: newScore, scoreUpdatedAt: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `${sourceCollection}/${postId}`);
   }
 };
 
@@ -2056,15 +2275,21 @@ export const fetchFeed = (callback: (items: FeedItem[]) => void) => {
   let postItems: FeedItem[] = [];
 
   const updateItems = () => {
-    // Deduplicate by id (posts collection items may also exist in feed collection)
+    // Deduplicate by id
     const seen = new Set<string>();
     const combined = [...feedItems, ...postItems]
       .filter(item => { if (seen.has(item.id)) return false; seen.add(item.id); return item.timestamp > 0; })
-      .sort((a, b) => b.timestamp - a.timestamp);
-    callback(combined.slice(0, 50));
+      // Primary sort: score descending; secondary: recency (so unscored legacy posts fall back to time)
+      .sort((a, b) => {
+        const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+        if (Math.abs(scoreDiff) > 0.001) return scoreDiff;
+        return b.timestamp - a.timestamp;
+      });
+    callback(combined.slice(0, 60));
   };
 
-  const feedQuery = query(collection(db, feedPath), orderBy('timestamp', 'desc'), limit(50));
+  // Prefer score-ordered query; fall back to timestamp for legacy docs that have no score field
+  const feedQuery = query(collection(db, feedPath), orderBy('score', 'desc'), orderBy('timestamp', 'desc'), limit(60));
   const postsQuery = query(collection(db, postsPath), orderBy('timestamp', 'desc'), limit(100));
 
   const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
@@ -3119,12 +3344,13 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
   }
 };
 
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (): Promise<User | null> => {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
       await syncUserProfile(result.user);
+      return result.user;
     }
   } catch (error: any) {
     console.error("Google login failed:", error);
@@ -3139,6 +3365,7 @@ export const loginWithGoogle = async () => {
       alert(`Google sign-in failed: ${error.message || "Unknown error"}. Please try again.`);
     }
   }
+  return null;
 };
 
 export const loginWithTwitter = async (): Promise<string | null> => {
@@ -3288,9 +3515,9 @@ export const logout = async () => {
 };
 
 export const onAuthUpdate = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      syncUserProfile(user);
+      await syncUserProfile(user);
     }
     callback(user);
   });
@@ -4828,7 +5055,8 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
       lastMessage: message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : ''),
       updatedAt: Date.now(),
       type: roomType,
-      ...(roomSnap.exists() ? {} : { participants: arrayUnion(auth.currentUser?.uid) }),
+      // Always add sender to participants so Firestore security rules never block reads
+      participants: arrayUnion(auth.currentUser?.uid),
     }, { merge: true });
 
     // If it's a media message, update the album's sharedWith list
@@ -4841,6 +5069,24 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
+};
+
+/** Upsert a live_chat room document with song metadata so ChatSystem can show cover art. */
+export const ensureLiveChatRoom = async (
+  roomId: string,
+  meta: { name: string; coverUrl?: string; mediaId?: string; mediaArtist?: string }
+): Promise<void> => {
+  if (!auth.currentUser) return;
+  await setDoc(doc(db, 'chat_rooms', roomId), {
+    type: 'PUBLIC_LIVE',
+    name: meta.name,
+    coverUrl: meta.coverUrl ?? null,
+    mediaId: meta.mediaId ?? null,
+    mediaTitle: meta.name,
+    mediaArtist: meta.mediaArtist ?? null,
+    participants: arrayUnion(auth.currentUser.uid),
+    updatedAt: Date.now(),
+  }, { merge: true });
 };
 
 export const listenToMessages = (roomId: string, callback: (messages: ChatMessage[]) => void) => {
@@ -6564,6 +6810,73 @@ export const deleteHideNSeekAlternate = async (albumId: string, altId: string) =
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
   }
+};
+
+// ─── STRIPE CONNECT — Creator Payouts ────────────────────────────────────────
+
+export const startCreatorConnectOnboarding = async (): Promise<{ url: string; accountId: string }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/onboard', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnUrl: window.location.origin }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Connect onboarding failed'); }
+  return res.json();
+};
+
+export const fetchConnectStatus = async (): Promise<{
+  connected: boolean; accountId?: string; onboarded?: boolean;
+  chargesEnabled?: boolean; payoutsEnabled?: boolean; requiresAction?: boolean;
+}> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/status', {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) return { connected: false };
+  return res.json();
+};
+
+export const openStripeDashboard = async (): Promise<void> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/connect/dashboard-link', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to get dashboard link');
+  const { url } = await res.json();
+  window.open(url, '_blank', 'noopener');
+};
+
+export const fetchCreatorEarnings = async (period: '7d' | '30d' | '90d' | '1y' = '30d') => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/stripe/earnings?period=${period}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch earnings');
+  return res.json();
+};
+
+export const fetchCreatorSplitConfig = async () => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/split', {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!res.ok) return { recipients: [], appliesTo: [] };
+  return res.json();
+};
+
+export const saveCreatorSplitConfig = async (
+  recipients: Array<{ creatorUid: string; displayName: string; photoURL?: string; percentage: number }>,
+  appliesTo: string[],
+): Promise<void> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch('/api/stripe/split', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipients, appliesTo }),
+  });
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to save split config'); }
 };
 
 export const fetchHideNSeekProgress = async (albumId: string): Promise<HideNSeekUserProgress | null> => {

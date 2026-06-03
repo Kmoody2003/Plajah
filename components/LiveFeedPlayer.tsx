@@ -4,6 +4,7 @@ import { X, ChevronDown, ChevronUp, MessageCircle, Send, Maximize2, Minimize2 } 
 import { LiveFeed } from '../types';
 import { auth } from '../services/backendService';
 import PlajahLivePlayer from './PlajahLivePlayer';
+import LiveStreamViewer from './LiveStreamViewer';
 
 interface LiveFeedPlayerProps {
   feed: LiveFeed | null;
@@ -53,8 +54,22 @@ const LiveFeedPlayer: React.FC<LiveFeedPlayerProps> = ({ feed, onClose, onExpand
   const hasMux = !!feed.muxPlaybackId;
   const feedUrl = feed.url || '';
   const isPlaceholder = feedUrl === 'live_stream_placeholder';
-  const isHlsSrc = !hasMux && isHls(feedUrl);
-  const isEmbed = !hasMux && !isHlsSrc && isEmbeddable(feedUrl);
+  const isWebRTC = feedUrl.startsWith('livestream:');
+  const webRTCStreamId = isWebRTC ? feedUrl.replace('livestream:', '') : (feed as any)?.streamId || '';
+  const isHlsSrc = !hasMux && !isWebRTC && isHls(feedUrl);
+  const isEmbed = !hasMux && !isWebRTC && !isHlsSrc && isEmbeddable(feedUrl);
+
+  // WebRTC stream → open full LiveStreamViewer
+  if (isWebRTC && webRTCStreamId) {
+    return (
+      <LiveStreamViewer
+        streamId={webRTCStreamId}
+        title={feed?.title}
+        ownerName={(feed as any)?.ownerName}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <AnimatePresence>

@@ -7,11 +7,13 @@ import {
   Plus, Send, Heart, Pin, Trash2, Shield, Crown, Pen, Lock, Globe,
   X, Check, Calendar, Play, Music, BookOpen, Link2, Upload, Zap,
   UserPlus, UserMinus, Ban, Sparkles, Radio, Eye,
-  Mic, Video as VideoIcon2, Ticket, UserCheck, Clock, Film, ShoppingBag,
+  Mic, Video as VideoIcon2, Ticket, UserCheck, Clock, Film, ShoppingBag, Presentation,
+  Share2, Copy, RefreshCw, Loader2 as Loader,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video, MerchItem } from '../types';
+import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video, MerchItem, PitchDeck } from '../types';
+import { generateClubDeck } from '../services/pitchDeckTemplates';
 import {
   fetchClubMembers, getUserClubMembership, joinClub, leaveClub,
   listenToClubPosts, createClubPost, deleteClubPost, toggleClubPostLike,
@@ -41,6 +43,7 @@ interface ClubDetailViewProps {
   onBack: () => void;
   onClubUpdated: (club: Club) => void;
   initialTab?: TabId;
+  onCreatePitchDeck?: (deck: PitchDeck) => void;
 }
 
 type TabId = 'TIMELINE' | 'BULLETIN' | 'GALLERY' | 'MEMBERS' | 'CHAT' | 'EVENTS' | 'LIVE' | 'MERCH' | 'SETTINGS' | 'ANALYTICS';
@@ -70,7 +73,7 @@ const ROLE_ICONS: Record<ClubRole, React.ReactNode> = {
   WRITER: <Pen size={10} />, MEMBER: <Users size={10} />
 };
 
-const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, currentUser, onBack, onClubUpdated, initialTab }) => {
+const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, currentUser, onBack, onClubUpdated, initialTab, onCreatePitchDeck }) => {
   const [club, setClub] = useState<Club>(initialClub);
   const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'TIMELINE');
   const [membership, setMembership] = useState<ClubMembership | null>(null);
@@ -115,6 +118,40 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
 
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [clubChannels, setClubChannels] = useState<ClubChannel[]>(initialClub.channels ?? []);
+
+  // ── Invite / share popover ─────────────────────────────────────────────────
+  const [showInvitePopover, setShowInvitePopover] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState<'link' | 'embed' | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [localInviteToken, setLocalInviteToken] = useState(initialClub.inviteToken ?? '');
+
+  const clubPageUrl = `${window.location.origin}/?club=${club.id}`;
+  const clubInviteUrl = localInviteToken
+    ? `${window.location.origin}/clubs/${club.id}?invite=${localInviteToken}`
+    : clubPageUrl;
+  const clubEmbedCode = `<iframe src="${window.location.origin}/embed/club/${club.id}" width="420" height="240" style="border:none;border-radius:16px;overflow:hidden;" loading="lazy" title="${club.name} on Plajah"></iframe>`;
+
+  const handleCopyInviteLink = () => {
+    navigator.clipboard.writeText(clubInviteUrl);
+    setInviteCopied('link');
+    setTimeout(() => setInviteCopied(null), 2000);
+  };
+  const handleCopyEmbedCode = () => {
+    navigator.clipboard.writeText(clubEmbedCode);
+    setInviteCopied('embed');
+    setTimeout(() => setInviteCopied(null), 2000);
+  };
+  const handleGenerateToken = async () => {
+    if (!isAdmin || generatingToken) return;
+    setGeneratingToken(true);
+    try {
+      const { generateClubInviteToken } = await import('../services/backendService');
+      const t = await generateClubInviteToken(club.id);
+      setLocalInviteToken(t);
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
 
   const isAdmin = membership?.role === 'OWNER' || membership?.role === 'ADMIN';
   const isMod = isAdmin || membership?.role === 'MODERATOR';
@@ -400,10 +437,138 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 : <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest opacity-40"><Globe size={8} /> Public</span>
               }
             </div>
-            <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight truncate">{club.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight">{club.name}</h1>
+              {/* ── Inline invite / share pill ── */}
+              {(!club.isPrivate || isMember) && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowInvitePopover(v => !v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-full text-[9px] font-black uppercase tracking-widest transition-all backdrop-blur-sm"
+                  >
+                    <Link2 size={10} />
+                    {club.isPrivate ? 'Invite' : 'Share'}
+                  </button>
+
+                  {showInvitePopover && (
+                    <>
+                      <div className="fixed inset-0 z-[80]" onClick={() => setShowInvitePopover(false)} />
+                      <div className="absolute left-0 top-full mt-2 w-80 bg-black/90 backdrop-blur-2xl border border-white/12 rounded-2xl p-4 z-[90] shadow-2xl space-y-3">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                            {club.isPrivate ? 'Invite Members' : 'Share Club'}
+                          </p>
+                          <button onClick={() => setShowInvitePopover(false)} className="text-white/20 hover:text-white transition-colors">
+                            <X size={12} />
+                          </button>
+                        </div>
+
+                        {/* Link preview card */}
+                        <div className="rounded-xl border border-white/8 overflow-hidden bg-white/[0.03]">
+                          {club.coverImage && (
+                            <img src={club.coverImage} alt="" className="w-full h-16 object-cover opacity-60" />
+                          )}
+                          <div className="px-3 py-2">
+                            <p className="text-[8px] text-white/30 uppercase tracking-widest">plajah.com</p>
+                            <p className="text-[11px] font-black text-white truncate">{club.name}</p>
+                            <p className="text-[9px] text-white/40 truncate">{club.memberCount.toLocaleString()} members · {club.category}</p>
+                          </div>
+                        </div>
+
+                        {/* URL row */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-black/40 border border-white/8 rounded-xl px-3 py-2 font-mono text-[9px] text-white/35 truncate">
+                            {clubInviteUrl}
+                          </div>
+                          <button
+                            onClick={handleCopyInviteLink}
+                            className="flex items-center gap-1 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all flex-shrink-0"
+                            style={{ background: inviteCopied === 'link' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)', color: inviteCopied === 'link' ? '#22c55e' : 'rgba(255,255,255,0.6)' }}
+                          >
+                            {inviteCopied === 'link' ? <Check size={10} /> : <Copy size={10} />}
+                            {inviteCopied === 'link' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+
+                        {/* Invite token row — private clubs only (admin can generate) */}
+                        {club.isPrivate && !localInviteToken && isAdmin && (
+                          <button
+                            onClick={handleGenerateToken}
+                            disabled={generatingToken}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-white/6 border border-white/8 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all disabled:opacity-40"
+                          >
+                            {generatingToken ? <Loader size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                            {generatingToken ? 'Generating…' : 'Generate Private Invite Link'}
+                          </button>
+                        )}
+                        {club.isPrivate && localInviteToken && isAdmin && (
+                          <button
+                            onClick={handleGenerateToken}
+                            disabled={generatingToken}
+                            title="Invalidate old link and generate a new one"
+                            className="flex items-center gap-1 text-[8px] text-white/20 hover:text-white/50 transition-colors"
+                          >
+                            <RefreshCw size={9} /> Rotate link
+                          </button>
+                        )}
+
+                        {/* Embed code — public clubs only */}
+                        {!club.isPrivate && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[8px] font-black uppercase tracking-widest text-white/25">Embed Code</p>
+                              <button
+                                onClick={handleCopyEmbedCode}
+                                className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest transition-colors"
+                                style={{ color: inviteCopied === 'embed' ? '#22c55e' : 'rgba(255,255,255,0.35)' }}
+                              >
+                                {inviteCopied === 'embed' ? <Check size={9} /> : <Copy size={9} />}
+                                {inviteCopied === 'embed' ? 'Copied!' : 'Copy'}
+                              </button>
+                            </div>
+                            <div className="bg-black/50 border border-white/6 rounded-xl px-3 py-2 font-mono text-[8px] text-white/25 break-all leading-relaxed">
+                              {clubEmbedCode}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Social share row */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                          <p className="text-[8px] text-white/20 uppercase tracking-widest flex-shrink-0">Share to</p>
+                          {[
+                            { label: 'X / Twitter', bg: '#000', fn: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(club.name + ' on Plajah')}&url=${encodeURIComponent(clubInviteUrl)}`, '_blank') },
+                            { label: 'WhatsApp',    bg: '#25D366', fn: () => window.open(`https://wa.me/?text=${encodeURIComponent(club.name + ' on Plajah\n' + clubInviteUrl)}`, '_blank') },
+                            { label: 'Facebook',   bg: '#1877F2', fn: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(clubInviteUrl)}`, '_blank') },
+                          ].map(s => (
+                            <button
+                              key={s.label}
+                              onClick={s.fn}
+                              title={s.label}
+                              className="flex-1 py-1.5 rounded-xl text-[7px] font-black uppercase tracking-widest text-white/60 hover:text-white border border-white/8 hover:border-white/20 transition-all"
+                              style={{ background: 'rgba(255,255,255,0.04)' }}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <p className="text-xs font-bold opacity-40 uppercase tracking-widest mt-1"><Users size={10} className="inline mr-1" />{club.memberCount.toLocaleString()} Members</p>
           </div>
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-2">
+            {isAdmin && onCreatePitchDeck && (
+              <button
+                onClick={() => onCreatePitchDeck(generateClubDeck(club))}
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/15 border border-blue-500/25 text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all"
+              >
+                <Presentation size={11} /> Pitch Deck
+              </button>
+            )}
             {currentUser && (isMember ? (
               <button onClick={handleLeave} className="px-5 py-2.5 bg-white/10 border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 hover:border-red-500/40 transition-all flex items-center gap-2">
                 <UserMinus size={12} /> Leave
@@ -555,6 +720,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                     ? <EmptyState icon={<Zap size={32} />} label="No posts yet — be the first to share!" />
                     : posts.filter(p => !p.isBulletin).map(post => (
                         <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                          isPublicClub={!club.isPrivate}
                           onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                           onDelete={() => deleteClubPost(post.id)}
                           onPin={() => pinClubPost(post.id, !post.isPinned)}
@@ -572,6 +738,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                   posts={posts.filter(p => !p.isBulletin && (activeChannelId ? p.channelId === activeChannelId : !p.channelId))}
                   renderPost={(post) => (
                     <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                      isPublicClub={!club.isPrivate}
                       onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                       onDelete={() => deleteClubPost(post.id)}
                       onPin={() => pinClubPost(post.id, !post.isPinned)}
@@ -681,6 +848,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                     ? <EmptyState icon={<Newspaper size={32} />} label="No announcements yet" />
                     : posts.filter(p => p.isBulletin && p.type !== 'ARTICLE_LINK').map(post => (
                         <ClubRichPostCard key={post.id} post={post} currentUserId={currentUser?.uid} isMod={isMod}
+                          isPublicClub={!club.isPrivate}
                           onLike={() => currentUser && toggleClubPostLike(post.id, currentUser.uid, post.likes.includes(currentUser.uid))}
                           onDelete={() => deleteClubPost(post.id)}
                           onPin={() => pinClubPost(post.id, !post.isPinned)}

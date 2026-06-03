@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Plajah.Windows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Plajah">
+
+    <Grid x:Name="RootGrid">
+        <!-- Mica/Acrylic backdrop applied in code-behind via SystemBackdrop -->
+
+        <!-- Custom title bar — extends into non-client area -->
+        <Grid x:Name="AppTitleBar"
+              Height="48"
+              VerticalAlignment="Top"
+              Canvas.ZIndex="10"
+              Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />    <!-- drag region left -->
+                <ColumnDefinition Width="*" />       <!-- title text -->
+                <ColumnDefinition Width="Auto" />    <!-- mini player controls -->
+                <ColumnDefinition Width="148" />     <!-- caption buttons (Win11) -->
+            </Grid.ColumnDefinitions>
+
+            <!-- App icon -->
+            <Image Grid.Column="0"
+                   Source="Assets/Square44x44Logo.scale-100.png"
+                   Width="20" Height="20"
+                   Margin="14,0,8,0"
+                   VerticalAlignment="Center"
+                   IsHitTestVisible="False" />
+
+            <!-- Title -->
+            <TextBlock Grid.Column="1"
+                       x:Name="TitleText"
+                       Text="Plajah"
+                       VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                       IsHitTestVisible="False" />
+
+            <!-- Mini player strip (hidden when nothing is playing) -->
+            <StackPanel Grid.Column="2"
+                        x:Name="MiniPlayerPanel"
+                        Orientation="Horizontal"
+                        Spacing="4"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0"
+                        Visibility="Collapsed">
+
+                <!-- Track info -->
+                <TextBlock x:Name="MiniTrackText"
+                           MaxWidth="200"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <!-- Prev / Play-Pause / Next -->
+                <Button x:Name="MiniPrevBtn" Width="32" Height="32"
+                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
+                        Click="MiniPrev_Click">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE892;" FontSize="12" />
+                </Button>
+                <Button x:Name="MiniPlayPauseBtn" Width="32" Height="32"
+                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
+                        Click="MiniPlayPause_Click">
+                    <FontIcon x:Name="PlayPauseIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE769;" FontSize="12" />
+                </Button>
+                <Button x:Name="MiniNextBtn" Width="32" Height="32"
+                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
+                        Click="MiniNext_Click">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE893;" FontSize="12" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- WebView2 — fills the entire window under the title bar -->
+        <WebView2 x:Name="WebView"
+                  NavigationCompleted="WebView_NavigationCompleted"
+                  WebMessageReceived="WebView_MessageReceived"
+                  Margin="0,0,0,0" />
+
+        <!-- Offline banner — shown when the web view fails to load -->
+        <Border x:Name="OfflineBanner"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Stretch"
+                Margin="12,56,12,0"
+                Padding="16,10"
+                CornerRadius="8"
+                Background="{ThemeResource SystemFillColorCaution}"
+                Visibility="Collapsed"
+                Canvas.ZIndex="20">
+            <TextBlock Text="You appear to be offline. Plajah requires an internet connection."
+                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                       Style="{StaticResource BodyTextBlockStyle}" />
+        </Border>
+
+        <!-- Loading overlay — shown while WebView2 initialises -->
+        <Grid x:Name="LoadingOverlay"
+              Background="#FF0A0412"
+              Canvas.ZIndex="30">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <Image Source="Assets/StoreLogo.scale-100.png"
+                       Width="72" Height="72"
+                       HorizontalAlignment="Center" />
+                <ProgressRing IsActive="True" Width="32" Height="32"
+                              Foreground="{StaticResource PlajahPurpleBrush}" />
+                <TextBlock Text="Loading Plajah…"
+                           HorizontalAlignment="Center"
+                           Style="{StaticResource BodyTextBlockStyle}"
+                           Foreground="#99FFFFFF" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

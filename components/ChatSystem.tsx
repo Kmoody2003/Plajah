@@ -19,7 +19,7 @@ import VideoChat from './VideoChat';
 import PostmanSystem from './PostmanSystem';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'CHANNELS' | 'POSTMAN';
+type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'CHANNELS' | 'SONGS' | 'POSTMAN';
 type MainView = 'CHAT_LIST' | 'NEW_MESSAGE' | 'INVITE_FRIENDS' | 'FIND_CONTACTS';
 const EMOJI_STATUS = ['😊', '🎵', '🎨', '💤', '🔥', '👻', '🌙', '⚡', '🎯', '🌊', '🎤', '🏆'];
 
@@ -49,6 +49,17 @@ const RoomAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfil
     );
   }
   if (room.type === 'PUBLIC_LIVE') {
+    // Song live chat — show cover art if available
+    if (room.coverUrl) {
+      return (
+        <div className={`${dim} rounded-2xl flex-shrink-0 overflow-hidden border border-orange-500/30 relative`}>
+          <img src={room.coverUrl} alt={room.name} className="w-full h-full object-cover" loading="lazy" />
+          <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-red-500 rounded-full border border-black flex items-center justify-center">
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={`${dim} rounded-2xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-red-500/30 to-orange-500/30 border border-red-500/30`}>
         <Radio size={size === 'md' ? 18 : 14} className="text-red-400" />
@@ -133,10 +144,12 @@ const RoomRow: React.FC<{
               ? <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin shrink-0" />
               : <span className="text-[8px] font-bold text-white/20 shrink-0">{lastMsgTime}</span>}
           </div>
-          <p className="text-[10px] font-medium truncate text-white/30">
+          <p className="text-[11px] font-medium truncate text-white/30">
             {room.typingUsers?.filter(id => id !== uid).length
               ? <span className="text-green-400">typing…</span>
-              : room.lastMessage || 'No messages yet'}
+              : room.id.startsWith('live_chat_') && room.mediaArtist
+                ? <span className="text-orange-400/70">{room.mediaArtist}</span>
+                : room.lastMessage || 'No messages yet'}
           </p>
         </div>
       </button>
@@ -669,7 +682,8 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     if (sidebarTab === 'ALL') return true;
     if (sidebarTab === 'DIRECT') return room.type === 'PRIVATE';
     if (sidebarTab === 'GROUPS') return room.type === 'GROUP';
-    if (sidebarTab === 'CHANNELS') return room.type === 'PUBLIC_LIVE';
+    if (sidebarTab === 'CHANNELS') return room.type === 'PUBLIC_LIVE' && !room.id.startsWith('live_chat_');
+    if (sidebarTab === 'SONGS') return room.id.startsWith('live_chat_');
     return false;
   });
 
@@ -735,6 +749,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     { id: 'ALL',      label: 'All',     icon: MessageSquare },
     { id: 'DIRECT',   label: 'DMs',     icon: User },
     { id: 'GROUPS',   label: 'Groups',  icon: Users },
+    { id: 'SONGS',    label: 'Songs',   icon: Hash },
     { id: 'CHANNELS', label: 'Live',    icon: Radio },
     { id: 'POSTMAN',  label: 'Mail',    icon: Mail },
   ];

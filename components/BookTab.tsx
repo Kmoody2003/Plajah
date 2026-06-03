@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface BookTabProps {
   onSelectBook: (book: any) => void;
   onVisitUser?: (uid: string, tab?: string) => void;
+  onCreateBook?: () => void;
 }
 
 const GENRES = [
@@ -29,14 +30,15 @@ const _classicCache: Map<string, ArchiveBook[]> = new Map();
 const _archiveCache: Map<string, ArchiveBook[]> = new Map();
 let _marketplaceCache: import('../types').Album[] | null = null;
 
-const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
+const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook }) => {
   const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('GLOBAL');
   const [archiveBooks, setArchiveBooks] = useState<ArchiveBook[]>([]);
   const [marketplaceBooks, setMarketplaceBooks] = useState<Album[]>([]);
   const [googleBooks, setGoogleBooks] = useState<GoogleBook[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeGenre, setActiveGenre] = useState(GENRES[0]);
-  const [isLoading, setIsLoading] = useState(true);
+  // GLOBAL tab shows content immediately — don't block on Google Books API
+  const [isLoading, setIsLoading] = useState(activeTab !== 'GLOBAL');
 
   useEffect(() => {
     if (activeTab === 'CLASSICS') {
@@ -44,12 +46,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
     } else if (activeTab === 'MARKETPLACE') {
       loadMarketplaceBooks();
     } else if (activeTab === 'GLOBAL') {
-      // Load initial lists if empty
+      // Never block GLOBAL tab — data loads in background
+      setIsLoading(false);
       if (archiveBooks.length === 0) {
-        fetchClassicBooks('').then(books => setArchiveBooks(books));
+        fetchClassicBooks('').then(books => setArchiveBooks(books)).catch(() => {});
       }
       if (marketplaceBooks.length === 0) {
-        fetchPublicBooks().then(books => { _marketplaceCache = books; setMarketplaceBooks(books); });
+        fetchPublicBooks().then(books => { _marketplaceCache = books; setMarketplaceBooks(books); }).catch(() => {});
       }
     }
   }, [activeGenre, activeTab]);
@@ -202,6 +205,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser }) => {
         </div>
         
         <div className="flex flex-col gap-4 items-end">
+          {/* Create a Book — launches the Book Authoring Studio */}
+          {onCreateBook && (
+            <button
+              onClick={onCreateBook}
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+            >
+              <BookOpen size={14} /> Create a Book
+            </button>
+          )}
           <PlajahPlusBanner variant="COMPACT" className="w-72" />
           <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
             <button

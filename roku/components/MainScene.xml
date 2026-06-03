@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Roku SceneGraph MainScene — loads Plajah as a hosted web app
+  via Roku Web Engine (rsg_version=1.2).
+
+  The hosted URL activates theme-big-screen + D-pad navigation
+  automatically via usePlatform() detecting the Roku UA string.
+-->
+<component name="MainScene" extends="Scene" initialFocus="webBrowser">
+  <children>
+    <WebBrowser
+      id="webBrowser"
+      url="https://plajah.com"
+      width="1920"
+      height="1080"
+      translation="[0, 0]"
+      focusable="true" />
+  </children>
+
+  <script type="text/brightscript">
+    <![CDATA[
+      Sub init()
+        m.webBrowser = m.top.findNode("webBrowser")
+        m.webBrowser.observeField("url", "onUrlChange")
+        ' Pass Roku platform hint to the web app via URL param
+        m.webBrowser.url = "https://plajah.com?platform=roku"
+      End Sub
+
+      Sub navigateTo(contentId As String)
+        m.webBrowser.url = "https://plajah.com/content/" + contentId + "?platform=roku"
+      End Sub
+
+      Sub onUrlChange()
+        ' Handle navigation events from the web app if needed
+      End Sub
+    ]]>
+  </script>
+</component>

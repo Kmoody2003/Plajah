@@ -27,6 +27,10 @@ export interface PlajahLivePlayerProps {
   muted?: boolean;
   className?: string;
   onError?: (msg: string) => void;
+  /** Creator's Stripe Connect account ID (enables tip button) */
+  creatorStripeAccountId?: string;
+  /** Firebase UID of the live creator */
+  creatorUid?: string;
   /** Called when native video element is ready (for external controls) */
   onVideoRef?: (el: HTMLVideoElement | null) => void;
 }
@@ -165,7 +169,33 @@ const PlajahLivePlayer: React.FC<PlajahLivePlayerProps> = ({
   className = '',
   onError,
   onVideoRef,
+  creatorStripeAccountId,
+  creatorUid,
 }) => {
+  const [showTipModal, setShowTipModal] = React.useState(false);
+  const [tipAmount, setTipAmount] = React.useState('5');
+  const [tipping, setTipping] = React.useState(false);
+
+  const handleTip = async () => {
+    if (!creatorStripeAccountId || !creatorUid) return;
+    setTipping(true);
+    try {
+      const { auth } = await import('../services/firebase');
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) { alert('Sign in to send a tip'); return; }
+      const res = await fetch('/api/stripe/live-tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ creatorUid, creatorStripeAccountId, amount: Math.round(parseFloat(tipAmount) * 100), title }),
+      });
+      const data = await res.json();
+      if (data.url) window.open(data.url, '_blank');
+    } finally {
+      setTipping(false);
+      setShowTipModal(false);
+    }
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,9 +408,51 @@ const PlajahLivePlayer: React.FC<PlajahLivePlayerProps> = ({
 
       {/* ── LIVE badge (top-left) ─────────────────────────────────────── */}
       {isLive && !useIframe && (
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-red-600 px-2.5 py-1 rounded-lg pointer-events-none">
-          <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-          <span className="text-white text-[9px] font-black uppercase tracking-widest">Live</span>
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-red-600 px-2.5 py-1 rounded-lg pointer-events-none">
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+            <span className="text-white text-[9px] font-black uppercase tracking-widest">Live</span>
+          </div>
+          {/* Tip button — only shown when creator has Stripe Connect wired */}
+          {creatorStripeAccountId && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowTipModal(true); }}
+              className="flex items-center gap-1.5 bg-orange-500/90 hover:bg-orange-400 px-2.5 py-1 rounded-lg transition-colors pointer-events-auto"
+            >
+              <span className="text-[9px] text-black font-black">💸 Tip</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Tip modal */}
+      {showTipModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
+          onClick={e => e.stopPropagation()}>
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 w-64 shadow-2xl">
+            <div className="font-bold mb-1 text-sm">Send a tip</div>
+            {title && <div className="text-xs text-white/40 mb-4 truncate">to {title}</div>}
+            <div className="flex gap-2 mb-4">
+              {['2','5','10','20'].map(a => (
+                <button key={a} onClick={() => setTipAmount(a)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-colors ${tipAmount === a ? 'bg-orange-500/10 border-orange-500/40 text-orange-400' : 'border-white/10 text-white/40 hover:text-white'}`}>
+                  ${a}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-white/40 text-sm">$</span>
+              <input type="number" min="1" max="500" value={tipAmount} onChange={e => setTipAmount(e.target.value)}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowTipModal(false)} className="flex-1 py-2 rounded-xl border border-white/10 text-white/50 text-sm hover:bg-white/5 transition-colors">Cancel</button>
+              <button onClick={handleTip} disabled={tipping || !tipAmount || parseFloat(tipAmount) < 1}
+                className="flex-1 py-2 rounded-xl bg-orange-500 text-black font-bold text-sm hover:bg-orange-400 transition-colors disabled:opacity-40">
+                {tipping ? '…' : `Send $${tipAmount}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

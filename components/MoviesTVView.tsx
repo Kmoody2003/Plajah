@@ -29,7 +29,7 @@ import type { Club } from '../types';
 interface MoviesTVViewProps {
   onBack: () => void;
   onSelectMovie: (item: any) => void;
-  onNavigate?: (view: 'WORLDS' | 'USER_PROFILE') => void;
+  onNavigate?: (view: 'WORLDS' | 'USER_PROFILE' | 'TALEO_HISTORY' | 'FILM_SCHOOL') => void;
 }
 
 type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE' | 'LIBRARY';
@@ -162,11 +162,13 @@ const HomeView: React.FC<{
   worlds?: IPWorld[];
   featuredCharacters?: Character[];
   filmClubs?: Club[];
+  onNavigate?: (view: string) => void;
 }> = ({
   universes, movies, tvSeries, genreCollections, curatedPlaylists,
   featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView,
   setActiveAllyUrl, onSelectCuratedPlaylist, tabNav, onRequestSignIn,
   platformVideos = [], worlds = [], featuredCharacters = [], filmClubs = [],
+  onNavigate,
 }) => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [worldBannerIdx, setWorldBannerIdx] = useState(0);
@@ -331,6 +333,61 @@ const HomeView: React.FC<{
         <div className="pt-10">
           <PlajahPlusBanner />
         </div>
+
+        {/* Taleo Discovery Hero Cards */}
+        {onNavigate && (
+          <section className="px-4 lg:px-8 mb-6">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
+              {/* Film History hero card */}
+              <button
+                onClick={() => onNavigate('TALEO_HISTORY')}
+                className="shrink-0 relative w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(203,213,225,0.2)' }}
+              >
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Charlie_Chaplin.jpg/480px-Charlie_Chaplin.jpg"
+                  alt="Film History"
+                  className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
+                  style={{ filter: 'brightness(0.45) saturate(0.4)' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 via-transparent to-black/80" />
+                <div className="relative h-full flex flex-col justify-between p-5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-300/80 mb-0.5">Today in Film History</p>
+                    <h3 className="text-lg font-black text-white leading-tight">History Moments</h3>
+                    <p className="text-[9px] text-white/50 mt-1">Directors, actors &amp; auteurs →</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Film School hero card */}
+              <button
+                onClick={() => onNavigate('FILM_SCHOOL')}
+                className="shrink-0 relative w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(245,158,11,0.35)' }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-red-950/80" />
+                {/* Clapperboard graphic */}
+                <div className="absolute right-4 top-4 opacity-15 text-[80px] leading-none select-none">🎬</div>
+                <div className="relative h-full flex flex-col justify-between p-5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-amber-400">Learn Filmmaking</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-amber-300/80 mb-0.5">Story · Script · Direction · Camera</p>
+                    <h3 className="text-lg font-black text-white leading-tight">Film &amp; TV School</h3>
+                    <p className="text-[9px] text-white/50 mt-1">Script vault · Film history →</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* New to Taleo */}
         {newToTaleo.length > 0 && (
@@ -1060,6 +1117,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               worlds={worlds}
               featuredCharacters={featuredCharacters}
               filmClubs={filmClubs}
+              onNavigate={onNavigate}
             />
           )}
           {currentSubView === 'TV' && (

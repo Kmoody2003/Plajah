@@ -1,7 +1,9 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
-import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, subscribeToComments, postComment, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost } from '../services/backendService';
+import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, subscribeToComments, postComment, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction } from '../services/backendService';
+import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
 import { fetchNewsFromRSS } from '../services/rssService';
@@ -821,6 +823,9 @@ const FeedItemComponent: React.FC<{
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
   const { playTrack } = useGlobalPlayerState();
 
+  // Dwell time scoring — fires DWELL_10S every 10s while card is in viewport
+  const dwellRef = useDwellTracker(item.id, item.sourceCollection ?? 'feed', depth === 0);
+
   const getThreadItems = (parentId: string): typeof allFeedItems => {
     const children = allFeedItems.filter(f => f.parentId === parentId);
     return children.reduce((acc, child) => [...acc, child, ...getThreadItems(child.id)], children);
@@ -872,13 +877,22 @@ const FeedItemComponent: React.FC<{
 
   const handleReplySubmit = async () => {
     if (!replyText.trim()) return;
+    const uid = currentUser?.uid;
+    const isSubstantive = replyText.trim().length > 40 && !/^[\p{Emoji}\s]+$/u.test(replyText.trim());
+    if (isSubstantive && uid) {
+      // If another non-author comment already exists in thread → this is a debate reply (higher value)
+      const existingCommenters = (item.interactions as any)?.commentAuthorIds as string[] | undefined;
+      const otherVoicesPresent = existingCommenters?.some(id => id !== uid && id !== item.authorId);
+      const action = otherVoicesPresent ? 'DEBATE_REPLY' : 'LONG_COMMENT';
+      recordFeedInteraction(item.id, action, item.sourceCollection ?? 'feed').catch(() => {});
+    }
     await onReply(item.id, replyText);
     setReplyText('');
     setReplyingToId(null);
   };
 
   return (
-    <div ref={inViewRef} className="w-full flex flex-col items-center my-12 md:my-20">
+    <div ref={el => { (inViewRef as any).current = el; (dwellRef as any).current = el; }} className="w-full flex flex-col items-center my-12 md:my-20">
       <motion.div
         className="w-full backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[3rem] md:rounded-[4rem] p-8 md:p-16 xl:p-20 2xl:p-24 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -1022,6 +1036,10 @@ const FeedItemComponent: React.FC<{
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!isLiked) {
+                    // Only record when liking (not un-liking) to avoid score manipulation
+                    recordFeedInteraction(item.id, 'LIKE', item.sourceCollection ?? 'feed').catch(() => {});
+                  }
                   setLikes(prev => isLiked ? prev - 1 : prev + 1);
                   setIsLiked(!isLiked);
                 }}
@@ -1044,7 +1062,7 @@ const FeedItemComponent: React.FC<{
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Open X share intent
+                  recordFeedInteraction(item.id, 'NATIVE_SHARE', item.sourceCollection ?? 'feed').catch(() => {});
                   const text = `${item.authorName} signal broadcast: ${item.content.substring(0, 50)}... via Plajah`;
                   const url = `${window.location.origin}/?type=feed&id=${item.id}`;
                   window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
@@ -1125,6 +1143,42 @@ const FeedItemComponent: React.FC<{
   );
 };
 
+// ── Recommended Clubs — shown in feed empty state ─────────────────────────────
+
+const RecommendedClubsEmptyState: React.FC = () => {
+  const [clubs, setClubs] = React.useState<any[]>([]);
+  React.useEffect(() => {
+    import('../services/backendService').then(({ fetchPublicClubs }: any) => {
+      if (typeof fetchPublicClubs === 'function') {
+        fetchPublicClubs().then((result: any[]) => setClubs(result.slice(0, 4))).catch(() => {});
+      }
+    });
+  }, []);
+
+  return (
+    <div className="py-16 text-center">
+      <div className="text-xs font-black uppercase tracking-[0.4em] text-white/20 mb-8">The feed is currently quiet</div>
+      {clubs.length > 0 && (
+        <div className="max-w-2xl mx-auto px-4">
+          <p className="text-xs text-white/30 uppercase tracking-widest font-bold mb-4">Recommended clubs to join</p>
+          <div className="grid grid-cols-2 gap-3">
+            {clubs.map((club: any) => (
+              <div key={club.id} className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-left hover:bg-white/5 transition-colors cursor-pointer">
+                {club.bannerImage && (
+                  <img src={club.bannerImage} alt="" className="w-full h-16 object-cover rounded-xl mb-3"/>
+                )}
+                <div className="font-bold text-sm truncate">{club.name}</div>
+                <div className="text-xs text-white/30 mt-1 line-clamp-2">{club.description}</div>
+                <div className="text-[10px] text-white/20 mt-2">{club.memberCount ?? 0} members</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, onMessage, onSelectGame }) => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [globalPosts, setGlobalPosts] = useState<Post[]>([]);
@@ -1192,6 +1246,9 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
   const [feedPanelMode, setFeedPanelMode] = useState<'SINGLE' | 'DUAL'>('SINGLE');
   const [feedSyncScroll, setFeedSyncScroll] = useState(true);
+
+  // Apply δ_discovery personalization — re-sorts feedItems by score × viewer context
+  const personalizedFeedItems = useViewerDiscovery(feedItems, currentUser?.uid);
 
   // Compute at render scope so React always sees changes — avoids IIFE-in-JSX issues
   const displayedPosts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;
@@ -3517,25 +3574,47 @@ const toggleFavoriteTeam = async (team: string) => {
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Scanning Global Satellites for Breaking News...</p>
             </div>
           ) : (
-            feedItems.filter(item => !item.parentId).map((item) => (
-              <RolodexCard key={item.id}>
-                <FeedItemComponent
-                  item={item}
-                  allFeedItems={feedItems}
-                  currentUser={currentUser}
-                  onVisitUser={onVisitUser}
-                  onMessage={onMessage}
-                  onReply={handleReply}
-                  isPosting={isPosting}
-                  onSelectGame={onSelectGame}
-                  availableBackgrounds={availableBackgrounds}
-                  onStartTalk={() => setShowStartTalk(true)}
-                />
-              </RolodexCard>
-            ))
+            (() => {
+              const rootItems = personalizedFeedItems.filter(item => !item.parentId);
+              const HISTORY_EVERY = 5; // inject one history card every N posts
+              return rootItems.flatMap((item, idx) => {
+                const elements: React.ReactNode[] = [
+                  <RolodexCard key={item.id}>
+                    <FeedItemComponent
+                      item={item}
+                      allFeedItems={personalizedFeedItems}
+                      currentUser={currentUser}
+                      onVisitUser={onVisitUser}
+                      onMessage={onMessage}
+                      onReply={handleReply}
+                      isPosting={isPosting}
+                      onSelectGame={onSelectGame}
+                      availableBackgrounds={availableBackgrounds}
+                      onStartTalk={() => setShowStartTalk(true)}
+                    />
+                  </RolodexCard>
+                ];
+                // Every HISTORY_EVERY posts, splice in a history moment card
+                if ((idx + 1) % HISTORY_EVERY === 0) {
+                  const slotOffset = Math.floor((idx + 1) / HISTORY_EVERY) - 1;
+                  elements.push(
+                    <div key={`history-pulse-${idx}`} className="px-0 md:px-4">
+                      <HistoryMomentPulseCard
+                        uid={currentUser?.uid}
+                        category="MIX"
+                        size="feed"
+                        startOffset={slotOffset}
+                        rotationIntervalSeconds={14}
+                      />
+                    </div>
+                  );
+                }
+                return elements;
+              });
+            })()
           )}
-          {feedItems.length === 0 && !isLoadingNews && (
-            <div className="py-20 text-center opacity-20 uppercase font-black tracking-[0.4em] text-xs">The feed is currently quiet</div>
+          {personalizedFeedItems.length === 0 && !isLoadingNews && (
+            <RecommendedClubsEmptyState />
           )}
         </div>
       )}

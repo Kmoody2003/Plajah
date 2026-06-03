@@ -102,6 +102,15 @@ const RoomHeaderAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, User
       </div>
     );
   }
+  // Song live chat — show cover art
+  if (room.id.startsWith('live_chat_') && room.coverUrl) {
+    return (
+      <div className="w-9 h-9 rounded-xl overflow-hidden border border-orange-500/30 shrink-0 relative">
+        <img src={room.coverUrl} alt={room.name} className="w-full h-full object-cover" />
+        <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
+      </div>
+    );
+  }
   return (
     <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 shrink-0 flex items-center justify-center">
       <Hash size={16} className="text-white/40" />
@@ -195,9 +204,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const unsub = listenToMessages(room.id, (msgs) => {
       setMessages(msgs as ExtendedMessage[]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
-      const last = msgs[msgs.length - 1];
-      if (last && last.senderId !== auth.currentUser?.uid && !last.seenBy?.includes(auth.currentUser?.uid ?? '')) {
-        markMessageAsSeen(room.id, last.id);
+      // Only mark-as-seen (and arm burn timers) in PRIVATE DMs — not in PUBLIC_LIVE channels
+      if (room.type === 'PRIVATE') {
+        const last = msgs[msgs.length - 1];
+        if (last && last.senderId !== auth.currentUser?.uid && !last.seenBy?.includes(auth.currentUser?.uid ?? '')) {
+          markMessageAsSeen(room.id, last.id);
+        }
       }
     });
 
@@ -310,10 +322,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // ── Auto-delete burned messages ───────────────────────────────────────────────
   useEffect(() => {
     const now = Date.now();
-    const toDelete = decryptedMessages.filter(
-      m => m.burnAfter && m.burnAfter <= now
-    );
-    toDelete.forEach(m => deleteDoc(doc(db, 'chatRooms', room.id, 'messages', m.id)).catch(() => {}));
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    decryptedMessages.forEach(m => {
+      if (!m.burnAfter) return;
+      const msLeft = m.burnAfter - now;
+      if (msLeft <= 0) {
+        // Already expired — delete immediately
+        deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id)).catch(() => {});
+      } else {
+        // Schedule deletion when the countdown reaches zero
+        const t = setTimeout(() => {
+          deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id)).catch(() => {});
+        }, msLeft);
+        timers.push(t);
+      }
+    });
+
+    return () => timers.forEach(clearTimeout);
   }, [decryptedMessages, room.id]);
 
   const handleSendVoice = async (blob: Blob) => {
@@ -378,7 +404,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleDeleteMessage = async (msgId: string) => {
     if (!window.confirm('Delete this message?')) return;
-    await deleteDoc(doc(db, 'chatRooms', room.id, 'messages', msgId));
+    await deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', msgId));
     setContextMenuMsg(null);
   };
 
@@ -455,6 +481,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="flex flex-col h-full overflow-hidden bg-black/10">
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+
+      {/* ── HEADER — song live chat gets a full cover banner ───────── */}
+      {room.id.startsWith('live_chat_') && room.coverUrl && (
+        <div className="shrink-0 relative h-24 overflow-hidden">
+          <img src={room.coverUrl} alt="" className="w-full h-full object-cover opacity-50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80" />
+          <div className="absolute bottom-2 left-4 right-4">
+            <p className="text-base font-black text-white truncate">{room.name || 'Live Chat'}</p>
+            {room.mediaArtist && <p className="text-xs text-orange-400 font-bold">{room.mediaArtist}</p>}
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ──────────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 py-3 bg-black/30 backdrop-blur-xl border-b border-white/[0.06] flex items-center gap-3 z-20">

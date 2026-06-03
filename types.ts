@@ -248,6 +248,87 @@ export interface BookChapter {
   format?: 'EPUB' | 'PDF' | 'TXT' | 'COMIC' | 'DOCX' | 'RTF' | 'FB2' | 'HTML' | 'MOBI' | 'DJVU' | 'FILE';
 }
 
+// ── Book Authoring Studio types ────────────────────────────────────────────────
+
+export type StudioPageType = 'TEXT' | 'COMIC' | 'MANGA' | 'FULL_BLEED' | 'MEDIA' | 'COVER' | 'CHAPTER_BREAK';
+
+export interface SpeechBubble {
+  id: string;
+  type: 'speech' | 'thought' | 'shout' | 'whisper' | 'narration' | 'sfx';
+  text: string;
+  x: number; y: number;   // percent of panel
+  width: number;           // percent of panel
+  tailDir?: 'bl' | 'br' | 'tl' | 'tr';
+  fontSize?: number;
+}
+
+export interface StudioPanel {
+  id: string;
+  x: number; y: number;       // percent of page canvas (0–100)
+  width: number; height: number;
+  imageUrl?: string;
+  bgColor?: string;
+  bubbles: SpeechBubble[];
+  caption?: string;
+  captionPos?: 'top' | 'bottom';
+  borderStyle?: 'solid' | 'thick' | 'double' | 'none';
+  shape?: 'rect' | 'diag-left' | 'diag-right';
+  sfxText?: string;
+  sfxStyle?: 'bold' | 'impact' | 'manga';
+}
+
+export interface InteractiveEmbed {
+  id: string;
+  type: 'VIDEO' | 'AUDIO' | 'IMAGE' | 'HOTSPOT' | 'QUIZ';
+  url?: string;
+  label?: string;
+  x?: number; y?: number;  // position on page (percent)
+  trackId?: string;
+  videoId?: string;
+  quizData?: { question: string; options: string[]; answer: number };
+}
+
+export interface StudioPage {
+  id: string;
+  type: StudioPageType;
+  order: number;
+  // TEXT pages
+  richText?: string;
+  chapterTitle?: string;
+  // COMIC / MANGA pages
+  panels?: StudioPanel[];
+  readingDir?: 'ltr' | 'rtl';
+  colorMode?: 'color' | 'bw' | 'sepia';
+  panelGutter?: number;
+  // FULL_BLEED / COVER / MEDIA
+  imageUrl?: string;
+  mediaUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO' | 'AUDIO';
+  overlay?: string;
+  // Interactive embeds (any page type)
+  embeds?: InteractiveEmbed[];
+  // Metadata
+  notes?: string;
+  bgColor?: string;
+}
+
+export interface StudioBook {
+  id: string;
+  title: string;
+  author: string;
+  synopsis: string;
+  genre: string;
+  format: 'NOVEL' | 'GRAPHIC_NOVEL' | 'MANGA' | 'WEBTOON' | 'COMIC' | 'NON_FICTION' | 'ILLUSTRATED';
+  coverImageUrl?: string;
+  pages: StudioPage[];
+  readingDir: 'ltr' | 'rtl';
+  colorMode: 'color' | 'bw';
+  defaultPageColor: string;
+  createdAt: number;
+  updatedAt: number;
+  publishedAlbumId?: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -983,6 +1064,7 @@ export interface UserProfile {
   aliases?: UserAlias[];
   partnerConfig?: PartnerConfig;
   hasCompletedOnboarding?: boolean;
+  experienceMode?: ExperienceMode;
   welcomeAchievementShown?: boolean;
   totalPoints?: number;
   onboardingStartTimestamp?: number;
@@ -1008,6 +1090,76 @@ export interface UserProfile {
   audiusHandle?: string;       // e.g., "@myartist" on audius.co
   audiusUserId?: string;       // internal Audius user ID after OAuth
   audiusBearerToken?: string;  // OAuth bearer token for write API (stored encrypted in practice)
+  // Stripe Connect — creator payouts
+  stripeConnectAccountId?: string;   // acct_... Express account ID
+  stripeConnectOnboarded?: boolean;  // details_submitted && charges_enabled
+  stripeConnectPayoutsEnabled?: boolean;
+}
+
+// ── Creator Earnings ──────────────────────────────────────────────────────────
+
+export type EarningCategory =
+  | 'tip'            // live stream tips & gift payments
+  | 'digital_sale'   // music, books, movies sold individually
+  | 'sanctuary'      // Sanctuary membership fees
+  | 'plajahplus'     // Plajah+ subscriptions bound to this creator
+  | 'store_order'    // merch / physical store orders
+  | 'club'           // club membership fees
+  | 'seedraiser'     // crowdfunding pledge
+  | 'other';
+
+export interface EarningSplit {
+  creatorUid: string;
+  displayName: string;
+  photoURL?: string;
+  amountCents: number;
+  percentage: number;
+}
+
+export interface CreatorEarning {
+  id: string;
+  creatorUid: string;
+  payerUid?: string;
+  category: EarningCategory;
+  grossCents: number;        // total charged
+  platformFeeCents: number;  // Plajah's cut
+  netCents: number;          // what creator receives before splits
+  splits?: EarningSplit[];   // amounts paid to split partners
+  creatorNetCents: number;   // what THIS creator keeps after splits
+  title: string;             // "Tip from @user" / "Album: Name" / etc.
+  stripePaymentIntentId?: string;
+  stripeTransferId?: string;
+  status: 'pending' | 'transferred' | 'paid_out';
+  timestamp: number;
+}
+
+// ── Split Configuration ───────────────────────────────────────────────────────
+
+export interface SplitRecipient {
+  creatorUid: string;
+  displayName: string;
+  photoURL?: string;
+  percentage: number;        // of the creator's net (after platform fee)
+}
+
+export interface SplitConfig {
+  ownerUid: string;
+  recipients: SplitRecipient[];  // must sum to < 100
+  appliesTo: EarningCategory[];  // which categories this split applies to
+  updatedAt: number;
+}
+
+// ── Payout Summary ────────────────────────────────────────────────────────────
+
+export interface PayoutSummary {
+  period: '7d' | '30d' | '90d' | '1y' | 'all';
+  totalGrossCents: number;
+  totalPlatformFeeCents: number;
+  totalNetCents: number;
+  byCategory: Record<EarningCategory, { grossCents: number; netCents: number; count: number }>;
+  pendingCents: number;
+  paidOutCents: number;
+  transactions: CreatorEarning[];
 }
 
 export interface SystemStats {
@@ -1165,6 +1317,25 @@ export interface FeedItem {
   authorId: string;
   authorName: string;
   authorPhoto: string;
+  // Engagement score — written on every interaction, feed sorts by this
+  score?: number;
+  scoreUpdatedAt?: number;
+  // Interaction buckets (keys match feedScoreEngine action types)
+  interactions?: {
+    deep: Record<string, number>;
+    medium: Record<string, number>;
+    base: Record<string, number>;
+    dmSharerIds?: string[];
+  };
+  // Creator signal snapshot denormalized at post-creation and refreshed hourly
+  creatorSignals?: {
+    hasPaidSanctuaryMembers: boolean;
+    hasActivePitchDeck: boolean;
+    hasActiveFundraiser: boolean;
+    isNewProjectLaunch: boolean;
+    isFediverseConnected: boolean;
+    isVerifiedIndependent: boolean;
+  };
   type: 'PICTURE' | 'SONG' | 'COMMENT' | 'VIDEO' | 'BOOK' | 'NEWS' | 'GAME' | 'WATCH_ALONG' | 'LIVE_FEED' | 'RESEARCH_PAPER';
   theme?: 'SCRAPBOOK' | 'PHOTO_ALBUM' | 'MUSIC_PLAYER' | 'NEWSPAPER' | 'ARCADE' | 'WATCH_ALONG' | 'LIVE_FEED' | 'STANDARD';
   title?: string; // For news headlines
@@ -1518,7 +1689,36 @@ export interface SharedAsset {
   mediaId?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS';
+export type ExperienceMode =
+  | 'RAW_DOG'
+  | 'MUSIC_CREATOR'
+  | 'WRITER'
+  | 'SPORTS_FAN'
+  | 'STORY_TELLER'
+  | 'CONTENT_CREATOR'
+  | 'SCIENCE_ENGINEER';
+
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS'
+  // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
+  | 'PITCH_MUSIC' | 'PITCH_FILM' | 'PITCH_WRITER'
+  // Book Authoring Studio
+  | 'BOOK_STUDIO'
+  // Pitch Deck Studio
+  | 'PITCH_DECK_STUDIO'
+  // History Moments — Chora (music) and Taleo (film/TV)
+  | 'CHORA_HISTORY' | 'TALEO_HISTORY'
+  // Music Theory Studio — Chora
+  | 'MUSIC_THEORY'
+  // Film School — Taleo
+  | 'FILM_SCHOOL'
+  // Math Classroom (BETA) — Classrooms
+  | 'MATH_CLASSROOM'
+  // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
+  | 'AUDIO_BOOK_STUDIO'
+  // Science & Engineering hub
+  | 'PLAJAH_LABS'
+  // Plajah Research Manifesto — 5-section research platform pitch
+  | 'RESEARCH_MANIFESTO';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -1598,6 +1798,11 @@ export interface ChatRoom {
   ownerId?: string; // For groups/public
   isPublic?: boolean;
   typingUsers?: string[]; // Array of UIDs currently typing
+  // Song live chat metadata (populated for live_chat_* rooms)
+  coverUrl?: string;
+  mediaId?: string;
+  mediaTitle?: string;
+  mediaArtist?: string;
 }
 
 export interface CollabProject {
@@ -2705,3 +2910,109 @@ export interface EnrollmentRequest {
   requestedAt: number;
   message?: string;
 }
+
+// ── Pitch Deck types ───────────────────────────────────────────────────────────
+
+export type PitchDeckTheme = 'music' | 'film' | 'business' | 'fashion';
+export type PitchElementType = 'text' | 'image' | 'video' | 'button' | 'shape';
+export type PitchTransition = 'fade' | 'slide-left' | 'slide-up' | 'zoom' | 'none';
+
+export interface PitchElement {
+  id: string;
+  type: PitchElementType;
+  // Position on slide (% of slide dimensions)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+  zIndex?: number;
+  opacity?: number;
+  // Text
+  content?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fontStyle?: 'normal' | 'italic';
+  color?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  lineHeight?: number;
+  letterSpacing?: number;
+  textShadow?: string;
+  // Image
+  src?: string;
+  objectFit?: 'cover' | 'contain' | 'fill';
+  borderRadius?: number;
+  cutoutApplied?: boolean;     // AI background removal has been applied
+  originalSrc?: string;        // pre-cutout original
+  shadow?: string;
+  // Video
+  videoSrc?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  // Button / CTA
+  href?: string;
+  label?: string;
+  btnColor?: string;
+  btnTextColor?: string;
+  btnBorderRadius?: number;
+  // Shape
+  shapeType?: 'rect' | 'circle' | 'triangle' | 'line';
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  // Animation (entrance)
+  animation?: 'fade-in' | 'slide-up' | 'pop' | 'none';
+  animationDelay?: number;
+}
+
+export interface PitchSlide {
+  id: string;
+  order: number;
+  // Background
+  bgType: 'color' | 'gradient' | 'image' | 'video';
+  bgValue: string;            // hex, gradient CSS, image URL, or video URL
+  bgOverlay?: string;         // rgba overlay on top of image/video bg
+  // Elements
+  elements: PitchElement[];
+  // Narration
+  narrationSegmentMs?: [number, number]; // [startMs, endMs] of narration audio
+  // Timing
+  transition?: PitchTransition;
+  duration?: number;          // auto-advance after N seconds (0 = manual)
+  // Layout hint for reflow
+  layout?: 'hero' | 'split' | 'full-media' | 'text-only' | 'cta';
+}
+
+export interface PitchDeck {
+  id: string;
+  title: string;
+  subtitle?: string;
+  theme: PitchDeckTheme;
+  slides: PitchSlide[];
+  // Audio
+  narrationUrl?: string;       // full narration audio track (synced to slides)
+  bgMusicUrl?: string;
+  bgMusicVolume?: number;      // 0-1
+  // Linked monetization page
+  ctaUrl?: string;             // destination for all CTA buttons
+  ctaLabel?: string;
+  linkedTo?: {
+    type: 'sanctuary' | 'charity' | 'business' | 'club';
+    id: string;
+    displayName: string;
+  };
+  // Meta
+  createdBy: string;
+  isPublic: boolean;
+  createdAt: number;
+  updatedAt: number;
+  // Sharing / embed
+  embedCode?: string;          // generated <iframe> embed HTML
+  verticalVideoUrl?: string;   // pre-rendered 9:16 version
+  thumbnailUrl?: string;
+  coverImageUrl?: string;      // hero image used in the deck cover slide
+}
+
+// AppView addition for PitchDeck Studio is in the AppView type — see above in types.ts

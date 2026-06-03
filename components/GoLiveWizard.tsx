@@ -8,8 +8,9 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus } from '../services/backendService';
 import { db } from '../services/backendService';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, addDoc } from 'firebase/firestore';
 import PlajahLivePlayer from './PlajahLivePlayer';
+import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 
 interface GoLiveWizardProps {
   onClose: () => void;
@@ -259,8 +260,23 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
   };
 
   if (isLive) {
+    const liveUrl = streamType === 'MUX' && muxStream?.playbackId
+      ? `https://stream.mux.com/${muxStream.playbackId}.m3u8`
+      : `${window.location.origin}?livestream=${liveFeedId}`;
+
+    const sendChatText = async (text: string) => {
+      if (!text.trim() || !liveFeedId || !currentUser) return;
+      await addDoc(collection(db, 'live_feeds', liveFeedId, 'chat'), {
+        uid: currentUser.uid,
+        displayName: currentUser.displayName || 'Broadcaster',
+        text: text.trim(),
+        timestamp: Date.now(),
+      });
+    };
+
     return (
       <>
+        {/* Lower third overlay */}
         <AnimatePresence>
           {activeLowerThird && (
             <motion.div key={activeLowerThird.id} initial={{ x: -80, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -80, opacity: 0 }}
@@ -348,6 +364,31 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Broadcast control panel */}
+        <LiveBroadcastControlPanel
+          streamId={liveFeedId || ''}
+          title={title}
+          shareUrl={liveUrl}
+          localStream={localStream}
+          videoEnabled={videoEnabled}
+          audioEnabled={audioEnabled}
+          onToggleVideo={toggleVideo}
+          onToggleAudio={toggleAudio}
+          viewerCount={0}
+          startTime={goLiveStartTime}
+          chatMessages={chatMessages.map(m => ({ id: m.id, uid: m.uid, user: m.displayName, text: m.text, ts: m.timestamp }))}
+          onSendChat={sendChatText}
+          onDeleteChat={deleteMessage}
+          onMuteUser={muteUser}
+          lowerThirds={lowerThirds}
+          onShowLowerThird={showLowerThird}
+          muxSignalStatus={streamType === 'MUX' ? muxSignalStatus : undefined}
+          muxStreamKey={muxStream?.streamKey}
+          muxRtmpUrl={muxStream?.rtmpUrl}
+          muxSrtUrl={muxStream?.srtUrl}
+          onEndStream={handleEndStream}
+        />
       </>
     );
   }

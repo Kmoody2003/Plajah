@@ -1,12 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Heart, Pin, Trash2, MessageSquare, Volume2, Play, Pause,
   Globe, Music2, Video as VideoIcon, Link2, Maximize2,
+  Share2, Check, Copy, X as XIcon,
 } from 'lucide-react';
 import ThreeDImage from './ThreeDImage';
 import { ClubPost, ClubRole } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import CommentSection from './CommentSection';
+import { subscribeToClubPostComments, addClubPostComment, auth } from '../services/backendService';
 
 // ─── Role colours ─────────────────────────────────────────────────────────────
 
@@ -172,15 +175,54 @@ interface ClubRichPostCardProps {
   onDelete: () => void;
   onPin: () => void;
   bulletinStyle?: boolean;
+  isPublicClub?: boolean;
 }
 
 const ClubRichPostCard: React.FC<ClubRichPostCardProps> = ({
-  post, currentUserId, isMod, memberRole, onLike, onDelete, onPin, bulletinStyle,
+  post, currentUserId, isMod, memberRole, onLike, onDelete, onPin, bulletinStyle, isPublicClub,
 }) => {
   const liked = currentUserId ? post.likes.includes(currentUserId) : false;
   const isOwn = post.authorId === currentUserId;
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [shareCopied, setShareCopied] = useState<'link' | 'embed' | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [clubComments, setClubComments] = useState<any[]>([]);
+  const [commentCount, setCommentCount] = useState(post.commentCount || 0);
+
+  // Subscribe to comments only when the section is open
+  useEffect(() => {
+    if (!showComments) return;
+    const unsub = subscribeToClubPostComments(post.id, (comments) => {
+      setClubComments(comments);
+      setCommentCount(comments.filter((c: any) => !c.parentId).length + comments.filter((c: any) => c.parentId).length);
+    });
+    return unsub;
+  }, [showComments, post.id]);
+
+  const handlePostClubComment = async (text: string, parentId?: string) => {
+    await addClubPostComment(post.id, text, parentId || null);
+  };
+  const handlePostClubGif = async (gifUrl: string, parentId?: string) => {
+    await addClubPostComment(post.id, '', parentId || null, gifUrl);
+  };
+
+  const postUrl = `${window.location.origin}/?club=${post.clubId}&post=${post.id}`;
+  const embedCode = `<iframe src="${window.location.origin}/embed/post/${post.id}" width="560" height="300" style="border:none;border-radius:16px;overflow:hidden;" loading="lazy" title="Plajah Post"></iframe>`;
+  const firstThumb = post.attachments?.find(a => a.thumbnailUrl || a.type === 'PHOTO')?.thumbnailUrl
+    || post.attachments?.find(a => a.type === 'PHOTO')?.url;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(postUrl);
+    setShareCopied('link');
+    setTimeout(() => setShareCopied(null), 2000);
+  };
+  const handleCopyEmbed = () => {
+    navigator.clipboard.writeText(embedCode);
+    setShareCopied('embed');
+    setTimeout(() => setShareCopied(null), 2000);
+  };
 
   const mediaAtts = (post.attachments || []).filter(a => MEDIA_TYPES.has(a.type));
   const embedAtts = (post.attachments || []).filter(a => EMBED_TYPES.has(a.type) && !MEDIA_TYPES.has(a.type));
@@ -273,11 +315,111 @@ const ClubRichPostCard: React.FC<ClubRichPostCardProps> = ({
                 {post.likes.length > 0 && <span className="text-[11px]">{post.likes.length}</span>}
               </motion.button>
 
-              {/* Comment count indicator */}
-              {post.commentCount > 0 && (
-                <div className="flex items-center gap-1.5 px-2 py-1.5 text-[13px] text-white/25">
-                  <MessageSquare size={14} strokeWidth={1.5} />
-                  <span className="text-[11px]">{post.commentCount}</span>
+              {/* Comment toggle */}
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => setShowComments(v => !v)}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all ${
+                  showComments ? 'text-small-orange bg-small-orange/10' : 'text-white/30 hover:text-white/70 hover:bg-white/8'
+                }`}
+              >
+                <MessageSquare size={14} strokeWidth={1.5} />
+                {commentCount > 0 && <span className="text-[11px]">{commentCount}</span>}
+              </motion.button>
+
+              {/* Share button — public clubs only */}
+              {isPublicClub && (
+                <div className="relative">
+                  <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={() => setShowShare(v => !v)}
+                    className="p-1.5 rounded-full text-[13px] text-white/25 hover:text-white/60 hover:bg-white/8 transition-all"
+                  >
+                    <Share2 size={14} strokeWidth={1.5} />
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {showShare && (
+                      <>
+                        <div className="fixed inset-0 z-[80]" onClick={() => setShowShare(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.92, y: 8 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute left-0 bottom-full mb-2 w-72 bg-black/92 backdrop-blur-2xl border border-white/12 rounded-2xl p-4 z-[90] shadow-2xl space-y-3"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Header */}
+                          <div className="flex items-center justify-between">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Share Post</p>
+                            <button onClick={() => setShowShare(false)} className="text-white/20 hover:text-white transition-colors">
+                              <XIcon size={12} />
+                            </button>
+                          </div>
+
+                          {/* Visual link preview */}
+                          <div className="rounded-xl border border-white/8 overflow-hidden bg-white/[0.03]">
+                            {firstThumb && (
+                              <img src={firstThumb} alt="" className="w-full h-20 object-cover opacity-60" />
+                            )}
+                            <div className="px-3 py-2">
+                              <p className="text-[7px] text-white/25 uppercase tracking-widest">plajah.com</p>
+                              <p className="text-[11px] font-black text-white leading-tight">{post.content.slice(0, 60)}{post.content.length > 60 ? '…' : ''}</p>
+                              <p className="text-[9px] text-white/30">by {post.authorName}</p>
+                            </div>
+                          </div>
+
+                          {/* Copy link row */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-black/40 border border-white/6 rounded-xl px-3 py-2 font-mono text-[8px] text-white/30 truncate">
+                              {postUrl}
+                            </div>
+                            <button
+                              onClick={handleCopyLink}
+                              className="flex items-center gap-1 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all flex-shrink-0"
+                              style={{ background: shareCopied === 'link' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)', color: shareCopied === 'link' ? '#22c55e' : 'rgba(255,255,255,0.6)' }}
+                            >
+                              {shareCopied === 'link' ? <Check size={10} /> : <Copy size={10} />}
+                              {shareCopied === 'link' ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+
+                          {/* Embed code */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[8px] font-black uppercase tracking-widest text-white/25">Embed</p>
+                              <button
+                                onClick={handleCopyEmbed}
+                                className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest transition-colors"
+                                style={{ color: shareCopied === 'embed' ? '#22c55e' : 'rgba(255,255,255,0.35)' }}
+                              >
+                                {shareCopied === 'embed' ? <Check size={9} /> : <Copy size={9} />}
+                                {shareCopied === 'embed' ? 'Copied!' : 'Copy Code'}
+                              </button>
+                            </div>
+                            <div className="bg-black/50 border border-white/6 rounded-xl px-3 py-2 font-mono text-[8px] text-white/22 break-all leading-relaxed">
+                              {embedCode}
+                            </div>
+                          </div>
+
+                          {/* Social share */}
+                          <div className="flex gap-2 pt-1 border-t border-white/5">
+                            {[
+                              { label: 'X',        fn: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.content.slice(0,100))}&url=${encodeURIComponent(postUrl)}`, '_blank') },
+                              { label: 'WhatsApp', fn: () => window.open(`https://wa.me/?text=${encodeURIComponent(post.content.slice(0,80) + '\n' + postUrl)}`, '_blank') },
+                              { label: 'Facebook', fn: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`, '_blank') },
+                            ].map(s => (
+                              <button key={s.label} onClick={s.fn}
+                                className="flex-1 py-1.5 rounded-xl text-[7px] font-black uppercase tracking-widest text-white/50 hover:text-white border border-white/8 hover:border-white/20 bg-white/[0.03] hover:bg-white/8 transition-all">
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 
@@ -308,6 +450,27 @@ const ClubRichPostCard: React.FC<ClubRichPostCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Comment section — expands below the card */}
+      <AnimatePresence>
+        {showComments && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="overflow-hidden mt-2"
+          >
+            <CommentSection
+              comments={clubComments}
+              onPostComment={handlePostClubComment}
+              onPostGif={handlePostClubGif}
+              layout="inline"
+              onClose={() => setShowComments(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete confirmation */}
       <AnimatePresence>

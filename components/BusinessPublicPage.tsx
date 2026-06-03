@@ -6,9 +6,10 @@ import {
   CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Tag,
   Wifi, ParkingCircle, Coffee, Utensils, Music2, Leaf, Shield,
   Send, Heart, UtensilsCrossed, Image as ImageIcon, Calendar,
-  Ticket, Gift, Zap, ChevronRight, X,
+  Ticket, Gift, Zap, ChevronRight, X, Presentation,
 } from 'lucide-react';
-import type { BusinessPage, BusinessMenuItem, BusinessEvent } from '../types';
+import type { BusinessPage, BusinessMenuItem, BusinessEvent, PitchDeck } from '../types';
+import { generateBusinessDeck } from '../services/pitchDeckTemplates';
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -383,11 +384,12 @@ interface BusinessPublicPageProps {
   onBack?: () => void;
   currentUserId?: string;
   currentUserName?: string;
+  onCreatePitchDeck?: (deck: PitchDeck) => void;
 }
 
 type TabId = 'ABOUT' | 'MENU' | 'GALLERY' | 'EVENTS' | 'REVIEWS' | 'HOURS';
 
-export default function BusinessPublicPage({ business, onBack, currentUserId, currentUserName }: BusinessPublicPageProps) {
+export default function BusinessPublicPage({ business, onBack, currentUserId, currentUserName, onCreatePitchDeck }: BusinessPublicPageProps) {
   const [activeTab, setActiveTab] = useState<TabId>('ABOUT');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [liked, setLiked] = useState(false);
@@ -543,6 +545,14 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2 mb-6">
+          {onCreatePitchDeck && currentUserId === business.ownerId && (
+            <button
+              onClick={() => onCreatePitchDeck(generateBusinessDeck(business))}
+              className="flex items-center gap-2 bg-blue-500/15 text-blue-400 border border-blue-500/20 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-blue-500/20 transition-colors"
+            >
+              <Presentation size={15} /> Create Pitch Deck
+            </button>
+          )}
           {business.isAcceptingOrders && (
             <button className="flex items-center gap-2 bg-[--small-orange] text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity">
               <ShoppingBag size={15} /> Order Now

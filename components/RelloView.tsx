@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { fetchAllVideos } from '../services/backendService';
 import { Video } from '../types';
+import { SCIENCE_STREAMS, ScienceStream } from './scienceStreams';
 
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 
@@ -16,7 +17,11 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGoLive, setShowGoLive] = useState(false);
+  const [showScienceBanner, setShowScienceBanner] = useState(true);
+  const [activeStream, setActiveStream] = useState<ScienceStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const liveStreams = SCIENCE_STREAMS.filter(s => s.isLive && s.isEmbeddable).slice(0, 5);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +70,69 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
         <Suspense fallback={null}>
           <GoLiveWizard onClose={() => setShowGoLive(false)} currentUser={currentUser} />
         </Suspense>
+      )}
+
+      {/* Science & Space Live discovery row */}
+      {showScienceBanner && !activeStream && (
+        <div className="absolute bottom-6 left-4 right-16 z-20">
+          <div className="bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl p-3">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <FlaskConical size={11} className="text-[#00B4D8]" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-[#00B4D8]">Science Live</span>
+              </div>
+              <button onClick={() => setShowScienceBanner(false)} className="text-white/25 hover:text-white transition-colors">
+                <X size={12} />
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+              {liveStreams.map(stream => (
+                <button
+                  key={stream.id}
+                  onClick={() => setActiveStream(stream)}
+                  className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-white/8 hover:bg-white/15 border border-white/10 rounded-xl transition-all"
+                >
+                  <span className="text-base">{stream.emoji}</span>
+                  <div className="text-left">
+                    <p className="text-[8px] font-black text-white leading-tight">{stream.source}</p>
+                    <p className="text-[7px] text-white/40 leading-tight truncate max-w-[80px]">{stream.title.split('—')[0].trim()}</p>
+                  </div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen science stream overlay */}
+      {activeStream && (
+        <div className="absolute inset-0 z-30 bg-black flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-black/80 backdrop-blur border-b border-white/8 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{activeStream.emoji}</span>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-[#00B4D8]">{activeStream.source}</p>
+                <p className="text-[11px] font-black text-white">{activeStream.title}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href={activeStream.directUrl} target="_blank" rel="noopener noreferrer"
+                className="p-2 bg-white/8 border border-white/10 rounded-xl text-white/50 hover:text-white transition-colors">
+                <ExternalLink size={13} />
+              </a>
+              <button onClick={() => setActiveStream(null)}
+                className="p-2 bg-white/8 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1">
+            <iframe src={activeStream.embedUrl} className="w-full h-full border-none"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen />
+          </div>
+        </div>
       )}
 
       {loading ? (

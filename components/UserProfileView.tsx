@@ -368,7 +368,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       if (subIds.length > 0) {
         fetchAlbumsByIds(subIds).then(pods => { if (!cancelled) setSubscribedPodcasts(pods); }).catch(() => {});
       }
-      if (auth.currentUser) {
+      if (auth.currentUser?.uid) {
         fetchUserProfile(auth.currentUser.uid).then(cu => {
           if (!cancelled && cu) setPodcastSubscribedIds(new Set((cu as any).subscribedPodcastIds || []));
         }).catch(() => {});
@@ -450,7 +450,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   const handleAddApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAppTitle || !newAppUrl || !auth.currentUser) return;
+    if (!newAppTitle || !newAppUrl) return;
+    if (!auth.currentUser?.uid) {
+      alert('Please sign in to add an app');
+      return;
+    }
     
     setIsSubmittingApp(true);
     try {
@@ -575,7 +579,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const isOwnProfile = auth.currentUser?.uid === uid;
 
   const handleClaimPioneerReward = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser?.uid) {
+      alert('Please sign in to claim your reward');
+      return;
+    }
     await claimPioneerReward(auth.currentUser.uid);
     // Refresh profile locally
     setProfile(prev => prev ? { 
@@ -1351,7 +1358,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   threadsHandle={profile.threadsHandle}
                   initialFeedType={feedInitialType}
                   onUpdateXHandle={async (handle) => {
-                    if (!auth.currentUser || auth.currentUser.uid !== uid) return;
+                    if (!auth.currentUser?.uid || auth.currentUser.uid !== uid) return;
                     try {
                       await updateUserProfile(uid, { xHandle: handle });
                       setProfile(prev => prev ? { ...prev, xHandle: handle } : null);
@@ -1609,12 +1616,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                                   <button
                                      onClick={async (e) => {
                                          e.stopPropagation();
+                                         if (!auth.currentUser?.uid) {
+                                            alert('Please sign in to save themes');
+                                            return;
+                                         }
                                          try {
-                                            const myProfile = await fetchUserProfile(auth.currentUser!.uid);
+                                            const myProfile = await fetchUserProfile(auth.currentUser.uid);
                                             if (myProfile) {
                                                const currentSaved = myProfile.savedThemePresets || [];
                                                if (!currentSaved.includes(theme.id)) {
-                                                  await updateUserProfile(auth.currentUser!.uid, { savedThemePresets: [...currentSaved, theme.id] });
+                                                  await updateUserProfile(auth.currentUser.uid, { savedThemePresets: [...currentSaved, theme.id] });
                                                   alert('Added to your personal theme library!');
                                                } else {
                                                   alert('Theme is already in your library.');

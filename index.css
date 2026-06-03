@@ -1045,3 +1045,152 @@ body.theme-nebula #universal-background {
 body.theme-nebula #universal-background::before {
   background: rgba(5, 5, 16, 0.15);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TV / LEANBACK PLATFORM OVERRIDES
+   Applied when platform detection sets theme-big-screen (FireTV, Tizen, Roku,
+   Android TV) or when the URL has ?platform=roku|tizen|firetv.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* TV-safe zone — keep all interactive UI within the inner 90% (overscan guard) */
+.tv-safe-zone {
+  padding: 5vh 5vw;
+}
+
+/* D-pad focus ring — 6px glow, visible from 3m away */
+.theme-big-screen [data-tv-focusable]:focus,
+.theme-big-screen [data-tv-focusable]:focus-visible {
+  outline: 6px solid #3b82f6 !important;
+  outline-offset: 6px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 0 40px rgba(59, 130, 246, 0.5) !important;
+  transform: scale(1.06) !important;
+  z-index: 200 !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+/* Row-scroll containers — snap to item boundaries for D-pad swipe feel */
+.tv-row-scroll {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tv-row-scroll::-webkit-scrollbar { display: none; }
+.tv-row-scroll > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Card size bump — TV viewers sit 3m away from the screen */
+.theme-big-screen .m3-card,
+.theme-big-screen .group\/card {
+  min-height: 200px;
+}
+
+.theme-big-screen .m3-card img,
+.theme-big-screen .group\/card img {
+  min-height: 160px;
+  object-fit: cover;
+}
+
+/* Typography scale — minimum 24px body text on a 1080p TV at 3m */
+.theme-big-screen body {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+.theme-big-screen h1 { font-size: 3rem; }
+.theme-big-screen h2 { font-size: 2.25rem; }
+.theme-big-screen h3 { font-size: 1.75rem; }
+
+/* Hide cursor on TV — no mouse, only D-pad */
+.theme-big-screen,
+.theme-big-screen * {
+  cursor: none !important;
+}
+
+/* Progress bars and sliders — larger hit targets for D-pad */
+.theme-big-screen input[type="range"] {
+  height: 8px;
+  accent-color: #3b82f6;
+}
+
+/* Bottom nav — hide on TV (use D-pad sidebar instead) */
+@media (min-width: 1920px) {
+  .mobile-bottom-nav { display: none !important; }
+}
+
+/* ── Alexa / Voice platform indicator ───────────────────────────── */
+.platform-alexa .voice-prompt-hint {
+  display: flex !important;
+}
+.voice-prompt-hint {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 120, 212, 0.12);
+  border: 1px solid rgba(0, 120, 212, 0.3);
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  color: rgba(0, 120, 212, 1);
+}
+
+/* ── Android edge-to-edge (system bars transparent) ─────────────── */
+.platform-android {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* ── Capacitor Android status-bar spacer ────────────────────────── */
+.capacitor-android-status-bar {
+  height: env(safe-area-inset-top, 24px);
+  flex-shrink: 0;
+}
+
+/* ── Global minimum readable text sizes ─────────────────────────── */
+/* Tailwind utility classes text-[8px] / text-[9px] produce illegible
+   UI labels on HiDPI screens. Clamp to platform-appropriate minimums. */
+[class*="text-\[8px\]"],
+[class*="text-\[9px\]"] {
+  font-size: 10px !important;
+  line-height: 1.5 !important;
+}
+
+[class*="text-\[10px\]"] {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+/* TV: all micro-labels scale to 0.9rem (≈18px at 1.25rem base) */
+.theme-big-screen [class*="text-\[8px\]"],
+.theme-big-screen [class*="text-\[9px\]"],
+.theme-big-screen [class*="text-\[10px\]"],
+.theme-big-screen [class*="text-\[11px\]"] {
+  font-size: 0.9rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Anchor base font so OS/browser DPI scaling can't make things tiny */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body:not(.theme-big-screen):not(.theme-phone) {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+@media (min-width: 1280px) {
+  body:not(.theme-big-screen):not(.theme-phone) {
+    font-size: 16px;
+  }
+}
+

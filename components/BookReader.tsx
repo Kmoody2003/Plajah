@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
-import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles } from 'lucide-react';
+import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost } from '../services/backendService';
 import CommentSection from './CommentSection';
@@ -31,9 +32,10 @@ interface BookReaderProps {
   onBack: () => void;
   currentUser: any;
   onVisitUser?: (uid: string) => void;
+  onOpenAudioStudio?: () => void;
 }
 
-const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser }) => {
+const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio }) => {
   const { theme } = useGlobalPlayerState();
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
 
@@ -170,6 +172,16 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // Narration State
   const [isNarrating, setIsNarrating] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // MAI Voice 2 AI Narration State
+  const [showNarrationPanel, setShowNarrationPanel] = useState(false);
+  const [selectedNarrationVoice, setSelectedNarrationVoice] = useState(MAI_VOICES[0].id);
+  const [narrationRate, setNarrationRate] = useState(1.0);
+  const [aiNarrationUrl, setAiNarrationUrl] = useState<string | null>(null);
+  const [aiNarrationGenerating, setAiNarrationGenerating] = useState(false);
+  const [aiNarrationProgress, setAiNarrationProgress] = useState(0);
+  const aiAudioRef = useRef<HTMLAudioElement>(null);
+  const [isAiPlaying, setIsAiPlaying] = useState(false);
   
   // PDF State
   const [numPdfPages, setNumPdfPages] = useState<number>();
@@ -541,6 +553,30 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setIsHost(Math.random() > 0.5);
   };
 
+  // Generate AI narration for current chapter using MAI Voice 2
+  const generateAINarration = async () => {
+    if (aiNarrationGenerating) return;
+    const content = currentChapter?.content || chapterContent;
+    if (!content) return;
+    setAiNarrationGenerating(true);
+    setAiNarrationProgress(0);
+    try {
+      const paragraphs = content.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 5);
+      const blobs = await synthesizeParagraphs(
+        paragraphs, selectedNarrationVoice, narrationRate,
+        (done, total) => setAiNarrationProgress(Math.round((done / total) * 100)),
+      );
+      // Concatenate blobs into one
+      const combined = new Blob(blobs.filter(b => b.size > 0), { type: 'audio/webm' });
+      const url = URL.createObjectURL(combined);
+      setAiNarrationUrl(url);
+    } catch (err) {
+      console.error('[MAI Voice 2] generation failed:', err);
+    } finally {
+      setAiNarrationGenerating(false);
+    }
+  };
+
   // Plain-text reading card derived styles
   const txtCardBg =
     readingTheme === 'SEPIA' ? 'bg-[#f4ecd8] border border-[#d9c9a3]' :
@@ -644,13 +680,36 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 </button>
               </div>
 
+              {/* MAI Voice 2 Narration button */}
+              <button
+                onClick={() => setShowNarrationPanel(n => !n)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest ${showNarrationPanel ? s.activeBtn : s.btnHover}`}
+                title="AI Narration — MAI Voice 2"
+              >
+                <Headphones size={16} />
+                <span className="hidden sm:inline">Listen</span>
+              </button>
+
+              {/* Author: Record Audiobook */}
+              {onOpenAudioStudio && book.ownerId === currentUser?.uid && (
+                <button
+                  onClick={onOpenAudioStudio}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest ${s.btnHover}`}
+                  title="Record Audiobook — MAI Transcribe 1.5"
+                >
+                  <Mic size={16} />
+                  <span className="hidden sm:inline">Record</span>
+                </button>
+              )}
+
+              {/* Original author audio (if available) */}
               {currentChapter?.audioUrl && (
-                <button 
+                <button
                   onClick={toggleNarration}
                   className={`p-3 rounded-full transition-all ${isNarrating ? s.activeBtn : s.btnHover}`}
-                  title="Read Aloud"
+                  title="Author's Narration"
                 >
-                  {isNarrating ? <Pause size={20} /> : <Play size={20} />}
+                  {isNarrating ? <Pause size={20} /> : <Volume2 size={20} />}
                 </button>
               )}
               <button 
@@ -1197,6 +1256,100 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 </div>
               </div>
             </motion.aside>
+          )}
+        </AnimatePresence>
+
+        {/* ── MAI Voice 2 Narration Panel ── */}
+        <AnimatePresence>
+          {showNarrationPanel && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="fixed bottom-0 left-0 right-0 z-[150] bg-black/90 backdrop-blur-xl border-t border-white/10 px-4 py-4"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+            >
+              {/* Hidden AI audio element */}
+              {aiNarrationUrl && (
+                <audio ref={aiAudioRef} src={aiNarrationUrl}
+                  onEnded={() => setIsAiPlaying(false)}
+                  onPlay={() => setIsAiPlaying(true)}
+                  onPause={() => setIsAiPlaying(false)}
+                />
+              )}
+
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center gap-3 mb-3">
+                  <Headphones size={14} className="text-purple-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/60">AI Narration — MAI Voice 2</span>
+                  <button onClick={() => setShowNarrationPanel(false)} className="ml-auto w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                    <X size={11} />
+                  </button>
+                </div>
+
+                {/* Voice selector */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
+                  {MAI_VOICES.slice(0, 4).map(v => (
+                    <button key={v.id} onClick={() => { setSelectedNarrationVoice(v.id); setAiNarrationUrl(null); }}
+                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${selectedNarrationVoice === v.id ? 'bg-purple-600/40 border-purple-500/60 text-purple-200' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                      {v.emoji} {v.name.split(' — ')[0]}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Speed */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[8px] text-white/30 font-black uppercase tracking-widest w-12">Speed</span>
+                  {[0.75, 1, 1.1, 1.25].map(r => (
+                    <button key={r} onClick={() => { setNarrationRate(r); setAiNarrationUrl(null); }}
+                      className={`px-2 py-0.5 rounded-full text-[8px] font-black transition-all ${narrationRate === r ? 'bg-purple-600 text-white' : 'text-white/30 hover:text-white/60'}`}>
+                      {r}×
+                    </button>
+                  ))}
+                </div>
+
+                {/* Generate / Play */}
+                <div className="flex gap-3 items-center">
+                  {!aiNarrationUrl && !aiNarrationGenerating && (
+                    <button onClick={generateAINarration}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all">
+                      <Sparkles size={13} /> Generate Narration
+                    </button>
+                  )}
+
+                  {aiNarrationGenerating && (
+                    <div className="flex-1 flex flex-col gap-2">
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div className="h-full bg-purple-500 rounded-full" animate={{ width: `${aiNarrationProgress}%` }} />
+                      </div>
+                      <p className="text-[9px] text-white/40 text-center">MAI Voice 2 synthesizing… {aiNarrationProgress}%</p>
+                    </div>
+                  )}
+
+                  {aiNarrationUrl && !aiNarrationGenerating && (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (!aiAudioRef.current) return;
+                          if (isAiPlaying) aiAudioRef.current.pause();
+                          else aiAudioRef.current.play();
+                        }}
+                        className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-500 flex items-center justify-center shadow-lg transition-all"
+                      >
+                        {isAiPlaying ? <Pause size={18} /> : <Play size={18} fill="white" />}
+                      </button>
+                      <div className="flex-1">
+                        <p className="text-[9px] font-black text-white/60">{MAI_VOICES.find(v => v.id === selectedNarrationVoice)?.name}</p>
+                        <p className="text-[8px] text-white/30">{isAiPlaying ? 'Playing…' : 'Ready to play'}</p>
+                      </div>
+                      <button onClick={() => setAiNarrationUrl(null)} className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-all">
+                        <RefreshCw size={12} className="text-white/40" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 

@@ -371,7 +371,94 @@ async function startServer() {
               message: meta.message || '',
               createdAt: now,
             });
-            // Update campaign totals via REST — best-effort
+          }
+
+          // ── Record earnings + process splits for all creator-facing payments ──
+          const CREATOR_PAYMENT_TYPES: Record<string, string> = {
+            live_tip: 'tip',
+            digital_sale: 'digital_sale',
+            sanctuary_membership: 'sanctuary',
+            plajahplus: 'plajahplus',
+            store_order: 'store_order',
+            club_membership: 'club',
+            seedraiser_pledge: 'seedraiser',
+          };
+          const earningCategory = CREATOR_PAYMENT_TYPES[meta.type];
+          const recipientUid = meta.creatorUid || meta.artistId || meta.uid;
+
+          if (earningCategory && recipientUid && session.amount_total) {
+            const grossCents       = session.amount_total;
+            const platformFeeCents = Math.round(grossCents * 0.10);
+            const netCents         = grossCents - platformFeeCents;
+
+            // Load creator's split config
+            let splitRecipients: any[] = [];
+            let appliesTo: string[] = [];
+            try {
+              const splitDoc = await fetchFirebaseDoc('creatorSplits', recipientUid);
+              if (splitDoc?.fields) {
+                splitRecipients = JSON.parse(splitDoc.fields.recipients?.stringValue ?? '[]');
+                appliesTo       = JSON.parse(splitDoc.fields.appliesTo?.stringValue ?? '[]');
+              }
+            } catch {}
+
+            const activeSplits = appliesTo.includes(earningCategory) ? splitRecipients : [];
+            const splitTotal   = activeSplits.reduce((s: number, r: any) => s + (r.percentage || 0), 0);
+            const creatorPct   = 100 - Math.min(splitTotal, 99);
+            const creatorNetCents = Math.round(netCents * creatorPct / 100);
+
+            // Build split detail array
+            const splitDetails = activeSplits.map((r: any) => ({
+              creatorUid:   r.creatorUid,
+              displayName:  r.displayName,
+              amountCents:  Math.round(netCents * r.percentage / 100),
+              percentage:   r.percentage,
+            }));
+
+            const earningTitle =
+              meta.type === 'live_tip'             ? `Tip${meta.title ? ` — ${meta.title}` : ''}` :
+              meta.type === 'digital_sale'          ? `Sale${meta.title ? `: ${meta.title}` : ''}` :
+              meta.type === 'sanctuary_membership'  ? `Sanctuary Membership` :
+              meta.type === 'plajahplus'            ? `Plajah+ Subscription` :
+              meta.type === 'store_order'           ? `Store Order${meta.title ? `: ${meta.title}` : ''}` :
+              meta.type === 'club_membership'       ? `Club Membership` :
+              meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` : 'Payment';
+
+            await firestoreCreate('creatorEarnings', {
+              creatorUid:            recipientUid,
+              payerUid:              meta.uid || '',
+              category:              earningCategory,
+              grossCents,
+              platformFeeCents,
+              netCents,
+              creatorNetCents,
+              splits:                JSON.stringify(splitDetails),
+              title:                 earningTitle,
+              stripePaymentIntentId: session.payment_intent || '',
+              status:                'pending',
+              timestamp:             now,
+            });
+
+            // Fire split transfers if recipients have Connect accounts
+            if (splitDetails.length > 0) {
+              const stripe = getStripe();
+              for (const split of splitDetails) {
+                try {
+                  const recipDoc = await fetchFirebaseDoc('users', split.creatorUid);
+                  const recipAccountId = recipDoc?.fields?.stripeConnectAccountId?.stringValue;
+                  if (recipAccountId && split.amountCents > 0) {
+                    await (stripe as any).transfers.create({
+                      amount:      split.amountCents,
+                      currency:    'usd',
+                      destination: recipAccountId,
+                      metadata:    { type: 'split', fromCreatorUid: recipientUid, toCreatorUid: split.creatorUid, category: earningCategory },
+                    });
+                  }
+                } catch (transferErr: any) {
+                  console.error('[Connect] Split transfer failed:', transferErr.message);
+                }
+              }
+            }
           }
 
           break;
@@ -438,6 +525,211 @@ async function startServer() {
   app.use('/api/proxy',        proxyLimiter);
   app.use('/api/lights/proxy', proxyLimiter);
   app.use('/api/social',       apiLimiter);
+
+  // ── Stripe Connect: Creator Payout Onboarding ────────────────────────────
+  // Creates or retrieves a Stripe Express account for the creator and returns an onboarding URL.
+  app.post('/api/stripe/connect/onboard', authMiddleware, express.json(), async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const stripe = getStripe();
+      if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
+
+      // Check if creator already has an account
+      const userDoc = await fetchFirebaseDoc('users', uid);
+      let accountId: string | undefined = userDoc?.fields?.stripeConnectAccountId?.stringValue;
+
+      if (!accountId) {
+        const account = await (stripe as any).accounts.create({
+          type: 'express',
+          metadata: { uid },
+          capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+        });
+        accountId = account.id;
+        await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
+      }
+
+      const origin = req.headers.origin || 'https://plajah.com';
+      const link = await (stripe as any).accountLinks.create({
+        account: accountId,
+        refresh_url: `${origin}?connect=refresh`,
+        return_url:  `${origin}?connect=success`,
+        type: 'account_onboarding',
+      });
+
+      res.json({ url: link.url, accountId });
+    } catch (err: any) {
+      console.error('[Connect] Onboard error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Check Connect account status
+  app.get('/api/stripe/connect/status', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const stripe = getStripe();
+      if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
+
+      const userDoc = await fetchFirebaseDoc('users', uid);
+      const accountId: string | undefined = userDoc?.fields?.stripeConnectAccountId?.stringValue;
+      if (!accountId) return res.json({ connected: false });
+
+      const account = await (stripe as any).accounts.retrieve(accountId);
+      const onboarded = account.details_submitted && account.charges_enabled;
+
+      // Sync status back to Firestore
+      if (onboarded) {
+        await firestoreWrite('users', uid, {
+          stripeConnectOnboarded: true,
+          stripeConnectPayoutsEnabled: account.payouts_enabled,
+          updatedAt: Date.now(),
+        });
+      }
+
+      res.json({
+        connected: true,
+        accountId,
+        onboarded,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        requiresAction: !account.details_submitted,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Get Stripe Express dashboard login link
+  app.post('/api/stripe/connect/dashboard-link', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const stripe = getStripe();
+      if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
+
+      const userDoc = await fetchFirebaseDoc('users', uid);
+      const accountId: string | undefined = userDoc?.fields?.stripeConnectAccountId?.stringValue;
+      if (!accountId) return res.status(404).json({ error: 'No connected account' });
+
+      const link = await (stripe as any).accounts.createLoginLink(accountId);
+      res.json({ url: link.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Fetch creator earnings from Firestore (categorised)
+  app.get('/api/stripe/earnings', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    const period = (req.query.period as string) || '30d';
+    const periodMs: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+    const days = periodMs[period] ?? 30;
+    const since = Date.now() - days * 86_400_000;
+
+    try {
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: 'creatorEarnings' }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                { fieldFilter: { field: { fieldPath: 'creatorUid' }, op: 'EQUAL', value: { stringValue: uid } } },
+                { fieldFilter: { field: { fieldPath: 'timestamp' }, op: 'GREATER_THAN_OR_EQUAL', value: { integerValue: String(since) } } },
+              ],
+            },
+          },
+          orderBy: [{ field: { fieldPath: 'timestamp' }, direction: 'DESCENDING' }],
+          limit: 200,
+        },
+      };
+      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const docs: any[] = await qRes.json();
+
+      const transactions = docs
+        .filter((d: any) => d.document)
+        .map((d: any) => {
+          const f = d.document.fields;
+          return {
+            id: d.document.name.split('/').pop(),
+            creatorUid:          f.creatorUid?.stringValue,
+            payerUid:            f.payerUid?.stringValue,
+            category:            f.category?.stringValue,
+            grossCents:          parseInt(f.grossCents?.integerValue ?? '0'),
+            platformFeeCents:    parseInt(f.platformFeeCents?.integerValue ?? '0'),
+            netCents:            parseInt(f.netCents?.integerValue ?? '0'),
+            creatorNetCents:     parseInt(f.creatorNetCents?.integerValue ?? '0'),
+            title:               f.title?.stringValue ?? '',
+            status:              f.status?.stringValue ?? 'pending',
+            timestamp:           parseInt(f.timestamp?.integerValue ?? '0'),
+            stripePaymentIntentId: f.stripePaymentIntentId?.stringValue,
+          };
+        });
+
+      // Compute summary
+      const CATEGORIES = ['tip','digital_sale','sanctuary','plajahplus','store_order','club','seedraiser','other'];
+      const byCategory: any = {};
+      for (const cat of CATEGORIES) byCategory[cat] = { grossCents: 0, netCents: 0, count: 0 };
+
+      let totalGross = 0, totalFee = 0, totalNet = 0, pending = 0, paidOut = 0;
+      for (const t of transactions) {
+        totalGross += t.grossCents;
+        totalFee   += t.platformFeeCents;
+        totalNet   += t.creatorNetCents;
+        if (t.status === 'pending')    pending  += t.creatorNetCents;
+        if (t.status === 'paid_out')   paidOut  += t.creatorNetCents;
+        const cat = byCategory[t.category] ?? byCategory.other;
+        cat.grossCents += t.grossCents;
+        cat.netCents   += t.creatorNetCents;
+        cat.count      += 1;
+      }
+
+      res.json({ period, totalGrossCents: totalGross, totalPlatformFeeCents: totalFee, totalNetCents: totalNet, pendingCents: pending, paidOutCents: paidOut, byCategory, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Save split configuration
+  app.post('/api/stripe/split', authMiddleware, express.json(), async (req: any, res) => {
+    const uid: string = req.uid;
+    const { recipients, appliesTo } = req.body;
+    if (!Array.isArray(recipients)) return res.status(400).json({ error: 'recipients required' });
+    const total = recipients.reduce((s: number, r: any) => s + (r.percentage || 0), 0);
+    if (total >= 100) return res.status(400).json({ error: 'Split percentages must sum to less than 100' });
+
+    try {
+      await firestoreWrite('creatorSplits', uid, {
+        ownerUid: uid,
+        recipients: JSON.stringify(recipients),
+        appliesTo: JSON.stringify(appliesTo || ['tip','digital_sale','sanctuary','plajahplus']),
+        updatedAt: Date.now(),
+      });
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Get split configuration
+  app.get('/api/stripe/split', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const doc = await fetchFirebaseDoc('creatorSplits', uid);
+      if (!doc?.fields) return res.json({ recipients: [], appliesTo: [] });
+      const f = doc.fields;
+      res.json({
+        ownerUid: uid,
+        recipients: JSON.parse(f.recipients?.stringValue ?? '[]'),
+        appliesTo:  JSON.parse(f.appliesTo?.stringValue ?? '[]'),
+        updatedAt:  parseInt(f.updatedAt?.integerValue ?? '0'),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // ── Stripe: Create Subscription Checkout Session ──────────────────────────
   app.post('/api/stripe/create-checkout-session', authMiddleware, async (req: any, res) => {
@@ -1104,6 +1396,126 @@ async function startServer() {
     } catch (err: any) {
       console.error('[Fediverse] Mastodon connect error:', err);
       res.status(500).json({ error: err.message ?? 'Mastodon connection failed' });
+    }
+  });
+
+  // ── Social Graph Import ───────────────────────────────────────────────────────
+  // Seed the user's Plajah follow graph from Twitter/X or Instagram.
+  // OAuth flows redirect back to the app with ?social_import_code=…&social_import_platform=…
+
+  app.get('/api/social-import/twitter/auth', authMiddleware, async (req: any, res) => {
+    const clientId = process.env.TWITTER_CLIENT_ID;
+    if (!clientId) return res.status(501).json({ error: 'TWITTER_CLIENT_ID not configured' });
+    const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
+    const redirectUri = encodeURIComponent(`${appUrl}/auth/twitter/callback`);
+    const state = Buffer.from(req.uid).toString('base64');
+    const scope = encodeURIComponent('tweet.read users.read follows.read offline.access');
+    const url = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=challenge&code_challenge_method=plain`;
+    res.json({ url });
+  });
+
+  app.get('/auth/twitter/callback', async (req: any, res) => {
+    const { code, state } = req.query as Record<string, string>;
+    const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
+    // Pass the code back to the SPA so SocialGraphImport.tsx can pick it up
+    res.redirect(`${appUrl}?social_import_code=${encodeURIComponent(code)}&social_import_platform=twitter&state=${state}`);
+  });
+
+  app.get('/api/social-import/twitter/matches', authMiddleware, async (req: any, res) => {
+    const { code } = req.query as { code: string };
+    const clientId = process.env.TWITTER_CLIENT_ID;
+    const clientSecret = process.env.TWITTER_CLIENT_SECRET;
+    if (!clientId || !clientSecret) return res.status(501).json({ error: 'Twitter not configured' });
+
+    try {
+      const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
+      // Exchange code for token
+      const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        },
+        body: new URLSearchParams({ code, grant_type: 'authorization_code', redirect_uri: `${appUrl}/auth/twitter/callback`, code_verifier: 'challenge' }).toString(),
+      });
+      if (!tokenRes.ok) return res.status(400).json({ error: 'Token exchange failed' });
+      const { access_token } = await tokenRes.json();
+
+      // Get the authenticated user's following list
+      const meRes = await fetch('https://api.twitter.com/2/users/me', { headers: { Authorization: `Bearer ${access_token}` } });
+      const { data: me } = await meRes.json();
+      const followingRes = await fetch(`https://api.twitter.com/2/users/${me.id}/following?max_results=1000&user.fields=username`, { headers: { Authorization: `Bearer ${access_token}` } });
+      const { data: following } = await followingRes.json();
+      const handles = (following ?? []).map((u: any) => u.username.toLowerCase());
+
+      // Match against Plajah users by twitterHandle field
+      const { getDocs, collection, where, query, limit } = await import('firebase/firestore');
+      const { db: firestoreDb } = await import('./services/firebase.js');
+      const matches: any[] = [];
+
+      // Batch into groups of 10 (Firestore 'in' limit)
+      for (let i = 0; i < handles.length; i += 10) {
+        const batch = handles.slice(i, i + 10);
+        if (!batch.length) continue;
+        const q = query(collection(firestoreDb, 'users'), where('twitterHandle', 'in', batch), limit(10));
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+          const u = d.data();
+          matches.push({
+            plajahUid: d.id,
+            displayName: u.displayName ?? u.twitterHandle,
+            photoURL: u.photoURL,
+            externalHandle: u.twitterHandle ?? '',
+            alreadyFollowing: false,
+          });
+        });
+      }
+
+      res.json(matches);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/social-import/follow-batch', authMiddleware, express.json(), async (req: any, res) => {
+    const { uids } = req.body as { uids: string[] };
+    if (!Array.isArray(uids) || uids.length === 0) return res.status(400).json({ error: 'uids required' });
+    // Write follow records to Firestore
+    const { doc, setDoc, serverTimestamp: ts } = await import('firebase/firestore');
+    const { db: firestoreDb } = await import('./services/firebase.js');
+    await Promise.allSettled(uids.map(uid =>
+      setDoc(doc(firestoreDb, 'follows', `${req.uid}_${uid}`), {
+        followerId: req.uid, followingId: uid, createdAt: ts(), source: 'social_import',
+      })
+    ));
+    res.json({ followed: uids.length });
+  });
+
+  // ── Alexa Skill Fulfillment ───────────────────────────────────────────────────
+  // Alexa POSTs signed requests here — no Firebase auth (Alexa doesn't know
+  // about Firebase), but the Alexa app ID should be verified in production.
+  app.post('/api/alexa', express.json(), async (req, res) => {
+    try {
+      const { handleAlexaRequest } = await import('./services/alexaService.js');
+      const response = await handleAlexaRequest(req.body);
+      res.json(response);
+    } catch (err: any) {
+      console.error('[Alexa] handler error:', err.message);
+      res.status(500).json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'An error occurred.' }, shouldEndSession: true } });
+    }
+  });
+
+  // ── Google Actions Fulfillment ────────────────────────────────────────────────
+  // Google Assistant POSTs here for conversational actions.
+  // Verify with Google Actions SDK JWT in production.
+  app.post('/api/google-action', express.json(), async (req, res) => {
+    try {
+      const { handleGoogleActionRequest } = await import('./services/googleHomeService.js');
+      const response = handleGoogleActionRequest(req.body);
+      res.json(response);
+    } catch (err: any) {
+      console.error('[GoogleAction] handler error:', err.message);
+      res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
     }
   });
 
@@ -2113,19 +2525,70 @@ async function startServer() {
       const event = JSON.parse(req.body.toString('utf8'));
       const { type, data } = event;
 
+      // ── Firestore REST helpers (no admin SDK needed) ──────────────────────
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID ?? 'gen-lang-client-0665118474';
+      const dbId = process.env.VITE_FIREBASE_DB_ID ?? '(default)';
+      const fsBase = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents`;
+
+      // Query live_streams collection for a doc with muxStreamId == streamId
+      const queryLiveStream = async (streamId: string) => {
+        const url = `${fsBase}:runQuery`;
+        const body = {
+          structuredQuery: {
+            from: [{ collectionId: 'live_streams' }],
+            where: { fieldFilter: { field: { fieldPath: 'muxStreamId' }, op: 'EQUAL', value: { stringValue: streamId } } },
+            limit: 1,
+          },
+        };
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const rows = await res.json();
+        const doc = rows[0]?.document;
+        return doc ? { name: doc.name, fields: doc.fields } : null;
+      };
+
+      const patchLiveDoc = async (docName: string, fields: Record<string, any>) => {
+        const fieldPaths = Object.keys(fields);
+        const mask = fieldPaths.map(f => `updateMask.fieldPaths=${f}`).join('&');
+        const body = { fields: Object.fromEntries(fieldPaths.map(f => [f, fields[f]])) };
+        await fetch(`https://firestore.googleapis.com/v1/${docName}?${mask}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+      };
+
       if (type === 'video.live_stream.active') {
-        // Stream is receiving signal — update Firestore live_feeds status
         const streamId = data?.id;
         if (streamId) {
           console.log(`[MUX] Stream ${streamId} is now ACTIVE`);
-          // Find the live feed doc with this muxStreamId and update it
-          // (Using REST Firestore query — no admin SDK needed)
+          try {
+            const liveDoc = await queryLiveStream(streamId);
+            if (liveDoc) {
+              await patchLiveDoc(liveDoc.name, {
+                isLive: { booleanValue: true },
+                streamStatus: { stringValue: 'active' },
+                liveStartedAt: { integerValue: String(Date.now()) },
+              });
+              console.log(`[MUX] Flipped isLive=true for stream ${streamId}`);
+            }
+          } catch (e: any) { console.error('[MUX webhook] Firestore update failed:', e.message); }
         }
       }
 
       if (type === 'video.live_stream.idle') {
         const streamId = data?.id;
-        if (streamId) console.log(`[MUX] Stream ${streamId} is now IDLE/ended`);
+        if (streamId) {
+          console.log(`[MUX] Stream ${streamId} is now IDLE/ended`);
+          try {
+            const liveDoc = await queryLiveStream(streamId);
+            if (liveDoc) {
+              await patchLiveDoc(liveDoc.name, {
+                isLive: { booleanValue: false },
+                streamStatus: { stringValue: 'idle' },
+                liveEndedAt: { integerValue: String(Date.now()) },
+              });
+              console.log(`[MUX] Flipped isLive=false for stream ${streamId}`);
+            }
+          } catch (e: any) { console.error('[MUX webhook] Firestore update failed:', e.message); }
+        }
       }
 
       if (type === 'video.asset.ready') {
@@ -2134,6 +2597,26 @@ async function startServer() {
         const playbackId = data?.playback_ids?.[0]?.id;
         if (assetId && playbackId) {
           console.log(`[MUX] Asset ${assetId} ready with playbackId ${playbackId}`);
+          try {
+            // Find video doc with muxAssetId == assetId and update playbackId
+            const url = `${fsBase}:runQuery`;
+            const body = {
+              structuredQuery: {
+                from: [{ collectionId: 'videos' }],
+                where: { fieldFilter: { field: { fieldPath: 'muxAssetId' }, op: 'EQUAL', value: { stringValue: assetId } } },
+                limit: 1,
+              },
+            };
+            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rows = await res.json();
+            const videoDoc = rows[0]?.document;
+            if (videoDoc) {
+              await patchLiveDoc(videoDoc.name, {
+                muxPlaybackId: { stringValue: playbackId },
+                status: { stringValue: 'ready' },
+              });
+            }
+          } catch (e: any) { console.error('[MUX webhook] Video update failed:', e.message); }
         }
       }
 
@@ -2145,6 +2628,41 @@ async function startServer() {
   });
 
   // ── Stripe: Club Membership Checkout ─────────────────────────────────────
+  // ── Live Stream Tip — instant one-time payment to creator ────────────────────
+  app.post('/api/stripe/live-tip', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { creatorUid, creatorStripeAccountId, amount, title } = req.body;
+      if (!creatorUid || !creatorStripeAccountId || typeof amount !== 'number' || amount < 100) {
+        return res.status(400).json({ error: 'amount must be at least $1.00 (100 cents)' });
+      }
+      const platformFee = Math.round(amount * 0.10); // 10% platform fee
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `💸 Live tip${title ? ` — ${title}` : ''}` },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        }],
+        payment_intent_data: {
+          application_fee_amount: platformFee,
+          transfer_data: { destination: creatorStripeAccountId },
+          metadata: { type: 'live_tip', creatorUid, senderUid: req.uid ?? '' },
+        },
+        success_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=success`,
+        cancel_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=cancelled`,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('/api/stripe/live-tip', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/stripe/club-membership', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const { clubId, clubName, monthlyPrice } = req.body;
@@ -2546,6 +3064,371 @@ async function startServer() {
 
   // ── END MERCH API ─────────────────────────────────────────────────────────────
 
+  // ── Plajah Muse Agent ─────────────────────────────────────────────────────────
+  //
+  // Uses Google Gemini 2.0 Flash with optional Google Search grounding.
+  //
+  // RE: "Microsoft WebIQ" — there is no Microsoft product called WebIQ.
+  // The capability you're thinking of is either:
+  //   a) Azure OpenAI with Bing grounding (bing_search tool in Azure deployments), or
+  //   b) Microsoft Copilot Studio web connectors.
+  // Since this platform already ships @google/genai, we use Gemini's built-in
+  // Google Search grounding — same concept (live-web RAG), simpler integration,
+  // cheaper at scale.  If you later want Bing specifically, swap the
+  // googleSearch tool for a bing fetch and pass BING_API_KEY in .env.
+  //
+  // Privacy: all messages stored under  users/{uid}/muse_sessions/{sessionId}/messages
+  // and usage counters under  users/{uid}/muse_usage/{YYYY-MM-DD}.
+  // Firestore security rules must restrict each user's subtree to their own uid.
+  //
+  // Tier rate limits (enforced server-side — client-side is informational only):
+  //   FREE        : 5 msg/day,   0 web searches, 0 uploads
+  //   CREATOR     : 20 msg/day,  0 web searches, 2 uploads/session
+  //   PLAJAH_PLUS : 40 msg/day,  8 web searches, 5 uploads/session
+  //   PRO         : 100 msg/day, 20 web searches, 20 uploads/session
+  //
+  // Estimated cost at Gemini 2.0 Flash ($0.075/MTok in, $0.30/MTok out):
+  //   PLAJAH_PLUS (~$19.99/mo): ~$0.45 Gemini + ~$2.10 grounding = ~$2.55/user/month
+  //   PRO (~$49.99/mo)        : ~$1.13 Gemini + ~$7.00 grounding = ~$8.13/user/month
+
+  const AGENT_TIER_LIMITS: Record<string, { daily: number; searches: number }> = {
+    FREE:        { daily: 5,   searches: 0  },
+    CREATOR:     { daily: 20,  searches: 0  },
+    PLAJAH_PLUS: { daily: 40,  searches: 8  },
+    PRO:         { daily: 100, searches: 20 },
+  };
+
+  const MUSE_SYSTEM_PROMPT = `You are Muse, Plajah's private creative agent. You help users on the Plajah platform:
+
+1. BUILD MODULE EXPERIENCES — When a user describes a module (educational, historical, musical, cinematic), generate a JSON config they can use on the platform. Output it in a <BUILD_MODULE> block.
+
+2. DESIGN ALBUM GALLERY VIEWS — When a user describes an aesthetic or experience for an album, generate a gallery view config. Output it in a <BUILD_GALLERY> block.
+
+3. CURATE CONTENT — Recommend tracks, artists, and experiences based on user interests. Output curated list in a <BUILD_PLAYLIST> block.
+
+4. RESEARCH — Search the web (when enabled) to find factual information, biographies, public domain content, and creative inspiration.
+
+5. ANALYZE DOCUMENTS — Process any files the user uploads and incorporate their content.
+
+PRIVACY: Never reveal other users' data. This is a private 1:1 session.
+
+LIMITS: Be transparent about tier limits when relevant.
+
+OUTPUT FORMAT for builds:
+- When generating a build, always include a human-readable explanation BEFORE the build block.
+- Build blocks are JSON inside XML-like tags:  <BUILD_MODULE>{...}</BUILD_MODULE>
+- Always include: type, title, description, layout, theme (colorPalette, gradient), sections[], tags[]
+
+TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's idea is vague, ask one clarifying question.`;
+
+  app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
+    try {
+      const uid: string = req.uid;
+      const { sessionId, message, attachments = [], tier = 'FREE', context = {} } = req.body;
+
+      if (!sessionId || !message) return res.status(400).json({ error: 'sessionId and message required' });
+
+      // ── Tier enforcement ──
+      const limits = AGENT_TIER_LIMITS[tier] ?? AGENT_TIER_LIMITS.FREE;
+      const todayKey = new Date().toISOString().slice(0, 10);
+
+      // Read daily usage from Firestore REST
+      const usageUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/users/${uid}/muse_usage/${todayKey}`;
+      let dailyMessages = 0;
+      let dailySearches = 0;
+      try {
+        const usageSnap = await fetch(usageUrl);
+        if (usageSnap.ok) {
+          const usageData = await usageSnap.json();
+          dailyMessages = parseInt(usageData.fields?.dailyMessages?.integerValue ?? '0', 10);
+          dailySearches = parseInt(usageData.fields?.dailySearches?.integerValue ?? '0', 10);
+        }
+      } catch {}
+
+      if (dailyMessages >= limits.daily) {
+        return res.status(429).json({ error: 'Daily message limit reached. Upgrade your plan to continue.' });
+      }
+
+      const webSearchAllowed = dailySearches < limits.searches;
+
+      // ── Microsoft MAI Thinking Model — Default for all Muse requests ─────────
+      //
+      // MAI Thinking is Microsoft's reasoning model (announced 2026-06-02).
+      // It applies chain-of-thought / extended reasoning before responding —
+      // equivalent to OpenAI o3 or Claude's Extended Thinking mode.
+      // This makes Muse's builds, curations, and module configs significantly
+      // more accurate and creative.
+      //
+      // Model name conventions (update once Microsoft publishes the catalog):
+      //   MAI_THINKING_MODEL — reasoning/thinking variant (default for all tiers)
+      //   MAI_FAST_MODEL     — fast non-thinking variant (fallback for simple queries)
+      //
+      // Cost note (estimated — verify on Azure AI Foundry pricing page):
+      //   MAI Thinking  ~$0.06/MTok in, $0.24/MTok out  (reasoning tokens billed separately)
+      //   MAI Fast      ~$0.02/MTok in, $0.08/MTok out
+      // Still cheaper than Gemini Pro or GPT-4o, and includes native tool use + web search.
+      //
+      // Required env vars (all in .env.local):
+      //   MAI_API_KEY          — from Azure AI Foundry → your deployment → Keys & Endpoint
+      //   MAI_ENDPOINT         — e.g. https://plajah-mai.services.ai.azure.com/models
+      //   MAI_THINKING_MODEL   — thinking/reasoning deployment name (e.g. "mai-thinking-1")
+      //   MAI_FAST_MODEL       — fast deployment name (e.g. "mai-1")  [optional fallback]
+
+      const MAI_KEY            = process.env.MAI_API_KEY || '';
+      const MAI_ENDPOINT       = process.env.MAI_ENDPOINT || 'https://TODO.services.ai.azure.com/models';
+
+      // Always use the thinking model — it reasons before answering, making builds better.
+      // Fall back to MAI_FAST_MODEL for simple ping/greeting messages (detected below).
+      const MAI_THINKING_MODEL = process.env.MAI_THINKING_MODEL || process.env.MAI_MODEL_NAME || 'mai-thinking-1';
+      const MAI_FAST_MODEL     = process.env.MAI_FAST_MODEL || 'mai-1';
+
+      // Use thinking model unless the message is trivially short (< 10 words)
+      // to avoid paying reasoning tokens on "hi" / "what can you do?" queries
+      const messageWordCount = message.trim().split(/\s+/).length;
+      const MAI_MODEL = messageWordCount < 10 ? MAI_FAST_MODEL : MAI_THINKING_MODEL;
+
+      // Fetch recent message history (last 16 turns)
+      const histUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/users/${uid}/muse_sessions/${sessionId}/messages?pageSize=16&orderBy=timestamp%20desc`;
+      let chatHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
+        { role: 'system', content: MUSE_SYSTEM_PROMPT },
+      ];
+      try {
+        const hSnap = await fetch(histUrl);
+        if (hSnap.ok) {
+          const hData = await hSnap.json();
+          const docs = (hData.documents || []).reverse();
+          for (const d of docs) {
+            const role = d.fields?.role?.stringValue;
+            const content = d.fields?.content?.stringValue || '';
+            if (content && (role === 'user' || role === 'muse')) {
+              chatHistory.push({ role: role === 'user' ? 'user' : 'assistant', content });
+            }
+          }
+        }
+      } catch {}
+
+      // Append current user message (include attachment text inline)
+      let userContent = message;
+      const ctxNote = context.currentView ? `[Context: user is in ${context.currentView}]\n` : '';
+      if (ctxNote) userContent = ctxNote + userContent;
+      for (const att of attachments.slice(0, 5)) {
+        if (att.dataUrl && att.type === 'text/plain') {
+          const text = Buffer.from(att.dataUrl.split(',')[1] || att.dataUrl, 'base64').toString('utf8').slice(0, 6000);
+          userContent += `\n\n[Attached: "${att.name}"]\n${text}`;
+        } else if (att.type?.startsWith('image/')) {
+          userContent += `\n[Image attached: "${att.name}" — describe it if relevant]`;
+        }
+      }
+      chatHistory.push({ role: 'user', content: userContent });
+
+      // Optional Bing web search tool (MAI supports OpenAI-style tool_choice + tools)
+      const maiTools = webSearchAllowed ? [{
+        type: 'function' as const,
+        function: {
+          name: 'search_web',
+          description: 'Search the web for current information, facts, biographies, and content.',
+          parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+        },
+      }] : undefined;
+
+      let replyText = '';
+      let toolCalls: any[] = [];
+      let usedSearch = false;
+
+      if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
+        // ── Microsoft MAI (primary) ──────────────────────────────────────────────
+        const maiRes = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': MAI_KEY,
+            // MAI also accepts Bearer token:
+            // 'Authorization': `Bearer ${MAI_KEY}`,
+          },
+          body: JSON.stringify({
+            model: MAI_MODEL,
+            messages: chatHistory,
+            // Thinking model params — ignored by non-thinking models, so safe to always send.
+            // When the MAI thinking model is active it applies chain-of-thought reasoning
+            // before producing its final reply.  The thinking budget controls cost/depth.
+            ...(MAI_MODEL === MAI_THINKING_MODEL ? {
+              thinking: {
+                type: 'enabled',
+                budget_tokens: tier === 'PRO' ? 8000 : tier === 'PLAJAH_PLUS' ? 4000 : 2000,
+              },
+              temperature: 1, // required for thinking mode (some models mandate temp=1)
+            } : {
+              temperature: 0.8,
+            }),
+            max_tokens: tier === 'PRO' ? 4096 : 2048,
+            tools: maiTools,
+          }),
+        });
+
+        if (!maiRes.ok) {
+          const errText = await maiRes.text().catch(() => '');
+          throw new Error(`MAI API error (${maiRes.status}): ${errText}`);
+        }
+
+        const maiData = await maiRes.json();
+        const choice = maiData.choices?.[0];
+        replyText = choice?.message?.content || '';
+
+        // Handle tool calls (Bing search) if model invoked them
+        if (choice?.message?.tool_calls?.length) {
+          for (const tc of choice.message.tool_calls) {
+            if (tc.function?.name === 'search_web') {
+              usedSearch = true;
+              let query = '';
+              try { query = JSON.parse(tc.function.arguments).query; } catch {}
+              toolCalls.push({ name: 'search_web', label: `Searched: ${query}`, status: 'done' });
+
+              // Bing Search (if key available) — feed result back for a second pass
+              const bingKey = process.env.BING_SEARCH_KEY || '';
+              if (bingKey && query) {
+                try {
+                  const bingRes = await fetch(`https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=3`, {
+                    headers: { 'Ocp-Apim-Subscription-Key': bingKey },
+                  });
+                  if (bingRes.ok) {
+                    const bingData = await bingRes.json();
+                    const snippets = (bingData.webPages?.value ?? []).slice(0, 3).map((r: any) => `${r.name}: ${r.snippet}`).join('\n');
+                    // Second pass with search results injected
+                    chatHistory.push({ role: 'assistant', content: replyText || '...' });
+                    chatHistory.push({ role: 'user', content: `[Web search results for "${query}"]:\n${snippets}\n\nPlease continue your response using these results.` });
+                    const pass2 = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'api-key': MAI_KEY },
+                      body: JSON.stringify({ model: MAI_MODEL, messages: chatHistory, max_tokens: 2048, temperature: 0.8 }),
+                    });
+                    if (pass2.ok) {
+                      const p2Data = await pass2.json();
+                      replyText = p2Data.choices?.[0]?.message?.content || replyText;
+                    }
+                  }
+                } catch {}
+              }
+            }
+          }
+        }
+
+      } else {
+        // ── Fallback: Google Gemini Flash ────────────────────────────────────────
+        console.warn('[Muse] MAI_API_KEY or MAI_ENDPOINT not set — falling back to Gemini. Add MAI_API_KEY to .env.local.');
+        const { GoogleGenAI } = await import('@google/genai');
+        const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '' });
+        const geminiHistory = chatHistory.slice(1, -1).map(m => ({
+          role: m.role === 'user' ? 'user' as const : 'model' as const,
+          parts: [{ text: m.content }],
+        }));
+        const geminiTools = webSearchAllowed ? [{ googleSearch: {} }] : undefined;
+        const chat = genai.chats.create({
+          model: 'gemini-2.0-flash',
+          config: { systemInstruction: MUSE_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8 },
+          history: geminiHistory,
+        });
+        const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
+        replyText = geminiRes.text || '';
+        usedSearch = !!(geminiRes as any).candidates?.[0]?.groundingMetadata?.webSearchQueries?.length;
+        if (usedSearch) toolCalls.push({ name: 'search_web', label: 'Searched the web', status: 'done' });
+      }
+
+      // ── Parse build outputs ──
+      let buildOutput: any = null;
+      const buildMatch = replyText.match(/<BUILD_(MODULE|GALLERY|PLAYLIST|CURATION)>([\s\S]*?)<\/BUILD_\1>/);
+      if (buildMatch) {
+        try {
+          const buildType = buildMatch[1] as 'MODULE' | 'GALLERY' | 'PLAYLIST' | 'CURATION';
+          const config = JSON.parse(buildMatch[2].trim());
+          buildOutput = {
+            type: buildType,
+            title: config.title || 'Untitled Build',
+            description: config.description || '',
+            config,
+            previewGradient: config.theme?.gradient || 'from-purple-900/80 to-indigo-900/60',
+            previewEmoji: { MODULE: '🧩', GALLERY: '🖼️', PLAYLIST: '🎵', CURATION: '✨' }[buildType],
+            createdAt: Date.now(),
+          };
+          toolCalls.push({ name: `generate_${buildType.toLowerCase()}`, label: `${buildType} config generated`, status: 'done' });
+        } catch {}
+      }
+
+      // Strip raw build blocks from reply text for cleaner display
+      const cleanReply = replyText.replace(/<BUILD_\w+>[\s\S]*?<\/BUILD_\w+>/g, '').trim();
+
+      // ── Persist message to Firestore ──
+      const now = Date.now();
+      const baseUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents`;
+      const msgBase = `users/${uid}/muse_sessions/${sessionId}/messages`;
+
+      const persistMsg = async (role: string, content: string, extra: any = {}) => {
+        await fetch(`${baseUrl}/${msgBase}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fields: {
+              role:      { stringValue: role },
+              content:   { stringValue: content },
+              timestamp: { integerValue: String(now) },
+              ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
+              ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
+              ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
+            },
+          }),
+        }).catch(() => {});
+      };
+
+      await persistMsg('user', message);
+      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined });
+
+      // ── Update daily usage counters ──
+      const newDaily = dailyMessages + 1;
+      const newSearches = dailySearches + (usedSearch ? 1 : 0);
+      await fetch(usageUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            dailyMessages: { integerValue: String(newDaily) },
+            dailySearches: { integerValue: String(newSearches) },
+            resetDate:     { stringValue: todayKey },
+          },
+        }),
+      }).catch(() => {});
+
+      // ── Update session metadata ──
+      await fetch(`${baseUrl}/users/${uid}/muse_sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            updatedAt:    { integerValue: String(now) },
+            lastSnippet:  { stringValue: cleanReply.slice(0, 80) },
+          },
+        }),
+      }).catch(() => {});
+
+      return res.json({
+        reply: cleanReply,
+        toolCalls: toolCalls.length ? toolCalls : undefined,
+        buildOutput: buildOutput || undefined,
+        usage: {
+          dailyMessages: newDaily,
+          dailySearches: newSearches,
+          monthlyModules: 0,
+          monthlyGalleries: 0,
+          resetDate: todayKey,
+        },
+      });
+
+    } catch (err: any) {
+      console.error('[Muse Agent]', err.message);
+      res.status(500).json({ error: 'Agent error — please try again.' });
+    }
+  });
+
+  // ── END MUSE AGENT ────────────────────────────────────────────────────────────
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);
     // Log env var status at startup so Cloud Run logs reveal config issues immediately
@@ -2553,6 +3436,16 @@ async function startServer() {
     const fbKey  = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
+    const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
+    console.log('[Config] GOOGLE_AI_API_KEY (Muse fallback):', aiKey.length > 0 ? 'set' : 'not set');
+    const maiKey      = process.env.MAI_API_KEY ?? '';
+    const maiEp       = process.env.MAI_ENDPOINT ?? '';
+    const maiThinking = process.env.MAI_THINKING_MODEL ?? 'mai-thinking-1';
+    const maiFast     = process.env.MAI_FAST_MODEL ?? 'mai-1';
+    console.log('[Config] MAI_API_KEY (Muse):', maiKey.length > 0 ? 'set' : 'MISSING — add MAI_API_KEY to .env.local');
+    console.log('[Config] MAI_ENDPOINT:', maiEp.length > 0 && !maiEp.includes('TODO') ? maiEp : 'not configured');
+    console.log(`[Config] MAI models — thinking: ${maiThinking}, fast: ${maiFast}`);
+    console.log('[Config] VITE_AZURE_SPEECH_KEY (MAI Voice 2 / Transcribe 1.5):', (process.env.VITE_AZURE_SPEECH_KEY ?? '').length > 0 ? 'set' : 'MISSING — add VITE_AZURE_SPEECH_KEY for audiobook features');
     console.log('[Config] VITE_APP_URL:', process.env.VITE_APP_URL ?? '(not set)');
   });
 }

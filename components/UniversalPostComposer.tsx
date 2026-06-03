@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic, Camera, Square } from 'lucide-react';
+import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic, Camera, Square, Share2 } from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld } from '../types';
+import { useFediverse } from '../contexts/FediverseContext';
 
 export interface ComposerAttachment {
   type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF';
@@ -48,7 +49,7 @@ const THEMES: { id: ComposerPostData['theme']; label: string }[] = [
 
 const COMMON_EMOJIS = ['😀','😂','🥺','😍','🔥','👏','🎵','🎨','🌟','💯','🚀','❤️','🎉','👀','🤔','😎','🙏','💪','🌈','✨'];
 
-const GIPHY_KEY = 'dc6zaTOxFJmzC';
+const GIPHY_KEY = '4Sbiygh5QwzvnHYaZm2IbqW44MSBMd4K';
 
 type AssetTab = 'Albums' | 'Worlds' | 'More';
 const MORE_TYPES: { label: string; type: AssetEmbed['type'] }[] = [
@@ -86,7 +87,10 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [moreAssetId, setMoreAssetId] = useState('');
   const [moreAssetTitle, setMoreAssetTitle] = useState('');
   const [posting, setPosting] = useState(false);
+  const [crossPost, setCrossPost] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const { broadcast, accounts } = useFediverse();
+  const hasFediverse = accounts.length > 0;
   const [videoCapturing, setVideoCapturing] = useState(false);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const videoCamStream = useRef<MediaStream | null>(null);
@@ -129,6 +133,15 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     setPosting(true);
     try {
       await onPost({ text, attachments, assetEmbed, theme });
+      // Cross-post to fediverse if the user opted in and has connected accounts
+      if (crossPost && hasFediverse && text.trim()) {
+        const firstImage = attachments.find(a => a.type === 'PHOTO');
+        broadcast({
+          text: text.trim(),
+          thumbnail: firstImage?.url,
+          uri: window.location.href,
+        }).catch(() => { /* silent — fediverse failure never blocks local post */ });
+      }
       setText('');
       setAttachments([]);
       setAssetEmbed(undefined);
@@ -619,6 +632,22 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         <span className={`text-[9px] font-black tabular-nums ${text.length > 280 ? 'text-red-400' : 'text-white/20'}`}>
           {text.length}/280
         </span>
+
+        {/* Cross-post to fediverse toggle — only shown when accounts are connected */}
+        {hasFediverse && (
+          <button
+            onClick={() => setCrossPost(v => !v)}
+            title={crossPost ? 'Cross-posting to Mastodon/Bluesky — click to disable' : 'Cross-post to Mastodon/Bluesky'}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-bold border transition-all ${
+              crossPost
+                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400'
+                : 'border-white/10 text-white/25 hover:text-white/50'
+            }`}
+          >
+            <Share2 size={10} />
+            {crossPost ? 'Fediverse ✓' : 'Fediverse'}
+          </button>
+        )}
 
         <button
           onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); }}

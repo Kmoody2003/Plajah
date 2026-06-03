@@ -1,363 +1,570 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MessageSquare, Users, Globe, User, Send, X, 
-  ChevronRight, ChevronLeft, MoreHorizontal, Maximize2, 
-  Video as VideoIcon, Mic, MicOff, VideoOff, Menu,
-  Hash, Radio, Music, Film, Bell, Heart, Share2,
-  TrendingUp, Clock, Settings
+import {
+  MessageSquare, Users, Globe, User, Send, X,
+  ChevronLeft, Mic, MicOff, VideoOff, Settings,
+  Radio, Music, Share2, Heart, TrendingUp, AtSign,
+  Mail, ChevronRight, Loader2, Clock,
 } from 'lucide-react';
-import { ChatMessage, UserProfile, FeedItem, Video, Album, Track } from '../types';
-import { 
-  auth, 
-  listenToMessages, 
-  sendMessage, 
-  fetchFeed, 
+import { ChatMessage, UserProfile, FeedItem } from '../types';
+import {
+  auth,
+  listenToMessages,
+  sendMessage,
+  fetchFeed,
   postToFeed,
-  fetchUserProfiles,
-  listenToChatRooms,
+  createChatRoom,
+  ensureLiveChatRoom,
 } from '../services/backendService';
-import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import LiveTalkView from './LiveTalkView';
 
-type TabType = 'LIVE' | 'LIVETALK' | 'WATCH_ALONG' | 'GLOBAL_FEED' | 'MY_FEED';
+type TabType = 'LIVE' | 'LIVETALK' | 'GLOBAL_FEED' | 'MY_FEED';
+
+// ── Mini DM composer ──────────────────────────────────────────────────────────
+
+interface DMComposerProps {
+  targetId: string;
+  targetName: string;
+  targetPhoto: string;
+  songTitle?: string;
+  songId?: string;
+  onClose: () => void;
+}
+
+const DMComposer: React.FC<DMComposerProps> = ({
+  targetId, targetName, targetPhoto, songTitle, songId, onClose,
+}) => {
+  const [text, setText] = useState(
+    songId ? `🎵 Check out "${songTitle}" on Plajah! ` : ''
+  );
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    if (!text.trim() || !auth.currentUser) return;
+    setSending(true);
+    try {
+      const roomId = await createChatRoom(
+        [auth.currentUser.uid, targetId],
+        'PRIVATE'
+      );
+      await sendMessage(roomId, {
+        senderId: auth.currentUser.uid,
+        senderName: auth.currentUser.displayName || 'User',
+        senderPhoto: auth.currentUser.photoURL || '',
+        text: text.trim(),
+        type: songId ? 'MEDIA' : 'TEXT',
+        ...(songId ? { mediaId: songId, mediaTitle: songTitle } : {}),
+      });
+      setSent(true);
+      setTimeout(onClose, 1200);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 12, scale: 0.97 }}
+      transition={{ duration: 0.18 }}
+      className="absolute bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-xl border-t border-white/10 rounded-t-2xl p-4 shadow-2xl"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <img
+            src={targetPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetId}`}
+            className="w-7 h-7 rounded-full border border-white/10"
+            alt=""
+          />
+          <span className="text-sm font-bold text-white">{targetName}</span>
+        </div>
+        <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white">
+          <X size={14} />
+        </button>
+      </div>
+
+      {sent ? (
+        <div className="text-center py-3 text-sm font-bold text-green-400">Sent!</div>
+      ) : (
+        <>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={3}
+            placeholder={`Message to ${targetName}…`}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 resize-none focus:outline-none focus:border-orange-500/40 mb-3"
+            autoFocus
+          />
+          <button
+            onClick={handleSend}
+            disabled={!text.trim() || sending}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-500 text-black text-sm font-bold disabled:opacity-50 hover:bg-orange-400 transition-colors"
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            {sending ? 'Sending…' : 'Send DM'}
+          </button>
+        </>
+      )}
+    </motion.div>
+  );
+};
+
+// ── Message bubble ─────────────────────────────────────────────────────────────
+
+interface MsgBubbleProps {
+  msg: ChatMessage;
+  isMe: boolean;
+  onDM: (msg: ChatMessage) => void;
+}
+
+const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
+  const [hovered, setHovered] = useState(false);
+  const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div
+      className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {!isMe && (
+        <img
+          src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`}
+          className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 shadow-md shrink-0 mt-1"
+          alt=""
+        />
+      )}
+      <div className={`flex flex-col gap-0.5 max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+        {!isMe && (
+          <span className="text-xs font-bold text-orange-400/80 px-1">{msg.senderName}</span>
+        )}
+        <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+          isMe
+            ? 'bg-orange-500/20 text-white border border-orange-500/20'
+            : 'bg-white/6 text-white/90 border border-white/8'
+        }`}>
+          {msg.text}
+        </div>
+        <span className="text-[10px] text-white/25 px-1">{time}</span>
+      </div>
+
+      {/* DM button — appears on hover for other users' messages */}
+      <AnimatePresence>
+        {hovered && !isMe && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => onDM(msg)}
+            title={`DM ${msg.senderName}`}
+            className="self-center p-1.5 rounded-full bg-white/8 border border-white/10 text-white/50 hover:text-orange-400 hover:border-orange-500/30 hover:bg-orange-500/10 transition-all shrink-0"
+          >
+            <Mail size={12} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ── Main Drawer ────────────────────────────────────────────────────────────────
 
 const PersistentChatDrawer: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('GLOBAL_FEED');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('LIVE');
+
+  // Message cache: roomId → messages[]
+  const [msgCache, setMsgCache] = useState<Record<string, ChatMessage[]>>({});
   const [inputText, setInputText] = useState('');
   const [posts, setPosts] = useState<FeedItem[]>([]);
   const [myPosts, setMyPosts] = useState<FeedItem[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
-  
-  const { currentVideo, currentTrack, currentAlbum } = useGlobalPlayerState();
-  const { currentTime, seek } = useGlobalPlayerProgress();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // LIVE Tab Logic: Auto-switch based on content
-  const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
+  const listenerRef = useRef<(() => void) | null>(null);
+  const currentRoomRef = useRef<string | null>(null);
+
+  // DM composer state
+  const [dmTarget, setDmTarget] = useState<{ id: string; name: string; photo: string } | null>(null);
+
+  const { currentVideo, currentTrack, currentAlbum } = useGlobalPlayerState();
   const activeContentId = currentVideo?.id || currentTrack?.id || currentAlbum?.id;
+  const activeContentTitle = currentVideo?.title || currentTrack?.title || currentAlbum?.title;
+  const activeContentCover = currentTrack?.albumCover || (currentAlbum as any)?.coverArt || (currentAlbum as any)?.coverUrl || currentVideo?.thumbnailUrl;
+  const activeContentArtist = currentTrack?.artist || (currentAlbum as any)?.artist;
+  const liveRoomId = activeContentId ? `live_chat_${activeContentId}` : 'live_chat_global';
 
+  const uid = auth.currentUser?.uid;
+
+  // ── Always maintain live chat listener ────────────────────────────────────────
   useEffect(() => {
-    if (activeContentId) {
-      const roomId = `live_chat_${activeContentId}`;
-      setLiveRoomId(roomId);
-      // Automatically switch to LIVE tab if content changes? Maybe just update state
-      // setActiveTab('LIVE'); 
+    // Only re-subscribe when the room actually changes
+    if (currentRoomRef.current === liveRoomId) return;
+    currentRoomRef.current = liveRoomId;
+
+    // Unsub previous
+    listenerRef.current?.();
+
+    // Upsert the room document with song metadata so ChatSystem shows cover art
+    if (activeContentId && auth.currentUser) {
+      ensureLiveChatRoom(liveRoomId, {
+        name: activeContentTitle || 'Live Chat',
+        coverUrl: activeContentCover,
+        mediaId: activeContentId,
+        mediaArtist: activeContentArtist,
+      }).catch(() => {});
     }
-  }, [activeContentId]);
 
+    listenerRef.current = listenToMessages(liveRoomId, (msgs) => {
+      setMsgCache(prev => ({ ...prev, [liveRoomId]: msgs }));
+      // Auto-scroll if drawer is open on LIVE tab
+      if (isOpen && activeTab === 'LIVE') {
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    });
+
+    return () => {
+      listenerRef.current?.();
+      listenerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveRoomId, activeContentTitle, activeContentCover, activeContentArtist, activeContentId]);
+
+  // Scroll to bottom when opening on LIVE tab
   useEffect(() => {
-    if (liveRoomId && activeTab === 'LIVE') {
-      const unsubscribe = listenToMessages(liveRoomId, (msgs) => {
-        setMessages(msgs);
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isOpen && activeTab === 'LIVE') {
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
       });
-      return () => unsubscribe();
     }
-  }, [liveRoomId, activeTab]);
+  }, [isOpen, activeTab]);
 
-  // Feed Logic
+  // Feed subscription
   useEffect(() => {
-    if (activeTab === 'GLOBAL_FEED' || activeTab === 'MY_FEED') {
-      const unsubscribe = fetchFeed((items) => {
-        setPosts(items);
-        if (auth.currentUser) {
-          setMyPosts(items.filter(p => p.authorId === auth.currentUser?.uid));
-        }
-      });
-      return () => unsubscribe();
-    }
+    if (activeTab !== 'GLOBAL_FEED' && activeTab !== 'MY_FEED') return;
+    const unsub = fetchFeed((items) => {
+      setPosts(items);
+      if (auth.currentUser) {
+        setMyPosts(items.filter(p => p.authorId === auth.currentUser?.uid));
+      }
+    });
+    return () => unsub();
   }, [activeTab]);
+
+  const currentMessages = msgCache[liveRoomId] ?? [];
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !auth.currentUser || !liveRoomId) return;
-
+    if (!inputText.trim() || !auth.currentUser) return;
+    const text = inputText;
+    setInputText('');
     await sendMessage(liveRoomId, {
       senderId: auth.currentUser.uid,
       senderName: auth.currentUser.displayName || 'Anonymous',
       senderPhoto: auth.currentUser.photoURL || '',
-      text: inputText,
-      type: 'TEXT'
+      text,
+      type: 'TEXT',
     });
-    setInputText('');
   };
 
   const handleSendPost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !auth.currentUser) return;
-
+    const text = inputText;
+    setInputText('');
     await postToFeed({
       authorId: auth.currentUser.uid,
       authorName: auth.currentUser.displayName || 'Anonymous',
       authorPhoto: auth.currentUser.photoURL || '',
-      content: inputText,
+      content: text,
       type: 'COMMENT',
-      shareCount: 0
+      shareCount: 0,
     });
-    setInputText('');
+  };
+
+  const handleShareSongDM = useCallback(() => {
+    if (!activeContentId) return;
+    // Opens DM composer pre-filled with a song share — user picks recipient by typing handle
+    // For now we open a generic DM prompt; full user-picker is in ChatSystem
+    setDmTarget({ id: '_song_share', name: 'a friend', photo: '' });
+  }, [activeContentId]);
+
+  const openDM = (msg: ChatMessage) => {
+    if (!auth.currentUser || msg.senderId === auth.currentUser.uid) return;
+    setDmTarget({ id: msg.senderId, name: msg.senderName, photo: msg.senderPhoto || '' });
   };
 
   const tabs = [
-    { id: 'LIVE', icon: MessageSquare, label: 'Live' },
-    { id: 'LIVETALK', icon: Mic, label: 'Talk' },
-    { id: 'WATCH_ALONG', icon: Users, label: 'Watch' },
-    { id: 'GLOBAL_FEED', icon: Globe, label: 'Global' },
-    { id: 'MY_FEED', icon: User, label: 'Me' },
+    { id: 'LIVE' as TabType, icon: MessageSquare, label: 'Live' },
+    { id: 'LIVETALK' as TabType, icon: Mic, label: 'Talk' },
+    { id: 'GLOBAL_FEED' as TabType, icon: Globe, label: 'Global' },
+    { id: 'MY_FEED' as TabType, icon: User, label: 'Me' },
   ];
 
   return (
     <>
-      {/* Drawer Toggle Handle */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
+      {/* Toggle handle */}
+      <button
+        onClick={() => setIsOpen(v => !v)}
         className="fixed top-1/2 right-0 -translate-y-1/2 z-[500] bg-black/40 backdrop-blur-3xl border border-white/10 p-3 rounded-l-2xl shadow-2xl group transition-all hover:bg-white/10"
       >
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          className="text-white/60 group-hover:text-white"
-        >
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-white/60 group-hover:text-white">
           <ChevronLeft size={20} />
         </motion.div>
+        {/* Unread badge */}
+        {!isOpen && currentMessages.length > 0 && (
+          <span className="absolute -top-1 -left-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-[10px] font-black text-black">
+            {currentMessages.length > 9 ? '9+' : currentMessages.length}
+          </span>
+        )}
       </button>
 
-      {/* Main Drawer */}
+      {/* Main drawer */}
       <motion.aside
         initial={false}
         animate={{ x: isOpen ? 0 : '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-        className="fixed top-0 right-0 h-full w-[380px] bg-black/60 backdrop-blur-3xl border-l border-white/5 z-[450] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.5)]"
+        className="fixed top-0 right-0 h-full w-[380px] bg-black/70 backdrop-blur-3xl border-l border-white/5 z-[450] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.5)]"
       >
-        {/* Header with Navigation */}
-        <div className="p-6 border-b border-white/5">
-          <div className="flex items-center justify-between mb-8">
-             <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_10px_rgba(208,188,255,1)]" />
-                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Plajah Coms Relay</h2>
-             </div>
-             <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-white/40 transition-colors">
-               <X size={16} />
-             </button>
+        {/* Header */}
+        <div className="px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(255,140,0,0.8)]" />
+              <span className="text-xs font-black uppercase tracking-widest text-white/50">Plajah Comms</span>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-white/8 rounded-full text-white/40 hover:text-white transition-colors">
+              <X size={15} />
+            </button>
           </div>
-
-          <div className="flex bg-black/40 rounded-full p-1 border border-white/5 shadow-inner">
+          <div className="flex bg-black/40 rounded-2xl p-0.5 border border-white/5">
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex-1 flex flex-col items-center py-2 transition-all rounded-full relative ${
-                  activeTab === tab.id ? 'text-white' : 'text-white/40 hover:text-white/60'
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex flex-col items-center py-2 transition-all rounded-xl relative ${
+                  activeTab === tab.id ? 'text-white' : 'text-white/35 hover:text-white/60'
                 }`}
               >
                 {activeTab === tab.id && (
-                  <motion.div 
-                    layoutId="activeTabChat"
-                    className="absolute inset-0 bg-white/5 rounded-full border border-white/10"
+                  <motion.div
+                    layoutId="drawerActiveTab"
+                    className="absolute inset-0 bg-white/6 rounded-xl border border-white/10"
                   />
                 )}
-                <tab.icon size={16} className="relative z-10" />
-                <span className="text-[8px] font-black uppercase tracking-widest mt-1 relative z-10">{tab.label}</span>
+                <tab.icon size={15} className="relative z-10" />
+                <span className="text-[11px] font-bold mt-0.5 relative z-10">{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 flex flex-col h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 flex flex-col min-h-0"
             >
-              {activeTab === 'LIVETALK' && (
-                <LiveTalkView onBrowse={() => {}} />
-              )}
 
+              {/* ── LIVE TAB ── */}
               {activeTab === 'LIVE' && (
-                <div className="flex-1 flex flex-col h-full">
-                  <div className="p-6 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-1">
-                        {currentVideo ? 'Movie Sync' : currentTrack ? 'Audio Wave' : 'Echo Chamber'}
-                      </h4>
-                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest truncate max-w-[200px]">
-                        {currentVideo?.title || currentTrack?.title || 'Global Lobby'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                      <Users size={12} className="text-white/40" />
-                      <span className="text-[10px] font-black font-mono text-white/60">1.2K</span>
+                <div className="flex-1 flex flex-col min-h-0">
+                  {/* Song context bar */}
+                  <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/5 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Music size={13} className="text-orange-400 shrink-0" />
+                        <span className="text-sm font-bold text-white truncate">
+                          {activeContentTitle || 'Global Chat'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {activeContentId && (
+                          <button
+                            onClick={handleShareSongDM}
+                            title="Share this song via DM"
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-colors"
+                          >
+                            <Share2 size={11} />
+                            <span className="text-[11px] font-bold">Share</span>
+                          </button>
+                        )}
+                        <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/8">
+                          <Users size={11} className="text-white/40" />
+                          <span className="text-xs font-bold text-white/50">{currentMessages.length > 0 ? `${currentMessages.length}` : '—'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                    {messages.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
-                        <MessageSquare size={48} />
-                        <p className="text-[10px] font-black uppercase tracking-widest">No signals detected</p>
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 scrollbar-hide">
+                    {currentMessages.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-3 text-white/20">
+                        <MessageSquare size={32} />
+                        <p className="text-sm font-bold">No messages yet</p>
+                        <p className="text-xs text-white/15">Be the first to say something</p>
                       </div>
-                    )}
-                    {messages.map((msg) => (
-                      <div key={msg.id} className="flex gap-4 group">
-                        <img 
-                          src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`} 
-                          className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 shadow-xl" 
+                    ) : (
+                      currentMessages.map(msg => (
+                        <MsgBubble
+                          key={msg.id}
+                          msg={msg}
+                          isMe={msg.senderId === uid}
+                          onDM={openDM}
                         />
-                        <div className="space-y-1">
-                           <div className="flex items-center gap-2">
-                             <span className="text-[9px] font-black uppercase tracking-widest text-primary">{msg.senderName}</span>
-                             <span className="text-[8px] font-mono text-white/20">21:40</span>
-                           </div>
-                           <p className="text-sm text-white/70 leading-relaxed">{msg.text}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <form onSubmit={handleSendMessage} className="p-6 bg-black/40 border-t border-white/5">
-                    <div className="relative">
-                      <input 
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Say something..."
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 pr-14 text-sm outline-none focus:border-primary/50 transition-all"
-                      />
-                      <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-primary hover:scale-110 transition-transform">
-                        <Send size={20} />
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {activeTab === 'WATCH_ALONG' && (
-                <div className="flex-1 flex flex-col h-full">
-                  <div className="m-6 relative rounded-[2rem] overflow-hidden bg-black aspect-video border border-white/10 group shadow-2xl">
-                    <img src="https://picsum.photos/seed/host/400/225" className="w-full h-full object-cover opacity-60" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
-                      <div className="w-16 h-16 rounded-full aurora-bg flex items-center justify-center mb-4 shadow-bloom">
-                         <VideoIcon size={24} className="text-white" />
+                  {/* Input */}
+                  {auth.currentUser ? (
+                    <form onSubmit={handleSendMessage} className="px-3 py-3 border-t border-white/5 shrink-0">
+                      <div className="relative flex items-center gap-2">
+                        <img
+                          src={auth.currentUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`}
+                          className="w-7 h-7 rounded-full border border-white/10 shrink-0"
+                          alt=""
+                        />
+                        <input
+                          type="text"
+                          value={inputText}
+                          onChange={e => setInputText(e.target.value)}
+                          placeholder="Say something…"
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/40 transition-colors"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!inputText.trim()}
+                          className="p-2 rounded-xl bg-orange-500 text-black disabled:opacity-40 hover:bg-orange-400 transition-colors shrink-0"
+                        >
+                          <Send size={14} />
+                        </button>
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Connecting Host...</span>
+                    </form>
+                  ) : (
+                    <div className="px-4 py-3 border-t border-white/5 text-center text-xs text-white/30">
+                      Sign in to chat
                     </div>
-                    
-                    {/* Host Controls */}
-                    <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white"><MicOff size={14}/></button>
-                      <button className="p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white"><VideoOff size={14}/></button>
-                      <button className="p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white"><Settings size={14}/></button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                     <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#00DAF3]">Live Audience</h4>
-                        <span className="text-[10px] font-black font-mono text-white/40">432 Watching</span>
-                     </div>
-                     <div className="grid grid-cols-4 gap-4">
-                        {[1,2,3,4,5,6,7,8].map(i => (
-                          <div key={i} className="aspect-square rounded-full bg-white/5 border border-white/10 overflow-hidden relative group cursor-pointer shadow-lg">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=u${i}`} className="w-full h-full" />
-                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        ))}
-                     </div>
-                  </div>
-                  
-                  <div className="p-6 bg-black/40 border-t border-white/5 space-y-4">
-                    <button className="w-full py-4 aurora-bg rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-bloom">
-                      Join Watch Session
-                    </button>
-                  </div>
+                  )}
                 </div>
               )}
 
+              {/* ── LIVETALK TAB ── */}
+              {activeTab === 'LIVETALK' && <LiveTalkView onBrowse={() => {}} />}
+
+              {/* ── GLOBAL FEED TAB ── */}
               {activeTab === 'GLOBAL_FEED' && (
-                <div className="flex-1 flex flex-col h-full">
-                  <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary tracking-[0.5em]">The Archive Feed</h4>
-                    <TrendingUp size={16} className="text-primary" />
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <span className="text-sm font-black uppercase tracking-widest text-orange-400">Archive Feed</span>
+                    <TrendingUp size={14} className="text-orange-400" />
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-10 custom-scrollbar">
-                    {posts.map((post) => (
-                      <div key={post.id} className="space-y-4 group">
+                  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-hide">
+                    {posts.map(post => (
+                      <div key={post.id} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <img src={post.authorPhoto || null} className="w-8 h-8 rounded-lg shadow-lg" />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-white/80">{post.authorName}</span>
+                          <div className="flex items-center gap-2">
+                            <img src={post.authorPhoto || undefined} className="w-7 h-7 rounded-lg border border-white/10" alt="" />
+                            <span className="text-xs font-bold text-white/80">{post.authorName}</span>
                           </div>
-                          <span className="text-[8px] font-mono text-white/20">2m</span>
+                          <span className="text-[11px] text-white/25">{new Date(post.timestamp).toLocaleDateString()}</span>
                         </div>
                         <p className="text-sm text-white/60 leading-relaxed">{post.content}</p>
-                        <div className="flex items-center gap-6">
-                           <button className="flex items-center gap-2 text-white/20 hover:text-primary transition-colors">
-                              <Heart size={14} />
-                              <span className="text-[8px] font-black font-mono">{post.shareCount || 0}</span>
-                           </button>
-                           <button className="flex items-center gap-2 text-white/20 hover:text-[#00DAF3] transition-colors">
-                              <Share2 size={14} />
-                              <span className="text-[8px] font-black font-mono">12</span>
-                           </button>
+                        <div className="flex items-center gap-4 pt-1">
+                          <button className="flex items-center gap-1.5 text-white/25 hover:text-orange-400 transition-colors">
+                            <Heart size={12} />
+                            <span className="text-xs font-bold">{post.shareCount || 0}</span>
+                          </button>
+                          <button className="flex items-center gap-1.5 text-white/25 hover:text-blue-400 transition-colors">
+                            <Share2 size={12} />
+                            <span className="text-xs font-bold">Share</span>
+                          </button>
                         </div>
-                        <div className="h-px bg-white/5 w-full group-last:hidden" />
+                        <div className="h-px bg-white/4" />
                       </div>
                     ))}
                   </div>
-                  <form onSubmit={handleSendPost} className="p-6 bg-black/40 border-t border-white/5">
-                    <textarea 
+                  <form onSubmit={handleSendPost} className="px-3 py-3 border-t border-white/5 shrink-0">
+                    <textarea
                       value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Share a vision..."
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm outline-none focus:border-primary/50 transition-all resize-none h-24"
+                      onChange={e => setInputText(e.target.value)}
+                      placeholder="Share a thought…"
+                      rows={2}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 resize-none focus:outline-none focus:border-orange-500/40 mb-2"
                     />
-                    <button type="submit" className="w-full mt-4 py-4 glass border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">
-                      Post to Plajah Social
+                    <button
+                      type="submit"
+                      disabled={!inputText.trim()}
+                      className="w-full py-2.5 bg-white/6 border border-white/10 rounded-xl text-sm font-bold text-white/60 hover:bg-white/10 hover:text-white transition-all disabled:opacity-40"
+                    >
+                      Post
                     </button>
                   </form>
                 </div>
               )}
 
+              {/* ── MY FEED TAB ── */}
               {activeTab === 'MY_FEED' && (
-                <div className="flex-1 flex flex-col h-full text-center p-12 space-y-8">
-                  <div className="w-32 h-32 rounded-3xl overflow-hidden mx-auto border-2 border-primary/20 shadow-2xl">
-                    <img src={auth.currentUser?.photoURL || 'https://picsum.photos/seed/me/300/300'} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-headline uppercase tracking-tight">{auth.currentUser?.displayName || 'Voyager'}</h3>
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mt-2">Active Curator</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="glass p-4 rounded-2xl border border-white/5">
-                      <div className="text-lg font-headline">12</div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-white/40">Posts</div>
-                    </div>
-                    <div className="glass p-4 rounded-2xl border border-white/5">
-                      <div className="text-lg font-headline">342</div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-white/40">Vibes</div>
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-hide">
+                  <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+                    <img
+                      src={auth.currentUser?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`}
+                      className="w-12 h-12 rounded-2xl border-2 border-orange-500/30 object-cover"
+                      alt=""
+                    />
+                    <div>
+                      <p className="text-sm font-black text-white">{auth.currentUser?.displayName || 'Voyager'}</p>
+                      <p className="text-xs text-orange-400 font-bold">Active Creator</p>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-6 pt-10 text-left">
-                    {myPosts.map(p => (
-                      <div key={p.id} className="p-6 glass rounded-2xl border border-white/5">
-                         <p className="text-xs text-white/60 leading-relaxed italic">"{p.content}"</p>
-                         <div className="mt-4 flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-white/20">
-                            <span>{new Date(p.timestamp).toLocaleDateString()}</span>
-                            <span>{p.shareCount || 0} High Vibes</span>
-                         </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/4 border border-white/8 rounded-xl p-3 text-center">
+                      <div className="text-xl font-black text-white">{myPosts.length}</div>
+                      <div className="text-xs text-white/40 font-bold mt-0.5">Posts</div>
+                    </div>
+                    <div className="bg-white/4 border border-white/8 rounded-xl p-3 text-center">
+                      <div className="text-xl font-black text-white">{currentMessages.length}</div>
+                      <div className="text-xs text-white/40 font-bold mt-0.5">Live msgs</div>
+                    </div>
+                  </div>
+                  {myPosts.map(p => (
+                    <div key={p.id} className="bg-white/4 border border-white/8 rounded-xl p-3">
+                      <p className="text-sm text-white/60 leading-relaxed italic">"{p.content}"</p>
+                      <div className="mt-2 flex justify-between items-center text-xs text-white/25 font-bold">
+                        <span>{new Date(p.timestamp).toLocaleDateString()}</span>
+                        <span>{p.shareCount || 0} vibes</span>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
+
             </motion.div>
+          </AnimatePresence>
+
+          {/* DM composer overlay */}
+          <AnimatePresence>
+            {dmTarget && (
+              <DMComposer
+                targetId={dmTarget.id}
+                targetName={dmTarget.name}
+                targetPhoto={dmTarget.photo}
+                songTitle={dmTarget.id === '_song_share' ? activeContentTitle : undefined}
+                songId={dmTarget.id === '_song_share' ? activeContentId : undefined}
+                onClose={() => setDmTarget(null)}
+              />
+            )}
           </AnimatePresence>
         </div>
       </motion.aside>

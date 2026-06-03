@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { Album, Track, UserProfile, Playlist } from '../types';
 import PageHeader from './PageHeader';
 const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
@@ -38,9 +39,10 @@ interface MusicViewProps {
   userProfile: UserProfile | null;
   initialTab?: TabType;
   onUploadMusic?: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic }) => {
+const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic, onNavigate }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
@@ -701,6 +703,63 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         <div className="flex-1 min-w-0">
           <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Chora</PageHeader>
+            {onNavigate && (
+              <div className="flex gap-4 mt-5 overflow-x-auto no-scrollbar pb-1">
+                {/* History Moments hero card */}
+                <button
+                  onClick={() => onNavigate('CHORA_HISTORY')}
+                  className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                  style={{ border: '1px solid rgba(167,139,250,0.35)' }}
+                >
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
+                    alt="History"
+                    className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
+                    style={{ filter: 'brightness(0.5) saturate(1.4)' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-transparent to-black/80" />
+                  <div className="relative h-full flex flex-col justify-between p-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+                      <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-purple-300/80 mb-0.5">Today in Music History</p>
+                      <h3 className="text-base font-black text-white leading-tight">History Moments</h3>
+                      <p className="text-[9px] text-white/50 mt-0.5">Legends, composers &amp; icons →</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Music Theory hero card */}
+                <button
+                  onClick={() => onNavigate('MUSIC_THEORY')}
+                  className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                  style={{ border: '1px solid rgba(99,102,241,0.35)' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-blue-900/60 to-violet-900/80" />
+                  {/* Animated staff lines */}
+                  <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 256 144">
+                    {[35, 50, 65, 80, 95].map(y => <line key={y} x1="0" y1={y} x2="256" y2={y} stroke="white" strokeWidth="1" />)}
+                    <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.4">𝄞</text>
+                    {[[80,65],[115,50],[150,65],[185,50],[220,65]].map(([x, cy], i) => (
+                      <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.6" transform={`rotate(-15,${x},${cy})`} />
+                    ))}
+                  </svg>
+                  <div className="relative h-full flex flex-col justify-between p-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-400">Learn</span>
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-blue-300/80 mb-0.5">Novice · Intermediate · Maestro</p>
+                      <h3 className="text-base font-black text-white leading-tight">Music Theory Studio</h3>
+                      <p className="text-[9px] text-white/50 mt-0.5">Ear training, scales &amp; harmony →</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
             <div className="mt-4">
               <PlajahPlusBanner variant="COMPACT" />
             </div>
@@ -950,6 +1009,15 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               </div>
 
               <div className="space-y-8 flex flex-col">
+
+                {/* ── History Moment Pulse ── */}
+                <HistoryMomentPulseCard
+                  uid={auth.currentUser?.uid}
+                  category="MUSIC"
+                  size="sidebar"
+                  onNavigate={onNavigate}
+                  rotationIntervalSeconds={12}
+                />
 
                 {/* ── Platform Pulse ── */}
                 {upcomingAlbums.length > 0 && (
