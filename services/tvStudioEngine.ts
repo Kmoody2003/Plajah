@@ -699,10 +699,132 @@ ${events}
     ]);
   }
 
+  // ── Aux Buses ─────────────────────────────────────────────────────────────
+  // Each aux bus is an independent canvas + captureStream output. Useful for
+  // multi-destination streaming (record ISO, send to secondary display, etc.)
+
+  private auxBuses: Map<string, { label: string; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; sourceId: string | null; rafHandle: number }> = new Map();
+  onAuxBusesChanged?: () => void;
+
+  createAuxBus(id: string, label: string): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920; canvas.height = 1080;
+    const ctx = canvas.getContext('2d')!;
+    const draw = () => {
+      const bus = this.auxBuses.get(id);
+      if (!bus) return;
+      const src = bus.sourceId ? this.sources.get(bus.sourceId) ?? null : null;
+      if (!src) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1920, 1080); }
+      else if (src.videoEl && src.isReady) { ctx.drawImage(src.videoEl, 0, 0, 1920, 1080); }
+      else if (src.color) { ctx.fillStyle = src.color; ctx.fillRect(0, 0, 1920, 1080); }
+      bus.rafHandle = requestAnimationFrame(draw);
+    };
+    const rafHandle = requestAnimationFrame(draw);
+    this.auxBuses.set(id, { label, canvas, ctx, sourceId: null, rafHandle });
+    this.onAuxBusesChanged?.();
+  }
+
+  removeAuxBus(id: string): void {
+    const bus = this.auxBuses.get(id);
+    if (bus) { cancelAnimationFrame(bus.rafHandle); this.auxBuses.delete(id); }
+    this.onAuxBusesChanged?.();
+  }
+
+  setAuxBusSource(busId: string, sourceId: string | null): void {
+    const bus = this.auxBuses.get(busId);
+    if (bus) { bus.sourceId = sourceId; this.onAuxBusesChanged?.(); }
+  }
+
+  getAuxBusStream(busId: string, fps = 30): MediaStream | null {
+    const bus = this.auxBuses.get(busId);
+    if (!bus) return null;
+    return bus.canvas.captureStream(fps);
+  }
+
+  getAuxBuses() { return [...this.auxBuses.entries()].map(([id, b]) => ({ id, label: b.label, sourceId: b.sourceId, canvas: b.canvas })); }
+
+  // ── Audio Cues ─────────────────────────────────────────────────────────────
+  // Instant-trigger audio cells — stingers, SFX, music jingles.
+
+  private audioCueBuffers: Map<string, AudioBuffer> = new Map();
+  private audioCueNodes:   Map<string, AudioBufferSourceNode> = new Map();
+  onAudioCuePlaying?: (id: string, playing: boolean) => void;
+
+  async loadAudioCue(id: string, url: string): Promise<void> {
+    try {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const decoded = await this.audioCtx.decodeAudioData(buf);
+      this.audioCueBuffers.set(id, decoded);
+    } catch (e) { console.warn('Audio cue load failed:', e); }
+  }
+
+  triggerAudioCue(id: string, gainDb = 1): void {
+    this.stopAudioCue(id);
+    const buffer = this.audioCueBuffers.get(id);
+    if (!buffer) return;
+    const src = this.audioCtx.createBufferSource();
+    src.buffer = buffer;
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = gainDb;
+    src.connect(gain);
+    gain.connect(this.masterGain);
+    src.start();
+    src.onended = () => { this.audioCueNodes.delete(id); this.onAudioCuePlaying?.(id, false); };
+    this.audioCueNodes.set(id, src);
+    this.onAudioCuePlaying?.(id, true);
+  }
+
+  stopAudioCue(id: string): void {
+    const node = this.audioCueNodes.get(id);
+    if (node) { try { node.stop(); } catch {} this.audioCueNodes.delete(id); this.onAudioCuePlaying?.(id, false); }
+  }
+
+  isAudioCuePlaying(id: string): boolean { return this.audioCueNodes.has(id); }
+
+  // ── Google Cast output ─────────────────────────────────────────────────────
+  // Captures program output as a data URL and sends it to a Cast receiver.
+  // Requires the Cast SDK to be loaded in the host page.
+
+  getCastProgramDataUrl(): string {
+    return this.canvas.toDataURL('image/jpeg', 0.7);
+  }
+
+  // ── NDI / AVB stubs ───────────────────────────────────────────────────────
+  // NDI and AVB require a native bridge. These methods emit the program stream
+  // over a WebSocket to a local NDI Bridge process (ndi-webrtc-peer-worker
+  // or OBS NDI plugin with WebSocket server mode enabled).
+
+  private ndiWs: WebSocket | null = null;
+  private avbWs: WebSocket | null = null;
+
+  connectNDI(wsUrl: string): void {
+    if (this.ndiWs) this.ndiWs.close();
+    this.ndiWs = new WebSocket(wsUrl);
+    this.ndiWs.onopen = () => console.log('[TVStudio] NDI bridge connected');
+    this.ndiWs.onerror = e => console.warn('[TVStudio] NDI bridge error', e);
+  }
+
+  disconnectNDI(): void { this.ndiWs?.close(); this.ndiWs = null; }
+  isNDIConnected(): boolean { return this.ndiWs?.readyState === WebSocket.OPEN; }
+
+  connectAVB(wsUrl: string): void {
+    if (this.avbWs) this.avbWs.close();
+    this.avbWs = new WebSocket(wsUrl);
+    this.avbWs.onopen = () => console.log('[TVStudio] AVB bridge connected');
+  }
+
+  disconnectAVB(): void { this.avbWs?.close(); this.avbWs = null; }
+  isAVBConnected(): boolean { return this.avbWs?.readyState === WebSocket.OPEN; }
+
   destroy() {
     this.stop();
     this.recorder?.stop();
     this.sources.forEach(src => src.stream?.getTracks().forEach(t => t.stop()));
+    this.auxBuses.forEach(b => cancelAnimationFrame(b.rafHandle));
+    this.audioCueNodes.forEach(n => { try { n.stop(); } catch {} });
+    this.ndiWs?.close();
+    this.avbWs?.close();
     this.audioCtx.close();
   }
 }

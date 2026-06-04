@@ -182,7 +182,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical } from 'lucide-react';
+import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -1374,6 +1374,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'DISCUSSION', order: 17.5, isVisible: true },
                     { id: 'FEED', order: 0.1, isVisible: true },
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
+                    { id: 'TV_STUDIO', order: 19.1, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
                     { id: 'HELP_CENTER', order: 21, isVisible: true },
@@ -1427,6 +1428,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         POSTMAN: { label: 'The Postman', icon: Mail },
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
+                        TV_STUDIO: { label: 'TV Studio', icon: Clapperboard },
                         SEARCH: { label: 'Find Artists', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
@@ -1466,6 +1468,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         POSTMAN: "Access the formal AI-Studio dispatch system.",
                         FEED: "See the latest updates and posts from everyone you follow.",
                         LIVE_HUB: "Discover what's happening live on the platform right now.",
+                        TV_STUDIO: "Browser-based TV production switcher — cameras, graphics, audio mixing, lighting, NDI, EDL export.",
                         SEARCH: "Find specific artists, albums, or content.",
                         HELP_CENTER: "Access documentation, tutorials, and platform guides.",
                         ADMIN_AD_DASHBOARD: "Manage platform advertisements and promotions.",
