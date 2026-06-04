@@ -1,42 +1,38 @@
 /**
- * TVStudio — Plajah TV Studio Production Environment
+ * TVStudio — Plajah TV Studio Master Control
  *
- * Full-screen browser-based production switcher built on TVStudioEngine.
- * Design language: Blackmagic ATEM Software Control aesthetic in Plajah's dark purple palette.
+ * Layout: ProStream Precision-style master control room.
+ * Brand:  Plajah dark #D40055 program tally · #6B0099 preview tally.
  *
- * Layout:
- *  Left  (192px) — Source bus: thumbnails + add buttons
- *  Center (flex) — Preview + Program monitors side-by-side; Switcher bar at bottom
- *  Right  (288px) — Tabbed panel: Graphics | Audio | Color | MIDI | Settings
+ * ┌─ Header: branding + tab nav ─────────────────────────────────────────────┐
+ * │ Sidebar │ Program monitor │ Preview monitor │ 2×4 mini multiview         │
+ * │         ├────────── 8-source thumbnail strip ──────────────────────────── │
+ * │         │ Media Asset Bin          │ Switcher: Prog/Prev bus + T-Bar      │
+ * └─────────┴─────────────────────────────────────────────────────────────────┘
+ * Footer: AUTO TRANS · CUT/TAKE
  *
- * Modes:
- *  LIVE   — outputs program stream via onStreamReady() (Mux/WebRTC integration)
- *  RECORD — records locally, downloads WebM on stop
- *  BOTH   — simultaneous
- *
- * EDL/XML — CMX3600 + Final Cut Pro XML export from cut list
+ * Engine: TVStudioEngine — canvas compositor, Web Audio, MediaRecorder, EDL.
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, {
+  useState, useEffect, useRef, useCallback, useMemo,
+} from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Video, Monitor, Film, Palette, Radio, Circle, Square,
-  Sliders, Volume2, VolumeX, Mic, MicOff, Layers, Eye, EyeOff,
-  Trash2, Plus, Download, Settings, Usb, Clock, Clapperboard,
-  Sun, Contrast, Droplet, Upload, Type, ChevronDown,
-  Activity, BarChart2, Zap,
+  Volume2, Mic, MicOff, Layers, Eye, EyeOff, Trash2, Download,
+  Settings, Usb, Clock, Clapperboard, Sun, Contrast, Droplet,
+  Upload, Type, Activity, Database, Sliders, Lock, Zap,
+  ChevronRight,
 } from 'lucide-react';
 import {
-  TVStudioEngine,
-  StudioSource,
-  GraphicOverlay,
-  TransitionType,
+  TVStudioEngine, StudioSource, GraphicOverlay, TransitionType,
 } from '../services/tvStudioEngine';
 import { db } from '../services/firebase';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StudioProjectDoc {
   id: string;
@@ -51,59 +47,48 @@ interface StudioProjectDoc {
 export interface TVStudioProps {
   currentUser: FirebaseUser | null;
   onBack: () => void;
-  /** If launched from a live broadcast flow, pass the program stream up to the caller. */
   onStreamReady?: (stream: MediaStream) => void;
 }
 
-type RightTab = 'graphics' | 'audio' | 'color' | 'midi' | 'settings';
+type StudioTab = 'SWITCHER' | 'AUDIO' | 'SETTINGS';
 
-// ── Source Thumbnail ─────────────────────────────────────────────────────────
-// Mini canvas that renders a source at ~8 fps in the source bus.
+// ── SourceCanvas ──────────────────────────────────────────────────────────────
+// Renders one engine source into a canvas at ~8 fps.
 
-function SourceTile({
+function SourceCanvas({
   source,
-  isProgram,
-  isPreview,
-  onClick,
-  onRemove,
+  className = '',
 }: {
   source: StudioSource;
-  isProgram: boolean;
-  isPreview: boolean;
-  onClick: () => void;
-  onRemove: () => void;
+  className?: string;
 }) {
   const cvRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
+  const frameRef = useRef(0);
 
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return;
     const ctx = cv.getContext('2d');
     if (!ctx) return;
-    let frame = 0;
 
     const draw = () => {
-      frame++;
-      // Render at ~8fps (every 8 rAF frames ≈ 133ms at 60fps)
-      if (frame % 8 === 0) {
+      frameRef.current++;
+      if (frameRef.current % 8 === 0) {
         if (source.videoEl && source.isReady) {
           ctx.filter = `brightness(${source.brightness}) contrast(${source.contrast}) saturate(${source.saturation}) hue-rotate(${source.hue}deg)`;
           ctx.drawImage(source.videoEl, 0, 0, 160, 90);
           ctx.filter = 'none';
         } else if (source.type === 'BARS') {
           const bars = ['#C0C0C0','#C0C000','#00C0C0','#00C000','#C000C0','#C00000','#0000C0'];
-          bars.forEach((c, i) => {
-            ctx.fillStyle = c;
-            ctx.fillRect(i * (160 / 7), 0, 160 / 7, 90);
-          });
+          bars.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i * (160/7), 0, 160/7, 90); });
         } else if (source.color) {
           ctx.fillStyle = source.color === 'BARS' ? '#888' : source.color;
           ctx.fillRect(0, 0, 160, 90);
         } else if (source.imageEl) {
           ctx.drawImage(source.imageEl, 0, 0, 160, 90);
         } else {
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = '#111';
           ctx.fillRect(0, 0, 160, 90);
         }
       }
@@ -113,56 +98,10 @@ function SourceTile({
     return () => cancelAnimationFrame(rafRef.current);
   }, [source]);
 
-  const borderCls = isProgram
-    ? 'border-[#D40055] shadow-[0_0_8px_rgba(212,0,85,0.4)]'
-    : isPreview
-    ? 'border-[#6B0099] shadow-[0_0_6px_rgba(107,0,153,0.35)]'
-    : 'border-white/10 hover:border-white/30';
-
-  return (
-    <div className="group relative">
-      <button
-        onClick={onClick}
-        className={`relative w-full rounded-lg overflow-hidden border-2 transition-all focus:outline-none ${borderCls}`}
-        style={{ aspectRatio: '16/9' }}
-      >
-        <canvas ref={cvRef} width={160} height={90} className="w-full h-full block" />
-
-        {/* Label bar */}
-        <div className={`absolute bottom-0 left-0 right-0 px-1.5 py-0.5 flex items-center justify-between
-          ${isProgram ? 'bg-[#D40055]' : isPreview ? 'bg-[#6B0099]' : 'bg-black/60'}`}
-        >
-          <span className="text-[9px] font-bold text-white truncate">{source.label}</span>
-          {(isProgram || isPreview) && (
-            <span className="text-[8px] font-black text-white/90 shrink-0 ml-1">
-              {isProgram ? 'PGM' : 'PVW'}
-            </span>
-          )}
-        </div>
-
-        {/* Loading spinner */}
-        {!source.isReady && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-          </div>
-        )}
-      </button>
-
-      {/* Remove button (hover) — hide for built-in sources */}
-      {!['black', 'bars'].includes(source.id) && (
-        <button
-          onClick={e => { e.stopPropagation(); onRemove(); }}
-          className="absolute top-1 right-1 p-0.5 rounded bg-black/60 text-white/40 hover:text-[#D40055] transition-colors opacity-0 group-hover:opacity-100"
-        >
-          <Trash2 size={9} />
-        </button>
-      )}
-    </div>
-  );
+  return <canvas ref={cvRef} width={160} height={90} className={className} />;
 }
 
-// ── Preview Monitor Canvas ───────────────────────────────────────────────────
-// Draws the preview source to a canvas at ~30fps independent of the engine.
+// ── PreviewMonitor ────────────────────────────────────────────────────────────
 
 function PreviewMonitor({ source }: { source: StudioSource | null }) {
   const cvRef = useRef<HTMLCanvasElement>(null);
@@ -176,8 +115,7 @@ function PreviewMonitor({ source }: { source: StudioSource | null }) {
 
     const draw = () => {
       if (!source) {
-        ctx.fillStyle = '#0d0d0d';
-        ctx.fillRect(0, 0, 1920, 1080);
+        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, 1920, 1080);
       } else if (source.videoEl && source.isReady) {
         ctx.filter = `brightness(${source.brightness}) contrast(${source.contrast}) saturate(${source.saturation}) hue-rotate(${source.hue}deg)`;
         ctx.drawImage(source.videoEl, 0, 0, 1920, 1080);
@@ -188,18 +126,14 @@ function PreviewMonitor({ source }: { source: StudioSource | null }) {
         bars.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i * w, 0, w, 810); });
         ctx.fillStyle = '#00008B'; ctx.fillRect(0, 810, 240, 270);
         ctx.fillStyle = '#fff';    ctx.fillRect(240, 810, 240, 270);
-        ctx.fillStyle = '#2B00C8'; ctx.fillRect(480, 810, 240, 270);
         ctx.fillStyle = '#000';    ctx.fillRect(720, 810, 720, 270);
-        ctx.fillStyle = '#0D0D0D'; ctx.fillRect(1440, 810, 240, 270);
-        ctx.fillStyle = '#fff';    ctx.fillRect(1680, 810, 240, 270);
       } else if (source.color) {
         ctx.fillStyle = source.color === 'BARS' ? '#888' : source.color;
         ctx.fillRect(0, 0, 1920, 1080);
       } else if (source.imageEl) {
         ctx.drawImage(source.imageEl, 0, 0, 1920, 1080);
       } else {
-        ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, 1920, 1080);
+        ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 1920, 1080);
       }
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -210,56 +144,96 @@ function PreviewMonitor({ source }: { source: StudioSource | null }) {
   return <canvas ref={cvRef} width={1920} height={1080} className="w-full h-full block" />;
 }
 
-// ── VU Meter ─────────────────────────────────────────────────────────────────
+// ── VUBar ─────────────────────────────────────────────────────────────────────
 
-function VUBar({
-  level,
-  vertical = false,
-  className = '',
-}: {
-  level: number;
-  vertical?: boolean;
-  className?: string;
-}) {
+function VUBar({ level, vertical = false, className = '' }: { level: number; vertical?: boolean; className?: string }) {
   const pct = Math.min(level * 100, 100);
   const color = level > 0.85 ? '#ef4444' : level > 0.6 ? '#f59e0b' : '#22c55e';
-
   if (vertical) {
     return (
-      <div
-        className={`relative bg-black/40 rounded overflow-hidden ${className}`}
-        style={{ width: 6, height: 48 }}
-      >
-        <div
-          className="absolute bottom-0 left-0 right-0 transition-all duration-75"
-          style={{ height: `${pct}%`, backgroundColor: color }}
-        />
+      <div className={`relative bg-black/40 rounded overflow-hidden ${className}`} style={{ width: 6, height: 56 }}>
+        <div className="absolute bottom-0 left-0 right-0 transition-all duration-75" style={{ height: `${pct}%`, backgroundColor: color }} />
       </div>
     );
   }
   return (
     <div className={`relative bg-black/40 rounded overflow-hidden h-1.5 ${className}`}>
-      <div
-        className="absolute left-0 top-0 bottom-0 transition-all duration-75"
-        style={{ width: `${pct}%`, backgroundColor: color }}
-      />
+      <div className="absolute left-0 top-0 bottom-0 transition-all duration-75" style={{ width: `${pct}%`, backgroundColor: color }} />
     </div>
   );
 }
 
-// ── Elapsed timer hook ───────────────────────────────────────────────────────
+// ── VerticalTBar ──────────────────────────────────────────────────────────────
+
+function VerticalTBar({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const getPos = useCallback((clientY: number) => {
+    if (!trackRef.current) return 0;
+    const { top, height } = trackRef.current.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientY - top) / height));
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => { if (dragging.current) onChange(getPos(e.clientY)); };
+    const onUp   = () => { dragging.current = false; };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup',   onUp);
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+  }, [onChange, getPos]);
+
+  const handlePct = Math.round(value * 83); // cap at 83% so handle stays visible
+
+  return (
+    <div
+      ref={trackRef}
+      className="relative rounded-full cursor-pointer select-none"
+      style={{ width: 18, height: 136, background: '#080808', border: '1px solid #2a2a2a' }}
+      onPointerDown={e => {
+        dragging.current = true;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        onChange(getPos(e.clientY));
+      }}
+    >
+      {/* Track fill */}
+      <div
+        className="absolute bottom-0 left-0 right-0 rounded-full"
+        style={{ height: `${(1 - value) * 100}%`, background: 'rgba(107,0,153,0.25)' }}
+      />
+      {/* Handle */}
+      <div
+        className="absolute left-1/2 rounded-sm"
+        style={{
+          top: `${handlePct}%`,
+          width: 32,
+          height: 18,
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(180deg, #2e2e2e 0%, #1a1a1a 100%)',
+          border: '1px solid #555',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-px bg-white/20" />
+      </div>
+    </div>
+  );
+}
+
+// ── Elapsed timer hook ────────────────────────────────────────────────────────
 
 function useElapsed(running: boolean, startMs: number) {
-  const [elapsed, setElapsed] = useState('00:00:00');
+  const [elapsed, setElapsed] = useState('00:00:00:00');
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => {
       const ms = Date.now() - startMs;
-      const h = String(Math.floor(ms / 3600000)).padStart(2, '0');
-      const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
-      const s = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
-      setElapsed(`${h}:${m}:${s}`);
-    }, 1000);
+      const h  = String(Math.floor(ms / 3600000)).padStart(2, '0');
+      const m  = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+      const s  = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+      const f  = String(Math.floor((ms % 1000) / 33)).padStart(2, '0');
+      setElapsed(`${h}:${m}:${s}:${f}`);
+    }, 33);
     return () => clearInterval(id);
   }, [running, startMs]);
   return elapsed;
@@ -269,84 +243,83 @@ function useElapsed(running: boolean, startMs: number) {
 
 const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady }) => {
 
-  // ── Project state ──────────────────────────────────────────────────────────
-  const [projects, setProjects]           = useState<StudioProjectDoc[]>([]);
-  const [activeProject, setActiveProject] = useState<StudioProjectDoc | null>(null);
+  // ── Project ────────────────────────────────────────────────────────────────
+  const [projects, setProjects]               = useState<StudioProjectDoc[]>([]);
+  const [activeProject, setActiveProject]     = useState<StudioProjectDoc | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [newTitle, setNewTitle]           = useState('New Show');
-  const [newRes, setNewRes]               = useState<StudioProjectDoc['resolution']>('1920x1080');
-  const [newFps, setNewFps]               = useState<StudioProjectDoc['frameRate']>(30);
-  const [newMode, setNewMode]             = useState<StudioProjectDoc['outputMode']>('BOTH');
+  const [newTitle, setNewTitle]               = useState('New Show');
+  const [newRes, setNewRes]                   = useState<StudioProjectDoc['resolution']>('1920x1080');
+  const [newFps, setNewFps]                   = useState<StudioProjectDoc['frameRate']>(30);
+  const [newMode, setNewMode]                 = useState<StudioProjectDoc['outputMode']>('BOTH');
 
-  // ── Engine refs + reactive state ───────────────────────────────────────────
+  // ── Engine ─────────────────────────────────────────────────────────────────
   const programCanvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef        = useRef<TVStudioEngine | null>(null);
 
-  const [sourcesVer, setSourcesVer]       = useState(0);
-  const [overlaysVer, setOverlaysVer]     = useState(0);
-  const [programId, setProgramId]         = useState<string | null>(null);
-  const [previewId, setPreviewId]         = useState<string | null>(null);
+  const [sourcesVer, setSourcesVer]           = useState(0);
+  const [overlaysVer, setOverlaysVer]         = useState(0);
+  const [programId, setProgramId]             = useState<string | null>(null);
+  const [previewId, setPreviewId]             = useState<string | null>(null);
   const [transitionProgress, setTransitionProgress] = useState(0);
-  const [masterLevel, setMasterLevel]     = useState(0);
-  const [sourceLevels, setSourceLevels]   = useState<Record<string, number>>({});
-  const levelRafRef = useRef<number>(0);
+  const [masterLevel, setMasterLevel]         = useState(0);
+  const [sourceLevels, setSourceLevels]       = useState<Record<string, number>>({});
+  const levelRafRef                           = useRef<number>(0);
 
   // ── Recording ──────────────────────────────────────────────────────────────
-  const [isRecording, setIsRecording]     = useState(false);
-  const [recordStart, setRecordStart]     = useState(0);
-  const elapsed = useElapsed(isRecording, recordStart);
+  const [isRecording, setIsRecording]         = useState(false);
+  const [recordStart, setRecordStart]         = useState(0);
+  const timecode = useElapsed(isRecording, recordStart);
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [rightTab, setRightTab]           = useState<RightTab>('graphics');
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [transitionType, setTransitionType]     = useState<TransitionType>('MIX');
+  const [studioTab, setStudioTab]             = useState<StudioTab>('SWITCHER');
+  const [transitionType, setTransitionType]   = useState<TransitionType>('MIX');
   const [transitionDuration, setTransitionDuration] = useState(500);
-  const [tBarValue, setTBarValue]         = useState(0);
-  const [midiConnected, setMidiConnected] = useState(false);
+  const [tBarValue, setTBarValue]             = useState(0);
+  const [midiConnected, setMidiConnected]     = useState(false);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [inspectedSourceId, setInspectedSourceId] = useState<string | null>(null);
 
-  // Graphics overlay form state
-  const [showLTForm, setShowLTForm]       = useState(false);
-  const [ltTitle, setLtTitle]             = useState('');
-  const [ltSubtitle, setLtSubtitle]       = useState('');
-  const [ltStyle, setLtStyle]             = useState<'MODERN' | 'CLASSIC' | 'MINIMAL'>('MODERN');
+  // Graphics overlay form
+  const [showLTForm, setShowLTForm]           = useState(false);
+  const [ltTitle, setLtTitle]                 = useState('');
+  const [ltSubtitle, setLtSubtitle]           = useState('');
+  const [ltStyle, setLtStyle]                 = useState<'MODERN' | 'CLASSIC' | 'MINIMAL'>('MODERN');
 
-  // Audio state
-  const [masterGain, setMasterGain]       = useState(1);
-  const [sourceGains, setSourceGains]     = useState<Record<string, number>>({});
-  const [sourceMutes, setSourceMutes]     = useState<Record<string, boolean>>({});
+  // Audio
+  const [masterGain, setMasterGain]           = useState(1);
+  const [sourceGains, setSourceGains]         = useState<Record<string, number>>({});
+  const [sourceMutes, setSourceMutes]         = useState<Record<string, boolean>>({});
 
-  // Color correction state
+  // Color correction
   const [cc, setCC] = useState({ brightness: 1, contrast: 1, saturation: 1, hue: 0 });
 
-  // ── Derived values (recalculate when version counters change) ──────────────
-  const sources = useMemo(() => engineRef.current?.getSources() ?? [], [sourcesVer]); // eslint-disable-line react-hooks/exhaustive-deps
-  const overlays = useMemo(() => engineRef.current?.getOverlays() ?? [], [overlaysVer]); // eslint-disable-line react-hooks/exhaustive-deps
-  const previewSource = useMemo(
-    () => (previewId ? sources.find(s => s.id === previewId) ?? null : null),
-    [previewId, sourcesVer] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const programSource = useMemo(
-    () => (programId ? sources.find(s => s.id === programId) ?? null : null),
-    [programId, sourcesVer] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  // Settings sub-tab
+  const [settingsSub, setSettingsSub] = useState<'COLOR' | 'MIDI' | 'EXPORT'>('EXPORT');
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sources      = useMemo(() => engineRef.current?.getSources() ?? [], [sourcesVer]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const overlays     = useMemo(() => engineRef.current?.getOverlays() ?? [], [overlaysVer]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const previewSource = useMemo(() => previewId ? sources.find(s => s.id === previewId) ?? null : null, [previewId, sourcesVer]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const programLabel  = useMemo(() => sources.find(s => s.id === programId)?.label ?? '—', [programId, sourcesVer]);
 
   // ── Engine lifecycle ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!programCanvasRef.current) return;
     const eng = new TVStudioEngine(programCanvasRef.current);
     engineRef.current = eng;
-
     eng.onSourcesChanged     = () => setSourcesVer(v => v + 1);
     eng.onOverlaysChanged    = () => setOverlaysVer(v => v + 1);
-    eng.onProgramChanged     = id  => setProgramId(id);
-    eng.onPreviewChanged     = id  => setPreviewId(id);
-    eng.onTransitionProgress = p   => setTransitionProgress(p);
-    eng.onMasterLevel        = l   => setMasterLevel(l);
-
+    eng.onProgramChanged     = id => setProgramId(id);
+    eng.onPreviewChanged     = id => setPreviewId(id);
+    eng.onTransitionProgress = p  => setTransitionProgress(p);
+    eng.onMasterLevel        = l  => setMasterLevel(l);
     eng.start();
     eng.setPreview('black');
 
-    // Level polling (~30fps sampling)
     const poll = () => {
       const e = engineRef.current;
       if (e) {
@@ -358,13 +331,9 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     };
     poll();
 
-    return () => {
-      eng.destroy();
-      cancelAnimationFrame(levelRafRef.current);
-    };
+    return () => { eng.destroy(); cancelAnimationFrame(levelRafRef.current); };
   }, []);
 
-  // Sync CC panel when selected source changes
   useEffect(() => {
     if (!selectedSourceId) return;
     const src = engineRef.current?.getSources().find(s => s.id === selectedSourceId);
@@ -390,57 +359,38 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     const data: Omit<StudioProjectDoc, 'id'> = {
       userId: currentUser?.uid ?? 'anon',
       title: newTitle.trim() || 'New Show',
-      resolution: newRes,
-      frameRate: newFps,
-      outputMode: newMode,
-      createdAt: now,
+      resolution: newRes, frameRate: newFps, outputMode: newMode, createdAt: now,
     };
     let proj: StudioProjectDoc;
-    try {
-      const ref = await addDoc(collection(db, 'studio_projects'), data);
-      proj = { id: ref.id, ...data };
-    } catch {
-      proj = { id: `local_${now}`, ...data };
-    }
+    try { const ref = await addDoc(collection(db, 'studio_projects'), data); proj = { id: ref.id, ...data }; }
+    catch { proj = { id: `local_${now}`, ...data }; }
     setProjects(p => [proj, ...p]);
     setActiveProject(proj);
     setShowProjectModal(false);
   }, [currentUser, newTitle, newRes, newFps, newMode]);
 
   // ── Source management ──────────────────────────────────────────────────────
-  const handleAddCamera = useCallback(async () => {
-    await engineRef.current?.addCameraSource();
-  }, []);
-
-  const handleAddScreen = useCallback(async () => {
-    await engineRef.current?.addScreenSource();
-  }, []);
-
-  const handleAddMedia = useCallback(() => {
+  const handleAddCamera  = useCallback(async () => { await engineRef.current?.addCameraSource(); }, []);
+  const handleAddScreen  = useCallback(async () => { await engineRef.current?.addScreenSource(); }, []);
+  const handleAddMedia   = useCallback(() => {
     const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'video/*,image/*';
+    inp.type = 'file'; inp.accept = 'video/*,image/*';
     inp.onchange = async () => {
       const file = inp.files?.[0];
       if (!file || !engineRef.current) return;
       const url = URL.createObjectURL(file);
       const label = file.name.replace(/\.[^.]+$/, '');
-      if (file.type.startsWith('image/')) {
-        engineRef.current.addGraphicSource(url, label);
-      } else {
-        await engineRef.current.addMediaSource(url, label);
-      }
+      if (file.type.startsWith('image/')) engineRef.current.addGraphicSource(url, label);
+      else await engineRef.current.addMediaSource(url, label);
     };
     inp.click();
   }, []);
 
   const handleSourceClick = useCallback((id: string) => {
     const e = engineRef.current;
-    if (!e) return;
-    if (e.getProgramId() === id) return;
+    if (!e || e.getProgramId() === id) return;
     e.setPreview(id);
     setSelectedSourceId(id);
-    setCC({ brightness: 1, contrast: 1, saturation: 1, hue: 0 });
   }, []);
 
   const handleRemoveSource = useCallback((id: string) => {
@@ -448,27 +398,28 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   }, []);
 
   // ── Switcher ───────────────────────────────────────────────────────────────
-  const handleCut = useCallback(() => {
-    engineRef.current?.cut();
-    setTBarValue(0);
-  }, []);
-
-  const handleAuto = useCallback(() => {
+  const handleCut   = useCallback(() => { engineRef.current?.cut(); setTBarValue(0); }, []);
+  const handleAuto  = useCallback(() => {
     const e = engineRef.current;
     if (!e) return;
     e.setTransitionType(transitionType);
     e.setTransitionDuration(transitionDuration);
     e.auto();
   }, [transitionType, transitionDuration]);
-
-  const handleFTB = useCallback(() => {
-    engineRef.current?.fadeToBlack();
+  const handleFTB   = useCallback(() => { engineRef.current?.fadeToBlack(); }, []);
+  const handleTBar  = useCallback((v: number) => {
+    setTBarValue(v);
+    engineRef.current?.setTBar(v);
+    if (v >= 1) setTimeout(() => setTBarValue(0), 400);
   }, []);
 
-  const handleTBarChange = useCallback((val: number) => {
-    setTBarValue(val);
-    engineRef.current?.setTBar(val);
-    if (val >= 1) setTimeout(() => setTBarValue(0), 400);
+  // Direct program cut (program bus row click)
+  const handleProgramCut = useCallback((id: string) => {
+    const e = engineRef.current;
+    if (!e) return;
+    e.setPreview(id);
+    e.cut();
+    setTBarValue(0);
   }, []);
 
   // ── Recording ──────────────────────────────────────────────────────────────
@@ -501,33 +452,17 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   const handleAddLowerThird = useCallback(() => {
     const e = engineRef.current;
     if (!e) return;
-    e.addOverlay({
-      id: `lt_${Date.now()}`,
-      label: ltTitle || 'Lower Third',
-      type: 'LOWER_THIRD',
-      title: ltTitle,
-      subtitle: ltSubtitle,
-      style: ltStyle,
-      visible: true,
-      opacity: 1,
-    });
+    e.addOverlay({ id: `lt_${Date.now()}`, label: ltTitle || 'Lower Third', type: 'LOWER_THIRD', title: ltTitle, subtitle: ltSubtitle, style: ltStyle, visible: true, opacity: 1 });
     setLtTitle(''); setLtSubtitle(''); setShowLTForm(false);
   }, [ltTitle, ltSubtitle, ltStyle]);
 
   const handleAddClock = useCallback(() => {
-    engineRef.current?.addOverlay({
-      id: `clock_${Date.now()}`,
-      label: 'Clock',
-      type: 'CLOCK',
-      visible: true,
-      opacity: 1,
-    });
+    engineRef.current?.addOverlay({ id: `clock_${Date.now()}`, label: 'Clock', type: 'CLOCK', visible: true, opacity: 1 });
   }, []);
 
   const handleAddWebmOverlay = useCallback(() => {
     const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'video/webm,image/apng,image/gif,.webm,.apng';
+    inp.type = 'file'; inp.accept = 'video/webm,image/apng,.webm,.apng';
     inp.onchange = () => {
       const file = inp.files?.[0];
       if (!file || !engineRef.current) return;
@@ -535,35 +470,18 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
       const vid = document.createElement('video');
       vid.src = url; vid.loop = true; vid.autoplay = true; vid.muted = true;
       vid.play().catch(() => {});
-      engineRef.current.addOverlay({
-        id: `webm_${Date.now()}`,
-        label: file.name,
-        type: 'WEBM',
-        url,
-        videoEl: vid,
-        x: 0, y: 0, width: 100, height: 100,
-        visible: true,
-        opacity: 1,
-      });
+      engineRef.current.addOverlay({ id: `webm_${Date.now()}`, label: file.name, type: 'WEBM', url, videoEl: vid, x: 0, y: 0, width: 100, height: 100, visible: true, opacity: 1 });
     };
     inp.click();
   }, []);
 
   // ── Audio ──────────────────────────────────────────────────────────────────
-  const handleMasterGain = useCallback((g: number) => {
-    engineRef.current?.setMasterGain(g);
-    setMasterGain(g);
-  }, []);
-
-  const handleSourceGain = useCallback((id: string, g: number) => {
-    engineRef.current?.setSourceGain(id, g);
-    setSourceGains(prev => ({ ...prev, [id]: g }));
-  }, []);
-
+  const handleMasterGain = useCallback((g: number) => { engineRef.current?.setMasterGain(g); setMasterGain(g); }, []);
+  const handleSourceGain = useCallback((id: string, g: number) => { engineRef.current?.setSourceGain(id, g); setSourceGains(p => ({ ...p, [id]: g })); }, []);
   const handleMuteSource = useCallback((id: string) => {
     const muted = !sourceMutes[id];
     engineRef.current?.muteSource(id, muted);
-    setSourceMutes(prev => ({ ...prev, [id]: muted }));
+    setSourceMutes(p => ({ ...p, [id]: muted }));
   }, [sourceMutes]);
 
   // ── Color correction ───────────────────────────────────────────────────────
@@ -575,18 +493,16 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
       return next;
     });
   }, [selectedSourceId]);
-
   const resetCC = useCallback(() => {
     if (!selectedSourceId) return;
-    const reset = { brightness: 1, contrast: 1, saturation: 1, hue: 0 };
-    setCC(reset);
+    setCC({ brightness: 1, contrast: 1, saturation: 1, hue: 0 });
     engineRef.current?.setSourceCC(selectedSourceId, 1, 1, 1, 0);
   }, [selectedSourceId]);
 
   // ── MIDI ───────────────────────────────────────────────────────────────────
   const handleConnectMIDI = useCallback(async () => {
-    const ok = await engineRef.current?.initMIDI((cc, value, channel) => {
-      if (cc === 10)  handleMasterGain(value / 127 * 2);
+    const ok = await engineRef.current?.initMIDI((cc, value) => {
+      if (cc === 10)              handleMasterGain(value / 127 * 2);
       if (cc === 20 && value > 63) handleCut();
       if (cc === 21 && value > 63) handleAuto();
       if (cc === 22 && value > 63) handleFTB();
@@ -598,143 +514,120 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   const handleExportEDL = useCallback(() => {
     const text = engineRef.current?.exportEDL(activeProject?.title ?? 'Show', activeProject?.frameRate ?? 30);
     if (!text) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-    a.download = `${activeProject?.title ?? 'show'}.edl`;
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = `${activeProject?.title ?? 'show'}.edl`; a.click();
   }, [activeProject]);
-
   const handleExportFCPXML = useCallback(() => {
     const xml = engineRef.current?.exportFCPXML(activeProject?.title ?? 'Show', activeProject?.frameRate ?? 30);
     if (!xml) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }));
-    a.download = `${activeProject?.title ?? 'show'}.fcpxml`;
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([xml], { type: 'application/xml' })); a.download = `${activeProject?.title ?? 'show'}.fcpxml`; a.click();
   }, [activeProject]);
 
-  // ── Transition buttons config ──────────────────────────────────────────────
-  const TRANS_OPTIONS: { type: TransitionType; label: string }[] = [
-    { type: 'CUT',        label: 'CUT'   },
-    { type: 'MIX',        label: 'MIX'   },
-    { type: 'DIP',        label: 'DIP'   },
-    { type: 'WIPE_LEFT',  label: '←WPE'  },
-    { type: 'WIPE_RIGHT', label: 'WPE→'  },
-    { type: 'STING',      label: 'STING' },
+  // ── Transition config ──────────────────────────────────────────────────────
+  const TRANS: { type: TransitionType; label: string }[] = [
+    { type: 'MIX', label: 'MIX' }, { type: 'DIP', label: 'DIP' },
+    { type: 'WIPE_LEFT', label: '←WPE' }, { type: 'WIPE_RIGHT', label: 'WPE→' },
+    { type: 'STING', label: 'STING' },
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col text-white overflow-hidden z-50 select-none">
+  // Bus button helper — maps source index → button number
+  const busLabel = (src: StudioSource, idx: number) => idx + 1;
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          PROJECT SETUP MODAL
-         ═══════════════════════════════════════════════════════════════════════ */}
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  return (
+    <div
+      className="fixed inset-0 flex flex-col overflow-hidden z-50 text-white select-none"
+      style={{ background: '#0e0e0e', fontFamily: "'JetBrains Mono', 'Fira Code', monospace" }}
+    >
+      {/* Inject JetBrains Mono */}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');`}</style>
+
+      {/* ═══════════════════════ PROJECT SETUP MODAL ═════════════════════════ */}
       <AnimatePresence>
         {showProjectModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0.94, y: 12 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.94, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="bg-[#111] rounded-2xl border border-white/10 p-6 w-full max-w-md shadow-2xl"
+              initial={{ scale: 0.94, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+              className="rounded-xl border p-6 w-full max-w-md shadow-2xl"
+              style={{ background: '#111', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              {/* Header */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-[#6B0099]/20 border border-[#6B0099]/30 flex items-center justify-center">
-                  <Clapperboard size={18} className="text-[#6B0099]" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(107,0,153,0.2)', border: '1px solid rgba(107,0,153,0.3)' }}>
+                  <Clapperboard size={18} style={{ color: '#a855f7' }} />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-white tracking-tight">Plajah TV Studio</h2>
-                  <p className="text-[10px] text-white/40">Browser production environment</p>
+                  <h2 className="text-sm font-bold text-white tracking-tight">Plajah TV Studio</h2>
+                  <p className="text-[10px] opacity-40">New project or open existing</p>
                 </div>
               </div>
 
-              {/* Existing projects */}
               {projects.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-2">Recent Projects</p>
-                  <div className="space-y-1 max-h-36 overflow-y-auto">
+                <div className="mb-4">
+                  <p className="text-[9px] opacity-30 uppercase tracking-widest mb-2">Recent</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
                     {projects.map(p => (
-                      <button
-                        key={p.id}
+                      <button key={p.id}
                         onClick={() => { setActiveProject(p); setShowProjectModal(false); }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left group"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                       >
-                        <div className="flex items-center gap-2">
-                          <Film size={11} className="text-[#6B0099] shrink-0" />
-                          <span className="text-xs font-semibold text-white">{p.title}</span>
-                        </div>
-                        <span className="text-[9px] text-white/30 font-mono">{p.resolution} · {p.frameRate}fps</span>
+                        <span className="text-xs font-semibold">{p.title}</span>
+                        <span className="text-[9px] opacity-30">{p.resolution} · {p.frameRate}fps</span>
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 my-4">
-                    <div className="flex-1 h-px bg-white/10" />
-                    <span className="text-[9px] text-white/25 px-2">or create new</span>
-                    <div className="flex-1 h-px bg-white/10" />
+                  <div className="flex items-center gap-2 my-3">
+                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
+                    <span className="text-[9px] opacity-25 px-1">or create new</span>
+                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
                   </div>
                 </div>
               )}
 
-              {/* New project form */}
               <div className="space-y-3">
-                <input
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="Project title"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#6B0099] transition-colors"
+                <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Project title"
+                  className="w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#6B0099')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[9px] text-white/35 uppercase tracking-widest block mb-1.5">Resolution</label>
-                    <select
-                      value={newRes}
-                      onChange={e => setNewRes(e.target.value as any)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-[#6B0099] transition-colors"
-                    >
-                      <option value="1920x1080">1920 × 1080</option>
-                      <option value="1280x720">1280 × 720</option>
-                      <option value="3840x2160">3840 × 2160</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[9px] text-white/35 uppercase tracking-widest block mb-1.5">Frame Rate</label>
-                    <select
-                      value={newFps}
-                      onChange={e => setNewFps(Number(e.target.value) as any)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-[#6B0099] transition-colors"
-                    >
-                      {([25, 29.97, 30, 50, 59.94, 60] as const).map(f => (
-                        <option key={f} value={f}>{f} fps</option>
-                      ))}
-                    </select>
-                  </div>
+                  {[['Resolution', newRes, setNewRes as any, [['1920x1080','1920×1080'],['1280x720','1280×720'],['3840x2160','4K UHD']]],
+                    ['Frame Rate', newFps, setNewFps as any, [[25,'25fps'],[29.97,'29.97fps'],[30,'30fps'],[50,'50fps'],[59.94,'59.94fps'],[60,'60fps']]]
+                  ].map(([label, val, setter, opts]: any) => (
+                    <div key={label}>
+                      <p className="text-[9px] opacity-35 uppercase tracking-widest mb-1.5">{label}</p>
+                      <select value={val} onChange={e => setter(isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
+                        className="w-full rounded-lg px-2 py-2 text-xs text-white outline-none"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        {opts.map(([v, l]: any) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    </div>
+                  ))}
                 </div>
                 <div>
-                  <label className="text-[9px] text-white/35 uppercase tracking-widest block mb-1.5">Output Mode</label>
+                  <p className="text-[9px] opacity-35 uppercase tracking-widest mb-1.5">Output Mode</p>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {(['LIVE', 'RECORD', 'BOTH'] as const).map(m => (
-                      <button
-                        key={m}
-                        onClick={() => setNewMode(m)}
-                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${newMode === m ? 'bg-[#6B0099] text-white' : 'bg-white/5 text-white/35 hover:bg-white/10'}`}
-                      >
+                    {(['LIVE','RECORD','BOTH'] as const).map(m => (
+                      <button key={m} onClick={() => setNewMode(m)}
+                        className="py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+                        style={{ background: newMode === m ? '#6B0099' : 'rgba(255,255,255,0.05)', color: newMode === m ? '#fff' : 'rgba(255,255,255,0.35)' }}>
                         {m}
                       </button>
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={createProject}
-                  className="w-full py-3 rounded-xl bg-[#6B0099] hover:bg-[#7d00b4] text-white text-sm font-black transition-colors mt-1"
-                >
+                <button onClick={createProject}
+                  className="w-full py-3 rounded-xl text-white text-sm font-black uppercase tracking-widest transition-colors"
+                  style={{ background: '#6B0099' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#7d00b4')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#6B0099')}>
                   Open Studio
                 </button>
               </div>
@@ -743,705 +636,720 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
         )}
       </AnimatePresence>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          TOP BAR
-         ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex items-center gap-2.5 px-3 py-1.5 bg-[#0e0e0e] border-b border-white/[0.05] shrink-0 h-10">
-        <button onClick={onBack} className="text-white/30 hover:text-white transition-colors p-0.5">
-          <ArrowLeft size={14} />
-        </button>
-
-        <div className="w-px h-4 bg-white/10" />
-
-        <Clapperboard size={13} className="text-[#6B0099] shrink-0" />
-        <span className="text-[11px] font-black text-white/70 tracking-widest uppercase">
-          {activeProject?.title ?? 'TV Studio'}
-        </span>
-        {activeProject && (
-          <span className="text-[9px] text-white/25 font-mono">
-            {activeProject.resolution} · {activeProject.frameRate}fps · {activeProject.outputMode}
-          </span>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Recording status pill */}
-        {isRecording && (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#D40055]/15 border border-[#D40055]/30">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#D40055] animate-pulse shrink-0" />
-            <span className="text-[9px] font-black text-[#D40055] font-mono">{elapsed}</span>
+      {/* ═══════════════════════ TOP HEADER ══════════════════════════════════ */}
+      <header className="flex items-center justify-between px-3 shrink-0"
+        style={{ height: 44, background: '#111', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="opacity-30 hover:opacity-80 transition-opacity p-1">
+            <ArrowLeft size={14} />
+          </button>
+          <div className="flex items-center gap-2">
+            <Clapperboard size={13} style={{ color: '#6B0099' }} />
+            <span className="text-xs font-black tracking-widest uppercase text-white/70">
+              Plajah TV Studio
+            </span>
           </div>
-        )}
+          {/* Tab navigation */}
+          <nav className="flex items-center gap-0 ml-4">
+            {([
+              { id: 'SWITCHER' as StudioTab, label: 'Live Switcher'  },
+              { id: 'AUDIO'    as StudioTab, label: 'Fairlight Audio' },
+              { id: 'SETTINGS' as StudioTab, label: 'System Config'  },
+            ]).map(tab => (
+              <button key={tab.id} onClick={() => setStudioTab(tab.id)}
+                className="px-3 py-1 text-[11px] font-semibold transition-all border-b-2 mr-1"
+                style={{
+                  color: studioTab === tab.id ? '#c9c6c5' : 'rgba(255,255,255,0.3)',
+                  borderBottomColor: studioTab === tab.id ? '#6B0099' : 'transparent',
+                  paddingBottom: 10,
+                }}>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-        {/* Record button */}
-        {(!activeProject || activeProject.outputMode !== 'LIVE') && (
-          <button
-            onClick={handleRecord}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${isRecording ? 'bg-[#D40055] text-white' : 'bg-white/5 hover:bg-white/10 text-white/50'}`}
-          >
-            {isRecording ? <Square size={9} fill="white" /> : <Circle size={9} />}
-            {isRecording ? 'Stop' : 'REC'}
+        <div className="flex items-center gap-3">
+          {/* Rec timecode */}
+          {isRecording && (
+            <div className="flex items-center gap-2 px-2 py-0.5 rounded" style={{ background: 'rgba(212,0,85,0.15)', border: '1px solid rgba(212,0,85,0.3)' }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#D40055] animate-pulse" />
+              <span className="font-mono text-[#D40055] text-[11px] font-bold">{timecode}</span>
+            </div>
+          )}
+
+          {/* System icons */}
+          {[Database, Activity, Sliders].map((Icon, i) => (
+            <button key={i} className="opacity-30 hover:opacity-70 transition-opacity"><Icon size={14} /></button>
+          ))}
+
+          {/* Project selector */}
+          <button onClick={() => setShowProjectModal(true)}
+            className="text-[10px] px-2 py-1 rounded opacity-40 hover:opacity-80 transition-opacity uppercase tracking-wider"
+            style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+            {activeProject?.title ?? 'No Project'}
           </button>
-        )}
+        </div>
+      </header>
 
-        {/* Go Live button */}
-        {onStreamReady && (!activeProject || activeProject.outputMode !== 'RECORD') && (
-          <button
-            onClick={handleGoLive}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[#6B0099] hover:bg-[#7d00b4] text-white transition-colors"
-          >
-            <Radio size={9} /> Go Live
-          </button>
-        )}
-
-        <button
-          onClick={() => setShowProjectModal(true)}
-          className="p-1 rounded-lg text-white/25 hover:text-white hover:bg-white/5 transition-colors"
-        >
-          <Settings size={13} />
-        </button>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MAIN AREA  [Source Bus | Monitors | Right Panel]
-         ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════ BODY ════════════════════════════════════════ */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ─────────────────── SOURCE BUS (left, 192px) ───────────────────── */}
-        <div className="w-48 bg-[#0d0d0d] border-r border-white/[0.05] flex flex-col shrink-0">
-          <div className="px-2 pt-2 pb-1 shrink-0">
-            <p className="text-[8px] font-black text-white/25 uppercase tracking-widest">Inputs</p>
+        {/* ══════════════════ LEFT SIDEBAR ═══════════════════════════════════ */}
+        <nav className="flex flex-col items-center py-3 gap-1 shrink-0"
+          style={{ width: 72, background: '#111', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex flex-col items-center mb-4">
+            <span className="text-[10px] font-black text-[#6B0099] tracking-widest">PLJ-V1</span>
+            <span className="text-[7px] opacity-40 tracking-tight">MASTER CTRL</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5">
-            {sources.map(src => (
-              <SourceTile
-                key={src.id}
-                source={src}
-                isProgram={programId === src.id}
-                isPreview={previewId === src.id}
-                onClick={() => handleSourceClick(src.id)}
-                onRemove={() => handleRemoveSource(src.id)}
-              />
-            ))}
-          </div>
-
-          {/* Add source buttons */}
-          <div className="p-1.5 border-t border-white/[0.05] space-y-1 shrink-0">
-            <button
-              onClick={handleAddCamera}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-            >
-              <Video size={10} /> + Camera
+          {([
+            { id: 'SWITCHER' as StudioTab, icon: <Activity size={16} />, label: 'Live Bus'   },
+            { id: 'AUDIO'    as StudioTab, icon: <Sliders  size={16} />, label: 'Fairlight'  },
+            { id: 'SETTINGS' as StudioTab, icon: <Settings size={16} />, label: 'Config'     },
+          ]).map(item => (
+            <button key={item.id} onClick={() => setStudioTab(item.id)}
+              className="flex flex-col items-center gap-1 p-2 w-14 rounded-lg transition-all"
+              style={{
+                background: studioTab === item.id ? 'rgba(107,0,153,0.35)' : 'transparent',
+                color: studioTab === item.id ? '#fff' : 'rgba(255,255,255,0.3)',
+                border: studioTab === item.id ? '1px solid rgba(107,0,153,0.5)' : '1px solid transparent',
+              }}>
+              {item.icon}
+              <span className="text-[8px] font-bold">{item.label}</span>
             </button>
-            <button
-              onClick={handleAddScreen}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-            >
-              <Monitor size={10} /> + Screen / Window
+          ))}
+
+          {/* Bottom actions */}
+          <div className="mt-auto flex flex-col items-center gap-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', width: '100%', alignItems: 'center' }}>
+            {/* TAKE shortcut */}
+            <button onClick={handleCut}
+              className="w-14 py-2 rounded font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 touch-manipulation"
+              style={{ background: '#D40055', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
+              TAKE
             </button>
-            <button
-              onClick={handleAddMedia}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-            >
-              <Film size={10} /> + Media / Graphic
-            </button>
-          </div>
-        </div>
-
-        {/* ─────────────────── CENTER: MONITORS + SWITCHER ────────────────── */}
-        <div className="flex-1 min-w-0 flex flex-col bg-[#0b0b0b]">
-
-          {/* Dual monitors */}
-          <div className="flex-1 flex gap-2 p-2 min-h-0">
-
-            {/* Preview */}
-            <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 mb-1 shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#6B0099]" />
-                <span className="text-[8px] font-black text-[#6B0099] uppercase tracking-widest">Preview</span>
-                <span className="text-[8px] text-white/25 ml-auto truncate">
-                  {previewSource?.label ?? '—'}
-                </span>
-              </div>
-              <div className="flex-1 rounded-xl overflow-hidden border-2 border-[#6B0099]/40 bg-[#060606] relative">
-                <PreviewMonitor source={previewSource} />
-                {!previewId && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-[10px] text-white/15 uppercase tracking-widest">No Source</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Program */}
-            <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 mb-1 shrink-0">
-                <div className={`w-1.5 h-1.5 rounded-full bg-[#D40055] ${programId ? 'animate-pulse' : 'opacity-30'}`} />
-                <span className="text-[8px] font-black text-[#D40055] uppercase tracking-widest">Program</span>
-                {isRecording && (
-                  <span className="ml-1 px-1.5 py-0 text-[7px] font-black bg-[#D40055]/20 border border-[#D40055]/30 text-[#D40055] rounded uppercase">REC</span>
-                )}
-                <span className="text-[8px] text-white/25 ml-auto truncate">
-                  {programSource?.label ?? '—'}
-                </span>
-              </div>
-              <div className="flex-1 rounded-xl overflow-hidden border-2 border-[#D40055]/50 bg-[#060606] relative">
-                <canvas
-                  ref={programCanvasRef}
-                  width={1920}
-                  height={1080}
-                  className="w-full h-full block"
-                />
-                {!programId && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-[10px] text-white/15 uppercase tracking-widest">No Program Source</span>
-                  </div>
-                )}
-              </div>
-              {/* Master VU below program */}
-              <div className="mt-1 shrink-0">
-                <VUBar level={masterLevel} className="w-full" />
-              </div>
-            </div>
-          </div>
-
-          {/* ─── ATEM-style Switcher ──────────────────────────────────────── */}
-          {/*
-            Layout mirrors a Blackmagic ATEM:
-              Row 1  PREVIEW  — click a source button to route it to Preview
-              Row 2  PROGRAM  — click a source button to cut directly to Program
-              Row 3  Controls — CUT · AUTO · T-Bar · FTB · transition type · duration
-          */}
-          <div className="shrink-0 px-2 pb-2 space-y-1">
-
-            {/* Preview bus row */}
-            <div className="bg-[#0d0d0d] rounded-xl border border-[#6B0099]/20 p-1.5">
-              <div className="flex items-center gap-1 mb-1 px-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#6B0099]" />
-                <span className="text-[7px] font-black text-[#6B0099] uppercase tracking-[0.2em]">Preview</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {sources.map(src => (
-                  <button
-                    key={src.id}
-                    onClick={() => handleSourceClick(src.id)}
-                    className={`
-                      min-w-[52px] px-2 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wider
-                      transition-all active:scale-95 touch-manipulation
-                      ${previewId === src.id
-                        ? 'bg-[#6B0099] text-white shadow-[0_0_10px_rgba(107,0,153,0.6)]'
-                        : 'bg-white/[0.06] text-white/50 hover:bg-white/10 hover:text-white'
-                      }
-                    `}
-                    style={{ minHeight: 40 }}
-                  >
-                    {src.label.length > 8 ? src.label.slice(0, 7) + '…' : src.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Program bus row */}
-            <div className="bg-[#0d0d0d] rounded-xl border border-[#D40055]/20 p-1.5">
-              <div className="flex items-center gap-1 mb-1 px-1">
-                <div className={`w-1.5 h-1.5 rounded-full bg-[#D40055] ${programId ? 'animate-pulse' : 'opacity-30'}`} />
-                <span className="text-[7px] font-black text-[#D40055] uppercase tracking-[0.2em]">Program</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {sources.map(src => (
-                  <button
-                    key={src.id}
-                    onClick={() => {
-                      // Direct cut to program on program-row click
-                      const e = engineRef.current;
-                      if (!e) return;
-                      e.setPreview(src.id);
-                      e.cut();
-                      setTBarValue(0);
-                    }}
-                    className={`
-                      min-w-[52px] px-2 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wider
-                      transition-all active:scale-95 touch-manipulation
-                      ${programId === src.id
-                        ? 'bg-[#D40055] text-white shadow-[0_0_10px_rgba(212,0,85,0.6)]'
-                        : 'bg-white/[0.06] text-white/50 hover:bg-white/10 hover:text-white'
-                      }
-                    `}
-                    style={{ minHeight: 40 }}
-                  >
-                    {src.label.length > 8 ? src.label.slice(0, 7) + '…' : src.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Control row */}
-            <div className="bg-[#111] rounded-xl border border-white/[0.05] p-2 flex items-center gap-2">
-
-              {/* CUT */}
-              <button
-                onClick={handleCut}
-                className="min-w-[52px] py-3 rounded-xl bg-[#D40055] hover:bg-[#f0005f] active:scale-95 text-white text-[11px] font-black uppercase tracking-widest transition-all touch-manipulation shrink-0"
-                style={{ minHeight: 44 }}
-              >
-                CUT
+            <button onClick={handleFTB} className="opacity-30 hover:opacity-70 transition-opacity"><Lock size={16} /></button>
+            {onStreamReady && (
+              <button onClick={handleGoLive}
+                className="flex flex-col items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
+                <Radio size={16} style={{ color: '#22c55e' }} />
+                <span className="text-[7px] font-bold text-green-400">LIVE</span>
               </button>
-
-              {/* AUTO */}
-              <button
-                onClick={handleAuto}
-                className="min-w-[52px] py-3 rounded-xl bg-[#6B0099] hover:bg-[#7d00b4] active:scale-95 text-white text-[11px] font-black uppercase tracking-widest transition-all touch-manipulation shrink-0"
-                style={{ minHeight: 44 }}
-              >
-                AUTO
-              </button>
-
-              {/* T-Bar */}
-              <div className="flex flex-col gap-0.5 px-1 flex-1 min-w-0">
-                <span className="text-[7px] text-white/20 uppercase tracking-widest text-center">T-Bar</span>
-                <input
-                  type="range"
-                  min={0} max={100}
-                  value={Math.round(tBarValue * 100)}
-                  onChange={e => handleTBarChange(Number(e.target.value) / 100)}
-                  className="w-full h-3 cursor-pointer accent-[#6B0099]"
-                  style={{ minHeight: 20 }}
-                />
-                <div className="h-0.5 rounded-full bg-white/5 overflow-hidden">
-                  <div
-                    className="h-full bg-[#6B0099] rounded-full transition-all duration-75"
-                    style={{ width: `${transitionProgress * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* FTB */}
-              <button
-                onClick={handleFTB}
-                className="min-w-[44px] py-3 rounded-xl bg-white/[0.04] hover:bg-white/10 active:scale-95 text-white/40 hover:text-white text-[9px] font-black uppercase tracking-wider transition-all touch-manipulation shrink-0"
-                style={{ minHeight: 44 }}
-              >
-                FTB
-              </button>
-
-              <div className="w-px h-8 bg-white/[0.07] shrink-0" />
-
-              {/* Transition type */}
-              <div className="flex flex-wrap gap-1 shrink-0">
-                {TRANS_OPTIONS.map(opt => (
-                  <button
-                    key={opt.type}
-                    onClick={() => setTransitionType(opt.type)}
-                    className={`min-w-[40px] px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors touch-manipulation ${
-                      transitionType === opt.type
-                        ? 'bg-[#6B0099] text-white'
-                        : 'bg-white/[0.04] text-white/35 hover:bg-white/10 hover:text-white'
-                    }`}
-                    style={{ minHeight: 36 }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="w-px h-8 bg-white/[0.07] shrink-0" />
-
-              {/* Duration */}
-              <div className="flex flex-col gap-0.5 shrink-0 w-16">
-                <span className="text-[7px] text-white/20 uppercase tracking-widest text-center">Dur</span>
-                <input
-                  type="range"
-                  min={100} max={3000} step={100}
-                  value={transitionDuration}
-                  onChange={e => setTransitionDuration(Number(e.target.value))}
-                  className="w-full h-1.5 cursor-pointer accent-[#6B0099]"
-                />
-                <span className="text-[7px] text-white/25 text-center font-mono">
-                  {(transitionDuration / 1000).toFixed(1)}s
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ─────────────────── RIGHT PANEL (288px) ────────────────────────── */}
-        <div className="w-72 bg-[#0d0d0d] border-l border-white/[0.05] flex flex-col shrink-0">
-
-          {/* Tab bar */}
-          <div className="flex border-b border-white/[0.05] shrink-0">
-            {(
-              [
-                { id: 'graphics' as RightTab, icon: <Layers size={10} />,    label: 'GFX'  },
-                { id: 'audio'    as RightTab, icon: <Volume2 size={10} />,   label: 'AUD'  },
-                { id: 'color'    as RightTab, icon: <Palette size={10} />,   label: 'CC'   },
-                { id: 'midi'     as RightTab, icon: <Usb size={10} />,       label: 'MIDI' },
-                { id: 'settings' as RightTab, icon: <Settings size={10} />,  label: '⚙'   },
-              ]
-            ).map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setRightTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-[8px] font-black uppercase tracking-widest transition-colors border-b-2 ${
-                  rightTab === tab.id
-                    ? 'text-white border-[#6B0099]'
-                    : 'text-white/25 border-transparent hover:text-white/50 hover:border-white/10'
-                }`}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Panel content */}
-          <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-
-            {/* ── GRAPHICS ─────────────────────────────────────────────────── */}
-            {rightTab === 'graphics' && (
-              <>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setShowLTForm(v => !v)}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl bg-[#6B0099]/15 border border-[#6B0099]/25 text-[#a855f7] hover:bg-[#6B0099]/25 text-[9px] font-bold transition-colors"
-                  >
-                    <Type size={10} /> Lower Third
-                  </button>
-                  <button
-                    onClick={handleAddClock}
-                    title="Add Clock"
-                    className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/40 hover:text-white text-[9px] font-bold transition-colors"
-                  >
-                    <Clock size={11} />
-                  </button>
-                  <button
-                    onClick={handleAddWebmOverlay}
-                    title="Add WebM / APNG overlay"
-                    className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/40 hover:text-white text-[9px] font-bold transition-colors"
-                  >
-                    <Film size={11} />
-                  </button>
-                </div>
-
-                <AnimatePresence>
-                  {showLTForm && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-2 p-2.5 bg-[#111] rounded-xl border border-white/[0.06]">
-                        <input
-                          value={ltTitle}
-                          onChange={e => setLtTitle(e.target.value)}
-                          placeholder="Title text"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/25 focus:outline-none focus:border-[#6B0099]"
-                        />
-                        <input
-                          value={ltSubtitle}
-                          onChange={e => setLtSubtitle(e.target.value)}
-                          placeholder="Subtitle / Role"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/25 focus:outline-none focus:border-[#6B0099]"
-                        />
-                        <div className="flex gap-1">
-                          {(['MODERN', 'CLASSIC', 'MINIMAL'] as const).map(s => (
-                            <button
-                              key={s}
-                              onClick={() => setLtStyle(s)}
-                              className={`flex-1 py-1 rounded-lg text-[8px] font-bold transition-colors ${ltStyle === s ? 'bg-[#6B0099] text-white' : 'bg-white/5 text-white/35'}`}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          onClick={handleAddLowerThird}
-                          className="w-full py-1.5 rounded-xl bg-[#6B0099] hover:bg-[#7d00b4] text-white text-[10px] font-black transition-colors"
-                        >
-                          Add to Output
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Overlay list */}
-                {overlays.length === 0 ? (
-                  <p className="text-[9px] text-white/20 text-center py-6">No graphics overlays added</p>
-                ) : (
-                  <div className="space-y-1">
-                    {overlays.map(ov => (
-                      <div
-                        key={ov.id}
-                        className="flex items-center gap-2 p-2 rounded-xl bg-[#111] border border-white/[0.05]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-semibold text-white truncate">{ov.label}</p>
-                          <p className="text-[8px] text-white/30 uppercase">{ov.type.replace('_', ' ')}</p>
-                        </div>
-                        {/* Opacity slider (compact) */}
-                        <input
-                          type="range" min={0} max={100} value={Math.round(ov.opacity * 100)}
-                          onChange={e => engineRef.current?.updateOverlay(ov.id, { opacity: Number(e.target.value) / 100 })}
-                          className="w-12 accent-[#6B0099] h-1 cursor-pointer"
-                        />
-                        <button
-                          onClick={() => engineRef.current?.setOverlayVisible(ov.id, !ov.visible)}
-                          className={`p-1 rounded transition-colors ${ov.visible ? 'text-[#a855f7]' : 'text-white/20 hover:text-white/40'}`}
-                        >
-                          {ov.visible ? <Eye size={11} /> : <EyeOff size={11} />}
-                        </button>
-                        <button
-                          onClick={() => engineRef.current?.removeOverlay(ov.id)}
-                          className="p-1 rounded text-white/20 hover:text-[#D40055] transition-colors"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
             )}
+          </div>
+        </nav>
 
-            {/* ── AUDIO ────────────────────────────────────────────────────── */}
-            {rightTab === 'audio' && (
-              <>
-                {/* Master channel */}
-                <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Master Output</p>
-                  <div className="flex items-center gap-2">
-                    <Volume2 size={10} className="text-white/30 shrink-0" />
-                    <input
-                      type="range" min={0} max={200}
-                      value={Math.round(masterGain * 100)}
-                      onChange={e => handleMasterGain(Number(e.target.value) / 100)}
-                      className="flex-1 accent-[#6B0099] h-1.5 cursor-pointer"
-                    />
-                    <span className="text-[9px] text-white/30 font-mono w-7 text-right">
-                      {Math.round(masterGain * 100)}
-                    </span>
-                    <VUBar level={masterLevel} vertical />
+        {/* ══════════════════ MAIN CONTENT ═══════════════════════════════════ */}
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 gap-1.5 p-1.5 overflow-hidden"
+          style={{ background: '#0a0a0a' }}>
+
+          {/* ════════════ SWITCHER TAB ════════════════════════════════════════ */}
+          {studioTab === 'SWITCHER' && (
+            <>
+              {/* ── Top row: Program | Preview | 2×4 mini multiview ── */}
+              <div className="flex gap-1.5 min-h-0" style={{ flex: '3 1 0' }}>
+
+                {/* Program */}
+                <div className="relative rounded overflow-hidden bg-black" style={{ flex: '3 1 0', border: '1px solid #D40055' }}>
+                  <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
+                    style={{ background: '#D40055', color: '#fff' }}>Program</div>
+                  <canvas ref={programCanvasRef} width={1920} height={1080} className="w-full h-full block" />
+                  {!programId && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-[10px] opacity-15 uppercase tracking-widest">No Program Source</span>
+                    </div>
+                  )}
+                  {/* Timecode */}
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2 px-2.5 py-1 rounded"
+                    style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[7px] opacity-40 font-bold uppercase tracking-widest">
+                        {isRecording ? 'REC TIME' : programLabel}
+                      </span>
+                      <span className="font-mono font-bold text-[#D40055] text-sm">
+                        {isRecording ? timecode : '—'}
+                      </span>
+                    </div>
+                    <VUBar level={masterLevel} vertical className="shrink-0" />
                   </div>
                 </div>
 
-                {/* Per-source channels */}
-                {sources
-                  .filter(s => !['COLOR', 'BARS', 'BLACK'].includes(s.type))
-                  .map(src => {
-                    const gain  = sourceGains[src.id] ?? 1;
-                    const muted = sourceMutes[src.id] ?? false;
-                    const level = sourceLevels[src.id] ?? 0;
+                {/* Preview */}
+                <div className="relative rounded overflow-hidden bg-black" style={{ flex: '3 1 0', border: '1px solid #6B0099' }}>
+                  <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
+                    style={{ background: '#6B0099', color: '#fff' }}>Preview</div>
+                  <PreviewMonitor source={previewSource} />
+                  {!previewId && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-[10px] opacity-15 uppercase tracking-widest">No Source</span>
+                    </div>
+                  )}
+                  {/* Transition progress */}
+                  {transitionProgress > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'rgba(107,0,153,0.3)' }}>
+                      <div className="h-full transition-all duration-75" style={{ width: `${transitionProgress * 100}%`, background: '#6B0099' }} />
+                    </div>
+                  )}
+                </div>
+
+                {/* 2×4 mini multiview */}
+                <div className="grid grid-cols-2 gap-1 shrink-0" style={{ flex: '1 0 0', minWidth: 120 }}>
+                  {Array.from({ length: 8 }).map((_, i) => {
+                    const src = sources[i];
+                    const isPgm = src && programId === src.id;
+                    const isPvw = src && previewId  === src.id;
                     return (
-                      <div key={src.id} className="flex items-center gap-2 p-2 rounded-xl bg-[#111] border border-white/[0.05]">
-                        <button
-                          onClick={() => handleMuteSource(src.id)}
-                          className={`p-1 rounded transition-colors shrink-0 ${muted ? 'text-[#D40055]' : 'text-white/35 hover:text-white'}`}
-                        >
-                          {muted ? <MicOff size={10} /> : <Mic size={10} />}
-                        </button>
-                        <span className="text-[9px] font-semibold text-white/50 truncate w-14 shrink-0">{src.label}</span>
-                        <input
-                          type="range" min={0} max={200}
-                          value={Math.round(gain * 100)}
-                          onChange={e => handleSourceGain(src.id, Number(e.target.value) / 100)}
-                          className="flex-1 accent-[#6B0099] h-1 cursor-pointer"
-                          disabled={muted}
-                        />
-                        <VUBar level={muted ? 0 : level} vertical className="shrink-0" />
+                      <div key={i}
+                        onClick={() => src && handleSourceClick(src.id)}
+                        className="relative rounded overflow-hidden cursor-pointer"
+                        style={{
+                          background: '#111',
+                          border: `1px solid ${isPgm ? '#D40055' : isPvw ? '#6B0099' : 'rgba(255,255,255,0.07)'}`,
+                        }}>
+                        {src ? (
+                          <>
+                            <SourceCanvas source={src} className="w-full h-full block object-cover" />
+                            <span className="absolute bottom-0.5 left-1 text-[7px] font-bold font-mono px-0.5 rounded"
+                              style={{ background: isPgm ? '#D40055' : isPvw ? '#6B0099' : 'rgba(0,0,0,0.6)', color: '#fff' }}>
+                              {src.label.slice(0, 6)}
+                            </span>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-[7px] font-mono opacity-20">—</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                </div>
+              </div>
 
-                {sources.filter(s => !['COLOR', 'BARS', 'BLACK'].includes(s.type)).length === 0 && (
-                  <p className="text-[9px] text-white/20 text-center py-6">No audio sources</p>
-                )}
-              </>
-            )}
+              {/* ── 8-source strip ── */}
+              <div className="shrink-0">
+                <div className="flex items-center justify-between px-0.5 mb-1">
+                  <span className="text-[9px] opacity-30 uppercase tracking-widest font-bold">Multi-view Sources</span>
+                  <div className="flex gap-1">
+                    <button onClick={handleAddCamera} className="text-[8px] px-2 py-0.5 rounded transition-all opacity-40 hover:opacity-80 uppercase"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)' }}>+ Camera</button>
+                    <button onClick={handleAddScreen} className="text-[8px] px-2 py-0.5 rounded transition-all opacity-40 hover:opacity-80 uppercase"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)' }}>+ Screen</button>
+                    <button onClick={handleAddMedia} className="text-[8px] px-2 py-0.5 rounded transition-all opacity-40 hover:opacity-80 uppercase"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)' }}>+ Media</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-8 gap-1.5">
+                  {Array.from({ length: Math.max(8, sources.length) }).map((_, i) => {
+                    const src = sources[i];
+                    const isPgm = src && programId === src.id;
+                    const isPvw = src && previewId  === src.id;
+                    return (
+                      <div key={i}
+                        onClick={() => src && handleSourceClick(src.id)}
+                        className="relative rounded overflow-hidden cursor-pointer group transition-colors"
+                        style={{
+                          aspectRatio: '16/9',
+                          background: '#000',
+                          border: `1px solid ${isPgm ? '#D40055' : isPvw ? '#6B0099' : 'rgba(255,255,255,0.07)'}`,
+                        }}
+                        onMouseEnter={e => { if (!isPgm && !isPvw) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+                        onMouseLeave={e => { if (!isPgm && !isPvw) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
+                      >
+                        {src ? (
+                          <>
+                            <SourceCanvas source={src} className="w-full h-full block object-cover" />
+                            <div className="absolute top-1 left-1 flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full"
+                                style={{ background: isPgm ? '#D40055' : isPvw ? '#6B0099' : 'rgba(255,255,255,0.3)' }} />
+                              <span className="text-[7px] font-bold font-mono opacity-80">
+                                SRC {String(i + 1).padStart(2, '0')}
+                              </span>
+                            </div>
+                            <span className="absolute bottom-0.5 left-1 text-[7px] font-mono opacity-70 bg-black/60 px-0.5 rounded">
+                              {src.label.slice(0, 8)}
+                            </span>
+                          </>
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 opacity-20">
+                            <span className="text-[7px] font-mono">SRC {String(i + 1).padStart(2, '0')}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* ── COLOR CORRECTION ─────────────────────────────────────────── */}
-            {rightTab === 'color' && (
-              <>
-                <div>
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-1.5">Source</p>
-                  <select
-                    value={selectedSourceId ?? ''}
-                    onChange={e => setSelectedSourceId(e.target.value || null)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-[#6B0099] transition-colors"
-                  >
-                    <option value="">Select a source…</option>
-                    {sources
-                      .filter(s => !['COLOR', 'BARS'].includes(s.type))
-                      .map(s => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                  </select>
+              {/* ── Bottom: Media Asset Bin + Switcher Control Panel ── */}
+              <div className="flex gap-1.5 shrink-0" style={{ height: 240 }}>
+
+                {/* Media Asset Bin */}
+                <div className="rounded-xl flex flex-col gap-2 p-2.5 shrink-0" style={{ flex: '1.5 1 0', background: '#161616', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between shrink-0">
+                    <span className="text-[9px] opacity-40 uppercase tracking-widest font-bold">Media Asset Bin</span>
+                    <div className="flex gap-1">
+                      <button onClick={handleAddMedia}
+                        className="text-[8px] px-2 py-0.5 rounded uppercase transition-all opacity-40 hover:opacity-80"
+                        style={{ border: '1px solid rgba(255,255,255,0.1)' }}>Import</button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-1 gap-2 min-h-0">
+                    {/* Source grid */}
+                    <div className="flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {sources.filter(s => !['black','bars'].includes(s.id)).map(src => (
+                          <div key={src.id}
+                            onClick={() => { handleSourceClick(src.id); setInspectedSourceId(src.id); }}
+                            className="relative rounded cursor-pointer group transition-colors p-1"
+                            style={{
+                              background: inspectedSourceId === src.id ? 'rgba(107,0,153,0.15)' : 'rgba(0,0,0,0.3)',
+                              border: `1px solid ${inspectedSourceId === src.id ? 'rgba(107,0,153,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                            }}>
+                            <div className="rounded overflow-hidden" style={{ aspectRatio: '16/9', position: 'relative' }}>
+                              <SourceCanvas source={src} className="w-full h-full block object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ChevronRight size={16} className="text-white" />
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center mt-1 px-0.5">
+                              <span className="text-[7px] font-mono truncate opacity-70">{src.label.toUpperCase()}</span>
+                              <span className="text-[7px] font-mono opacity-40 uppercase">{src.type}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {sources.filter(s => !['black','bars'].includes(s.id)).length === 0 && (
+                          <div className="col-span-2 flex flex-col items-center justify-center py-6 gap-2 opacity-20">
+                            <Film size={20} />
+                            <span className="text-[9px] font-bold uppercase tracking-widest">No media loaded</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inspector panel */}
+                    <div className="flex flex-col gap-2" style={{ width: 160 }}>
+                      <div className="rounded overflow-hidden bg-black flex-1 relative" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                        {inspectedSourceId && sources.find(s => s.id === inspectedSourceId) ? (
+                          <SourceCanvas source={sources.find(s => s.id === inspectedSourceId)!} className="w-full h-full block object-contain" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-15">
+                            <Film size={20} />
+                          </div>
+                        )}
+                        <div className="absolute top-1 left-1 text-[7px] font-mono opacity-50 bg-black/60 px-1 rounded">
+                          INSPECTOR{inspectedSourceId ? `: ${sources.find(s => s.id === inspectedSourceId)?.label?.toUpperCase() ?? ''}` : ''}
+                        </div>
+                      </div>
+                      {/* Overlay section */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex gap-1">
+                          <button onClick={() => setShowLTForm(v => !v)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[8px] font-bold uppercase tracking-wider transition-all"
+                            style={{ background: 'rgba(107,0,153,0.15)', border: '1px solid rgba(107,0,153,0.25)', color: '#a855f7' }}>
+                            <Type size={9} /> L3
+                          </button>
+                          <button onClick={handleAddClock}
+                            className="px-2 py-1 rounded text-[8px] font-bold uppercase transition-all opacity-40 hover:opacity-80"
+                            style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <Clock size={9} />
+                          </button>
+                          <button onClick={handleAddWebmOverlay}
+                            className="px-2 py-1 rounded text-[8px] font-bold uppercase transition-all opacity-40 hover:opacity-80"
+                            style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <Film size={9} />
+                          </button>
+                        </div>
+
+                        {/* Active overlays */}
+                        <div className="space-y-0.5 max-h-16 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                          {overlays.map(ov => (
+                            <div key={ov.id} className="flex items-center gap-1 px-1 py-0.5 rounded"
+                              style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <span className="text-[7px] font-mono flex-1 truncate opacity-60">{ov.label.toUpperCase()}</span>
+                              <button onClick={() => engineRef.current?.setOverlayVisible(ov.id, !ov.visible)}
+                                style={{ color: ov.visible ? '#a855f7' : 'rgba(255,255,255,0.2)' }}>
+                                {ov.visible ? <Eye size={9} /> : <EyeOff size={9} />}
+                              </button>
+                              <button onClick={() => engineRef.current?.removeOverlay(ov.id)} className="opacity-20 hover:opacity-70" style={{ color: '#D40055' }}>
+                                <Trash2 size={9} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lower third form */}
+                  <AnimatePresence>
+                    {showLTForm && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden shrink-0">
+                        <div className="flex gap-1.5 pt-1">
+                          <input value={ltTitle} onChange={e => setLtTitle(e.target.value)} placeholder="Title"
+                            className="flex-1 rounded px-2 py-1 text-[10px] text-white placeholder-white/25 outline-none"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <input value={ltSubtitle} onChange={e => setLtSubtitle(e.target.value)} placeholder="Subtitle"
+                            className="flex-1 rounded px-2 py-1 text-[10px] text-white placeholder-white/25 outline-none"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <button onClick={handleAddLowerThird}
+                            className="px-3 py-1 rounded text-[10px] font-black text-white uppercase transition-all"
+                            style={{ background: '#6B0099' }}>Add</button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
-                {selectedSourceId ? (
-                  <>
-                    {(
-                      [
-                        { key: 'brightness' as const, label: 'Brightness', icon: <Sun size={10} />,       min: 0,    max: 2,   step: 0.02 },
-                        { key: 'contrast'   as const, label: 'Contrast',   icon: <Contrast size={10} />,  min: 0,    max: 2,   step: 0.02 },
-                        { key: 'saturation' as const, label: 'Saturation', icon: <Droplet size={10} />,   min: 0,    max: 2,   step: 0.02 },
-                        { key: 'hue'        as const, label: 'Hue Rotate', icon: <Palette size={10} />,   min: -180, max: 180, step: 1    },
-                      ]
-                    ).map(({ key, label, icon, min, max, step }) => (
-                      <div key={key} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-1 text-[9px] text-white/35">{icon} {label}</span>
-                          <span className="text-[9px] text-white/45 font-mono">
-                            {cc[key].toFixed(key === 'hue' ? 0 : 2)}{key === 'hue' ? '°' : ''}
-                          </span>
-                        </div>
-                        <input
-                          type="range" min={min} max={max} step={step}
-                          value={cc[key]}
-                          onChange={e => handleCC(key, Number(e.target.value))}
-                          className="w-full accent-[#6B0099] h-1.5 cursor-pointer"
-                        />
+                {/* ── Switcher Control Panel ── */}
+                <div className="rounded-xl flex gap-4 p-3 shrink-0" style={{ flex: '2 1 0', background: '#161616', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>
+
+                  {/* Bus buttons section */}
+                  <div className="flex-1 flex flex-col justify-between">
+                    {/* Program bus */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] opacity-40 uppercase tracking-widest font-bold">Program Bus</span>
+                      <div className="flex flex-wrap gap-2">
+                        {sources.map((src, idx) => {
+                          const active = programId === src.id;
+                          return (
+                            <button
+                              key={src.id}
+                              onClick={() => handleProgramCut(src.id)}
+                              className="rounded-lg font-black font-mono flex items-center justify-center transition-all active:scale-95 touch-manipulation"
+                              style={{
+                                width: 44, height: 44,
+                                fontSize: 14,
+                                background: active ? '#D40055' : 'rgba(255,255,255,0.07)',
+                                color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+                                border: `1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                                boxShadow: active ? '0 0 15px rgba(212,0,85,0.4)' : 'none',
+                              }}
+                              title={src.label}
+                            >
+                              {busLabel(src, idx)}
+                            </button>
+                          );
+                        })}
                       </div>
-                    ))}
+                    </div>
 
-                    <button
-                      onClick={resetCC}
-                      className="w-full py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/35 hover:text-white text-[9px] font-bold transition-colors"
-                    >
-                      Reset to Default
+                    {/* Preview bus */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] opacity-40 uppercase tracking-widest font-bold">Preview Bus</span>
+                      <div className="flex flex-wrap gap-2">
+                        {sources.map((src, idx) => {
+                          const active = previewId === src.id;
+                          return (
+                            <button
+                              key={src.id}
+                              onClick={() => handleSourceClick(src.id)}
+                              className="rounded-lg font-black font-mono flex items-center justify-center transition-all active:scale-95 touch-manipulation"
+                              style={{
+                                width: 44, height: 44,
+                                fontSize: 14,
+                                background: active ? '#6B0099' : 'rgba(255,255,255,0.07)',
+                                color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+                                border: `1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                                boxShadow: active ? '0 0 15px rgba(107,0,153,0.4)' : 'none',
+                              }}
+                              title={src.label}
+                            >
+                              {busLabel(src, idx)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* T-bar + transition type */}
+                  <div className="flex flex-col items-center gap-2 w-20 shrink-0">
+                    <span className="text-[9px] opacity-40 uppercase tracking-widest font-bold text-center">X-FADE</span>
+                    <VerticalTBar value={tBarValue} onChange={handleTBar} />
+                    <div className="flex flex-col gap-1 w-full">
+                      {TRANS.map(opt => (
+                        <button key={opt.type}
+                          onClick={() => setTransitionType(opt.type)}
+                          className="h-7 rounded text-[8px] font-black uppercase tracking-wider transition-colors"
+                          style={{
+                            background: transitionType === opt.type ? 'rgba(107,0,153,0.35)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${transitionType === opt.type ? 'rgba(107,0,153,0.5)' : 'rgba(255,255,255,0.05)'}`,
+                            color: transitionType === opt.type ? '#c084fc' : 'rgba(255,255,255,0.4)',
+                          }}>
+                          {opt.label}
+                        </button>
+                      ))}
+                      {/* Duration */}
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <span className="text-[7px] opacity-20 uppercase tracking-widest text-center">DUR</span>
+                        <input type="range" min={100} max={3000} step={100} value={transitionDuration}
+                          onChange={e => setTransitionDuration(Number(e.target.value))}
+                          className="w-full cursor-pointer" style={{ accentColor: '#6B0099', height: 6 }} />
+                        <span className="text-[7px] font-mono opacity-25 text-center">{(transitionDuration / 1000).toFixed(1)}s</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CUT / AUTO */}
+                  <div className="flex flex-col gap-2 w-24 shrink-0">
+                    <button onClick={handleCut}
+                      className="flex-1 rounded-xl font-black text-base flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#D40055',
+                        minHeight: 72,
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,0,85,0.1)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}>
+                      <span className="text-[7px] opacity-50 mb-1 font-bold">DIRECT</span>
+                      CUT
                     </button>
+                    <button onClick={handleAuto}
+                      className="flex-1 rounded-xl font-black text-base flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#a855f7',
+                        minHeight: 72,
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(107,0,153,0.15)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}>
+                      <span className="text-[7px] opacity-50 mb-1 font-bold">MIXED</span>
+                      AUTO
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
-                    {/* 3D LUT */}
-                    <div className="pt-1.5 border-t border-white/[0.05]">
-                      <p className="text-[8px] text-white/25 mb-2">3D LUT (.cube) — applied on export output</p>
-                      <button
-                        onClick={() => {
-                          const inp = document.createElement('input');
-                          inp.type = 'file'; inp.accept = '.cube';
-                          inp.onchange = () => {
-                            if (inp.files?.[0]) {
-                              alert('LUT loaded. Will be applied to the broadcast output stream.');
-                            }
-                          };
-                          inp.click();
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/35 hover:text-white text-[9px] font-bold transition-colors"
-                      >
-                        <Upload size={10} /> Load .cube LUT
+          {/* ════════════ AUDIO TAB ═══════════════════════════════════════════ */}
+          {studioTab === 'AUDIO' && (
+            <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto min-h-0">
+              <div className="flex items-end gap-4 h-full">
+                {/* Master channel */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <span className="text-[8px] opacity-40 uppercase tracking-widest font-bold">MASTER</span>
+                  <VUBar level={masterLevel} vertical className="shrink-0" />
+                  <input type="range" min={0} max={200} value={Math.round(masterGain * 100)}
+                    onChange={e => handleMasterGain(Number(e.target.value) / 100)}
+                    style={{ writingMode: 'vertical-lr', direction: 'rtl', height: 120, cursor: 'pointer', accentColor: '#6B0099' } as any} />
+                  <span className="text-[9px] font-mono opacity-40">{Math.round(masterGain * 100)}%</span>
+                  <Volume2 size={12} className="opacity-40" />
+                </div>
+
+                <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.06)' }} />
+
+                {/* Per-source channels */}
+                {sources.filter(s => !['COLOR','BARS','BLACK'].includes(s.type)).map(src => {
+                  const gain  = sourceGains[src.id] ?? 1;
+                  const muted = sourceMutes[src.id] ?? false;
+                  const level = sourceLevels[src.id] ?? 0;
+                  return (
+                    <div key={src.id} className="flex flex-col items-center gap-2 shrink-0" style={{ width: 52 }}>
+                      <span className="text-[7px] font-mono opacity-40 text-center truncate w-full uppercase">{src.label.slice(0,6)}</span>
+                      <VUBar level={muted ? 0 : level} vertical className="shrink-0" />
+                      <input type="range" min={0} max={200} value={Math.round(gain * 100)}
+                        onChange={e => handleSourceGain(src.id, Number(e.target.value) / 100)}
+                        disabled={muted}
+                        style={{ writingMode: 'vertical-lr', direction: 'rtl', height: 120, cursor: muted ? 'default' : 'pointer', accentColor: '#6B0099', opacity: muted ? 0.3 : 1 } as any} />
+                      <span className="text-[8px] font-mono opacity-30">{Math.round(gain * 100)}</span>
+                      <button onClick={() => handleMuteSource(src.id)}
+                        style={{ color: muted ? '#D40055' : 'rgba(255,255,255,0.35)' }}>
+                        {muted ? <MicOff size={12} /> : <Mic size={12} />}
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-[9px] text-white/20 text-center py-8">Select a source to adjust</p>
-                )}
-              </>
-            )}
+                  );
+                })}
 
-            {/* ── MIDI ─────────────────────────────────────────────────────── */}
-            {rightTab === 'midi' && (
-              <>
-                <button
-                  onClick={handleConnectMIDI}
-                  className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black transition-colors ${
-                    midiConnected
-                      ? 'bg-green-500/15 border border-green-500/25 text-green-400'
-                      : 'bg-[#6B0099]/15 border border-[#6B0099]/25 text-[#a855f7] hover:bg-[#6B0099]/25'
-                  }`}
-                >
-                  <Usb size={12} />
-                  {midiConnected ? 'MIDI Connected' : 'Connect MIDI / Controller'}
-                </button>
-
-                <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Default CC Mappings</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { cc: 'CC 1–8',  fn: 'Source channel faders' },
-                      { cc: 'CC 10',   fn: 'Master output fader'   },
-                      { cc: 'CC 20',   fn: 'CUT (value > 63)'      },
-                      { cc: 'CC 21',   fn: 'AUTO transition'        },
-                      { cc: 'CC 22',   fn: 'Fade to Black'          },
-                      { cc: 'Note C3', fn: 'CUT (note-on)'         },
-                    ].map(m => (
-                      <div key={m.cc} className="flex items-center gap-2 text-[9px]">
-                        <span className="text-[#a855f7] font-mono w-16 shrink-0">{m.cc}</span>
-                        <span className="text-white/40">{m.fn}</span>
-                      </div>
-                    ))}
+                {sources.filter(s => !['COLOR','BARS','BLACK'].includes(s.type)).length === 0 && (
+                  <div className="flex-1 flex items-center justify-center opacity-20">
+                    <p className="text-[10px] font-bold uppercase tracking-widest">No audio sources — add Camera or Screen</p>
                   </div>
-                </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Stream Deck</p>
-                  <p className="text-[9px] text-white/35 leading-relaxed">
-                    Connect via Elgato Stream Deck SDK. Install the Plajah plugin from the
-                    Stream Deck Store, then connect via WebSocket on port 28196.
-                  </p>
-                </div>
-              </>
-            )}
+          {/* ════════════ SETTINGS TAB ════════════════════════════════════════ */}
+          {studioTab === 'SETTINGS' && (
+            <div className="flex-1 p-4 flex gap-6 overflow-hidden min-h-0">
+              {/* Sub-tabs */}
+              <div className="flex flex-col gap-1 shrink-0 w-28">
+                {([['EXPORT','Export EDL'],['COLOR','Color Correct'],['MIDI','MIDI / HW']] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => setSettingsSub(id)}
+                    className="text-left px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                    style={{
+                      background: settingsSub === id ? 'rgba(107,0,153,0.25)' : 'rgba(255,255,255,0.04)',
+                      color: settingsSub === id ? '#c084fc' : 'rgba(255,255,255,0.35)',
+                      border: `1px solid ${settingsSub === id ? 'rgba(107,0,153,0.4)' : 'transparent'}`,
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-            {/* ── SETTINGS ─────────────────────────────────────────────────── */}
-            {rightTab === 'settings' && (
-              <>
+              <div className="flex-1 min-w-0 overflow-y-auto space-y-4">
+                {/* Project info always visible */}
                 {activeProject && (
-                  <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                    <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Project</p>
-                    {[
-                      ['Title',       activeProject.title],
-                      ['Resolution',  activeProject.resolution],
-                      ['Frame Rate',  `${activeProject.frameRate} fps`],
-                      ['Output Mode', activeProject.outputMode],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex justify-between py-0.5 text-[9px]">
-                        <span className="text-white/30">{k}</span>
-                        <span className="text-white/60 font-mono">{v}</span>
+                  <div className="p-3 rounded-xl space-y-1" style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-[8px] opacity-30 uppercase tracking-widest mb-2">Active Project</p>
+                    {[['Title', activeProject.title],['Resolution', activeProject.resolution],['Frame Rate', `${activeProject.frameRate} fps`],['Mode', activeProject.outputMode]].map(([k, v]) => (
+                      <div key={k} className="flex justify-between text-[9px]">
+                        <span className="opacity-30">{k}</span>
+                        <span className="opacity-60 font-mono">{v}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Export Edit List</p>
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={handleExportEDL}
-                      className="w-full flex items-center gap-2 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-                    >
-                      <Download size={10} /> CMX 3600 EDL
+                {settingsSub === 'EXPORT' && (
+                  <div className="space-y-2">
+                    <p className="text-[8px] opacity-30 uppercase tracking-widest">Edit List Export</p>
+                    <button onClick={handleExportEDL}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all opacity-60 hover:opacity-100"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <Download size={11} /> CMX 3600 EDL
                     </button>
-                    <button
-                      onClick={handleExportFCPXML}
-                      className="w-full flex items-center gap-2 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-                    >
-                      <Download size={10} /> Final Cut Pro XML
+                    <button onClick={handleExportFCPXML}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all opacity-60 hover:opacity-100"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <Download size={11} /> Final Cut Pro XML
                     </button>
+                    <div className="p-3 rounded-xl mt-3" style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-[8px] opacity-30 uppercase tracking-widest mb-2">Engine</p>
+                      {['Canvas 2D compositor @ 60fps rAF','Web Audio API (GainNode graph)','MediaRecorder VP9/Opus 8Mbps','canvas.captureStream() → Mux/WebRTC'].map(l => (
+                        <p key={l} className="text-[9px] opacity-30">{l}</p>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="p-2.5 bg-[#111] rounded-xl border border-white/[0.05]">
-                  <p className="text-[8px] text-white/30 uppercase tracking-widest mb-2">Engine</p>
-                  <div className="space-y-0.5 text-[9px] text-white/30">
-                    <div>Compositor: Canvas 2D / rAF loop @ 60fps</div>
-                    <div>Audio: Web Audio API (GainNode graph)</div>
-                    <div>Recording: MediaRecorder VP9/Opus 8Mbps</div>
-                    <div>Transitions: MIX · DIP · WIPE · T-Bar</div>
-                    <div>Stream out: canvas.captureStream(fps)</div>
+                {settingsSub === 'COLOR' && (
+                  <div className="space-y-3">
+                    <p className="text-[8px] opacity-30 uppercase tracking-widest">Source</p>
+                    <select value={selectedSourceId ?? ''} onChange={e => setSelectedSourceId(e.target.value || null)}
+                      className="w-full rounded-xl px-2 py-2 text-xs text-white outline-none"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <option value="">Select source…</option>
+                      {sources.filter(s => !['COLOR','BARS'].includes(s.type)).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                    {selectedSourceId && (
+                      <div className="space-y-3">
+                        {([
+                          { key: 'brightness' as const, label: 'Brightness', icon: <Sun size={10} />, min: 0, max: 2, step: 0.02 },
+                          { key: 'contrast'   as const, label: 'Contrast',   icon: <Contrast size={10} />, min: 0, max: 2, step: 0.02 },
+                          { key: 'saturation' as const, label: 'Saturation', icon: <Droplet size={10} />, min: 0, max: 2, step: 0.02 },
+                          { key: 'hue'        as const, label: 'Hue Rotate', icon: <Palette size={10} />, min: -180, max: 180, step: 1 },
+                        ]).map(({ key, label, icon, min, max, step }) => (
+                          <div key={key} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="flex items-center gap-1 text-[9px] opacity-40">{icon} {label}</span>
+                              <span className="text-[9px] font-mono opacity-50">{cc[key].toFixed(key === 'hue' ? 0 : 2)}{key === 'hue' ? '°' : ''}</span>
+                            </div>
+                            <input type="range" min={min} max={max} step={step} value={cc[key]}
+                              onChange={e => handleCC(key, Number(e.target.value))}
+                              className="w-full cursor-pointer" style={{ accentColor: '#6B0099', height: 6 }} />
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <button onClick={resetCC}
+                            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold uppercase transition-all opacity-40 hover:opacity-80"
+                            style={{ border: '1px solid rgba(255,255,255,0.1)' }}>Reset</button>
+                          <button onClick={() => {
+                              const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.cube';
+                              inp.onchange = () => { if (inp.files?.[0]) alert('LUT loaded — applied on output stream.'); };
+                              inp.click();
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[9px] font-bold uppercase transition-all opacity-40 hover:opacity-80"
+                            style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <Upload size={10} /> .cube LUT
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
 
-                <button
-                  onClick={() => setShowProjectModal(true)}
-                  className="w-full flex items-center gap-2 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/50 hover:text-white text-[9px] font-bold transition-colors"
-                >
-                  <Film size={10} /> Switch / New Project
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+                {settingsSub === 'MIDI' && (
+                  <div className="space-y-3">
+                    <button onClick={handleConnectMIDI}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                      style={{
+                        background: midiConnected ? 'rgba(34,197,94,0.1)' : 'rgba(107,0,153,0.15)',
+                        border: `1px solid ${midiConnected ? 'rgba(34,197,94,0.25)' : 'rgba(107,0,153,0.25)'}`,
+                        color: midiConnected ? '#22c55e' : '#a855f7',
+                      }}>
+                      <Usb size={12} /> {midiConnected ? 'MIDI Connected' : 'Connect MIDI Device'}
+                    </button>
+                    <div className="p-3 rounded-xl space-y-1.5" style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-[8px] opacity-30 uppercase tracking-widest mb-2">Default CC Map</p>
+                      {[['CC 1–8','Source channel faders'],['CC 10','Master output fader'],['CC 20','CUT (value >63)'],['CC 21','AUTO transition'],['CC 22','Fade to Black'],['Note C3','CUT (note-on)']].map(([cc, fn]) => (
+                        <div key={cc} className="flex items-center gap-2 text-[9px]">
+                          <span className="font-mono w-14 shrink-0" style={{ color: '#a855f7' }}>{cc}</span>
+                          <span className="opacity-40">{fn}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 rounded-xl" style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-[8px] opacity-30 uppercase tracking-widest mb-1">Stream Deck</p>
+                      <p className="text-[9px] opacity-30 leading-relaxed">Install Plajah plugin from Stream Deck Store. Connect via WebSocket port 28196.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
       </div>
+
+      {/* ═══════════════════════ FOOTER ══════════════════════════════════════ */}
+      <footer className="flex justify-center items-center gap-3 shrink-0 px-4"
+        style={{ height: 56, background: '#111', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <button
+          onClick={handleAuto}
+          className="flex items-center justify-center gap-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation"
+          style={{ flex: '1 1 0', maxWidth: 220, height: 40, background: 'rgba(212,0,85,0.85)', color: '#fff' }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#D40055')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(212,0,85,0.85)')}>
+          <Radio size={16} /> Auto Trans
+        </button>
+        <button
+          onClick={handleCut}
+          className="flex items-center justify-center gap-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation"
+          style={{ flex: '1 1 0', maxWidth: 220, height: 40, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}>
+          <Zap size={16} /> Cut / Take
+        </button>
+        <div className="flex items-center gap-3 ml-4">
+          <button onClick={handleRecord}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+            style={{
+              background: isRecording ? '#D40055' : 'rgba(255,255,255,0.05)',
+              color: isRecording ? '#fff' : 'rgba(255,255,255,0.4)',
+              border: `1px solid ${isRecording ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)'}`,
+            }}>
+            {isRecording ? <Square size={9} fill="white" /> : <Circle size={9} />}
+            {isRecording ? 'Stop Rec' : 'Record'}
+          </button>
+          {onStreamReady && (
+            <button onClick={handleGoLive}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+              style={{ background: '#6B0099', color: '#fff' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#7d00b4')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#6B0099')}>
+              <Radio size={9} /> Go Live
+            </button>
+          )}
+          <button onClick={() => setShowProjectModal(true)} className="opacity-25 hover:opacity-60 transition-opacity p-1">
+            <Settings size={14} />
+          </button>
+        </div>
+      </footer>
     </div>
   );
 };
