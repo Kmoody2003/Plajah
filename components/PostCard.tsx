@@ -256,8 +256,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
 
   return (
     <>
-    <div className="relative group/card">
-      <div className="flex gap-3 px-4 py-3.5 hover:bg-white/[0.02] transition-colors border-b border-white/[0.06]">
+    <div className="relative group/card rounded-2xl overflow-hidden border border-white/[0.06]">
+      <div className="flex gap-3 px-4 py-3.5 hover:bg-white/[0.02] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">
           <button

@@ -3056,7 +3056,7 @@ const toggleFavoriteTeam = async (team: string) => {
                   <p className="text-xs text-white/20">Follow people on Mastodon or Bluesky to see posts here.</p>
                 </div>
               ) : (
-                <div className="max-w-2xl mx-auto divide-y divide-white/5">
+                <div className="max-w-2xl mx-auto space-y-3">
                   {fediverseFeed.map(post => (
                     <FediversePostCard
                       key={`${post.protocol}-${post.id}`}
@@ -3566,8 +3566,8 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
           )}
 
-          {/* Post feed - bordered list */}
-          <div className="border border-white/[0.06] rounded-2xl overflow-hidden">
+          {/* Post feed */}
+          <div className="space-y-3">
           <AnimatePresence mode="popLayout" initial={false}>
             {displayedPosts.length === 0 ? (
               <motion.div
@@ -3606,7 +3606,7 @@ const toggleFavoriteTeam = async (team: string) => {
               ))
             )}
           </AnimatePresence>
-          </div>{/* end bordered list */}
+          </div>{/* end post feed */}
             </>
           )}{/* end SINGLE mode */}
 
