@@ -1409,10 +1409,27 @@ async function startServer() {
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
-      await mux.video.liveStreams.disable(streamId);
-      res.json({ ok: true });
+
+      // complete() signals end-of-stream and triggers asset creation from new_asset_settings.
+      // disable() only stops ingestion — it does NOT create a recording asset.
+      await mux.video.liveStreams.complete(streamId);
+
+      // Retrieve the stream to get the asset ID Mux is now preparing.
+      const stream = await mux.video.liveStreams.retrieve(streamId);
+      const assetId: string | null = (stream as any).recent_asset_ids?.[0] ?? null;
+
+      // Try to get the playback ID from the asset (may still be "preparing").
+      let playbackId: string | null = null;
+      if (assetId) {
+        try {
+          const asset = await mux.video.assets.retrieve(assetId);
+          playbackId = asset.playback_ids?.[0]?.id ?? null;
+        } catch { /* asset may not be immediately accessible; save ID for later */ }
+      }
+
+      res.json({ ok: true, assetId, playbackId });
     } catch (error: any) {
-      console.error('Mux live disable error:', error);
+      console.error('Mux live end error:', error);
       res.status(500).json({ error: error.message });
     }
   });

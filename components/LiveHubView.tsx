@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LiveFeed, UserProfile } from '../types';
+import { LiveFeed, UserProfile, StreamArchive } from '../types';
 import PageHeader from './PageHeader';
-import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels } from '../services/backendService';
-import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical } from 'lucide-react';
+import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives } from '../services/backendService';
+import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical, Clock, PlayCircle } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
@@ -65,7 +65,9 @@ function HoverStreamPreview({ url, mutedUrl }: { url: string; mutedUrl: string }
 
 const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPool, onOpenTVStudio }) => {
   const { triggerAction } = useAchievements();
-  const [activeTab, setActiveTab] = useState<'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS'>('STREAMS');
+  const [activeTab, setActiveTab] = useState<'STREAMS' | 'SCIENCE' | 'LIVE_TV' | 'EVENTS' | 'REPLAYS'>('STREAMS');
+  const [archives, setArchives] = useState<StreamArchive[]>([]);
+  const [archivesLoading, setArchivesLoading] = useState(false);
   const [scienceCat, setScienceCat] = useState<ScienceCategory | 'ALL'>('ALL');
   const [feeds, setFeeds] = useState<LiveFeed[]>([]);
   const [liveArtists, setLiveArtists] = useState<UserProfile[]>([]);
@@ -87,6 +89,14 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== 'REPLAYS' || archives.length > 0) return;
+    setArchivesLoading(true);
+    fetchStreamArchives(24).then(data => {
+      setArchives(data);
+      setArchivesLoading(false);
+    }).catch(() => setArchivesLoading(false));
+  }, [activeTab]);
 
   const handleDelete = async (id: string) => {
     if (confirm("Remove this live feed from the hub?")) {
@@ -235,6 +245,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
                 { id: 'SCIENCE',  label: '🔭 Science Live' },
                 { id: 'LIVE_TV',  label: 'Live TV'        },
                 { id: 'EVENTS',   label: 'Live Events'    },
+                { id: 'REPLAYS',  label: '▶ Replays'      },
               ] as const).map(tab => (
                 <button
                   key={tab.id}
@@ -489,6 +500,114 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         {activeTab === 'EVENTS' && (
           <div className="absolute inset-0 overflow-y-auto">
             <PPVEventsView onBack={() => {}} user={currentUser} onJoinPool={onJoinPool} isNested={true} />
+          </div>
+        )}
+
+        {/* ── Replays ─────────────────────────────────────────────────────── */}
+        {activeTab === 'REPLAYS' && (
+          <div className="p-6 space-y-6">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Past Broadcasts</h2>
+              <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">Saved recordings from ended live streams</p>
+            </div>
+
+            {archivesLoading && (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-2 border-[#6B0099]/30 border-t-[#6B0099] rounded-full animate-spin" />
+              </div>
+            )}
+
+            {!archivesLoading && archives.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/20">
+                <PlayCircle size={40} strokeWidth={1.5} />
+                <p className="text-sm font-black uppercase tracking-widest">No replays yet</p>
+                <p className="text-xs text-center max-w-xs">Streams you end will appear here as rewatchable replays. Mux processes the recording for a few minutes after the stream ends.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {archives.map(archive => {
+                const thumbUrl = archive.muxPlaybackId
+                  ? `https://image.mux.com/${archive.muxPlaybackId}/thumbnail.jpg?width=640&time=5`
+                  : null;
+                const playUrl = archive.muxPlaybackId
+                  ? `https://stream.mux.com/${archive.muxPlaybackId}.m3u8`
+                  : null;
+                const endedDate = archive.endedAt
+                  ? new Date(archive.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : '';
+                const mins = Math.floor((archive.durationMs || 0) / 60000);
+                const secs = Math.floor(((archive.durationMs || 0) % 60000) / 1000);
+                const duration = archive.durationMs
+                  ? `${mins}:${String(secs).padStart(2, '0')}`
+                  : null;
+                // Asset may still be processing if ended very recently (<10 min)
+                const isProcessing = !archive.muxPlaybackId || (Date.now() - (archive.endedAt || 0) < 10 * 60 * 1000);
+
+                return (
+                  <div key={archive.id} className="group rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/15 transition-all">
+                    {/* Thumbnail */}
+                    <div className="relative aspect-video bg-black">
+                      {thumbUrl ? (
+                        <img
+                          src={thumbUrl}
+                          alt={archive.title}
+                          className="w-full h-full object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <PlayCircle size={32} className="text-white/20" />
+                        </div>
+                      )}
+
+                      {/* Duration badge */}
+                      {duration && (
+                        <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] font-mono rounded">
+                          {duration}
+                        </span>
+                      )}
+
+                      {/* Processing overlay */}
+                      {isProcessing && !archive.muxPlaybackId && (
+                        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2">
+                          <div className="w-6 h-6 border-2 border-[#6B0099]/40 border-t-[#6B0099] rounded-full animate-spin" />
+                          <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Processing…</span>
+                        </div>
+                      )}
+
+                      {/* Play overlay */}
+                      {playUrl && !isProcessing && (
+                        <a
+                          href={playUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity scale-90 group-hover:scale-100 transform">
+                            <Play size={20} fill="black" className="ml-1 text-black" />
+                          </div>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-3 space-y-1">
+                      <p className="text-sm font-black text-white truncate">{archive.title}</p>
+                      <div className="flex items-center gap-2 text-white/30 text-[10px]">
+                        <span className="font-semibold">{archive.ownerName}</span>
+                        <span>·</span>
+                        <Clock size={9} />
+                        <span>{endedDate}</span>
+                      </div>
+                      {isProcessing && archive.muxPlaybackId && (
+                        <p className="text-[9px] text-yellow-400/60 font-bold uppercase tracking-wider">May still be processing</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

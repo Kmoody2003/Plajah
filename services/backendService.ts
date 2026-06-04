@@ -28,7 +28,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -3541,7 +3541,7 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
       subject: feed.subject || '',
       brandId: feed.brandId || ''
     });
-    await addDoc(collection(db, path), feedData);
+    return await addDoc(collection(db, path), feedData);
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
@@ -3576,6 +3576,43 @@ export const deleteLiveFeed = async (id: string) => {
     await deleteDoc(doc(db, 'live_feeds', id));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+// --- Stream Archives (rewatch / VOD after live ends) ---
+
+export const saveStreamArchive = async (archive: Omit<StreamArchive, 'id'>): Promise<string | null> => {
+  try {
+    const ref = await addDoc(collection(db, 'stream_archives'), {
+      ...archive,
+      endedAt: serverTimestamp(),
+    });
+    return ref.id;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'stream_archives');
+    return null;
+  }
+};
+
+export const fetchStreamArchives = async (limitCount = 24): Promise<StreamArchive[]> => {
+  try {
+    const q = query(collection(db, 'stream_archives'), orderBy('endedAt', 'desc'), limit(limitCount));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), endedAt: safeToMillis(d.data().endedAt), startedAt: d.data().startedAt || 0 } as StreamArchive));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'stream_archives');
+    return [];
+  }
+};
+
+export const fetchUserStreamArchives = async (userId: string): Promise<StreamArchive[]> => {
+  try {
+    const q = query(collection(db, 'stream_archives'), where('ownerId', '==', userId), orderBy('endedAt', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), endedAt: safeToMillis(d.data().endedAt), startedAt: d.data().startedAt || 0 } as StreamArchive));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'stream_archives');
+    return [];
   }
 };
 
@@ -5480,7 +5517,7 @@ export const createMuxLiveStream = async (): Promise<{
   return res.json();
 };
 
-export const endMuxLiveStream = async (streamId: string): Promise<void> => {
+export const endMuxLiveStream = async (streamId: string): Promise<{ assetId: string | null; playbackId: string | null }> => {
   const idToken = await getRequiredIdToken();
   const res = await fetch(`/api/mux/live/${streamId}`, {
     method: 'DELETE',
@@ -5490,6 +5527,8 @@ export const endMuxLiveStream = async (streamId: string): Promise<void> => {
     const err = await res.json().catch(() => ({ error: 'Failed to end stream' }));
     throw new Error(err.error || 'Failed to end Mux live stream');
   }
+  const data = await res.json();
+  return { assetId: data.assetId ?? null, playbackId: data.playbackId ?? null };
 };
 
 export const getMuxLiveStreamStatus = async (streamId: string): Promise<{ status: string; playbackId: string | null }> => {

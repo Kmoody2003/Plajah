@@ -1404,6 +1404,7 @@ export interface LiveFeed {
   title: string;
   url: string; // Embed URL (YouTube, Twitch, etc.)
   muxPlaybackId?: string; // For Mux live streams
+  muxStreamId?: string;
   timestamp: number;
   status?: 'OFFLINE' | 'LIVE';
   isPublic?: boolean;
@@ -1413,6 +1414,23 @@ export interface LiveFeed {
   subject?: string;
   brandId?: string;
   tags?: string[];
+}
+
+/** Saved after a live stream ends — rewatchable VOD via Mux asset. */
+export interface StreamArchive {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhoto: string;
+  title: string;
+  startedAt: number;
+  endedAt: number;
+  durationMs: number;
+  /** Mux asset ID — asset may still be "preparing" for a few minutes after stream end. */
+  muxAssetId: string | null;
+  /** Mux playback ID — use https://stream.mux.com/{playbackId}.m3u8 once asset is ready. */
+  muxPlaybackId: string | null;
+  streamType: string;
 }
 
 export interface FanPage {

@@ -1253,6 +1253,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
   const [feedPanelMode, setFeedPanelMode] = useState<'SINGLE' | 'DUAL'>('SINGLE');
   const [feedSyncScroll, setFeedSyncScroll] = useState(true);
+  const [feedLightboxUrl, setFeedLightboxUrl] = useState<string | null>(null);
 
   // Apply δ_discovery personalization — re-sorts feedItems by score × viewer context
   const personalizedFeedItems = useViewerDiscovery(feedItems, currentUser?.uid);
@@ -3532,10 +3533,14 @@ const toggleFavoriteTeam = async (team: string) => {
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Media</p>
                 <div className="grid grid-cols-2 gap-2">
                   {displayedPosts.flatMap(p => p.media || []).filter(m => m.type === 'PHOTO' || m.type === 'VIDEO').map((m, i) => (
-                    <div key={i} className="aspect-square rounded-2xl overflow-hidden">
+                    <div
+                      key={i}
+                      className="aspect-square rounded-2xl overflow-hidden cursor-zoom-in"
+                      onClick={() => m.type === 'PHOTO' && m.url && setFeedLightboxUrl(m.url)}
+                    >
                       {m.type === 'VIDEO'
                         ? <video src={m.url} className="w-full h-full object-cover" muted />
-                        : <img src={m.url} className="w-full h-full object-cover" loading="lazy" alt="" />}
+                        : <img src={m.url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" loading="lazy" alt="" />}
                     </div>
                   ))}
                   {displayedPosts.flatMap(p => p.media || []).filter(m => m.type === 'PHOTO' || m.type === 'VIDEO').length === 0 && (
@@ -3773,6 +3778,42 @@ const toggleFavoriteTeam = async (team: string) => {
            onBrowse={() => setShowStartTalk(false)}
          />
        </Suspense>
+     </div>
+   )}
+   {/* Feed image lightbox */}
+   {feedLightboxUrl && (
+     <div
+       className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+       onClick={() => setFeedLightboxUrl(null)}
+     >
+       <div
+         className="relative max-w-5xl max-h-[90vh] w-full flex items-center justify-center"
+         onClick={e => e.stopPropagation()}
+       >
+         <img
+           src={feedLightboxUrl}
+           alt="Full size"
+           className="max-w-full max-h-[85vh] w-auto h-auto rounded-2xl object-contain shadow-2xl"
+         />
+         <div className="absolute top-3 right-3 flex items-center gap-2">
+           <a
+             href={feedLightboxUrl}
+             target="_blank"
+             rel="noopener noreferrer"
+             onClick={e => e.stopPropagation()}
+             className="p-2 rounded-xl bg-black/70 backdrop-blur border border-white/10 text-white/70 hover:text-white transition-colors"
+             title="Open fullscreen"
+           >
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+           </a>
+           <button
+             onClick={() => setFeedLightboxUrl(null)}
+             className="p-2 rounded-xl bg-black/70 backdrop-blur border border-white/10 text-white/70 hover:text-white transition-colors"
+           >
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+           </button>
+         </div>
+       </div>
      </div>
    )}
    </>

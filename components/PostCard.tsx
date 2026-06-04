@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Post, Album, Club } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2 } from 'lucide-react';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
@@ -61,6 +61,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [giftSent, setGiftSent] = useState(false);
   const [showWaterfall, setShowWaterfall] = useState(false);
   const [signInAction, setSignInAction] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [showSendToClub, setShowSendToClub] = useState(false);
   const [userClubs, setUserClubs] = useState<Club[]>([]);
   const [loadingClubs, setLoadingClubs] = useState(false);
@@ -178,7 +179,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             case 'GIF':
             case 'STICKER':
               return (
-                <div key={idx} className="media-lift cursor-pointer">
+                <div
+                  key={idx}
+                  className="media-lift cursor-zoom-in"
+                  onClick={() => item.url && setLightboxUrl(item.url)}
+                >
                   <ThreeDImage
                     src={item.url}
                     alt={item.title || "Post media"}
@@ -682,6 +687,53 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     <AnimatePresence>
       {signInAction && (
         <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+      )}
+    </AnimatePresence>
+
+    {/* Image lightbox — uncropped pop-up with fullscreen option */}
+    <AnimatePresence>
+      {lightboxUrl && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.92, y: 8 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.92, y: 8 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+            className="relative max-w-5xl max-h-[90vh] w-full flex items-center justify-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={lightboxUrl}
+              alt="Full size"
+              className="max-w-full max-h-[85vh] w-auto h-auto rounded-2xl object-contain shadow-2xl"
+            />
+            {/* Controls */}
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <a
+                href={lightboxUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="p-2 rounded-xl bg-black/70 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white transition-colors"
+                title="Open fullscreen"
+              >
+                <Maximize2 size={16} />
+              </a>
+              <button
+                onClick={() => setLightboxUrl(null)}
+                className="p-2 rounded-xl bg-black/70 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white transition-colors"
+              >
+                <XIcon size={16} />
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </AnimatePresence>
     </>

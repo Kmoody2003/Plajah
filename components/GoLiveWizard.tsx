@@ -6,7 +6,7 @@ import {
   Clock, Type, MessageSquare, Ban, Layers, Copy, Tv2, RefreshCw
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus } from '../services/backendService';
+import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus, saveStreamArchive } from '../services/backendService';
 import { db } from '../services/backendService';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, addDoc } from 'firebase/firestore';
 import PlajahLivePlayer from './PlajahLivePlayer';
@@ -233,17 +233,38 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
         feedPayload.muxStreamId = muxStream.streamId;
       }
       const feedRef = await publishLiveFeed(feedPayload);
-      setLiveFeedId((feedRef as any)?.id || currentUser.uid);
+      setLiveFeedId(feedRef?.id ?? null);
       setIsLive(true);
       setGoLiveStartTime(Date.now());
     } catch (err) { console.error('Failed to go live:', err); }
   };
 
   const handleEndStream = async () => {
-    if (liveFeedId) await deleteLiveFeed(liveFeedId);
+    const endedAt = Date.now();
+    const durationMs = goLiveStartTime ? endedAt - goLiveStartTime : 0;
+
+    // End Mux stream (complete() triggers asset creation) and archive the broadcast.
     if (muxStream?.streamId) {
-      endMuxLiveStream(muxStream.streamId).catch(console.error);
+      try {
+        const { assetId, playbackId } = await endMuxLiveStream(muxStream.streamId);
+        await saveStreamArchive({
+          ownerId: currentUser?.uid ?? '',
+          ownerName: currentUser?.displayName || 'User',
+          ownerPhoto: currentUser?.photoURL || '',
+          title,
+          startedAt: goLiveStartTime || endedAt,
+          endedAt,
+          durationMs,
+          muxAssetId: assetId,
+          muxPlaybackId: playbackId,
+          streamType: 'MUX',
+        });
+      } catch (err) {
+        console.error('Stream archive failed:', err);
+      }
     }
+
+    if (liveFeedId) await deleteLiveFeed(liveFeedId);
     localStream?.getTracks().forEach(t => t.stop());
     setLocalStream(null);
     setIsLive(false);

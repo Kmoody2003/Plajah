@@ -906,14 +906,84 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
             </div>
           </div>
 
-          {/* ─── Switcher Bar ─────────────────────────────────────────────── */}
-          <div className="shrink-0 px-2 pb-2">
-            <div className="bg-[#111] rounded-xl border border-white/[0.05] p-2.5 flex items-center gap-2">
+          {/* ─── ATEM-style Switcher ──────────────────────────────────────── */}
+          {/*
+            Layout mirrors a Blackmagic ATEM:
+              Row 1  PREVIEW  — click a source button to route it to Preview
+              Row 2  PROGRAM  — click a source button to cut directly to Program
+              Row 3  Controls — CUT · AUTO · T-Bar · FTB · transition type · duration
+          */}
+          <div className="shrink-0 px-2 pb-2 space-y-1">
+
+            {/* Preview bus row */}
+            <div className="bg-[#0d0d0d] rounded-xl border border-[#6B0099]/20 p-1.5">
+              <div className="flex items-center gap-1 mb-1 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#6B0099]" />
+                <span className="text-[7px] font-black text-[#6B0099] uppercase tracking-[0.2em]">Preview</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {sources.map(src => (
+                  <button
+                    key={src.id}
+                    onClick={() => handleSourceClick(src.id)}
+                    className={`
+                      min-w-[52px] px-2 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wider
+                      transition-all active:scale-95 touch-manipulation
+                      ${previewId === src.id
+                        ? 'bg-[#6B0099] text-white shadow-[0_0_10px_rgba(107,0,153,0.6)]'
+                        : 'bg-white/[0.06] text-white/50 hover:bg-white/10 hover:text-white'
+                      }
+                    `}
+                    style={{ minHeight: 40 }}
+                  >
+                    {src.label.length > 8 ? src.label.slice(0, 7) + '…' : src.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Program bus row */}
+            <div className="bg-[#0d0d0d] rounded-xl border border-[#D40055]/20 p-1.5">
+              <div className="flex items-center gap-1 mb-1 px-1">
+                <div className={`w-1.5 h-1.5 rounded-full bg-[#D40055] ${programId ? 'animate-pulse' : 'opacity-30'}`} />
+                <span className="text-[7px] font-black text-[#D40055] uppercase tracking-[0.2em]">Program</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {sources.map(src => (
+                  <button
+                    key={src.id}
+                    onClick={() => {
+                      // Direct cut to program on program-row click
+                      const e = engineRef.current;
+                      if (!e) return;
+                      e.setPreview(src.id);
+                      e.cut();
+                      setTBarValue(0);
+                    }}
+                    className={`
+                      min-w-[52px] px-2 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wider
+                      transition-all active:scale-95 touch-manipulation
+                      ${programId === src.id
+                        ? 'bg-[#D40055] text-white shadow-[0_0_10px_rgba(212,0,85,0.6)]'
+                        : 'bg-white/[0.06] text-white/50 hover:bg-white/10 hover:text-white'
+                      }
+                    `}
+                    style={{ minHeight: 40 }}
+                  >
+                    {src.label.length > 8 ? src.label.slice(0, 7) + '…' : src.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Control row */}
+            <div className="bg-[#111] rounded-xl border border-white/[0.05] p-2 flex items-center gap-2">
 
               {/* CUT */}
               <button
                 onClick={handleCut}
-                className="px-3 py-2 rounded-lg bg-[#D40055] hover:bg-[#f0005f] text-white text-[10px] font-black uppercase tracking-widest transition-colors shrink-0"
+                className="min-w-[52px] py-3 rounded-xl bg-[#D40055] hover:bg-[#f0005f] active:scale-95 text-white text-[11px] font-black uppercase tracking-widest transition-all touch-manipulation shrink-0"
+                style={{ minHeight: 44 }}
               >
                 CUT
               </button>
@@ -921,7 +991,8 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
               {/* AUTO */}
               <button
                 onClick={handleAuto}
-                className="px-3 py-2 rounded-lg bg-[#6B0099] hover:bg-[#7d00b4] text-white text-[10px] font-black uppercase tracking-widest transition-colors shrink-0"
+                className="min-w-[52px] py-3 rounded-xl bg-[#6B0099] hover:bg-[#7d00b4] active:scale-95 text-white text-[11px] font-black uppercase tracking-widest transition-all touch-manipulation shrink-0"
+                style={{ minHeight: 44 }}
               >
                 AUTO
               </button>
@@ -934,9 +1005,9 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                   min={0} max={100}
                   value={Math.round(tBarValue * 100)}
                   onChange={e => handleTBarChange(Number(e.target.value) / 100)}
-                  className="w-full h-2 cursor-pointer accent-[#6B0099]"
+                  className="w-full h-3 cursor-pointer accent-[#6B0099]"
+                  style={{ minHeight: 20 }}
                 />
-                {/* Transition progress track */}
                 <div className="h-0.5 rounded-full bg-white/5 overflow-hidden">
                   <div
                     className="h-full bg-[#6B0099] rounded-full transition-all duration-75"
@@ -948,7 +1019,8 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
               {/* FTB */}
               <button
                 onClick={handleFTB}
-                className="px-2 py-2 rounded-lg bg-white/[0.04] hover:bg-white/10 text-white/40 hover:text-white text-[9px] font-black uppercase tracking-wider transition-colors shrink-0"
+                className="min-w-[44px] py-3 rounded-xl bg-white/[0.04] hover:bg-white/10 active:scale-95 text-white/40 hover:text-white text-[9px] font-black uppercase tracking-wider transition-all touch-manipulation shrink-0"
+                style={{ minHeight: 44 }}
               >
                 FTB
               </button>
@@ -961,11 +1033,12 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                   <button
                     key={opt.type}
                     onClick={() => setTransitionType(opt.type)}
-                    className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                    className={`min-w-[40px] px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors touch-manipulation ${
                       transitionType === opt.type
                         ? 'bg-[#6B0099] text-white'
                         : 'bg-white/[0.04] text-white/35 hover:bg-white/10 hover:text-white'
                     }`}
+                    style={{ minHeight: 36 }}
                   >
                     {opt.label}
                   </button>
