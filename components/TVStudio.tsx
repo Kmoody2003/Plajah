@@ -653,7 +653,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
           <nav className="flex items-center gap-0 ml-4">
             {([
               { id: 'SWITCHER' as StudioTab, label: 'Live Switcher'  },
-              { id: 'AUDIO'    as StudioTab, label: 'Fairlight Audio' },
+              { id: 'AUDIO'    as StudioTab, label: 'Audio Mixer' },
               { id: 'SETTINGS' as StudioTab, label: 'System Config'  },
             ]).map(tab => (
               <button key={tab.id} onClick={() => setStudioTab(tab.id)}
@@ -705,7 +705,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
 
           {([
             { id: 'SWITCHER' as StudioTab, icon: <Activity size={16} />, label: 'Live Bus'   },
-            { id: 'AUDIO'    as StudioTab, icon: <Sliders  size={16} />, label: 'Fairlight'  },
+            { id: 'AUDIO'    as StudioTab, icon: <Sliders  size={16} />, label: 'Audio Mix'  },
             { id: 'SETTINGS' as StudioTab, icon: <Settings size={16} />, label: 'Config'     },
           ]).map(item => (
             <button key={item.id} onClick={() => setStudioTab(item.id)}
