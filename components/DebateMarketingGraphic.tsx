@@ -113,50 +113,50 @@ const DebateMarketingGraphic: React.FC = () => (
     {/* Quote example */}
     <div style={{
       position: 'absolute',
-      bottom: 40,
-      left: 60,
-      right: 60,
-      display: 'flex',
+      bottom: 36,
+      left: 48,
+      right: 48,
+      display: 'grid',
+      gridTemplateColumns: '1fr auto 1fr',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      gap: 24,
     }}>
       <div style={{
-        background: 'rgba(220,38,38,0.08)',
-        border: '1px solid rgba(220,38,38,0.2)',
-        borderRadius: 16,
-        padding: '12px 20px',
-        maxWidth: 420,
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.6)',
+        background: 'rgba(220,38,38,0.1)',
+        border: '1px solid rgba(220,38,38,0.25)',
+        borderRadius: 14,
+        padding: '14px 18px',
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.65)',
         fontStyle: 'italic',
-        lineHeight: 1.5,
+        lineHeight: 1.6,
       }}>
-        "Spotify pays $0.003–$0.005/stream. An artist needs 250,000 streams to earn minimum wage for a month."
+        🔴 "Spotify pays $0.003–$0.005/stream. An artist needs 250K streams to earn minimum wage for a month."
       </div>
 
       <div style={{
-        color: 'rgba(255,255,255,0.2)',
-        fontSize: 24,
+        color: 'rgba(255,255,255,0.18)',
+        fontSize: 18,
         fontWeight: 900,
-        letterSpacing: '0.15em',
+        letterSpacing: '0.18em',
         textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
       }}>
         PLAJAH
       </div>
 
       <div style={{
-        background: 'rgba(22,163,74,0.08)',
-        border: '1px solid rgba(22,163,74,0.2)',
-        borderRadius: 16,
-        padding: '12px 20px',
-        maxWidth: 420,
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.6)',
+        background: 'rgba(22,163,74,0.1)',
+        border: '1px solid rgba(22,163,74,0.25)',
+        borderRadius: 14,
+        padding: '14px 18px',
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.65)',
         fontStyle: 'italic',
-        lineHeight: 1.5,
+        lineHeight: 1.6,
         textAlign: 'right',
       }}>
-        "Total streaming revenue hit $17.5B in 2023 — the pie has grown dramatically."
+        🟢 "Total streaming revenue hit $17.5B in 2023 — the pie has grown dramatically."
       </div>
     </div>
   </div>
