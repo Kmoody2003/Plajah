@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Post, Album, Club } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+const PollCard = lazy(() => import('./PollCard'));
+const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
 import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2 } from 'lucide-react';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
@@ -420,6 +422,33 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
 
           {/* Rich Media */}
           {renderMedia()}
+
+          {/* Poll */}
+          {(post as any).poll?.question && (
+            <div className="mt-3">
+              <Suspense fallback={<div className="h-20 bg-white/5 rounded-2xl animate-pulse" />}>
+                <PollCard postId={post.id} poll={(post as any).poll} />
+              </Suspense>
+            </div>
+          )}
+
+          {/* Data Viz embed preview */}
+          {(post as any).dataViz?.presetId && (
+            <div className="mt-3 flex items-center gap-3 p-3 rounded-2xl bg-cyan-500/8 border border-cyan-500/20">
+              <span className="text-xl">🔬</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-widest text-cyan-400/70 mb-0.5">Live Data Visualization</p>
+                <p className="text-[12px] font-black text-white truncate">{(post as any).dataViz.title}</p>
+                <p className="text-[9px] text-white/30">{(post as any).dataViz.source}</p>
+              </div>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LABS_VIZ', { detail: { presetId: (post as any).dataViz.presetId } }))}
+                className="px-3 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 text-[9px] font-black uppercase tracking-wider hover:bg-cyan-500/25 transition-all shrink-0"
+              >
+                View →
+              </button>
+            </div>
+          )}
 
           {/* Action bar */}
           <div className="flex items-center gap-1 mt-3 -ml-1.5">

@@ -1776,9 +1776,167 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // TV Studio — browser production switcher (Blackmagic-style)
   | 'TV_STUDIO'
   // People directory — filters SearchView to users only
-  | 'PEOPLE';
+  | 'PEOPLE'
+  // Social feature hubs
+  | 'CHALLENGES' | 'BROADCAST_CHANNELS' | 'CLOSE_FRIENDS' | 'POLL_ARCHIVE'
+  | 'SOCIAL_INSIGHTS' | 'SIGNATURE_MOMENTS';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
+
+// ── Dynamic Social Feature Types ──────────────────────────────────────────────
+
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;           // what creators should do
+  category: 'MUSIC' | 'VIDEO' | 'ART' | 'WRITING' | 'PHOTO' | 'ANY';
+  hashtag: string;          // e.g. #PlajahChallenge
+  createdAt: number;
+  endsAt: number;
+  createdBy: string;        // uid — 'PLAJAH_SYSTEM' for platform challenges
+  coverImage?: string;
+  prize?: string;           // e.g. "Feature on homepage"
+  entryCount: number;
+  isActive: boolean;
+}
+
+export interface ChallengeEntry {
+  id: string;
+  challengeId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto: string;
+  postId?: string;
+  mediaUrl?: string;
+  caption: string;
+  votes: number;
+  votedBy: string[];        // uids
+  submittedAt: number;
+}
+
+export interface BroadcastChannel {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhoto: string;
+  name: string;
+  description?: string;
+  coverImage?: string;
+  subscriberCount: number;
+  createdAt: number;
+  lastPostAt?: number;
+  isVerified?: boolean;
+}
+
+export interface BroadcastMessage {
+  id: string;
+  channelId: string;
+  text: string;
+  mediaUrl?: string;
+  mediaType?: 'PHOTO' | 'VIDEO' | 'AUDIO';
+  pollData?: { question: string; options: string[]; votes: Record<string, string[]> };
+  timestamp: number;
+  reactions: Record<string, string[]>; // emoji → [uid]
+  pinned?: boolean;
+}
+
+export interface CloseFriend {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  addedAt: number;
+  mutualScore?: number;     // interaction strength
+}
+
+export interface SignatureMoment {
+  id: string;
+  contentId: string;        // track/video/article ID
+  contentType: 'TRACK' | 'VIDEO' | 'ARTICLE';
+  contentTitle: string;
+  timestampSec?: number;    // playback position in seconds (for audio/video)
+  authorId: string;
+  authorName: string;
+  authorPhoto: string;
+  note: string;             // why it matters
+  likes: string[];          // uids
+  createdAt: number;
+}
+
+export interface UserMoodStatus {
+  emoji: string;
+  label: string;
+  updatedAt: number;
+  expiresAt?: number;       // optional auto-clear
+}
+
+export interface TimedRevealSettings {
+  revealAt: number;         // ms timestamp
+  teaser?: string;          // shown before reveal
+  isRevealed?: boolean;
+}
+
+export interface ThreadPost {
+  id: string;
+  parentId?: string;        // null for root; set for replies
+  rootId: string;           // always the first post in the thread
+  threadIndex: number;      // 0 = root, 1 = first reply, etc.
+  authorId: string;
+  authorName: string;
+  authorPhoto: string;
+  text: string;
+  media?: { type: string; url: string }[];
+  timestamp: number;
+  likes: string[];
+  replyCount: number;
+}
+
+// ── Do You Know (Aria feature discovery) ─────────────────────────────────────
+
+export type DoYouKnowCategory =
+  | 'UPLOAD' | 'SOCIAL' | 'MONETIZE' | 'AI' | 'LIVE' | 'COMMUNITY' | 'ANALYTICS' | 'CREATOR';
+
+export interface DoYouKnowTip {
+  id: string;
+  category: DoYouKnowCategory;
+  emoji: string;
+  headline: string;
+  body: string;
+  cta: string;                // button label
+  ctaView?: string;           // AppView to navigate to on CTA
+  ariaPrompt: string;         // what to ask Aria when user wants more help
+  requiredFeature?: string;   // optional — only show if user has not used this feature
+  priority: number;           // higher = shown first
+}
+
+// ── Poll archive ──────────────────────────────────────────────────────────────
+
+export interface PollArchiveEntry {
+  id: string;
+  postId: string;
+  question: string;
+  options: string[];
+  votes: Record<string, string[]>; // optionIndex → [uid]
+  totalVoters: number;
+  createdAt: number;
+  closedAt: number;
+  winningOption?: string;
+}
+
+// ── Now Listening presence ────────────────────────────────────────────────────
+
+export interface NowListeningPresence {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  trackId: string;
+  trackTitle: string;
+  artist: string;
+  albumCover?: string;
+  startedAt: number;         // timestamp when they started
+  albumId?: string;
+  isPublic: boolean;
+}
 
 export type AvatarStyle = 'ANIME' | 'CHIBI' | 'REALISTIC' | 'URBAN' | 'STREETWEAR' | 'CLAY';
 

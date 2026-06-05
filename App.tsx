@@ -129,6 +129,11 @@ const MovieUXView = retryLazy(() => import('./components/MovieUXView'));
 const MoviesTVView = retryLazy(() => import('./components/MoviesTVView'));
 const ClubsView = retryLazy(() => import('./components/ClubsView'));
 const CharityView = retryLazy(() => import('./components/CharityView'));
+const ChallengeHub = retryLazy(() => import('./components/ChallengeHub'));
+const BroadcastChannelView = retryLazy(() => import('./components/BroadcastChannelView'));
+const CloseFriendsView = retryLazy(() => import('./components/CloseFriendsView'));
+const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchive'));
+const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChatDrawer'));
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
@@ -2391,6 +2396,31 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
+            {view === 'CHALLENGES' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <ChallengeHub onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
+            {view === 'BROADCAST_CHANNELS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <BroadcastChannelView onBack={() => setView('DASHBOARD')} profileUid={user?.uid} />
+              </Suspense>
+            )}
+            {view === 'CLOSE_FRIENDS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <CloseFriendsView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} />
+              </Suspense>
+            )}
+            {view === 'POLL_ARCHIVE' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <PollResultsArchive onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
+            {view === 'SOCIAL_INSIGHTS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <SocialInsightsDashboard onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
             {view === 'DISCUSSION' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
                 <DiscussionView onBack={() => setView('DASHBOARD')} currentUser={user} />
