@@ -754,6 +754,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }
         }
 
+        // Request push notification permission and store the FCM token
+        import('./services/pushNotificationService').then(({ requestPushPermission, onForegroundMessage }) => {
+          requestPushPermission().catch(() => {});
+          onForegroundMessage((payload) => {
+            // Show in-app toast for foreground push messages
+            const title = payload.notification?.title || 'New notification';
+            const body = payload.notification?.body || '';
+            const toastEvent = new CustomEvent('PUSH_TOAST', { detail: { title, body } });
+            window.dispatchEvent(toastEvent);
+          });
+        });
+
         // Real-time listener keeps userProfile fresh after any profile edits
         // (background changes, theme activation, etc.) without requiring re-login
         profileUnsubRef.current = listenToUserProfile(u.uid, (liveProfile) => {
@@ -1038,6 +1050,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setVisitedProfile(p);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleNotificationNavigate = (notif: any) => {
+    const link = notif.link as string | undefined;
+    const targetId = notif.targetId as string | undefined;
+    if (!link) return;
+    switch (link) {
+      case 'CHAT': setView('CHAT'); break;
+      case 'FEED': setView('FEED'); break;
+      case 'LIVE_HUB': setView('LIVE_HUB'); break;
+      case 'LIVETALK': setView('LIVE_HUB'); break;
+      case 'READ':
+        if (targetId) { setView('ARTICLES'); }
+        break;
+      case 'ALBUM':
+        if (targetId) { setView('MUSIC'); }
+        break;
+      case 'VIDEO':
+        if (targetId) { setView('VIDEOS'); }
+        break;
+      case 'DISCUSSION': setView('DISCUSSION'); break;
+      case 'PROFILE':
+        if (targetId) handleVisitUser(targetId);
+        else if (notif.senderId) handleVisitUser(notif.senderId);
+        break;
+      default:
+        if (notif.senderId) handleVisitUser(notif.senderId);
+        break;
     }
   };
 
@@ -1429,7 +1470,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         TV_STUDIO: { label: 'TV Studio', icon: Clapperboard },
-                        SEARCH: { label: 'Find Artists', icon: Search },
+                        SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
                         PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
@@ -1552,7 +1593,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 {/* Notification row — player restore pill lives here when nano player is active */}
                 <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
                   <div className="flex-1">
-                    <NotificationCenter />
+                    <NotificationCenter onNavigate={handleNotificationNavigate} />
                   </div>
                   {isNanoView && (
                     <button
@@ -2177,7 +2218,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} />}
-            {view === 'SEARCH' && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} />}
+            {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
               <FeedView 
                 onBack={() => setView('DASHBOARD')} 
@@ -2576,7 +2617,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
       )}
-      {user && <PersistentChatDrawer />}
+      {user && <PersistentChatDrawer currentView={view} />}
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>

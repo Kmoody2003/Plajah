@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock } from 'lucide-react';
+import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell } from 'lucide-react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '../services/backendService';
-import { FeedItem, Album } from '../types';
+import { FeedItem, Album, AppNotification } from '../types';
+import { formatDistanceToNow } from 'date-fns';
 
 interface WeatherData {
   temp: number;
@@ -59,6 +60,16 @@ function timeUntil(ms: number): string {
   return `${m}m`;
 }
 
+function notifIcon(type: string) {
+  switch (type) {
+    case 'COMMENT': return <MessageSquare size={11} className="text-green-400" />;
+    case 'LIKE': return <Heart size={11} className="text-red-400" />;
+    case 'FOLLOW': return <UserPlus size={11} className="text-cyan-400" />;
+    case 'CONTENT': return <Plus size={11} className="text-purple-400" />;
+    default: return <Zap size={11} className="text-small-orange" />;
+  }
+}
+
 interface ProfileSmartCardProps {
   followedIds?: string[];
   profileUid?: string;
@@ -67,7 +78,9 @@ interface ProfileSmartCardProps {
   onNavigateHistory?: (view: 'CHORA_HISTORY' | 'TALEO_HISTORY') => void;
 }
 
-type Section = 'following' | 'discover' | 'coming_soon' | 'history';
+type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg';
+
+const LAST_VISIT_KEY = 'plajah_last_visit';
 
 const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   followedIds = [],
@@ -80,6 +93,9 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [section, setSection] = useState<Section>('coming_soon');
+  const [missedNotifs, setMissedNotifs] = useState<AppNotification[]>([]);
+  const [missedPosts, setMissedPosts] = useState<FeedItem[]>([]);
+  const [lastVisit, setLastVisit] = useState<number>(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,11 +143,52 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
     load();
   }, []);
 
+  // Load "While You Were Gone" data
+  useEffect(() => {
+    if (!profileUid) return;
+    const stored = localStorage.getItem(LAST_VISIT_KEY);
+    const last = stored ? parseInt(stored, 10) : Date.now() - 7 * 24 * 60 * 60 * 1000; // default: 7 days ago
+    setLastVisit(last);
+
+    const load = async () => {
+      try {
+        // Fetch notifications since last visit
+        const nSnap = await getDocs(
+          query(collection(db, 'notifications'), where('userId', '==', profileUid), orderBy('timestamp', 'desc'), limit(50))
+        );
+        const notifs: AppNotification[] = nSnap.docs.map(d => ({
+          id: d.id,
+          ...d.data(),
+          timestamp: typeof d.data().timestamp?.toMillis === 'function' ? d.data().timestamp.toMillis() : (d.data().timestamp || 0),
+        } as AppNotification));
+        setMissedNotifs(notifs.filter(n => n.timestamp > last));
+
+        // Fetch new posts from followed users since last visit
+        if (followedIds.length > 0) {
+          const pSnap = await getDocs(
+            query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(60))
+          );
+          const allPosts: FeedItem[] = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as FeedItem));
+          setMissedPosts(allPosts.filter(p => followedIds.includes(p.authorId) && (p.timestamp || 0) > last));
+        }
+      } catch {}
+    };
+    load();
+  }, [profileUid, followedIds.join(',')]);
+
+  // Update last visit timestamp when user views the WYWG section
+  const handleViewWYWG = () => {
+    setSection('wywg');
+    localStorage.setItem(LAST_VISIT_KEY, Date.now().toString());
+  };
+
   // Auto-select the most relevant default tab
   useEffect(() => {
-    if (upcomingAlbums.length > 0) setSection('coming_soon');
+    const hasWYWG = missedNotifs.length > 0 || missedPosts.length > 0;
+    if (hasWYWG) setSection('wywg');
+    else if (upcomingAlbums.length > 0) setSection('coming_soon');
     else setSection('following');
-  }, [upcomingAlbums.length]);
+  }, [upcomingAlbums.length, missedNotifs.length, missedPosts.length]);
 
   if (weatherLoading && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
   if (!weather && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
@@ -146,12 +203,22 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
     a => a.ownerId === profileUid || followedIds.includes(a.ownerId || '')
   );
 
+  const wywgCount = missedNotifs.length + missedPosts.length;
+
   const tabs: { id: Section; label: string; count?: number }[] = [
+    ...(wywgCount > 0 ? [{ id: 'wywg' as Section, label: 'Missed', count: wywgCount }] : []),
     ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
     { id: 'following', label: 'Following' },
     { id: 'discover', label: 'Discover' },
     { id: 'history', label: '🎵 History' },
   ];
+
+  // Group missed notifications by type for the summary
+  const missedByType: Record<string, AppNotification[]> = {};
+  missedNotifs.forEach(n => {
+    if (!missedByType[n.type]) missedByType[n.type] = [];
+    missedByType[n.type].push(n);
+  });
 
   return (
     <motion.div
@@ -200,18 +267,19 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
               <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
               <h3 className="text-[10px] font-black uppercase tracking-[0.35em] text-white/50">Platform Pulse</h3>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               {tabs.map(t => (
                 <button
                   key={t.id}
-                  onClick={() => setSection(t.id)}
+                  onClick={t.id === 'wywg' ? handleViewWYWG : () => setSection(t.id)}
                   className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${
                     section === t.id
-                      ? t.id === 'coming_soon' ? 'bg-small-orange text-black' : 'bg-white text-black'
-                      : 'bg-white/8 text-white/40 hover:bg-white/15'
+                      ? t.id === 'coming_soon' ? 'bg-small-orange text-black' : t.id === 'wywg' ? 'bg-purple-500 text-white' : 'bg-white text-black'
+                      : t.id === 'wywg' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30' : 'bg-white/8 text-white/40 hover:bg-white/15'
                   }`}
                 >
                   {t.id === 'coming_soon' && <Clock size={8} />}
+                  {t.id === 'wywg' && <Bell size={8} />}
                   {t.label}
                   {t.count !== undefined && t.count > 0 && (
                     <span className={`ml-0.5 text-[7px] font-black px-1 py-0.5 rounded-full ${section === t.id ? 'bg-black/20' : 'bg-white/10'}`}>
@@ -224,6 +292,110 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
           </div>
 
           <AnimatePresence mode="wait">
+
+            {/* ── While You Were Gone ── */}
+            {section === 'wywg' && (
+              <motion.div
+                key="wywg"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-3"
+              >
+                {wywgCount === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
+                    <Bell size={24} />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-center">
+                      You're all caught up!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">
+                      Since {lastVisit ? formatDistanceToNow(lastVisit) + ' ago' : 'last visit'}
+                    </div>
+
+                    {/* Summary pills */}
+                    {Object.entries(missedByType).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {Object.entries(missedByType).map(([type, items]) => (
+                          <div key={type} className="flex items-center gap-1.5 bg-black/25 border border-white/10 rounded-full px-3 py-1.5">
+                            {notifIcon(type)}
+                            <span className="text-[9px] font-black text-white/70">
+                              {items.length} {type === 'COMMENT' ? (items.length === 1 ? 'new reply' : 'new replies') : type === 'LIKE' ? (items.length === 1 ? 'like' : 'likes') : type === 'FOLLOW' ? (items.length === 1 ? 'new follower' : 'new followers') : type === 'CONTENT' ? 'new post' + (items.length > 1 ? 's' : '') : 'update' + (items.length > 1 ? 's' : '')}
+                            </span>
+                          </div>
+                        ))}
+                        {missedPosts.length > 0 && (
+                          <div className="flex items-center gap-1.5 bg-black/25 border border-white/10 rounded-full px-3 py-1.5">
+                            <Plus size={11} className="text-purple-400" />
+                            <span className="text-[9px] font-black text-white/70">
+                              {missedPosts.length} new post{missedPosts.length > 1 ? 's' : ''} from people you follow
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Individual notification items */}
+                    {[...missedNotifs].slice(0, 4).map((n, i) => (
+                      <motion.div
+                        key={n.id}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        className="flex items-center gap-3 bg-black/20 rounded-xl p-3"
+                      >
+                        <div className="relative shrink-0">
+                          <img
+                            src={n.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.senderId}`}
+                            className="w-8 h-8 rounded-full object-cover border border-white/10"
+                            alt=""
+                          />
+                          <div className="absolute -bottom-0.5 -right-0.5 p-0.5 bg-black/80 rounded-full">
+                            {notifIcon(n.type)}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black text-white/80 truncate">{n.title}</p>
+                          <p className="text-[9px] text-white/40 truncate italic">{n.message}</p>
+                        </div>
+                        <span className="text-[8px] text-white/25 shrink-0">{formatDistanceToNow(n.timestamp)} ago</span>
+                      </motion.div>
+                    ))}
+
+                    {/* Missed posts from following */}
+                    {missedPosts.slice(0, 2).map((p, i) => (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: (missedNotifs.length + i) * 0.04 }}
+                        className="flex items-center gap-3 bg-black/20 rounded-xl p-3"
+                      >
+                        <img
+                          src={p.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.authorId}`}
+                          className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                          alt=""
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[9px] font-black text-white/70 truncate">{p.authorName}</span>
+                            <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[7px] font-black uppercase tracking-widest shrink-0 ${typeColor(p.type)}`}>
+                              {typeIcon(p.type)} New Post
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-white/40 truncate">{p.title || p.content || 'New activity'}</p>
+                        </div>
+                        <span className="text-[8px] text-white/25 shrink-0">{p.timestamp ? formatDistanceToNow(p.timestamp) + ' ago' : ''}</span>
+                      </motion.div>
+                    ))}
+                  </>
+                )}
+              </motion.div>
+            )}
+
             {section === 'coming_soon' && (
               <motion.div
                 key="coming_soon"
@@ -250,7 +422,6 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                       onClick={() => onSelectAlbum?.(album)}
                       className="flex items-center gap-3 bg-black/20 hover:bg-black/35 transition-all rounded-xl p-3 cursor-pointer group"
                     >
-                      {/* Cover thumbnail */}
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10">
                         <img src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
                         <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.4))' }} />
@@ -268,7 +439,6 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         <p className="text-[8px] text-white/40 truncate">{album.artist}</p>
                       </div>
 
-                      {/* Countdown badge */}
                       <div className="shrink-0 text-right">
                         <div className="text-[9px] font-black text-small-orange">{timeUntil(album.releaseDate!)}</div>
                         <div className="text-[7px] text-white/30 font-bold">
@@ -309,7 +479,7 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
               </motion.div>
             )}
 
-            {section !== 'coming_soon' && section !== 'history' && (
+            {section !== 'coming_soon' && section !== 'history' && section !== 'wywg' && (
               <motion.div
                 key={section}
                 initial={{ opacity: 0, y: 6 }}

@@ -1,3 +1,5 @@
+import { cached } from '../src/lib/performanceCache';
+
 const RSS_FEEDS: Record<string, string[]> = {
   // Global News sub-categories
   'GENERAL':              ['https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'https://feeds.bbci.co.uk/news/world/rss.xml'],
@@ -24,8 +26,6 @@ const RSS_FEEDS: Record<string, string[]> = {
   'FINANCE': ['https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml'],
 };
 
-// In-memory cache: category → { timestamp, data }
-const cache: Record<string, { timestamp: number; data: any[] }> = {};
 const TTL = 1000 * 60 * 15; // 15 min
 
 function parseRSS(text: string): any[] {
@@ -78,27 +78,24 @@ const fetchFeedXml = async (url: string): Promise<string> => {
 };
 
 export const fetchNewsFromRSS = async (category: string): Promise<any[]> => {
-  if (cache[category] && Date.now() - cache[category].timestamp < TTL)
-    return cache[category].data;
+  return cached(`rss:${category}`, TTL, async () => {
+    const feeds = RSS_FEEDS[category] || RSS_FEEDS['GENERAL_WORLD'];
+    const results = await Promise.allSettled(
+      feeds.map(url => fetchFeedXml(url).then(parseRSS))
+    );
 
-  const feeds = RSS_FEEDS[category] || RSS_FEEDS['GENERAL_WORLD'];
-  const results = await Promise.allSettled(
-    feeds.map(url => fetchFeedXml(url).then(parseRSS))
-  );
+    let allItems: any[] = [];
+    for (const r of results) {
+      if (r.status === 'fulfilled') allItems = allItems.concat(r.value);
+    }
 
-  let allItems: any[] = [];
-  for (const r of results) {
-    if (r.status === 'fulfilled') allItems = allItems.concat(r.value);
-  }
+    allItems.sort((a, b) =>
+      (isNaN(new Date(b.pubDate).getTime()) ? 0 : new Date(b.pubDate).getTime()) -
+      (isNaN(new Date(a.pubDate).getTime()) ? 0 : new Date(a.pubDate).getTime())
+    );
 
-  allItems.sort((a, b) =>
-    (isNaN(new Date(b.pubDate).getTime()) ? 0 : new Date(b.pubDate).getTime()) -
-    (isNaN(new Date(a.pubDate).getTime()) ? 0 : new Date(a.pubDate).getTime())
-  );
-
-  const result = allItems.slice(0, 24);
-  if (result.length > 0) cache[category] = { timestamp: Date.now(), data: result };
-  return result;
+    return allItems.slice(0, 24);
+  });
 };
 
 /** Fire-and-forget background warm-up for common tabs */

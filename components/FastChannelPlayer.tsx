@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, Volume2, VolumeX, SkipForward, SkipBack, Tv, X, Radio, Wifi } from 'lucide-react';
+import MuxPlayer from '@mux/mux-player-react';
 import { Video, UserProfile, FastChannelSchedule } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule } from '../services/backendService';
 
@@ -29,6 +30,12 @@ function buildEmbedUrl(url: string): string {
   return url;
 }
 
+// Resolve the best playable URL for a video — mux HLS takes priority
+function resolveVideoSrc(video: Video): { muxId?: string; url?: string } {
+  if (video.muxPlaybackId) return { muxId: video.muxPlaybackId };
+  return { url: video.url || '' };
+}
+
 const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,6 +51,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const [liveInterruptActive, setLiveInterruptActive] = useState(false);
   const [channelSchedule, setChannelSchedule] = useState<FastChannelSchedule | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const muxRef = useRef<any>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interruptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,7 +66,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         fetchFastChannelVideos(profile.uid),
         fetchFastChannelSchedule(profile.uid).catch(() => null),
       ]);
-      const playable = vids.filter(v => v.url || v.muxPlaybackId);
+      const playable = vids.filter(v => v.muxPlaybackId || v.url);
       if (playable.length > 0) {
         setVideos(playable);
         setHasExternalUrl(false);
@@ -96,23 +104,30 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   }, [channelSchedule, hasLiveFeed]);
 
   const currentVideo = videos[currentIndex];
+  const currentSrc = currentVideo ? resolveVideoSrc(currentVideo) : {};
+  const usingMux = Boolean(currentSrc.muxId);
 
   const advance = useCallback(() => {
     setCurrentIndex(prev => (prev + 1) % videos.length);
     setCurrentTime(0);
+    setDuration(0);
   }, [videos.length]);
 
   const goBack = useCallback(() => {
     setCurrentIndex(prev => (prev - 1 + videos.length) % videos.length);
     setCurrentTime(0);
+    setDuration(0);
   }, [videos.length]);
 
+  // For raw <video> fallback only
   useEffect(() => {
+    if (usingMux) return;
     const v = videoRef.current;
-    if (!v || !currentVideo) return;
-    v.src = currentVideo.url || '';
+    if (!v || !currentSrc.url) return;
+    v.src = currentSrc.url;
+    v.load();
     v.play().catch(() => {});
-  }, [currentIndex, currentVideo]);
+  }, [currentIndex, currentSrc.url, usingMux]);
 
   const resetControlsTimer = useCallback(() => {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
@@ -124,6 +139,18 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     resetControlsTimer();
     return () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); };
   }, []);
+
+  const togglePlayback = useCallback(() => {
+    if (usingMux) {
+      const el = muxRef.current as HTMLVideoElement | null;
+      if (!el) return;
+      isPaused ? el.play() : el.pause();
+    } else {
+      const v = videoRef.current;
+      if (!v) return;
+      isPaused ? v.play() : v.pause();
+    }
+  }, [usingMux, isPaused]);
 
   const epgSchedule = videos.map((v, i) => ({
     video: v,
@@ -245,17 +272,37 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       onMouseMove={resetControlsTimer}
       onClick={resetControlsTimer}
     >
-      <video
-        ref={videoRef}
-        className="w-full h-full object-contain"
-        autoPlay
-        muted={isMuted}
-        onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
-        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
-        onEnded={advance}
-        onPlay={() => setIsPaused(false)}
-        onPause={() => setIsPaused(true)}
-      />
+      {/* Video layer — Mux player or raw <video> fallback */}
+      {usingMux ? (
+        <MuxPlayer
+          key={`mux-${currentIndex}`}
+          ref={muxRef}
+          playbackId={currentSrc.muxId!}
+          autoPlay
+          muted={isMuted}
+          className="w-full h-full"
+          onTimeUpdate={(e: any) => setCurrentTime(e.target.currentTime)}
+          onLoadedMetadata={(e: any) => setDuration(e.target.duration)}
+          onEnded={advance}
+          onPlay={() => setIsPaused(false)}
+          onPause={() => setIsPaused(true)}
+        />
+      ) : (
+        <video
+          key={`vid-${currentIndex}`}
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          autoPlay
+          muted={isMuted}
+          playsInline
+          preload="auto"
+          onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+          onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+          onEnded={advance}
+          onPlay={() => setIsPaused(false)}
+          onPause={() => setIsPaused(true)}
+        />
+      )}
 
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-transparent to-black/30" />
 
@@ -297,15 +344,17 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
               </div>
             </div>
 
-            <div
-              className="flex-1"
-              onClick={() => { isPaused ? videoRef.current?.play() : videoRef.current?.pause(); }}
-            />
+            <div className="flex-1" onClick={togglePlayback} />
 
             {/* Now Playing + Controls */}
             <div className="px-6 pb-8 space-y-4">
               <div>
-                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40 mb-1">Now Playing</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40">Now Playing</p>
+                  {usingMux && (
+                    <span className="text-[7px] font-black uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-full text-white/40">HLS</span>
+                  )}
+                </div>
                 <h3 className="text-2xl md:text-4xl font-black uppercase tracking-tight text-white line-clamp-1">
                   {currentVideo?.title}
                 </h3>
@@ -334,7 +383,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
                   <SkipBack size={18} className="text-white" />
                 </button>
                 <button
-                  onClick={() => { isPaused ? videoRef.current?.play() : videoRef.current?.pause(); }}
+                  onClick={togglePlayback}
                   className="p-4 rounded-full bg-white text-black hover:scale-105 transition-transform shadow-xl"
                 >
                   {isPaused ? <Play size={22} fill="black" /> : <Pause size={22} />}
@@ -388,6 +437,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
                   <div className="relative w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5">
                     {video.thumbnailUrl ? (
                       <img src={video.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                    ) : video.muxPlaybackId ? (
+                      <img
+                        src={`https://image.mux.com/${video.muxPlaybackId}/thumbnail.jpg?width=128&time=5`}
+                        className="w-full h-full object-cover"
+                        alt=""
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Tv size={16} className="text-white/20" />

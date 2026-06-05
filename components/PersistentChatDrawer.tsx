@@ -4,9 +4,21 @@ import {
   MessageSquare, Users, Globe, User, Send, X,
   ChevronLeft, Mic, MicOff, VideoOff, Settings,
   Radio, Music, Share2, Heart, TrendingUp, AtSign,
-  Mail, ChevronRight, Loader2, Clock,
+  Mail, ChevronRight, Loader2, Clock, MapPin,
 } from 'lucide-react';
-import { ChatMessage, UserProfile, FeedItem } from '../types';
+import { ChatMessage, UserProfile, FeedItem, AppView } from '../types';
+
+// Friendly label for the page the user was on when they posted
+const PAGE_LABELS: Partial<Record<AppView, string>> = {
+  DASHBOARD: 'Home', MUSIC: 'Music', VIDEOS: 'Videos', MOVIES_TV: 'Movies & TV',
+  BOOKS: 'Books', GAMES: 'Games', LIVE_HUB: 'Live', FEED: 'Feed',
+  DISCUSSION: 'Discussion', ARTICLES: 'Articles', GLOBAL_PHOTOS: 'Photos',
+  CLUBS: 'Clubs', WORLDS: 'Worlds', APPS: 'Apps', STORE: 'Store',
+  SANCTUARY: 'Sanctuary', RADIO: 'Radio', CHAT: 'Chat',
+  USER_PROFILE: 'Profile', SEARCH: 'Search', PEOPLE: 'Find People',
+  PLAJAH_SPORTS: 'Sports', CHARITY: 'Charity', CLASSROOMS: 'Classes',
+  PPV_EVENTS: 'Events', RELLO: 'Rello', PLAJAH_LABS: 'Labs',
+};
 import {
   auth,
   listenToMessages,
@@ -139,7 +151,21 @@ const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
       )}
       <div className={`flex flex-col gap-0.5 max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
         {!isMe && (
-          <span className="text-xs font-bold text-orange-400/80 px-1">{msg.senderName}</span>
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-xs font-bold text-orange-400/80">{msg.senderName}</span>
+            {msg.pageTag && (
+              <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest bg-white/8 border border-white/10 text-white/35 px-1.5 py-0.5 rounded-full">
+                <MapPin size={7} />
+                {msg.pageTag}
+              </span>
+            )}
+          </div>
+        )}
+        {isMe && msg.pageTag && (
+          <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest bg-orange-500/10 border border-orange-500/15 text-orange-400/50 px-1.5 py-0.5 rounded-full self-end mr-1">
+            <MapPin size={7} />
+            {msg.pageTag}
+          </span>
         )}
         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
           isMe
@@ -173,7 +199,7 @@ const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
 
 // ── Main Drawer ────────────────────────────────────────────────────────────────
 
-const PersistentChatDrawer: React.FC = () => {
+const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('LIVE');
 
@@ -262,12 +288,14 @@ const PersistentChatDrawer: React.FC = () => {
     if (!inputText.trim() || !auth.currentUser) return;
     const text = inputText;
     setInputText('');
+    const pageTag = currentView ? (PAGE_LABELS[currentView] ?? null) : null;
     await sendMessage(liveRoomId, {
       senderId: auth.currentUser.uid,
       senderName: auth.currentUser.displayName || 'Anonymous',
       senderPhoto: auth.currentUser.photoURL || '',
       text,
       type: 'TEXT',
+      ...(pageTag ? { pageTag } : {}),
     });
   };
 

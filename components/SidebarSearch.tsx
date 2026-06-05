@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search, X, User, Music, Film, BookOpen, Play, Gamepad2,
-  Globe, Newspaper, Tv, Camera, AppWindow, Mic, MessageCircle, Zap,
+  Globe, Newspaper, Tv, Camera, AppWindow, Mic, MessageCircle, Zap, Users,
 } from 'lucide-react';
 import {
   fetchAllPublicAlbums, fetchAllVideos, fetchGames, fetchAllPublicWorlds,
@@ -340,6 +340,33 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
         )}
       </div>
 
+      {/* Quick chips — shown when focused but no query yet */}
+      {focused && q.length < 2 && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-[200] bg-black/97 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+          <div className="px-3 py-3">
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Quick Links</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onSelectView('PEOPLE'); setFocused(false); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00]/10 border border-[#FF8C00]/20 text-[9px] font-black uppercase tracking-wider text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-colors"
+              >
+                <Users size={10} />
+                Find People
+              </button>
+              <button
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onSelectView('SEARCH'); setFocused(false); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-wider text-white/50 hover:bg-white/10 transition-colors"
+              >
+                <Search size={10} />
+                Full Search
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Results dropdown */}
       {showDropdown && (
         <div className="absolute left-0 right-0 top-full mt-1 z-[200] bg-black/97 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
@@ -390,13 +417,21 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
               })}
 
               {/* Footer hint */}
-              <div className="px-4 py-2 border-t border-white/[0.04]">
+              <div className="px-4 py-2 border-t border-white/[0.04] flex items-center justify-between">
                 <button
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => { onSelectView('SEARCH'); setQuery(''); setFocused(false); }}
                   className="text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
                 >
                   Full search →
+                </button>
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { onSelectView('PEOPLE'); setQuery(''); setFocused(false); }}
+                  className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#FF8C00]/50 hover:text-[#FF8C00] transition-colors"
+                >
+                  <Users size={10} />
+                  Find People
                 </button>
               </div>
             </div>

@@ -11,6 +11,7 @@ interface SearchViewProps {
   onVisitUser: (uid: string) => void;
   currentUser: FirebaseUser | null;
   initialQuery?: string;
+  initialFilter?: SearchTab;
 }
 
 type SearchTab = 'ALL' | 'PEOPLE' | 'VIDEOS' | 'MUSIC';
@@ -68,14 +69,14 @@ const LatestCreation: React.FC<{ uid: string }> = ({ uid }) => {
   );
 };
 
-const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUser, initialQuery }) => {
+const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUser, initialQuery, initialFilter }) => {
   const [searchTerm, setSearchTerm] = useState(initialQuery || '');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [allVideos, setAllVideos] = useState<Video[]>([]);
   const [allAlbums, setAllAlbums] = useState<Album[]>([]);
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<SearchTab>('ALL');
+  const [activeTab, setActiveTab] = useState<SearchTab>(initialFilter || 'ALL');
 
   // Load content catalogs once on mount
   useEffect(() => {

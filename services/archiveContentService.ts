@@ -1,4 +1,6 @@
 
+import { cached } from '../src/lib/performanceCache';
+
 export interface ArchiveBook {
   id: string;
   title: string;
@@ -283,7 +285,7 @@ export const fetchSoundCloudCC = async (query: string = 'Classical', limit: numb
 };
 
 export const fetchArchiveBooks = async (query: string = 'mediatype:texts', limit: number = 30): Promise<ArchiveBook[]> => {
-  try {
+  return cached(`archive-books:${query}:${limit}`, 1000 * 60 * 60, async () => {
     const params = new URLSearchParams({
       q: `${query} AND mediatype:texts`,
       fl: 'identifier,title,creator,description,publisher,date,subject',
@@ -307,13 +309,13 @@ export const fetchArchiveBooks = async (query: string = 'mediatype:texts', limit
       coverImage: `https://archive.org/services/img/${d.identifier}`,
       genre: 'Classic Literature'
     }));
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error fetching archive books:', error);
     return [];
-  }
+  });
 };
 export const fetchClassicBooks = async (genre?: string): Promise<ArchiveBook[]> => {
-  try {
+  return cached(`classic-books:${genre || 'all'}`, 1000 * 60 * 60, async () => {
     let url = GUTENDEX_BASE;
     if (genre) {
       url += `?topic=${encodeURIComponent(genre)}`;
@@ -331,10 +333,10 @@ export const fetchClassicBooks = async (genre?: string): Promise<ArchiveBook[]> 
       genre: genre || (b.subjects[0] || 'Classic Literature')
     }));
     return books;
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error fetching classic books:', error);
     return [];
-  }
+  });
 };
 
 const GENRE_KEYWORD_MAP: [string, string][] = [
@@ -457,7 +459,7 @@ export const getVideoMetadata = async (identifier: string) => {
 };
 
 export const getArchiveItemFiles = async (identifier: string) => {
-  try {
+  return cached(`archive-files:${identifier}`, 1000 * 60 * 60, async () => {
     const targetUrl = `${INTERNET_ARCHIVE_DETAILS}/${identifier}`;
     const response = await fetch(targetUrl);
     const data = await response.json();
@@ -466,10 +468,10 @@ export const getArchiveItemFiles = async (identifier: string) => {
       const size = parseInt(f.size) || 0;
       return size > 50000; // > 50KB
     });
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error fetching archive files:', error);
     return [];
-  }
+  });
 };
 
 export const getBestVideoUrl = (identifier: string, files: any[]) => {

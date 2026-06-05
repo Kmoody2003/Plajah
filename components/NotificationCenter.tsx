@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, CheckCircle2, Inbox } from 'lucide-react';
+import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, Inbox, UserPlus } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
+import { AppNotification } from '../types';
 
-const NotificationCenter: React.FC = () => {
-  const { notifications, unreadCount, markAsRead, isLoading } = useNotifications();
+interface NotificationCenterProps {
+  onNavigate?: (notification: AppNotification) => void;
+}
+
+const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate }) => {
+  const { notifications, unreadCount, markAsRead, clearAll, isLoading } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
 
   const getIcon = (type: string) => {
@@ -14,13 +19,22 @@ const NotificationCenter: React.FC = () => {
       case 'COMMENT': return <MessageSquare className="text-green-400" size={16} />;
       case 'CONTENT': return <Plus className="text-purple-400" size={16} />;
       case 'LIKE': return <Heart className="text-red-400" size={16} />;
+      case 'FOLLOW': return <UserPlus className="text-cyan-400" size={16} />;
       default: return <Zap className="text-small-orange" size={16} />;
+    }
+  };
+
+  const handleClick = (n: AppNotification) => {
+    markAsRead(n.id);
+    if (n.link && onNavigate) {
+      onNavigate(n);
+      setIsOpen(false);
     }
   };
 
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 group"
       >
@@ -36,7 +50,7 @@ const NotificationCenter: React.FC = () => {
         {isOpen && (
           <>
             <div className="fixed inset-0 z-[150]" onClick={() => setIsOpen(false)} />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10, x: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10, x: 10 }}
@@ -56,20 +70,19 @@ const NotificationCenter: React.FC = () => {
                 ) : notifications.length > 0 ? (
                   <div className="divide-y divide-white/5">
                     {notifications.map((n) => (
-                      <div 
+                      <button
                         key={n.id}
-                        onClick={() => {
-                          markAsRead(n.id);
-                          // Optionally handle navigation if link is present
-                          if (n.link) {
-                             // This would ideally be handled by a global nav function
-                          }
-                        }}
-                        className={`p-6 hover:bg-white/[0.03] transition-colors cursor-pointer group relative ${!n.isRead ? 'bg-small-orange/[0.02]' : ''}`}
+                        onClick={() => handleClick(n)}
+                        className={`w-full p-6 hover:bg-white/[0.05] transition-colors text-left group relative ${!n.isRead ? 'bg-small-orange/[0.02]' : ''} ${n.link ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         <div className="flex gap-4">
                           <div className="relative shrink-0">
-                            <img src={n.senderPhoto || `https://picsum.photos/seed/${n.senderId}/100/100`} className="w-10 h-10 rounded-full object-cover border border-white/10" alt="" referrerPolicy="no-referrer" />
+                            <img
+                              src={n.senderPhoto || `https://picsum.photos/seed/${n.senderId}/100/100`}
+                              className="w-10 h-10 rounded-full object-cover border border-white/10"
+                              alt=""
+                              referrerPolicy="no-referrer"
+                            />
                             <div className="absolute -bottom-1 -right-1 p-1 bg-black rounded-full border border-white/10">
                               {getIcon(n.type)}
                             </div>
@@ -77,17 +90,22 @@ const NotificationCenter: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-[11px] font-black uppercase tracking-wider truncate text-white">{n.title}</p>
-                              <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">
+                              <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter shrink-0 ml-2">
                                 {formatDistanceToNow(n.timestamp)} ago
                               </span>
                             </div>
                             <p className="text-[10px] text-white/60 leading-relaxed italic">{n.message}</p>
+                            {n.link && (
+                              <p className="text-[8px] font-black uppercase tracking-widest text-small-orange/50 mt-1 group-hover:text-small-orange transition-colors">
+                                Tap to view →
+                              </p>
+                            )}
                           </div>
                           {!n.isRead && (
-                            <div className="w-1.5 h-1.5 bg-small-orange rounded-full mt-2" />
+                            <div className="w-1.5 h-1.5 bg-small-orange rounded-full mt-2 shrink-0" />
                           )}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -99,8 +117,13 @@ const NotificationCenter: React.FC = () => {
               </div>
 
               {notifications.length > 0 && (
-                <div className="p-4 bg-white/5 text-center">
-                  <button className="text-[8px] font-black uppercase tracking-widest text-small-orange/60 hover:text-small-orange transition-colors">Clear All History</button>
+                <div className="p-4 bg-white/5 text-center border-t border-white/5">
+                  <button
+                    onClick={() => { clearAll?.(); }}
+                    className="text-[8px] font-black uppercase tracking-widest text-small-orange/60 hover:text-small-orange transition-colors"
+                  >
+                    Clear All History
+                  </button>
                 </div>
               )}
             </motion.div>

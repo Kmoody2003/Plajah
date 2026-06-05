@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
 import { fetchNewsFromRSS, prefetchNewsCategories } from '../../services/rssService';
@@ -9,6 +9,7 @@ import { fetchAllLiveFeeds } from '../../services/backendService';
 import { callGemini } from '../../services/geminiService';
 import The411 from '../The411';
 import { SportsCenterView } from '../SportsCenterView';
+import { cached, warmImages } from '../../src/lib/performanceCache';
 
 type NewsItem = {
   id: string;
@@ -186,23 +187,45 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
     const unsub = fetchAllLiveFeeds((feeds) => {
       const newsFeeds = feeds.filter(f => f.tags?.map(t => t.toLowerCase()).includes('news'));
       setLiveNewsFeeds(newsFeeds);
-      if (newsFeeds.length > 0 && !bgFeed) {
-        setBgFeed(newsFeeds[Math.floor(Math.random() * newsFeeds.length)]);
-      }
+      setBgFeed(prev => prev ?? (newsFeeds.length > 0 ? newsFeeds[Math.floor(Math.random() * newsFeeds.length)] : null));
     });
     return () => unsub();
-  }, [bgFeed]);
+  }, []);
 
-  const loadData = async (category: string) => {
+  const loadData = useCallback(async (category: string) => {
     if (category === 'COMMUNITY_ARTICLES' || category === 'PODCASTS' || category === 'LIVE_NEWS') return;
-    setLoading(true);
+    setLoading(items.length === 0);
     try {
-      // 1. Fetch News
       const queryCategory = category === 'SPORTS_ALL' ? activeSportsTab
         : category === 'GENERAL' ? newsSubcat
         : category;
+      const supportPromise = (async () => {
+        if (category.startsWith('SPORTS')) {
+          let endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+          if (activeSportsTab === 'SPORTS_NFL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+          else if (activeSportsTab === 'SPORTS_MLB') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NHL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NCAA') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
+          else if (activeSportsTab === 'SPORTS_F1') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard';
+          else if (activeSportsTab === 'SPORTS_NASCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/nascar/scoreboard';
+          else if (activeSportsTab === 'SPORTS_INDYCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/irl/scoreboard';
+
+          const data = await cached(`espn-scoreboard:${activeSportsTab}`, 1000 * 60 * 2, async () => {
+            const res = await fetch(endpoint);
+            return res.json();
+          });
+          setScores(Array.isArray(data.events) ? data.events : []);
+        } else if (category === 'FINANCE') {
+          const data = await cached('markets:coingecko:top5', 1000 * 60 * 3, async () => {
+            const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1`);
+            return res.json();
+          });
+          setMarkets(Array.isArray(data) ? data : []);
+        }
+      })();
+
       const rssItems = await fetchNewsFromRSS(queryCategory);
-      setItems(rssItems.map((n: any) => ({
+      const mappedItems = rssItems.map((n: any) => ({
         id: n.id,
         title: n.headline,
         content: n.summary,
@@ -211,37 +234,20 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
         imageUrl: n.imageUrl,
         timestamp: n.date,
         category: queryCategory
-      })));
-
-      // 2. Fetch Supporting Data
-      if (category.startsWith('SPORTS')) {
-        let endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
-        if (activeSportsTab === 'SPORTS_NFL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-        else if (activeSportsTab === 'SPORTS_MLB') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NHL') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NCAA') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
-        else if (activeSportsTab === 'SPORTS_F1') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard';
-        else if (activeSportsTab === 'SPORTS_NASCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/nascar/scoreboard';
-        else if (activeSportsTab === 'SPORTS_INDYCAR') endpoint = 'https://site.api.espn.com/apis/site/v2/sports/racing/irl/scoreboard';
-
-        const res = await fetch(endpoint);
-        const data = await res.json();
-        setScores(Array.isArray(data.events) ? data.events : []);
-      } else if (category === 'FINANCE') {
-        const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1`);
-        const data = await res.json();
-        setMarkets(Array.isArray(data) ? data : []);
-      }
+      }));
+      warmImages(mappedItems.map(item => item.imageUrl), 10);
+      setItems(mappedItems);
+      await supportPromise;
     } catch (e) {
       console.error("Dashboard data load error", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeSportsTab, newsSubcat, items.length]);
 
   useEffect(() => {
     loadData(activeCategory);
-  }, [activeCategory, activeSportsTab, newsSubcat]);
+  }, [activeCategory, activeSportsTab, newsSubcat, loadData]);
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white font-sans overflow-hidden">
@@ -540,7 +546,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
 
           {!loading && (
             <div className={`grid gap-4 ${activeCategory === 'GENERAL' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'}`}>
-              {/* Hero card â€” first article gets a full-width feature treatment */}
+              {/* Hero card — first article gets a full-width feature treatment */}
               {activeCategory === 'GENERAL' && items[0] && (
                 <a
                   href={items[0].url}
@@ -555,14 +561,14 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   }
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
                   <div className="relative z-10 p-8 flex flex-col justify-end h-full">
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} Â· {items[0].date}</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-small-orange mb-2">{items[0].source} · {items[0].date}</p>
                     <h2 className="text-2xl lg:text-4xl font-black uppercase tracking-tight leading-tight mb-3 group-hover:text-small-orange transition-colors max-w-3xl">{items[0].title}</h2>
                     <p className="text-sm text-white/50 line-clamp-2 max-w-2xl">{items[0].content}</p>
                   </div>
                 </a>
               )}
 
-              {/* Rest of articles â€” side-by-side thumbnail layout */}
+              {/* Rest of articles — side-by-side thumbnail layout */}
               {(activeCategory === 'GENERAL' ? items.slice(1) : items).map((item) => (
                 <a
                   key={item.id}
@@ -578,7 +584,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                   )}
                   <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-1.5">{item.source} Â· {item.date}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-1.5">{item.source} · {item.date}</p>
                       <h3 className="text-sm font-black uppercase tracking-tight leading-snug line-clamp-3 group-hover:text-small-orange transition-colors">{item.title}</h3>
                     </div>
                     <p className="text-[11px] text-white/30 line-clamp-2 leading-relaxed">{item.content}</p>
@@ -597,3 +603,4 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
     </div>
   );
 };
+

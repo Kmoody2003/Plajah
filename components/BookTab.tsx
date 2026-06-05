@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Album } from '../types';
+import { Book, Album, BookChapter } from '../types';
 import PageHeader from './PageHeader';
 import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
@@ -7,6 +7,8 @@ import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendServ
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
+import LazyImage from './LazyImage';
+import { warmImages } from '../src/lib/performanceCache';
 
 interface BookTabProps {
   onSelectBook: (book: any) => void;
@@ -29,6 +31,30 @@ const GENRES = [
 const _classicCache: Map<string, ArchiveBook[]> = new Map();
 const _archiveCache: Map<string, ArchiveBook[]> = new Map();
 let _marketplaceCache: import('../types').Album[] | null = null;
+
+const archiveDownloadUrl = (identifier: string, fileName: string) =>
+  `https://archive.org/download/${encodeURIComponent(identifier)}/${fileName.split('/').map(encodeURIComponent).join('/')}`;
+
+const fileName = (file: any) => String(file?.name || '');
+const fileFormat = (file: any) => String(file?.format || '').toLowerCase();
+
+const pickArchiveReadableFile = (files: any[]) => {
+  const readable = files.filter(file => {
+    const name = fileName(file).toLowerCase();
+    return !name.includes('_meta') && !name.includes('_files') && !name.includes('_archive');
+  });
+
+  const epub = readable.find(file => fileName(file).toLowerCase().endsWith('.epub') || fileFormat(file).includes('epub'));
+  if (epub) return { file: epub, format: 'EPUB' as const };
+
+  const text = readable.find(file => fileName(file).toLowerCase().endsWith('.txt') || fileFormat(file).includes('text'));
+  if (text) return { file: text, format: 'TXT' as const };
+
+  const pdf = readable.find(file => fileName(file).toLowerCase().endsWith('.pdf') || fileFormat(file).includes('pdf'));
+  if (pdf) return { file: pdf, format: 'PDF' as const };
+
+  return null;
+};
 
 const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook }) => {
   const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('GLOBAL');
@@ -66,8 +92,16 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     }
   }, [searchTerm, activeTab]);
 
+  useEffect(() => {
+    warmImages([
+      ...archiveBooks.map(book => book.coverImage),
+      ...marketplaceBooks.map(book => book.coverImage),
+      ...googleBooks.map(book => book.coverImage),
+    ], 18);
+  }, [archiveBooks, marketplaceBooks, googleBooks]);
+
   const loadGoogleBooks = async () => {
-    setIsLoading(true);
+    setIsLoading(googleBooks.length === 0 && !!searchTerm);
     try {
        const results = await searchGoogleBooks(searchTerm);
        setGoogleBooks(results);
@@ -80,7 +114,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   const loadMarketplaceBooks = async () => {
     if (_marketplaceCache) { setMarketplaceBooks(_marketplaceCache); setIsLoading(false); return; }
-    setIsLoading(true);
+    setIsLoading(marketplaceBooks.length === 0);
     try {
       const books = await fetchPublicBooks();
       _marketplaceCache = books;
@@ -96,7 +130,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     const cacheKey = activeGenre.id;
     const cache = (activeGenre.id === 'loc' || activeGenre.id === 'art') ? _archiveCache : _classicCache;
     if (cache.has(cacheKey)) { setArchiveBooks(cache.get(cacheKey)!); setIsLoading(false); return; }
-    setIsLoading(true);
+    setIsLoading(archiveBooks.length === 0);
     let books: ArchiveBook[] = [];
     if (activeGenre.id === 'loc' || activeGenre.id === 'art') {
       books = await fetchArchiveBooks(activeGenre.topic);
@@ -122,7 +156,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     // Transform ArchiveBook to the Album format expected by BookReader
     const isIA = !archiveBook.id.match(/^\d+$/); // Gutendex IDs are numeric strings
     
-    let bookChapters = [];
+    let bookChapters: BookChapter[] = [];
     
     if (isIA) {
       // For IA books, let's try to find page images to ensure "more than 1 or 2 pages"
@@ -141,12 +175,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           }))
         }];
       } else {
-        // Fallback to Embed for more reliable loading
-        bookChapters = [{
-          id: 'full-book',
-          title: 'Full Publication',
-          url: `https://archive.org/embed/${archiveBook.id}`
-        }];
+        const readableFile = pickArchiveReadableFile(files);
+        if (readableFile) {
+          bookChapters = [{
+            id: 'full-book',
+            title: 'Full Publication',
+            url: archiveDownloadUrl(archiveBook.id, readableFile.file.name),
+            format: readableFile.format,
+          }];
+        }
       }
     } else {
       // Prioritize EPUB format for better reading experience, fallback to text
@@ -159,7 +196,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         {
           id: 'full-text',
           title: 'Complete Work',
-          url: formatUrl
+          url: formatUrl,
+          format: epubUrl ? 'EPUB' : textUrl ? 'TXT' : undefined,
         }
       ];
     }
@@ -170,7 +208,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
       artist: archiveBook.authors.join(', '),
       coverImage: archiveBook.coverImage || '',
       type: 'BOOK',
-      subType: isIA ? 'GRAPHIC_NOVEL' : 'NOVEL',
+      subType: isIA && bookChapters.some(chapter => chapter.pages?.length) ? 'GRAPHIC_NOVEL' : 'NOVEL',
       genre: archiveBook.genre,
       description: archiveBook.subjects.join(', '),
       ownerId: 'system',
@@ -287,10 +325,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               className="group cursor-pointer"
             >
               <div className="relative aspect-[2/3] rounded-[2rem] overflow-hidden mb-6 shadow-2xl bg-white/5 ring-1 ring-white/10 group-hover:ring-small-orange/40 transition-all duration-500 group-hover:-translate-y-2">
-                <img 
-                  src={book.coverImage || null} 
+                <LazyImage 
+                  src={book.coverImage || undefined} 
                   alt={book.title}
                   className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                  priority={idx < 8}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
@@ -339,10 +378,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                   className="group cursor-pointer"
                 >
                   <div className="relative aspect-[2/3] rounded-[2rem] overflow-hidden mb-6 shadow-2xl bg-white/5 ring-1 ring-white/10 group-hover:ring-blue-500/40 transition-all duration-500 group-hover:-translate-y-2">
-                    <img 
-                      src={googleBook.coverImage || null} 
+                    <LazyImage 
+                      src={googleBook.coverImage || undefined} 
                       alt={googleBook.title}
                       className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                      priority={idx < 8}
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
@@ -388,10 +428,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         className="group cursor-pointer snap-start shrink-0 w-48"
                       >
                         <div className="relative aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-4 shadow-xl bg-white/5 ring-1 ring-white/10 group-hover:ring-small-orange/40 transition-all duration-500 group-hover:-translate-y-2">
-                          <img 
-                            src={book.coverImage || null} 
+                          <LazyImage 
+                            src={book.coverImage || undefined} 
                             alt={book.title}
                             className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                            priority={idx < 6}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
@@ -438,10 +479,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         }}
                       >
                         <div className="relative aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-4 shadow-xl bg-white/5 ring-1 ring-white/10 group-hover:ring-green-500/40 transition-all duration-500 group-hover:-translate-y-2">
-                          <img 
-                            src={book.coverImage || null} 
+                          <LazyImage 
+                            src={book.coverImage || undefined} 
                             alt={book.title}
                             className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                            priority={idx < 6}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
@@ -500,10 +542,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         className="group cursor-pointer snap-start shrink-0 w-48"
                       >
                         <div className="relative aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-4 shadow-xl bg-white/5 ring-1 ring-white/10 group-hover:ring-blue-500/40 transition-all duration-500 group-hover:-translate-y-2">
-                          <img 
-                            src={googleBook.coverImage || null} 
+                          <LazyImage 
+                            src={googleBook.coverImage || undefined} 
                             alt={googleBook.title}
                             className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                            priority={idx < 6}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
@@ -555,10 +598,11 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                   }
                 }}
               >
-                <img 
-                  src={book.coverImage || null} 
+                <LazyImage 
+                  src={book.coverImage || undefined} 
                   alt={book.title}
                   className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ease-out"
+                  priority={idx < 8}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;

@@ -1773,7 +1773,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Research Manifesto — 5-section research platform pitch
   | 'RESEARCH_MANIFESTO'
   // TV Studio — browser production switcher (Blackmagic-style)
-  | 'TV_STUDIO';
+  | 'TV_STUDIO'
+  // People directory — filters SearchView to users only
+  | 'PEOPLE';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
@@ -1841,6 +1843,7 @@ export interface ChatMessage {
     url?: string;
   };
   seenBy?: string[]; // Array of UIDs who have seen this message
+  pageTag?: string; // Page the sender was visiting when they posted
 }
 
 export interface ChatRoom {

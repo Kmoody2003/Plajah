@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Gr
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost } from '../services/backendService';
+import { cacheExternalBookAssets } from '../services/bookStorageService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -14,8 +15,65 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 if (pdfjs && pdfjs.GlobalWorkerOptions) {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 }
+
+class ReaderErrorBoundary extends React.Component<
+  { resetKey: string; onError: (error: Error) => void; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    this.props.onError(error);
+  }
+
+  componentDidUpdate(prevProps: { resetKey: string }) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
+
+const stripHtmlToText = (value: string) =>
+  value
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|section|article)>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+const formatReadableText = (value: string) => {
+  let text = value.trimStart().startsWith('<') ? stripHtmlToText(value) : value;
+  text = text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\*\*\* START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*?\*\*\*/i, '')
+    .replace(/\*\*\* END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*/i, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  return text
+    .split(/\n{2,}/)
+    .map(block => block.replace(/\n/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+};
 
 interface BookmarkEntry {
   id: string;
@@ -186,9 +244,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // PDF State
   const [numPdfPages, setNumPdfPages] = useState<number>();
   const [pdfPageNumber, setPdfPageNumber] = useState<number>(1);
+  const [readerError, setReaderError] = useState<string | null>(null);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
     setNumPdfPages(numPages);
+    setReaderError(null);
   }
 
   // State for saving book
@@ -235,7 +295,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         createdAt: Date.now(),
         isGlobalArchive: true,
       };
-      await publishToCloud(savedBook);
+      const normalizedBook = await cacheExternalBookAssets(savedBook, currentUser.uid);
+      await publishToCloud(normalizedBook);
       setIsSaved(true);
     } catch (e) {
       console.error(e);
@@ -246,8 +307,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   };
   const pages = currentChapter?.pages || [];
   const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
-  const isEpub = currentChapter?.url?.toLowerCase().endsWith('.epub') || currentChapter?.url?.includes('epub');
-  const isPdf = currentChapter?.url?.toLowerCase().endsWith('.pdf') || currentChapter?.url?.includes('pdf');
+  const currentUrl = currentChapter?.url || '';
+  const lowerCurrentUrl = currentUrl.toLowerCase();
+  const isEpub = currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub');
+  const isPdf = currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('pdf');
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
     currentChapter?.url?.toLowerCase().endsWith('.txt') ||
     currentChapter?.url?.includes('/txt') ||
@@ -257,14 +320,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   );
 
   useEffect(() => {
+    setReaderError(null);
+    setNumPdfPages(undefined);
+    setPdfPageNumber(1);
     if (currentChapter?.content) {
-      setChapterContent(currentChapter.content);
+      setChapterContent(formatReadableText(currentChapter.content));
     } else if (isTxt && currentChapter?.url) {
       loadFullText(currentChapter.url);
     } else {
       setChapterContent('');
     }
-  }, [currentChapter, isTxt]);
+  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt]);
 
   const loadFullText = async (url: string) => {
     setIsLoadingContent(true);
@@ -277,23 +343,20 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const response = await fetch(fetchUrl);
       if (!response.ok) throw new Error(`Signal loss: ${response.status} ${response.statusText}`);
       
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType && !/text|html|json|xml/i.test(contentType)) {
+        throw new Error(`Unsupported text content type: ${contentType}`);
+      }
+
       let text = await response.text();
       if (!text || text.trim().length === 0) {
         throw new Error("Empty frequency captured (Zero length content)");
       }
-      // Strip HTML tags that archive.org sometimes includes in plain-text responses
-      if (text.trimStart().startsWith('<')) {
-        text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                   .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                   .replace(/<[^>]+>/g, ' ')
-                   .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
-                   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-                   .replace(/\s{3,}/g, '\n\n').trim();
-      }
-      setChapterContent(text);
+      setChapterContent(formatReadableText(text));
     } catch (error) {
       console.error('Error loading full text:', error);
-      setChapterContent('Error loading the full text from the archive. This may be due to CORS restrictions or a temporary network issue. We are attempting to synchronize the signal.');
+      setReaderError('This book file could not be converted into native text. Try the original download while Plajah retries storage sync.');
+      setChapterContent('');
     } finally {
       setIsLoadingContent(false);
     }
@@ -787,38 +850,69 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             className="transition-transform duration-300 ease-out w-full h-full flex items-center justify-center"
             style={{ transform: `scale(${zoom})` }}
           >
-            {isEpub ? (
+            {readerError ? (
+              <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
+                <div className="text-center p-12">
+                  <BookOpenIcon size={64} className={`mx-auto mb-8 ${theme === 'LIGHT' ? 'text-black/10' : 'text-white/10'}`} />
+                  <h3 className={`text-xl font-black uppercase tracking-widest mb-4 ${s.text}`}>Reader Sync Needed</h3>
+                  <p className={`text-xs font-bold ${s.subtext} uppercase tracking-widest leading-loose mb-8`}>
+                    {readerError}
+                  </p>
+                  {currentChapter?.url && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(currentChapter.url, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-small-orange text-white text-[10px] font-black uppercase tracking-widest"
+                    >
+                      <Download size={16} />
+                      Open Original
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : isEpub ? (
               <div 
                 className={`w-full h-full max-w-5xl rounded-lg shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
               >
-                <ReactReader
-                  url={proxiedEpubUrl}
-                  title={book.title || ""}
-                  location={epubLocation || undefined}
-                  locationChanged={(epubcifi: string) => setEpubLocation(epubcifi)}
-                  epubInitOptions={{
-                      openAs: 'epub',
+                <ReaderErrorBoundary
+                  resetKey={currentChapter?.url || currentChapter?.id || book.id}
+                  onError={(error) => {
+                    console.error('EPUB reader failed:', error);
+                    setReaderError('This EPUB could not be opened in the native reader. Save it to your library to cache it on Plajah storage, or open the original source.');
                   }}
-                  readerStyles={{
-                    ...ReactReaderStyle,
-                    readerArea: {
-                      ...ReactReaderStyle.readerArea,
-                      backgroundColor: 'transparent',
-                    },
-                    tocButton: {
-                      ...ReactReaderStyle.tocButton,
-                      display: 'none',
-                    },
-                    tocArea: {
-                      ...ReactReaderStyle.tocArea,
-                      display: 'none',
-                    },
-                  }}
-                  getRendition={(rendition) => {
-                    setEpubRendition(rendition);
-                  }}
-                  tocChanged={(toc) => setToc(toc)}
-                />
+                >
+                  <ReactReader
+                    url={proxiedEpubUrl}
+                    title={book.title || ""}
+                    location={epubLocation || undefined}
+                    locationChanged={(epubcifi: string) => setEpubLocation(epubcifi)}
+                    epubInitOptions={{
+                        openAs: 'epub',
+                    }}
+                    readerStyles={{
+                      ...ReactReaderStyle,
+                      readerArea: {
+                        ...ReactReaderStyle.readerArea,
+                        backgroundColor: 'transparent',
+                      },
+                      tocButton: {
+                        ...ReactReaderStyle.tocButton,
+                        display: 'none',
+                      },
+                      tocArea: {
+                        ...ReactReaderStyle.tocArea,
+                        display: 'none',
+                      },
+                    }}
+                    getRendition={(rendition) => {
+                      setReaderError(null);
+                      setEpubRendition(rendition);
+                    }}
+                    tocChanged={(toc) => setToc(toc)}
+                  />
+                </ReaderErrorBoundary>
               </div>
             ) : isPdf ? (
               <div 
@@ -828,6 +922,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   <Document 
                     file={proxiedPdfUrl} 
                     onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={(error) => {
+                      console.error('PDF load failed:', error);
+                      setReaderError('This PDF could not be opened in the native reader. Save it to your library to cache it on Plajah storage, or open the original source.');
+                    }}
+                    onSourceError={(error) => {
+                      console.error('PDF source failed:', error);
+                      setReaderError('This PDF source is unavailable right now. Save it to your library to cache it on Plajah storage, or open the original source.');
+                    }}
                     loading={
                       <div className="flex flex-col items-center justify-center p-20 opacity-50">
                         <Loader2 className="animate-spin mb-4" size={32} />
@@ -840,6 +942,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       scale={zoom} 
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
+                      onRenderError={(error) => {
+                        console.error('PDF page render failed:', error);
+                        setReaderError('This PDF page could not be rendered natively. Open the original source while Plajah retries the reader sync.');
+                      }}
                       className="shadow-xl"
                     />
                   </Document>

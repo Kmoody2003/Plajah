@@ -3302,7 +3302,7 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
     };
     await addDoc(collection(db, parentCollection, parentId, "comments"), commentWithUid);
     
-    // Notify parent owner
+    // Notify parent owner (content owner gets COMMENT notification)
     const parentRef = doc(db, parentCollection, parentId);
     const parentSnap = await getDoc(parentRef);
     if (parentSnap.exists() && auth.currentUser) {
@@ -3321,6 +3321,30 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
           targetId: parentId
         });
       }
+    }
+
+    // Notify the author of the parent comment when this is a reply
+    if (comment.parentId && auth.currentUser) {
+      try {
+        const parentCommentSnap = await getDoc(doc(db, parentCollection, parentId, 'comments', comment.parentId));
+        if (parentCommentSnap.exists()) {
+          const parentComment = parentCommentSnap.data();
+          const replyTargetUid = parentComment.uid;
+          if (replyTargetUid && replyTargetUid !== auth.currentUser.uid) {
+            createNotification({
+              userId: replyTargetUid,
+              senderId: auth.currentUser.uid,
+              senderName: auth.currentUser.displayName || 'Anonymous',
+              senderPhoto: auth.currentUser.photoURL || '',
+              type: 'COMMENT',
+              title: 'New Reply',
+              message: `${auth.currentUser.displayName} replied to your comment`,
+              link: parentCollection === 'articles' ? 'READ' : 'ALBUM',
+              targetId: parentId
+            });
+          }
+        }
+      } catch {}
     }
     
     // Also post to feed if it's a significant comment

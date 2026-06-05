@@ -1,5 +1,7 @@
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { doc, updateDoc } from 'firebase/firestore';
 import { app } from './firebase';
+import { db, auth } from './backendService';
 
 const VAPID_KEY = (import.meta as any).env?.VITE_FCM_VAPID_KEY as string | undefined;
 
@@ -23,6 +25,9 @@ export const requestPushPermission = async (): Promise<string | null> => {
     const messaging = getMsg();
     const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: sw });
+    if (token && auth.currentUser) {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { fcmToken: token }).catch(() => {});
+    }
     return token || null;
   } catch (e) {
     console.warn('[Push] Token error:', e);
