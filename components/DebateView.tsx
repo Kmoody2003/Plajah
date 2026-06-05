@@ -5,6 +5,7 @@ import {
   AlertTriangle, CheckCircle2, BarChart2, Share2, ExternalLink,
   ChevronDown, ChevronUp, Zap, BookOpen, Star, X, Mic,
 } from 'lucide-react';
+import DebateCountdownTimer from './DebateCountdownTimer';
 import { Debate, DebatePost, DebateVerdict, DebateSide } from '../types';
 import {
   listenDebate, listenDebatePosts, postToDebate, voteDebateSide,
@@ -351,6 +352,17 @@ const DebateView: React.FC<DebateViewProps> = ({ debateId, onBack }) => {
           </div>
         </div>
 
+        {/* Countdown timer — only when debate is active */}
+        {isActive && (
+          <div className="mt-3">
+            <DebateCountdownTimer
+              endsAt={debate.endsAt}
+              totalDurationMs={24 * 60 * 60 * 1000}
+              onExpired={() => triggerAriaJudgment(debateId).catch(() => {})}
+            />
+          </div>
+        )}
+
         {/* Status bar */}
         <div className="flex items-center justify-between mt-2 px-1">
           <div className="flex items-center gap-1.5">
@@ -358,7 +370,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debateId, onBack }) => {
             <span className={`text-[9px] font-black uppercase tracking-wider ${
               isActive ? 'text-orange-400' : isJudged ? 'text-yellow-400' : isDeclined ? 'text-white/30' : 'text-white/30'
             }`}>
-              {isPending ? 'Awaiting acceptance' : isActive ? `Live · ${timeLeft(debate.endsAt)} remaining` : isDeclined ? 'Declined' : isJudged ? 'Judged ✓' : 'Ended — awaiting judgment'}
+              {isPending ? 'Awaiting acceptance' : isActive ? 'Live' : isDeclined ? 'Declined' : isJudged ? 'Judged ✓' : 'Ended — awaiting judgment'}
             </span>
           </div>
           <div className="flex items-center gap-2 text-[9px] text-white/25 font-bold">
