@@ -1,8 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Image, Video, Smile, Globe, X, Film, BookOpen, Layers, Plus, Mic, Camera, Square, Share2 } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  Image, Smile, Globe, X, Mic, Camera, Square, Share2,
+  BarChart2, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2,
+  ToggleLeft, ToggleRight,
+} from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld } from '../types';
 import { useFediverse } from '../contexts/FediverseContext';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ComposerAttachment {
   type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF';
@@ -19,12 +25,62 @@ export interface AssetEmbed {
   subtitle?: string;
 }
 
+export interface ComposerPoll {
+  question: string;
+  options: string[];
+  multiSelect: boolean;
+  durationHours: 24 | 48 | 72 | 168; // 1d / 2d / 3d / 7d
+}
+
+export interface ComposerDataViz {
+  presetId: string;
+  title: string;
+  source: string;
+}
+
 export interface ComposerPostData {
   text: string;
   attachments: ComposerAttachment[];
   assetEmbed?: AssetEmbed;
   theme: 'STANDARD' | 'SCRAPBOOK' | 'PHOTO_ALBUM' | 'MUSIC_PLAYER' | 'NEWSPAPER' | 'ARCADE';
+  poll?: ComposerPoll;
+  dataViz?: ComposerDataViz;
 }
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const THEMES: { id: ComposerPostData['theme']; label: string }[] = [
+  { id: 'STANDARD',    label: 'Standard'  },
+  { id: 'SCRAPBOOK',   label: 'Scrapbook' },
+  { id: 'PHOTO_ALBUM', label: 'Photo'     },
+  { id: 'MUSIC_PLAYER',label: 'Music'     },
+  { id: 'NEWSPAPER',   label: 'Paper'     },
+];
+
+const COMMON_EMOJIS = ['😀','😂','🥺','😍','🔥','👏','🎵','🎨','🌟','💯','🚀','❤️','🎉','👀','🤔','😎','🙏','💪','🌈','✨'];
+const GIPHY_KEY = '4Sbiygh5QwzvnHYaZm2IbqW44MSBMd4K';
+const DURATION_OPTIONS: { label: string; value: ComposerPoll['durationHours'] }[] = [
+  { label: '24 hours', value: 24 },
+  { label: '2 days',   value: 48 },
+  { label: '3 days',   value: 72 },
+  { label: '7 days',   value: 168 },
+];
+const VIZ_PRESETS: ComposerDataViz[] = [
+  { presetId: 'EARTHQUAKES', title: 'Live Earthquakes',   source: 'USGS'    },
+  { presetId: 'NASA_NEO',    title: 'Near-Earth Objects', source: 'NASA'    },
+  { presetId: 'WEATHER',     title: 'Weather Forecast',   source: 'NOAA'    },
+  { presetId: 'ARXIV',       title: 'Research Papers',    source: 'arXiv'   },
+];
+
+type AssetTab = 'Albums' | 'Worlds' | 'More';
+const MORE_TYPES: { label: string; type: AssetEmbed['type'] }[] = [
+  { label: 'Video',     type: 'VIDEO'     },
+  { label: 'Character', type: 'CHARACTER' },
+  { label: 'Article',   type: 'ARTICLE'   },
+  { label: 'Module',    type: 'MODULE'    },
+];
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface UniversalPostComposerProps {
   currentUser: import('firebase/auth').User | null;
@@ -39,25 +95,7 @@ interface UniversalPostComposerProps {
   avatarUrl?: string;
 }
 
-const THEMES: { id: ComposerPostData['theme']; label: string }[] = [
-  { id: 'STANDARD', label: 'Standard' },
-  { id: 'SCRAPBOOK', label: 'Scrapbook' },
-  { id: 'PHOTO_ALBUM', label: 'Photo' },
-  { id: 'MUSIC_PLAYER', label: 'Music' },
-  { id: 'NEWSPAPER', label: 'Paper' },
-];
-
-const COMMON_EMOJIS = ['😀','😂','🥺','😍','🔥','👏','🎵','🎨','🌟','💯','🚀','❤️','🎉','👀','🤔','😎','🙏','💪','🌈','✨'];
-
-const GIPHY_KEY = '4Sbiygh5QwzvnHYaZm2IbqW44MSBMd4K';
-
-type AssetTab = 'Albums' | 'Worlds' | 'More';
-const MORE_TYPES: { label: string; type: AssetEmbed['type'] }[] = [
-  { label: 'Video', type: 'VIDEO' },
-  { label: 'Character', type: 'CHARACTER' },
-  { label: 'Article', type: 'ARTICLE' },
-  { label: 'Module', type: 'MODULE' },
-];
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   currentUser,
@@ -71,39 +109,47 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   compact = false,
   avatarUrl,
 }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [text, setText] = useState('');
+  const [expanded, setExpanded]     = useState(false);
+  const [text, setText]             = useState('');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(undefined);
-  const [theme, setTheme] = useState<ComposerPostData['theme']>('STANDARD');
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [showGif, setShowGif] = useState(false);
-  const [gifQuery, setGifQuery] = useState('');
+  const [theme, setTheme]           = useState<ComposerPostData['theme']>('STANDARD');
+  const [poll, setPoll]             = useState<ComposerPoll | null>(null);
+  const [dataViz, setDataViz]       = useState<ComposerDataViz | null>(null);
+  const [showEmoji, setShowEmoji]   = useState(false);
+  const [showGif, setShowGif]       = useState(false);
+  const [showPoll, setShowPoll]     = useState(false);
+  const [showViz, setShowViz]       = useState(false);
+  const [gifQuery, setGifQuery]     = useState('');
   const [gifResults, setGifResults] = useState<any[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
-  const [assetTab, setAssetTab] = useState<AssetTab>('Albums');
+  const [assetTab, setAssetTab]     = useState<AssetTab>('Albums');
   const [moreAssetType, setMoreAssetType] = useState<AssetEmbed['type'] | null>(null);
-  const [moreAssetId, setMoreAssetId] = useState('');
+  const [moreAssetId, setMoreAssetId]     = useState('');
   const [moreAssetTitle, setMoreAssetTitle] = useState('');
-  const [posting, setPosting] = useState(false);
-  const [crossPost, setCrossPost] = useState(false);
+  const [posting, setPosting]       = useState(false);
+  const [crossPost, setCrossPost]   = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [videoCapturing, setVideoCapturing]       = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const { broadcast, accounts } = useFediverse();
   const hasFediverse = accounts.length > 0;
-  const [videoCapturing, setVideoCapturing] = useState(false);
+
+  const fileInputRef    = useRef<HTMLInputElement>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
-  const videoCamStream = useRef<MediaStream | null>(null);
-  const videoCamRecorder = useRef<MediaRecorder | null>(null);
-  const videoCamChunks = useRef<Blob[]>([]);
+  const videoCamStream  = useRef<MediaStream | null>(null);
+  const videoCamRecorder= useRef<MediaRecorder | null>(null);
+  const videoCamChunks  = useRef<Blob[]>([]);
+  const dragCounter     = useRef(0);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canPost = text.trim().length > 0 || attachments.length > 0 || !!assetEmbed || !!poll || !!dataViz;
 
-  const canPost = text.trim().length > 0 || attachments.length > 0 || !!assetEmbed;
+  // ── File helpers ─────────────────────────────────────────────────────────────
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    for (const file of files) {
+  const processFiles = useCallback((files: FileList | File[]) => {
+    Array.from(files).forEach(file => {
       const url = URL.createObjectURL(file);
       const type: ComposerAttachment['type'] = file.type.startsWith('video/')
         ? 'VIDEO'
@@ -111,56 +157,56 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         ? 'AUDIO'
         : 'PHOTO';
       setAttachments(prev => [...prev, { type, url, title: file.name, file }]);
-    }
+    });
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) processFiles(e.target.files);
     e.target.value = '';
   };
 
-  const removeAttachment = (i: number) => {
-    setAttachments(prev => {
-      const next = [...prev];
-      next.splice(i, 1);
-      return next;
-    });
-  };
+  const removeAttachment = (i: number) =>
+    setAttachments(prev => prev.filter((_, idx) => idx !== i));
 
-  const insertEmoji = (emoji: string) => {
-    setText(t => t + emoji);
-    setShowEmoji(false);
-  };
+  // ── Drag-and-drop ────────────────────────────────────────────────────────────
 
-  const handlePost = async () => {
-    if (!canPost || posting) return;
-    setPosting(true);
-    try {
-      await onPost({ text, attachments, assetEmbed, theme });
-      // Cross-post to fediverse if the user opted in and has connected accounts
-      if (crossPost && hasFediverse && text.trim()) {
-        const firstImage = attachments.find(a => a.type === 'PHOTO');
-        broadcast({
-          text: text.trim(),
-          thumbnail: firstImage?.url,
-          uri: window.location.href,
-        }).catch(() => { /* silent — fediverse failure never blocks local post */ });
-      }
-      setText('');
-      setAttachments([]);
-      setAssetEmbed(undefined);
-      setTheme('STANDARD');
-      setExpanded(false);
-    } finally {
-      setPosting(false);
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+      setExpanded(true);
     }
   };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+  };
+
+  // ── Emoji / GIF ──────────────────────────────────────────────────────────────
+
+  const insertEmoji = (emoji: string) => { setText(t => t + emoji); setShowEmoji(false); };
 
   const searchGifs = async (q: string) => {
     if (!q.trim()) { setGifResults([]); return; }
     setGifLoading(true);
     try {
-      const res = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg`
-      );
-      const data = await res.json();
-      setGifResults(data.data || []);
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg`);
+      setGifResults((await res.json()).data || []);
     } catch { setGifResults([]); }
     finally { setGifLoading(false); }
   };
@@ -169,45 +215,58 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     const url = gif?.images?.fixed_height?.url || gif?.images?.original?.url || '';
     if (!url) return;
     setAttachments(prev => [...prev, { type: 'GIF', url, title: gif.title || 'GIF' }]);
-    setShowGif(false);
-    setGifQuery('');
-    setGifResults([]);
+    setShowGif(false); setGifQuery(''); setGifResults([]);
   };
+
+  // ── Asset embed ──────────────────────────────────────────────────────────────
 
   const embedAlbum = (album: Album) => {
-    setAssetEmbed({
-      type: 'ALBUM',
-      id: album.id,
-      title: album.title,
-      imageUrl: album.coverImage,
-      subtitle: album.artist,
-    });
+    setAssetEmbed({ type: 'ALBUM', id: album.id, title: album.title, imageUrl: album.coverImage, subtitle: album.artist });
     setShowAssetPicker(false);
+  };
+  const embedWorld = (world: IPWorld) => {
+    setAssetEmbed({ type: 'WORLD', id: world.id, title: world.name, imageUrl: world.coverImage, subtitle: world.worldType });
+    setShowAssetPicker(false);
+  };
+  const embedMoreAsset = () => {
+    if (!moreAssetType || !moreAssetTitle.trim()) return;
+    setAssetEmbed({ type: moreAssetType, id: moreAssetId, title: moreAssetTitle });
+    setShowAssetPicker(false); setMoreAssetType(null); setMoreAssetId(''); setMoreAssetTitle('');
   };
 
-  const embedWorld = (world: IPWorld) => {
-    setAssetEmbed({
-      type: 'WORLD',
-      id: world.id,
-      title: world.name,
-      imageUrl: world.coverImage,
-      subtitle: world.worldType,
-    });
-    setShowAssetPicker(false);
+  // ── Poll helpers ─────────────────────────────────────────────────────────────
+
+  const initPoll = () => {
+    setPoll({ question: '', options: ['', ''], multiSelect: false, durationHours: 24 });
+    setShowPoll(true);
+    setShowViz(false); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false);
   };
+  const removePoll = () => { setPoll(null); setShowPoll(false); };
+  const updatePollOption = (i: number, value: string) =>
+    setPoll(p => p ? { ...p, options: p.options.map((o, idx) => idx === i ? value : o) } : p);
+  const addPollOption = () =>
+    setPoll(p => p && p.options.length < 4 ? { ...p, options: [...p.options, ''] } : p);
+  const removePollOption = (i: number) =>
+    setPoll(p => p && p.options.length > 2 ? { ...p, options: p.options.filter((_, idx) => idx !== i) } : p);
+
+  // ── DataViz helpers ──────────────────────────────────────────────────────────
+
+  const selectViz = (preset: ComposerDataViz) => {
+    setDataViz(preset);
+    setShowViz(false);
+    setPoll(null); setShowPoll(false);
+  };
+
+  // ── Camera ───────────────────────────────────────────────────────────────────
 
   const openCameraCapture = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       videoCamStream.current = stream;
+      if (videoPreviewRef.current) { videoPreviewRef.current.srcObject = stream; videoPreviewRef.current.play(); }
       setVideoCapturing(true);
-      if (videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
-        videoPreviewRef.current.play().catch(() => {});
-      }
-    } catch { /* user denied */ }
+    } catch { alert('Camera access denied'); }
   };
-
   const startCameraRecord = () => {
     if (!videoCamStream.current) return;
     videoCamChunks.current = [];
@@ -216,15 +275,12 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     rec.onstop = () => {
       const blob = new Blob(videoCamChunks.current, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
-      setAttachments(prev => [...prev, { type: 'VIDEO', url, title: 'Video response', file: new File([blob], 'video.webm', { type: 'video/webm' }) }]);
-      closeCameraCapture();
+      setAttachments(prev => [...prev, { type: 'VIDEO', url, title: 'Camera recording', file: new File([blob], 'cam.webm', { type: 'video/webm' }) }]);
     };
     rec.start();
     videoCamRecorder.current = rec;
   };
-
-  const stopCameraRecord = () => { videoCamRecorder.current?.stop(); };
-
+  const stopCameraRecord = () => { videoCamRecorder.current?.stop(); closeCameraCapture(); };
   const closeCameraCapture = () => {
     videoCamStream.current?.getTracks().forEach(t => t.stop());
     videoCamStream.current = null;
@@ -232,44 +288,83 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     setVideoCapturing(false);
   };
 
-  // Cleanup camera on unmount
-  useEffect(() => () => { videoCamStream.current?.getTracks().forEach(t => t.stop()); }, []);
+  // ── Post ─────────────────────────────────────────────────────────────────────
 
-  const embedMoreAsset = () => {
-    if (!moreAssetType || !moreAssetTitle.trim()) return;
-    setAssetEmbed({
-      type: moreAssetType,
-      id: moreAssetId.trim() || '_new',
-      title: moreAssetTitle.trim(),
-    });
-    setShowAssetPicker(false);
-    setMoreAssetType(null);
-    setMoreAssetId('');
-    setMoreAssetTitle('');
+  const handlePost = async () => {
+    if (!canPost || posting) return;
+    setPosting(true);
+    try {
+      const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
+        ? { ...poll, options: poll.options.filter(o => o.trim()) }
+        : undefined;
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined });
+      if (crossPost && hasFediverse && text.trim()) {
+        broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
+      }
+      setText(''); setAttachments([]); setAssetEmbed(undefined); setTheme('STANDARD');
+      setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
+      setExpanded(false);
+    } finally { setPosting(false); }
   };
 
   const videoAttachments = attachments.filter(a => a.type === 'VIDEO');
 
+  const closeAll = () => { setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); setShowPoll(false); setShowViz(false); };
+
+  // ── Collapsed ─────────────────────────────────────────────────────────────────
+
   if (!expanded) {
     return (
-      <button
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         onClick={() => setExpanded(true)}
-        className="w-full bg-white/[0.03] border border-white/10 rounded-3xl p-4 flex items-center gap-3 text-left hover:bg-white/[0.05] transition-all"
+        className={`w-full rounded-3xl p-4 flex items-center gap-3 text-left transition-all cursor-pointer ${
+          isDragging
+            ? 'bg-orange-500/10 border-2 border-dashed border-orange-400/60 shadow-[0_0_30px_rgba(255,140,0,0.2)]'
+            : 'bg-white/[0.03] border border-white/10 hover:bg-white/[0.05]'
+        }`}
       >
         <img
           src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.uid || 'anon'}`}
           className="w-9 h-9 rounded-full border border-white/10 shrink-0"
           alt=""
         />
-        <span className="text-sm text-white/30 font-medium">{placeholder}</span>
-      </button>
+        {isDragging
+          ? <span className="text-sm font-black text-orange-400 uppercase tracking-widest">Drop files to attach</span>
+          : <span className="text-sm text-white/30 font-medium">{placeholder}</span>
+        }
+      </div>
     );
   }
 
+  // ── Expanded ──────────────────────────────────────────────────────────────────
+
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 space-y-3">
+    <div
+      className={`relative rounded-3xl p-5 space-y-3 transition-all ${
+        isDragging
+          ? 'bg-orange-500/8 border-2 border-dashed border-orange-400/50 shadow-[0_0_40px_rgba(255,140,0,0.15)]'
+          : 'bg-white/[0.03] border border-white/10'
+      }`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drop overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl pointer-events-none">
+          <div className="text-4xl">📎</div>
+          <p className="text-sm font-black uppercase tracking-widest text-orange-400">Drop to attach</p>
+          <p className="text-[10px] text-white/40 uppercase tracking-widest">Photos, videos, audio</p>
+        </div>
+      )}
+
       {/* Avatar + textarea */}
-      <div className="flex items-start gap-3">
+      <div className={`flex items-start gap-3 ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}>
         <img
           src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.uid || 'anon'}`}
           className="w-9 h-9 rounded-full border border-white/10 shrink-0 mt-1"
@@ -336,26 +431,20 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           {videoAttachments.map((att, i) => (
             <div key={i} className="flex gap-2">
               {onSendToRello && (
-                <button
-                  onClick={() => onSendToRello(att.url, att.title || 'Video')}
-                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all"
-                >
+                <button onClick={() => onSendToRello(att.url, att.title || 'Video')}
+                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all">
                   📺 Send to Rello
                 </button>
               )}
               {onMakeStory && (
-                <button
-                  onClick={() => onMakeStory(att.url, 'VIDEO')}
-                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all"
-                >
+                <button onClick={() => onMakeStory(att.url, 'VIDEO')}
+                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all">
                   📖 Make Story
                 </button>
               )}
               {onMakeShort && (
-                <button
-                  onClick={() => onMakeShort(att.url, att.title || 'Video')}
-                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all"
-                >
+                <button onClick={() => onMakeShort(att.url, att.title || 'Video')}
+                  className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all">
                   ▶ Make Short
                 </button>
               )}
@@ -367,20 +456,103 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       {/* Asset embed preview */}
       {assetEmbed && (
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 ml-12">
-          {assetEmbed.imageUrl && (
-            <img src={assetEmbed.imageUrl} className="w-12 h-12 rounded-xl object-cover shrink-0" alt="" />
-          )}
+          {assetEmbed.imageUrl && <img src={assetEmbed.imageUrl} className="w-12 h-12 rounded-xl object-cover shrink-0" alt="" />}
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-black uppercase tracking-widest text-small-orange mb-0.5">{assetEmbed.type}</p>
             <p className="text-xs font-bold truncate">{assetEmbed.title}</p>
             {assetEmbed.subtitle && <p className="text-[9px] text-white/40 truncate">{assetEmbed.subtitle}</p>}
           </div>
-          <button
-            onClick={() => setAssetEmbed(undefined)}
-            className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 shrink-0 transition-all"
-          >
-            <X size={10} />
-          </button>
+          <button onClick={() => setAssetEmbed(undefined)} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 shrink-0 transition-all"><X size={10} /></button>
+        </div>
+      )}
+
+      {/* ── Poll builder ── */}
+      {showPoll && (
+        <div className="ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Poll</p>
+            <button onClick={removePoll} className="p-1 rounded-full text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-all"><Trash2 size={12} /></button>
+          </div>
+
+          <input
+            value={poll?.question || ''}
+            onChange={e => setPoll(p => p ? { ...p, question: e.target.value } : p)}
+            placeholder="Ask a question…"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition-all"
+          />
+
+          {poll?.options.map((opt, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full border-2 border-white/20 shrink-0 flex items-center justify-center text-[8px] font-black text-white/30">{i + 1}</div>
+              <input
+                value={opt}
+                onChange={e => updatePollOption(i, e.target.value)}
+                placeholder={`Option ${i + 1}`}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-sm text-white placeholder-white/25 outline-none focus:border-white/30 transition-all"
+              />
+              {(poll?.options.length || 0) > 2 && (
+                <button onClick={() => removePollOption(i)} className="p-1 text-white/20 hover:text-red-400 transition-all"><X size={12} /></button>
+              )}
+            </div>
+          ))}
+
+          {(poll?.options.length || 0) < 4 && (
+            <button onClick={addPollOption} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+              <Plus size={11} /> Add option
+            </button>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={() => setPoll(p => p ? { ...p, multiSelect: !p.multiSelect } : p)}
+              className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+            >
+              {poll?.multiSelect ? <ToggleRight size={16} className="text-orange-400" /> : <ToggleLeft size={16} />}
+              Multiple choice
+            </button>
+            <select
+              value={poll?.durationHours || 24}
+              onChange={e => setPoll(p => p ? { ...p, durationHours: Number(e.target.value) as ComposerPoll['durationHours'] } : p)}
+              className="bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-[9px] font-black text-white/50 outline-none"
+            >
+              {DURATION_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* ── DataViz picker ── */}
+      {showViz && !dataViz && (
+        <div className="ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Embed Live Data</p>
+          <div className="grid grid-cols-2 gap-2">
+            {VIZ_PRESETS.map(preset => (
+              <button
+                key={preset.presetId}
+                onClick={() => selectViz(preset)}
+                className="flex items-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all text-left"
+              >
+                <FlaskConical size={14} className="text-cyan-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-white truncate">{preset.title}</p>
+                  <p className="text-[8px] text-white/30 uppercase tracking-widest">{preset.source}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DataViz embed badge */}
+      {dataViz && (
+        <div className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3 ml-12">
+          <FlaskConical size={16} className="text-cyan-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-widest text-cyan-400/70 mb-0.5">Live Data Viz</p>
+            <p className="text-xs font-bold text-white truncate">{dataViz.title}</p>
+            <p className="text-[8px] text-white/30 uppercase tracking-widest">{dataViz.source}</p>
+          </div>
+          <button onClick={() => setDataViz(null)} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 shrink-0 transition-all"><X size={10} /></button>
         </div>
       )}
 
@@ -388,9 +560,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       {showEmoji && (
         <div className="pl-12 flex flex-wrap gap-1.5 bg-white/5 rounded-2xl p-3 border border-white/10">
           {COMMON_EMOJIS.map(emoji => (
-            <button key={emoji} onClick={() => insertEmoji(emoji)} className="text-lg hover:scale-125 transition-transform">
-              {emoji}
-            </button>
+            <button key={emoji} onClick={() => insertEmoji(emoji)} className="text-lg hover:scale-125 transition-transform">{emoji}</button>
           ))}
         </div>
       )}
@@ -405,29 +575,14 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             autoFocus
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30 focus:border-white/30 transition-all"
           />
-          {gifLoading && (
-            <p className="text-[9px] text-white/30 text-center py-2 uppercase tracking-widest">Searching…</p>
-          )}
-          {!gifLoading && gifQuery && gifResults.length === 0 && (
-            <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">No results</p>
-          )}
-          {!gifLoading && !gifQuery && (
-            <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">Type to search</p>
-          )}
+          {gifLoading && <p className="text-[9px] text-white/30 text-center py-2 uppercase tracking-widest">Searching…</p>}
+          {!gifLoading && gifQuery && gifResults.length === 0 && <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">No results</p>}
+          {!gifLoading && !gifQuery && <p className="text-[9px] text-white/20 text-center py-2 uppercase tracking-widest">Type to search</p>}
           {gifResults.length > 0 && (
             <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto no-scrollbar">
               {gifResults.map((gif: any) => (
-                <button
-                  key={gif.id}
-                  onClick={() => addGif(gif)}
-                  className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-all group aspect-square"
-                >
-                  <img
-                    src={gif?.images?.fixed_height_small?.url || gif?.images?.original?.url}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                    alt={gif.title}
-                    loading="lazy"
-                  />
+                <button key={gif.id} onClick={() => addGif(gif)} className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-all group aspect-square">
+                  <img src={gif?.images?.fixed_height_small?.url || gif?.images?.original?.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={gif.title} loading="lazy" />
                 </button>
               ))}
             </div>
@@ -436,28 +591,20 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
-      {/* Asset embed picker modal */}
+      {/* Asset picker */}
       {showAssetPicker && (
         <div className="ml-12 bg-black/80 border border-white/10 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               {(['Albums', 'Worlds', 'More'] as AssetTab[]).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setAssetTab(tab)}
-                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                    assetTab === tab ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'
-                  }`}
-                >
+                <button key={tab} onClick={() => setAssetTab(tab)}
+                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${assetTab === tab ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
                   {tab}
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowAssetPicker(false)} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
-              <X size={10} />
-            </button>
+            <button onClick={() => setShowAssetPicker(false)} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"><X size={10} /></button>
           </div>
-
           {assetTab === 'Albums' && (
             <div className="grid grid-cols-4 gap-2">
               {userAlbums.slice(0, 8).map(album => (
@@ -469,7 +616,6 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
               {userAlbums.length === 0 && <p className="col-span-4 text-[9px] text-white/30 text-center py-4">No albums yet</p>}
             </div>
           )}
-
           {assetTab === 'Worlds' && (
             <div className="grid grid-cols-3 gap-2">
               {userWorlds.slice(0, 6).map(world => (
@@ -481,43 +627,21 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
               {userWorlds.length === 0 && <p className="col-span-3 text-[9px] text-white/30 text-center py-4">No worlds yet</p>}
             </div>
           )}
-
           {assetTab === 'More' && (
             <div className="space-y-3">
               <div className="flex gap-2 flex-wrap">
                 {MORE_TYPES.map(mt => (
-                  <button
-                    key={mt.type}
-                    onClick={() => setMoreAssetType(moreAssetType === mt.type ? null : mt.type)}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                      moreAssetType === mt.type ? 'bg-small-orange text-black border-small-orange' : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white'
-                    }`}
-                  >
+                  <button key={mt.type} onClick={() => setMoreAssetType(moreAssetType === mt.type ? null : mt.type)}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${moreAssetType === mt.type ? 'bg-small-orange text-black border-small-orange' : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white'}`}>
                     {mt.label}
                   </button>
                 ))}
               </div>
               {moreAssetType && (
                 <div className="space-y-2">
-                  <input
-                    value={moreAssetId}
-                    onChange={e => setMoreAssetId(e.target.value)}
-                    placeholder="Asset ID (optional)"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30"
-                  />
-                  <input
-                    value={moreAssetTitle}
-                    onChange={e => setMoreAssetTitle(e.target.value)}
-                    placeholder="Title"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30"
-                  />
-                  <button
-                    onClick={embedMoreAsset}
-                    disabled={!moreAssetTitle.trim()}
-                    className="px-4 py-1.5 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:bg-white/90"
-                  >
-                    Embed
-                  </button>
+                  <input value={moreAssetId} onChange={e => setMoreAssetId(e.target.value)} placeholder="Asset ID (optional)" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30" />
+                  <input value={moreAssetTitle} onChange={e => setMoreAssetTitle(e.target.value)} placeholder="Title" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none placeholder:opacity-30" />
+                  <button onClick={embedMoreAsset} disabled={!moreAssetTitle.trim()} className="px-4 py-1.5 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:bg-white/90">Embed</button>
                 </div>
               )}
             </div>
@@ -525,7 +649,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
-      {/* Camera capture panel */}
+      {/* Camera panel */}
       {videoCapturing && (
         <div className="pl-12 space-y-2">
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-h-40">
@@ -539,13 +663,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           </div>
           <div className="flex items-center gap-2">
             {videoCamRecorder.current?.state !== 'recording' ? (
-              <button onClick={startCameraRecord}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">
+              <button onClick={startCameraRecord} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">
                 <div className="w-3 h-3 rounded-full bg-white" /> Record
               </button>
             ) : (
-              <button onClick={stopCameraRecord}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/90 transition-all">
+              <button onClick={stopCameraRecord} className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/90 transition-all">
                 <Square size={11} fill="currentColor" /> Stop & Attach
               </button>
             )}
@@ -554,7 +676,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
-      {/* Voice recorder panel */}
+      {/* Voice recorder */}
       {showVoiceRecorder && (
         <div className="pl-12">
           <VoiceRecorder
@@ -568,80 +690,79 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
-      {/* Toolbar + post button */}
-      <div className="flex items-center gap-1 pl-12">
-        {/* File picker */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          multiple
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/8 transition-all"
-          title="Photo / Video"
-        >
+      {/* ── Toolbar ── */}
+      <div className="flex items-center gap-1 pl-12 flex-wrap">
+        <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileChange} />
+
+        <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/8 transition-all" title="Photo / Video">
           <Image size={16} />
         </button>
-
         <button
-          onClick={() => { setShowVoiceRecorder(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); setVideoCapturing(false); closeCameraCapture(); }}
+          onClick={() => { setShowVoiceRecorder(s => !s); closeAll(); }}
           className={`p-2 rounded-xl transition-all ${showVoiceRecorder ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
           title="Voice note"
         >
           <Mic size={16} />
         </button>
         <button
-          onClick={() => { if (videoCapturing) { closeCameraCapture(); } else { openCameraCapture(); setShowVoiceRecorder(false); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); } }}
+          onClick={() => { if (videoCapturing) closeCameraCapture(); else { openCameraCapture(); closeAll(); } }}
           className={`p-2 rounded-xl transition-all ${videoCapturing ? 'text-red-400 bg-red-400/15' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
-          title="Video response"
+          title="Camera"
         >
           <Camera size={16} />
         </button>
-
         <button
-          onClick={() => { setShowGif(s => !s); setShowEmoji(false); setShowAssetPicker(false); }}
+          onClick={() => { setShowGif(s => !s); setShowEmoji(false); setShowAssetPicker(false); setShowPoll(false); setShowViz(false); }}
           className={`p-2 rounded-xl transition-all text-[10px] font-black ${showGif ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
           title="GIF"
         >
           GIF
         </button>
-
         <button
-          onClick={() => { setShowEmoji(s => !s); setShowGif(false); setShowAssetPicker(false); }}
+          onClick={() => { setShowEmoji(s => !s); setShowGif(false); setShowAssetPicker(false); setShowPoll(false); setShowViz(false); }}
           className={`p-2 rounded-xl transition-all ${showEmoji ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
           title="Emoji"
         >
           <Smile size={16} />
         </button>
-
         <button
-          onClick={() => { setShowAssetPicker(s => !s); setShowEmoji(false); setShowGif(false); }}
+          onClick={() => { setShowAssetPicker(s => !s); setShowEmoji(false); setShowGif(false); setShowPoll(false); setShowViz(false); }}
           className={`p-2 rounded-xl transition-all ${showAssetPicker ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
           title="Embed asset"
         >
           <Globe size={16} />
         </button>
 
+        {/* Poll button */}
+        <button
+          onClick={() => { if (showPoll) { removePoll(); } else { initPoll(); } }}
+          className={`p-2 rounded-xl transition-all ${showPoll || poll ? 'text-purple-400 bg-purple-400/15' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+          title="Add poll"
+        >
+          <BarChart2 size={16} />
+        </button>
+
+        {/* DataViz button */}
+        <button
+          onClick={() => { setShowViz(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); setShowPoll(false); }}
+          className={`p-2 rounded-xl transition-all ${showViz || dataViz ? 'text-cyan-400 bg-cyan-400/15' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+          title="Embed live data visualization"
+        >
+          <FlaskConical size={16} />
+        </button>
+
         <div className="flex-1" />
 
-        {/* Character count */}
         <span className={`text-[9px] font-black tabular-nums ${text.length > 280 ? 'text-red-400' : 'text-white/20'}`}>
           {text.length}/280
         </span>
 
-        {/* Cross-post to fediverse toggle — only shown when accounts are connected */}
         {hasFediverse && (
           <button
             onClick={() => setCrossPost(v => !v)}
-            title={crossPost ? 'Cross-posting to Mastodon/Bluesky — click to disable' : 'Cross-post to Mastodon/Bluesky'}
+            title={crossPost ? 'Cross-posting to Mastodon/Bluesky' : 'Cross-post to Mastodon/Bluesky'}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-bold border transition-all ${
-              crossPost
-                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400'
-                : 'border-white/10 text-white/25 hover:text-white/50'
+              crossPost ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400' : 'border-white/10 text-white/25 hover:text-white/50'
             }`}
           >
             <Share2 size={10} />
@@ -650,7 +771,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         )}
 
         <button
-          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); }}
+          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); setPoll(null); setDataViz(null); }}
           className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/8 transition-all"
         >
           <X size={14} />
