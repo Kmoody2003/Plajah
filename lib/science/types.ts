@@ -40,8 +40,8 @@ export interface ScienceMeta {
   reproScore?: number;            // 0–1, computed by reproducibility engine
   replicationCount?: number;
   successfulReplications?: number;
-  // Muse translations
-  museSummary?: string;           // plain-language Muse translation
+  // Aria translations
+  museSummary?: string;           // plain-language Aria translation
   museGeneratedAt?: number;
   // Tags
   keywords?: string[];
@@ -71,7 +71,7 @@ export type ScienceCommentType =
   | 'REPLICATION'   // structured replication submission
   | 'PEER_REVIEW'   // structured review
   | 'EXTENSION'     // extends or builds on the post
-  | 'MUSE_SUMMARY'; // Muse-generated plain-language summary
+  | 'ARIA_SUMMARY'; // Aria-generated plain-language summary
 
 export interface ReplicationData {
   outcome: 'CONFIRMED' | 'PARTIAL' | 'FAILED' | 'INCONCLUSIVE';
@@ -195,9 +195,9 @@ export interface ContentToken {
   end: number;
 }
 
-// ── Muse AI ───────────────────────────────────────────────────────────────────
+// ── Aria AI ───────────────────────────────────────────────────────────────────
 
-export interface MuseTranslation {
+export interface AriaTranslation {
   postId: string;
   original: string;
   plainLanguage: string;

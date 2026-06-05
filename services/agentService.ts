@@ -1,5 +1,5 @@
 /**
- * agentService.ts — Plajah Muse agent client layer.
+ * agentService.ts — Plajah Aria agent client layer.
  *
  * ── Profitability model (estimated MAI Thinking pricing, June 2026) ───────────
  *
@@ -95,7 +95,7 @@ export const AGENT_TIERS: Record<AgentTier, AgentTierConfig> = {
     imagesPerMonth: 0, hdImagesPerMonth: 0,
     writerToolsEnabled: false, articleAssistEnabled: false,
     color: '#6b7280', badge: '',
-    description: 'Try Muse with 5 messages a day',
+    description: 'Try Aria with 5 messages a day',
   },
   STARTER: {
     tier: 'STARTER', label: 'Starter', price: 4.99,
@@ -182,7 +182,7 @@ export type AddOnPackId =
   | 'VOICE_PACK_L'       // +5M voice chars               — ~40% margin
   | 'VOICE_HD_PACK'      // +1M HD voice chars            — ~45% margin
   | 'TRANSCRIBE_PACK'    // +5 hours of MAI Transcribe    — ~50% margin
-  | 'MUSE_DAY_PASS';     // Unlimited for 24 hours        — good for bursts
+  | 'ARIA_DAY_PASS';     // Unlimited for 24 hours        — good for bursts
 
 export interface AddOnPack {
   id: AddOnPackId;
@@ -206,7 +206,7 @@ export interface AddOnPack {
 export const ADD_ON_PACKS: Record<AddOnPackId, AddOnPack> = {
   THINKING_BOOST_S: {
     id: 'THINKING_BOOST_S', name: 'Thinking Boost', price: 4.99,
-    description: 'Give Muse deeper reasoning capacity for 500K extra thinking tokens this month.',
+    description: 'Give Aria deeper reasoning capacity for 500K extra thinking tokens this month.',
     thinkingTokens: 500_000,
     emoji: '🧠', bestFor: ['authors', 'general', 'filmmakers'],
     highlightedFor: ['FREE', 'STARTER', 'CREATOR'],
@@ -277,9 +277,9 @@ export const ADD_ON_PACKS: Record<AddOnPackId, AddOnPack> = {
     emoji: '🎤', bestFor: ['authors'],
     highlightedFor: ['STARTER', 'CREATOR'],
   },
-  MUSE_DAY_PASS: {
-    id: 'MUSE_DAY_PASS', name: 'Day Pass', price: 4.99,
-    description: 'Unlimited Muse access for 24 hours — great for writing sprints and hackathons.',
+  ARIA_DAY_PASS: {
+    id: 'ARIA_DAY_PASS', name: 'Day Pass', price: 4.99,
+    description: 'Unlimited Aria access for 24 hours — great for writing sprints and hackathons.',
     unlimitedHours: 24,
     emoji: '⚡', bestFor: ['general'],
   },
@@ -298,32 +298,32 @@ export interface AddOnBalance {
   lastUpdated: number;
 }
 
-// ── Writer tools available within Muse ───────────────────────────────────────
+// ── Writer tools available within Aria ───────────────────────────────────────
 // These are system-prompt specialisations activated for AUTHOR_PRO / STUDIO_PRO
 // or any user with accountType === 'WRITER'
 export const WRITER_TOOLS = [
   {
     id: 'style_analysis',
     name: 'Style Analyser',
-    description: 'Upload a writing sample — Muse learns your voice and matches it in all suggestions.',
+    description: 'Upload a writing sample — Aria learns your voice and matches it in all suggestions.',
     emoji: '🖊️',
   },
   {
     id: 'chapter_outliner',
     name: 'Chapter Outliner',
-    description: 'Give Muse your premise and genre — get a structured chapter outline.',
+    description: 'Give Aria your premise and genre — get a structured chapter outline.',
     emoji: '📋',
   },
   {
     id: 'plot_continuity',
     name: 'Continuity Guard',
-    description: 'Feed Muse your previous chapters — it flags inconsistencies in plot and character.',
+    description: 'Feed Aria your previous chapters — it flags inconsistencies in plot and character.',
     emoji: '🔍',
   },
   {
     id: 'character_voice',
     name: 'Character Voice Lock',
-    description: 'Define your characters — Muse ensures each speaks in their distinctive voice.',
+    description: 'Define your characters — Aria ensures each speaks in their distinctive voice.',
     emoji: '🎭',
   },
   {

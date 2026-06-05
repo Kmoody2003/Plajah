@@ -1,16 +1,16 @@
 /**
- * PlajahAgent — "Muse"
+ * PlajahAgent — "Aria"
  *
  * A private agentic AI assistant embedded in the platform.  Every user gets
  * their own isolated conversation history (stored at users/{uid}/muse_sessions).
  * No other user can read or influence their sessions.
  *
  * Capabilities:
- *  • Describe a module experience → Muse generates the config and previews it
- *  • Describe an album gallery aesthetic → Muse builds the gallery config
- *  • Upload PDFs / images / text → Muse reads and incorporates them
- *  • Web grounding (Plajah+ / Pro) → Muse can search the live web
- *  • Content curation → Muse recommends artists, tracks, and modules based on
+ *  • Describe a module experience → Aria generates the config and previews it
+ *  • Describe an album gallery aesthetic → Aria builds the gallery config
+ *  • Upload PDFs / images / text → Aria reads and incorporates them
+ *  • Web grounding (Plajah+ / Pro) → Aria can search the live web
+ *  • Content curation → Aria recommends artists, tracks, and modules based on
  *    the user's listening history and interests
  */
 
@@ -418,7 +418,7 @@ const PlajahAgent: React.FC<Props> = ({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-white">Muse</span>
+                    <span className="text-xs font-black text-white">Aria</span>
                     <TierBadge tier={tier} />
                     <span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-widest text-green-400/70">
                       <Lock size={7} />Private
@@ -504,7 +504,7 @@ const PlajahAgent: React.FC<Props> = ({
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center mx-auto mb-3 shadow-2xl">
                       <Sparkles size={22} className="text-white" />
                     </div>
-                    <h3 className="text-base font-black text-white">Hi, I'm Muse</h3>
+                    <h3 className="text-base font-black text-white">Hi, I'm Aria</h3>
                     <p className="text-xs text-white/40 mt-1 max-w-[260px] mx-auto leading-relaxed">
                       Your private creative agent. I can build module experiences, design gallery views, curate content, and research the web — all just for you.
                     </p>
@@ -655,7 +655,7 @@ const PlajahAgent: React.FC<Props> = ({
 };
 
 // ── Floating trigger button ────────────────────────────────────────────────────
-export const MuseButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => (
+export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => (
   <motion.button
     onClick={onClick}
     whileHover={{ scale: 1.08 }}
@@ -666,7 +666,7 @@ export const MuseButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnr
       border: isOpen ? '1px solid rgba(167,139,250,0.6)' : '1px solid rgba(139,92,246,0.4)',
       backdropFilter: 'blur(16px)',
     }}
-    title="Open Muse — your private creative agent"
+    title="Open Aria — your private creative agent"
   >
     {isOpen ? <X size={18} className="text-white" /> : <Sparkles size={18} className="text-purple-300" />}
     {hasUnread && !isOpen && (

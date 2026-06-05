@@ -3348,7 +3348,7 @@ async function startServer() {
 
   // ── END MERCH API ─────────────────────────────────────────────────────────────
 
-  // ── Plajah Muse Agent ─────────────────────────────────────────────────────────
+  // ── Plajah Aria Agent ─────────────────────────────────────────────────────────
   //
   // Uses Google Gemini 2.0 Flash with optional Google Search grounding.
   //
@@ -3382,7 +3382,7 @@ async function startServer() {
     PRO:         { daily: 100, searches: 20 },
   };
 
-  const MUSE_SYSTEM_PROMPT = `You are Muse, Plajah's private creative agent. You help users on the Plajah platform:
+  const ARIA_SYSTEM_PROMPT = `You are Aria, Plajah's private creative agent. You help users on the Plajah platform:
 
 1. BUILD MODULE EXPERIENCES — When a user describes a module (educational, historical, musical, cinematic), generate a JSON config they can use on the platform. Output it in a <BUILD_MODULE> block.
 
@@ -3435,12 +3435,12 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
       const webSearchAllowed = dailySearches < limits.searches;
 
-      // ── Microsoft MAI Thinking Model — Default for all Muse requests ─────────
+      // ── Microsoft MAI Thinking Model — Default for all Aria requests ─────────
       //
       // MAI Thinking is Microsoft's reasoning model (announced 2026-06-02).
       // It applies chain-of-thought / extended reasoning before responding —
       // equivalent to OpenAI o3 or Claude's Extended Thinking mode.
-      // This makes Muse's builds, curations, and module configs significantly
+      // This makes Aria's builds, curations, and module configs significantly
       // more accurate and creative.
       //
       // Model name conventions (update once Microsoft publishes the catalog):
@@ -3474,7 +3474,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       // Fetch recent message history (last 16 turns)
       const histUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/users/${uid}/muse_sessions/${sessionId}/messages?pageSize=16&orderBy=timestamp%20desc`;
       let chatHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
-        { role: 'system', content: MUSE_SYSTEM_PROMPT },
+        { role: 'system', content: ARIA_SYSTEM_PROMPT },
       ];
       try {
         const hSnap = await fetch(histUrl);
@@ -3598,7 +3598,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
       } else {
         // ── Fallback: Google Gemini Flash ────────────────────────────────────────
-        console.warn('[Muse] MAI_API_KEY or MAI_ENDPOINT not set — falling back to Gemini. Add MAI_API_KEY to .env.local.');
+        console.warn('[Aria] MAI_API_KEY or MAI_ENDPOINT not set — falling back to Gemini. Add MAI_API_KEY to .env.local.');
         const { GoogleGenAI } = await import('@google/genai');
         const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '' });
         const geminiHistory = chatHistory.slice(1, -1).map(m => ({
@@ -3608,7 +3608,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         const geminiTools = webSearchAllowed ? [{ googleSearch: {} }] : undefined;
         const chat = genai.chats.create({
           model: 'gemini-2.0-flash',
-          config: { systemInstruction: MUSE_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8 },
+          config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8 },
           history: geminiHistory,
         });
         const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
@@ -3706,7 +3706,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       });
 
     } catch (err: any) {
-      console.error('[Muse Agent]', err.message);
+      console.error('[Aria Agent]', err.message);
       res.status(500).json({ error: 'Agent error — please try again.' });
     }
   });
@@ -3721,12 +3721,12 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
     const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
-    console.log('[Config] GOOGLE_AI_API_KEY (Muse fallback):', aiKey.length > 0 ? 'set' : 'not set');
+    console.log('[Config] GOOGLE_AI_API_KEY (Aria fallback):', aiKey.length > 0 ? 'set' : 'not set');
     const maiKey      = process.env.MAI_API_KEY ?? '';
     const maiEp       = process.env.MAI_ENDPOINT ?? '';
     const maiThinking = process.env.MAI_THINKING_MODEL ?? 'mai-thinking-1';
     const maiFast     = process.env.MAI_FAST_MODEL ?? 'mai-1';
-    console.log('[Config] MAI_API_KEY (Muse):', maiKey.length > 0 ? 'set' : 'MISSING — add MAI_API_KEY to .env.local');
+    console.log('[Config] MAI_API_KEY (Aria):', maiKey.length > 0 ? 'set' : 'MISSING — add MAI_API_KEY to .env.local');
     console.log('[Config] MAI_ENDPOINT:', maiEp.length > 0 && !maiEp.includes('TODO') ? maiEp : 'not configured');
     console.log(`[Config] MAI models — thinking: ${maiThinking}, fast: ${maiFast}`);
     console.log('[Config] VITE_AZURE_SPEECH_KEY (MAI Voice 2 / Transcribe 1.5):', (process.env.VITE_AZURE_SPEECH_KEY ?? '').length > 0 ? 'set' : 'MISSING — add VITE_AZURE_SPEECH_KEY for audiobook features');

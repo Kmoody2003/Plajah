@@ -81,7 +81,7 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
-import PlajahAgent, { MuseButton } from './components/PlajahAgent';
+import PlajahAgent, { AriaButton } from './components/PlajahAgent';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
@@ -2458,8 +2458,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           />
         )}
 
-        {/* ── Plajah Muse — private creative agent ── */}
-        <MuseButton
+        {/* ── Plajah Aria — private creative agent ── */}
+        <AriaButton
           onClick={() => setIsMuseOpen(o => !o)}
           isOpen={isMuseOpen}
         />

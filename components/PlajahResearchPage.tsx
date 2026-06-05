@@ -66,7 +66,7 @@ const HOOKS = [
     code: `Post {\n  // existing fields...\n  science_meta: {\n    claim_type: ClaimType?,\n    confidence: Float?,\n    discipline: Discipline[],\n    repro_score: Float?,\n    api_snapshot: JSONBlob?,\n    dependencies: Post[]\n  }\n}`,
     desc: 'Add science_meta as an optional field on Plajah\'s existing post model. Posts without it behave identically to today. Posts with it gain the full science layer — feed ranking, Muse analysis, replication tracking — all opt-in.' },
   { title: 'Comment Type Extension', system: 'Comment System · Universal Thread Layer',
-    code: `enum CommentType {\n  REPLY,        // existing\n  REACTION,     // existing\n  REPLICATION,  // new ✦\n  PEER_REVIEW,  // new ✦\n  EXTENSION,    // new ✦\n  MUSE_SUMMARY  // new ✦ (auto-generated)\n}`,
+    code: `enum CommentType {\n  REPLY,        // existing\n  REACTION,     // existing\n  REPLICATION,  // new ✦\n  PEER_REVIEW,  // new ✦\n  EXTENSION,    // new ✦\n  ARIA_SUMMARY  // new ✦ (auto-generated)\n}`,
     desc: 'New comment types extend Plajah\'s existing universal comment system without breaking it. All render in existing threads. Replication and PeerReview types feed the reproducibility engine automatically when submitted.' },
   { title: 'Renderer Plugin System', system: 'Rich Writing Tools · Existing Editor',
     code: `registerRenderer({\n  detect: (input) => isSmiles(input),\n  render: (input) => MoleculeViewer3D,\n  contexts: ['post', 'comment', 'message']\n})\n// Same pattern for LaTeX, CIF, FASTA, coords`,

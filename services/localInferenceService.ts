@@ -1,5 +1,5 @@
 /**
- * localInferenceService.ts — On-device AI inference router for Plajah Muse.
+ * localInferenceService.ts — On-device AI inference router for Plajah Aria.
  *
  * Routes simple queries to Phi-4-mini running locally (free, instant, private)
  * before falling back to the MAI Thinking server (billed, more capable).
@@ -38,7 +38,7 @@
  *
  * ── Cost savings ─────────────────────────────────────────────────────────────
  *
- *  ~65% of typical Muse queries are simple enough for local inference.
+ *  ~65% of typical Aria queries are simple enough for local inference.
  *  Local inference cost = $0 (runs on user's device).
  *  Server AI cost savings: ~60–70% reduction per user.
  *
@@ -52,7 +52,7 @@
  *    from: https://huggingface.co/microsoft/Phi-4-mini-4k-instruct-onnx-int4/
  *  First-run on Android: downloads via DownloadManager
  *    stored in app's external cache directory
- *  Download progress shown in Muse UI — user can use server while downloading.
+ *  Download progress shown in Aria UI — user can use server while downloading.
  *  Once downloaded, model is cached indefinitely.
  */
 
@@ -384,11 +384,11 @@ function buildPrompt(system: string, user: string): string {
   return `<|system|>\n${system}<|end|>\n<|user|>\n${user}<|end|>\n<|assistant|>\n`;
 }
 
-// ── Local-first Muse system prompt for simple responses ───────────────────────
+// ── Local-first Aria system prompt for simple responses ───────────────────────
 // Shorter and more direct than the full MAI server prompt — Phi-4-mini excels at concise tasks
-export const LOCAL_MUSE_SYSTEM_PROMPT = `You are Muse, a creative AI inside the Plajah platform.
+export const LOCAL_MUSE_SYSTEM_PROMPT = `You are Aria, a creative AI inside the Plajah platform.
 Answer concisely and helpfully. For complex creative tasks like building modules, generating gallery configs,
-or using writer tools, say: "Let me connect to the full Muse engine for this."
+or using writer tools, say: "Let me connect to the full Aria engine for this."
 Keep responses under 200 words unless writing or editing content.`;
 
 // ── Download trigger ──────────────────────────────────────────────────────────

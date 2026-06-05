@@ -1,8 +1,8 @@
 /**
- * Muse science AI — routes through the existing Plajah server endpoint.
+ * Aria science AI — routes through the existing Plajah server endpoint.
  * Falls back to a pattern-based stub when the server is unavailable.
  */
-import type { MuseTranslation, CrossConnectionSuggestion, SciencePost, ScienceDiscipline } from './types';
+import type { AriaTranslation, CrossConnectionSuggestion, SciencePost, ScienceDiscipline } from './types';
 import { auth } from '../../services/backendService';
 
 const SERVER = '/api/muse/science';
@@ -35,8 +35,8 @@ export async function translateForPublic(
   postId: string,
   content: string,
   disciplines: ScienceDiscipline[],
-): Promise<MuseTranslation | null> {
-  const result = await callServer<MuseTranslation>('/translate', { postId, content, disciplines });
+): Promise<AriaTranslation | null> {
+  const result = await callServer<AriaTranslation>('/translate', { postId, content, disciplines });
   if (result) return result;
 
   // Local stub: extract first 2 sentences as a rough plain-language version
