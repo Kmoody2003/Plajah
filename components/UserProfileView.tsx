@@ -98,6 +98,7 @@ import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
 import ThreeDImage from './ThreeDImage';
 import PioneerGoldFrame from './PioneerGoldFrame';
+import DebatesProfileTab from './DebatesProfileTab';
 import SafeAvatarViewer from './SafeAvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
@@ -237,7 +238,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
     () => auth.currentUser?.uid === uid ? 'GLOBAL' : 'PERSONAL'
   );
@@ -1259,6 +1260,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             ] : []),
             { id: 'FOLLOWING', label: 'Following' },
             { id: 'FRIENDS', label: 'Friends' },
+            { id: 'DEBATES', label: '⚔️ Debates' },
             { id: 'INTERESTS', label: 'Interests' },
             ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
             ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
@@ -1396,6 +1398,10 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     }
                   }}
                 />
+              </motion.div>
+            ) : activeTab === 'DEBATES' ? (
+              <motion.div key="debates" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <DebatesProfileTab uid={uid} onOpenDebate={debateId => window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId } }))} />
               </motion.div>
             ) : activeTab === 'INTERESTS' ? (
               <motion.div 

@@ -1777,11 +1777,102 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TV_STUDIO'
   // People directory — filters SearchView to users only
   | 'PEOPLE'
+  // Structured debate system
+  | 'DEBATES' | 'DEBATE_DETAIL'
   // Social feature hubs
   | 'CHALLENGES' | 'BROADCAST_CHANNELS' | 'CLOSE_FRIENDS' | 'POLL_ARCHIVE'
   | 'SOCIAL_INSIGHTS' | 'SIGNATURE_MOMENTS';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
+
+// ── Structured Debate System ──────────────────────────────────────────────────
+
+export type DebateStatus =
+  | 'PENDING'       // challenger issued, waiting for defender to accept
+  | 'ACTIVE'        // both parties engaged, 24h clock running
+  | 'DECLINED'      // defender declined — polite auto-message shown
+  | 'ENDED'         // 24h elapsed, awaiting Aria judgment
+  | 'JUDGED';       // Aria has delivered a verdict
+
+export type DebateSide = 'CHALLENGER' | 'DEFENDER' | 'CHALLENGER_SUPPORT' | 'DEFENDER_SUPPORT';
+
+export interface Debate {
+  id: string;
+  // Source context
+  sourceCommentId: string;
+  sourceCommentText: string;
+  sourcePostId: string;
+  // Participants
+  challengerId: string;
+  challengerName: string;
+  challengerPhoto: string;
+  defenderId: string;
+  defenderName: string;
+  defenderPhoto: string;
+  // Topic
+  topic: string;                // resolved from comment text
+  // Timing
+  createdAt: number;
+  acceptedAt?: number;
+  endsAt: number;               // acceptedAt + 24h
+  // Engagement
+  challengerSupporters: string[];   // uids who side with challenger
+  defenderSupporters: string[];     // uids who side with defender
+  postCount: number;
+  viewCount: number;
+  // Moderation
+  disqualified: { uid: string; name: string; reason: string; at: number }[];
+  // Verdict
+  verdict?: DebateVerdict;
+  // Display
+  heroImageUrl?: string;
+  status: DebateStatus;
+  // Highlights shown in gallery
+  highlightQuote?: string;
+  highlightSide?: DebateSide;
+}
+
+export interface DebatePost {
+  id: string;
+  debateId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto: string;
+  side: DebateSide;
+  text: string;
+  mediaUrl?: string;
+  mediaType?: 'PHOTO' | 'VIDEO' | 'AUDIO';
+  dataVizPresetId?: string;
+  timestamp: number;
+  isDisqualified: boolean;
+  disqualifyReason?: string;
+  flaggedForReview: boolean;
+  reactions: Record<string, string[]>;   // emoji → [uid]
+  replyToId?: string;
+}
+
+export interface DebateVerdict {
+  winner: 'CHALLENGER' | 'DEFENDER' | 'DRAW';
+  winnerUid?: string;
+  winnerName?: string;
+  challengerScore: number;      // 0–100
+  defenderScore: number;        // 0–100
+  consensusScore: number;       // % of observers who agreed with winner
+  publicVoteChallenger: number; // % of supporters who sided with challenger
+  publicVoteDefender: number;
+  summary: string;              // Aria's narrative overview
+  factCheck: string;            // what each side got right/wrong
+  ignoredFacts: string;         // important facts both parties missed
+  debateQuality: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
+  disqualificationNotes?: string;
+  academicScore: {
+    logic: number;          // 0–10
+    evidence: number;
+    civility: number;
+    clarity: number;
+  };
+  generatedAt: number;
+}
 
 // ── Dynamic Social Feature Types ──────────────────────────────────────────────
 

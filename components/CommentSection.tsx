@@ -6,6 +6,7 @@ import {
   Clock, Users, Sparkles,
 } from 'lucide-react';
 import GifStickerPicker from './GifStickerPicker';
+import DebateChallengeButton from './DebateChallengeButton';
 import {
   collection, addDoc, getDocs, query, where, onSnapshot,
   doc, updateDoc, arrayUnion, arrayRemove, orderBy,
@@ -247,6 +248,22 @@ const CommentBubble: React.FC<BubbleProps> = ({
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Challenge to Debate */}
+            {!isOwn && !comment.isPending && (
+              <DebateChallengeButton
+                commentId={comment.id}
+                commentText={comment.text}
+                postId={postId}
+                commentAuthorId={comment.authorId}
+                commentAuthorName={comment.authorName}
+                commentAuthorPhoto={comment.authorPhoto || ''}
+                className="opacity-0 group-hover/bubble:opacity-100 transition-opacity"
+                onDebateCreated={debateId => {
+                  window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId } }));
+                }}
+              />
+            )}
 
             {/* Delete (own only) */}
             {isOwn && !comment.isPending && (

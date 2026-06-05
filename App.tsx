@@ -135,9 +135,19 @@ const CloseFriendsView = retryLazy(() => import('./components/CloseFriendsView')
 const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchive'));
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
+
+const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
+  useEffect(() => {
+    const handler = () => onOpen();
+    window.addEventListener('OPEN_ARIA', handler as EventListener);
+    return () => window.removeEventListener('OPEN_ARIA', handler as EventListener);
+  }, [onOpen]);
+  return null;
+};
 const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChatDrawer'));
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
+const DebateView     = retryLazy(() => import('./components/DebateView'));
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
@@ -355,6 +365,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showExperiencePicker, setShowExperiencePicker] = useState(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
+  const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
 
@@ -409,6 +420,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('NAVIGATE', handleNavigate);
 
+    const handleOpenDebate = (e: any) => {
+      setSelectedDebateId(e.detail.debateId);
+      setView('DEBATE_DETAIL');
+    };
+    window.addEventListener('OPEN_DEBATE', handleOpenDebate);
+
     const handlePlayLive = (e: any) => {
       setActiveLiveFeed(e.detail.feed);
     };
@@ -417,6 +434,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
+      window.removeEventListener('OPEN_DEBATE', handleOpenDebate);
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
     };
@@ -1089,6 +1107,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
     switch (link) {
       case 'CHAT': setView('CHAT'); break;
+      case 'DEBATE_DETAIL':
+        if (targetId) { setSelectedDebateId(targetId); setView('DEBATE_DETAIL'); }
+        break;
       case 'FEED': setView('FEED'); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
       case 'LIVETALK': setView('LIVE_HUB'); break;
@@ -2427,6 +2448,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <DiscussionView onBack={() => setView('DASHBOARD')} currentUser={user} />
               </Suspense>
             )}
+            {view === 'DEBATE_DETAIL' && selectedDebateId && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
+                <DebateView debateId={selectedDebateId} onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
             {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
             {view === 'WORLD_MANAGER' && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
@@ -2596,6 +2622,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         )}
 
         {/* ── Plajah Aria — private creative agent ── */}
+        <AriaEventBridge onOpen={() => setIsMuseOpen(true)} />
         <AriaButton
           onClick={() => setIsMuseOpen(o => !o)}
           isOpen={isMuseOpen}
