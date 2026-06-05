@@ -97,6 +97,7 @@ import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
 import ThreeDImage from './ThreeDImage';
+import PioneerGoldFrame from './PioneerGoldFrame';
 import SafeAvatarViewer from './SafeAvatarViewer';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
@@ -630,9 +631,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {isMobile && (
           <div className="fixed top-0 left-0 right-0 z-[150] bg-white/20 backdrop-blur-3xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0">
-                 <img src={profile?.customPhotoURL || profile?.photoURL || `https://picsum.photos/seed/${uid}/100/100`} loading="lazy" className="w-full h-full object-cover" />
-              </div>
+              <PioneerGoldFrame active={!!(profile?.hasSeenWelcomePackage || profile?.isPioneer)} size="sm">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  <img src={profile?.customPhotoURL || profile?.photoURL || `https://picsum.photos/seed/${uid}/100/100`} loading="lazy" className="w-full h-full object-cover" />
+                </div>
+              </PioneerGoldFrame>
               <h2 className="text-[10px] font-black uppercase tracking-widest truncate">{profile?.displayName || 'Artist Profile'}</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -757,7 +760,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         <div className={`flex flex-col ${isMobile ? 'items-center text-center' : 'lg:flex-row lg:items-end'} gap-6 lg:gap-10`}>
           <div className="relative group/avatar flex flex-col items-center gap-2">
             <div className="absolute -inset-3 bg-gradient-to-r from-small-orange via-[#D40055] to-[#6B0099] rounded-[3rem] blur-xl opacity-20 group-hover/avatar:opacity-50 transition-all duration-[1200ms]" />
-            <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'} rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden border-4 lg:border-8 border-theme bg-white/5`}>
+            <PioneerGoldFrame active={!!(profile.hasSeenWelcomePackage || profile.isPioneer)} size="lg" className={isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'}>
+            <div className={`relative w-full h-full rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden bg-white/5`}>
               {profile.avatar?.isActive ? (
                 <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
               ) : (
@@ -790,6 +794,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </label>
               )}
             </div>
+            </PioneerGoldFrame>
             {isOwnProfile && onNavigate && (
               <button
                 onClick={() => onNavigate('AVATAR_STUDIO')}

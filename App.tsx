@@ -96,6 +96,8 @@ const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView')
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import WelcomeAchievement from './components/WelcomeAchievement';
+import PioneerGoldFrame from './components/PioneerGoldFrame';
+const WelcomePackageModal = retryLazy(() => import('./components/WelcomePackageModal'));
 const ReleaseCountdownPage = retryLazy(() => import('./components/ReleaseCountdownPage'));
 const AdminDashboard = retryLazy(() => import('./components/AdminDashboard'));
 const PartnerDashboard = retryLazy(() => import('./components/PartnerDashboard'));
@@ -347,6 +349,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showExperiencePicker, setShowExperiencePicker] = useState(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
+  const [showWelcomePackage, setShowWelcomePackage] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
 
@@ -745,6 +748,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
+        if (p && !p.hasSeenWelcomePackage) {
+          // Show on next login — slight delay so the UI is settled
+          setTimeout(() => setShowWelcomePackage(true), 1200);
+        }
+
         if (u.email === 'kmoody2003@gmail.com') {
           const cloudAlbums = await fetchAllPublicAlbums();
           if (!cloudAlbums.some(a => a.type === 'BOOK')) {
@@ -1053,29 +1061,77 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
 
-  const handleNotificationNavigate = (notif: any) => {
+  const handleWelcomePackageDismiss = async () => {
+    setShowWelcomePackage(false);
+    if (!user) return;
+    import('./services/backendService').then(({ updateUserProfile, sendSystemWelcomeDM }) => {
+      updateUserProfile(user.uid, { hasSeenWelcomePackage: true, isPioneer: true } as any).catch(() => {});
+      sendSystemWelcomeDM(user.uid, user.displayName || 'Creator').catch(() => {});
+    });
+  };
+
+  const handleNotificationNavigate = async (notif: any) => {
     const link = notif.link as string | undefined;
     const targetId = notif.targetId as string | undefined;
     if (!link) return;
+
+    // Helper: after navigating, fire OPEN_COMMENTS so the player/article scrolls to comments
+    const openComments = (id: string) => {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('OPEN_COMMENTS', { detail: { targetId: id } }));
+      }, 400);
+    };
+
     switch (link) {
       case 'CHAT': setView('CHAT'); break;
       case 'FEED': setView('FEED'); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
       case 'LIVETALK': setView('LIVE_HUB'); break;
+
       case 'READ':
-        if (targetId) { setView('ARTICLES'); }
+        if (targetId) {
+          setView('ARTICLES');
+          openComments(targetId);
+        }
         break;
+
       case 'ALBUM':
-        if (targetId) { setView('MUSIC'); }
+        if (targetId) {
+          try {
+            const { fetchAlbumById } = await import('./services/backendService');
+            const album = await fetchAlbumById(targetId);
+            if (album) {
+              handleSelectItem(album);
+              openComments(targetId);
+            } else {
+              setView('MUSIC');
+            }
+          } catch { setView('MUSIC'); }
+        }
         break;
+
       case 'VIDEO':
-        if (targetId) { setView('VIDEOS'); }
+        if (targetId) {
+          try {
+            const { fetchVideoById } = await import('./services/backendService') as any;
+            const video = fetchVideoById ? await fetchVideoById(targetId) : null;
+            if (video) {
+              handleSelectItem(video);
+              openComments(targetId);
+            } else {
+              setView('VIDEOS');
+            }
+          } catch { setView('VIDEOS'); }
+        }
         break;
+
       case 'DISCUSSION': setView('DISCUSSION'); break;
+
       case 'PROFILE':
         if (targetId) handleVisitUser(targetId);
         else if (notif.senderId) handleVisitUser(notif.senderId);
         break;
+
       default:
         if (notif.senderId) handleVisitUser(notif.senderId);
         break;
@@ -1611,9 +1667,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <div className="pt-10 border-t border-theme space-y-6">
                 <div className={`p-6 bg-white/[0.04] border border-theme rounded-[2.5rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
                   <div className={`flex items-center gap-4 ${isSidebarCollapsed ? 'mb-0 justify-center' : (theme === 'BIG_SCREEN' ? 'mb-6 justify-center group-hover/sidebar:justify-start' : 'mb-6')}`}>
-                     <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden ring-2 ring-white/5 shrink-0">
-                        {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
-                     </div>
+                     <PioneerGoldFrame active={!!userProfile?.hasSeenWelcomePackage} size="sm">
+                       <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                         {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
+                       </div>
+                     </PioneerGoldFrame>
                      <div className={`overflow-hidden ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{user?.displayName || 'Guest Artist'}</p>
                         <p className="text-[8px] font-bold text-small-orange truncate opacity-60">{user ? user.email : 'Public Instance'}</p>
@@ -2460,6 +2518,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           
           {showWelcomeAchievement && (
             <WelcomeAchievement onDone={() => setShowWelcomeAchievement(false)} />
+          )}
+
+          {showWelcomePackage && (
+            <WelcomePackageModal
+              displayName={user?.displayName || userProfile?.displayName}
+              onDismiss={handleWelcomePackageDismiss}
+            />
           )}
 
           <GlobalPlayer

@@ -3770,6 +3770,52 @@ export const markNotificationAsRead = async (notifId: string) => {
   }
 };
 
+/** Sends the one-time welcome package as a SYSTEM message to the user's private system inbox room. */
+export const sendSystemWelcomeDM = async (uid: string, displayName: string): Promise<void> => {
+  const roomId = `system_inbox_${uid}`;
+  try {
+    // Upsert the system inbox room
+    await setDoc(doc(db, 'chat_rooms', roomId), {
+      id: roomId,
+      type: 'SYSTEM_INBOX',
+      name: 'Plajah',
+      participants: [uid],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }, { merge: true });
+
+    const body = `Hey ${displayName?.split(' ')[0] || 'there'} 👋 Welcome to Plajah — and congratulations on your Pioneer Badge! 🏅
+
+You're part of our earliest wave of creators and fans, and that means a lot to us.
+
+Here's your starter pack:
+
+🧭 Explore — Music, films, books, live talks, games. Every corner is built for discovery.
+📤 Upload — Share your music, videos, and art. Your profile is your stage.
+💬 Engage — Comment, react, and connect with creators who share your passion.
+🐛 Report Issues — Use the Help Center to flag bugs or send feedback. Your voice shapes Plajah.
+
+🎉 Stop by The Plajah Club — our community space for early members — to meet the team and fellow creators.
+
+As an early access member, you may run into a bump or two. We truly appreciate your patience. Every piece of feedback helps us build something better.
+
+Plajah exists to be the best place in the world for creators to share their work. We're building that together.
+
+— The Plajah Team ❤️`;
+
+    await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
+      senderId: 'plajah_system',
+      senderName: 'Plajah',
+      senderPhoto: 'https://plajah.com/icons/icon-192.png',
+      text: body,
+      type: 'SYSTEM',
+      timestamp: Date.now(),
+    });
+  } catch (e) {
+    console.warn('[Welcome DM]', e);
+  }
+};
+
 export const notifyFollowers = async (senderId: string, type: AppNotification['type'], title: string, message: string, link?: string, targetId?: string) => {
   try {
     const followers = await fetchFollowers(senderId);

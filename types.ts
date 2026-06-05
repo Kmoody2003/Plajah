@@ -1048,6 +1048,7 @@ export interface UserProfile {
   createdAt?: number;
   isPioneer?: boolean;
   pioneerRewardClaimed?: boolean;
+  hasSeenWelcomePackage?: boolean;
   tier?: 'FREE' | 'PIONEER' | 'PRO' | 'ELITE';
   storageLimit: number; // 0 means unlimited
   storageUsage: {
