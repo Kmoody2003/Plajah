@@ -2617,7 +2617,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
       )}
-      {user && <PersistentChatDrawer currentView={view} />}
+      {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} />}
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>

@@ -2,11 +2,24 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquare, Users, Globe, User, Send, X,
-  ChevronLeft, Mic, MicOff, VideoOff, Settings,
-  Radio, Music, Share2, Heart, TrendingUp, AtSign,
-  Mail, ChevronRight, Loader2, Clock, MapPin,
+  ChevronLeft, Mic, Music, Share2, Heart,
+  TrendingUp, Mail, Loader2, MapPin,
+  Bell, MessageCircle, Plus, UserPlus, Zap, Inbox, Check, CheckCheck,
 } from 'lucide-react';
-import { ChatMessage, UserProfile, FeedItem, AppView } from '../types';
+import { ChatMessage, FeedItem, AppView, AppNotification } from '../types';
+import {
+  auth,
+  listenToMessages,
+  sendMessage,
+  fetchFeed,
+  postToFeed,
+  createChatRoom,
+  ensureLiveChatRoom,
+} from '../services/backendService';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import LiveTalkView from './LiveTalkView';
+import { formatDistanceToNow } from 'date-fns';
 
 // Friendly label for the page the user was on when they posted
 const PAGE_LABELS: Partial<Record<AppView, string>> = {
@@ -19,19 +32,21 @@ const PAGE_LABELS: Partial<Record<AppView, string>> = {
   PLAJAH_SPORTS: 'Sports', CHARITY: 'Charity', CLASSROOMS: 'Classes',
   PPV_EVENTS: 'Events', RELLO: 'Rello', PLAJAH_LABS: 'Labs',
 };
-import {
-  auth,
-  listenToMessages,
-  sendMessage,
-  fetchFeed,
-  postToFeed,
-  createChatRoom,
-  ensureLiveChatRoom,
-} from '../services/backendService';
-import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
-import LiveTalkView from './LiveTalkView';
 
-type TabType = 'LIVE' | 'LIVETALK' | 'GLOBAL_FEED' | 'MY_FEED';
+type TabType = 'LIVE' | 'LIVETALK' | 'GLOBAL_FEED' | 'MY_FEED' | 'ALERTS';
+
+// ── Notification icon + color ──────────────────────────────────────────────────
+
+function getNotifStyle(type: string) {
+  switch (type) {
+    case 'COMMENT': return { Icon: MessageSquare, color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/20' };
+    case 'LIKE':    return { Icon: Heart,         color: 'text-red-400',   bg: 'bg-red-500/15',   border: 'border-red-500/20'   };
+    case 'FOLLOW':  return { Icon: UserPlus,      color: 'text-cyan-400',  bg: 'bg-cyan-500/15',  border: 'border-cyan-500/20'  };
+    case 'CONTENT': return { Icon: Plus,          color: 'text-purple-400',bg: 'bg-purple-500/15',border: 'border-purple-500/20'};
+    case 'MESSAGE': return { Icon: MessageCircle, color: 'text-blue-400',  bg: 'bg-blue-500/15',  border: 'border-blue-500/20'  };
+    default:        return { Icon: Zap,           color: 'text-orange-400',bg: 'bg-orange-500/15',border: 'border-orange-500/20'};
+  }
+}
 
 // ── Mini DM composer ──────────────────────────────────────────────────────────
 
@@ -47,9 +62,7 @@ interface DMComposerProps {
 const DMComposer: React.FC<DMComposerProps> = ({
   targetId, targetName, targetPhoto, songTitle, songId, onClose,
 }) => {
-  const [text, setText] = useState(
-    songId ? `🎵 Check out "${songTitle}" on Plajah! ` : ''
-  );
+  const [text, setText] = useState(songId ? `🎵 Check out "${songTitle}" on Plajah! ` : '');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -57,10 +70,7 @@ const DMComposer: React.FC<DMComposerProps> = ({
     if (!text.trim() || !auth.currentUser) return;
     setSending(true);
     try {
-      const roomId = await createChatRoom(
-        [auth.currentUser.uid, targetId],
-        'PRIVATE'
-      );
+      const roomId = await createChatRoom([auth.currentUser.uid, targetId], 'PRIVATE');
       await sendMessage(roomId, {
         senderId: auth.currentUser.uid,
         senderName: auth.currentUser.displayName || 'User',
@@ -86,18 +96,13 @@ const DMComposer: React.FC<DMComposerProps> = ({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <img
-            src={targetPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetId}`}
-            className="w-7 h-7 rounded-full border border-white/10"
-            alt=""
-          />
+          <img src={targetPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetId}`} className="w-7 h-7 rounded-full border border-white/10" alt="" />
           <span className="text-sm font-bold text-white">{targetName}</span>
         </div>
         <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white">
           <X size={14} />
         </button>
       </div>
-
       {sent ? (
         <div className="text-center py-3 text-sm font-bold text-green-400">Sent!</div>
       ) : (
@@ -168,16 +173,13 @@ const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
           </span>
         )}
         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-          isMe
-            ? 'bg-orange-500/20 text-white border border-orange-500/20'
-            : 'bg-white/6 text-white/90 border border-white/8'
+          isMe ? 'bg-orange-500/20 text-white border border-orange-500/20' : 'bg-white/6 text-white/90 border border-white/8'
         }`}>
           {msg.text}
         </div>
         <span className="text-[10px] text-white/25 px-1">{time}</span>
       </div>
 
-      {/* DM button — appears on hover for other users' messages */}
       <AnimatePresence>
         {hovered && !isMe && (
           <motion.button
@@ -197,13 +199,83 @@ const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
   );
 };
 
+// ── Notification row ──────────────────────────────────────────────────────────
+
+interface NotifRowProps {
+  notif: AppNotification;
+  onRead: (id: string) => void;
+  onNavigate?: (notif: AppNotification) => void;
+}
+
+const NotifRow: React.FC<NotifRowProps> = ({ notif, onRead, onNavigate }) => {
+  const { Icon, color, bg, border } = getNotifStyle(notif.type);
+  const clickable = Boolean(notif.link && onNavigate);
+
+  const handleClick = () => {
+    if (!notif.isRead) onRead(notif.id);
+    if (clickable) onNavigate!(notif);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.2 }}
+      onClick={handleClick}
+      className={`flex gap-3 px-4 py-3.5 border-b border-white/[0.04] transition-colors relative ${
+        !notif.isRead ? 'bg-white/[0.025]' : ''
+      } ${clickable ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+    >
+      {/* Unread dot */}
+      {!notif.isRead && (
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-orange-400" />
+      )}
+
+      {/* Avatar + icon badge */}
+      <div className="relative shrink-0">
+        <img
+          src={notif.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${notif.senderId}`}
+          className="w-10 h-10 rounded-full object-cover border border-white/10"
+          alt=""
+          referrerPolicy="no-referrer"
+        />
+        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border ${border} ${bg} flex items-center justify-center`}>
+          <Icon size={10} className={color} />
+        </div>
+      </div>
+
+      {/* Text */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 mb-0.5">
+          <p className={`text-[11px] font-black uppercase tracking-wide leading-tight ${notif.isRead ? 'text-white/60' : 'text-white'}`}>
+            {notif.title}
+          </p>
+          <span className="text-[9px] text-white/20 shrink-0 mt-0.5">
+            {formatDistanceToNow(notif.timestamp, { addSuffix: false })}
+          </span>
+        </div>
+        <p className="text-[11px] text-white/45 leading-snug">{notif.message}</p>
+        {clickable && (
+          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400/50 mt-1">
+            View →
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 // ── Main Drawer ────────────────────────────────────────────────────────────────
 
-const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView }) => {
+interface PersistentChatDrawerProps {
+  currentView?: AppView;
+  onNotificationNavigate?: (notif: AppNotification) => void;
+}
+
+const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView, onNotificationNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('LIVE');
 
-  // Message cache: roomId → messages[]
   const [msgCache, setMsgCache] = useState<Record<string, ChatMessage[]>>({});
   const [inputText, setInputText] = useState('');
   const [posts, setPosts] = useState<FeedItem[]>([]);
@@ -212,10 +284,11 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
   const listenerRef = useRef<(() => void) | null>(null);
   const currentRoomRef = useRef<string | null>(null);
 
-  // DM composer state
   const [dmTarget, setDmTarget] = useState<{ id: string; name: string; photo: string } | null>(null);
 
   const { currentVideo, currentTrack, currentAlbum } = useGlobalPlayerState();
+  const { notifications, unreadCount, markAsRead, clearAll } = useNotifications();
+
   const activeContentId = currentVideo?.id || currentTrack?.id || currentAlbum?.id;
   const activeContentTitle = currentVideo?.title || currentTrack?.title || currentAlbum?.title;
   const activeContentCover = currentTrack?.albumCover || (currentAlbum as any)?.coverArt || (currentAlbum as any)?.coverUrl || currentVideo?.thumbnailUrl;
@@ -224,16 +297,11 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
 
   const uid = auth.currentUser?.uid;
 
-  // ── Always maintain live chat listener ────────────────────────────────────────
   useEffect(() => {
-    // Only re-subscribe when the room actually changes
     if (currentRoomRef.current === liveRoomId) return;
     currentRoomRef.current = liveRoomId;
-
-    // Unsub previous
     listenerRef.current?.();
 
-    // Upsert the room document with song metadata so ChatSystem shows cover art
     if (activeContentId && auth.currentUser) {
       ensureLiveChatRoom(liveRoomId, {
         name: activeContentTitle || 'Live Chat',
@@ -245,38 +313,26 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
 
     listenerRef.current = listenToMessages(liveRoomId, (msgs) => {
       setMsgCache(prev => ({ ...prev, [liveRoomId]: msgs }));
-      // Auto-scroll if drawer is open on LIVE tab
       if (isOpen && activeTab === 'LIVE') {
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        });
+        requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
       }
     });
 
-    return () => {
-      listenerRef.current?.();
-      listenerRef.current = null;
-    };
+    return () => { listenerRef.current?.(); listenerRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveRoomId, activeContentTitle, activeContentCover, activeContentArtist, activeContentId]);
 
-  // Scroll to bottom when opening on LIVE tab
   useEffect(() => {
     if (isOpen && activeTab === 'LIVE') {
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-      });
+      requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }));
     }
   }, [isOpen, activeTab]);
 
-  // Feed subscription
   useEffect(() => {
     if (activeTab !== 'GLOBAL_FEED' && activeTab !== 'MY_FEED') return;
     const unsub = fetchFeed((items) => {
       setPosts(items);
-      if (auth.currentUser) {
-        setMyPosts(items.filter(p => p.authorId === auth.currentUser?.uid));
-      }
+      if (auth.currentUser) setMyPosts(items.filter(p => p.authorId === auth.currentUser?.uid));
     });
     return () => unsub();
   }, [activeTab]);
@@ -316,8 +372,6 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
 
   const handleShareSongDM = useCallback(() => {
     if (!activeContentId) return;
-    // Opens DM composer pre-filled with a song share — user picks recipient by typing handle
-    // For now we open a generic DM prompt; full user-picker is in ChatSystem
     setDmTarget({ id: '_song_share', name: 'a friend', photo: '' });
   }, [activeContentId]);
 
@@ -326,11 +380,18 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
     setDmTarget({ id: msg.senderId, name: msg.senderName, photo: msg.senderPhoto || '' });
   };
 
-  const tabs = [
-    { id: 'LIVE' as TabType, icon: MessageSquare, label: 'Live' },
-    { id: 'LIVETALK' as TabType, icon: Mic, label: 'Talk' },
-    { id: 'GLOBAL_FEED' as TabType, icon: Globe, label: 'Global' },
-    { id: 'MY_FEED' as TabType, icon: User, label: 'Me' },
+  const handleMarkAllRead = () => {
+    notifications.filter(n => !n.isRead).forEach(n => markAsRead(n.id));
+  };
+
+  const totalBadge = unreadCount + (currentMessages.length > 0 ? 1 : 0);
+
+  const tabs: { id: TabType; icon: React.ElementType; label: string; badge?: number }[] = [
+    { id: 'LIVE',        icon: MessageSquare, label: 'Live' },
+    { id: 'LIVETALK',   icon: Mic,           label: 'Talk' },
+    { id: 'GLOBAL_FEED', icon: Globe,         label: 'Global' },
+    { id: 'MY_FEED',    icon: User,          label: 'Me' },
+    { id: 'ALERTS',     icon: Bell,          label: 'Alerts', badge: unreadCount },
   ];
 
   return (
@@ -343,10 +404,9 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-white/60 group-hover:text-white">
           <ChevronLeft size={20} />
         </motion.div>
-        {/* Unread badge */}
-        {!isOpen && currentMessages.length > 0 && (
-          <span className="absolute -top-1 -left-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-[10px] font-black text-black">
-            {currentMessages.length > 9 ? '9+' : currentMessages.length}
+        {!isOpen && totalBadge > 0 && (
+          <span className="absolute -top-1 -left-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-[9px] font-black text-black border-2 border-black">
+            {totalBadge > 9 ? '9+' : totalBadge}
           </span>
         )}
       </button>
@@ -356,11 +416,11 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
         initial={false}
         animate={{ x: isOpen ? 0 : '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-        className="fixed top-0 right-0 h-full w-[380px] bg-black/70 backdrop-blur-3xl border-l border-white/5 z-[450] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.5)]"
+        className="fixed top-0 right-0 h-full w-[400px] bg-[#080808]/85 backdrop-blur-3xl border-l border-white/8 z-[450] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.6)]"
       >
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-          <div className="flex items-center justify-between mb-3">
+        <div className="px-4 pt-4 pb-0 border-b border-white/5 shrink-0">
+          <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2.5">
               <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(255,140,0,0.8)]" />
               <span className="text-xs font-black uppercase tracking-widest text-white/50">Plajah Comms</span>
@@ -369,29 +429,38 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
               <X size={15} />
             </button>
           </div>
-          <div className="flex bg-black/40 rounded-2xl p-0.5 border border-white/5">
+
+          {/* Tab bar — full width, no pill bg, border-bottom indicator style */}
+          <div className="flex">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center py-2 transition-all rounded-xl relative ${
-                  activeTab === tab.id ? 'text-white' : 'text-white/35 hover:text-white/60'
+                className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-3 relative transition-colors ${
+                  activeTab === tab.id ? 'text-white' : 'text-white/30 hover:text-white/55'
                 }`}
               >
+                <div className="relative">
+                  {React.createElement(tab.icon as any, { size: 16 })}
+                  {tab.badge !== undefined && tab.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] bg-orange-500 rounded-full text-[8px] font-black text-black flex items-center justify-center px-0.5 border border-black">
+                      {tab.badge > 9 ? '9+' : tab.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-black tracking-wider">{tab.label}</span>
                 {activeTab === tab.id && (
                   <motion.div
-                    layoutId="drawerActiveTab"
-                    className="absolute inset-0 bg-white/6 rounded-xl border border-white/10"
+                    layoutId="drawerTabLine"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-orange-400 rounded-full"
                   />
                 )}
-                <tab.icon size={15} className="relative z-10" />
-                <span className="text-[11px] font-bold mt-0.5 relative z-10">{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content area */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
           <AnimatePresence mode="wait">
             <motion.div
@@ -399,14 +468,13 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.12 }}
               className="flex-1 flex flex-col min-h-0"
             >
 
               {/* ── LIVE TAB ── */}
               {activeTab === 'LIVE' && (
                 <div className="flex-1 flex flex-col min-h-0">
-                  {/* Song context bar */}
                   <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/5 shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
@@ -428,13 +496,12 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
                         )}
                         <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/8">
                           <Users size={11} className="text-white/40" />
-                          <span className="text-xs font-bold text-white/50">{currentMessages.length > 0 ? `${currentMessages.length}` : '—'}</span>
+                          <span className="text-xs font-bold text-white/50">{currentMessages.length > 0 ? currentMessages.length : '—'}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Messages */}
                   <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 scrollbar-hide">
                     {currentMessages.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center gap-3 text-white/20">
@@ -444,18 +511,12 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
                       </div>
                     ) : (
                       currentMessages.map(msg => (
-                        <MsgBubble
-                          key={msg.id}
-                          msg={msg}
-                          isMe={msg.senderId === uid}
-                          onDM={openDM}
-                        />
+                        <MsgBubble key={msg.id} msg={msg} isMe={msg.senderId === uid} onDM={openDM} />
                       ))
                     )}
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Input */}
                   {auth.currentUser ? (
                     <form onSubmit={handleSendMessage} className="px-3 py-3 border-t border-white/5 shrink-0">
                       <div className="relative flex items-center gap-2">
@@ -481,9 +542,7 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
                       </div>
                     </form>
                   ) : (
-                    <div className="px-4 py-3 border-t border-white/5 text-center text-xs text-white/30">
-                      Sign in to chat
-                    </div>
+                    <div className="px-4 py-3 border-t border-white/5 text-center text-xs text-white/30">Sign in to chat</div>
                   )}
                 </div>
               )}
@@ -575,6 +634,73 @@ const PersistentChatDrawer: React.FC<{ currentView?: AppView }> = ({ currentView
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* ── ALERTS TAB ── */}
+              {activeTab === 'ALERTS' && (
+                <div className="flex-1 flex flex-col min-h-0">
+                  {/* Alerts header bar */}
+                  <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Bell size={13} className="text-orange-400" />
+                      <span className="text-xs font-black uppercase tracking-widest text-white/60">
+                        Alerts
+                      </span>
+                      {unreadCount > 0 && (
+                        <span className="bg-orange-500/20 border border-orange-500/30 text-orange-400 text-[9px] font-black px-2 py-0.5 rounded-full">
+                          {unreadCount} unread
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          title="Mark all read"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors text-[10px] font-black uppercase tracking-wider"
+                        >
+                          <CheckCheck size={12} />
+                          All read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={() => clearAll?.()}
+                          title="Clear all"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/8 transition-colors text-[10px] font-black uppercase tracking-wider"
+                        >
+                          <X size={12} />
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scrollable notification list */}
+                  <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
+                    {notifications.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-4 text-white/15 px-8 text-center">
+                        <Inbox size={40} />
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-widest mb-1">All clear</p>
+                          <p className="text-xs text-white/10">Comments, replies, follows, and new posts from people you follow will appear here.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        {notifications.map(n => (
+                          <NotifRow
+                            key={n.id}
+                            notif={n}
+                            onRead={markAsRead}
+                            onNavigate={onNotificationNavigate}
+                          />
+                        ))}
+                        <div className="h-8" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
