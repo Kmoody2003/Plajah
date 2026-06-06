@@ -2575,7 +2575,34 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   const path = `albums/${album.id}`;
   try {
     await setDoc(doc(db, "albums", album.id), cloudAlbum);
-    
+
+    // Trigger Cora beat analysis for MUSIC albums (fire-and-forget — never blocks publish)
+    if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length) {
+      (async () => {
+        try {
+          const token = await auth.currentUser!.getIdToken();
+          const appUrl = (import.meta as any).env?.VITE_APP_URL ?? window.location.origin;
+          await fetch(`${appUrl}/api/cora/analyze-album`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              albumId: album.id,
+              ownerId: auth.currentUser!.uid,
+              genre:   cloudAlbum.genre,
+              tracks:  cloudAlbum.tracks.map((t: any) => ({
+                id:       t.id,
+                title:    t.title,
+                artist:   t.artist,
+                genre:    t.genre,
+                duration: t.duration,
+                lyrics:   t.lyrics,
+              })),
+            }),
+          });
+        } catch { /* analysis failure must never surface to the user */ }
+      })();
+    }
+
     // Set user as artist
     await setDoc(doc(db, "users", auth.currentUser.uid), { isArtist: true }, { merge: true });
 

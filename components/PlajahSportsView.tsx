@@ -4,11 +4,12 @@ import { SportsCenterView } from './SportsCenterView';
 import {
   Zap, Search, X, Plus, MapPin, Trophy, TrendingUp, Newspaper,
   ChevronRight, ChevronLeft, Star, Shield, BarChart2, Flag, Gauge,
-  Radio, Gamepad2, Globe, RefreshCw,
+  Radio, Gamepad2, Globe, RefreshCw, Dumbbell, Target, CircleDot,
 } from 'lucide-react';
 import { fetchNewsFromRSS } from '../services/rssService';
 import { Article, UserProfile } from '../types';
 import { fetchLeagueNews, fetchLeagueScores } from '../services/sportsService';
+import { SPORTS_INTELLIGENCE_DOMAINS, seedSportsSourceRegistry } from '../services/sportsKnowledgeService';
 import { getLeagueStaticTeams } from '../data/leagueTeams';
 import { StatCardBuilder } from './sports/StatCardBuilder';
 import { RaceHistoryView } from './sports/RaceHistoryView';
@@ -23,10 +24,23 @@ const LEAGUES = [
   { id: 'FIFA',    label: 'Soccer',     icon: Globe,    color: '#39B54A' },
   { id: 'MLS',     label: 'MLS',        icon: Globe,    color: '#00245D' },
   { id: 'NCAA',    label: 'NCAA',       icon: Trophy,   color: '#00539B' },
+  { id: 'WNBA',    label: 'WNBA',       icon: Trophy,   color: '#F57C00' },
   { id: 'ESPORTS', label: 'Esports',    icon: Gamepad2, color: '#7B2FBE' },
   { id: 'F1',      label: 'Formula 1',  icon: Gauge,    color: '#E10600' },
   { id: 'NASCAR',  label: 'NASCAR',     icon: Gauge,    color: '#FFB514' },
   { id: 'INDYCAR', label: 'IndyCar',    icon: Gauge,    color: '#C5232A' },
+  { id: 'UFC',     label: 'UFC',        icon: Dumbbell, color: '#D20A0A' },
+  { id: 'MMA',     label: 'MMA',        icon: Dumbbell, color: '#8B0000' },
+  { id: 'BOXING',  label: 'Boxing',     icon: Dumbbell, color: '#B91C1C' },
+  { id: 'MARTIAL_ARTS', label: 'Martial Arts', icon: Target, color: '#C2410C' },
+  { id: 'FENCING', label: 'Fencing',    icon: Target,   color: '#CBD5E1' },
+  { id: 'TENNIS',  label: 'Tennis',     icon: CircleDot,color: '#84CC16' },
+  { id: 'GOLF',    label: 'Golf',       icon: Flag,     color: '#16A34A' },
+  { id: 'CRICKET', label: 'Cricket',    icon: CircleDot,color: '#2563EB' },
+  { id: 'RUGBY',   label: 'Rugby',      icon: Shield,   color: '#7C2D12' },
+  { id: 'WRESTLING', label: 'Wrestling', icon: Dumbbell,color: '#A16207' },
+  { id: 'VOLLEYBALL', label: 'Volleyball', icon: CircleDot, color: '#0EA5E9' },
+  { id: 'LACROSSE', label: 'Lacrosse',  icon: Target,   color: '#9333EA' },
 ] as const;
 
 const LEAGUE_LOGOS: Record<string, string> = {
@@ -35,8 +49,21 @@ const LEAGUE_LOGOS: Record<string, string> = {
   MLB: 'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png',
   NHL: 'https://a.espncdn.com/i/teamlogos/leagues/500/nhl.png',
   NCAA: 'https://a.espncdn.com/i/teamlogos/leagues/500/ncaa.png',
+  WNBA: 'https://a.espncdn.com/i/teamlogos/leagues/500/wnba.png',
   FIFA: 'https://a.espncdn.com/i/teamlogos/leagues/500/fifa.png',
   MLS: 'https://a.espncdn.com/i/teamlogos/leagues/500/mls.png',
+  UFC: 'https://a.espncdn.com/i/teamlogos/leagues/500/ufc.png',
+  MMA: 'https://a.espncdn.com/i/teamlogos/leagues/500/ufc.png',
+  BOXING: 'https://a.espncdn.com/i/teamlogos/leagues/500/boxing.png',
+  MARTIAL_ARTS: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?w=300&q=80',
+  FENCING: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=300&q=80',
+  TENNIS: 'https://a.espncdn.com/i/teamlogos/leagues/500/tennis.png',
+  GOLF: 'https://a.espncdn.com/i/teamlogos/leagues/500/golf.png',
+  CRICKET: 'https://a.espncdn.com/i/teamlogos/leagues/500/cricket.png',
+  RUGBY: 'https://a.espncdn.com/i/teamlogos/leagues/500/rugby.png',
+  WRESTLING: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&q=80',
+  VOLLEYBALL: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=300&q=80',
+  LACROSSE: 'https://images.unsplash.com/photo-1564694202779-bc908c327862?w=300&q=80',
 };
 
 const HERO_FALLBACKS = [
@@ -45,6 +72,16 @@ const HERO_FALLBACKS = [
   { id: 'h3', title: 'Formula 1 Season',  subtitle: 'Race results, standings and replay', imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80' },
   { id: 'h4', title: 'Court & Field',     subtitle: 'NBA, NFL, MLB — your leagues in one place', imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1400&q=80' },
 ];
+
+const normalizeSportsArticle = (item: any, fallbackSource = 'Sports'): Article => ({
+  id: String(item.id || item.guid || item.url || item.links?.web?.href || item.headline || item.title || Math.random()),
+  title: item.title || item.headline || 'Sports update',
+  content: item.content || item.summary || item.description || item.descriptionText || '',
+  source: item.source || item.byline || fallbackSource,
+  url: item.url || item.links?.web?.href || '#',
+  imageUrl: item.imageUrl || item.images?.[0]?.url || item.images?.[0]?.href || '',
+  timestamp: item.timestamp || (item.published ? new Date(item.published).getTime() : Date.now()),
+} as Article);
 
 // ─── Hero carousel ─────────────────────────────────────────────────────────────
 const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
@@ -271,16 +308,22 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
   const loadData = async (tab: string) => {
     setLoadingNews(true);
     try {
+      const scoreTabs = ['NBA', 'NFL', 'MLB', 'NHL', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
       const [news, scores] = await Promise.allSettled([
         tab === 'ALL'
           ? fetchNewsFromRSS('SPORTS_ALL')
           : fetchLeagueNews(tab as any),
-        tab !== 'ALL' && tab !== 'ESPORTS'
+        tab === 'ALL'
+          ? Promise.allSettled(scoreTabs.map(lg => fetchLeagueScores(lg as any))).then(results =>
+              results.flatMap(result => result.status === 'fulfilled' ? result.value : [])
+            )
+          : tab !== 'ESPORTS'
           ? fetchLeagueScores(tab as any)
           : Promise.resolve([]),
       ]);
 
-      const newsArr = news.status === 'fulfilled' ? news.value ?? [] : [];
+      const rawNews = news.status === 'fulfilled' ? news.value ?? [] : [];
+      const newsArr = rawNews.map((item: any) => normalizeSportsArticle(item, tab === 'ALL' ? 'Sports' : tab));
       const scoreArr = scores.status === 'fulfilled' ? scores.value ?? [] : [];
 
       setHeadlines(newsArr.slice(0, 16));
@@ -298,6 +341,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
   };
 
   useEffect(() => { loadData(activeTab); }, [activeTab]);
+
+  useEffect(() => {
+    seedSportsSourceRegistry().catch(() => {});
+  }, []);
 
   // ── Team search ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -613,6 +660,29 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* SPORTS INTELLIGENCE */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2.5">
+                <BarChart2 size={14} className="text-[#FF8C00]" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Sports Intelligence</h3>
+              </div>
+              <div className="p-4 space-y-2">
+                {SPORTS_INTELLIGENCE_DOMAINS.map(domain => (
+                  <div key={domain.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
+                    <p className="text-[9px] font-black uppercase tracking-tight text-white/70">{domain.label}</p>
+                    <p className="text-[7px] text-white/30 leading-relaxed mt-1">{domain.description}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {domain.sources.slice(0, 3).map(source => (
+                        <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="text-[6px] font-black uppercase tracking-widest text-[#FF8C00]/70 hover:text-[#FF8C00]">
+                          {source.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </aside>

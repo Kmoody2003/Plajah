@@ -393,6 +393,45 @@ const DebateView: React.FC<DebateViewProps> = ({ debateId, onBack }) => {
           </div>
         )}
 
+        {/* Challenge Reference — highlighted post segments for post-level debates */}
+        {debate.isPostDebate && debate.sourcePostText && debate.highlightedSegments && debate.highlightedSegments.length > 0 && (
+          <div className="mt-3 bg-orange-500/6 border border-orange-500/15 rounded-2xl px-4 py-3">
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-orange-400/60 mb-2 flex items-center gap-1.5">
+              <BookOpen size={9} /> Challenge Reference
+            </p>
+            <div className="text-[11px] text-white/60 leading-6 font-serif">
+              {(() => {
+                const segs = [...debate.highlightedSegments].sort((a, b) => a.start - b.start);
+                const src  = debate.sourcePostText!;
+                const parts: React.ReactNode[] = [];
+                let cur = 0;
+                segs.forEach((seg, i) => {
+                  if (seg.start > cur) parts.push(<span key={`t${i}`}>{src.slice(cur, seg.start)}</span>);
+                  parts.push(
+                    <mark key={`h${i}`} className="bg-orange-500/30 text-orange-100 rounded px-0.5 border-b border-orange-400/50 not-italic">
+                      {src.slice(seg.start, seg.end)}
+                    </mark>
+                  );
+                  cur = seg.end;
+                });
+                if (cur < src.length) parts.push(<span key="tend">{src.slice(cur)}</span>);
+                return parts;
+              })()}
+            </div>
+            {debate.challengePoints && debate.challengePoints.length > 0 && (
+              <div className="mt-3 border-t border-orange-500/10 pt-2.5 space-y-1.5">
+                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-orange-400/60">Challenge Points</p>
+                {debate.challengePoints.map((pt, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-[8px] font-black text-orange-400/50 mt-0.5 shrink-0">{i + 1}.</span>
+                    <p className="text-[10px] text-white/60 leading-relaxed">{pt}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Pending accept/decline for defender */}
         {isPending && isDefender && (
           <div className="mt-3 flex gap-2">

@@ -1,5 +1,11 @@
 // Historical sports data via ESPN free public API.
-// All requests route through /api/proxy to avoid CORS.
+// Browser requests route through /api/proxy; server workers fetch sources directly.
+import {
+  makeSportsDocId,
+  readSportsKnowledge,
+  sportsSource,
+  writeSportsKnowledge,
+} from './sportsKnowledgeService';
 
 const ESPN = 'https://site.api.espn.com/apis/site/v2/sports';
 const ESPN_STATS = 'https://sports.core.api.espn.com/v2/sports';
@@ -18,8 +24,9 @@ async function espnFetch(url: string): Promise<any> {
   const hit = fromCache(key);
   if (hit !== null) return hit;
   try {
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl);
+    const isBrowser = typeof window !== 'undefined';
+    const requestUrl = isBrowser ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+    const res = await fetch(requestUrl);
     if (!res.ok) return null;
     const data = await res.json();
     toCache(key, data);
@@ -37,6 +44,7 @@ const LEAGUES: Record<string, { sport: string; league: string }> = {
   NHL:  { sport: 'hockey',     league: 'nhl' },
   MLB:  { sport: 'baseball',   league: 'mlb' },
   NCAA: { sport: 'basketball', league: 'mens-college-basketball' },
+  WNBA: { sport: 'basketball', league: 'wnba' },
   FIFA: { sport: 'soccer',     league: 'eng.1' },
   MLS:  { sport: 'soccer',     league: 'usa.1' },
 };
@@ -49,7 +57,7 @@ export type HistorySeason = {
 export function getAvailableSeasons(tab: string): HistorySeason[] {
   const current = new Date().getFullYear();
   const startYear: Record<string, number> = {
-    NBA: 1980, NFL: 1970, NHL: 1980, MLB: 1970, NCAA: 1990, FIFA: 2000, MLS: 2000,
+    NBA: 1980, NFL: 1970, NHL: 1980, MLB: 1970, NCAA: 1990, WNBA: 1997, FIFA: 2000, MLS: 2000,
   };
   const start = startYear[tab] ?? 2000;
   const seasons: HistorySeason[] = [];
@@ -83,11 +91,11 @@ export async function fetchPlayerSeasonStats(
   const key = `playerstats:${tab}:${athleteId}:${season}`;
   const hit = fromCache(key);
   if (hit !== null) return hit;
+  const stored = await readSportsKnowledge<PlayerSeasonStats>('sports_player_stats', makeSportsDocId(tab, athleteId, season));
 
-  const data = await espnFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}/statistics?season=${season}&seasontype=2`,
-  );
-  if (!data) return null;
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}/statistics?season=${season}&seasontype=2`;
+  const data = await espnFetch(sourceUrl);
+  if (!data) return stored?.data ?? null;
 
   const result: PlayerSeasonStats = {
     athleteId,
@@ -107,6 +115,11 @@ export async function fetchPlayerSeasonStats(
     })),
   };
   toCache(key, result);
+  if (result.categories.some(c => c.stats.length > 0)) {
+    writeSportsKnowledge('sports_player_stats', makeSportsDocId(tab, athleteId, season), result, [
+      sportsSource('ESPN', sourceUrl, `${tab} player season stats ${athleteId} ${season}`),
+    ], ['sports', tab, 'player_stats', athleteId, String(season)], 'HIGH').catch(() => {});
+  }
   return result;
 }
 
@@ -153,11 +166,11 @@ export async function fetchTeamSeasonRecord(
   const key = `teamrecord:${tab}:${teamId}:${season}`;
   const hit = fromCache(key);
   if (hit !== null) return hit;
+  const stored = await readSportsKnowledge<TeamSeasonRecord>('sports_team_stats', makeSportsDocId(tab, teamId, season, 'record'));
 
-  const data = await espnFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}?enable=record&season=${season}`,
-  );
-  if (!data?.team) return null;
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}?enable=record&season=${season}`;
+  const data = await espnFetch(sourceUrl);
+  if (!data?.team) return stored?.data ?? null;
 
   const records: any[] = data.team?.record?.items ?? [];
   const getRecord = (type: string) => records.find((r: any) => r.type === type || r.name === type);
@@ -184,6 +197,9 @@ export async function fetchTeamSeasonRecord(
     streak: overall?.stats?.find((s: any) => s.name === 'streak')?.displayValue,
   };
   toCache(key, result);
+  writeSportsKnowledge('sports_team_stats', makeSportsDocId(tab, teamId, season, 'record'), result, [
+    sportsSource('ESPN', sourceUrl, `${tab} team record ${teamId} ${season}`),
+  ], ['sports', tab, 'team_record', teamId, String(season)], 'HIGH').catch(() => {});
   return result;
 }
 
@@ -231,9 +247,11 @@ export async function fetchHistoricalLeaders(
   const key = `leaders:${tab}:${season}`;
   const hit = fromCache(key);
   if (hit !== null) return hit;
+  const stored = await readSportsKnowledge<HistoricalLeaderCategory[]>('sports_league_leaders', makeSportsDocId(tab, season, 'leaders'));
 
-  const data = await espnFetch(`${ESPN}/${cfg.sport}/${cfg.league}/leaders?season=${season}&seasontype=2`);
-  if (!Array.isArray(data?.categories)) return [];
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/leaders?season=${season}&seasontype=2`;
+  const data = await espnFetch(sourceUrl);
+  if (!Array.isArray(data?.categories)) return stored?.data ?? [];
 
   const PRIORITY: Record<string, string[]> = {
     NBA:  ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame', 'stealsPerGame'],
@@ -241,6 +259,7 @@ export async function fetchHistoricalLeaders(
     NHL:  ['points', 'goals', 'assists', 'plusMinus', 'savePercentage'],
     MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era', 'strikeouts'],
     NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame'],
+    WNBA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame'],
   };
   const priority = PRIORITY[tab] ?? [];
 
@@ -267,6 +286,11 @@ export async function fetchHistoricalLeaders(
     }));
 
   toCache(key, cats);
+  if (cats.length) {
+    writeSportsKnowledge('sports_league_leaders', makeSportsDocId(tab, season, 'leaders'), cats, [
+      sportsSource('ESPN', sourceUrl, `${tab} historical leaders ${season}`),
+    ], ['sports', tab, 'leaders', String(season)], 'HIGH').catch(() => {});
+  }
   return cats;
 }
 
@@ -320,10 +344,17 @@ export async function fetchHistoricalScores(
   const key = `scores:${tab}:${dateStr}`;
   const hit = fromCache(key);
   if (hit !== null) return hit;
+  const stored = await readSportsKnowledge<any[]>('sports_league_scores', makeSportsDocId(tab, dateStr));
 
-  const data = await espnFetch(`${ESPN}/${cfg.sport}/${cfg.league}/scoreboard?dates=${dateStr}`);
-  const events = data?.events ?? [];
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/scoreboard?dates=${dateStr}`;
+  const data = await espnFetch(sourceUrl);
+  const events = data?.events ?? stored?.data ?? [];
   toCache(key, events);
+  if (events.length) {
+    writeSportsKnowledge('sports_league_scores', makeSportsDocId(tab, dateStr), events, [
+      sportsSource('ESPN', sourceUrl, `${tab} scoreboard ${dateStr}`),
+    ], ['sports', tab, 'scores', dateStr], 'HIGH').catch(() => {});
+  }
   return events;
 }
 
@@ -346,11 +377,11 @@ export async function fetchTeamSeasonStats(
   const key = `teamstats:${tab}:${teamId}:${season}`;
   const hit = fromCache(key);
   if (hit !== null) return hit;
+  const stored = await readSportsKnowledge<TeamSeasonStats>('sports_team_stats', makeSportsDocId(tab, teamId, season, 'stats'));
 
-  const data = await espnFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/statistics?season=${season}&seasontype=2`,
-  );
-  if (!data) return null;
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/statistics?season=${season}&seasontype=2`;
+  const data = await espnFetch(sourceUrl);
+  if (!data) return stored?.data ?? null;
 
   const splits = data.results?.splits ?? data.splits ?? {};
   const cats = splits.categories ?? [];
@@ -369,6 +400,11 @@ export async function fetchTeamSeasonStats(
     })),
   };
   toCache(key, result);
+  if (result.stats.length) {
+    writeSportsKnowledge('sports_team_stats', makeSportsDocId(tab, teamId, season, 'stats'), result, [
+      sportsSource('ESPN', sourceUrl, `${tab} team stats ${teamId} ${season}`),
+    ], ['sports', tab, 'team_stats', teamId, String(season)], 'HIGH').catch(() => {});
+  }
   return result;
 }
 

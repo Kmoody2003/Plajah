@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
@@ -1184,6 +1184,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                            title="Add to playlist"
                          >
                            <Plus size={10} />
+                         </button>
+                         {/* The Breakdown */}
+                         <button
+                           onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track, album: albums.find(a => a.tracks?.some(t => t.id === track.id)) ?? null } })); }}
+                           className="p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-orange-500/20 hover:text-orange-400 transition-all shrink-0"
+                           title="The Breakdown — music theory analysis"
+                         >
+                           <Waves size={10} />
                          </button>
                        </div>
                     ))}

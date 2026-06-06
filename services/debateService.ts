@@ -76,6 +76,89 @@ export interface ChallengePayload {
   heroImageUrl?: string;
 }
 
+export interface PostChallengePayload {
+  sourcePostId: string;
+  sourcePostText: string;
+  defenderId: string;
+  defenderName: string;
+  defenderPhoto: string;
+  heroImageUrl?: string;
+  /** Text segments the challenger highlighted in the original post */
+  highlightedSegments: import('../types').DebateHighlightSegment[];
+  /** Challenger's stated points of contention */
+  challengePoints: string[];
+}
+
+export async function issuePostDebateChallenge(payload: PostChallengePayload): Promise<string | null> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to challenge a post');
+  if (uid === payload.defenderId) throw new Error('You cannot challenge your own post');
+
+  const today = await getChallengesIssuedToday(uid);
+  if (today >= DAILY_CHALLENGE_LIMIT) {
+    throw new Error(`You've reached your daily limit of ${DAILY_CHALLENGE_LIMIT} debate challenges. Come back tomorrow.`);
+  }
+
+  // One active debate per post at a time
+  const existing = await getDocs(
+    query(collection(db, 'debates'),
+      where('sourcePostId', '==', payload.sourcePostId),
+      where('isPostDebate', '==', true),
+      where('status', 'in', ['PENDING', 'ACTIVE']))
+  );
+  if (!existing.empty) throw new Error('This post already has an active debate.');
+
+  const now = Date.now();
+  const ref = doc(collection(db, 'debates'));
+  const topic = payload.challengePoints[0]?.slice(0, 200) || payload.sourcePostText.slice(0, 200);
+
+  const debate: import('../types').Debate = {
+    id:                  ref.id,
+    isPostDebate:        true,
+    sourceCommentId:     '',
+    sourceCommentText:   '',
+    sourcePostId:        payload.sourcePostId,
+    sourcePostText:      payload.sourcePostText,
+    highlightedSegments: payload.highlightedSegments,
+    challengePoints:     payload.challengePoints,
+    challengerId:        uid,
+    challengerName:      auth.currentUser!.displayName || 'Challenger',
+    challengerPhoto:     auth.currentUser!.photoURL || '',
+    defenderId:          payload.defenderId,
+    defenderName:        payload.defenderName,
+    defenderPhoto:       payload.defenderPhoto,
+    topic,
+    createdAt:           now,
+    endsAt:              now + ACCEPT_WINDOW_MS,
+    challengerSupporters: [],
+    defenderSupporters:   [],
+    postCount:    0,
+    viewCount:    0,
+    disqualified: [],
+    heroImageUrl: payload.heroImageUrl,
+    status:       'PENDING',
+  };
+
+  await setDoc(ref, debate);
+  await updateDoc(doc(db, 'users', uid), { totalPoints: increment(POINTS_CHALLENGE_ISSUED) });
+
+  await addDoc(collection(db, 'notifications'), {
+    userId:      payload.defenderId,
+    senderId:    uid,
+    senderName:  auth.currentUser!.displayName || 'A user',
+    senderPhoto: auth.currentUser!.photoURL || '',
+    type:        'DEBATE_CHALLENGE',
+    title:       'Your post has been challenged',
+    message:     `${auth.currentUser!.displayName} challenged your post to a structured debate: "${topic.slice(0, 80)}…"`,
+    link:        'DEBATE_DETAIL',
+    targetId:    ref.id,
+    isRead:      false,
+    timestamp:   now,
+  });
+
+  return ref.id;
+}
+
 export async function issueDebateChallenge(payload: ChallengePayload): Promise<string | null> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Must be signed in to challenge');
@@ -486,4 +569,111 @@ export async function seedDemoDebate(): Promise<string | null> {
   }
 
   return ref.id;
+}
+
+// ── Debate stats for VS screen ────────────────────────────────────────────────
+
+export interface DebateStats {
+  wins: number;
+  losses: number;
+  draws: number;
+  total: number;
+}
+
+export async function getDebateStats(uid: string): Promise<DebateStats> {
+  try {
+    const [asChallenger, asDefender] = await Promise.all([
+      getDocs(query(collection(db, 'debates'), where('challengerId', '==', uid))),
+      getDocs(query(collection(db, 'debates'), where('defenderId', '==', uid))),
+    ]);
+
+    let wins = 0, losses = 0, draws = 0;
+
+    for (const snap of [asChallenger, asDefender]) {
+      for (const d of snap.docs) {
+        const data = d.data() as Debate;
+        if (data.status !== 'JUDGED' || !data.verdict) continue;
+        if (data.verdict.winner === 'DRAW') draws++;
+        else if (data.verdict.winnerUid === uid) wins++;
+        else losses++;
+      }
+    }
+
+    return { wins, losses, draws, total: asChallenger.size + asDefender.size };
+  } catch {
+    return { wins: 0, losses: 0, draws: 0, total: 0 };
+  }
+}
+
+export async function getPendingChallengeForPost(
+  postId: string,
+  defenderId: string,
+): Promise<Debate | null> {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'debates'),
+        where('sourcePostId', '==', postId),
+        where('defenderId', '==', defenderId),
+        where('status', '==', 'PENDING'),
+        limit(1),
+      ),
+    );
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as Debate;
+  } catch {
+    return null;
+  }
+}
+
+// ── Platform Pulse — debate feed aggregation ──────────────────────────────────
+
+function engagementScore(d: Debate): number {
+  const supporters = (d.challengerSupporters?.length ?? 0) + (d.defenderSupporters?.length ?? 0);
+  return d.postCount * 3 + supporters * 2 + Math.min(d.viewCount ?? 0, 500) / 5;
+}
+
+export interface PulseDebates {
+  mine:      Debate[];   // user's own debates, active first
+  following: Debate[];   // debates involving people the user follows
+  trending:  Debate[];   // platform-wide top by engagement
+}
+
+export async function getPulseDebates(uid: string, followingIds: string[]): Promise<PulseDebates> {
+  const [mineAsChallenger, mineAsDefender, platform] = await Promise.all([
+    getDocs(query(collection(db, 'debates'), where('challengerId', '==', uid), orderBy('createdAt', 'desc'), limit(20))),
+    getDocs(query(collection(db, 'debates'), where('defenderId',  '==', uid), orderBy('createdAt', 'desc'), limit(20))),
+    getDocs(query(collection(db, 'debates'), orderBy('createdAt', 'desc'), limit(80))),
+  ]);
+
+  const toDebate = (d: any): Debate => ({ id: d.id, ...d.data() } as Debate);
+
+  // My debates — active/pending first, then recency
+  const mineRaw = [
+    ...mineAsChallenger.docs.map(toDebate),
+    ...mineAsDefender.docs.map(toDebate),
+  ];
+  const mineUnique = [...new Map(mineRaw.map(d => [d.id, d])).values()];
+  const statusOrder: Record<string, number> = { ACTIVE: 0, PENDING: 1, ENDED: 2, JUDGED: 3, DECLINED: 4 };
+  const mine = mineUnique
+    .sort((a, b) => (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5) || b.createdAt - a.createdAt)
+    .slice(0, 12);
+
+  // All platform debates
+  const all = platform.docs.map(toDebate);
+
+  // Following — debates where at least one participant is followed
+  const followSet = new Set(followingIds);
+  const following = all
+    .filter(d => d.id && (followSet.has(d.challengerId) || followSet.has(d.defenderId)) && d.challengerId !== uid && d.defenderId !== uid)
+    .sort((a, b) => engagementScore(b) - engagementScore(a))
+    .slice(0, 12);
+
+  // Trending — exclude own debates, sort by engagement
+  const trending = all
+    .filter(d => d.challengerId !== uid && d.defenderId !== uid && d.status !== 'DECLINED')
+    .sort((a, b) => engagementScore(b) - engagementScore(a))
+    .slice(0, 12);
+
+  return { mine, following, trending };
 }

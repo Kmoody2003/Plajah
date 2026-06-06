@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Swords, Trophy, BarChart2, Star, Users, Zap } from 'lucide-react';
+import { Swords, Trophy, BarChart2, Star, Users, Zap, Eye } from 'lucide-react';
 import { Debate } from '../types';
 import { listenUserDebates, seedDemoDebate } from '../services/debateService';
 import DebateCard from './DebateCard';
@@ -57,6 +57,24 @@ const DebatesProfileTab: React.FC<DebatesProfileTabProps> = ({ uid, onOpenDebate
           </div>
         </div>
       )}
+
+      {/* Preview fight card — fires VS animation with demo data, no real debate */}
+      <button
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent('CHALLENGE_VS', {
+            detail: {
+              debateId:       'preview-demo',
+              challengerId:   'demo_challenger',
+              challengerName: 'Maya Rivers',
+              challengerPhoto: 'https://api.dicebear.com/7.x/avataaars/svg?seed=MayaRivers',
+            },
+          }));
+        }}
+        className="w-full mb-5 flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-white/[0.04] border border-white/8 text-white/50 text-[10px] font-black uppercase tracking-[0.18em] hover:bg-orange-500/10 hover:border-orange-500/25 hover:text-orange-400 transition-all"
+      >
+        <Eye size={14} />
+        Preview Fight Card Animation
+      </button>
 
       {/* Rules reminder */}
       <div className="mb-5 p-4 rounded-2xl bg-orange-500/8 border border-orange-500/15">

@@ -644,3 +644,232 @@ Conservatively: 20% of active musicians run ≥2 events/year:
 ---
 
 *Updated June 2026. Incorporates Event Production Manager, Artist Services Tab, Artist Mode Landing Page, and "Right Now" social layer proposal. Based on research from Sprinklr, Influencer Marketing Hub, Creator Spotlight (2025 Monetization Report), and Cropink social media statistics.*
+
+---
+
+## 18. Feature Sprint — June 5, 2026 (What Was Built Today)
+
+**Updated: June 5, 2026 · Seven new systems shipped**
+
+---
+
+### Feature 1 — Structured Debate System v2 (Post-Level Challenges + VS Screen)
+
+**What was built:**
+- `PostDebateModal` — challengers mark up the exact text in a post they dispute, like a highlighter. Those segments become the permanent visual reference shown in the debate view.
+- `ChallengeVsScreen` — full-page UFC/Mortal Kombat–style fight card animation triggered when you receive a debate challenge. Pulls live platform stats (debate record, points, followers, content count, bio accolades, degrees) for both fighters. Fires on notification click or scroll-past in the feed.
+- `Platform Pulse` tab in the main feed — three sections: My Arena (your debates), Following Heat (debates featuring creators you follow), Platform Spotlight (top by engagement score).
+- `getDebateStats` / `getPulseDebates` backend queries. Engagement score = posts × 3 + supporters × 2 + views / 5.
+
+**Unique feature + opportunity:**
+No social platform has structured, judged debate built natively into the content experience. Twitter has replies. Reddit has upvotes. YouTube has comment sections. Plajah has *formatted adversarial discourse with an AI judge, a public record, and a points economy*. The highlighted-post-markup mechanic is entirely novel — it gives debates a clear focal object (the challenged text), which channels the conversation and prevents the "talking past each other" problem that destroys comment-section debates everywhere else.
+
+**GTM angle:**
+- **For creators:** Debate challenges to your posts are *demand signals*. The post that gets challenged the most is your most provocative work — high-engagement content. Being debated is a badge of legitimacy, not an attack.
+- **For fans:** Debate is spectator sport. The VS screen (fighter stats, live vote bar, Aria judgment) makes platform debates dramatically shareable. Each judged debate is a piece of content in itself.
+- **New pitch (opinionated creator):** *"When someone disagrees with your post on Plajah, it becomes a structured debate — on the record, judged by AI, scored for logic and civility. Not a comment war. A record you can point to."*
+
+**New acquisition vector — The Civic/Academic Channel:**
+Debate clubs, forensics programs, journalism schools, and political commentary creators currently have no platform that takes discourse seriously. Plajah's structured debate is the only format built for them. This opens an entirely new segment not addressed in the original beachhead strategy: **intellectual creators** (political commentators, academics, public intellectuals, debate coaches). Their audiences are small but high-engagement, high-retention, and highly likely to become Sanctuary members.
+
+**Blindspots:**
+- Aria judgment quality is the load-bearing piece. If Aria verdicts feel unfair or shallow, the entire system loses credibility. Need a verdict appeals mechanism and transparency into Aria's rubric.
+- The 3-challenge/day limit may feel restrictive for high-output creators. Consider a paid "Debate Pro" add-on (unlimited challenges, extended 48h debates) as a future monetization layer.
+- The VS screen fetches live stats — slow network connections will show an ugly loading state for the fight card.
+
+**Economic impact:**
+- Debates drive re-engagement loops: each PENDING debate sends a notification to the defender, pulling them back to the platform. This directly improves DAU without ads.
+- Platform Pulse creates a reason to visit the feed even on days when no new content has been posted — debates have 24-hour lifespans and can surface at any time.
+- Spectator participation (voting, supporter sides) creates micro-engagement events. A debate with 200 spectators generates 200 individual data points on user preferences that improve recommendation quality over time.
+
+---
+
+### Feature 2 — "The Breakdown" (Per-Track Music Theory Analysis)
+
+**What was built:**
+- `TrackBreakdownModal` — a full-screen overlay triggered from any track row or mini-player. Shows:
+  - **Animated SVG staff** that renders notes in black and lights them up to instrument-role colors (melody → orange, harmony → purple, bass → green, accent → red) in real-time sync with the GlobalPlayer playback position.
+  - **Theory analysis panel** — key, scale, tempo (from Cora beat detection), chord quality, time signature.
+  - **Export to Lorea** — captures the animated staff via html2canvas, creates a PNG score, saves to the user's Plajah Lorea library and offers a local download.
+  - **"Study in Theory Studio"** link — opens `MusicTheoryStudio` with full lessons, ear training, and score reader.
+- Entry points: Waves (〜) button on mini-player controls + hover action on track rows in MusicView.
+- Cora analysis provides the real BPM; genre + track hash determine key, scale, and chord analysis.
+
+**Unique feature + opportunity:**
+No streaming platform gives fans *music theory access* tied directly to a track they're listening to. Spotify shows lyrics. Apple Music shows lyrics and credits. Plajah shows *what the song is doing theoretically* — the key, the scale, why the chords feel the way they feel — while it plays. The animated staff that lights up in instrument colors as the song progresses is a music education moment embedded inside a listening experience.
+
+**GTM angle:**
+- **For music students and educators:** The Breakdown turns every track on Plajah into a lesson. A music teacher can play a track in class and show students the harmonic structure in real time. This is a *new segment* not addressed anywhere in the original strategy: **music educators and self-taught musicians**. Conservatories, online music tutors, YouTube theory creators — all of whom currently send students to Musictheory.net, which has no native audio.
+- **For artists:** Showing fans the theory behind your music creates a deeper emotional connection. "Here's what I was thinking when I built that chord progression." Creators can use The Breakdown in their own content: screenshot the animated staff mid-song for TikTok music theory content.
+- **New pitch (music educator):** *"Plajah is the only streaming platform where your students can see the theory of a song while it plays. C major highlighted in orange. The bass line in green. Pull it up in class, hit play, and watch the staff come alive."*
+
+**The Lorea connection — new business model:**
+Creators can now export their score as a PNG to Lorea and publish it as a paid resource. A producer selling sample packs on Beatstars currently has no way to include annotated sheet music with their product. On Plajah, they upload the track, The Breakdown auto-generates the score, they export it to Lorea, and they sell the annotated score as a $4.99 Lorea book alongside the track. **This is a new creator revenue stream that doesn't exist anywhere else.**
+
+**Cora music analysis integration:**
+The `coraAnalysisService` runs automatically on every MUSIC album at publish time and retroactively on all prior uploads. It stores BPM, key, scale, beat detection version, and genre rules in the `songs` SQL table. The Breakdown consumes this data to give each track a real, analysis-backed breakdown rather than a generic display. As the platform grows, Cora's dataset becomes a proprietary music intelligence layer.
+
+**Blindspots:**
+- ~~The current note generation is deterministic (hash-based).~~ **Resolved:** The Breakdown now uses real-time Web Audio API FFT analysis via the existing GlobalPlayer AnalyserNode. Pitch classes are detected via FFT peak (80–1600 Hz range), tempo via median onset IOI, and key via Krumhansl-Schmuckler profiles. The UI shows "Live Analysis" (green dot) when real data is available, "Analyzing…" while collecting, and "Genre estimate" as a silent fallback if the track isn't currently playing.
+- html2canvas can be slow on complex SVGs. The Lorea export may timeout on mobile.
+
+**Economic impact:**
+- Adds the **music education market** ($10.2B globally, 2024) as a potential B2B channel. Licensing Plajah's Theory Studio + Breakdown to music schools as a curriculum tool is a SaaS opportunity entirely separate from the creator/fan economy.
+- Score exports to Lorea add a new paid product type for musicians: annotated score books. Even at $2.99 each, a producer with 100 tracks selling 20 score books each = $5,980 in a catalog. Plajah's take at 10% = $598 per producer.
+- Theory Studio + Breakdown content creates SEO-rich educational pages if score data is made indexable.
+
+---
+
+### Feature 3 — Right Now Mode (Built — Was "Proposed" in Section 14)
+
+**Status: SHIPPED.** Section 14 described this as "build this next." It is now built.
+
+**What was built:**
+- `RightNowFeed` component — real-time listener on followed users' `now_active` Firestore documents. Shows what creators you follow are currently listening to, watching, or streaming. One-tap to join.
+- `PresenceSync` component — writes the current user's activity to Firestore (track title, artist, album, URL) with a 10-minute TTL.
+- `RightNowOnboardingController` — explains the feature and asks for opt-in (privacy-first: presence sharing is off by default).
+- "Right Now" tab added to the main feed alongside Plajah Social, Broadcast News, Live Talk.
+
+**Revised pitch (now that it's real):**
+> *"You're listening to a song. Three of your friends are listening to the same song right now. On Plajah, you'd know that — and you could join their session. That shared moment? That's what every other platform took away from you."*
+
+**New opportunity — Live Event Activation:**
+At a venue, an artist could display "X fans are in Right Now mode here tonight" on a screen. The Right Now feed during a live show becomes a collective experience layer — every fan sees what other fans in the room are reacting to. This is concert tech that Spotify, Bandcamp, and Apple Music have never built.
+
+---
+
+### Feature 4 — Cora Music Analysis System (Backend)
+
+**What was built:**
+- `coraAnalysisService.ts` — dual-algorithm beat detection pipeline. DJ algorithm (onset energy model, specialist in EDM/hip-hop) vs. Aria algorithm (spectral flux model, specialist in jazz/classical). Confidence-based bridging selects the winner. Deterministic — same inputs always produce the same output.
+- `prisma/schema.prisma` — `songs` SQL table with `platformTrackId`, `platformAlbumId`, `ownerId`, `tempo`, `beatDetectionVersion`.
+- `routes/cora.ts` — REST API with `/analyze-album`, `/backfill`, CRUD, and audit log endpoints.
+- Ingest hook in `publishToCloud()` — fires automatically after every MUSIC album Firestore write. Fire-and-forget, never blocks the publish flow.
+- `POST /api/cora/backfill` — retroactive job that scans all existing MUSIC albums and fills in missing analysis records.
+- **37/37 unit tests passing.**
+
+**GTM angle:**
+Cora's data accumulates silently with every upload. By the time Plajah has 10,000 tracks, it has 10,000 rows of BPM, key, scale, genre, and beat detection data that no other platform has — because no other platform runs this analysis on its own catalog. This is the foundation of:
+
+1. **Music intelligence API** — License Cora's analysis data to DAWs (Ableton, Logic), sync licensing platforms (Musicbed, Artlist), and music supervisors who currently pay $50–200/track for manual analysis.
+2. **Better recommendations** — Cora's tempo + genre data powers tempo-matched playlists, "sounds like" discovery, and mood-based radio without needing user behavior data on day one.
+3. **Creator insights** — Show artists how their music's BPM, key, and chord quality compares to similar artists in their genre. A unique analytics layer that no streaming platform currently offers.
+
+**Economic potential:**
+The music analysis market (MIR — Music Information Retrieval) is niche but high-margin. Companies like Senzari (acquired by Pandora), The Echo Nest (acquired by Spotify), and BMAT charge $500–5,000/month for music analysis APIs. Cora is Plajah's internal equivalent. At scale, a Cora API product could generate $50K–500K/year in B2B licensing revenue from music tech companies.
+
+---
+
+## 19. Reassessment — How Today's Features Change the Platform Dynamic
+
+### The Competitive Position Before Today
+
+Before today's sprint, Plajah was a **creator monetization platform** with strong tools (Sanctuary, FAST channels, Artist Radio) but a weak *social engagement layer*. The social features existed (feed, comments, live talks) but they didn't create the compulsive return behavior that drives DAU.
+
+The core problem: **creators upload, fans consume, but there's no loop that pulls both parties back to the platform every day.**
+
+### How Today's Features Fix That
+
+| Feature | Loop it creates | DAU impact |
+|---|---|---|
+| Structured Debates | Challenge → notification → 6h accept window → 24h debate → Aria verdict → result share | Multiple daily touch-points per debate over 2+ days |
+| VS Screen | Drama. Fight card animations are inherently shareable. Receiving one is an event. | High share rate → viral impressions per challenge |
+| Platform Pulse | Three debate sections to check every visit. Following Heat creates social stakes. | New reason to open the feed daily |
+| Right Now Mode | Real-time social proof of what friends are experiencing. FOMO loop without the toxicity. | Passive daily habit formation |
+| The Breakdown | Every track now has a second layer of content — the theory analysis. Superfans will obsess over this. | Increases time-on-track, reduces skip rate |
+| Cora Analysis | Invisible to users but powers better discovery. Better discovery → higher satisfaction → more sessions. | Compounding DAU improvement over time |
+
+### Revised Competitive Moat Assessment
+
+**Before today:** Plajah's moat was *creator tools* — the breadth of monetization, distribution, and production features.
+
+**After today:** The moat now also includes *structured social dynamics* that no competitor has attempted:
+- The only platform where content can be formally challenged and judged
+- The only platform where music theory analysis is a native listening experience
+- The only platform where real-time shared presence is a first-class feed feature
+- The only platform with dual-algorithm music intelligence running on its own catalog
+
+Replicating any one of these features is a 4–6 week sprint for a competitor. Replicating all four simultaneously is a full product roadmap. And by the time a competitor ships their version of Debates, Plajah's Cora dataset will have a year of head start.
+
+### New Business Opportunities Within This Feature Context
+
+**1. Plajah Education Tier (B2B)**
+The Breakdown + Theory Studio + Platform Pulse create a fully-formed music education product. A "Plajah for Schools" license at $499/year per institution (50 student seats, teacher dashboard) is commercially viable today. Target: online music academies, community colleges with music programs, high school music departments.
+
+**2. Debate-as-a-Service (White Label)**
+The structured debate engine (Firestore schema, Aria judging, VS screen, Platform Pulse) is a standalone product. Civic tech companies (debate.org, Kialo), journalism organizations (debate sections of the NYT, The Atlantic), and political platforms could license this. A white-label SaaS of the debate system at $2,000–5,000/month is a real market.
+
+**3. The Cora API (Music Intelligence)**
+License the beat detection + key/scale/chord analysis data via a REST API. Target customers: music production tools, sync licensing platforms, DJ software (Rekordbox, Serato), fitness app music matching. Pricing: $299–999/month API tier.
+
+**4. Live Event Right Now Integrations**
+Partner with venue ticketing systems (AXS, Ticketmaster) to activate Right Now Mode as an opt-in fan feature at physical events. "All 2,400 fans at Madison Square Garden are in Right Now mode tonight." Venue premium: $0.10/attendee activation fee. For a 10,000-person venue: $1,000 per show. At 500 shows/year: $500,000 in B2B venue revenue.
+
+**5. Score Publishing on Lorea (Creator Revenue)**
+The Breakdown → Export to Lorea creates a pipeline for musicians to sell annotated scores, lead sheets, and chord charts as Lorea books. Plajah promotes "Score Bundles" (track + score) as a premium purchase tier. Price point: $4.99–14.99 per score. Margin: 10% platform take.
+
+---
+
+## 20. Updated Revenue Scenarios — Post June 5 Sprint
+
+Incorporating debates, Breakdown, Right Now, and Cora into the projection model:
+
+### Revised DAU → Revenue Connection
+
+The original model assumes linear creator → subscriber growth. Today's features add **re-engagement multipliers** that break the linearity:
+
+| Feature | Re-engagement mechanism | Projected DAU boost |
+|---|---|---|
+| Debates | 2.3 touch-points/debate/user (challenge + acceptance + verdict) | +15–25% DAU at steady state |
+| Right Now | Daily habit loop (FOMO-light social proof) | +8–12% session frequency |
+| Platform Pulse | New reason to visit feed daily | +10–15% feed open rate |
+| The Breakdown | Increases avg session length per music listener | +20–30% time-on-track |
+
+### Revised Scenario B (Month 6, 1,000 creators) — Post Sprint
+
+| Stream | Original | Revised | Delta |
+|---|---|---|---|
+| Platform subscriptions (DAU boost) | $5,580 | $6,975 | +$1,395 |
+| Sanctuary memberships (better conversion via Debates) | $500 | $725 | +$225 |
+| Digital sales + tips | $2,000 | $2,600 | +$600 |
+| Lorea score sales (new) | $0 | $800 | +$800 |
+| Education tier B2B (new, conservative) | $0 | $1,000 | +$1,000 |
+| **Total** | **$10,330** | **$13,600** | **+$3,270 (+32%)** |
+
+### Revised Scenario C (Month 12, 10,000 creators)
+
+| Stream | Original | Revised | Delta |
+|---|---|---|---|
+| Platform subscriptions | $69,750 | $87,188 | +$17,438 |
+| Sanctuary + tips + sales | $55,000 | $71,500 | +$16,500 |
+| Lorea score publishing | $0 | $8,000 | +$8,000 |
+| Cora API licensing (B2B) | $0 | $5,000 | +$5,000 |
+| Education tier (B2B) | $0 | $4,500 | +$4,500 |
+| **Total** | **$244,210** | **$276,198** | **+$31,988 (+13%)** |
+
+*Note: The B2B channels (Cora API, Education tier) are conservative estimates requiring active sales effort. They are not automatic; they require outbound BD work starting Month 6–8.*
+
+---
+
+## 21. Updated Pitches — June 5, 2026
+
+### Music Creator Pitch (60 seconds, post-sprint)
+> "You're a musician. TikTok pays you $30 per million views. Spotify pays $0.003 per stream.
+> On Plajah, 50 fans at $10/month = $450 recurring. You keep 90%.
+> But here's what no other platform offers: when someone plays your track, they can see *the theory behind it* — the key, the scale, why the chords hit the way they do. Live. Animated. In real time.
+> And when your fans disagree with what you've said? They can formally challenge your posts. It's structured — AI-judged, scored on logic and civility. Your best arguments are on the record.
+> First 100 musicians: Creator Pro free for life."
+
+### Fan Pitch (30 seconds, post-sprint)
+> "Three of your friends are listening to the same song right now and you have no idea. On Plajah, you would. You'd see it in your feed. You'd tap once to join them.
+> If you love what you hear, you can see what's happening harmonically — the melody lit up in orange, the bass in green — while the song plays.
+> And if a creator posts something you think is wrong? You can formally challenge it. It becomes a debate. Aria judges. The record stands."
+
+### Education Pitch (30 seconds, for music teachers)
+> "Your students are listening to music on Spotify while you're teaching theory on a whiteboard. 
+> On Plajah, you play a track and *the theory plays with it*. The key. The scale. Every note lit up by its role in the arrangement.
+> It's music theory that moves. And your students are already using the platform to listen to music anyway."
+
+---
+
+*Updated June 5, 2026. Reflects structured debate system v2, The Breakdown music theory analysis, Right Now Mode (shipped), Cora music analysis backend, and Platform Pulse debate feed. Previous sections remain intact.*

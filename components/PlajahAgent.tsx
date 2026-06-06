@@ -316,6 +316,17 @@ const PlajahAgent: React.FC<Props> = ({
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (!prompt) return;
+      setInput(prompt);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    window.addEventListener('OPEN_ARIA', handler as EventListener);
+    return () => window.removeEventListener('OPEN_ARIA', handler as EventListener);
+  }, []);
+
   const canSend = !!input.trim() && !isThinking && (tierCfg.dailyMessages === -1 || usage.dailyMessages < tierCfg.dailyMessages);
 
   const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {

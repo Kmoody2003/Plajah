@@ -1,4 +1,13 @@
 // ESPN public API – no key required.  All responses are cached in-memory.
+import { findStaticTeam } from '../data/leagueTeams';
+import {
+  makeSportsDocId,
+  readSportsKnowledge,
+  sportsSource,
+  writeSportsKnowledge,
+  writeSportsKnowledgeBatch,
+} from './sportsKnowledgeService';
+
 const ESPN = 'https://site.api.espn.com/apis/site/v2/sports';
 
 // ---------- cache ---------------------------------------------------------
@@ -23,9 +32,9 @@ async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<an
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
-    // Route through server-side proxy to avoid CORS in production
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, { signal: ctrl.signal });
+    const isBrowser = typeof window !== 'undefined';
+    const requestUrl = isBrowser ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+    const res = await fetch(requestUrl, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
     const data = await res.json();
@@ -37,23 +46,180 @@ async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<an
   }
 }
 
-// ---------- league config --------------------------------------------------
-export type LeagueTab = 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS';
+const ESPN_SOURCE_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 
-const LEAGUES: Record<Exclude<LeagueTab, 'ESPORTS'>, { sport: string; league: string }> = {
+// ---------- league config --------------------------------------------------
+export type LeagueTab =
+  | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'WNBA' | 'ESPORTS' | 'FIFA' | 'MLS'
+  | 'UFC' | 'MMA' | 'BOXING' | 'MARTIAL_ARTS' | 'FENCING' | 'TENNIS' | 'GOLF'
+  | 'CRICKET' | 'RUGBY' | 'WRESTLING' | 'VOLLEYBALL' | 'LACROSSE';
+
+const LEAGUES: Partial<Record<Exclude<LeagueTab, 'ESPORTS'>, { sport: string; league: string }>> = {
   NBA:  { sport: 'basketball', league: 'nba' },
   NFL:  { sport: 'football',   league: 'nfl' },
   NHL:  { sport: 'hockey',     league: 'nhl' },
   MLB:  { sport: 'baseball',   league: 'mlb' },
   NCAA: { sport: 'basketball', league: 'mens-college-basketball' },
+  WNBA: { sport: 'basketball', league: 'wnba' },
   // Soccer — ESPN endpoints for news/scores; TSDB handles teams/standings
   FIFA: { sport: 'soccer',     league: 'eng.1' },  // Premier League as global soccer feed
   MLS:  { sport: 'soccer',     league: 'usa.1' },
 };
 
+export interface SpecialtySportCfg {
+  id: string;
+  label: string;
+  sportFamily: string;
+  summary: string;
+  rssCategory: string;
+  espnPaths: string[];
+  publicSources: { name: string; url: string; note: string }[];
+}
+
+const SPECIALTY_SPORTS: Record<string, SpecialtySportCfg> = {
+  UFC: { id: 'UFC', label: 'UFC', sportFamily: 'Combat Sports', summary: 'UFC cards, fight-night headlines, rankings context, and public fight results.', rssCategory: 'SPORTS_UFC', espnPaths: ['mma/ufc'], publicSources: [
+    { name: 'ESPN MMA', url: 'https://www.espn.com/mma/', note: 'News, cards, rankings, and fight coverage.' },
+    { name: 'UFC Stats', url: 'http://ufcstats.com/statistics/events/completed', note: 'Official historical fight result tables.' },
+    { name: 'TheSportsDB', url: 'https://www.thesportsdb.com/documentation', note: 'Free community sports API for metadata, players, teams, and events.' },
+  ] },
+  MMA: { id: 'MMA', label: 'MMA', sportFamily: 'Combat Sports', summary: 'Mixed martial arts headlines and event tracking across public combat-sports sources.', rssCategory: 'SPORTS_MMA', espnPaths: ['mma'], publicSources: [
+    { name: 'ESPN MMA', url: 'https://www.espn.com/mma/', note: 'Major MMA headlines and event coverage.' },
+    { name: 'Sherdog', url: 'https://www.sherdog.com/news/news/list', note: 'Public news feed and fighter/event context.' },
+    { name: 'TheSportsDB', url: 'https://www.thesportsdb.com/', note: 'Community sports metadata where coverage exists.' },
+  ] },
+  BOXING: { id: 'BOXING', label: 'Boxing', sportFamily: 'Combat Sports', summary: 'Boxing headlines, cards, champions, and public fight-result sources.', rssCategory: 'SPORTS_BOXING', espnPaths: ['boxing'], publicSources: [
+    { name: 'ESPN Boxing', url: 'https://www.espn.com/boxing/', note: 'Boxing headlines, schedules, and analysis.' },
+    { name: 'The Ring', url: 'https://www.ringtv.com/', note: 'Public rankings and boxing news.' },
+    { name: 'Box.Live', url: 'https://box.live/', note: 'Public schedules and upcoming fight cards.' },
+  ] },
+  MARTIAL_ARTS: { id: 'MARTIAL_ARTS', label: 'Martial Arts', sportFamily: 'Combat Sports', summary: 'Karate, judo, taekwondo, grappling, and martial arts headlines from public federation sources.', rssCategory: 'SPORTS_MARTIAL_ARTS', espnPaths: ['mma'], publicSources: [
+    { name: 'World Karate Federation', url: 'https://www.wkf.net/news-center-new', note: 'Karate federation news and events.' },
+    { name: 'International Judo Federation', url: 'https://www.ijf.org/news', note: 'Judo news, competitions, and rankings context.' },
+    { name: 'World Taekwondo', url: 'https://www.worldtaekwondo.org/', note: 'Taekwondo federation events and news.' },
+  ] },
+  FENCING: { id: 'FENCING', label: 'Fencing', sportFamily: 'Olympic Sports', summary: 'FIE and Olympic-style fencing headlines, events, rankings, and public federation links.', rssCategory: 'SPORTS_FENCING', espnPaths: [], publicSources: [
+    { name: 'FIE', url: 'https://fie.org/', note: 'International fencing federation rankings, competitions, and news.' },
+    { name: 'USA Fencing', url: 'https://www.usafencing.org/news', note: 'US fencing news and athlete/event coverage.' },
+    { name: 'Olympics Fencing', url: 'https://olympics.com/en/sports/fencing/', note: 'Olympic sport explainer and competition coverage.' },
+  ] },
+  TENNIS: { id: 'TENNIS', label: 'Tennis', sportFamily: 'Racket Sports', summary: 'ATP/WTA headlines, tournament schedules, and tennis match coverage.', rssCategory: 'SPORTS_TENNIS', espnPaths: ['tennis/atp', 'tennis/wta'], publicSources: [
+    { name: 'ESPN Tennis', url: 'https://www.espn.com/tennis/', note: 'ATP/WTA news and tournament coverage.' },
+    { name: 'ATP Tour', url: 'https://www.atptour.com/', note: 'Men’s tour rankings, draws, and results.' },
+    { name: 'WTA', url: 'https://www.wtatennis.com/', note: 'Women’s tour rankings, draws, and results.' },
+  ] },
+  GOLF: { id: 'GOLF', label: 'Golf', sportFamily: 'Golf', summary: 'PGA/LPGA headlines, tournament leaderboards, and public tour links.', rssCategory: 'SPORTS_GOLF', espnPaths: ['golf/pga'], publicSources: [
+    { name: 'ESPN Golf', url: 'https://www.espn.com/golf/', note: 'Tournament coverage and headlines.' },
+    { name: 'PGA Tour', url: 'https://www.pgatour.com/', note: 'Leaderboards, schedules, and player profiles.' },
+    { name: 'LPGA', url: 'https://www.lpga.com/', note: 'Women’s tour results and player coverage.' },
+  ] },
+  CRICKET: { id: 'CRICKET', label: 'Cricket', sportFamily: 'Cricket', summary: 'International and league cricket headlines with ESPN Cricinfo as the primary public source.', rssCategory: 'SPORTS_CRICKET', espnPaths: ['cricket'], publicSources: [
+    { name: 'ESPN Cricinfo', url: 'https://www.espncricinfo.com/', note: 'Cricket scores, fixtures, stats, and news.' },
+    { name: 'ICC', url: 'https://www.icc-cricket.com/', note: 'International cricket rankings and tournaments.' },
+    { name: 'Cricbuzz', url: 'https://www.cricbuzz.com/', note: 'Public live score and news coverage.' },
+  ] },
+  RUGBY: { id: 'RUGBY', label: 'Rugby', sportFamily: 'Rugby', summary: 'Rugby union and league news, fixtures, and federation coverage.', rssCategory: 'SPORTS_RUGBY', espnPaths: ['rugby'], publicSources: [
+    { name: 'ESPN Rugby', url: 'https://www.espn.com/rugby/', note: 'Rugby news and match coverage.' },
+    { name: 'World Rugby', url: 'https://www.world.rugby/', note: 'Global fixtures, rankings, and competitions.' },
+    { name: 'TheSportsDB', url: 'https://www.thesportsdb.com/', note: 'Community teams/events metadata.' },
+  ] },
+  WRESTLING: { id: 'WRESTLING', label: 'Wrestling', sportFamily: 'Combat Sports', summary: 'Olympic wrestling, college wrestling, and pro wrestling headlines from public sources.', rssCategory: 'SPORTS_WRESTLING', espnPaths: ['mma'], publicSources: [
+    { name: 'United World Wrestling', url: 'https://uww.org/', note: 'Olympic wrestling news, rankings, and events.' },
+    { name: 'NCAA Wrestling', url: 'https://www.ncaa.com/sports/wrestling/d1', note: 'College championship coverage.' },
+    { name: 'ESPN Combat Sports', url: 'https://www.espn.com/mma/', note: 'Adjacent combat sports coverage.' },
+  ] },
+  VOLLEYBALL: { id: 'VOLLEYBALL', label: 'Volleyball', sportFamily: 'Volleyball', summary: 'International volleyball and beach volleyball news and public event sources.', rssCategory: 'SPORTS_VOLLEYBALL', espnPaths: [], publicSources: [
+    { name: 'Volleyball World', url: 'https://en.volleyballworld.com/', note: 'International volleyball scores, rankings, and news.' },
+    { name: 'FIVB', url: 'https://www.fivb.com/', note: 'Federation competitions and announcements.' },
+    { name: 'NCAA Volleyball', url: 'https://www.ncaa.com/sports/volleyball-women/d1', note: 'College tournament coverage.' },
+  ] },
+  LACROSSE: { id: 'LACROSSE', label: 'Lacrosse', sportFamily: 'Lacrosse', summary: 'PLL, NLL, college lacrosse, and international lacrosse public coverage.', rssCategory: 'SPORTS_LACROSSE', espnPaths: ['lacrosse'], publicSources: [
+    { name: 'Premier Lacrosse League', url: 'https://premierlacrosseleague.com/', note: 'PLL schedules, rosters, standings, and news.' },
+    { name: 'NLL', url: 'https://www.nll.com/', note: 'Box lacrosse league schedules and news.' },
+    { name: 'NCAA Lacrosse', url: 'https://www.ncaa.com/sports/lacrosse-men/d1', note: 'College tournament and team coverage.' },
+  ] },
+};
+
+export function getSpecialtySportCfg(tab: string) {
+  return SPECIALTY_SPORTS[tab] ?? null;
+}
+
+export function getSpecialtySports() {
+  return Object.values(SPECIALTY_SPORTS);
+}
+
 export function getLeagueCfg(tab: string) {
   if (tab === 'ESPORTS') return null;
   return LEAGUES[tab as Exclude<LeagueTab, 'ESPORTS'>] ?? null;
+}
+
+const normalizeArticle = (article: any, source = 'Sports') => ({
+  ...article,
+  headline: article?.headline || article?.title || '',
+  title: article?.title || article?.headline || '',
+  source: article?.source || source,
+  links: article?.links || (article?.url ? { web: { href: article.url } } : undefined),
+  images: article?.images || (article?.imageUrl ? [{ url: article.imageUrl }] : []),
+});
+
+async function fetchSpecialtySportsNews(tab: string): Promise<any[]> {
+  const cfg = getSpecialtySportCfg(tab);
+  if (!cfg) return [];
+  const key = `specialty:news:${tab}`;
+  const cached = fromCache(key, TTL.news);
+  if (cached) return cached;
+
+  const espnResults = await Promise.allSettled(
+    cfg.espnPaths.map(path => safeFetch(`${ESPN}/${path}/news?limit=20`))
+  );
+  let articles = espnResults.flatMap(result =>
+    result.status === 'fulfilled' ? (result.value?.articles ?? []) : []
+  );
+
+  if (articles.length === 0) {
+    try {
+      const { fetchNewsFromRSS } = await import('./rssService');
+      const rss = await fetchNewsFromRSS(cfg.rssCategory);
+      articles = rss.map((item: any) => normalizeArticle(item, cfg.label));
+    } catch {
+      articles = [];
+    }
+  }
+
+  const normalized = articles.map((article: any) => normalizeArticle(article, cfg.label)).slice(0, 24);
+  toCache(key, normalized);
+  return normalized;
+}
+
+async function fetchSpecialtySportsScores(tab: string): Promise<any[]> {
+  const cfg = getSpecialtySportCfg(tab);
+  if (!cfg) return [];
+  const key = `specialty:scores:${tab}`;
+  const cached = fromCache(key, TTL.scores);
+  if (cached) return cached;
+
+  const results = await Promise.allSettled(
+    cfg.espnPaths.map(path => safeFetch(`${ESPN}/${path}/scoreboard`))
+  );
+  const events = results.flatMap(result =>
+    result.status === 'fulfilled' ? (result.value?.events ?? []) : []
+  );
+  toCache(key, events);
+  return events;
+}
+
+async function resolveEspnTeamId(tab: string, teamId: string, fullName?: string): Promise<string> {
+  if (/^\d+$/.test(teamId)) return teamId;
+  const staticTeam = findStaticTeam(tab, teamId) || (fullName ? findStaticTeam(tab, fullName) : undefined);
+  const abbr = (staticTeam?.espnId || teamId).toLowerCase();
+  const name = (fullName || staticTeam?.name || '').toLowerCase();
+  const teams = await fetchLeagueTeams(tab).catch(() => []);
+  const matched = teams.find(t =>
+    t.id === teamId ||
+    t.abbreviation.toLowerCase() === abbr ||
+    t.name.toLowerCase() === name ||
+    (name && t.name.toLowerCase().includes(name))
+  );
+  return matched?.id || staticTeam?.espnId || teamId;
 }
 
 // ── TheSportsDB Soccer Config ────────────────────────────────────────────────
@@ -262,8 +428,13 @@ export interface TeamPageData {
 
 // ---------- teams list -----------------------------------------------------
 export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
+  if (getSpecialtySportCfg(tab)) return [];
+  const stored = await readSportsKnowledge<SportsTeam[]>('sports_league_teams', makeSportsDocId(tab), TTL.teams);
   // Soccer tabs use TheSportsDB (richer metadata, no ESPN key needed)
-  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerTeamsFromTSDB(tab);
+  if (tab === 'FIFA' || tab === 'MLS') {
+    const teams = await fetchSoccerTeamsFromTSDB(tab);
+    return teams.length ? teams : (stored?.data || []);
+  }
 
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
@@ -271,8 +442,9 @@ export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
   const cached = fromCache(key, TTL.teams);
   if (cached) return cached;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams?limit=50`);
-  if (!data?.sports?.[0]?.leagues?.[0]?.teams) return [];
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams?limit=50`;
+  const data = await safeFetch(sourceUrl);
+  if (!data?.sports?.[0]?.leagues?.[0]?.teams) return stored?.data || [];
 
   const teams: SportsTeam[] = data.sports[0].leagues[0].teams.map((t: any) => {
     const tm = t.team;
@@ -290,11 +462,19 @@ export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
   });
 
   toCache(key, teams);
+  writeSportsKnowledge('sports_league_teams', makeSportsDocId(tab), teams, [
+    sportsSource('ESPN', sourceUrl, `${tab} teams`),
+  ], ['sports', tab, 'teams'], 'HIGH').catch(() => {});
+  writeSportsKnowledgeBatch('sports_team_pages', teams, team => makeSportsDocId(tab, team.id), [
+    sportsSource('ESPN', sourceUrl, `${tab} team index`),
+  ], ['sports', tab, 'team'], 'MEDIUM').catch(() => {});
   return teams;
 }
 
 // ---------- league news (ESPN native JSON) ---------------------------------
 export async function fetchLeagueNews(tab: string): Promise<any[]> {
+  if (getSpecialtySportCfg(tab)) return fetchSpecialtySportsNews(tab);
+  const stored = await readSportsKnowledge<any[]>('sports_league_news', makeSportsDocId(tab), TTL.news);
   const key = `news:${tab}`;
   const cached = fromCache(key, TTL.news);
   if (cached) return cached;
@@ -307,13 +487,20 @@ export async function fetchLeagueNews(tab: string): Promise<any[]> {
   if (!espnPath) return [];
 
   const data = await safeFetch(espnPath);
-  const articles = data?.articles ?? [];
+  const articles = data?.articles ?? stored?.data ?? [];
   toCache(key, articles);
+  if (articles.length) {
+    writeSportsKnowledge('sports_league_news', makeSportsDocId(tab), articles, [
+      sportsSource('ESPN', espnPath, `${tab} news`),
+    ], ['sports', tab, 'news'], 'MEDIUM').catch(() => {});
+  }
   return articles;
 }
 
 // ---------- league scoreboard (scores) ------------------------------------
 export async function fetchLeagueScores(tab: string): Promise<any[]> {
+  if (getSpecialtySportCfg(tab)) return fetchSpecialtySportsScores(tab);
+  const stored = await readSportsKnowledge<any[]>('sports_league_scores', makeSportsDocId(tab, 'current'), TTL.scores);
   if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerScoresFromTSDB(tab);
 
   const cfg = getLeagueCfg(tab);
@@ -322,14 +509,22 @@ export async function fetchLeagueScores(tab: string): Promise<any[]> {
   const cached = fromCache(key, TTL.scores);
   if (cached) return cached;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/scoreboard`);
-  const events = data?.events ?? [];
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/scoreboard`;
+  const data = await safeFetch(sourceUrl);
+  const events = data?.events ?? stored?.data ?? [];
   toCache(key, events);
+  if (events.length) {
+    writeSportsKnowledge('sports_league_scores', makeSportsDocId(tab, 'current'), events, [
+      sportsSource('ESPN', sourceUrl, `${tab} current scoreboard`),
+    ], ['sports', tab, 'scores', 'live'], 'HIGH').catch(() => {});
+  }
   return events;
 }
 
 // ---------- standings ------------------------------------------------------
 export async function fetchLeagueStandings(tab: string): Promise<any[]> {
+  if (getSpecialtySportCfg(tab)) return [];
+  const stored = await readSportsKnowledge<any[]>('sports_league_standings', makeSportsDocId(tab, new Date().getFullYear()), TTL.standings);
   if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerStandingsFromTSDB(tab);
 
   const cfg = getLeagueCfg(tab);
@@ -338,10 +533,16 @@ export async function fetchLeagueStandings(tab: string): Promise<any[]> {
   const cached = fromCache(key, TTL.standings);
   if (cached) return cached;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/standings`);
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/standings`;
+  const data = await safeFetch(sourceUrl);
   // ESPN standings: data.children = [ { name: 'Eastern', standings: { entries: [] } } ]
-  const groups = data?.children ?? (data?.standings?.entries ? [data] : []);
+  const groups = data?.children ?? (data?.standings?.entries ? [data] : stored?.data ?? []);
   toCache(key, groups);
+  if (groups.length) {
+    writeSportsKnowledge('sports_league_standings', makeSportsDocId(tab, new Date().getFullYear()), groups, [
+      sportsSource('ESPN', sourceUrl, `${tab} standings`),
+    ], ['sports', tab, 'standings'], 'HIGH').catch(() => {});
+  }
   return groups;
 }
 
@@ -367,17 +568,19 @@ function parseRosterAthletes(rawAthletes: any[]): { group: string; athletes: any
 export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPageData | null> {
   const cfg = getLeagueCfg(tab);
   if (!cfg) return null;
-  const key = `teampage:${tab}:${teamId}`;
+  const resolvedTeamId = await resolveEspnTeamId(tab, teamId);
+  const key = `teampage:${tab}:${resolvedTeamId}`;
   const cached = fromCache(key, TTL.roster);
   if (cached) return cached;
+  const stored = await readSportsKnowledge<TeamPageData>('sports_team_pages', makeSportsDocId(tab, resolvedTeamId), TTL.roster);
 
-  const base = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}`;
+  const base = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${resolvedTeamId}`;
 
   const [teamRes, newsRes, rosterRes, scoresRes] = await Promise.allSettled([
     safeFetch(`${base}?enable=roster,record,stats`),
-    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?team=${teamId}&limit=15`),
+    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?team=${resolvedTeamId}&limit=15`),
     safeFetch(`${base}/roster`),
-    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=${new Date().getFullYear()}&seasontype=2&limit=10`),
+    safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/teams/${resolvedTeamId}/schedule?season=${new Date().getFullYear()}&seasontype=2&limit=10`),
   ]);
 
   const teamData   = teamRes.status   === 'fulfilled' ? teamRes.value   : null;
@@ -389,25 +592,34 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
   const roster = parseRosterAthletes(rawAthletes);
 
   const page: TeamPageData = {
-    team: teamData?.team ?? null,
-    news: newsData?.articles ?? [],
-    roster,
-    recentGames: scoresData?.events ?? [],
+    team: teamData?.team ?? stored?.data?.team ?? null,
+    news: newsData?.articles ?? stored?.data?.news ?? [],
+    roster: roster.length ? roster : (stored?.data?.roster ?? []),
+    recentGames: scoresData?.events ?? stored?.data?.recentGames ?? [],
   };
 
   if (page.team || page.news.length > 0 || page.roster.length > 0) {
     toCache(key, page);
+    writeSportsKnowledge('sports_team_pages', makeSportsDocId(tab, resolvedTeamId), page, [
+      sportsSource('ESPN', base, `${tab} team page ${resolvedTeamId}`),
+    ], ['sports', tab, 'team', resolvedTeamId], 'HIGH').catch(() => {});
+    if (page.roster.length) {
+      writeSportsKnowledge('sports_team_rosters', makeSportsDocId(tab, resolvedTeamId, new Date().getFullYear()), page.roster, [
+        sportsSource('ESPN', `${base}/roster`, `${tab} roster ${resolvedTeamId}`),
+      ], ['sports', tab, 'roster', resolvedTeamId], 'HIGH').catch(() => {});
+    }
   }
   return page;
 }
 
 // ---------- prefetch all leagues (warms cache silently) -------------------
 export function prefetchSports(): void {
-  const tabs: LeagueTab[] = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS'];
+  const tabs: LeagueTab[] = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
   tabs.forEach((tab, i) => {
     setTimeout(() => {
       fetchLeagueTeams(tab).catch(() => {});
       fetchLeagueNews(tab).catch(() => {});
+      fetchLeagueScores(tab).catch(() => {});
     }, i * 350);
   });
 }
@@ -573,10 +785,20 @@ async function fetchWikiSummary(title: string): Promise<string> {
   const key = `wiki:${title}`;
   const c = fromCache(key, TTL.teams);
   if (c !== null) return c;
-  const data = await safeFetch(
-    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, '_'))}`
-  );
-  const text = data?.extract ?? '';
+  const id = makeSportsDocId(title);
+  const stored = await readSportsKnowledge<{ title: string; extract: string; url?: string }>('sports_wikipedia_summaries', id);
+  const sourceUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+  const data = await safeFetch(sourceUrl);
+  const text = data?.extract ?? stored?.data?.extract ?? '';
+  if (text) {
+    writeSportsKnowledge('sports_wikipedia_summaries', id, {
+      title: data?.title || title,
+      extract: text,
+      url: data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`,
+    }, [
+      sportsSource('Wikipedia', sourceUrl, `Wikipedia summary: ${title}`, 'Wikipedia REST summary; stored with source URL and retrieved timestamp for historical context.'),
+    ], ['sports', 'wikipedia', title], 'MEDIUM').catch(() => {});
+  }
   toCache(key, text);
   return text;
 }
@@ -746,6 +968,7 @@ export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]>
       NHL:  ['points', 'goals', 'assists', 'plusMinus'],
       MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era'],
       NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
+      WNBA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
     };
     const priority = PRIORITY[tab] ?? [];
 
@@ -787,9 +1010,16 @@ export async function fetchPlayerProfile(tab: string, athleteId: string): Promis
   const key = `player:${tab}:${athleteId}`;
   const c = fromCache(key, TTL.roster);
   if (c !== null) return c;
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}`);
-  const profile = data?.athlete ?? null;
+  const stored = await readSportsKnowledge<any>('sports_player_profiles', makeSportsDocId(tab, athleteId), TTL.roster);
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}`;
+  const data = await safeFetch(sourceUrl);
+  const profile = data?.athlete ?? stored?.data ?? null;
   toCache(key, profile);
+  if (profile) {
+    writeSportsKnowledge('sports_player_profiles', makeSportsDocId(tab, athleteId), profile, [
+      sportsSource('ESPN', sourceUrl, `${tab} player ${athleteId}`),
+    ], ['sports', tab, 'player', athleteId], 'HIGH').catch(() => {});
+  }
   return profile;
 }
 
@@ -798,14 +1028,21 @@ export async function fetchPlayerProfile(tab: string, athleteId: string): Promis
 export async function fetchTeamFullSchedule(tab: string, teamId: string): Promise<any[]> {
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
-  const key = `fullsched:${tab}:${teamId}`;
+  const resolvedTeamId = await resolveEspnTeamId(tab, teamId);
+  const key = `fullsched:${tab}:${resolvedTeamId}`;
   const c = fromCache(key, TTL.scores);
   if (c) return c;
-  const data = await safeFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/schedule?season=${new Date().getFullYear()}&seasontype=2`
-  );
-  const events = data?.events ?? [];
+  const season = new Date().getFullYear();
+  const stored = await readSportsKnowledge<any[]>('sports_team_schedules', makeSportsDocId(tab, resolvedTeamId, season), TTL.scores);
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${resolvedTeamId}/schedule?season=${season}&seasontype=2`;
+  const data = await safeFetch(sourceUrl);
+  const events = data?.events ?? stored?.data ?? [];
   toCache(key, events);
+  if (events.length) {
+    writeSportsKnowledge('sports_team_schedules', makeSportsDocId(tab, resolvedTeamId, season), events, [
+      sportsSource('ESPN', sourceUrl, `${tab} schedule ${resolvedTeamId} ${season}`),
+    ], ['sports', tab, 'schedule', resolvedTeamId, String(season)], 'HIGH').catch(() => {});
+  }
   return events;
 }
 
@@ -818,16 +1055,23 @@ export async function fetchTeamRosterForSeason(
 ): Promise<{ group: string; athletes: any[] }[]> {
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
-  const key = `roster:${tab}:${teamId}:${season}`;
+  const resolvedTeamId = await resolveEspnTeamId(tab, teamId);
+  const key = `roster:${tab}:${resolvedTeamId}:${season}`;
   const c = fromCache(key, TTL.roster);
   if (c) return c;
-  const data = await safeFetch(
-    `${ESPN}/${cfg.sport}/${cfg.league}/teams/${teamId}/roster?season=${season}`
-  );
+  const stored = await readSportsKnowledge<{ group: string; athletes: any[] }[]>('sports_team_rosters', makeSportsDocId(tab, resolvedTeamId, season), TTL.roster);
+  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${resolvedTeamId}/roster?season=${season}`;
+  const data = await safeFetch(sourceUrl);
   const rawAthletes: any[] = data?.athletes ?? [];
   const roster = parseRosterAthletes(rawAthletes);
-  if (roster.length > 0) toCache(key, roster);
-  return roster;
+  const finalRoster = roster.length ? roster : (stored?.data ?? []);
+  if (finalRoster.length > 0) {
+    toCache(key, finalRoster);
+    writeSportsKnowledge('sports_team_rosters', makeSportsDocId(tab, resolvedTeamId, season), finalRoster, [
+      sportsSource('ESPN', sourceUrl, `${tab} roster ${resolvedTeamId} ${season}`),
+    ], ['sports', tab, 'roster', resolvedTeamId, String(season)], 'HIGH').catch(() => {});
+  }
+  return finalRoster;
 }
 
 // ─── LEAGUE CHAMPIONS HISTORY ────────────────────────────────────────────────

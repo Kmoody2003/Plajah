@@ -148,6 +148,8 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 const DebateView     = retryLazy(() => import('./components/DebateView'));
+import { ChallengeVsController } from './components/ChallengeVsScreen';
+import { TrackBreakdownController } from './components/TrackBreakdownModal';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
@@ -1108,7 +1110,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     switch (link) {
       case 'CHAT': setView('CHAT'); break;
       case 'DEBATE_DETAIL':
-        if (targetId) { setSelectedDebateId(targetId); setView('DEBATE_DETAIL'); }
+        if (targetId) {
+          // For DEBATE_CHALLENGE notifications, show the VS screen first
+          if (notif.type === 'DEBATE_CHALLENGE') {
+            window.dispatchEvent(new CustomEvent('CHALLENGE_VS', {
+              detail: {
+                debateId:       targetId,
+                challengerId:   notif.senderId   ?? '',
+                challengerName: notif.senderName ?? 'Challenger',
+                challengerPhoto: notif.senderPhoto ?? '',
+              },
+            }));
+            // Also navigate so DebateView is ready after VS screen closes
+            setSelectedDebateId(targetId);
+            setView('DEBATE_DETAIL');
+          } else {
+            setSelectedDebateId(targetId);
+            setView('DEBATE_DETAIL');
+          }
+        }
         break;
       case 'FEED': setView('FEED'); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
@@ -2069,7 +2089,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             onClick={() => {
                               if (tab === 'WORLDS') setView('WORLDS');
                               else if (tab === 'CLUBS') setView('CLUBS');
-                              else if (tab === 'SOCIAL') setView('SOCIAL_INSIGHTS');
+                              else if (tab === 'SOCIAL') setView('FEED');
                               else if (tab === 'SPORTS') setView('PLAJAH_SPORTS');
                               else if (tab === 'LIVE_HUB') setView('LIVE_HUB');
                               else if (tab === 'GAMES') setView('GAMES');
@@ -2722,6 +2742,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           <ExperiencePicker onPick={handleExperiencePicked} />
         )}
       </AnimatePresence>
+
+      {/* Challenge VS screen — fires on CHALLENGE_VS custom event */}
+      {user && <ChallengeVsController />}
+
+      {/* The Breakdown — fires on OPEN_BREAKDOWN custom event */}
+      <TrackBreakdownController onOpenTheoryStudio={() => setView('MUSIC_THEORY')} />
 
       {/* Onboarding Tour */}
       {showOnboarding && user && (

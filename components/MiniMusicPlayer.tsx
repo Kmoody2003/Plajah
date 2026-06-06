@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves } from 'lucide-react';
 import { Album, Track } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -146,6 +146,16 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
           </button>
           <button onClick={nextTrack} className="p-2 text-white/40 hover:text-white transition-all">
             <SkipForward size={16} fill="currentColor" />
+          </button>
+          {/* The Breakdown */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', {
+              detail: { track: album.tracks[currentTrackIndex], album },
+            }))}
+            title="The Breakdown — music theory analysis"
+            className="p-2 text-white/25 hover:text-orange-400 transition-all"
+          >
+            <Waves size={15} />
           </button>
         </div>
       </div>

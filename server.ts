@@ -10,6 +10,7 @@ import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
 import { readFileSync } from 'fs';
+import { coraRouter } from './routes/cora';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -1539,6 +1540,45 @@ async function startServer() {
   // ═══════════════════════════════════════════════════════════════════════════
   // All credential-sensitive operations run server-side.
   // The browser never sees raw access tokens after connecting an account.
+
+  app.post('/api/sports/ingest', authMiddleware, express.json({ limit: '128kb' }), async (req: any, res) => {
+    const isAdmin = await fetchFirebaseDoc('admins', req.uid);
+    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+
+    try {
+      const {
+        scope = 'standard',
+        leagues,
+        includeHistory,
+        investigateEvents,
+        maxEventsPerLeague,
+        maxTeamsPerLeague,
+        maxPlayersPerTeam,
+      } = req.body ?? {};
+      if (!['lite', 'standard', 'deep'].includes(scope)) {
+        return res.status(400).json({ error: 'scope must be lite, standard, or deep' });
+      }
+      if (leagues && (!Array.isArray(leagues) || leagues.length > 40)) {
+        return res.status(400).json({ error: 'leagues must be an array of up to 40 league ids' });
+      }
+
+      const { runSportsIngestionWorker } = await import('./services/sportsIngestionWorker.js');
+      const summary = await runSportsIngestionWorker({
+        scope,
+        leagues,
+        includeHistory: typeof includeHistory === 'boolean' ? includeHistory : undefined,
+        investigateEvents: typeof investigateEvents === 'boolean' ? investigateEvents : undefined,
+        reason: 'manual_api',
+        maxEventsPerLeague: Number.isFinite(maxEventsPerLeague) ? Math.max(1, Math.min(64, Number(maxEventsPerLeague))) : undefined,
+        maxTeamsPerLeague: Number.isFinite(maxTeamsPerLeague) ? Math.max(1, Math.min(64, Number(maxTeamsPerLeague))) : undefined,
+        maxPlayersPerTeam: Number.isFinite(maxPlayersPerTeam) ? Math.max(1, Math.min(64, Number(maxPlayersPerTeam))) : undefined,
+      });
+      res.json(summary);
+    } catch (err: any) {
+      console.error('[Sports Ingestion] Manual run failed:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'Sports ingestion failed' });
+    }
+  });
 
   // Lazy-load to keep cold-start fast; these are ESM modules with node:crypto
   const getFediverseAuth = async () => {
@@ -3712,6 +3752,15 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
   });
 
   // ── END MUSE AGENT ────────────────────────────────────────────────────────────
+
+  // ── Cora Music Analysis ───────────────────────────────────────────────────────
+  app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
+
+  if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
+    const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;
+    const { startSportsIngestionScheduler } = await import('./services/sportsIngestionWorker.js');
+    startSportsIngestionScheduler({ intervalMs });
+  }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);

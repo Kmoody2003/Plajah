@@ -11,7 +11,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Mastodon OAuth App Registrations ─────────────────────────────────────────
@@ -89,4 +88,30 @@ model FediverseBroadcast {
   @@index([uid])
   @@index([plajahPostId])
   @@map("fediverse_broadcasts")
+}
+
+// ─── Cora Music Analysis — Songs ──────────────────────────────────────────────
+// Stores audio analysis results produced by Cora's beat detection pipeline.
+// Schema mirrors the canonical SQL: CREATE TABLE Songs (...)
+
+model Song {
+  id                   Int      @id @default(autoincrement())
+  title                String   @db.VarChar(255)
+  artist               String   @db.VarChar(255)
+  lyrics               String?  @db.Text
+  genreRules           String?  @db.Text   @map("genre_rules")
+  tempo                Int?
+  beatDetectionVersion String?  @db.VarChar(50) @map("beat_detection_version")
+  // Platform references — links this record to the Firestore track/album
+  platformTrackId      String?  @unique @map("platform_track_id")
+  platformAlbumId      String?  @map("platform_album_id")
+  ownerId              String?  @map("owner_id")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([artist])
+  @@index([tempo])
+  @@index([platformAlbumId])
+  @@index([ownerId])
+  @@map("songs")
 }

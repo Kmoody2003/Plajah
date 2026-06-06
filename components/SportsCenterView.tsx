@@ -5,6 +5,7 @@ import {
   fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile,
   fetchRacingSchedule, fetchRacingStandings, fetchRacingNews,
   getRacingCfg, ESPORTS_ORGS, LEAGUE_CHAMPIONS,
+  getSpecialtySportCfg,
   type SportsTeam, type EsportsOrg, type LeaderCategory,
   type RaceEvent, type RacingStanding, type ChampionEntry,
 } from '../services/sportsService';
@@ -19,13 +20,14 @@ import {
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
   Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
   BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen, CreditCard, History,
+  Sparkles,
 } from 'lucide-react';
 
 interface Props {
   selectedSportsTab: 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'FIFA' | 'MLS' | 'ESPORTS' | 'F1' | 'NASCAR' | 'INDYCAR' | string;
 }
 
-const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS'] as const;
+const LEAGUE_TABS = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'WNBA', 'FIFA', 'MLS', 'ESPORTS', 'UFC', 'MMA', 'BOXING', 'MARTIAL_ARTS', 'FENCING', 'TENNIS', 'GOLF', 'CRICKET', 'RUGBY', 'WRESTLING', 'VOLLEYBALL', 'LACROSSE'] as const;
 const PINS_KEY = 'vibestream_sports_pins_v1';
 
 function loadPins(): string[] {
@@ -60,6 +62,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const isLeague  = (LEAGUE_TABS as readonly string[]).includes(selectedSportsTab);
   const isEsports = selectedSportsTab === 'ESPORTS';
   const isRacing  = !!getRacingCfg(selectedSportsTab);
+  const specialtyCfg = getSpecialtySportCfg(selectedSportsTab);
 
   const filteredTeams = useMemo(() => {
     const q = teamSearch.trim().toLowerCase();
@@ -93,7 +96,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     setLeagueError(false);
 
     // Pre-populate teams grid from static data immediately (no API wait)
-    const staticTeams = getLeagueStaticTeams(selectedSportsTab).map(s => ({
+    const staticTeams = specialtyCfg ? [] : getLeagueStaticTeams(selectedSportsTab).map(s => ({
       id: s.espnId || s.id,
       name: s.name,
       location: s.location,
@@ -138,11 +141,11 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       setLeagueScores(scoresData);
       setLeagueLeaders(leadersData);
       setLeagueLoading(false);
-      if (merged.length === 0 && newsData.length === 0 && standingsData.length === 0) {
+      if (!specialtyCfg && merged.length === 0 && newsData.length === 0 && standingsData.length === 0) {
         setLeagueError(true);
       }
     });
-  }, [selectedSportsTab, isLeague, isEsports]);
+  }, [selectedSportsTab, isLeague, isEsports, specialtyCfg]);
 
   useEffect(() => {
     if (!isLeague) return;
@@ -484,6 +487,48 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       {/* â"€â"€ STANDARD LEAGUE â"€â"€ */}
       {!isEsports && (
         <>
+          {specialtyCfg && (
+            <div className="space-y-5">
+              <div className="p-5 rounded-[2rem] bg-white/[0.03] border border-white/8">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">{specialtyCfg.sportFamily}</p>
+                    <h3 className="text-2xl font-black uppercase tracking-tight mt-1">{specialtyCfg.label}</h3>
+                    <p className="text-sm text-white/50 leading-relaxed mt-2 max-w-2xl">{specialtyCfg.summary}</p>
+                  </div>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', {
+                      detail: {
+                        prompt: `Act as Aria, Plajah's sports analytics expert. Build an interactive ${specialtyCfg.label} visualization using the latest public sports data available in Plajah Sports. Suggest chart types, key metrics, and a short fan-friendly story.`,
+                      },
+                    }))}
+                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-[#FF8C00]/10 border border-[#FF8C00]/30 rounded-full text-[9px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all"
+                  >
+                    <Sparkles size={11} /> Ask Aria
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {specialtyCfg.publicSources.map(source => (
+                  <a
+                    key={source.name}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-4 rounded-[1.5rem] bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/30 hover:bg-white/[0.06] transition-all group"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-black uppercase tracking-tight group-hover:text-[#FF8C00] transition-colors">{source.name}</p>
+                      <ExternalLink size={12} className="text-white/20 group-hover:text-[#FF8C00]" />
+                    </div>
+                    <p className="text-[8px] text-white/35 leading-relaxed mt-2">{source.note}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Today's Scoreboard â€" always rendered; shows skeleton while loading */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -568,8 +613,8 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
             )}
           </div>
 
-          {/* Standings â€" always rendered */}
-          <div className="space-y-3">
+          {/* Standings â€" always rendered for team/league sports */}
+          {!specialtyCfg && <div className="space-y-3">
             <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><TrendingUp size={10} /> Standings</h4>
             {leagueLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -658,7 +703,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                   })}
                 </div>
               )}
-            </div>
+            </div>}
 
           {/* League Leaders */}
           {leagueLeaders.length > 0 && (
@@ -736,7 +781,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           )}
 
           {/* Pinned Teams */}
-          {pinnedTeams.length > 0 && !teamSearch && (
+          {!specialtyCfg && pinnedTeams.length > 0 && !teamSearch && (
             <div className="space-y-3">
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Pin size={10} /> Pinned Teams</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -748,7 +793,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           )}
 
           {/* Teams Grid */}
-          <div className="space-y-3">
+          {!specialtyCfg && <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">
                 {selectedSportsTab} Teams{teamSearch && filteredTeams.length < leagueTeams.length ? ` Â· ${filteredTeams.length} results` : ''}
@@ -784,7 +829,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                 )}
               </div>
             )}
-          </div>
+          </div>}
         </>
       )}
     </div>

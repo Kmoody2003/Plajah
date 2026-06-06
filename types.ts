@@ -1796,12 +1796,24 @@ export type DebateStatus =
 
 export type DebateSide = 'CHALLENGER' | 'DEFENDER' | 'CHALLENGER_SUPPORT' | 'DEFENDER_SUPPORT';
 
+/** A span of text the challenger marked up in the original post */
+export interface DebateHighlightSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface Debate {
   id: string;
-  // Source context
+  // Source context — for post-level debates, sourceCommentId is empty string
   sourceCommentId: string;
   sourceCommentText: string;
   sourcePostId: string;
+  // Post-level debate fields
+  isPostDebate?: boolean;
+  sourcePostText?: string;
+  highlightedSegments?: DebateHighlightSegment[];
+  challengePoints?: string[];
   // Participants
   challengerId: string;
   challengerName: string;

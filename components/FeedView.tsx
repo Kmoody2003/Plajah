@@ -7,7 +7,7 @@ import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
 import { fetchNewsFromRSS } from '../services/rssService';
-import { ArrowLeft, User, Music2, MessageSquare, Image as ImageIcon, Send, Play, UserPlus, UserMinus, Globe, Newspaper, Zap, TrendingUp, Reply, Trash2, Sparkles, Book, Disc, Gamepad2, Tv, Radio, Layers, ChevronLeft, ChevronRight, Maximize2, ExternalLink, Volume2, VolumeX, Pause, Plus, Check, X, Heart, Pen, Share2, Mic, Search, Users, Cloud, Smile, MoreHorizontal, Info, Clock } from 'lucide-react';
+import { ArrowLeft, User, Music2, MessageSquare, Image as ImageIcon, Send, Play, UserPlus, UserMinus, Globe, Newspaper, Zap, TrendingUp, Reply, Trash2, Sparkles, Book, Disc, Gamepad2, Tv, Radio, Layers, ChevronLeft, ChevronRight, Maximize2, ExternalLink, Volume2, VolumeX, Pause, Plus, Check, X, Heart, Pen, Share2, Mic, Search, Users, Cloud, Smile, MoreHorizontal, Info, Clock, Swords } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring, useInView } from 'motion/react';
@@ -30,6 +30,9 @@ import DualPanelTimeline from './DualPanelTimeline';
 import SignInPrompt from './SignInPrompt';
 import PlajahPlusPill from './PlajahPlusPill';
 import { lazy, Suspense } from 'react';
+import PostDebateModal from './PostDebateModal';
+import DebateView from './DebateView';
+import DebatePulseFeed from './DebatePulseFeed';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -75,7 +78,7 @@ interface FeedViewProps {
   onSelectGame?: (game: Game) => void;
 }
 
-type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED' | 'NOW';
+type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED' | 'NOW' | 'PULSE';
 
 const LiveTalkDiscovery: React.FC<{
   currentUser: FirebaseUser | null;
@@ -841,6 +844,38 @@ const FeedItemComponent: React.FC<{
   const [isCommentPanelOpen, setIsCommentPanelOpen] = useState(false);
   const [likes, setLikes] = useState(item.likesCount || 0);
   const [isLiked, setIsLiked] = useState(false);
+  const [isDebateModalOpen, setIsDebateModalOpen] = useState(false);
+  const [activeDebateId, setActiveDebateId] = useState<string | null>(null);
+
+  // Scroll-past trigger: when this post comes into view, check if there's a
+  // pending challenge targeting the current user and fire the VS screen once.
+  const vsTriggered = useRef(false);
+  const vsRef = useRef<HTMLDivElement>(null);
+  const vsInView = useInView(vsRef, { once: true, amount: 0.4 });
+
+  useEffect(() => {
+    if (!vsInView || vsTriggered.current || !currentUser) return;
+    if (item.authorId === currentUser.uid) return; // can't challenge yourself
+    const sessionKey = `vs_shown_${item.id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    vsTriggered.current = true;
+
+    import('../services/debateService').then(({ getPendingChallengeForPost }) => {
+      getPendingChallengeForPost(item.id, currentUser.uid).then(debate => {
+        if (!debate) return;
+        sessionStorage.setItem(sessionKey, '1');
+        window.dispatchEvent(new CustomEvent('CHALLENGE_VS', {
+          detail: {
+            debateId:       debate.id,
+            challengerId:   debate.challengerId,
+            challengerName: debate.challengerName,
+            challengerPhoto: debate.challengerPhoto,
+          },
+        }));
+      });
+    });
+  }, [vsInView, currentUser, item.id, item.authorId]);
 
   useEffect(() => {
     let unsubscribe: () => void;
@@ -895,7 +930,7 @@ const FeedItemComponent: React.FC<{
   };
 
   return (
-    <div ref={el => { (inViewRef as any).current = el; (dwellRef as any).current = el; }} className="w-full flex flex-col items-center my-12 md:my-20">
+    <div ref={el => { (inViewRef as any).current = el; (dwellRef as any).current = el; (vsRef as any).current = el; }} className="w-full flex flex-col items-center my-12 md:my-20">
       <motion.div
         className="w-full backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[3rem] md:rounded-[4rem] p-8 md:p-16 xl:p-20 2xl:p-24 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -1087,6 +1122,20 @@ const FeedItemComponent: React.FC<{
 
               <PayItForwardButton />
 
+              {/* Debate this post — only for posts with text content, not your own */}
+              {currentUser && item.content && currentUser.uid !== item.authorId && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDebateModalOpen(true);
+                  }}
+                  title="Challenge this post to a structured debate"
+                  className="flex items-center gap-3 text-white/40 hover:text-orange-400 transition-all px-6 py-4 rounded-3xl hover:bg-orange-500/10"
+                >
+                  <Swords size={22} />
+                </button>
+              )}
+
               {['SCRAPBOOK', 'PHOTO_ALBUM', 'MUSIC_PLAYER', 'ARCADE', 'NEWSPAPER'].includes(item.theme || '') && (
                 <button
                   onClick={() => setIsFullscreen(true)}
@@ -1142,6 +1191,32 @@ const FeedItemComponent: React.FC<{
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Post Debate — modal + active debate view */}
+      {isDebateModalOpen && item.content && (
+        <PostDebateModal
+          postId={item.id}
+          postText={item.content}
+          postAuthorId={item.authorId}
+          postAuthorName={item.authorName}
+          postAuthorPhoto={item.authorPhoto || ''}
+          heroImageUrl={item.imageUrl}
+          onClose={() => setIsDebateModalOpen(false)}
+          onDebateCreated={(id) => {
+            setIsDebateModalOpen(false);
+            setActiveDebateId(id);
+          }}
+        />
+      )}
+
+      {activeDebateId && (
+        <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
+          <DebateView
+            debateId={activeDebateId}
+            onBack={() => setActiveDebateId(null)}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -1932,7 +2007,8 @@ const toggleFavoriteTeam = async (team: string) => {
                 {activeTab === 'SOCIAL' ? 'Interstellar' :
                  activeTab === 'GLOBAL' ? 'Plajah Social' :
                  activeTab === 'LIVETALK' ? 'Live Talk' :
-                 activeTab === 'NEWS' ? 'Broadcast' : 'Signal'}
+                 activeTab === 'NEWS' ? 'Broadcast' :
+                 activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal'}
               </PageHeader>
             </div>
             <div className="flex flex-col items-end gap-3 px-4">
@@ -1948,6 +2024,7 @@ const toggleFavoriteTeam = async (team: string) => {
               { id: 'NEWS', label: 'Broadcast News', description: 'Real-time global events & sports', icon: Newspaper },
               { id: 'LIVETALK', label: 'Live Talk', description: 'Live audio & video broadcasts', icon: Mic },
               { id: 'NOW', label: 'Right Now', description: 'What your people are experiencing this moment', icon: Zap, isNew: true },
+              { id: 'PULSE', label: 'Platform Pulse', description: 'Live debates — your arena, following, and platform spotlight', icon: Swords },
             ].map((tab: any) => (
               <button
                 key={tab.id}
@@ -2043,7 +2120,24 @@ const toggleFavoriteTeam = async (team: string) => {
         onDismiss={() => setShowNowOnboarding(false)}
       />
 
-      {activeTab === 'NOW' ? (
+      {activeTab === 'PULSE' ? (
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-8 lg:px-16 pt-6 max-w-[1200px] mx-auto w-full">
+          {currentUser ? (
+            <DebatePulseFeed
+              uid={currentUser.uid}
+              followingIds={userProfile?.following ?? []}
+              onOpenDebate={(id) => {
+                window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId: id } }));
+              }}
+            />
+          ) : (
+            <div className="py-32 text-center">
+              <Swords size={40} className="text-white/15 mx-auto mb-4" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/25">Sign in to see Platform Pulse</p>
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'NOW' ? (
         <div className="flex-1 overflow-y-auto">
           <RightNowFeed
             currentUser={userProfile}
