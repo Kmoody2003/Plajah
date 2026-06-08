@@ -6,7 +6,7 @@ import {
   Activity, Globe, Zap, Star, Copy, Check,
   FileText, Database, Package, Users, Clock,
   Telescope, FlaskConical, Dna, Binary, Atom, Calculator,
-  AlertCircle, TrendingUp, Microscope, Leaf,
+  AlertCircle, TrendingUp, Microscope, Leaf, MessageSquare,
 } from 'lucide-react';
 import { motion as m } from 'motion/react';
 import {
@@ -16,7 +16,10 @@ import {
   USGSQuake, CERNRecord, OpenStaxBook, SciencePaper,
   PapersWithCodePaper, OPENSTAX_BOOKS, textbookToAlbum,
 } from '../services/labsApiService';
-import { Album } from '../types';
+import { Album, Post } from '../types';
+import { listenToGlobalPosts, createPost, auth } from '../services/backendService';
+import PostCard from './PostCard';
+import UniversalPostComposer from './UniversalPostComposer';
 import BookReader from './BookReader';
 import { DisciplineVizPanel, SharedVizPayload } from './LabsDataVisualizer';
 
@@ -448,7 +451,7 @@ const SearchBar: React.FC<{
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-type ContentTab = 'papers' | 'datasets' | 'models' | 'textbooks' | 'visualize';
+type ContentTab = 'papers' | 'datasets' | 'models' | 'textbooks' | 'visualize' | 'social' | 'plajah_social';
 
 interface LabsDisciplineViewProps {
   disciplineId: LabsDisciplineId;
@@ -470,6 +473,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
   const [searchResults, setSearchResults] = useState<SciencePaper[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedTextbook, setSelectedTextbook] = useState<Album | null>(null);
+  const [globalPosts, setGlobalPosts] = useState<Post[]>([]);
   const stripRef = useRef<HTMLDivElement>(null);
 
   // Open a textbook in the native reader
@@ -498,14 +502,26 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
 
   const clearSearch = () => { setSearch(''); setSearchActive(false); setSearchResults([]); };
 
+  useEffect(() => {
+    if (contentTab !== 'social' && contentTab !== 'plajah_social') return;
+    return listenToGlobalPosts(setGlobalPosts);
+  }, [contentTab]);
+
   const displayedPapers = searchActive ? searchResults : (data?.papers ?? []);
 
+  const disciplinePosts = globalPosts.filter(p => {
+    const text = (p.text || '').toLowerCase();
+    return meta.keywords.some(k => text.includes(k.toLowerCase())) || text.includes(meta.label.toLowerCase());
+  });
+
   const ALL_CONTENT_TABS: { key: ContentTab; label: string; icon: React.ElementType; count?: number }[] = [
-    { key: 'papers',     label: 'Papers',     icon: FileText,  count: displayedPapers.length },
-    { key: 'visualize',  label: 'Visualize',  icon: Activity },
-    { key: 'datasets',   label: 'Datasets',   icon: Database,  count: (data?.cernRecords?.length ?? 0) + (data?.quakes?.length ?? 0) },
-    { key: 'models',     label: 'Models',     icon: Package,   count: data?.hfModels?.length },
-    { key: 'textbooks',  label: 'Textbooks',  icon: BookOpen,  count: data?.textbooks?.length ?? OPENSTAX_BOOKS.filter(b => b.subject === disciplineId).length },
+    { key: 'papers',        label: 'Papers',         icon: FileText,      count: displayedPapers.length },
+    { key: 'visualize',     label: 'Visualize',      icon: Activity },
+    { key: 'datasets',      label: 'Datasets',       icon: Database,      count: (data?.cernRecords?.length ?? 0) + (data?.quakes?.length ?? 0) },
+    { key: 'models',        label: 'Models',         icon: Package,       count: data?.hfModels?.length },
+    { key: 'textbooks',     label: 'Textbooks',      icon: BookOpen,      count: data?.textbooks?.length ?? OPENSTAX_BOOKS.filter(b => b.subject === disciplineId).length },
+    { key: 'social',        label: meta.label + ' Feed', icon: MessageSquare, count: disciplinePosts.length || undefined },
+    { key: 'plajah_social', label: 'Plajah Social',  icon: Globe,         count: globalPosts.length || undefined },
   ];
   const CONTENT_TABS = ALL_CONTENT_TABS.filter(t => {
     if (t.key === 'models' && !cfg.hfTasks?.length) return false;
@@ -848,6 +864,100 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             </div>
           );
         })()}
+
+        {/* DISCIPLINE SOCIAL FEED */}
+        {contentTab === 'social' && (
+          <div className="space-y-4">
+            {auth.currentUser && (
+              <UniversalPostComposer
+                currentUser={auth.currentUser}
+                placeholder={`Share your ${meta.label} research or insights...`}
+                avatarUrl={auth.currentUser.photoURL || undefined}
+                onPost={async (data) => {
+                  const resolvedMedia = (await Promise.all(
+                    data.attachments.map(async (att) => {
+                      if (att.file && att.url.startsWith('blob:')) {
+                        try {
+                          const { uploadFile } = await import('../services/backendService');
+                          const url = await uploadFile(`posts/${auth.currentUser!.uid}/${Date.now()}_${att.file.name}`, att.file);
+                          return { type: att.type, url, title: att.title };
+                        } catch { return null; }
+                      }
+                      return { type: att.type, url: att.url, title: att.title };
+                    })
+                  )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+                  await createPost({
+                    text: `#${meta.label.replace(/\s+/g, '')} ${data.text}`,
+                    isPublic: true,
+                    ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                    ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                  });
+                }}
+              />
+            )}
+            {disciplinePosts.length > 0 ? (
+              <div className="space-y-3">
+                {disciplinePosts.map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              </div>
+            ) : globalPosts.length > 0 ? (
+              <div className="py-16 text-center">
+                <MessageSquare size={32} className="text-white/10 mx-auto mb-3" />
+                <p className="text-sm text-white/30">No {meta.label} posts yet</p>
+                <p className="text-[10px] text-white/15 mt-1">Be the first to share something about {meta.label}</p>
+              </div>
+            ) : (
+              <div className="py-12 space-y-2">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-32 bg-white/[0.03] border border-white/6 rounded-2xl animate-pulse" />)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PLAJAH SOCIAL FEED */}
+        {contentTab === 'plajah_social' && (
+          <div className="space-y-4">
+            {auth.currentUser && (
+              <UniversalPostComposer
+                currentUser={auth.currentUser}
+                placeholder="What's on your mind?"
+                avatarUrl={auth.currentUser.photoURL || undefined}
+                onPost={async (data) => {
+                  const resolvedMedia = (await Promise.all(
+                    data.attachments.map(async (att) => {
+                      if (att.file && att.url.startsWith('blob:')) {
+                        try {
+                          const { uploadFile } = await import('../services/backendService');
+                          const url = await uploadFile(`posts/${auth.currentUser!.uid}/${Date.now()}_${att.file.name}`, att.file);
+                          return { type: att.type, url, title: att.title };
+                        } catch { return null; }
+                      }
+                      return { type: att.type, url: att.url, title: att.title };
+                    })
+                  )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+                  await createPost({
+                    text: data.text,
+                    isPublic: true,
+                    ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                    ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                  });
+                }}
+              />
+            )}
+            {globalPosts.length > 0 ? (
+              <div className="space-y-3">
+                {globalPosts.map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              </div>
+            ) : (
+              <div className="py-12 space-y-2">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-32 bg-white/[0.03] border border-white/6 rounded-2xl animate-pulse" />)}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 

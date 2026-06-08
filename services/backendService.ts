@@ -28,7 +28,7 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 export const auth = firebaseAuth;
 export { db };
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -8515,4 +8515,64 @@ export const startKioskSession = async (eventId: string, deviceLabel?: string): 
   if (!res.ok) throw new Error('Failed to start kiosk session');
   const d = await res.json();
   return d.sessionId;
+};
+
+// ── Podcast RSS Settings ──────────────────────────────────────────────────────
+
+export const savePodcastRssSettings = async (settings: Partial<PodcastRssSettings>): Promise<void> => {
+  if (!auth.currentUser) return;
+  try {
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), { podcastRss: settings });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+  }
+};
+
+export const fetchPodcastRssSettings = async (uid?: string): Promise<PodcastRssSettings | null> => {
+  const targetUid = uid ?? auth.currentUser?.uid;
+  if (!targetUid) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', targetUid));
+    return (snap.data()?.podcastRss as PodcastRssSettings) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const syncImportedEpisodes = async (episodes: ImportedRssEpisode[]): Promise<void> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const colRef = collection(db, 'podcastImports', uid, 'episodes');
+  // Write episodes in batches of 500 (Firestore limit)
+  const chunks: ImportedRssEpisode[][] = [];
+  for (let i = 0; i < Math.min(episodes.length, 500); i += 500) {
+    chunks.push(episodes.slice(i, i + 500));
+  }
+  for (const chunk of chunks) {
+    const batch = writeBatch(db);
+    chunk.forEach(ep => {
+      const safeId = ep.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || `ep_${Date.now()}`;
+      batch.set(doc(colRef, safeId), ep, { merge: true });
+    });
+    await batch.commit();
+  }
+  await updateDoc(doc(db, 'users', uid), {
+    'podcastRss.lastSynced': Date.now(),
+    'podcastRss.importedEpisodeCount': episodes.length,
+  });
+};
+
+export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpisode[]> => {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'podcastImports', uid, 'episodes'),
+        orderBy('pubDate', 'desc'),
+        limit(200)
+      )
+    );
+    return snap.docs.map(d => d.data() as ImportedRssEpisode);
+  } catch {
+    return [];
+  }
 };

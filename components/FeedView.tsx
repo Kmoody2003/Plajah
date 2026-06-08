@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
-import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, subscribeToComments, postComment, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction } from '../services/backendService';
+import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction } from '../services/backendService';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
@@ -24,6 +24,7 @@ import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY a
 import { updateUserProfile as _updatePresence } from '../services/backendService';
 import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
+import UniversalPostComposer from './UniversalPostComposer';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
@@ -837,7 +838,6 @@ const FeedItemComponent: React.FC<{
     return children.reduce((acc, child) => [...acc, child, ...getThreadItems(child.id)], children);
   };
 
-  const [comments, setComments] = useState<any[]>([]);
   const background = availableBackgrounds.find(bg => bg.id === item.backgroundId);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -877,15 +877,6 @@ const FeedItemComponent: React.FC<{
     });
   }, [vsInView, currentUser, item.id, item.authorId]);
 
-  useEffect(() => {
-    let unsubscribe: () => void;
-    if (isCommentPanelOpen || item.commentCount > 0) {
-      unsubscribe = subscribeToComments(item.id, null, null, setComments, item.sourceCollection || 'feed');
-    }
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [isCommentPanelOpen, item.id, item.sourceCollection]);
 
   const inViewRef = useRef(null);
   const inView = useInView(inViewRef, { amount: 0.1 });
@@ -1094,7 +1085,7 @@ const FeedItemComponent: React.FC<{
                 className={`flex items-center gap-3 transition-all px-6 py-4 rounded-3xl ${isCommentPanelOpen ? 'bg-white text-black' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`}
               >
                 <MessageSquare size={22} />
-                <span className="text-sm font-black uppercase tracking-widest font-mono">{Math.max(item.commentCount || 0, comments.length)}</span>
+                <span className="text-sm font-black uppercase tracking-widest font-mono">{item.commentCount || 0}</span>
               </button>
 
               <button
@@ -1168,23 +1159,10 @@ const FeedItemComponent: React.FC<{
             className="w-full backdrop-blur-[80px] bg-black/40 border-x border-b border-white/20 rounded-b-[4rem] flex flex-col z-0 overflow-hidden shadow-2xl"
           >
             <div className="flex-1 overflow-hidden p-2 md:p-6">
-              <CommentSection 
-                comments={comments}
-                onPostComment={async (text, parentId, mediaTimestamp) => {
-                  if (currentUser) {
-                    await postComment(item.id, {
-                      author: currentUser.displayName || 'User',
-                      text,
-                      timestamp: Date.now(),
-                      uid: currentUser.uid,
-                      parentId: parentId || null,
-                      mediaTimestamp
-                    }, item.sourceCollection || 'feed');
-                  }
-                }}
+              <CommentSection
+                postId={item.id}
+                postAuthorId={item.authorId}
                 onVisitUser={onVisitUser}
-                currentUser={currentUser}
-                title="Feed Discussion"
                 onClose={() => setIsCommentPanelOpen(false)}
               />
             </div>
@@ -1853,6 +1831,7 @@ const toggleFavoriteTeam = async (team: string) => {
     const loadUserAssets = async () => {
       if (currentUser) {
         const albums = await fetchUserAlbums(currentUser.uid);
+        setUserAlbums(albums);
         const songs: any[] = [];
         albums.forEach(a => {
           a.tracks?.forEach(t => songs.push({ title: t.title, url: t.url, albumCover: a.coverImage }));
@@ -1862,6 +1841,7 @@ const toggleFavoriteTeam = async (team: string) => {
     };
     loadUserAssets();
   }, [currentUser]);
+
 
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -2574,511 +2554,34 @@ const toggleFavoriteTeam = async (team: string) => {
       )}
 
       {currentUser && activeTab === 'SOCIAL' && (
-        <div className="mb-16 p-10 bg-theme-card/50 backdrop-blur-3xl border border-theme rounded-[3.5rem] shadow-3xl max-w-4xl mx-auto w-full">
-          <div className="flex items-center gap-6 mb-8">
-            <div className="w-16 h-16 rounded-full bg-white/10 overflow-hidden ring-2 ring-white/5">
-              {currentUser.photoURL ? <img src={currentUser.photoURL || null} alt={currentUser.displayName || ''} className="w-full h-full object-cover" loading="lazy" /> : <User size={24} className="text-white/20" />}
-            </div>
-            <div>
-              <p className="font-black text-[10px] uppercase tracking-[0.4em] text-primary/40">Create Masterpiece</p>
-              <p className="font-bold text-lg text-primary/80">{currentUser.displayName}</p>
-            </div>
-          </div>
-
-          <div className="relative mb-8">
-            <textarea
-              value={newPost}
-              onChange={handleInputChange}
-              onPaste={async (e) => {
-                const items = Array.from(e.clipboardData.items);
-                const imageItems = items.filter(i => i.kind === 'file' && i.type.startsWith('image/'));
-                if (!imageItems.length || !currentUser) return;
-                e.preventDefault();
-                setIsPastingMedia(true);
-                try {
-                  const { uploadFile: uploadToStorage } = await import('../services/backendService');
-                  for (const item of imageItems) {
-                    const file = item.getAsFile();
-                    if (!file) continue;
-                    const ext = file.type.split('/')[1] || 'png';
-                    const url = await uploadToStorage(`posts/${currentUser.uid}/paste_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`, file);
-                    setPages(prev => [...prev, { id: Date.now().toString(), type: 'IMAGE', url, content: '' }]);
-                    setSelectedTheme('SCRAPBOOK');
+        <div className="mb-16 max-w-4xl mx-auto w-full">
+          <UniversalPostComposer
+            currentUser={currentUser}
+            placeholder="What's happening in the studio? Design a gorgeous post..."
+            avatarUrl={currentUser.photoURL || undefined}
+            userAlbums={userAlbums}
+            onPost={async (data) => {
+              const resolvedMedia = (await Promise.all(
+                data.attachments.map(async (att) => {
+                  if (att.file && att.url.startsWith('blob:')) {
+                    try {
+                      const { uploadFile } = await import('../services/backendService');
+                      const url = await uploadFile(`posts/${currentUser.uid}/${Date.now()}_${att.file.name}`, att.file);
+                      return { type: att.type, url, title: att.title };
+                    } catch { return null; }
                   }
-                } catch (err) {
-                  console.error('[FeedView] Paste upload failed:', err);
-                } finally {
-                  setIsPastingMedia(false);
-                }
-              }}
-              placeholder="What's happening in the studio? Design a gorgeous post..."
-              className="w-full bg-white/5 border border-theme rounded-[2.5rem] p-10 text-xl font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all min-h-[200px] resize-none placeholder:text-primary/10"
-            />
-            {isPastingMedia && (
-              <span className="absolute bottom-4 left-10 text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse">Uploading image...</span>
-            )}
-            {showMentionDropdown && (
-              <div className="absolute left-0 bottom-full mb-4 w-72 bg-[#1A1A1A] border border-white/10 rounded-[2rem] shadow-4xl overflow-hidden z-[100] animate-in fade-in slide-in-from-bottom-2">
-                <div className="p-4 border-b border-white/10 bg-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Mention Someone</p>
-                </div>
-                <div className="max-h-60 overflow-y-auto no-scrollbar">
-                  {suggestedUsers.map(user => (
-                    <button
-                      key={user.uid}
-                      onClick={() => handleSelectMention(user)}
-                      className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors text-left group"
-                    >
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/5 group-hover:ring-small-orange transition-all">
-                        {user.photoURL ? (
-                          <img loading="lazy" decoding="async" src={user.photoURL || null} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white/20">
-                            <User size={16} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{user.displayName}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Connect Node</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Theme Specific Configs */}
-          <AnimatePresence>
-            {selectedTheme !== 'STANDARD' && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10"
-              >
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-6">Select Visual Background (Max 4)</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {availableBackgrounds
-                    .filter(bg => bg.theme === selectedTheme)
-                    .slice(0, 4)
-                    .map(bg => (
-                      <button 
-                        key={bg.id}
-                        onClick={() => setSelectedBackgroundId(bg.id)}
-                        className={`aspect-video rounded-2xl overflow-hidden border-2 transition-all relative group ${selectedBackgroundId === bg.id ? 'border-small-orange shadow-lg scale-105' : 'border-white/5 hover:border-white/20'}`}
-                      >
-                        <img loading="lazy" decoding="async" src={bg.imageUrl || null} className="w-full h-full object-cover" alt="" />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-white">{bg.name}</p>
-                        </div>
-                        {selectedBackgroundId === bg.id && (
-                          <div className="absolute top-2 right-2 bg-small-orange text-white rounded-full p-1">
-                            <Check size={10} />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  {availableBackgrounds.filter(bg => bg.theme === selectedTheme).length === 0 && (
-                    <div className="col-span-full py-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No backgrounds available for this theme</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {selectedTheme === 'SCRAPBOOK' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10">
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Scrapbook Pages ({pages.length}/10)</h4>
-                  <div className="flex gap-2">
-                    <FileUploader 
-                      type="PHOTO" 
-                      multiple
-                      onBulkUploadComplete={(urls) => {
-                        const newPages = urls.map(url => ({ id: Math.random().toString(36).substr(2, 9), type: 'IMAGE' as const, url, content: '' }));
-                        setPages([...pages, ...newPages].slice(0, 10));
-                      }}
-                      label="Bulk Upload"
-                      className="mr-2"
-                    />
-                    <button 
-                      onClick={() => setPages([...pages, { id: Date.now().toString(), type: 'IMAGE', content: '' }])}
-                      disabled={pages.length >= 10}
-                      className="flex items-center gap-2 px-6 py-3 bg-white/5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-20 transition-all"
-                    >
-                      <Plus size={14} /> Add Page
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
-                  {pages.map((p, i) => (
-                    <div key={p.id} className="flex gap-4 items-start p-6 bg-black/40 rounded-3xl border border-white/5">
-                      <div className="flex-1 space-y-4">
-                        <div className="flex gap-4">
-                          <select 
-                            value={p.type}
-                            onChange={(e) => {
-                              const newPages = [...pages];
-                              newPages[i].type = e.target.value as any;
-                              setPages(newPages);
-                            }}
-                            className="bg-black border border-white/10 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 ring-small-orange transition-all"
-                          >
-                            <option value="IMAGE">Image</option>
-                            <option value="VIDEO">Video</option>
-                          </select>
-                          <input 
-                            type="text" 
-                            placeholder={`${p.type === 'IMAGE' ? 'Image' : 'Video'} URL`} 
-                            value={p.url || ''} 
-                            onChange={(e) => {
-                              const newPages = [...pages];
-                              newPages[i].url = e.target.value;
-                              setPages(newPages);
-                            }}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                          />
-                          <FileUploader 
-                            type={p.type === 'IMAGE' ? 'PHOTO' : 'VIDEO'} 
-                            onUploadComplete={(url) => {
-                              const newPages = [...pages];
-                              newPages[i].url = url;
-                              setPages(newPages);
-                            }}
-                            label="Upload"
-                          />
-                        </div>
-                        <textarea 
-                          placeholder="Page description..." 
-                          value={p.content || ''} 
-                          onChange={(e) => {
-                            const newPages = [...pages];
-                            newPages[i].content = e.target.value;
-                            setPages(newPages);
-                          }}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-medium resize-none h-20"
-                        />
-                      </div>
-                      <button onClick={() => setPages(pages.filter((_, idx) => idx !== i))} className="p-3 bg-red-500/10 text-red-500 rounded-full hover:bg-red-500/20 transition-all">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {selectedTheme === 'PHOTO_ALBUM' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10">
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Photo Album Pages ({pages.length}/10)</h4>
-                  <button 
-                    onClick={() => setPages([...pages, { id: Date.now().toString(), type: 'IMAGE', content: '', media: [] }])}
-                    disabled={pages.length >= 10}
-                    className="flex items-center gap-2 px-6 py-3 bg-white/5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-20 transition-all"
-                  >
-                    <Plus size={14} /> Add Page
-                  </button>
-                </div>
-                <div className="space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
-                  {pages.map((p, i) => (
-                    <div key={p.id} className="p-6 bg-black/40 rounded-3xl border border-white/5 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Page {i + 1}</p>
-                        <button onClick={() => setPages(pages.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-400">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[0, 1, 2, 3].map(mIdx => (
-                          <div key={`media-${p.id}-${mIdx}`} className="space-y-2">
-                            <div className="flex gap-2">
-                              <input 
-                                type="text" 
-                                placeholder="Media URL" 
-                                value={p.media?.[mIdx]?.url || ''} 
-                                onChange={(e) => {
-                                  const newPages = [...pages];
-                                  const media = [...(newPages[i].media || [])];
-                                  media[mIdx] = { url: e.target.value, type: 'IMAGE' };
-                                  newPages[i].media = media;
-                                  setPages(newPages);
-                                }}
-                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] font-bold"
-                              />
-                              <FileUploader 
-                                type="PHOTO" 
-                                onUploadComplete={(url) => {
-                                  const newPages = [...pages];
-                                  const media = [...(newPages[i].media || [])];
-                                  media[mIdx] = { url, type: 'IMAGE' };
-                                  newPages[i].media = media;
-                                  setPages(newPages);
-                                }}
-                                label="+"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <textarea 
-                        placeholder="Album page description..." 
-                        value={p.content || ''} 
-                        onChange={(e) => {
-                          const newPages = [...pages];
-                          newPages[i].content = e.target.value;
-                          setPages(newPages);
-                        }}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-medium resize-none h-20"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {selectedTheme === 'MUSIC_PLAYER' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-6">Select Track from Archive</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-4">
-                  {userSongs.map((s, i) => (
-                    <button 
-                      key={i}
-                      onClick={() => setSelectedSong(s)}
-                      className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${selectedSong?.url === s.url ? 'bg-small-orange/20 border-small-orange shadow-lg' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                    >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 shrink-0">
-                        <img loading="lazy" decoding="async" src={s.albumCover || null} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-tight truncate">{s.title}</p>
-                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Archive Track</p>
-                      </div>
-                      {selectedSong?.url === s.url && <Check size={16} className="ml-auto text-small-orange" />}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-8 pt-8 border-t border-white/5">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-4">Or Upload New Track</h4>
-                  <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <input 
-                        type="text" 
-                        placeholder="Song Title" 
-                        value={selectedSong?.title || ''} 
-                        onChange={(e) => setSelectedSong({ ...selectedSong!, title: e.target.value, url: selectedSong?.url || '' })}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                      />
-                      <FileUploader 
-                        type="MUSIC" 
-                        onUploadComplete={(url) => setSelectedSong({ ...selectedSong!, url, title: selectedSong?.title || 'New Track' })}
-                        label="Upload Audio"
-                      />
-                    </div>
-                    <div className="flex gap-4">
-                      <input 
-                        type="text" 
-                        placeholder="Album Cover URL" 
-                        value={selectedSong?.albumCover || ''} 
-                        onChange={(e) => setSelectedSong({ ...selectedSong!, albumCover: e.target.value, title: selectedSong?.title || '', url: selectedSong?.url || '' })}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                      />
-                      <FileUploader 
-                        type="PHOTO" 
-                        onUploadComplete={(url) => setSelectedSong({ ...selectedSong!, albumCover: url, title: selectedSong?.title || '', url: selectedSong?.url || '' })}
-                        label="Upload Cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {selectedTheme === 'NEWSPAPER' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-2">Newspaper Preview Config</h4>
-                <div className="flex gap-4">
-                  <input 
-                    type="text" 
-                    placeholder="Article Preview Image URL" 
-                    value={selectedSong?.albumCover || ''} 
-                    onChange={(e) => setSelectedSong({ ...selectedSong!, albumCover: e.target.value })}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                  />
-                  <FileUploader 
-                    type="PHOTO" 
-                    onUploadComplete={(url) => setSelectedSong({ ...selectedSong!, albumCover: url, title: selectedSong?.title || '', url: selectedSong?.url || '' })}
-                    label="Upload"
-                  />
-                </div>
-                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest">This image will be featured as the main visual for your newspaper post.</p>
-              </motion.div>
-            )}
-
-            {selectedTheme === 'ARCADE' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-6">Select Game to Share</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-4">
-                  {userGames.map((g) => (
-                    <button 
-                      key={g.id}
-                      onClick={() => setSelectedGameId(g.id)}
-                      className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${selectedGameId === g.id ? 'bg-small-orange/20 border-small-orange shadow-lg' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                    >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 shrink-0">
-                        <img loading="lazy" decoding="async" src={g.thumbnailUrl || null} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-tight truncate">{g.title}</p>
-                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Arcade Game</p>
-                      </div>
-                      {selectedGameId === g.id && <Check size={16} className="ml-auto text-small-orange" />}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {(selectedTheme === 'WATCH_ALONG' || selectedTheme === 'LIVE_FEED') && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-2">Deep Link Configuration</h4>
-                <input 
-                  type="text" 
-                  placeholder="Event Title" 
-                  value={deepLink?.title || ''} 
-                  onChange={(e) => setDeepLink({ type: selectedTheme as any, url: deepLink?.url || '', title: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                />
-                <input 
-                  type="text" 
-                  placeholder="Destination URL (e.g. /tv, /live/123)" 
-                  value={deepLink?.url || ''} 
-                  onChange={(e) => setDeepLink({ type: selectedTheme as any, url: e.target.value, title: deepLink?.title || '' })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex items-center justify-between pt-12 border-t border-white/5">
-            <div className="flex flex-wrap items-center gap-4">
-              <button 
-                onClick={() => setShowThemeSelector(!showThemeSelector)}
-                className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${selectedTheme !== 'STANDARD' ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.4)]' : 'bg-white/5 text-white shadow-2xl border border-white/10 hover:bg-white/10'}`}
-              >
-                <Layers size={18} /> {selectedTheme === 'STANDARD' ? 'Themes' : selectedTheme.replace('_', ' ')}
-              </button>
-
-              <div className="flex items-center gap-2 p-1.5 bg-black/40 backdrop-blur-3xl rounded-full border border-white/10">
-                 <button onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }} className={`p-3 rounded-full transition-all ${showEmojiPicker ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
-                   <Smile size={18} />
-                 </button>
-                 <button onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }} className={`p-3 rounded-full transition-all ${showGifPicker ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
-                   <ImageIcon size={18} />
-                 </button>
-                 <div className="w-px h-6 bg-white/5 mx-2" />
-                 <button 
-                  onClick={() => setAspectRatio('HORIZONTAL')}
-                  className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${aspectRatio === 'HORIZONTAL' ? 'bg-white text-black' : 'text-white/40'}`}
-                >
-                  16:9
-                </button>
-                <button 
-                  onClick={() => setAspectRatio('VERTICAL')}
-                  className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${aspectRatio === 'VERTICAL' ? 'bg-white text-black' : 'text-white/40'}`}
-                >
-                  9:16
-                </button>
-              </div>
-              
-              <AnimatePresence>
-                {showThemeSelector && (
-                  <motion.div 
-                    initial={{ opacity: 0, x: -20, scale: 0.9 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -20, scale: 0.9 }}
-                    className="flex gap-2 p-3 bg-black/60 backdrop-blur-3xl rounded-[2rem] border border-white/20 shadow-3xl"
-                  >
-                    {[
-                      { id: 'SCRAPBOOK', icon: Book, label: 'Scrapbook' },
-                      { id: 'PHOTO_ALBUM', icon: ImageIcon, label: 'Album' },
-                      { id: 'MUSIC_PLAYER', icon: Disc, label: 'Music' },
-                      { id: 'NEWSPAPER', icon: Newspaper, label: 'Journal' },
-                      { id: 'ARCADE', icon: Gamepad2, label: 'Arcade' },
-                      { id: 'WATCH_ALONG', icon: Tv, label: 'Cinema' },
-                      { id: 'LIVE_FEED', icon: Radio, label: 'Broadcast' }
-                    ].map(t => (
-                      <button 
-                        key={`theme-opt-${t.id}`}
-                        onClick={() => { setSelectedTheme(t.id as any); setShowThemeSelector(false); }}
-                        className={`p-4 rounded-2xl transition-all group relative ${selectedTheme === t.id ? 'bg-small-orange text-white shadow-xl' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                      >
-                        <t.icon size={20} />
-                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-black border border-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-2xl">
-                          {t.label}
-                        </span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {showEmojiPicker && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="flex gap-2 p-3 bg-black/80 backdrop-blur-3xl rounded-2xl border border-white/10"
-                  >
-                    {['🔥', '❤️', '🙌', '✨', '💎', '🚀', '🎸', '🎨', '🎧', '💯'].map(emoji => (
-                      <button 
-                        key={emoji} 
-                        onClick={() => { setNewPost(prev => prev + emoji); setShowEmojiPicker(false); }}
-                        className="text-2xl hover:scale-125 transition-transform p-1"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-                {showGifPicker && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="grid grid-cols-4 gap-2 p-3 bg-black/80 backdrop-blur-3xl rounded-2xl border border-white/10 w-80"
-                  >
-                    {[
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJqZ3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l41lI4bYvYvYvYvYv/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJqZ3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKD5lJvYvYvYvYv/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJqZ3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l0HlHFRbmaZtBRhXG/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJqZ3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6Z3R6JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKVUn7iM8FMEU24/giphy.gif'
-                    ].map((gif, i) => (
-                      <button 
-                        key={i} 
-                        onClick={() => { setNewPost(prev => prev + '\n' + gif); setShowGifPicker(false); }}
-                        className="aspect-video rounded-lg overflow-hidden border border-white/10 hover:scale-105 transition-all"
-                      >
-                        <img loading="lazy" decoding="async" src={gif || null} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <button 
-              onClick={handlePost}
-              disabled={isPosting || (!newPost.trim() && !pages.length && !selectedSong && !deepLink)}
-              className="px-12 py-5 bg-white text-black rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] hover:bg-small-orange hover:text-white transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] disabled:opacity-20 active:scale-95 italic"
-            >
-              {isPosting ? 'Posting...' : 'Post'}
-            </button>
-          </div>
+                  return { type: att.type, url: att.url, title: att.title };
+                })
+              )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              await createPost({
+                text: data.text,
+                isPublic: true,
+                ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+              });
+            }}
+            onMakeStory={() => setShowStoryCreator(true)}
+          />
         </div>
       )}
 
@@ -3285,310 +2788,35 @@ const toggleFavoriteTeam = async (team: string) => {
             </button>
           )}
 
-          {/* ── Rich Composer ── */}
+          {/* ── Composer ── */}
           {currentUser && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white/[0.04] border border-white/8 rounded-[2rem] shadow-xl overflow-hidden"
-            >
-              <div className="flex items-start gap-4 p-5">
-                <button onClick={() => onVisitUser?.(currentUser.uid)} className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 shrink-0 ring-1 ring-white/10 hover:ring-small-orange transition-all">
-                  {currentUser.photoURL
-                    ? <img loading="lazy" decoding="async" src={currentUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    : <User size={18} className="text-white/30 m-auto mt-2.5" />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <textarea
-                    value={simplePostText}
-                    onClick={() => setComposerExpanded(true)}
-                    onChange={e => { setSimplePostText(e.target.value); setComposerExpanded(true); }}
-                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSimplePost(); }}
-                    onPaste={handleComposerPaste}
-                    placeholder="What's on your mind?"
-                    rows={composerExpanded ? 4 : 2}
-                    className="w-full bg-transparent text-sm font-medium text-white placeholder:text-white/20 resize-none outline-none leading-relaxed transition-all"
-                  />
-                  {isPastingMedia && (
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse mt-0.5 block">Uploading image...</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Theme selector */}
-              <AnimatePresence>
-                {composerExpanded && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="px-5 pb-3 border-t border-white/5">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mt-3 mb-2">Theme</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {([
-                        { id: 'STANDARD', label: 'Standard' },
-                        { id: 'SCRAPBOOK', label: 'Scrapbook' },
-                        { id: 'PHOTO_ALBUM', label: 'Photo Album' },
-                        { id: 'MUSIC_PLAYER', label: 'Music' },
-                        { id: 'NEWSPAPER', label: 'Newspaper' },
-                        { id: 'ARCADE', label: 'Arcade' },
-                      ] as { id: FeedItem['theme']; label: string }[]).map(t => (
-                        <button
-                          key={t.id}
-                          onClick={() => { setGlobalComposerTheme(t.id); if (t.id !== 'STANDARD' && availableBackgrounds.length === 0) fetchThemeBackgrounds().then(setAvailableBackgrounds); }}
-                          className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all
-                            ${globalComposerTheme === t.id ? 'bg-small-orange/20 text-small-orange border border-small-orange/40' : 'bg-white/5 text-white/30 border border-white/5 hover:text-white hover:bg-white/10'}`}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Background picker for non-standard themes */}
-                    {globalComposerTheme !== 'STANDARD' && availableBackgrounds.filter(bg => bg.theme === globalComposerTheme).length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Background</p>
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                          {availableBackgrounds.filter(bg => bg.theme === globalComposerTheme).slice(0, 6).map(bg => (
-                            <button
-                              key={bg.id}
-                              onClick={() => setSelectedBackgroundId(selectedBackgroundId === bg.id ? '' : bg.id)}
-                              className={`shrink-0 w-16 h-10 rounded-xl overflow-hidden border-2 transition-all ${selectedBackgroundId === bg.id ? 'border-small-orange' : 'border-white/10 hover:border-white/30'}`}
-                            >
-                              <img loading="lazy" decoding="async" src={bg.imageUrl || undefined} alt={bg.name} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Scrapbook pages */}
-                    {globalComposerTheme === 'SCRAPBOOK' && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Pages ({pages.length}/10)</p>
-                          <button onClick={() => setPages(prev => [...prev, { id: Date.now().toString(), type: 'IMAGE', content: '' }])} disabled={pages.length >= 10}
-                            className="text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white disabled:opacity-30 flex items-center gap-1">
-                            <Plus size={10} /> Add
-                          </button>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                          {pages.map((p, i) => (
-                            <div key={p.id} className="shrink-0 w-16 h-16 rounded-xl border border-white/10 bg-white/5 relative overflow-hidden group">
-                              {p.url ? <img loading="lazy" decoding="async" src={p.url} alt="" className="w-full h-full object-cover" /> : (
-                                <label className="w-full h-full flex items-center justify-center cursor-pointer text-white/20 hover:text-white transition-colors">
-                                  <Plus size={14} />
-                                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file || !currentUser) return;
-                                    const { uploadFile } = await import('../services/backendService');
-                                    const url = await uploadFile(`posts/${currentUser.uid}/${Date.now()}.${file.name.split('.').pop()}`, file);
-                                    setPages(prev => prev.map((pg, j) => j === i ? { ...pg, url } : pg));
-                                  }} />
-                                </label>
-                              )}
-                              <button onClick={() => setPages(prev => prev.filter((_, j) => j !== i))}
-                                className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                                <X size={8} className="text-white" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Music player song picker */}
-                    {globalComposerTheme === 'MUSIC_PLAYER' && (
-                      <div className="mt-3">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Track</p>
-                        {userSongs.length === 0
-                          ? <p className="text-[9px] text-white/20">No tracks in archive</p>
-                          : <div className="flex gap-2 overflow-x-auto pb-1">
-                              {userSongs.slice(0, 6).map((s, i) => (
-                                <button key={i} onClick={() => setSelectedSong(selectedSong?.url === s.url ? null : s)}
-                                  className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all
-                                    ${selectedSong?.url === s.url ? 'bg-small-orange/20 border-small-orange' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 shrink-0">
-                                    {s.albumCover && <img loading="lazy" decoding="async" src={s.albumCover} className="w-full h-full object-cover" alt="" />}
-                                  </div>
-                                  <span className="text-[8px] font-black uppercase truncate max-w-[60px]">{s.title}</span>
-                                  {selectedSong?.url === s.url && <Check size={10} className="text-small-orange shrink-0" />}
-                                </button>
-                              ))}
-                            </div>
-                        }
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Album embed preview */}
-              <AnimatePresence>
-                {composerAlbumEmbed && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="px-5 pb-3">
-                    <div className="relative rounded-2xl overflow-hidden border border-small-orange/30">
-                      <MiniMusicPlayer album={composerAlbumEmbed} />
-                      <button onClick={() => setComposerAlbumEmbed(null)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-black/70 border border-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all z-10">
-                        <X size={10} className="text-white" />
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Media previews */}
-              <AnimatePresence>
-                {composerMedia.length > 0 && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="px-5 pb-3 flex flex-wrap gap-2">
-                    {composerMedia.map((m, i) => (
-                      <div key={i} className="relative group">
-                        {m.type === 'PHOTO' || m.type === 'GIF' ? (
-                          <img loading="lazy" decoding="async" src={m.url} alt="" className="h-24 w-24 object-cover rounded-2xl border border-white/10" />
-                        ) : m.type === 'VIDEO' ? (
-                          <video src={m.url} className="h-24 w-24 object-cover rounded-2xl border border-white/10" />
-                        ) : (
-                          <div className="h-24 w-24 bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-1">
-                            <Volume2 size={20} className="text-small-orange" />
-                            <span className="text-[8px] font-black uppercase text-white/30 truncate w-16 text-center">{m.title || 'Audio'}</span>
-                          </div>
-                        )}
-                        <button onClick={() => setComposerMedia(prev => prev.filter((_, idx) => idx !== i))}
-                          className="absolute -top-2 -right-2 w-5 h-5 bg-black border border-white/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500">
-                          <X size={10} className="text-white" />
-                        </button>
-                        {m.type === 'GIF' && <span className="absolute bottom-1 left-1 text-[7px] font-black bg-black/70 px-1 rounded text-white">GIF</span>}
-                      </div>
-                    ))}
-                    {uploading && (
-                      <div className="h-24 w-24 bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2">
-                        <Zap size={18} className="text-small-orange animate-pulse" />
-                        <span className="text-[8px] font-black uppercase text-white/30 text-center px-1">{uploadLabel}</span>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* GIF picker */}
-              <AnimatePresence>
-                {showGifPicker && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="border-t border-white/5 px-5 py-4">
-                    <div className="relative mb-3">
-                      <input value={gifSearch} onChange={e => { setGifSearch(e.target.value); searchGifs(e.target.value); }}
-                        placeholder="Search GIFs…"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/30" />
-                      {gifLoading && <Zap size={14} className="absolute right-4 top-3 text-small-orange animate-pulse" />}
-                    </div>
-                    {gifResults.length === 0 && !gifLoading && (
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20 text-center py-4">Type to search GIPHY</p>
-                    )}
-                    <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto">
-                      {gifResults.map((gif: any) => (
-                        <button key={gif.id} onClick={() => {
-                          const url = gif.images?.fixed_height_small?.url || gif.images?.original?.url;
-                          if (url) { setComposerMedia(prev => [...prev, { type: 'GIF', url, title: gif.title }]); }
-                          setShowGifPicker(false); setGifSearch(''); setGifResults([]);
-                        }} className="rounded-xl overflow-hidden hover:scale-105 transition-transform">
-                          <img src={gif.images?.fixed_height_small?.url} alt={gif.title} className="w-full h-16 object-cover" loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-[8px] text-white/15 text-right mt-2 font-bold">Powered by GIPHY</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Platform media picker — embeds a playable MiniMusicPlayer */}
-              <AnimatePresence>
-                {showPlatformPicker && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="border-t border-white/5 px-5 py-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Share Album Player</p>
-                    <p className="text-[8px] text-white/20 mb-3">Select an album to embed a playable music player in your post</p>
-                    {userAlbums.length === 0
-                      ? <p className="text-[9px] text-white/20 text-center py-4">No albums found</p>
-                      : <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                          {userAlbums.map(a => (
-                            <button key={a.id} onClick={() => {
-                              setComposerAlbumEmbed(a);
-                              setShowPlatformPicker(false);
-                            }} className={`relative rounded-2xl overflow-hidden border transition-all group
-                              ${composerAlbumEmbed?.id === a.id ? 'border-small-orange' : 'border-white/10 hover:border-small-orange/50'}`}>
-                              <img loading="lazy" decoding="async" src={a.coverImage || ''} alt={a.title} className="w-full h-20 object-cover opacity-70 group-hover:opacity-100 transition-all" />
-                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                <p className="text-[8px] font-black uppercase text-white truncate">{a.title}</p>
-                                <p className="text-[7px] text-white/40 font-bold uppercase">{a.tracks?.length || 0} tracks</p>
-                              </div>
-                              {composerAlbumEmbed?.id === a.id && (
-                                <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-small-orange rounded-full flex items-center justify-center">
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
+            <UniversalPostComposer
+              currentUser={currentUser}
+              placeholder="What's on your mind?"
+              avatarUrl={currentUser.photoURL || undefined}
+              userAlbums={userAlbums}
+              onPost={async (data) => {
+                const resolvedMedia = (await Promise.all(
+                  data.attachments.map(async (att) => {
+                    if (att.file && att.url.startsWith('blob:')) {
+                      try {
+                        const { uploadFile } = await import('../services/backendService');
+                        const url = await uploadFile(`posts/${currentUser.uid}/${Date.now()}_${att.file.name}`, att.file);
+                        return { type: att.type, url, title: att.title };
+                      } catch { return null; }
                     }
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Toolbar */}
-              <div className="px-5 pb-4 flex items-center gap-2 pt-3 border-t border-white/5">
-                {/* Photo */}
-                <label className="cursor-pointer p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all" title="Photo">
-                  <ImageIcon size={16} />
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handleFileAttach(e, 'PHOTO')} />
-                </label>
-                {/* Video */}
-                <label className="cursor-pointer p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all" title="Video">
-                  <Play size={16} />
-                  <input type="file" accept="video/*" className="hidden" onChange={e => handleFileAttach(e, 'VIDEO')} />
-                </label>
-                {/* Audio */}
-                <label className="cursor-pointer p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all" title="Audio">
-                  <Volume2 size={16} />
-                  <input type="file" accept="audio/*" className="hidden" onChange={e => handleFileAttach(e, 'AUDIO')} />
-                </label>
-                {/* GIF */}
-                <button onClick={() => { setShowGifPicker(v => !v); setShowPlatformPicker(false); }}
-                  className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
-                    ${showGifPicker ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
-                  GIF
-                </button>
-                {/* Platform media */}
-                <button onClick={() => { setShowPlatformPicker(v => !v); setShowGifPicker(false); if (!showPlatformPicker) loadUserAlbums(); }}
-                  className={`p-2 rounded-xl transition-all ${showPlatformPicker ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
-                  title="From Platform">
-                  <Music2 size={16} />
-                </button>
-                {/* Story */}
-                {currentUser && (
-                  <button onClick={() => setShowStoryCreator(true)}
-                    className="p-2 rounded-xl text-white/30 hover:text-small-orange hover:bg-white/5 transition-all"
-                    title="Share to Story">
-                    <Plus size={16} />
-                  </button>
-                )}
-
-                <div className="ml-auto flex items-center gap-2">
-                  {(simplePostText.length > 0 || composerMedia.length > 0) && (
-                    <span className={`text-[9px] font-black tabular-nums ${simplePostText.length > 260 ? 'text-red-400' : 'text-white/20'}`}>
-                      {280 - simplePostText.length}
-                    </span>
-                  )}
-                  <button
-                    onClick={handleSimplePost}
-                    disabled={isSimplePosting || (!simplePostText.trim() && composerMedia.length === 0 && !composerAlbumEmbed) || simplePostText.length > 280}
-                    className="px-5 py-2 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all disabled:opacity-30 flex items-center gap-2"
-                  >
-                    <Send size={11} />
-                    {isSimplePosting ? 'Posting…' : 'Post'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+                    return { type: att.type, url: att.url, title: att.title };
+                  })
+                )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+                await createPost({
+                  text: data.text,
+                  isPublic: true,
+                  ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                  ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                });
+              }}
+              onMakeStory={() => setShowStoryCreator(true)}
+            />
           )}
 
             </div>{/* end frosted glass panel */}

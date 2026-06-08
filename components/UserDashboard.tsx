@@ -32,7 +32,7 @@ import FilmAnalyticsView from './FilmAnalyticsView';
 // Music Studio
 import MusicDistributionHub from './MusicDistributionHub';
 import ArtistRadioBuilder from './ArtistRadioBuilder';
-import PodcastDistributionHub from './PodcastDistributionHub';
+import PodcastRssSettings from './PodcastRssSettings';
 // Books Studio
 import BookCreatorWizard from './BookCreatorWizard';
 import SerialScheduler from './SerialScheduler';
@@ -1673,7 +1673,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     { id: 'CLASSROOMS', order: 8, isVisible: true },
                     { id: 'PPV_EVENTS', order: 9, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 10, isVisible: true },
-                    { id: 'ART_GALLERY', order: 11, isVisible: true },
                     { id: 'PAY_IT_FORWARD', order: 12, isVisible: true },
                     { id: 'CHAT', order: 13, isVisible: true },
                     { id: 'FEED', order: 14, isVisible: true },
@@ -1936,7 +1935,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             <ArtistRadioBuilder user={profile} />
           )}
           {activeTab === 'PODCAST_HUB' && (
-            <PodcastDistributionHub />
+            <PodcastRssSettings />
           )}
 
           {/* ── Books Studio Tabs ─────────────────────────────────────────── */}

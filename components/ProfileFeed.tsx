@@ -15,6 +15,7 @@ import {
   linkXAccount
 } from '../services/backendService';
 import PostCard from './PostCard';
+import UniversalPostComposer from './UniversalPostComposer';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Send, 
@@ -1162,250 +1163,35 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
 
       {/* Post Creator */}
       {auth.currentUser && !hideBroadcaster && !['X_FEED', 'MASTODON', 'BLUESKY', 'THREADS'].includes(feedType) && (
-        <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-8 space-y-6">
-          <div className="flex gap-4">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
-              <img src={auth.currentUser?.photoURL || null} alt="Me" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-            </div>
-            <textarea
-              value={postText}
-              onChange={handleInputChange}
-              onPaste={handlePaste}
-              placeholder={isOwnProfile ? "What's on your mind? Share music, videos, or just vibes..." : `Post something to ${profileName || 'this profile'}...`}
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/20 resize-none font-medium leading-relaxed mt-2 relative"
-              rows={3}
-            />
-            {isPastingMedia && (
-              <span className="text-[9px] font-black uppercase tracking-widest text-white/30 animate-pulse mt-1 block">Uploading image...</span>
-            )}
-          </div>
-
-          {showMentionDropdown && (
-            <div className="absolute left-20 bottom-full mb-4 w-72 bg-[#1A1A1A] border border-white/10 rounded-[2rem] shadow-4xl overflow-hidden z-[100] animate-in fade-in slide-in-from-bottom-2">
-              <div className="p-4 border-b border-white/10 bg-white/5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Connect Node</p>
-              </div>
-              <div className="max-h-60 overflow-y-auto no-scrollbar">
-                {suggestedUsers.map(user => (
-                  <button
-                    key={user.uid}
-                    onClick={() => handleSelectMention(user)}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors text-left group"
-                  >
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/5 group-hover:ring-small-orange transition-all">
-                      {user.photoURL ? (
-                        <img src={user.photoURL || null} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                      ) : (
-                        <Sparkles size={16} className="m-auto text-white/20" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate">{user.displayName}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Connect Node</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Media Previews */}
-          <AnimatePresence>
-            {(selectedMedia.length > 0 || embeddedAlbum) && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex flex-wrap gap-4"
-              >
-                {selectedMedia.map((m, i) => (
-                  <div key={i} className="relative group">
-                    <img src={m.url || null} className="w-24 h-24 rounded-2xl object-cover border border-white/10" alt="Preview" loading="lazy" decoding="async" />
-                    <button 
-                      onClick={() => setSelectedMedia(selectedMedia.filter((_, idx) => idx !== i))}
-                      className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-                {embeddedAlbum && (
-                  <div className="relative group flex-1">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4">
-                      <img src={embeddedAlbum.coverImage || null} className="w-12 h-12 rounded-xl object-cover" alt="Album" loading="lazy" decoding="async" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest truncate">{embeddedAlbum.title}</p>
-                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Embedded Album</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setAutoPlayEmbed(!autoPlayEmbed)}
-                          className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${autoPlayEmbed ? 'bg-small-orange text-black' : 'bg-white/5 text-white/40'}`}
-                        >
-                          AutoPlay {autoPlayEmbed ? 'ON' : 'OFF'}
-                        </button>
-                        <button 
-                          onClick={() => setEmbeddedAlbum(null)}
-                          className="p-2 text-white/20 hover:text-white"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex items-center justify-between pt-4 border-t border-white/5">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowMediaPicker('ALBUM')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Embed Album"
-              >
-                <Music size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('VIDEO')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Video"
-              >
-                <VideoIcon size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('GIF')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add GIF"
-              >
-                <ImageIcon size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('STICKER')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Sticker"
-              >
-                <Sticker size={18} />
-              </button>
-              <button 
-                onClick={() => setShowMediaPicker('EMOJI')}
-                className="p-3 bg-white/5 text-white/40 hover:text-small-orange hover:bg-small-orange/10 rounded-2xl transition-all"
-                title="Add Emoji"
-              >
-                <Smile size={18} />
-              </button>
-            </div>
-            {/* Honeypot — hidden from real users, traps bots */}
-            <input
-              type="text"
-              value={honeypot}
-              onChange={e => setHoneypot(e.target.value)}
-              tabIndex={-1}
-              aria-hidden="true"
-              autoComplete="off"
-              style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
-            />
-            <button
-              onClick={handleCreatePost}
-              disabled={isCreating || (!postText.trim() && !selectedMedia.length && !embeddedAlbum)}
-              className="px-8 py-3 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {isCreating ? 'Posting...' : (
-                <>
-                  Post <Send size={14} />
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Media Pickers */}
-          <AnimatePresence>
-            {showMediaPicker && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="mt-4 p-6 bg-black/40 border border-white/10 rounded-[2rem] max-h-64 overflow-y-auto scrollbar-hide"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Select {showMediaPicker}</h4>
-                  <button onClick={() => setShowMediaPicker(null)} className="text-white/20 hover:text-white"><X size={14} /></button>
-                </div>
-
-                {showMediaPicker === 'ALBUM' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {userAlbums.map(album => (
-                      <button 
-                        key={album.id}
-                        onClick={() => { setEmbeddedAlbum(album); setShowMediaPicker(null); }}
-                        className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-left"
-                      >
-                        <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover" alt="Art" loading="lazy" decoding="async" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'VIDEO' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {userVideos.map(video => (
-                      <button 
-                        key={video.id}
-                        onClick={() => { setSelectedMedia([...selectedMedia, { type: 'VIDEO', url: video.url, title: video.title }]); setShowMediaPicker(null); }}
-                        className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-left"
-                      >
-                        <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center">
-                          <Play size={14} fill="white" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{video.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'GIF' && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l41lTjJ8Z1Z1Z1Z1Z/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKD5lZlZlZlZlZl/giphy.gif',
-                      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHR4eXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l0HlTjJ8Z1Z1Z1Z1Z/giphy.gif'
-                    ].map((url, i) => (
-                      <button key={i} onClick={() => addGif(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="GIF" loading="lazy" decoding="async" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'STICKER' && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      'https://picsum.photos/seed/sticker1/100/100',
-                      'https://picsum.photos/seed/sticker2/100/100',
-                      'https://picsum.photos/seed/sticker3/100/100',
-                      'https://picsum.photos/seed/sticker4/100/100'
-                    ].map((url, i) => (
-                      <button key={i} onClick={() => addSticker(url)} className="aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-small-orange transition-all">
-                        <img src={url || null} className="w-full h-full object-cover" alt="Sticker" loading="lazy" decoding="async" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showMediaPicker === 'EMOJI' && (
-                  <div className="grid grid-cols-8 gap-2">
-                    {['🔥', '🎵', '🎸', '✨', '🤘', '🙌', '💯', '❤️', '🚀', '🌈', '🎨', '📸', '🎬', '🎧', '🎤', '🎹'].map((emoji, i) => (
-                      <button key={i} onClick={() => addEmoji(emoji)} className="text-2xl p-2 hover:bg-white/10 rounded-xl transition-all">
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="mb-8">
+          <UniversalPostComposer
+            currentUser={auth.currentUser}
+            placeholder={isOwnProfile ? "What's on your mind? Share music, videos, or just vibes..." : `Post something to ${profileName || 'this profile'}...`}
+            avatarUrl={auth.currentUser.photoURL || undefined}
+            userAlbums={userAlbums}
+            onPost={async (data) => {
+              const resolvedMedia = (await Promise.all(
+                data.attachments.map(async (att) => {
+                  if (att.file && att.url.startsWith('blob:')) {
+                    try {
+                      const { uploadFile } = await import('../services/backendService');
+                      const url = await uploadFile(`posts/${auth.currentUser!.uid}/${Date.now()}_${att.file.name}`, att.file);
+                      return { type: att.type, url, title: att.title };
+                    } catch { return null; }
+                  }
+                  return { type: att.type, url: att.url, title: att.title };
+                })
+              )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              await createPost({
+                text: data.text,
+                isPublic: true,
+                ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+                ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                targetUserId: isOwnProfile ? undefined : uid,
+                targetUserName: isOwnProfile ? undefined : profileName
+              });
+            }}
+          />
         </div>
       )}
 
