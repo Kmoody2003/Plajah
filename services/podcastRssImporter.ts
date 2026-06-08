@@ -1,8 +1,9 @@
 import type { ImportedRssEpisode } from '../types';
 
-// Public CORS proxy — acceptable for preview/validation in a browser-only app.
-// Production: replace with a Firebase Function endpoint.
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+// First-party proxy served from /api/fetch-rss. Falls back to allorigins on localhost dev.
+const CORS_PROXY = window.location.hostname === 'localhost'
+  ? 'https://api.allorigins.win/raw?url='
+  : '/api/fetch-rss?url=';
 
 export interface ParsedPodcastFeed {
   title: string;

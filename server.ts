@@ -3753,6 +3753,67 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
   // ── END MUSE AGENT ────────────────────────────────────────────────────────────
 
+  // ── Podcast RSS Proxy ─────────────────────────────────────────────────────────
+  // Replaces allorigins.win with a first-party proxy so there's no third-party SLA dependency.
+  app.get('/api/fetch-rss', async (req, res) => {
+    const rawUrl = req.query.url as string;
+    if (!rawUrl) return res.status(400).json({ error: 'Missing url param' });
+    try {
+      const parsed = validateProxyUrl(rawUrl);
+      const upstream = await fetch(parsed.href, {
+        signal: AbortSignal.timeout(20_000),
+        headers: {
+          'User-Agent': 'Plajah-Podcast-Bot/1.0',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        },
+      });
+      if (!upstream.ok) return res.status(upstream.status).json({ error: `Upstream ${upstream.status}` });
+      const text = await upstream.text();
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(text);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Podcast Auto-Sync ──────────────────────────────────────────────────────────
+  // Client calls this on startup when syncEnabled is true. Server fetches the feed
+  // (bypassing CORS) and returns raw XML for client-side parsing + Firestore writes.
+  app.post('/api/podcast-sync', authMiddleware, async (req: any, res) => {
+    const uid: string = req.uid;
+    try {
+      const userDoc = await fetchFirebaseDoc('users', uid);
+      const rssFields = userDoc?.fields?.podcastRss?.mapValue?.fields;
+      if (!rssFields) return res.json({ synced: false, reason: 'no_feed' });
+
+      const syncEnabled = rssFields.syncEnabled?.booleanValue ?? false;
+      if (!syncEnabled) return res.json({ synced: false, reason: 'disabled' });
+
+      const externalFeedUrl: string = rssFields.externalFeedUrl?.stringValue ?? '';
+      if (!externalFeedUrl) return res.json({ synced: false, reason: 'no_url' });
+
+      const lastSynced = parseInt(rssFields.lastSynced?.integerValue ?? '0', 10);
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      const force = req.query.force === 'true';
+      if (!force && Date.now() - lastSynced < sevenDaysMs) {
+        return res.json({ synced: false, reason: 'not_due', nextSync: lastSynced + sevenDaysMs });
+      }
+
+      const parsed = validateProxyUrl(externalFeedUrl);
+      const feedRes = await fetch(parsed.href, {
+        signal: AbortSignal.timeout(30_000),
+        headers: { 'User-Agent': 'Plajah-Podcast-Bot/1.0', 'Accept': 'application/rss+xml, application/xml, text/xml, */*' },
+      });
+      if (!feedRes.ok) return res.status(502).json({ error: `Feed returned ${feedRes.status}` });
+
+      const xmlText = await feedRes.text();
+      res.json({ synced: true, xmlText, syncedAt: Date.now() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Cora Music Analysis ───────────────────────────────────────────────────────
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 

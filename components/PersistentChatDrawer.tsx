@@ -277,6 +277,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
   const [activeTab, setActiveTab] = useState<TabType>('LIVE');
 
   const [msgCache, setMsgCache] = useState<Record<string, ChatMessage[]>>({});
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [posts, setPosts] = useState<FeedItem[]>([]);
   const [myPosts, setMyPosts] = useState<FeedItem[]>([]);
@@ -311,7 +312,10 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
       }).catch(() => {});
     }
 
+    setMessagesLoading(true);
+    let firstCallback = true;
     listenerRef.current = listenToMessages(liveRoomId, (msgs) => {
+      if (firstCallback) { firstCallback = false; setMessagesLoading(false); }
       setMsgCache(prev => ({ ...prev, [liveRoomId]: msgs }));
       if (isOpen && activeTab === 'LIVE') {
         requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
@@ -505,8 +509,14 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
                     </div>
                   </div>
 
-                  {/* Gate: must post first unless you're the artist or there's no content-specific room */}
-                  {!hasPostedInRoom && !isOwnWork && activeContentId ? (
+                  {/* Loading skeleton — prevents gate from flashing before messages hydrate */}
+                  {messagesLoading && !isOwnWork && activeContentId ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                      <div className="w-10 h-10 rounded-full border-2 border-orange-500/30 border-t-orange-500 animate-spin" />
+                      <p className="text-xs text-white/20">Loading chat…</p>
+                    </div>
+                  ) : /* Gate: must post first unless you're the artist or there's no content-specific room */
+                  !hasPostedInRoom && !isOwnWork && activeContentId ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
                       <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <MessageSquare size={24} className="text-orange-400" />

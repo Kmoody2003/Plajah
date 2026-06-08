@@ -510,6 +510,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
   const displayedPapers = searchActive ? searchResults : (data?.papers ?? []);
 
   const disciplinePosts = globalPosts.filter(p => {
+    if (p.tags?.includes(disciplineId)) return true;
     const text = (p.text || '').toLowerCase();
     return meta.keywords.some(k => text.includes(k.toLowerCase())) || text.includes(meta.label.toLowerCase());
   });
@@ -889,6 +890,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
                   await createPost({
                     text: `#${meta.label.replace(/\s+/g, '')} ${data.text}`,
                     isPublic: true,
+                    tags: [disciplineId],
                     ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                     ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                   });

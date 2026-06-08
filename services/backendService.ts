@@ -8545,7 +8545,7 @@ export const syncImportedEpisodes = async (episodes: ImportedRssEpisode[]): Prom
   const colRef = collection(db, 'podcastImports', uid, 'episodes');
   // Write episodes in batches of 500 (Firestore limit)
   const chunks: ImportedRssEpisode[][] = [];
-  for (let i = 0; i < Math.min(episodes.length, 500); i += 500) {
+  for (let i = 0; i < episodes.length; i += 500) {
     chunks.push(episodes.slice(i, i + 500));
   }
   for (const chunk of chunks) {
@@ -8560,6 +8560,21 @@ export const syncImportedEpisodes = async (episodes: ImportedRssEpisode[]): Prom
     'podcastRss.lastSynced': Date.now(),
     'podcastRss.importedEpisodeCount': episodes.length,
   });
+};
+
+export const backfillMyAlbumArtistIds = async (): Promise<number> => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return 0;
+  const snap = await getDocs(query(collection(db, 'albums'), where('ownerId', '==', uid)));
+  let fixed = 0;
+  for (const albumDoc of snap.docs) {
+    const tracks: any[] = albumDoc.data().tracks ?? [];
+    if (!tracks.some(t => !t.artistId)) continue;
+    const updatedTracks = tracks.map(t => t.artistId ? t : { ...t, artistId: uid });
+    await updateDoc(albumDoc.ref, { tracks: updatedTracks });
+    fixed++;
+  }
+  return fixed;
 };
 
 export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpisode[]> => {

@@ -13,6 +13,7 @@ import {
   syncImportedEpisodes,
   fetchImportedEpisodes,
   fetchUserAlbums,
+  backfillMyAlbumArtistIds,
 } from '../services/backendService';
 import { fetchAndParseRss, validateRssUrl } from '../services/podcastRssImporter';
 import { generatePodcastRSS, PODCAST_DIRECTORIES } from '../services/podcastRSSService';
@@ -184,10 +185,33 @@ export default function PodcastRssSettings() {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
-    fetchPodcastRssSettings().then(s => {
-      if (s) {
-        setSettings(s);
-        if (s.externalFeedUrl) setInputUrl(s.externalFeedUrl);
+    fetchPodcastRssSettings().then(async s => {
+      if (!s) return;
+      setSettings(s);
+      if (s.externalFeedUrl) setInputUrl(s.externalFeedUrl);
+
+      // Auto-sync if enabled and overdue (>7 days since last sync)
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      if (s.syncEnabled && s.externalFeedUrl && Date.now() - (s.lastSynced ?? 0) > sevenDaysMs) {
+        try {
+          const idToken = await auth.currentUser!.getIdToken();
+          const res = await fetch('/api/podcast-sync', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.synced && data.xmlText) {
+              const { parseRssXml } = await import('../services/podcastRssImporter');
+              const feed = parseRssXml(data.xmlText);
+              const updated = { ...s, lastSynced: data.syncedAt, importedEpisodeCount: feed.episodes.length };
+              await savePodcastRssSettings(updated);
+              await syncImportedEpisodes(feed.episodes);
+              setSettings(updated);
+              setEpisodes(feed.episodes);
+            }
+          }
+        } catch { /* silent — auto-sync failure is non-fatal */ }
       }
     });
 
@@ -196,6 +220,9 @@ export default function PodcastRssSettings() {
       setEpisodes(eps);
       setLoadingEps(false);
     });
+
+    // Silently backfill artistId on any old tracks that are missing it
+    backfillMyAlbumArtistIds().catch(() => {});
   }, []);
 
   useEffect(() => {
