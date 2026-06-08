@@ -1337,6 +1337,8 @@ export interface Post {
   modifiedAt?: number;
   targetUserId?: string;
   targetUserName?: string;
+  tags?: string[];
+  theme?: string;
 }
 
 export interface FeedPage {

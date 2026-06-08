@@ -6,6 +6,7 @@ import { Post, UserProfile } from '../types';
 import { auth, listenToGlobalPosts, createPost, uploadFile } from '../services/backendService';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
+import AnthemPlayer from './AnthemPlayer';
 
 interface Props {
   team: WC26Team;
@@ -168,16 +169,8 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
       {/* ── Music tab ── */}
       {activeTab === 'music' && (
         <div className="space-y-5">
-          {/* Anthem card */}
-          <div
-            className="p-5 rounded-2xl border border-white/10 relative overflow-hidden"
-            style={{ background: `linear-gradient(135deg, ${team.primaryColor}22, ${team.secondaryColor}11)` }}
-          >
-            <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40 mb-2">National Anthem</p>
-            <p className="text-base font-black text-white">{team.anthem}</p>
-            <p className="text-xs text-white/30 mt-1">{team.name}</p>
-            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-5xl opacity-20">{team.flag}</span>
-          </div>
+          {/* Live anthem player */}
+          <AnthemPlayer team={team} />
 
           {/* Popular artists */}
           <div>
