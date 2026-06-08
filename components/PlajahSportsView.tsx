@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
+import WorldCupHub from './WorldCupHub';
 import {
   Zap, Search, X, Plus, MapPin, Trophy, TrendingUp, Newspaper,
   ChevronRight, ChevronLeft, Star, Shield, BarChart2, Flag, Gauge,
@@ -16,12 +17,13 @@ import { RaceHistoryView } from './sports/RaceHistoryView';
 
 // ─── League config ─────────────────────────────────────────────────────────────
 const LEAGUES = [
+  { id: 'WORLD_CUP', label: 'World Cup 2026', icon: Trophy, color: '#FF8C00' },
   { id: 'ALL',     label: 'All Sports', icon: Globe,    color: '#FF8C00' },
   { id: 'NBA',     label: 'NBA',        icon: Trophy,   color: '#C9082A' },
   { id: 'NFL',     label: 'NFL',        icon: Shield,   color: '#013369' },
   { id: 'MLB',     label: 'MLB',        icon: Flag,     color: '#002D72' },
   { id: 'NHL',     label: 'NHL',        icon: Zap,      color: '#00539B' },
-  { id: 'FIFA',    label: 'Soccer',     icon: Globe,    color: '#39B54A' },
+  { id: 'FIFA',    label: 'Football',   icon: Globe,    color: '#39B54A' },
   { id: 'MLS',     label: 'MLS',        icon: Globe,    color: '#00245D' },
   { id: 'NCAA',    label: 'NCAA',       icon: Trophy,   color: '#00539B' },
   { id: 'WNBA',    label: 'WNBA',       icon: Trophy,   color: '#F57C00' },
@@ -195,11 +197,11 @@ const HeadlineCard: React.FC<{ article: Article; featured?: boolean }> = ({ arti
       {article.source && (
         <p className="text-[8px] font-black uppercase tracking-[0.3em] text-[#FF8C00] mb-1.5">{article.source}</p>
       )}
-      <h4 className={`font-black uppercase tracking-tight leading-tight group-hover:text-[#FF8C00] transition-colors line-clamp-3 ${featured ? 'text-lg' : 'text-[10px]'}`}>
+      <h4 className={`font-black uppercase tracking-tight leading-tight group-hover:text-[#FF8C00] transition-colors line-clamp-3 ${featured ? 'text-lg' : 'text-sm'}`}>
         {article.title}
       </h4>
       {featured && article.content && (
-        <p className="text-[10px] text-white/40 mt-2 line-clamp-2 leading-relaxed">{article.content}</p>
+        <p className="text-xs text-white/40 mt-2 line-clamp-2 leading-relaxed">{article.content}</p>
       )}
     </div>
     <ChevronRight size={14} className="text-white/20 group-hover:text-[#FF8C00] transition-colors shrink-0 self-center" />
@@ -216,8 +218,8 @@ const TeamHubCard: React.FC<{ team: any; onRemove: () => void; onClick: () => vo
           : <Trophy size={16} className="text-white/20" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-tight text-white leading-tight truncate">{team.name}</p>
-        <p className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00]/70 mt-0.5">{team.league}</p>
+        <p className="text-xs font-black uppercase tracking-tight text-white leading-tight truncate">{team.name}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]/70 mt-0.5">{team.league}</p>
       </div>
       <ChevronRight size={12} className="text-white/20 group-hover:text-[#FF8C00] transition-colors shrink-0" />
     </button>
@@ -270,7 +272,7 @@ interface Props {
 
 export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
-  const [activeTab, setActiveTab]     = useState<string>('ALL');
+  const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
   const [favoriteTeams, setFavTeams]  = useState<any[]>([]);
   const [headlines, setHeadlines]     = useState<Article[]>([]);
   const [liveScores, setLiveScores]   = useState<any[]>([]);
@@ -306,6 +308,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
 
   // ── Load news & scores ──────────────────────────────────────────────────────
   const loadData = async (tab: string) => {
+    if (tab === 'WORLD_CUP') return; // WorldCupHub manages its own data
     setLoadingNews(true);
     try {
       const scoreTabs = ['NBA', 'NFL', 'MLB', 'NHL', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
@@ -471,8 +474,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
 
           {/* Left: Sports center or league picker */}
           <div className="space-y-8 min-w-0">
+            {/* World Cup Hub */}
+            {activeTab === 'WORLD_CUP' && (
+              <WorldCupHub currentUser={currentUser ?? null} />
+            )}
+
             {/* League-specific sports center */}
-            {activeTab !== 'ALL' && (
+            {activeTab !== 'ALL' && activeTab !== 'WORLD_CUP' && (
               <SportsCenterView selectedSportsTab={activeTab as any} />
             )}
 
@@ -568,8 +576,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
                             <div key={t.id || t.name} className="flex items-center gap-3 px-3 py-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
                               <img src={t.logo} alt="" className="w-7 h-7 object-contain rounded-lg" loading="lazy" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-black text-white truncate">{t.name}</p>
-                                <p className="text-[7px] text-white/35 uppercase tracking-widest">{t.location} · {t.league}</p>
+                                <p className="text-xs font-black text-white truncate">{t.name}</p>
+                                <p className="text-[10px] text-white/35 uppercase tracking-widest">{t.location} · {t.league}</p>
                               </div>
                               <button onClick={() => addFav(t)} className="px-2.5 py-1 rounded-lg bg-[#FF8C00]/15 border border-[#FF8C00]/30 text-[#FF8C00] text-[7px] font-black uppercase tracking-widest hover:bg-[#FF8C00]/25 transition-all">
                                 Add
@@ -672,8 +680,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
               <div className="p-4 space-y-2">
                 {SPORTS_INTELLIGENCE_DOMAINS.map(domain => (
                   <div key={domain.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
-                    <p className="text-[9px] font-black uppercase tracking-tight text-white/70">{domain.label}</p>
-                    <p className="text-[7px] text-white/30 leading-relaxed mt-1">{domain.description}</p>
+                    <p className="text-xs font-black uppercase tracking-tight text-white/70">{domain.label}</p>
+                    <p className="text-[10px] text-white/40 leading-relaxed mt-1">{domain.description}</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {domain.sources.slice(0, 3).map(source => (
                         <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="text-[6px] font-black uppercase tracking-widest text-[#FF8C00]/70 hover:text-[#FF8C00]">

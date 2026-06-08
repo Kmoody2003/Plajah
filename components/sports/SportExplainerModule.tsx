@@ -240,7 +240,7 @@ const SPORT_DATA: Record<SportLeague, SportData> = {
       { id: 'GK', name: 'Goalkeeper', abbr: 'GK', x: 50, y: 90, role: 'The only player who can use their hands (inside the penalty area). The last line of defense and the team\'s emotional anchor.', key: ['Shot stopping', 'Distribution', 'Command of area'] },
       { id: 'CB', name: 'Center Back', abbr: 'CB', x: 50, y: 76, role: 'The rock of the defense. Wins aerial duels, makes last-ditch tackles, and organizes the defensive line. Usually played in pairs.', key: ['Heading', 'Tackling', 'Leadership'] },
       { id: 'LB', name: 'Left Back', abbr: 'LB', x: 25, y: 72, role: 'Defends the left flank and overlaps forward to support attacks. Modern fullbacks are expected to be attacking threats.', key: ['Crossing', 'Defending 1v1', 'Stamina'] },
-      { id: 'RB', name: 'Right Back', abbr: 'RB', x: 75, y: 72, role: 'Mirrors the left back on the right side. In modern soccer, attacking fullbacks are highly valued for their ability to create width.', key: ['Crossing', 'Defending', 'Overlapping runs'] },
+      { id: 'RB', name: 'Right Back', abbr: 'RB', x: 75, y: 72, role: 'Mirrors the left back on the right side. In modern football, attacking fullbacks are highly valued for their ability to create width.', key: ['Crossing', 'Defending', 'Overlapping runs'] },
       { id: 'CM', name: 'Central Midfielder', abbr: 'CM', x: 50, y: 55, role: 'The engine room of the team. Can be a defensive midfielder (DM) who shields the defense or an attacking midfielder (AM) who creates chances.', key: ['Passing range', 'Ball retention', 'Work rate'] },
       { id: 'LM', name: 'Left Midfielder', abbr: 'LM', x: 20, y: 50, role: 'Provides width on the left side. Crosses, dribbles, and presses the opposition\'s right back. Often a fast, direct winger.', key: ['Dribbling', 'Crossing', 'Pressing'] },
       { id: 'RM', name: 'Right Midfielder', abbr: 'RM', x: 80, y: 50, role: 'Provides width on the right. An inverted winger (left-footed on the right) can cut inside to shoot. Think Messi early in his career.', key: ['Pace', 'Cutting inside', 'Assist'] },
@@ -271,9 +271,9 @@ const SPORT_DATA: Record<SportLeague, SportData> = {
   },
 
   MLS: {
-    name: 'Soccer', league: 'MLS', tagline: 'Score more goals than your opponent in 90 minutes',
+    name: 'Football', league: 'MLS', tagline: 'Score more goals than your opponent in 90 minutes',
     color: '#002B5C', accent: '#C41230',
-    overview: `Major League Soccer is North America's top professional soccer league, growing rapidly since its founding in 1996. MLS now has 29 teams across the US and Canada, playing the same rules as FIFA. The league has attracted global stars and is developing homegrown talent at an unprecedented rate. Games feature passionate supporter sections and intense rivalries.`,
+    overview: `Major League Soccer is North America's top professional football league, growing rapidly since its founding in 1996. MLS now has 29 teams across the US and Canada, playing the same rules as FIFA. The league has attracted global stars and is developing homegrown talent at an unprecedented rate. Games feature passionate supporter sections and intense rivalries.`,
     objective: 'Score more goals than the opponent by kicking or heading the ball into their net.',
     quickFacts: [
       { label: 'Teams', value: '29 clubs' },
@@ -290,7 +290,7 @@ const SPORT_DATA: Record<SportLeague, SportData> = {
   },
 };
 
-// MLS shares soccer rules/positions with FIFA
+// MLS shares football rules/positions with FIFA
 (SPORT_DATA.MLS as SportData).positions = SPORT_DATA.FIFA.positions;
 (SPORT_DATA.MLS as SportData).scoringRules = SPORT_DATA.FIFA.scoringRules;
 (SPORT_DATA.MLS as SportData).keyRules = SPORT_DATA.FIFA.keyRules;

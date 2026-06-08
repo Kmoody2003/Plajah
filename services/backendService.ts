@@ -7690,7 +7690,7 @@ const DEMO_CLUBS: Omit<Club, 'id' | 'timestamp' | 'updatedAt'>[] = [
     admins: [],
     moderators: [],
     category: 'Sports',
-    tags: ['sports', 'fitness', 'football', 'basketball', 'soccer', 'athletics'],
+    tags: ['sports', 'fitness', 'football', 'americanfootball', 'basketball', 'athletics'],
     isPrivate: false,
     joinProcess: 'AUTO',
     allowedAssetTypes: ['VIDEO', 'PHOTO', 'LINK', 'ARTICLE'],
