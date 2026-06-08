@@ -290,7 +290,7 @@ const SPORT_DATA: Record<SportLeague, SportData> = {
   },
 };
 
-// MLS shares football rules/positions with FIFA
+// MLS shares soccer rules/positions with FIFA
 (SPORT_DATA.MLS as SportData).positions = SPORT_DATA.FIFA.positions;
 (SPORT_DATA.MLS as SportData).scoringRules = SPORT_DATA.FIFA.scoringRules;
 (SPORT_DATA.MLS as SportData).keyRules = SPORT_DATA.FIFA.keyRules;
