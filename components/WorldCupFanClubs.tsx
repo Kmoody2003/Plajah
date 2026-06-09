@@ -1,7 +1,7 @@
 // World Cup Fan Clubs — unofficial open fan communities for all 48 WC2026 nations
 // Each club uses the team's colors/flag as its identity.
 // Includes a live scores ticker, team roster, and community timeline.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, MessageCircle, Clock, Trophy, Star, Bell,
@@ -9,13 +9,12 @@ import {
 } from 'lucide-react';
 import { WC26_TEAMS, WC26_MATCHES, getTeam, ROUND_LABELS, type WC26Team, type WC26Match } from '../data/worldCup2026';
 import { WC26Player, getPlayersByTeam, getPositionLabel, getPositionColor } from '../data/worldCupPlayers';
-import { auth, db } from '../services/backendService';
+import { auth, db, listenToClubPosts, createClubPost, toggleClubPostLike, deleteClubPost } from '../services/backendService';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, orderBy, limit, onSnapshot, addDoc,
-  doc, setDoc, deleteDoc, getCountFromServer,
+  collection, doc, setDoc, deleteDoc, getCountFromServer, onSnapshot,
 } from 'firebase/firestore';
-import { UserProfile } from '../types';
+import { UserProfile, ClubPost } from '../types';
 import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer';
 
 // ── Live scores ticker ─────────────────────────────────────────────────────────
@@ -120,17 +119,6 @@ const ClubCard: React.FC<{ team: WC26Team; onClick: () => void }> = ({ team, onC
   );
 };
 
-// ── Post types ─────────────────────────────────────────────────────────────────
-
-interface ClubPost {
-  id: string;
-  uid: string;
-  displayName: string;
-  text: string;
-  createdAt: any;
-  pinned?: boolean;
-}
-
 // ── Fan club detail ────────────────────────────────────────────────────────────
 
 type ClubTab = 'timeline' | 'roster';
@@ -148,36 +136,30 @@ export const FanClubDetail: React.FC<{
   const [uid, setUid]               = useState<string | undefined>(auth.currentUser?.uid);
 
   const clubId    = `wc2026_${team.id}`;
-  const postsCol  = useMemo(() => collection(db, 'wcFanClubs', clubId, 'posts'), [clubId]);
   const memberDoc = useMemo(() => uid ? doc(db, 'wcFanClubs', clubId, 'members', uid) : null, [clubId, uid]);
 
-  // Track auth state reactively — avoids stale uid on first render before Firebase resolves
+  // Track auth state reactively
   useEffect(() => {
     return onAuthStateChanged(auth, u => setUid(u?.uid));
   }, []);
 
-  // Subscribe to posts
+  // Subscribe to posts — same clubPosts collection as all other clubs
   useEffect(() => {
-    const q = query(postsCol, orderBy('createdAt', 'desc'), limit(30));
-    return onSnapshot(q,
-      snap => setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost))),
-      err  => console.error('wcFanClub posts listener error:', err.code, err.message),
-    );
-  }, [postsCol]);
+    return listenToClubPosts(clubId, setPosts);
+  }, [clubId]);
 
-  // Subscribe to own membership
+  // Subscribe to own membership (still stored in wcFanClubs/members for WC-specific tracking)
   useEffect(() => {
     if (!memberDoc) return;
     return onSnapshot(memberDoc, snap => setIsMember(snap.exists()));
-  }, [team.id, uid]);
+  }, [memberDoc]);
 
-  // Get member count from 'memberCount' doc (updated by cloud function / client estimate)
+  // Member count estimate from wcFanClubs members subcollection
   useEffect(() => {
-    // Simple estimate — count members subcollection
     getCountFromServer(collection(db, 'wcFanClubs', clubId, 'members'))
       .then(snap => setMemberCount(snap.data().count))
       .catch(() => setMemberCount(0));
-  }, [team.id]);
+  }, [clubId]);
 
   const toggleMembership = useCallback(async () => {
     if (!memberDoc || memberLoading) return;
@@ -197,19 +179,14 @@ export const FanClubDetail: React.FC<{
   const handleFanClubPost = useCallback(async (data: ComposerPostData) => {
     if (!uid || !data.text.trim()) return;
     try {
-      await addDoc(postsCol, {
-        uid,
-        displayName: currentUser?.displayName ?? auth.currentUser?.displayName ?? 'Fan',
-        text: data.text.trim(),
-        createdAt: Date.now(),
-      });
+      await createClubPost({ clubId, content: data.text.trim(), type: 'POST' });
     } catch (err: any) {
       const isPermission = err?.code === 'permission-denied';
       alert(isPermission
         ? 'Could not post — please sign in and try again.'
         : 'Could not post. Please try again in a moment.');
     }
-  }, [uid, currentUser, postsCol]);
+  }, [uid, clubId]);
 
   const players = getPlayersByTeam(team.id);
   const grouped = (['GK', 'DEF', 'MID', 'FWD'] as const).reduce((acc, pos) => {
@@ -346,8 +323,9 @@ export const FanClubDetail: React.FC<{
               ) : (
                 <div className="space-y-3">
                   {posts.map(post => {
-                    const ts = post.createdAt?.toDate?.()?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) ?? '—';
-                    const isOwn = post.uid === uid;
+                    const ts = post.timestamp ? new Date(post.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+                    const isOwn = post.authorId === uid;
+                    const liked = uid ? post.likes?.includes(uid) : false;
                     return (
                       <motion.div
                         key={post.id}
@@ -356,19 +334,40 @@ export const FanClubDetail: React.FC<{
                         animate={{ opacity: 1, y: 0 }}
                         className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/8"
                       >
-                        <div
-                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-black"
-                          style={{ background: `${primary}25`, color: primary }}
-                        >
-                          {post.displayName?.[0]?.toUpperCase() ?? '?'}
-                        </div>
+                        {post.authorPhoto ? (
+                          <img src={post.authorPhoto} className="w-8 h-8 rounded-xl object-cover shrink-0" alt="" />
+                        ) : (
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-black"
+                            style={{ background: `${primary}25`, color: primary }}
+                          >
+                            {post.authorName?.[0]?.toUpperCase() ?? '?'}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[9px] font-black text-white/70">{post.displayName}</span>
+                            <span className="text-[9px] font-black text-white/70">{post.authorName}</span>
                             <span className="text-[7px] text-white/20">{ts}</span>
                             {isOwn && <span className="text-[6px] px-1.5 py-0.5 rounded-md bg-white/5 text-white/25 uppercase tracking-wider">You</span>}
                           </div>
-                          <p className="text-sm text-white/80 leading-relaxed break-words">{post.text}</p>
+                          <p className="text-sm text-white/80 leading-relaxed break-words">{post.content}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              onClick={() => uid && toggleClubPostLike(post.id, uid, !!liked)}
+                              className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest transition-colors"
+                              style={{ color: liked ? primary : 'rgba(255,255,255,0.2)' }}
+                            >
+                              ♥ {post.likes?.length || 0}
+                            </button>
+                            {isOwn && (
+                              <button
+                                onClick={() => deleteClubPost(post.id)}
+                                className="text-[8px] font-black uppercase tracking-widest text-white/15 hover:text-red-400 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     );

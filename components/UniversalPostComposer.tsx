@@ -38,6 +38,12 @@ export interface ComposerDataViz {
   source: string;
 }
 
+export interface ExclusiveConfig {
+  type: 'countdown' | 'viewLimit';
+  expiresAt?: number;  // absolute ms timestamp (Date.now() + chosen duration)
+  viewLimit?: number;  // max unique profile views before auto-delete
+}
+
 export interface ComposerPostData {
   text: string;
   attachments: ComposerAttachment[];
@@ -45,6 +51,7 @@ export interface ComposerPostData {
   theme: 'STANDARD' | 'SCRAPBOOK' | 'PHOTO_ALBUM' | 'MUSIC_PLAYER' | 'NEWSPAPER' | 'ARCADE';
   poll?: ComposerPoll;
   dataViz?: ComposerDataViz;
+  exclusive?: ExclusiveConfig;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -71,6 +78,19 @@ const VIZ_PRESETS: ComposerDataViz[] = [
   { presetId: 'WEATHER',     title: 'Weather Forecast',   source: 'NOAA'    },
   { presetId: 'ARXIV',       title: 'Research Papers',    source: 'arXiv'   },
 ];
+
+const COUNTDOWN_OPTIONS: { label: string; ms: number }[] = [
+  { label: '15 min', ms: 15 * 60 * 1000 },
+  { label: '30 min', ms: 30 * 60 * 1000 },
+  { label: '1 hr',   ms: 60 * 60 * 1000 },
+  { label: '2 hr',   ms: 2 * 60 * 60 * 1000 },
+  { label: '4 hr',   ms: 4 * 60 * 60 * 1000 },
+  { label: '6 hr',   ms: 6 * 60 * 60 * 1000 },
+  { label: '12 hr',  ms: 12 * 60 * 60 * 1000 },
+  { label: '24 hr',  ms: 24 * 60 * 60 * 1000 },
+];
+const VIEW_LIMIT_OPTIONS = [5, 10, 25, 50, 100];
+const MAX_MEDIA_NOTE_SECONDS = 30;
 
 type AssetTab = 'Albums' | 'Worlds' | 'More';
 const MORE_TYPES: { label: string; type: AssetEmbed['type'] }[] = [
@@ -133,6 +153,12 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [videoCapturing, setVideoCapturing]       = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [exclusive, setExclusive]   = useState<ExclusiveConfig | null>(null);
+  const [showExclusive, setShowExclusive] = useState(false);
+  const [exclusiveMode, setExclusiveMode] = useState<'countdown' | 'viewLimit'>('countdown');
+  const [selectedCountdownMs, setSelectedCountdownMs] = useState(COUNTDOWN_OPTIONS[3].ms); // default 2hr
+  const [selectedViewLimit, setSelectedViewLimit]     = useState(25);
+  const [camSeconds, setCamSeconds] = useState(0);
 
   const { broadcast, accounts } = useFediverse();
   const hasFediverse = accounts.length > 0;
@@ -143,6 +169,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const videoCamRecorder= useRef<MediaRecorder | null>(null);
   const videoCamChunks  = useRef<Blob[]>([]);
   const dragCounter     = useRef(0);
+  const camTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const canPost = text.trim().length > 0 || attachments.length > 0 || !!assetEmbed || !!poll || !!dataViz;
 
@@ -275,20 +302,54 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     rec.onstop = () => {
       const blob = new Blob(videoCamChunks.current, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
-      setAttachments(prev => [...prev, { type: 'VIDEO', url, title: 'Camera recording', file: new File([blob], 'cam.webm', { type: 'video/webm' }) }]);
+      setAttachments(prev => [...prev, { type: 'VIDEO', url, title: 'Video note', file: new File([blob], 'cam.webm', { type: 'video/webm' }) }]);
+      setCamSeconds(0);
     };
     rec.start();
     videoCamRecorder.current = rec;
+    setCamSeconds(0);
+    camTimerRef.current = setInterval(() => {
+      setCamSeconds(prev => {
+        if (prev + 1 >= MAX_MEDIA_NOTE_SECONDS) {
+          stopCameraRecord();
+          return MAX_MEDIA_NOTE_SECONDS;
+        }
+        return prev + 1;
+      });
+    }, 1000);
   };
-  const stopCameraRecord = () => { videoCamRecorder.current?.stop(); closeCameraCapture(); };
+  const stopCameraRecord = () => {
+    if (camTimerRef.current) { clearInterval(camTimerRef.current); camTimerRef.current = null; }
+    videoCamRecorder.current?.stop();
+    closeCameraCapture();
+  };
   const closeCameraCapture = () => {
+    if (camTimerRef.current) { clearInterval(camTimerRef.current); camTimerRef.current = null; }
     videoCamStream.current?.getTracks().forEach(t => t.stop());
     videoCamStream.current = null;
     videoCamRecorder.current = null;
     setVideoCapturing(false);
+    setCamSeconds(0);
   };
 
   // ── Post ─────────────────────────────────────────────────────────────────────
+
+  const buildExclusiveConfig = (): ExclusiveConfig | undefined => {
+    if (!exclusive) return undefined;
+    if (exclusiveMode === 'countdown') {
+      return { type: 'countdown', expiresAt: Date.now() + selectedCountdownMs };
+    }
+    return { type: 'viewLimit', viewLimit: selectedViewLimit };
+  };
+
+  const applyExclusive = () => {
+    if (exclusiveMode === 'countdown') {
+      setExclusive({ type: 'countdown', expiresAt: Date.now() + selectedCountdownMs });
+    } else {
+      setExclusive({ type: 'viewLimit', viewLimit: selectedViewLimit });
+    }
+    setShowExclusive(false);
+  };
 
   const handlePost = async () => {
     if (!canPost || posting) return;
@@ -297,12 +358,13 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
         ? { ...poll, options: poll.options.filter(o => o.trim()) }
         : undefined;
-      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined });
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig() });
       if (crossPost && hasFediverse && text.trim()) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
       setText(''); setAttachments([]); setAssetEmbed(undefined); setTheme('STANDARD');
       setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
+      setExclusive(null); setShowExclusive(false);
       setExpanded(false);
     } finally { setPosting(false); }
   };
@@ -556,6 +618,103 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* ── Exclusive post panel ── */}
+      {showExclusive && (
+        <div className="ml-12 rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,80,0,0.06)', border: '1px solid rgba(255,120,0,0.2)' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#ff8c00' }}>🔥 Exclusive Post</p>
+            <button onClick={() => { setShowExclusive(false); setExclusive(null); }} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"><X size={10} /></button>
+          </div>
+
+          {/* Mode tabs */}
+          <div className="flex gap-2">
+            {(['countdown', 'viewLimit'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setExclusiveMode(mode)}
+                className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all"
+                style={exclusiveMode === mode
+                  ? { background: 'rgba(255,140,0,0.25)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.5)' }
+                  : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                {mode === 'countdown' ? '⏱ Countdown' : '👁 View Limit'}
+              </button>
+            ))}
+          </div>
+
+          {exclusiveMode === 'countdown' ? (
+            <div className="space-y-2">
+              <p className="text-[8px] text-white/30 uppercase tracking-widest">Post disappears after</p>
+              <div className="flex flex-wrap gap-1.5">
+                {COUNTDOWN_OPTIONS.map(opt => (
+                  <button
+                    key={opt.ms}
+                    onClick={() => setSelectedCountdownMs(opt.ms)}
+                    className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all"
+                    style={selectedCountdownMs === opt.ms
+                      ? { background: 'rgba(255,120,0,0.3)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.6)' }
+                      : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.07)' }
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[8px] text-white/30 uppercase tracking-widest">Post disappears after this many unique viewers</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VIEW_LIMIT_OPTIONS.map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setSelectedViewLimit(n)}
+                    className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all"
+                    style={selectedViewLimit === n
+                      ? { background: 'rgba(255,120,0,0.3)', color: '#ff8c00', border: '1px solid rgba(255,140,0,0.6)' }
+                      : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.07)' }
+                    }
+                  >
+                    {n} viewers
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={applyExclusive}
+            className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all"
+            style={{ background: 'rgba(255,100,0,0.85)', color: 'black' }}
+          >
+            Set Exclusive
+          </button>
+        </div>
+      )}
+
+      {/* Active exclusive badge */}
+      {exclusive && !showExclusive && (
+        <div
+          className="flex items-center justify-between ml-12 rounded-2xl px-3 py-2"
+          style={{ background: 'rgba(255,80,0,0.08)', border: '1px solid rgba(255,120,0,0.22)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🔥</span>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#ff8c00' }}>Exclusive Post</p>
+              <p className="text-[8px] text-white/30">
+                {exclusive.type === 'countdown'
+                  ? `Self-destructs in ${COUNTDOWN_OPTIONS.find(o => o.ms === selectedCountdownMs)?.label ?? ''}`
+                  : `Visible to ${exclusive.viewLimit} unique viewers`
+                }
+              </p>
+            </div>
+          </div>
+          <button onClick={() => { setExclusive(null); setShowExclusive(false); }} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"><X size={10} /></button>
+        </div>
+      )}
+
       {/* Emoji picker */}
       {showEmoji && (
         <div className="pl-12 flex flex-wrap gap-1.5 bg-white/5 rounded-2xl p-3 border border-white/10">
@@ -655,9 +814,19 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-h-40">
             <video ref={videoPreviewRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
             {videoCamRecorder.current?.state === 'recording' && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-red-600/80 px-2 py-0.5 rounded-full">
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-red-600/90 px-2 py-0.5 rounded-full">
                 <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-white uppercase tracking-widest">REC</span>
+                <span className="text-[8px] font-black text-white uppercase tracking-widest">
+                  {camSeconds}s / {MAX_MEDIA_NOTE_SECONDS}s
+                </span>
+              </div>
+            )}
+            {videoCamRecorder.current?.state === 'recording' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-900">
+                <div
+                  className="h-full bg-red-500 transition-all"
+                  style={{ width: `${(camSeconds / MAX_MEDIA_NOTE_SECONDS) * 100}%` }}
+                />
               </div>
             )}
           </div>
@@ -751,6 +920,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           <FlaskConical size={16} />
         </button>
 
+        {/* Exclusive post button */}
+        <button
+          onClick={() => { setShowExclusive(s => !s); setShowEmoji(false); setShowGif(false); setShowAssetPicker(false); setShowPoll(false); setShowViz(false); }}
+          className={`p-2 rounded-xl transition-all text-base leading-none ${showExclusive || exclusive ? 'bg-orange-500/20' : 'text-white/40 hover:bg-white/8'}`}
+          title="Exclusive post — self-destructs by time or view count"
+          style={showExclusive || exclusive ? { filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.7))' } : {}}
+        >
+          🔥
+        </button>
+
         <div className="flex-1" />
 
         <span className={`text-[9px] font-black tabular-nums ${text.length > 280 ? 'text-red-400' : 'text-white/20'}`}>
@@ -771,7 +950,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         )}
 
         <button
-          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); setPoll(null); setDataViz(null); }}
+          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); setPoll(null); setDataViz(null); setExclusive(null); setShowExclusive(false); }}
           className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/8 transition-all"
         >
           <X size={14} />
