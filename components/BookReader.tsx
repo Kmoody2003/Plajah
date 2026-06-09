@@ -857,26 +857,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             className="transition-transform duration-300 ease-out w-full h-full flex items-center justify-center"
             style={{ transform: `scale(${zoom})` }}
           >
-            {readerError ? (
+            {(readerError || isLoadingContent) ? (
               <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
                 <div className="text-center p-12">
-                  <BookOpenIcon size={64} className={`mx-auto mb-8 ${theme === 'LIGHT' ? 'text-black/10' : 'text-white/10'}`} />
-                  <h3 className={`text-xl font-black uppercase tracking-widest mb-4 ${s.text}`}>Reader Sync Needed</h3>
-                  <p className={`text-xs font-bold ${s.subtext} uppercase tracking-widest leading-loose mb-8`}>
-                    {readerError}
-                  </p>
-                  {currentChapter?.url && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(currentChapter.url, '_blank', 'noopener,noreferrer');
-                      }}
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-small-orange text-white text-[10px] font-black uppercase tracking-widest"
-                    >
-                      <Download size={16} />
-                      Open Original
-                    </button>
-                  )}
+                  <div className={`w-14 h-14 mx-auto mb-8 rounded-full border-2 border-t-transparent animate-spin ${theme === 'LIGHT' ? 'border-black/20' : 'border-white/20'}`} style={{ borderTopColor: 'transparent' }} />
+                  <h3 className={`text-xl font-black uppercase tracking-widest mb-3 ${s.text}`}>Loading</h3>
+                  <p className={`text-xs font-bold ${s.subtext} uppercase tracking-widest`}>Your book is on its way…</p>
                 </div>
               </div>
             ) : isEpub ? (
@@ -1613,6 +1599,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         title={book.title}
         author={book.artist ?? undefined}
         onBeginReading={() => setShowOpeningScene(false)}
+        firstPageText={chapterContent || undefined}
       />
     )}
     </>

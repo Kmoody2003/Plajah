@@ -9,6 +9,11 @@ permissions:
   contents: read
   id-token: write
 
+# Opt into Node.js 24 for action runners now so GitHub's forced cutover
+# (June 16 2026) doesn't break the git credential helper mid-flight.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -18,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies

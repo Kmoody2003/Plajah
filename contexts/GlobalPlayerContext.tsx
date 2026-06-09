@@ -329,7 +329,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     if (source !== 'VIDEO') {
       if (isNewTrack) {
-        const isExternal = track.url.startsWith('http') && !track.url.includes(window.location.host);
+        const isExternal = !!track.url && track.url.startsWith('http') && !track.url.includes(window.location.host);
         if (isExternal) {
           audio.crossOrigin = "anonymous";
         } else {

@@ -123,15 +123,15 @@ export const PodcastsView: React.FC = () => {
         try {
             const res = await fetch('https://itunes.apple.com/us/rss/toppodcasts/limit=10/json');
             const data = await res.json();
-            const entries = data.feed.entry || [];
+            const entries: any[] = data?.feed?.entry || [];
             const pods = entries.map((e: any) => ({
-                id: e.id.attributes['im:id'],
-                title: e['im:name'].label,
-                artist: e['im:artist'].label,
-                coverImage: e['im:image'][2].label,
+                id: e.id?.attributes?.['im:id'] ?? '',
+                title: e['im:name']?.label ?? '',
+                artist: e['im:artist']?.label ?? '',
+                coverImage: e['im:image']?.[2]?.label || e['im:image']?.[0]?.label || '',
                 feedUrl: '',
                 genres: e.category?.attributes?.label ? [e.category.attributes.label] : []
-            }));
+            })).filter(p => p.id);
             setTopPodcasts(pods);
         } catch (err) {
             console.error("Top 10 fetch failed:", err);
@@ -146,15 +146,15 @@ export const PodcastsView: React.FC = () => {
             try {
                 const res = await fetch(`https://itunes.apple.com/us/rss/toppodcasts/limit=10/genre=${cat.id}/json`);
                 const json = await res.json();
-                const entries = json.feed.entry || [];
+                const entries: any[] = json?.feed?.entry || [];
                 data[cat.name] = entries.map((e: any) => ({
-                    id: e.id.attributes['im:id'],
-                    title: e['im:name'].label,
-                    artist: e['im:artist'].label,
-                    coverImage: e['im:image'][2].label,
+                    id: e.id?.attributes?.['im:id'] ?? '',
+                    title: e['im:name']?.label ?? '',
+                    artist: e['im:artist']?.label ?? '',
+                    coverImage: e['im:image']?.[2]?.label || e['im:image']?.[0]?.label || '',
                     feedUrl: '',
                     genres: [cat.name]
-                }));
+                })).filter((p: any) => p.id);
             } catch (e) {
                 console.error(`Failed to fetch category ${cat.name}:`, e);
             }
@@ -183,12 +183,12 @@ export const PodcastsView: React.FC = () => {
         try {
             const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(searchQuery)}&limit=20`);
             const data = await res.json();
-            setSearchResults(data.results.map((p: any) => ({
+            setSearchResults((data.results || []).filter((p: any) => p.collectionId).map((p: any) => ({
                 id: String(p.collectionId),
-                title: p.collectionName,
-                artist: p.artistName,
-                coverImage: p.artworkUrl600 || p.artworkUrl100,
-                feedUrl: p.feedUrl,
+                title: p.collectionName || '',
+                artist: p.artistName || '',
+                coverImage: p.artworkUrl600 || p.artworkUrl100 || '',
+                feedUrl: p.feedUrl || '',
                 genres: p.genres || []
             })));
         } catch (err) {
@@ -205,15 +205,17 @@ export const PodcastsView: React.FC = () => {
         try {
             const res = await fetch(`https://itunes.apple.com/lookup?id=${pod.id}&media=podcast&entity=podcastEpisode&limit=50`);
             const data = await res.json();
-            const eps = data.results.slice(1).map((ep: any) => ({
-                id: String(ep.trackId),
-                title: ep.trackName,
-                description: ep.description || '',
-                audioUrl: ep.episodeUrl,
-                duration: Math.floor((ep.trackTimeMillis || 0) / 1000),
-                releaseDate: ep.releaseDate,
-                imageUrl: ep.artworkUrl600 || ep.artworkUrl160 || pod.coverImage
-            }));
+            const eps = (data.results || []).slice(1)
+                .filter((ep: any) => ep.episodeUrl)   // skip episodes with no streamable audio
+                .map((ep: any) => ({
+                    id: String(ep.trackId),
+                    title: ep.trackName || 'Untitled Episode',
+                    description: ep.description || '',
+                    audioUrl: ep.episodeUrl as string,
+                    duration: Math.floor((ep.trackTimeMillis || 0) / 1000),
+                    releaseDate: ep.releaseDate || '',
+                    imageUrl: ep.artworkUrl600 || ep.artworkUrl160 || pod.coverImage
+                }));
             setEpisodes(eps);
         } catch (err) {
             console.error("Failed to load episodes:", err);
@@ -342,7 +344,9 @@ export const PodcastsView: React.FC = () => {
                                             <h4 className={`text-lg font-black uppercase tracking-tight mb-2 truncate ${currentTrack?.id === ep.id ? 'text-small-orange' : ''}`}>{ep.title}</h4>
                                             <p className="text-xs opacity-40 font-medium line-clamp-1 mb-4 leading-relaxed">{ep.description?.replace(/<[^>]+>/g, '').trim() || 'No description available for this episode.'}</p>
                                             <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest opacity-20">
-                                                <span className="flex items-center gap-2"><Calendar size={12} className="text-small-orange" /> {new Date(ep.releaseDate).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                                {ep.releaseDate && !isNaN(new Date(ep.releaseDate).getTime()) && (
+                                              <span className="flex items-center gap-2"><Calendar size={12} className="text-small-orange" /> {new Date(ep.releaseDate).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                            )}
                                                 <span className="flex items-center gap-2"><Clock size={12} className="text-small-orange" /> {formatDuration(ep.duration)}</span>
                                             </div>
                                         </div>
