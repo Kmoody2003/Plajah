@@ -12,7 +12,7 @@ import { WC26Player, getPlayersByTeam, getPositionLabel, getPositionColor } from
 import { auth, db } from '../services/backendService';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp,
+  collection, query, orderBy, limit, onSnapshot, addDoc,
   doc, setDoc, deleteDoc, getCountFromServer,
 } from 'firebase/firestore';
 import { UserProfile } from '../types';
@@ -201,14 +201,13 @@ export const FanClubDetail: React.FC<{
         uid,
         displayName: currentUser?.displayName ?? auth.currentUser?.displayName ?? 'Fan',
         text: data.text.trim(),
-        createdAt: serverTimestamp(),
+        createdAt: Date.now(),
       });
     } catch (err: any) {
-      const msg = err?.code === 'permission-denied'
-        ? 'Post failed: permission denied. Please sign in and try again.'
-        : `Post failed: ${err?.message ?? 'unknown error'}`;
-      alert(msg);
-      throw err;
+      const isPermission = err?.code === 'permission-denied';
+      alert(isPermission
+        ? 'Could not post — please sign in and try again.'
+        : 'Could not post. Please try again in a moment.');
     }
   }, [uid, currentUser, postsCol]);
 
