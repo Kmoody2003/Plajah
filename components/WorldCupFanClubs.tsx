@@ -20,7 +20,7 @@ import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer
 
 // ── Live scores ticker ─────────────────────────────────────────────────────────
 
-const LiveScoresTicker: React.FC<{ teamId?: string }> = ({ teamId }) => {
+export const LiveScoresTicker: React.FC<{ teamId?: string }> = ({ teamId }) => {
   const now = Date.now();
   const relevant = WC26_MATCHES.filter(m => {
     if (teamId) return m.homeTeamId === teamId || m.awayTeamId === teamId;
@@ -135,9 +135,9 @@ interface ClubPost {
 
 type ClubTab = 'timeline' | 'roster';
 
-const FanClubDetail: React.FC<{
+export const FanClubDetail: React.FC<{
   team: WC26Team;
-  currentUser: UserProfile | null;
+  currentUser: { displayName?: string | null } | null;
   onBack: () => void;
 }> = ({ team, currentUser, onBack }) => {
   const [tab, setTab]               = useState<ClubTab>('timeline');

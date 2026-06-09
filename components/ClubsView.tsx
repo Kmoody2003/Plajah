@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown, Crown } from 'lucide-react';
+import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, Check, ChevronDown, Crown, Trophy } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubJoinProcess, PitchDeck } from '../types';
 import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
 import ClubDetailView from './ClubDetailView';
+import { FanClubDetail, LiveScoresTicker } from './WorldCupFanClubs';
+import { WC26_TEAMS, type WC26Team } from '../data/worldCup2026';
 
 interface ClubsViewProps {
   onBack: () => void;
@@ -22,6 +24,7 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitc
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
+  const [selectedWcTeam, setSelectedWcTeam] = useState<WC26Team | null>(null);
   const [openInSettings, setOpenInSettings] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -96,6 +99,18 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitc
         }}
         onCreatePitchDeck={onCreatePitchDeck}
       />
+    );
+  }
+
+  if (selectedWcTeam) {
+    return (
+      <div className="min-h-screen bg-transparent text-[var(--text-primary)] max-w-4xl mx-auto px-6 lg:px-12 pt-8 pb-32">
+        <FanClubDetail
+          team={selectedWcTeam}
+          currentUser={currentUser}
+          onBack={() => setSelectedWcTeam(null)}
+        />
+      </div>
     );
   }
 
@@ -174,6 +189,56 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitc
             >{cat}</button>
           ))}
         </div>
+
+        {/* WC2026 Fan Clubs — shown for All or Sports */}
+        {(selectedCategory === 'All' || selectedCategory === 'Sports') && (
+          <section className="mb-16">
+            {/* Live scores ticker */}
+            <div className="mb-4">
+              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-[#FF8C00] rounded-full animate-pulse" /> WC2026 Live Scores
+              </p>
+              <LiveScoresTicker />
+            </div>
+
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.5em] text-[#FF8C00]">WC2026 · Unofficial</p>
+                <h2 className="text-xl font-black uppercase tracking-tight">Fan Clubs</h2>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FF8C00]/10 border border-[#FF8C00]/20 rounded-xl">
+                <Trophy size={10} className="text-[#FF8C00]" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00]">48 Nations</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {WC26_TEAMS
+                .filter(t => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.shortName.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map(team => (
+                  <motion.button
+                    key={team.id}
+                    onClick={() => setSelectedWcTeam(team)}
+                    whileHover={{ scale: 1.04, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="relative rounded-[1.2rem] overflow-hidden border text-left"
+                    style={{ borderColor: `${team.primaryColor}30`, background: `linear-gradient(145deg, ${team.primaryColor}18 0%, ${team.secondaryColor}08 100%)` }}
+                  >
+                    <div
+                      className="h-14 flex items-center justify-center"
+                      style={{ background: `linear-gradient(135deg, ${team.primaryColor} 0%, ${team.secondaryColor}88 100%)` }}
+                    >
+                      <span className="text-3xl select-none">{team.flag}</span>
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-[9px] font-black text-white leading-tight">{team.name}</p>
+                      <p className="text-[6px] text-white/30 mt-0.5">Fan Club · Open</p>
+                    </div>
+                  </motion.button>
+                ))}
+            </div>
+          </section>
+        )}
 
         {/* Club Grid */}
         {loading ? (

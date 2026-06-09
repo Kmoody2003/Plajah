@@ -4,6 +4,7 @@ import PageHeader from './PageHeader';
 import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
+import { CLASSIC_BOOKS } from '../data/classicBooks';
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,7 +29,8 @@ const GENRES = [
 ];
 
 // Module-level caches — survive tab switches, only fetch once per session
-const _classicCache: Map<string, ArchiveBook[]> = new Map();
+// Pre-seed 'all' with the bundled classics so the page is never blank on first open
+const _classicCache: Map<string, ArchiveBook[]> = new Map([['all', CLASSIC_BOOKS]]);
 const _archiveCache: Map<string, ArchiveBook[]> = new Map();
 let _marketplaceCache: import('../types').Album[] | null = null;
 
@@ -57,14 +59,14 @@ const pickArchiveReadableFile = (files: any[]) => {
 };
 
 const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook }) => {
-  const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('GLOBAL');
-  const [archiveBooks, setArchiveBooks] = useState<ArchiveBook[]>([]);
+  const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('CLASSICS');
+  const [archiveBooks, setArchiveBooks] = useState<ArchiveBook[]>(CLASSIC_BOOKS);
   const [marketplaceBooks, setMarketplaceBooks] = useState<Album[]>([]);
   const [googleBooks, setGoogleBooks] = useState<GoogleBook[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeGenre, setActiveGenre] = useState(GENRES[0]);
-  // GLOBAL tab shows content immediately — don't block on Google Books API
-  const [isLoading, setIsLoading] = useState(activeTab !== 'GLOBAL');
+  // Never block on initial render — classics are bundled as static data
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'CLASSICS') {
@@ -130,16 +132,25 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     const cacheKey = activeGenre.id;
     const cache = (activeGenre.id === 'loc' || activeGenre.id === 'art') ? _archiveCache : _classicCache;
     if (cache.has(cacheKey)) { setArchiveBooks(cache.get(cacheKey)!); setIsLoading(false); return; }
-    setIsLoading(archiveBooks.length === 0);
+    // Show static classics immediately for 'all' so the page is never blank while fetching
+    if (activeGenre.id === 'all' && archiveBooks.length === 0) setArchiveBooks(CLASSIC_BOOKS);
+    setIsLoading(archiveBooks.length === 0 && activeGenre.id !== 'all');
     let books: ArchiveBook[] = [];
-    if (activeGenre.id === 'loc' || activeGenre.id === 'art') {
-      books = await fetchArchiveBooks(activeGenre.topic);
-    } else {
-      books = await fetchClassicBooks(activeGenre.topic);
+    try {
+      if (activeGenre.id === 'loc' || activeGenre.id === 'art') {
+        books = await fetchArchiveBooks(activeGenre.topic);
+      } else {
+        books = await fetchClassicBooks(activeGenre.topic);
+      }
+      if (books.length > 0) {
+        cache.set(cacheKey, books);
+        setArchiveBooks(books);
+      }
+    } catch {
+      // keep static data visible on network error
+    } finally {
+      setIsLoading(false);
     }
-    cache.set(cacheKey, books);
-    setArchiveBooks(books);
-    setIsLoading(false);
   };
 
   const filteredArchive = archiveBooks.filter(b => 
