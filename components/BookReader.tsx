@@ -661,19 +661,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     fontFamily === 'serif' ? 'font-serif' :
     fontFamily === 'mono'  ? 'font-mono'  : 'font-sans';
 
-  if (showOpeningScene) {
-    return (
-      <BookOpeningScene
-        coverImage={book.coverImage ?? undefined}
-        title={book.title}
-        author={book.artist ?? undefined}
-        onBeginReading={() => setShowOpeningScene(false)}
-      />
-    );
-  }
-
   return (
-    <div className={`fixed inset-0 ${s.bg} z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 transition-colors duration-500`}>
+    <>
+    {/* Reader always mounted so content loads in background during opening scene */}
+    <div
+      className={`fixed inset-0 ${s.bg} z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 transition-colors duration-500`}
+      style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease' }}
+    >
       {currentChapter?.audioUrl && (
         <audio ref={audioRef} src={currentChapter.audioUrl} onEnded={() => setIsNarrating(false)} />
       )}
@@ -1611,6 +1605,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         )}
       </AnimatePresence>
     </div>
+
+    {/* Opening scene — overlays reader; unmounts after animation completes */}
+    {showOpeningScene && (
+      <BookOpeningScene
+        coverImage={book.coverImage ?? undefined}
+        title={book.title}
+        author={book.artist ?? undefined}
+        onBeginReading={() => setShowOpeningScene(false)}
+      />
+    )}
+    </>
   );
 };
 
