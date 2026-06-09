@@ -66,6 +66,9 @@ const LEAGUE_LOGOS: Record<string, string> = {
   WRESTLING: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&q=80',
   VOLLEYBALL: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=300&q=80',
   LACROSSE: 'https://images.unsplash.com/photo-1564694202779-bc908c327862?w=300&q=80',
+  F1: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=300&q=80',
+  NASCAR: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=300&q=80',
+  INDYCAR: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80',
 };
 
 const HERO_FALLBACKS = [

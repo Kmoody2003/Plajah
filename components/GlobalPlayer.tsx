@@ -917,99 +917,184 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           {isMinimized ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </button>
 
-        {/* Mobile Swipe-Up Spillover Area */}
+        {/* Mobile Swipe-Up Overflow — Full-height bottom sheet with drag-to-dismiss */}
         {isPhoneMode && (
           <AnimatePresence>
             {isSpillOverOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className={`overflow-hidden glass-sheet mb-2 ${topOffset ? 'border-t rounded-b-m3-2xl' : 'border-b rounded-t-m3-2xl'}`}
-              >
-                <div className="p-6 flex flex-col gap-6">
-                  {/* Unified Menu: Playlist + Navigation */}
-                  {(currentAlbum?.tracks || []).length > 0 && (
-                    <div className="space-y-3">
-                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 px-2">Up Next</p>
-                      <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                        {currentAlbum?.tracks.map((track) => (
-                          <button 
-                            key={track.id}
-                            onClick={() => {
-                              playTrack(track, currentAlbum, 'LIBRARY');
-                              setIsSpillOverOpen(false);
-                            }}
-                            className={`flex flex-col gap-2 min-w-[120px] p-3 rounded-2xl transition-all ${track.id === currentTrack?.id ? 'bg-white/10' : 'bg-white/5'}`}
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[990]"
+                  onClick={() => setIsSpillOverOpen(false)}
+                />
+
+                {/* Sheet */}
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 300 }}
+                  drag="y"
+                  dragConstraints={{ top: 0 }}
+                  dragElastic={{ top: 0, bottom: 0.4 }}
+                  onDragEnd={(_e, info) => { if (info.offset.y > 80) setIsSpillOverOpen(false); }}
+                  className="fixed bottom-0 left-0 right-0 z-[995] rounded-t-[2rem] overflow-hidden"
+                  style={{ background: 'rgba(10,10,18,0.97)', backdropFilter: 'blur(32px)', borderTop: '1px solid rgba(255,255,255,0.08)', maxHeight: '82dvh' }}
+                >
+                  {/* Drag handle */}
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-white/20" />
+                  </div>
+
+                  <div className="overflow-y-auto overscroll-contain px-5 pb-10 pt-2 space-y-5" style={{ maxHeight: 'calc(82dvh - 24px)' }}>
+
+                    {/* Up Next */}
+                    {(currentAlbum?.tracks || []).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Up Next</p>
+                        <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+                          {currentAlbum?.tracks.map((track) => (
+                            <button
+                              key={track.id}
+                              onClick={() => { playTrack(track, currentAlbum, 'LIBRARY'); setIsSpillOverOpen(false); }}
+                              className={`flex flex-col gap-1.5 min-w-[96px] p-2.5 rounded-2xl transition-all shrink-0 ${track.id === currentTrack?.id ? 'bg-white/10 ring-1 ring-small-orange/40' : 'bg-white/5'}`}
+                            >
+                              <div className="w-full aspect-square rounded-xl overflow-hidden shadow-lg">
+                                <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
+                              </div>
+                              <p className={`text-[7px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white/70'}`}>{track.title}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Volume */}
+                    <div className="space-y-2">
+                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Volume</p>
+                      <div className="flex items-center gap-3 px-1">
+                        <Volume2 size={14} className="text-white/30 shrink-0" />
+                        <input
+                          type="range" min={0} max={1} step={0.01}
+                          value={volume}
+                          onChange={e => setVolume(Number(e.target.value))}
+                          className="flex-1 accent-small-orange"
+                        />
+                        <span className="text-[8px] font-black text-white/25 w-6 text-right">{Math.round(volume * 100)}</span>
+                      </div>
+                    </div>
+
+                    {/* Playback controls row */}
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {/* Repeat */}
+                      <button
+                        onClick={() => {
+                          if (repeatMode === 'OFF') setRepeatMode('ALL');
+                          else if (repeatMode === 'ALL') setRepeatMode('ONE');
+                          else setRepeatMode('OFF');
+                        }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${repeatMode !== 'OFF' ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        {repeatMode === 'ONE' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+                        <span className="text-[7px] font-black uppercase tracking-widest">
+                          {repeatMode === 'OFF' ? 'Repeat' : repeatMode === 'ALL' ? 'All' : 'One'}
+                        </span>
+                      </button>
+
+                      {/* Visualizer type */}
+                      <button
+                        onClick={() => setVisualizerType(visualizerType === 'FLOW' ? 'PAINT' : 'FLOW')}
+                        className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl text-white/40"
+                      >
+                        <Activity size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">{visualizerType}</span>
+                      </button>
+
+                      {/* Slideshow toggle */}
+                      <button
+                        onClick={() => setIsSlideshowActive(!isSlideshowActive)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isSlideshowActive ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Layers size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Slideshow</span>
+                      </button>
+
+                      {/* Spatial audio */}
+                      <button
+                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isSpatialAudioEnabled ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                      >
+                        <Headphones size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Spatial</span>
+                      </button>
+
+                      {/* Share */}
+                      <button
+                        onClick={() => { handleShare(); setIsSpillOverOpen(false); }}
+                        className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl text-white/40"
+                      >
+                        <Share2 size={18} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">Share</span>
+                      </button>
+
+                      {/* Cast (if available) */}
+                      {isCastAvailable && (
+                        <button
+                          onClick={() => { isCasting ? stopCasting() : (currentTrack && castTrack(currentTrack)); setIsSpillOverOpen(false); }}
+                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${isCasting ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
+                        >
+                          <Cast size={18} />
+                          <span className="text-[7px] font-black uppercase tracking-widest">{isCasting ? 'Stop' : 'Cast'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Themes */}
+                    <div className="p-4 bg-white/[0.04] rounded-2xl space-y-3">
+                      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Interface Themes</p>
+                      <div className="flex items-center gap-2">
+                        {([
+                          { id: 'DARK',    icon: <Moon size={15} />,     bg: 'bg-zinc-800',                                           activeRing: 'ring-white/40' },
+                          { id: 'LIGHT',   icon: <Sun size={15} />,      bg: 'bg-zinc-100',                                           activeRing: 'ring-black/40' },
+                          { id: 'PASTEL',  icon: <Palette size={15} />,  bg: 'bg-[#ffb7b2]',                                          activeRing: 'ring-pink-400/60' },
+                          { id: 'CITRUS',  icon: <Palette size={15} />,  bg: 'bg-[#FF3B00]',                                          activeRing: 'ring-orange-400/60' },
+                          { id: 'PLAJAH',  icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#6B0099] to-[#FF8C00]',        activeRing: 'ring-small-orange/60' },
+                          { id: 'NEBULA',  icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#0d0221] to-[#520060]',        activeRing: 'ring-purple-400/60' },
+                          { id: 'ETHEREAL',icon: <Sparkles size={15} />, bg: 'bg-gradient-to-br from-[#1a0533] to-[#2d0b4e]',        activeRing: 'ring-violet-400/60' },
+                        ] as const).map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => setTheme?.(t.id as any)}
+                            className={`flex-1 p-3 rounded-xl flex items-center justify-center transition-all ${t.bg} ${(theme as string) === t.id ? `ring-2 ${t.activeRing} scale-110` : 'opacity-50 hover:opacity-80'}`}
                           >
-                            <div className="w-full aspect-square rounded-xl overflow-hidden shadow-lg">
-                              <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
-                            </div>
-                            <div className="text-left">
-                              <p className={`text-[8px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white'}`}>{track.title}</p>
-                              <p className="text-[7px] font-bold text-white/30 truncate">{track.artist || currentAlbum?.artist}</p>
-                            </div>
+                            <span className={(theme as string) === t.id ? 'text-white' : 'text-white/60'}>{t.icon}</span>
                           </button>
                         ))}
                       </div>
+                      {currentUser && onUpdateUserProfile && (
+                        <button
+                          onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'bg-small-orange/20 text-small-orange' : 'bg-white/[0.04] text-white/40'}`}
+                        >
+                          <span className="text-[8px] font-black uppercase tracking-widest">Custom Theme</span>
+                          <Sparkles size={13} />
+                        </button>
+                      )}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-4 gap-4">
-                    <button onClick={() => { onNavigate?.('SEARCH'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Search size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Search</span>
-                    </button>
-                    <button onClick={() => { onOpenChat?.(); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <MessageSquare size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Chat</span>
-                    </button>
-                    <button onClick={() => { onUpload?.(); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Plus size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Upload</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('LIBRARY'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Library size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Library</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('CLUBS'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Users size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Clubs</span>
-                    </button>
-                    <button onClick={() => { onNavigate?.('CHARITY'); setIsSpillOverOpen(false); }} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl">
-                      <Heart size={20} className="text-white/40" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Charity</span>
-                    </button>
-                  </div>
-                  
-                  <div className="p-4 bg-white/5 rounded-2xl space-y-4">
-                    <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 text-center">Interface Themes</p>
-                    <div className="flex items-center justify-between gap-2">
-                      <button onClick={() => setTheme?.('DARK')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'DARK' ? 'bg-white text-black' : 'bg-white/5 text-white/40'}`}><Moon size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('LIGHT')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'LIGHT' ? 'bg-black text-white' : 'bg-white/5 text-white/40'}`}><Sun size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('PASTEL')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'PASTEL' ? 'bg-[#ffb7b2] text-black' : 'bg-white/5 text-white/40'}`}><Palette size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('CITRUS')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'CITRUS' ? 'bg-[#FF3B00] text-white' : 'bg-white/5 text-white/40'}`}><Palette size={16} className="mx-auto" /></button>
-                      <button onClick={() => setTheme?.('PLAJAH')} className={`p-3 rounded-xl flex-1 ${(theme as string) === 'PLAJAH' ? 'bg-gradient-to-br from-[#6B0099] to-[#FF8C00] text-white' : 'bg-white/5 text-white/40'}`}><Sparkles size={16} className="mx-auto" /></button>
-                    </div>
-                    {currentUser && onUpdateUserProfile && (
-                      <button
-                        onClick={() => onUpdateUserProfile({ customThemeEnabled: userProfile?.customThemeEnabled === false ? true : false })}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${userProfile?.customThemeEnabled !== false ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}
-                      >
-                        <span className="text-[8px] font-black uppercase tracking-widest">Custom Theme</span>
-                        <Sparkles size={14} />
+                    {/* Sign out */}
+                    {currentUser && (
+                      <button onClick={() => { onLogout?.(); setIsSpillOverOpen(false); }} className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-400 rounded-2xl">
+                        <LogOut size={15} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Sign Out</span>
                       </button>
                     )}
                   </div>
-
-                  {currentUser && (
-                    <button onClick={() => { onLogout?.(); setIsSpillOverOpen(false); }} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 rounded-2xl">
-                      <LogOut size={16} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Sign Out</span>
-                    </button>
-                  )}
-                </div>
-              </motion.div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         )}
