@@ -63,6 +63,15 @@ const CORE_LEAGUES = [
 
 const RACING_LEAGUES = ['F1', 'NASCAR', 'INDYCAR'];
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_RESEARCH_WINDOWS = [
+  { hour: 2, minute: 0 },
+  { hour: 6, minute: 0 },
+  { hour: 9, minute: 0 },
+  { hour: 12, minute: 0 },
+  { hour: 16, minute: 0 },
+  { hour: 19, minute: 0 },
+  { hour: 21, minute: 0 },
+];
 
 let activeRun: Promise<SportsIngestionRunSummary> | null = null;
 let schedulerStarted = false;
@@ -414,16 +423,42 @@ export function runSportsIngestionWorker(options: SportsIngestionOptions = {}) {
 export function startSportsIngestionScheduler({ intervalMs = DEFAULT_INTERVAL_MS } = {}) {
   if (schedulerStarted) return;
   schedulerStarted = true;
+  process.env.TZ = process.env.SPORTS_INGESTION_TIMEZONE || process.env.TZ || 'America/New_York';
 
+  if (process.env.SPORTS_INGESTION_FIXED_SCHEDULE === 'false') {
+    setInterval(() => {
+      runSportsIngestionWorker({ scope: 'standard', reason: 'scheduled_interval' }).catch(err => {
+        console.warn('[Sports Ingestion] Scheduled run failed:', err?.message || err);
+      });
+    }, intervalMs);
+    return;
+  }
+
+  const scheduleNext = () => {
+    const delayMs = getDelayUntilNextResearchWindow();
+    setTimeout(() => {
+      runSportsIngestionWorker({ scope: 'deep', reason: 'scheduled_research_window' }).catch(err => {
+        console.warn('[Sports Ingestion] Research-window run failed:', err?.message || err);
+      }).finally(scheduleNext);
+    }, delayMs);
+  };
+
+  scheduleNext();
   setTimeout(() => {
     runSportsIngestionWorker({ scope: 'lite', reason: 'startup' }).catch(err => {
       console.warn('[Sports Ingestion] Startup run failed:', err?.message || err);
     });
   }, 30_000);
+}
 
-  setInterval(() => {
-    runSportsIngestionWorker({ scope: 'standard', reason: 'scheduled' }).catch(err => {
-      console.warn('[Sports Ingestion] Scheduled run failed:', err?.message || err);
-    });
-  }, intervalMs);
+function getDelayUntilNextResearchWindow(now = new Date()) {
+  const upcoming = DEFAULT_RESEARCH_WINDOWS
+    .map(({ hour, minute }) => {
+      const next = new Date(now);
+      next.setHours(hour, minute, 0, 0);
+      if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+      return next.getTime();
+    })
+    .sort((a, b) => a - b)[0];
+  return Math.max(1000, upcoming - now.getTime());
 }

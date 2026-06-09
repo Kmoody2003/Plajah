@@ -4,14 +4,18 @@ interface ScrollingWaveformProps {
   currentTime: number;
   duration: number;
   trackId: string;
+  isPlaying?: boolean;
 }
 
-function buildWaveform(trackId: string, numPoints = 2000): Float32Array {
+function buildWaveform(trackId: string, numPoints = 1200): Float32Array {
   let seed = 0;
   for (let i = 0; i < trackId.length; i++) {
     seed = (trackId.charCodeAt(i) + ((seed << 5) - seed)) % 100000;
   }
-  const random = () => { const x = Math.sin(seed++) * 10000; return x - Math.floor(x); };
+  const random = () => {
+    const x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+  };
   const data = new Float32Array(numPoints);
   for (let i = 0; i < numPoints; i++) data[i] = Math.pow(random(), 2.5);
   for (let i = 1; i < numPoints - 1; i++) data[i] = (data[i - 1] + data[i] * 2 + data[i + 1]) / 4;
@@ -23,10 +27,10 @@ type AnyCtx = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
 function makeOffscreen(w: number, h: number): AnyCanvas {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  return c;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  return canvas;
 }
 
 interface BakedWave {
@@ -37,8 +41,7 @@ interface BakedWave {
 }
 
 function bakeWave(waveform: Float32Array, viewW: number, h: number): BakedWave {
-  // Cap at 8192 to stay within GPU texture limits on most devices
-  const totalW = Math.min(viewW * 10, 8192);
+  const totalW = Math.min(Math.max(viewW * 8, viewW * 2), 6144);
   const step = totalW / waveform.length;
   const cy = h / 2;
 
@@ -58,13 +61,14 @@ function bakeWave(waveform: Float32Array, viewW: number, h: number): BakedWave {
   const gray = makeOffscreen(totalW, h);
   const gCtx = gray.getContext('2d') as AnyCtx;
   tracePath(gCtx);
-  gCtx.fillStyle = 'rgba(150,150,150,0.4)';
+  gCtx.fillStyle = 'rgba(170,170,170,0.34)';
   gCtx.fill();
 
   const color = makeOffscreen(totalW, h);
   const cCtx = color.getContext('2d') as AnyCtx;
   const grad = cCtx.createLinearGradient(0, 0, totalW, 0);
   grad.addColorStop(0, '#FF8C00');
+  grad.addColorStop(0.55, '#FF4D6D');
   grad.addColorStop(1, '#D40055');
   tracePath(cCtx);
   cCtx.fillStyle = grad;
@@ -73,59 +77,92 @@ function bakeWave(waveform: Float32Array, viewW: number, h: number): BakedWave {
   return { gray, color, totalW, h };
 }
 
-const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId }) => {
+const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, duration, trackId, isPlaying = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Hot refs — updated every render, no re-renders needed
-  const ctRef  = useRef(currentTime);
+  const ctRef = useRef(currentTime);
   const durRef = useRef(duration);
-  ctRef.current  = currentTime;
-  durRef.current = duration;
-
+  const playingRef = useRef(isPlaying);
+  const playbackRef = useRef({ time: currentTime, updatedAt: 0 });
+  const sizeRef = useRef({ w: 0, h: 0 });
   const waveRef = useRef<Float32Array>(buildWaveform(trackId || 'default'));
-  const baked   = useRef<BakedWave | null>(null);
-  const raf     = useRef(0);
+  const baked = useRef<BakedWave | null>(null);
+  const raf = useRef(0);
+  const lastStartX = useRef(Number.NaN);
 
-  // Rebuild waveform + invalidate baked textures when track changes
+  ctRef.current = currentTime;
+  durRef.current = duration;
+  playingRef.current = isPlaying;
+
+  useEffect(() => {
+    playbackRef.current = { time: currentTime, updatedAt: performance.now() };
+  }, [currentTime, trackId]);
+
   useEffect(() => {
     waveRef.current = buildWaveform(trackId || 'default');
     baked.current = null;
+    lastStartX.current = Number.NaN;
   }, [trackId]);
 
-  // Single persistent RAF loop — runs once, reads only from refs each frame
   useEffect(() => {
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d')!;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      const next = { w: Math.round(width), h: Math.round(height) };
+      if (next.w !== sizeRef.current.w || next.h !== sizeRef.current.h) {
+        sizeRef.current = next;
+        baked.current = null;
+        lastStartX.current = Number.NaN;
+      }
+    });
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
 
-    // Force this canvas onto its own GPU compositor layer
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true } as CanvasRenderingContext2DSettings);
+    if (!ctx) return;
+
     canvas.style.transform = 'translateZ(0)';
-    canvas.style.willChange = 'transform';
+    canvas.style.contain = 'layout paint size';
 
-    const frame = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-        baked.current = null; // size changed — rebake
+    const frame = (now: number) => {
+      const { w, h } = sizeRef.current;
+      if (w <= 0 || h <= 0) {
+        raf.current = requestAnimationFrame(frame);
+        return;
       }
 
-      // Bake offscreen textures on first frame or after invalidation
-      if (!baked.current && w > 0 && h > 0) {
-        baked.current = bakeWave(waveRef.current, w, h);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelW = Math.max(1, Math.round(w * dpr));
+      const pixelH = Math.max(1, Math.round(h * dpr));
+      if (canvas.width !== pixelW || canvas.height !== pixelH) {
+        canvas.width = pixelW;
+        canvas.height = pixelH;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        baked.current = null;
+        lastStartX.current = Number.NaN;
       }
 
+      if (!baked.current) baked.current = bakeWave(waveRef.current, w, h);
       const b = baked.current;
-      if (!b) { raf.current = requestAnimationFrame(frame); return; }
+      const projectedTime = playingRef.current
+        ? playbackRef.current.time + (now - playbackRef.current.updatedAt) / 1000
+        : ctRef.current;
+      const progress = Math.min(1, Math.max(0, projectedTime / (durRef.current || 1)));
+      const playheadX = w / 2;
+      const startX = playheadX - progress * b.totalW;
+
+      // When paused, skip draw if position hasn't changed meaningfully
+      if (!playingRef.current && Math.abs(startX - lastStartX.current) < 0.05) {
+        raf.current = requestAnimationFrame(frame);
+        return;
+      }
+      lastStartX.current = startX;
 
       ctx.clearRect(0, 0, w, h);
-
-      const progress  = ctRef.current / (durRef.current || 1);
-      const playheadX = w / 2;
-      const startX    = playheadX - progress * b.totalW;
-
-      // Frame is now 2 drawImage calls + clip — pure GPU compositing
       ctx.drawImage(b.gray as CanvasImageSource, startX, 0);
 
       ctx.save();
@@ -138,7 +175,7 @@ const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, dura
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.62)';
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -147,14 +184,14 @@ const ScrollingWaveform: React.FC<ScrollingWaveformProps> = ({ currentTime, dura
 
     raf.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf.current);
-  }, []); // empty — loop lives for component lifetime
+  }, []);
 
   return (
     <div
-      className="absolute bottom-0 left-0 w-full h-48 pointer-events-none mix-blend-overlay z-[5] overflow-hidden"
-      style={{ willChange: 'transform' }}
+      className="absolute bottom-0 left-0 w-full h-40 pointer-events-none z-[5] overflow-hidden opacity-80"
+      style={{ contain: 'layout paint size' }}
     >
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas ref={canvasRef} className="w-full h-full block" />
     </div>
   );
 };

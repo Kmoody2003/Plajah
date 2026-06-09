@@ -31,6 +31,7 @@ import {
   listenToMessages, getAgentUsage,
 } from '../services/agentService';
 import { auth } from '../services/backendService';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface Props {
   isOpen: boolean;
@@ -41,6 +42,7 @@ interface Props {
   context?: { currentView?: string; currentAlbumId?: string; userInterests?: string[] };
   /** Navigate when a build is applied */
   onApplyBuild?: (build: AgentBuildOutput) => void;
+  isMobile?: boolean;
 }
 
 // ── Tier badge ─────────────────────────────────────────────────────────────────
@@ -261,9 +263,10 @@ const CAPABILITIES = [
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const PlajahAgent: React.FC<Props> = ({
-  isOpen, onClose, tier = 'FREE', context, onApplyBuild,
+  isOpen, onClose, tier = 'FREE', context, onApplyBuild, isMobile = false,
 }) => {
   const uid = auth.currentUser?.uid;
+  const { isPlayerExpanded } = useGlobalPlayerState();
   const tierCfg = AGENT_TIERS[tier];
 
   const [sessions, setSessions] = useState<AgentSession[]>([]);
@@ -400,20 +403,40 @@ const PlajahAgent: React.FC<Props> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.97 }}
+          initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
+          animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+          exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          className="fixed bottom-0 right-0 z-[300] flex flex-col"
-          style={{
+          className="fixed z-[300] flex flex-col"
+          style={isMobile ? {
+            bottom: isPlayerExpanded ? '320px' : '90px',
+            left: 0,
+            right: 0,
+            margin: '0 auto',
+            width: 'calc(100vw - 24px)',
+            maxWidth: '480px',
+            height: isPlayerExpanded ? 'min(420px, 50dvh)' : 'min(560px, 65dvh)',
+            borderRadius: '1.5rem',
+            transition: 'bottom 0.35s cubic-bezier(0.4,0,0.2,1), height 0.35s cubic-bezier(0.4,0,0.2,1)',
+          } : {
+            bottom: 0,
+            right: 0,
             width: 'min(420px, 100vw)',
             height: 'min(680px, 100dvh)',
             borderRadius: '1.5rem 1.5rem 0 0',
           }}
         >
           {/* Glass panel */}
-          <div className="flex flex-col h-full rounded-t-[1.5rem] overflow-hidden"
-            style={{ background: 'rgba(8,4,20,0.88)', backdropFilter: 'blur(32px)', border: '1px solid rgba(139,92,246,0.2)', borderBottom: 'none' }}>
+          <div
+            className="flex flex-col h-full overflow-hidden"
+            style={{
+              borderRadius: 'inherit',
+              background: 'rgba(8,4,20,0.92)',
+              backdropFilter: 'blur(32px)',
+              border: '1px solid rgba(139,92,246,0.25)',
+              ...(isMobile ? {} : { borderBottom: 'none' }),
+            }}
+          >
 
             {/* ── Header ── */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 shrink-0">

@@ -81,7 +81,7 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
-import PlajahAgent, { AriaButton } from './components/PlajahAgent';
+import PlajahAgent from './components/PlajahAgent';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
@@ -153,6 +153,11 @@ import { TrackBreakdownController } from './components/TrackBreakdownModal';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
+const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
+const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
+const EventProductionStudio = retryLazy(() => import('./components/EventProductionStudio'));
+const TicketDesigner = retryLazy(() => import('./components/TicketDesigner'));
+const LiveEventsGallery = retryLazy(() => import('./components/LiveEventsGallery'));
 const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
 const RelloView = retryLazy(() => import('./components/RelloView'));
 
@@ -201,7 +206,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -309,6 +314,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
@@ -330,6 +336,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<'og' | 'grouped' | 'pinned'>(() =>
+    (localStorage.getItem('plajah_sidebar_mode_v1') as 'og' | 'grouped' | 'pinned') || 'og'
+  );
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['discover', 'entertain']);
+  const [pinnedNavItems, setPinnedNavItems] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('plajah_pinned_nav_v1') || '["USER_PROFILE","DASHBOARD","MUSIC","VIDEOS","PLAJAH_SPORTS","FEED","LIVE_HUB","POSTMAN"]'); }
+    catch { return ['USER_PROFILE', 'DASHBOARD', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'FEED', 'LIVE_HUB', 'POSTMAN']; }
+  });
+  const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -669,6 +684,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
       setView('CREATOR_PAYMENTS');
+    } else if (target === 'ARTIST_MANAGER' || target === 'AD_PACKAGES' || target === 'ARTIST_BOARDS' || target === 'EVENT_PRODUCTION_STUDIO' || target === 'TICKET_DESIGNER') {
+      if (!user) { loginWithGoogle(); return; }
+      setView(target as any);
     } else if (target === 'EVENTS') {
       setView('EVENTS');
     } else if (target === 'EVENT_DETAIL') {
@@ -1489,7 +1507,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onSelectLiveFeed={setActiveLiveFeed}
               />
 
-              <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
+              {/* ── Sidebar Mode Toggle ── */}
+              <div className={`flex items-center justify-center gap-1.5 py-2 mb-1 ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:flex' : 'flex')}`}>
+                {([
+                  { mode: 'og' as const, icon: AlignJustify, label: 'Default List' },
+                  { mode: 'grouped' as const, icon: Layers, label: 'Grouped Sections' },
+                  { mode: 'pinned' as const, icon: Pin, label: 'Pinned Favorites' },
+                ] as const).map(({ mode, icon: Icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => { setSidebarMode(mode); localStorage.setItem('plajah_sidebar_mode_v1', mode); setShowMoreDrawer(false); }}
+                    title={label}
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-200 ${
+                      sidebarMode === mode
+                        ? 'bg-white text-black shadow-lg'
+                        : 'text-white/30 hover:text-white/70 hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon size={13} />
+                  </button>
+                ))}
+              </div>
+
+              {sidebarMode === 'og' && <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                 {(() => {
                   const baseConfig = [
                     { id: 'USER_PROFILE', order: 0, isVisible: true },
@@ -1511,7 +1551,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'STORE_HUB', order: 10.5, isVisible: true },
                     { id: 'CLASSROOMS', order: 12, isVisible: true },
                     { id: 'GLOBAL_PHOTOS', order: 14, isVisible: true },
-                    { id: 'ART_GALLERY', order: 15, isVisible: true },
                     { id: 'PAY_IT_FORWARD', order: 16, isVisible: true },
                     { id: 'CHAT', order: 17, isVisible: true },
                     { id: 'DISCUSSION', order: 17.5, isVisible: true },
@@ -1525,6 +1564,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     ...(user ? [
                       { id: 'BUSINESS_DASHBOARD', order: 9.5, isVisible: true },
                       { id: 'AD_PACKAGES', order: 9.6, isVisible: true },
+                      { id: 'ARTIST_MANAGER', order: 9.7, isVisible: true },
                     ] : [])
                   ];
 
@@ -1564,7 +1604,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
                         GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
-                        ART_GALLERY: { label: 'Art Gallery', icon: Sparkles },
                         PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart },
                         CHAT: { label: 'Chat', icon: MessageSquare },
                         DISCUSSION: { label: 'Discussion', icon: MessageCircle },
@@ -1578,7 +1617,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PARTNER_DASHBOARD: { label: 'Partner Portal', icon: Database },
                         BROWSER: { label: 'Partner Sites', icon: Monitor },
                         BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase },
-                        AD_PACKAGES: { label: 'Promote', icon: TrendingUp }
+                        AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
+                        ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 }
                       };
                       const item = items[config.id as keyof typeof items];
                       if (!item) return null;
@@ -1603,8 +1643,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         STORE_HUB: "Shop merch, collectibles, and digital goods from artists across the platform.",
                         CLASSROOMS: "Learn new skills from experts in our interactive classrooms.",
                         PPV_EVENTS: "Join live pay-per-view events and exclusive broadcasts.",
-                        GLOBAL_PHOTOS: "Explore a world of photography and visual art.",
-                        ART_GALLERY: "A curated experience of the finest visual works.",
+                        GLOBAL_PHOTOS: "Explore photos, art gallery views, event albums, imports, portfolios, and spatial media.",
                         PAY_IT_FORWARD: "Support the community through our unique giving platform.",
                         CHAT: "Connect with artists and fans in private or group chats.",
                         DISCUSSION: "Join community discussion boards and open forums.",
@@ -1618,7 +1657,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PARTNER_DASHBOARD: "Configure cloud storage and partner integrations.",
                         BROWSER: "Access partner websites (Impact, Mainstreem) inside Plajah without iframe restrictions.",
                         BUSINESS_DASHBOARD: "Browse all businesses and brands on Plajah, or manage your own business dashboard.",
-                        AD_PACKAGES: "Boost your content visibility with ad packages and off-platform promotions."
+                        AD_PACKAGES: "Boost your content visibility with ad packages and off-platform promotions.",
+                        ARTIST_MANAGER: "Manage band payroll, contracts, invoices, tasks, vendors, venues, events, visual boards, and all your ads from one place."
                       }[config.id] || "Navigate to this section.";
 
                       return (
@@ -1659,6 +1699,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                 setView('PLAJAH_BUSINESS');
                               } else if (config.id === 'AD_PACKAGES') {
                                 setView('AD_PACKAGES');
+                              } else if (config.id === 'ARTIST_MANAGER') {
+                                setView('ARTIST_MANAGER');
                               } else {
                                 setView(config.id as any);
                               }
@@ -1678,9 +1720,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                 ${isSidebarCollapsed ? 'left-1/2 -translate-x-1/2' : (theme === 'BIG_SCREEN' ? 'group-hover/sidebar:left-6 group-hover/sidebar:translate-x-0' : 'left-6 translate-x-0')} 
                                 ${(view === config.id && (config.id !== 'USER_PROFILE' || viewedUserId === user?.uid)) ? 'text-black' : 'group-hover:scale-110'}`} />
                             })()}
-                            <span className={`text-[11px] uppercase tracking-widest text-center flex-1 transition-all duration-300 whitespace-nowrap opacity-0 
-                              ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'group-hover/sidebar:opacity-100' : 'opacity-100')} 
-                              ${(view === config.id && (config.id !== 'USER_PROFILE' || viewedUserId === user?.uid)) ? 'font-black' : 'font-semibold group-hover:font-black'}`}>
+                            <span className={`text-[12.5px] uppercase tracking-widest text-center flex-1 transition-all duration-300 whitespace-nowrap opacity-0
+                              ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'group-hover/sidebar:opacity-100' : 'opacity-100')}
+                              ${(view === config.id && (config.id !== 'USER_PROFILE' || viewedUserId === user?.uid)) ? 'font-black' : 'font-black group-hover:font-black'}`}>
                               {item.label}
                             </span>
                           </button>
@@ -1688,7 +1730,197 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       );
                     });
                 })()}
-              </nav>
+              </nav>}
+
+              {/* ── Grouped Accordion Nav ── */}
+              {sidebarMode === 'grouped' && (
+                <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
+                  {(() => {
+                    const navItems: { [k: string]: { label: string; icon: any } } = {
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
+                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
+                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
+                      BOOKS: { label: 'The Book Shelf', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
+                      GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
+                      CHARITY: { label: 'Charity', icon: Heart }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
+                      GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
+                      PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
+                      DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
+                      FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
+                      TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
+                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
+                      ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                    };
+                    const handleNavClick = (id: string) => {
+                      if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
+                      if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
+                      if (id === 'BUSINESS_DASHBOARD') { setView('PLAJAH_BUSINESS'); return; }
+                      if (id === 'AD_PACKAGES') { setView('AD_PACKAGES'); return; }
+                      if (id === 'ARTIST_MANAGER') { setView('ARTIST_MANAGER'); return; }
+                      setView(id as any);
+                    };
+                    const isActive = (id: string) => view === id && (id !== 'USER_PROFILE' || viewedUserId === user?.uid);
+                    const groups = [
+                      { id: 'discover', label: 'Discover', ids: ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH'] },
+                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS'] },
+                      { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'ARTICLES'] },
+                      { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
+                      { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
+                      { id: 'creator', label: 'Creator Tools', ids: [...(user ? ['ARTIST_MANAGER', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN'] },
+                      { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
+                    ];
+                    return groups.map(group => {
+                      const expanded = expandedGroups.includes(group.id);
+                      const hasActive = group.ids.some(id => isActive(id));
+                      return (
+                        <div key={group.id} className="mb-0.5">
+                          <button
+                            onClick={() => setExpandedGroups(prev => expanded ? prev.filter(g => g !== group.id) : [...prev, group.id])}
+                            className={`w-full flex items-center justify-between px-4 py-1.5 rounded-xl text-[8px] uppercase tracking-[0.2em] font-black transition-all ${isSidebarCollapsed ? 'hidden' : ''} ${hasActive ? 'text-small-orange' : 'text-white/25 hover:text-white/50'}`}
+                          >
+                            <span>{group.label}</span>
+                            <ChevronDown size={10} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+                          </button>
+                          {(expanded || isSidebarCollapsed) && (
+                            <div className={`flex flex-col gap-0.5 ${!isSidebarCollapsed ? 'pl-1' : ''}`}>
+                              {group.ids.map(id => {
+                                const item = navItems[id];
+                                if (!item) return null;
+                                const active = isActive(id);
+                                const Icon = item.icon;
+                                return (
+                                  <button key={id} onClick={() => handleNavClick(id)}
+                                    className={`flex items-center transition-all duration-200 overflow-hidden rounded-[1.2rem] mx-auto
+                                      ${isSidebarCollapsed ? 'w-12 h-10 justify-center' : 'w-full h-10 px-5'}
+                                      ${active ? 'bg-white text-black shadow-xl' : 'text-primary/40 hover:text-primary hover:bg-white/5'}`}
+                                  >
+                                    <Icon size={18} className={`shrink-0 ${!isSidebarCollapsed ? 'mr-3' : ''} ${active ? 'text-black' : ''}`} />
+                                    {!isSidebarCollapsed && <span className="text-[11px] uppercase tracking-widest font-black whitespace-nowrap">{item.label}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </nav>
+              )}
+
+              {/* ── Pinned Favorites Nav ── */}
+              {sidebarMode === 'pinned' && (
+                <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
+                  {(() => {
+                    const navItems: { [k: string]: { label: string; icon: any } } = {
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
+                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
+                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
+                      BOOKS: { label: 'The Book Shelf', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
+                      GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
+                      CHARITY: { label: 'Charity', icon: Heart }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
+                      GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
+                      PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
+                      DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
+                      FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
+                      TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
+                      BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
+                      ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                    };
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', ...(user ? ['ARTIST_MANAGER', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
+                    const handleNavClick = (id: string) => {
+                      if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
+                      if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
+                      if (id === 'BUSINESS_DASHBOARD') { setView('PLAJAH_BUSINESS'); return; }
+                      if (id === 'AD_PACKAGES') { setView('AD_PACKAGES'); return; }
+                      if (id === 'ARTIST_MANAGER') { setView('ARTIST_MANAGER'); return; }
+                      setView(id as any);
+                    };
+                    const isActive = (id: string) => view === id && (id !== 'USER_PROFILE' || viewedUserId === user?.uid);
+                    const togglePin = (id: string) => {
+                      setPinnedNavItems(prev => {
+                        const next = prev.includes(id) ? prev.filter(p => p !== id) : prev.length < 8 ? [...prev, id] : prev;
+                        localStorage.setItem('plajah_pinned_nav_v1', JSON.stringify(next));
+                        return next;
+                      });
+                    };
+                    const effectivePinned = pinnedNavItems.filter(id => allNavIds.includes(id));
+                    if (showMoreDrawer && !isSidebarCollapsed) {
+                      return (
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-center justify-between px-2 py-2 mb-2">
+                            <span className="text-[8px] font-black uppercase tracking-[0.25em] text-white/50">All Sections ({pinnedNavItems.length}/8)</span>
+                            <button onClick={() => setShowMoreDrawer(false)} className="text-white/30 hover:text-white transition-colors p-1"><XIcon size={13} /></button>
+                          </div>
+                          <div className="flex flex-col gap-0.5 overflow-y-auto custom-scrollbar flex-1">
+                            {allNavIds.map(id => {
+                              const item = navItems[id];
+                              if (!item) return null;
+                              const pinned = pinnedNavItems.includes(id);
+                              const active = isActive(id);
+                              const Icon = item.icon;
+                              return (
+                                <div key={id} className="flex items-center gap-1 group/pinitem">
+                                  <button onClick={() => { handleNavClick(id); setShowMoreDrawer(false); }}
+                                    className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-200
+                                      ${active ? 'bg-white text-black' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
+                                  >
+                                    <Icon size={15} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{item.label}</span>
+                                  </button>
+                                  <button onClick={() => togglePin(id)}
+                                    title={pinned ? 'Unpin' : pinnedNavItems.length < 8 ? 'Pin' : 'Max 8 pinned'}
+                                    className={`shrink-0 p-1.5 rounded-lg transition-all ${pinned ? 'text-small-orange' : 'text-white/20 hover:text-white/50 opacity-0 group-hover/pinitem:opacity-100'}`}
+                                  >
+                                    <Pin size={11} className={pinned ? 'fill-current' : ''} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col gap-1 h-full">
+                        <div className="flex flex-col gap-1 flex-1">
+                          {effectivePinned.map(id => {
+                            const item = navItems[id];
+                            if (!item) return null;
+                            const active = isActive(id);
+                            const Icon = item.icon;
+                            return (
+                              <button key={id} onClick={() => handleNavClick(id)}
+                                className={`flex items-center transition-all duration-200 overflow-hidden rounded-[1.2rem] mx-auto
+                                  ${isSidebarCollapsed ? 'w-12 h-12 justify-center' : 'w-full h-12 px-6'}
+                                  ${active ? 'bg-white text-black shadow-xl' : 'text-primary/40 hover:text-primary hover:bg-white/5'}`}
+                              >
+                                <Icon size={20} className={`shrink-0 ${active ? 'text-black' : ''}`} />
+                                {!isSidebarCollapsed && <span className="ml-3 text-[12.5px] uppercase tracking-widest font-black whitespace-nowrap">{item.label}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {!isSidebarCollapsed && (
+                          <button onClick={() => setShowMoreDrawer(true)}
+                            className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] text-white/35 hover:text-white/70 text-[8px] uppercase tracking-[0.2em] font-black transition-all w-full"
+                          >
+                            <ChevronDown size={11} /> More
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </nav>
+              )}
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
@@ -1898,6 +2130,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )}
 
           <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+            {/* World Cup temporary banner — mobile only, expires 2026-07-29 (epoch 1753747200000) */}
+            {(isMobile || theme === 'PHONE') && !wcMobileBannerDismissed && view !== 'PLAJAH_SPORTS' && Date.now() < 1753747200000 && (
+              <div className="mx-3 mt-2 mb-1 flex items-center gap-3 px-4 py-3 rounded-2xl relative overflow-hidden"
+                style={{ background: 'linear-gradient(90deg, #004d00 0%, #006400 40%, #FF8C00 100%)', border: '1px solid rgba(255,255,255,0.15)' }}
+              >
+                <span className="text-2xl select-none shrink-0">⚽</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-white leading-none">Step into the World Cup</p>
+                  <p className="text-[8px] text-white/60 mt-0.5">FIFA WC 2026 — Live in Plajah Sports</p>
+                </div>
+                <button
+                  onClick={() => setView('PLAJAH_SPORTS' as any)}
+                  className="shrink-0 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-black"
+                >
+                  Go
+                </button>
+                <button
+                  onClick={() => { localStorage.setItem('wc26_mobile_banner_dismissed', '1'); setWcMobileBannerDismissed(true); }}
+                  className="shrink-0 w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-white/50 text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (
@@ -2082,6 +2338,39 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <Suspense fallback={null}>
                         <PlajahPlusBanner className="mb-8 max-w-2xl" />
                       </Suspense>
+
+                      {/* ── World Cup 2026 Archive Banner (temporary — expires July 29 2026) ── */}
+                      {!wcMobileBannerDismissed && Date.now() < 1753747200000 && (
+                        <div
+                          className="relative flex items-center gap-5 px-6 py-5 rounded-[1.5rem] mb-8 max-w-2xl overflow-hidden cursor-pointer group hover:scale-[1.01] transition-transform"
+                          style={{ background: 'linear-gradient(100deg, #003d00 0%, #005a00 35%, #b35c00 75%, #ff8c00 100%)', border: '1px solid rgba(255,255,255,0.12)' }}
+                          onClick={() => setView('PLAJAH_SPORTS' as any)}
+                        >
+                          {/* Subtle flag-stripe overlay */}
+                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.3) 40px, rgba(255,255,255,0.3) 41px)' }} />
+                          <span className="text-4xl select-none shrink-0 drop-shadow-lg">⚽</span>
+                          <div className="flex-1 min-w-0 relative z-10">
+                            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/60 mb-0.5">FIFA World Cup 2026</p>
+                            <h3 className="text-xl font-black uppercase tracking-tight text-white leading-none">Step into the World Cup</h3>
+                            <p className="text-xs text-white/50 mt-1">Live scores · Fan clubs · National anthems · 48 nations</p>
+                          </div>
+                          <div className="relative z-10 flex items-center gap-3 shrink-0">
+                            <button
+                              onClick={e => { e.stopPropagation(); setView('PLAJAH_SPORTS' as any); }}
+                              className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-black hover:bg-small-orange hover:text-white transition-colors shadow-lg"
+                            >
+                              Explore →
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); localStorage.setItem('wc26_mobile_banner_dismissed', '1'); setWcMobileBannerDismissed(true); }}
+                              className="w-8 h-8 rounded-full bg-black/30 flex items-center justify-center text-white/40 hover:text-white transition-colors text-sm"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-6 mt-8 overflow-x-auto no-scrollbar pb-2">
                         {(['MUSIC', 'WORLDS', 'CLUBS', 'SOCIAL', 'SPORTS', 'LIVE_HUB', 'VIDEO', 'MOVIES_TV', 'BOOK', 'GAMES', 'MODULES', 'MY_ARCHIVE'] as const).map(tab => (
                           <button
@@ -2197,6 +2486,40 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'CREATOR_PAYMENTS' && userProfile && (
               <CreatorPaymentDashboard currentUser={userProfile} />
+            )}
+
+            {view === 'ARTIST_MANAGER' && user && userProfile && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ArtistProjectManager currentUser={userProfile} />
+              </Suspense>
+            )}
+
+            {view === 'ARTIST_BOARDS' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ArtistBoards onBack={() => setView('ARTIST_MANAGER')} />
+              </Suspense>
+            )}
+
+            {view === 'EVENT_PRODUCTION_STUDIO' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <EventProductionStudio
+                  onBack={() => setView('ARTIST_MANAGER')}
+                  onOpenTicketDesigner={() => setView('TICKET_DESIGNER')}
+                  onOpenBoards={() => setView('ARTIST_BOARDS')}
+                />
+              </Suspense>
+            )}
+
+            {view === 'TICKET_DESIGNER' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TicketDesigner onBack={() => setView('EVENT_PRODUCTION_STUDIO')} />
+              </Suspense>
+            )}
+
+            {view === 'EVENTS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LiveEventsGallery />
+              </Suspense>
             )}
 
             {view === 'EVENT_DETAIL' && selectedEventId && (
@@ -2624,6 +2947,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setShowCreator(true);
           }}
           onOpenChat={() => setView('CHAT')}
+          onOpenAria={() => setIsMuseOpen(o => !o)}
           userProfile={userProfile}
           onUpdateUserProfile={async (updates) => {
             if (!user) return;
@@ -2643,13 +2967,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
         {/* ── Plajah Aria — private creative agent ── */}
         <AriaEventBridge onOpen={() => setIsMuseOpen(true)} />
-        <AriaButton
-          onClick={() => setIsMuseOpen(o => !o)}
-          isOpen={isMuseOpen}
-        />
         <PlajahAgent
           isOpen={isMuseOpen}
           onClose={() => setIsMuseOpen(false)}
+          isMobile={isMobile || theme === 'PHONE'}
           tier={resolveAgentTier(
             userProfile?.tier,
             userProfile?.accountType,

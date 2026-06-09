@@ -27,8 +27,165 @@ import {
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
 import PlajahPlusBanner from './PlajahPlusBanner';
+import { WC26_TEAMS } from '../data/worldCup2026';
+import { ANTHEM_LYRICS } from '../data/anthemLyrics';
+import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
 const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
+
+// ── World Cup Anthem Banner ────────────────────────────────────────────────────
+const WcAnthemBanner: React.FC<{ onOpenPlaylist: () => void }> = ({ onOpenPlaylist }) => {
+  const [dismissed, setDismissed] = React.useState(() => localStorage.getItem('wc26_anthem_banner_dismissed') === '1');
+  if (dismissed) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-4 relative overflow-hidden rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer group"
+      style={{ background: 'linear-gradient(135deg, #001A35 0%, #003366 50%, #001A35 100%)', border: '1px solid rgba(255,140,0,0.3)' }}
+      onClick={onOpenPlaylist}
+    >
+      {/* Flags strip */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10 select-none">
+        <div className="flex gap-1 text-2xl pt-2 pl-2">
+          {WC26_TEAMS.slice(0, 16).map(t => <span key={t.id}>{t.flag}</span>)}
+        </div>
+      </div>
+      <div className="w-10 h-10 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center shrink-0 text-xl">🎵</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[7px] font-black uppercase tracking-[0.4em] text-[#FF8C00] mb-0.5">World Cup 2026</p>
+        <p className="text-xs font-black text-white leading-snug">
+          Celebrate the Countries of the World Cup — in music with our World Cup Playlist of National Anthems
+        </p>
+      </div>
+      <button
+        onClick={onOpenPlaylist}
+        className="shrink-0 px-4 py-2 bg-[#FF8C00] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-[#FFA020] transition-colors whitespace-nowrap"
+      >
+        Play All
+      </button>
+      <button
+        onClick={e => { e.stopPropagation(); localStorage.setItem('wc26_anthem_banner_dismissed', '1'); setDismissed(true); }}
+        className="shrink-0 p-1.5 rounded-full text-white/30 hover:text-white/60 transition-colors"
+      >
+        <X size={12} />
+      </button>
+    </motion.div>
+  );
+};
+
+// ── World Cup Anthems Playlist ─────────────────────────────────────────────────
+const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ onOpenAlbum }) => {
+  const { playTrack } = useGlobalPlayerState();
+  const [open, setOpen] = React.useState(false);
+  const [playingId, setPlayingId] = React.useState<string | null>(null);
+  const [showLyricsId, setShowLyricsId] = React.useState<string | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const anthemTracks = React.useMemo(() =>
+    WC26_TEAMS.map(team => ({
+      id: `wc26_anthem_${team.id}`,
+      teamId: team.id,
+      title: team.anthem,
+      artist: team.name,
+      flag: team.flag,
+      url: `/audio/anthems/${team.id}.mp3`,
+      albumCover: '',
+      primaryColor: team.primaryColor,
+      lyrics: ANTHEM_LYRICS[team.id] ?? null,
+    })), []);
+
+  const playAnthem = (track: typeof anthemTracks[0]) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+    if (playingId === track.id) { setPlayingId(null); return; }
+    const el = new Audio(track.url);
+    el.play().catch(() => {});
+    el.onended = () => setPlayingId(null);
+    audioRef.current = el;
+    setPlayingId(track.id);
+    playTrack({
+      id: track.id, title: track.title, artist: track.artist,
+      url: track.url, albumCover: track.albumCover,
+    } as any, null as any, 'LIBRARY');
+  };
+
+  return (
+    <div className="rounded-3xl overflow-hidden border border-[#FF8C00]/20" style={{ background: 'linear-gradient(135deg, #001A35 0%, #000D1A 100%)' }}>
+      {/* Header */}
+      <div className="flex items-center gap-4 p-6 cursor-pointer" onClick={() => setOpen(v => !v)}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0" style={{ background: 'rgba(255,140,0,0.12)', border: '1px solid rgba(255,140,0,0.25)' }}>🌍</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[7px] font-black uppercase tracking-[0.5em] text-[#FF8C00] mb-0.5">Plajah Official · World Cup 2026</p>
+          <h3 className="text-lg font-black text-white leading-snug">National Anthems of the World Cup</h3>
+          <p className="text-[9px] text-white/40 mt-0.5">48 nations · Official recordings · Lyrics included</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); playAnthem(anthemTracks[0]); }}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#FF8C00] hover:bg-[#FFA020] transition-colors"
+          >
+            <Play size={16} className="text-black ml-0.5" fill="currentColor" />
+          </button>
+          {onOpenAlbum && (
+            <button
+              onClick={e => { e.stopPropagation(); onOpenAlbum(WC_ANTHEM_ALBUM); }}
+              className="px-3 py-2 rounded-xl border border-[#FF8C00]/30 text-[#FF8C00] text-[8px] font-black uppercase tracking-widest hover:bg-[#FF8C00]/10 transition-colors whitespace-nowrap"
+            >
+              Open
+            </button>
+          )}
+          {open ? <ChevronUp size={16} className="text-white/30" /> : <ChevronDown size={16} className="text-white/30" />}
+        </div>
+      </div>
+
+      {/* Track list */}
+      {open && (
+        <div className="border-t border-white/8">
+          {anthemTracks.map((track, idx) => (
+            <div key={track.id} className="border-b border-white/[0.04] last:border-0">
+              <div
+                className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                onClick={() => playAnthem(track)}
+              >
+                <span className="text-[9px] font-bold text-white/20 w-5 text-center shrink-0">{idx + 1}</span>
+                <span className="text-xl leading-none shrink-0">{track.flag}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black text-white truncate group-hover:text-[#FF8C00] transition-colors">{track.title}</p>
+                  <p className="text-[8px] text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
+                </div>
+                {track.lyrics && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowLyricsId(showLyricsId === track.id ? null : track.id); }}
+                    className="shrink-0 px-2 py-1 rounded-lg text-[7px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 border border-white/10 hover:border-white/25 transition-all"
+                  >
+                    Lyrics
+                  </button>
+                )}
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+                  {playingId === track.id
+                    ? <Pause size={12} className="text-[#FF8C00]" fill="currentColor" />
+                    : <Play size={12} className="text-white/30 group-hover:text-white/60 transition-colors ml-0.5" fill="currentColor" />
+                  }
+                </div>
+              </div>
+              {showLyricsId === track.id && track.lyrics && (
+                <div
+                  className="mx-5 mb-3 max-h-56 overflow-y-auto rounded-xl p-4 text-[8px] leading-relaxed text-white/45 whitespace-pre-wrap font-mono"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  {track.lyrics}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS';
 
@@ -703,66 +860,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
         <div className="flex-1 min-w-0">
           <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Chora</PageHeader>
-            {onNavigate && (
-              <div className="flex gap-4 mt-5 overflow-x-auto no-scrollbar pb-1">
-                {/* History Moments hero card */}
-                <button
-                  onClick={() => onNavigate('CHORA_HISTORY')}
-                  className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                  style={{ border: '1px solid rgba(167,139,250,0.35)' }}
-                >
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
-                    alt="History"
-                    className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
-                    style={{ filter: 'brightness(0.5) saturate(1.4)' }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-transparent to-black/80" />
-                  <div className="relative h-full flex flex-col justify-between p-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
-                      <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-purple-300/80 mb-0.5">Today in Music History</p>
-                      <h3 className="text-base font-black text-white leading-tight">History Moments</h3>
-                      <p className="text-[9px] text-white/50 mt-0.5">Legends, composers &amp; icons →</p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Music Theory hero card */}
-                <button
-                  onClick={() => onNavigate('MUSIC_THEORY')}
-                  className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                  style={{ border: '1px solid rgba(99,102,241,0.35)' }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-blue-900/60 to-violet-900/80" />
-                  {/* Animated staff lines */}
-                  <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 256 144">
-                    {[35, 50, 65, 80, 95].map(y => <line key={y} x1="0" y1={y} x2="256" y2={y} stroke="white" strokeWidth="1" />)}
-                    <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.4">𝄞</text>
-                    {[[80,65],[115,50],[150,65],[185,50],[220,65]].map(([x, cy], i) => (
-                      <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.6" transform={`rotate(-15,${x},${cy})`} />
-                    ))}
-                  </svg>
-                  <div className="relative h-full flex flex-col justify-between p-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                      <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-400">Learn</span>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-blue-300/80 mb-0.5">Novice · Intermediate · Maestro</p>
-                      <h3 className="text-base font-black text-white leading-tight">Music Theory Studio</h3>
-                      <p className="text-[9px] text-white/50 mt-0.5">Ear training, scales &amp; harmony →</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            )}
             <div className="mt-4">
               <PlajahPlusBanner variant="COMPACT" />
             </div>
+            {/* ── World Cup Anthems Banner ─────────────────────────────────── */}
+            <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />
           </div>
           <nav className={`px-4 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Row 1: swipeable tabs — always full-width */}
@@ -801,6 +903,65 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               )}
             </div>
           </nav>
+
+          {/* History Moments + Music Theory Studio — below tab bar, always visible */}
+          {onNavigate && (
+            <div className="flex gap-4 px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
+              {/* History Moments */}
+              <button
+                onClick={() => onNavigate('CHORA_HISTORY')}
+                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(167,139,250,0.35)' }}
+              >
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
+                  alt="History"
+                  className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
+                  style={{ filter: 'brightness(0.5) saturate(1.4)' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/70 via-transparent to-black/80" />
+                <div className="relative h-full flex flex-col justify-between p-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-purple-300/80 mb-0.5">Today in Music History</p>
+                    <h3 className="text-base font-black text-white leading-tight">History Moments</h3>
+                    <p className="text-[9px] text-white/50 mt-0.5">Legends, composers &amp; icons →</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Music Theory Studio */}
+              <button
+                onClick={() => onNavigate('MUSIC_THEORY')}
+                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(99,102,241,0.35)' }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-blue-900/60 to-violet-900/80" />
+                <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 256 144">
+                  {[35, 50, 65, 80, 95].map(y => <line key={y} x1="0" y1={y} x2="256" y2={y} stroke="white" strokeWidth="1" />)}
+                  <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.4">𝄞</text>
+                  {[[80,65],[115,50],[150,65],[185,50],[220,65]].map(([x, cy], i) => (
+                    <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.6" transform={`rotate(-15,${x},${cy})`} />
+                  ))}
+                </svg>
+                <div className="relative h-full flex flex-col justify-between p-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-400">Learn</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-blue-300/80 mb-0.5">Novice · Intermediate · Maestro</p>
+                    <h3 className="text-base font-black text-white leading-tight">Music Theory Studio</h3>
+                    <p className="text-[9px] text-white/50 mt-0.5">Ear training, scales &amp; harmony →</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
           {activeTab === 'NEW' && !selectedArchiveArtist && (
             <div className="px-6 lg:px-12 pt-8 mb-6">
               <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">New</h1>
@@ -1279,6 +1440,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'PLAYLISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
                     <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Playlists</h1>
+
+                    {/* ── World Cup 2026 National Anthems ── */}
+                    <WcAnthemPlaylist onOpenAlbum={onSelectAlbum} />
 
                     {/* My Playlists */}
                     <div>

@@ -30,6 +30,7 @@ interface GlobalPlayerProps {
   isMobile?: boolean;
   userProfile?: UserProfile | null;
   onUpdateUserProfile?: (updates: Partial<UserProfile>) => void;
+  onOpenAria?: () => void;
 }
 
 const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
@@ -46,7 +47,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   view,
   isMobile = false,
   userProfile,
-  onUpdateUserProfile
+  onUpdateUserProfile,
+  onOpenAria,
 }) => {
   const isBigScreen = theme === 'BIG_SCREEN';
   const isPhoneMode = theme === 'PHONE' || isMobile;
@@ -94,13 +96,17 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     isTVMode,
     setIsTVMode,
     isMiniPlayerActive,
-    setIsMiniPlayerActive
+    setIsMiniPlayerActive,
+    setIsPlayerExpanded,
   } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   const { triggerAction } = useAchievements();
 
   const [isSpillOverOpen, setIsSpillOverOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+
+  // Keep context in sync so Aria panel knows when to push up
+  React.useEffect(() => { setIsPlayerExpanded(isSpillOverOpen); }, [isSpillOverOpen, setIsPlayerExpanded]);
   const [showVisualizerDrawer, setShowVisualizerDrawer] = useState(false);
 
   // ── Music Video Sync ────────────────────────────────────────────────────────
@@ -1138,10 +1144,14 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 </div>
 
                 {!isShrunk && (
-                  <div className={`flex items-center gap-3 min-w-0 flex-1 ${isLandscape ? '' : 'mt-2'}`} onClick={() => setIsSpillOverOpen(!isSpillOverOpen)}>
+                  <button
+                    className={`flex items-center gap-3 min-w-0 flex-1 ${isLandscape ? '' : 'mt-2'} text-left`}
+                    onClick={() => currentAlbum ? onNavigate?.('PLAYER', { album: currentAlbum }) : currentVideo ? onNavigate?.('PLAYER', { video: currentVideo }) : undefined}
+                    title="Now Playing — tap to open"
+                  >
                     <div className={`${isLandscape ? 'w-8 h-8' : 'w-8 h-8'} rounded-lg overflow-hidden shrink-0 shadow-lg`}>
-                      <img 
-                        src={(currentTrack ? (currentTrack.albumCover || currentAlbum?.coverImage) : (currentVideo?.thumbnailUrl || 'https://picsum.photos/seed/video/200/200')) || null} 
+                      <img
+                        src={(currentTrack ? (currentTrack.albumCover || currentAlbum?.coverImage) : (currentVideo?.thumbnailUrl || 'https://picsum.photos/seed/video/200/200')) || null}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -1156,11 +1166,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
+                    {onOpenAria && (
+                      <button onClick={onOpenAria} className="text-white/20 hover:text-purple-300 transition-colors" title="Aria AI">
+                        <Sparkles size={14} />
+                      </button>
+                    )}
                     <button onClick={handleShare} className="text-white/20 hover:text-white"><Share2 size={14} /></button>
                     {currentTrack && (
                       <button
@@ -1229,8 +1244,18 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                   <button onClick={next} className={`p-2 text-white/40 active:text-white android-press transition-colors ${isLandscape ? 'hidden' : 'block'}`} style={{ minWidth: 36, minHeight: 36 }}><SkipForward size={18} /></button>
               </div>
 
-                {/* Right Side: share + music video + queue buttons */}
+                {/* Right Side: aria + share + music video + queue buttons */}
                 <div className={`flex items-center justify-end gap-1 shrink-0 ${isLandscape ? 'hidden' : ''}`}>
+                  {onOpenAria && (
+                    <button
+                      onClick={onOpenAria}
+                      className="p-2 android-press transition-all rounded-full text-white/30 hover:text-purple-300"
+                      style={{ minWidth: 36, minHeight: 36 }}
+                      title="Aria AI"
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={handleShare}
                     className="p-2 android-press transition-all rounded-full text-white/30 hover:text-white"

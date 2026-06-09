@@ -91,6 +91,7 @@ import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
 import AdminLandingBgManager from './AdminLandingBgManager';
 import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
+import AdminSportsAgentsPanel from './AdminSportsAgentsPanel';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -99,7 +100,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'ACHIEVEMENTS' | 'ANALYTICS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   
@@ -505,6 +506,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
           {[
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'STATS', label: 'Site Health', icon: Activity },
+            { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
@@ -626,6 +628,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                     </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'SPORTS_AGENTS' && (
+              <motion.div
+                key="sportsAgents"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <AdminSportsAgentsPanel />
               </motion.div>
             )}
 

@@ -11,13 +11,14 @@ import { db } from '../services/backendService';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, addDoc } from 'firebase/firestore';
 import PlajahLivePlayer from './PlajahLivePlayer';
 import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
+import SportsProducerPanel from './SportsProducerPanel';
 
 interface GoLiveWizardProps {
   onClose: () => void;
   currentUser: FirebaseUser | null;
 }
 
-type StreamType = 'QUICK' | 'STUDIO' | 'EXTERNAL' | 'MUX';
+type StreamType = 'QUICK' | 'STUDIO' | 'EXTERNAL' | 'MUX' | 'SPORTS';
 type WizardStep = 'TYPE' | 'DETAILS' | 'SIGNAL' | 'GRAPHICS' | 'GOLIVE';
 
 interface MuxStreamInfo {
@@ -148,7 +149,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
     if (streamType === 'EXTERNAL' || streamType === 'MUX') { setSignalOk(true); return; }
     try {
       const constraints: MediaStreamConstraints = {
-        video: streamType === 'QUICK'
+        video: streamType === 'QUICK' || streamType === 'SPORTS'
           ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
           : { width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: { echoCancellation: true, noiseSuppression: true },
@@ -410,6 +411,9 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
           muxSrtUrl={muxStream?.srtUrl}
           onEndStream={handleEndStream}
         />
+        {streamType === 'SPORTS' && liveFeedId && (
+          <SportsProducerPanel feedId={liveFeedId} />
+        )}
       </>
     );
   }
@@ -446,6 +450,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                   {([
                     { id: 'QUICK' as StreamType, icon: Camera, label: 'Quick Mobile', desc: 'Camera or phone stream. Simple, fast, no setup.' },
                     { id: 'STUDIO' as StreamType, icon: Monitor, label: 'Studio Broadcast', desc: 'High quality with audio/video controls. Webcam or capture card.' },
+                    { id: 'SPORTS' as StreamType, icon: Radio, label: 'Sports Broadcast', desc: 'Live game with real-time scorebug, clock, replay controls, and AI commentary.' },
                     { id: 'MUX' as StreamType, icon: Tv2, label: 'Mux Pro Stream', desc: 'Professional broadcast via OBS, Streamlabs, or any RTMP software. Powered by Mux.' },
                     { id: 'EXTERNAL' as StreamType, icon: Wifi, label: 'External Stream', desc: 'Paste an existing stream URL from YouTube, Twitch, or any source.' },
                   ]).map(({ id, icon: Icon, label, desc }) => (
@@ -696,7 +701,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                   <h2 className="text-white font-black text-xl uppercase tracking-tight mb-2">Ready to go live?</h2>
                   <div className="space-y-3">
                     {[
-                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : streamType === 'MUX' ? 'Mux Pro Stream' : 'External Stream' },
+                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : streamType === 'MUX' ? 'Mux Pro Stream' : streamType === 'SPORTS' ? '🏈 Sports Broadcast' : 'External Stream' },
                       { label: 'Title', value: title || '(untitled)' },
                       { label: 'Category', value: category || '(none)' },
                       { label: 'Lower Thirds', value: `${lowerThirds.filter(lt => lt.title).length} configured` },
@@ -712,6 +717,13 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
                       {muxStream ? <Check size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-yellow-400" />}
                       <p className={`text-sm font-bold ${muxStream ? 'text-green-400' : 'text-yellow-400'}`}>
                         {muxStream ? 'Mux stream credentials ready — connect OBS and go live' : 'No Mux stream created yet — go back to Signal step'}
+                      </p>
+                    </div>
+                  ) : streamType === 'SPORTS' ? (
+                    <div className="flex items-center gap-3 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+                      <Radio size={18} className="text-amber-400" />
+                      <p className="text-sm font-bold text-amber-400">
+                        Sports mode — real-time scorebug, AI commentary & replay controls will appear when you go live
                       </p>
                     </div>
                   ) : streamType !== 'EXTERNAL' ? (

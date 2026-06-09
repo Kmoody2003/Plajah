@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
+import { WC26Player, getPlayersByTeam, getPositionColor, getPositionLabel } from '../data/worldCupPlayers';
 import { Post, UserProfile } from '../types';
 import { auth, listenToGlobalPosts, createPost, uploadFile } from '../services/backendService';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
 import AnthemPlayer from './AnthemPlayer';
+import WorldCupPlayerProfile from './WorldCupPlayerProfile';
 
 interface Props {
   team: WC26Team;
@@ -14,10 +16,12 @@ interface Props {
   onBack: () => void;
 }
 
-type CountryTab = 'community' | 'music' | 'debates' | 'matches';
+type CountryTab = 'community' | 'roster' | 'music' | 'debates' | 'matches';
 
 const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
-  const [activeTab, setActiveTab] = useState<CountryTab>('community');
+  const [activeTab, setActiveTab] = useState<CountryTab>('roster');
+  const [selectedPlayer, setSelectedPlayer] = useState<WC26Player | null>(null);
+  const players = getPlayersByTeam(team.id);
   const [posts, setPosts] = useState<Post[]>([]);
   const [debateTopics] = useState([
     `Will ${team.name} make it out of Group ${team.group}?`,
@@ -65,14 +69,42 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   }, [countryTag, team.id]);
 
   const TABS: { id: CountryTab; label: string; icon: React.ElementType }[] = [
+    { id: 'roster',    label: 'Roster',     icon: ShirtIcon },
     { id: 'community', label: 'Community',  icon: MessageSquare },
     { id: 'music',     label: 'Music',      icon: Music },
     { id: 'debates',   label: 'Debates',    icon: Sword },
     { id: 'matches',   label: 'Matches',    icon: Calendar },
   ];
 
+  // Show player profile view
+  if (selectedPlayer) {
+    return (
+      <WorldCupPlayerProfile
+        player={selectedPlayer}
+        team={team}
+        onBack={() => setSelectedPlayer(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
+      {/* ── Breadcrumb nav ── */}
+      <nav className="flex items-center gap-2 px-1 py-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/[0.1] transition-all"
+        >
+          <ArrowLeft size={13} />
+          World Cup Hub
+        </button>
+        <span className="text-white/20 text-xs">›</span>
+        <span className="text-[10px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+          <span>{team.flag}</span>
+          {team.name}
+        </span>
+      </nav>
+
       {/* ── Hero header ── */}
       <div
         className="relative rounded-[2rem] overflow-hidden"
@@ -86,12 +118,6 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
         </div>
 
         <div className="relative px-7 py-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-5 text-xs font-bold"
-          >
-            <ArrowLeft size={14} /> All Countries
-          </button>
 
           <div className="flex items-center gap-5">
             <span className="text-6xl leading-none">{team.flag}</span>
@@ -140,6 +166,75 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
           </button>
         ))}
       </div>
+
+      {/* ── Roster tab ── */}
+      {activeTab === 'roster' && (
+        <div className="space-y-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">
+            {team.name} · Projected Squad · {players.length} Players
+          </p>
+
+          {/* Position groups */}
+          {(['GK', 'DEF', 'MID', 'FWD'] as const).map(pos => {
+            const group = players.filter(p => p.position === pos);
+            if (!group.length) return null;
+            return (
+              <div key={pos}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: getPositionColor(pos) }} />
+                  <span className="text-[8px] font-black uppercase tracking-[0.3em]" style={{ color: getPositionColor(pos) }}>
+                    {getPositionLabel(pos)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {group.map(player => (
+                    <motion.button
+                      key={player.id}
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedPlayer(player)}
+                      className="flex items-center gap-3 p-3 rounded-2xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15 transition-all text-left group"
+                    >
+                      {/* Jersey number */}
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-sm"
+                        style={{ background: `${team.primaryColor}22`, color: team.primaryColor }}
+                      >
+                        {player.number}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-black text-white truncate">{player.name}</p>
+                          {player.isCaptain && <span className="text-[7px] px-1 rounded bg-white/10 text-white/50 shrink-0">C</span>}
+                          {player.isKeyPlayer && <span style={{ color: team.primaryColor }} className="text-[10px] shrink-0">★</span>}
+                        </div>
+                        <p className="text-[8px] text-white/35 truncate mt-0.5">{player.club}</p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-black text-white">{player.goals}</p>
+                        <p className="text-[7px] text-white/25">goals</p>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {players.length === 0 && (
+            <div className="py-16 text-center">
+              <ShirtIcon size={28} className="text-white/10 mx-auto mb-3" />
+              <p className="text-sm text-white/30">Roster data not available</p>
+            </div>
+          )}
+
+          <p className="text-[7px] text-white/15 text-center pt-2">
+            Squads are projected. Official FIFA squads announced 10 days before tournament.
+          </p>
+        </div>
+      )}
 
       {/* ── Community tab ── */}
       {activeTab === 'community' && (

@@ -1,85 +1,72 @@
-// Anthem Service — fetches national anthem audio from Wikimedia Commons
-// Audio files are public domain or freely licensed (CC-BY-SA or PD).
-// Lyrics are NOT embedded — we link to Wikisource (public domain texts) instead.
+// Anthem Service — uses locally bundled audio (public/audio/anthems/) and lyrics (data/anthemLyrics.ts)
+// Audio sourced from nationalanthems.info (CC BY 4.0). Wikipedia API used for description only.
+
+import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 
 export interface AnthemData {
   teamId: string;
   anthemTitle: string;
-  audioUrl: string | null;
+  audioUrl: string;
   wikiUrl: string;
-  wikisourceUrl: string | null;
   thumbnailUrl: string | null;
   extract: string | null;
+  lyrics: string | null;
 }
 
-// Wikipedia article titles for each nation's national anthem
-// Used to query the Wikipedia REST API for audio file discovery
-const ANTHEM_ARTICLES: Record<string, { article: string; wikisource?: string }> = {
-  // Group A
-  mex: { article: 'Mexican_national_anthem',          wikisource: 'Himno_Nacional_Mexicano' },
-  ger: { article: 'Deutschlandlied',                   wikisource: 'Deutschlandlied' },
-  sen: { article: 'National_anthem_of_Senegal' },
-  ecu: { article: 'National_anthem_of_Ecuador' },
-  // Group B
-  usa: { article: 'The_Star-Spangled_Banner',          wikisource: 'The_Star-Spangled_Banner' },
-  fra: { article: 'La_Marseillaise',                   wikisource: 'La_Marseillaise' },
-  rsa: { article: 'National_anthem_of_South_Africa' },
-  ury: { article: 'National_anthem_of_Uruguay' },
-  // Group C
-  can: { article: 'O_Canada',                          wikisource: 'O_Canada' },
-  esp: { article: 'Marcha_Real' },
-  nga: { article: 'Arise,_O_Compatriots' },
-  kor: { article: 'Aegukga' },
-  // Group D
-  arg: { article: 'Argentine_National_Anthem',         wikisource: 'Himno_Nacional_Argentino' },
-  eng: { article: 'God_Save_the_King',                 wikisource: 'God_Save_the_King' },
-  civ: { article: "L'Abidjanaise" },
-  jpn: { article: 'Kimigayo',                          wikisource: 'Kimigayo' },
-  // Group E
-  bra: { article: 'Brazilian_national_anthem',         wikisource: 'Hino_Nacional_Brasileiro' },
-  ned: { article: 'Het_Wilhelmus',                     wikisource: 'Het_Wilhelmus' },
-  cmr: { article: 'National_anthem_of_Cameroon' },
-  aus: { article: 'Advance_Australia_Fair',            wikisource: 'Advance_Australia_Fair' },
-  // Group F
-  col: { article: 'National_anthem_of_Colombia' },
-  por: { article: 'A_Portuguesa',                      wikisource: 'A_Portuguesa' },
-  cod: { article: 'Debout_Congolais' },
-  irn: { article: 'National_anthem_of_Iran' },
-  // Group G
-  crc: { article: 'National_anthem_of_Costa_Rica' },
-  cro: { article: 'Lijepa_naša_domovino' },
-  alg: { article: 'Kassaman' },
-  ksa: { article: 'Aash_Al_Maleek' },
-  // Group H
-  pan: { article: 'Hymn_of_Panama' },
-  bel: { article: "La_Brabançonne" },
-  egy: { article: 'Bilady,_Bilady,_Bilady' },
-  jor: { article: 'National_anthem_of_Jordan' },
-  // Group I
-  jam: { article: 'Jamaica,_Land_We_Love' },
-  sui: { article: 'Swiss_Psalm' },
-  mar: { article: 'Cherifian_Anthem' },
-  irq: { article: 'Mawtini' },
-  // Group J
-  ven: { article: 'Gloria_al_bravo_pueblo' },
-  tur: { article: 'İstiklâl_Marşı' },
-  pol: { article: 'Mazurek_Dąbrowskiego',             wikisource: 'Mazurek_Dąbrowskiego' },
-  uzb: { article: 'National_anthem_of_Uzbekistan' },
-  // Group K
-  chl: { article: 'National_anthem_of_Chile' },
-  aut: { article: 'Land_der_Berge,_Land_am_Strome' },
-  srb: { article: 'Bože_pravde' },
-  nzl: { article: 'God_Defend_New_Zealand' },
-  // Group L
-  idn: { article: 'Indonesia_Raya' },
-  rou: { article: 'Deșteaptă-te,_române!' },
-  sco: { article: 'Flower_of_Scotland' },
-  den: { article: 'Der_er_et_yndigt_land' },
+// Anthem metadata for all 48 FIFA World Cup 2026 nations
+// article = Wikipedia article title (used for description + wiki link)
+const ANTHEM_META: Record<string, { title: string; article: string }> = {
+  alg: { title: 'Kassaman',                            article: 'Kassaman' },
+  arg: { title: 'Himno Nacional Argentino',            article: 'Argentine_National_Anthem' },
+  aus: { title: 'Advance Australia Fair',              article: 'Advance_Australia_Fair' },
+  aut: { title: 'Land der Berge, Land am Strome',     article: 'Land_der_Berge,_Land_am_Strome' },
+  bel: { title: 'La Brabançonne',                      article: 'La_Brabançonne' },
+  bih: { title: 'Državna himna Bosne i Hercegovine',  article: 'Državna_himna_Bosne_i_Hercegovine' },
+  bra: { title: 'Hino Nacional Brasileiro',           article: 'Brazilian_national_anthem' },
+  can: { title: 'O Canada',                            article: 'O_Canada' },
+  civ: { title: "L'Abidjanaise",                       article: "L'Abidjanaise" },
+  cod: { title: 'Debout Congolais',                    article: 'Debout_Congolais' },
+  col: { title: 'Himno Nacional de Colombia',         article: 'National_anthem_of_Colombia' },
+  cpv: { title: 'Cântico da Liberdade',               article: 'Cântico_da_Liberdade' },
+  cro: { title: 'Lijepa naša domovino',               article: 'Lijepa_naša_domovino' },
+  cuw: { title: 'Himno di Kòrsou',                    article: 'National_anthem_of_Curaçao' },
+  cze: { title: 'Kde domov můj?',                     article: 'Kde_domov_můj' },
+  ecu: { title: 'Himno Nacional del Ecuador',         article: 'National_anthem_of_Ecuador' },
+  egy: { title: 'Bilady, Bilady, Bilady',             article: 'Bilady,_Bilady,_Bilady' },
+  eng: { title: 'God Save the King',                   article: 'God_Save_the_King' },
+  esp: { title: 'Marcha Real',                         article: 'Marcha_Real' },
+  fra: { title: 'La Marseillaise',                     article: 'La_Marseillaise' },
+  ger: { title: 'Deutschlandlied',                     article: 'Deutschlandlied' },
+  gha: { title: 'God Bless Our Homeland Ghana',       article: 'God_Bless_Our_Homeland_Ghana' },
+  hai: { title: 'La Dessalinienne',                    article: 'La_Dessalinienne' },
+  irn: { title: 'National Anthem of Iran',            article: 'National_anthem_of_Iran' },
+  irq: { title: 'Mawtini',                             article: 'Mawtini' },
+  jor: { title: 'National Anthem of Jordan',          article: 'National_anthem_of_Jordan' },
+  jpn: { title: 'Kimigayo',                            article: 'Kimigayo' },
+  kor: { title: 'Aegukga',                             article: 'Aegukga' },
+  ksa: { title: 'Aash Al Maleek',                     article: 'Aash_Al_Maleek' },
+  mar: { title: 'Hymne Chérifien',                    article: 'Cherifian_Anthem' },
+  mex: { title: 'Himno Nacional Mexicano',            article: 'Mexican_national_anthem' },
+  ned: { title: 'Het Wilhelmus',                       article: 'Het_Wilhelmus' },
+  nor: { title: 'Ja, vi elsker dette landet',         article: 'Ja,_vi_elsker_dette_landet' },
+  nzl: { title: 'God Defend New Zealand',             article: 'God_Defend_New_Zealand' },
+  pan: { title: 'Himno Istmeño',                       article: 'Hymn_of_Panama' },
+  par: { title: 'Paraguayos, República o Muerte',     article: 'National_anthem_of_Paraguay' },
+  por: { title: 'A Portuguesa',                        article: 'A_Portuguesa' },
+  qat: { title: 'Al-Salam Al-Amiri',                  article: 'As-Salam_al-Amiri' },
+  rsa: { title: 'National Anthem of South Africa',   article: 'National_anthem_of_South_Africa' },
+  sco: { title: 'Flower of Scotland',                 article: 'Flower_of_Scotland' },
+  sen: { title: 'Pincez Tous vos Koras',             article: 'National_anthem_of_Senegal' },
+  sui: { title: 'Swiss Psalm',                         article: 'Swiss_Psalm' },
+  swe: { title: 'Du gamla, Du fria',                  article: 'Du_gamla,_Du_fria' },
+  tun: { title: 'Humat Al Hima',                      article: 'Humat_Al_Hima' },
+  tur: { title: 'İstiklâl Marşı',                     article: 'İstiklâl_Marşı' },
+  ury: { title: 'Himno Nacional de Uruguay',          article: 'National_anthem_of_Uruguay' },
+  usa: { title: 'The Star-Spangled Banner',           article: 'The_Star-Spangled_Banner' },
+  uzb: { title: 'National Anthem of Uzbekistan',     article: 'National_anthem_of_Uzbekistan' },
 };
 
 const _cache = new Map<string, AnthemData | null>();
-
-// ── Wikipedia REST API helpers ─────────────────────────────────────────────────
 
 async function fetchWikiSummary(article: string): Promise<{ extract: string | null; thumbnail: string | null }> {
   try {
@@ -98,62 +85,27 @@ async function fetchWikiSummary(article: string): Promise<{ extract: string | nu
   }
 }
 
-async function fetchWikiMediaList(article: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/media-list/${encodeURIComponent(article)}`,
-      { headers: { 'Api-User-Agent': 'Plajah/1.0 (plajah.com)' } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-
-    const items: any[] = data.items ?? [];
-
-    // Prefer .oga / .ogg audio files
-    for (const item of items) {
-      if (item.type === 'audio') {
-        const src = item.original?.source ?? item.srcset?.[0]?.src ?? null;
-        if (src) return src;
-      }
-      // Some articles embed audio as "file" type with audio MIME
-      if (item.type === 'file') {
-        const src = item.original?.source ?? null;
-        if (src && /\.(ogg|oga|mp3|wav|flac)$/i.test(src)) return src;
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export async function fetchAnthemData(teamId: string): Promise<AnthemData | null> {
   if (_cache.has(teamId)) return _cache.get(teamId) ?? null;
 
-  const info = ANTHEM_ARTICLES[teamId];
-  if (!info) {
+  const meta = ANTHEM_META[teamId];
+  if (!meta) {
     _cache.set(teamId, null);
     return null;
   }
 
-  const [{ extract, thumbnail }, audioUrl] = await Promise.all([
-    fetchWikiSummary(info.article),
-    fetchWikiMediaList(info.article),
-  ]);
+  const { extract, thumbnail } = await fetchWikiSummary(meta.article);
 
   const result: AnthemData = {
     teamId,
-    anthemTitle: info.article.replace(/_/g, ' '),
-    audioUrl,
-    wikiUrl: `https://en.wikipedia.org/wiki/${info.article}`,
-    wikisourceUrl: info.wikisource
-      ? `https://en.wikisource.org/wiki/${info.wikisource}`
-      : null,
+    anthemTitle: meta.title,
+    audioUrl: `/audio/anthems/${teamId}.mp3`,
+    wikiUrl: `https://en.wikipedia.org/wiki/${meta.article}`,
     thumbnailUrl: thumbnail,
     extract,
+    lyrics: ANTHEM_LYRICS[teamId] ?? null,
   };
 
   _cache.set(teamId, result);

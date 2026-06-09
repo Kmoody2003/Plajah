@@ -29,6 +29,80 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(fields);
     }
 
+    match /sports_ingestion_runs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /sports_game_event_research/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_source_registry/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_teams/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_news/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_scores/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_standings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_league_leaders/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_pages/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_rosters/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_schedules/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_player_profiles/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_player_stats/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_stats/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_wikipedia_summaries/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     function isValidAlbum(data) {
       return hasRequiredFields(['id', 'title', 'artist', 'createdAt']) &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
@@ -1334,6 +1408,53 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.ownerUserId == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource.data.ownerUserId == request.auth.uid || isAdmin();
+    }
+
+    // ===============================================================
+    // WORLD CUP 2026 — Picks, Follows, Fan Clubs
+    // ===============================================================
+
+    // Player follows (WC2026 current players)
+    match /wcFollowedPlayers/{userId}/players/{playerId} {
+      allow read:   if isOwner(userId);
+      allow write:  if isOwner(userId);
+    }
+
+    // Player follows (historical players — WC2022/2018)
+    match /wcHistPlayerFollows/{userId}/players/{playerId} {
+      allow read:   if isOwner(userId);
+      allow write:  if isOwner(userId);
+    }
+
+    // Free-to-play picks
+    match /wcPicks/{userId} {
+      allow read:  if isAuthenticated();   // leaderboard visibility
+      allow write: if isOwner(userId);
+    }
+
+    // Fan clubs — unofficial per-nation communities
+    match /wcFanClubs/{clubId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Members subcollection — anyone can join/leave their own record
+      match /members/{memberId} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == memberId;
+        allow delete: if isAuthenticated() && request.auth.uid == memberId;
+      }
+
+      // Posts — authenticated users can post, only own posts can be deleted
+      match /posts/{postId} {
+        allow read:   if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 2000;
+        allow delete: if isAuthenticated()
+                      && (resource.data.uid == request.auth.uid || isAdmin());
+      }
     }
   }
 }

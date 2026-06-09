@@ -107,10 +107,10 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
   }, [items.length]);
 
   if (!items.length) return (
-    <div className="relative h-[55vh] min-h-[380px] bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] rounded-[2.5rem] overflow-hidden flex items-end p-8">
+    <div className="relative h-[40vh] sm:h-[55vh] min-h-[240px] bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] rounded-[2.5rem] overflow-hidden flex items-end p-6 sm:p-8">
       <div>
         <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#FF8C00] mb-2">Plajah Sports</p>
-        <h2 className="text-5xl font-black uppercase tracking-tighter text-white">Your World of Sport</h2>
+        <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-white">Your World of Sport</h2>
       </div>
     </div>
   );
@@ -118,7 +118,7 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
   const item = items[idx];
 
   return (
-    <div className="relative h-[55vh] min-h-[380px] rounded-[2.5rem] overflow-hidden group shadow-2xl">
+    <div className="relative h-[40vh] sm:h-[55vh] min-h-[240px] rounded-[2.5rem] overflow-hidden group shadow-2xl">
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={idx}
@@ -536,8 +536,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
             )}
           </div>
 
-          {/* Right sidebar: My Teams hub */}
-          <aside className="space-y-5">
+          {/* Right sidebar: My Teams hub — hidden on mobile, shows on xl */}
+          <aside className="hidden xl:block space-y-5">
             {/* MY TEAMS HUB */}
             <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
               <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Volume2, ExternalLink, BookOpen, Loader2, Music2 } from 'lucide-react';
+import { Play, Pause, Volume2, ExternalLink, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { WC26Team } from '../data/worldCup2026';
 import { fetchAnthemData, AnthemData } from '../services/anthemService';
 
@@ -15,6 +15,7 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioError, setAudioError] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef   = useRef<number>(0);
@@ -107,6 +108,7 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
   };
 
   const hasAudio = Boolean(anthem?.audioUrl) && !audioError;
+  const hasLyrics = Boolean(anthem?.lyrics);
 
   return (
     <div
@@ -114,20 +116,18 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
       style={{ background: `linear-gradient(145deg, ${team.primaryColor}22 0%, ${team.secondaryColor}14 100%)` }}
     >
       {/* Hidden audio element */}
-      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+      <audio ref={audioRef} preload="metadata" />
 
       {/* Top banner */}
       <div className="relative px-6 pt-6 pb-4">
         <span className="absolute right-6 top-6 text-7xl leading-none opacity-15 select-none pointer-events-none">
           {team.flag}
         </span>
-
         <p className="text-[7px] font-black uppercase tracking-[0.5em] text-white/35 mb-1.5">National Anthem</p>
-
         {loading ? (
           <div className="flex items-center gap-2 py-2">
             <Loader2 size={14} className="text-white/30 animate-spin" />
-            <span className="text-xs text-white/30">Loading anthem…</span>
+            <span className="text-xs text-white/30">Loading…</span>
           </div>
         ) : (
           <h3 className="text-lg font-black text-white leading-snug pr-16">
@@ -137,7 +137,6 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
         <p className="text-[9px] text-white/35 mt-0.5">{team.name}</p>
       </div>
 
-      {/* Audio player controls */}
       {!loading && (
         <div className="px-6 pb-5 space-y-3">
           {/* Progress bar */}
@@ -151,14 +150,14 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
             />
           </div>
 
-          {/* Time + play button */}
+          {/* Play button + time */}
           <div className="flex items-center gap-4">
             <button
               onClick={togglePlay}
               disabled={!hasAudio}
               className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-all active:scale-95 disabled:opacity-30"
               style={{ background: team.primaryColor }}
-              title={hasAudio ? (playing ? 'Pause' : 'Play national anthem') : 'Audio unavailable'}
+              title={playing ? 'Pause' : 'Play national anthem'}
             >
               {playing
                 ? <Pause size={16} className="text-white" fill="white" />
@@ -172,76 +171,59 @@ const AnthemPlayer: React.FC<Props> = ({ team }) => {
                   <span>{fmtTime(currentTime)}</span>
                   <div className="flex items-center gap-1 text-white/20">
                     <Volume2 size={8} />
-                    <span>Wikimedia Commons · Public Domain</span>
+                    <span>nationalanthems.info · CC BY 4.0</span>
                   </div>
                   <span>{fmtTime(duration)}</span>
                 </div>
               ) : (
                 <p className="text-[9px] text-white/25">
-                  {audioError
-                    ? 'Audio unavailable for this anthem'
-                    : anthem
-                    ? 'No audio file found — try Wikipedia link'
-                    : 'Anthem not indexed yet'}
+                  {audioError ? 'Audio unavailable' : 'No audio for this anthem'}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Extract / description */}
+          {/* Description */}
           {anthem?.extract && (
-            <p className="text-[9px] text-white/35 leading-relaxed line-clamp-3">
-              {anthem.extract}
-            </p>
+            <p className="text-[9px] text-white/35 leading-relaxed line-clamp-3">{anthem.extract}</p>
           )}
 
-          {/* Action links */}
-          <div className="flex items-center gap-2 pt-1">
-            {anthem?.wikiUrl && (
+          {/* Lyrics toggle */}
+          {hasLyrics && (
+            <div>
+              <button
+                onClick={() => setShowLyrics(v => !v)}
+                className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider text-white/40 hover:text-white/70 transition-colors"
+              >
+                {showLyrics ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                {showLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
+              </button>
+
+              {showLyrics && (
+                <div
+                  className="mt-2 max-h-72 overflow-y-auto rounded-2xl p-4 text-[9px] leading-relaxed text-white/50 whitespace-pre-wrap font-mono"
+                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  {anthem!.lyrics}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Wikipedia link */}
+          {anthem?.wikiUrl && (
+            <div className="pt-1">
               <a
                 href={anthem.wikiUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider text-white/50 hover:text-white border border-white/10 hover:border-white/25 transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider text-white/50 hover:text-white border border-white/10 hover:border-white/25 transition-all"
               >
                 <ExternalLink size={8} />
                 Wikipedia
               </a>
-            )}
-            {anthem?.wikisourceUrl && (
-              <a
-                href={anthem.wikisourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider text-white/50 hover:text-white border border-white/10 hover:border-white/25 transition-all"
-              >
-                <BookOpen size={8} />
-                Full Lyrics
-              </a>
-            )}
-            {!anthem?.wikisourceUrl && anthem && (
-              <a
-                href={`https://en.wikisource.org/w/index.php?search=${encodeURIComponent(anthem.anthemTitle)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider text-white/50 hover:text-white border border-white/10 hover:border-white/25 transition-all"
-              >
-                <BookOpen size={8} />
-                Search Lyrics
-              </a>
-            )}
-            {!anthem && !loading && (
-              <a
-                href={`https://en.wikipedia.org/wiki/${encodeURIComponent(team.anthem.replace(/ /g, '_'))}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider text-white/50 hover:text-white border border-white/10 hover:border-white/25 transition-all"
-              >
-                <Music2 size={8} />
-                {team.anthem}
-              </a>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

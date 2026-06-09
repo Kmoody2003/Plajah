@@ -3,7 +3,7 @@
 // Verify against the official FIFA 2026 draw results and update as needed.
 
 export type WC26Confederation = 'UEFA' | 'CONMEBOL' | 'CONCACAF' | 'CAF' | 'AFC' | 'OFC' | 'PLAYOFF';
-export type WC26Round = 'GROUP' | 'R32' | 'QF' | 'SF' | '3RD' | 'FINAL';
+export type WC26Round = 'GROUP' | 'R32' | 'R16' | 'QF' | 'SF' | '3RD' | 'FINAL';
 export type WC26Status = 'SCHEDULED' | 'LIVE' | 'FINISHED';
 
 export interface WC26Team {
@@ -205,8 +205,8 @@ export const WC26_GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L'] as 
 export type WC26Group = typeof WC26_GROUPS[number];
 
 export const ROUND_LABELS: Record<WC26Round, string> = {
-  GROUP: 'Group Stage', R32: 'Round of 32', QF: 'Quarter-Final',
-  SF: 'Semi-Final', '3RD': 'Third Place', FINAL: 'Final',
+  GROUP: 'Group Stage', R32: 'Round of 32', R16: 'Round of 16',
+  QF: 'Quarter-Final', SF: 'Semi-Final', '3RD': 'Third Place', FINAL: 'Final',
 };
 
 // ── Curated football podcasts for the podcast hub ─────────────────────────────

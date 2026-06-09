@@ -258,7 +258,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
                 commentAuthorId={comment.authorId}
                 commentAuthorName={comment.authorName}
                 commentAuthorPhoto={comment.authorPhoto || ''}
-                className="opacity-0 group-hover/bubble:opacity-100 transition-opacity"
+                className="opacity-50 hover:opacity-100 transition-opacity"
                 onDebateCreated={debateId => {
                   window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId } }));
                 }}

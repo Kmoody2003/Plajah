@@ -17,7 +17,7 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward, ChevronRight
+  SkipBack, SkipForward, ChevronRight, Waves
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -921,9 +921,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           ) : (
             <div className="w-full h-full relative text-left block">
-              <img 
-                src={album.coverImage} 
-                alt={album.title} 
+              <img
+                src={(currentTrack?.images?.[0]) || album.coverImage}
+                alt={currentTrack?.title || album.title}
                 className="w-full h-full object-cover opacity-80"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
@@ -1095,6 +1095,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         {isActive && globalIsPlaying && isCurrentTrackGlobal
                           ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
                           : <Play size={14} className="text-white/20" fill="currentColor" />}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
+                          title="The Breakdown — analyze key, tempo, chords & sheet music"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                        >
+                          <Waves size={11} />
+                          <span className="hidden sm:inline">Breakdown</span>
+                        </button>
                         {isOwner && (
                           <button
                             onClick={() => setExpandedTrackId(isExpanded ? null : t.id)}
@@ -1632,7 +1640,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Ambient blurred base (very soft, low opacity) */}
         <img
-          src={activeVideo?.coverImageUrl || album.coverImage || undefined}
+          src={activeVideo?.coverImageUrl || (currentTrack?.images?.[0]) || album.coverImage || undefined}
           alt=""
           className="absolute inset-0 w-full h-full object-cover scale-110 blur-[80px] opacity-30 transition-all duration-1000"
           referrerPolicy="no-referrer"
@@ -1642,8 +1650,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         <AnimatePresence mode="wait">
           {!isSlideshowActive && (
             <motion.img
-              key={album.coverImage}
-              src={activeVideo?.coverImageUrl || album.coverImage || undefined}
+              key={currentTrack?.id || album.coverImage}
+              src={activeVideo?.coverImageUrl || (currentTrack?.images?.[0]) || album.coverImage || undefined}
               alt=""
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1698,7 +1706,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-      <ScrollingWaveform currentTime={globalCurrentTime} duration={globalDuration} trackId={currentTrack?.id || 'unknown'} />
+      <ScrollingWaveform
+        currentTime={globalCurrentTime}
+        duration={globalDuration}
+        trackId={currentTrack?.id || 'unknown'}
+        isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+      />
 
       {/* Subtle depth overlay — no blur so background stays visible */}
       <div className="fixed inset-0 bg-black/5 pointer-events-none z-[1]" />
@@ -2315,6 +2328,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       {isActive && globalIsPlaying && isCurrentTrackGlobal
                                         ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
                                         : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
+                                        title="The Breakdown — analyze key, tempo, chords & sheet music"
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                                      >
+                                        <Waves size={11} />
+                                        <span className="hidden lg:inline">Breakdown</span>
+                                      </button>
                                       {isOwner && (
                                         <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
                                           <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />

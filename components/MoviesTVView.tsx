@@ -833,6 +833,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const [featuredItem, setFeaturedItem] = useState<ArchiveVideo | Album | null>(null);
   const [filmClubs, setFilmClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(true);
   const [currentSubView, setCurrentSubView] = useState<SubView>('HOME');
   const [activePlaylistItem, setActivePlaylistItem] = useState<any | null>(null);
   const [signInAction, setSignInAction] = useState<string | null>(null);
@@ -880,52 +881,62 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const loadContent = async () => {
     try {
       setIsLoading(true);
-      const [all, unis, allGenres, settings, allPlatformVideos, publicWorlds] = await Promise.all([
+      // Phase 1: fast Firestore calls — unblock the page immediately
+      const [all, unis, settings, allPlatformVideos] = await Promise.all([
         fetchAllPublicAlbums(),
         fetchUniverses(),
-        fetchArchiveByAllGenres(15),
         fetchSystemSettingsConfig(),
         fetchAllVideos(),
-        fetchAllPublicWorlds(),
       ]);
 
       const cinemaVideos = allPlatformVideos.filter(v => v.genre && TALEO_GENRES.includes(v.genre));
       setPlatformVideos(cinemaVideos);
       setLocalContent(all.filter(a => a.type === 'VIDEO'));
-      setGenreCollections(allGenres);
-      setWorlds(publicWorlds);
-
-      const featureGenre = allGenres.find(g => g.genre === 'Feature Films');
-      const tvGenre = allGenres.find(g => g.genre === 'Classic TV');
-      setMovies(featureGenre?.items ?? []);
-      setTvSeries(tvGenre?.items ?? []);
       setUniverses(unis);
 
       if (settings?.curatedVideoPlaylists?.length > 0) {
-        const curPls = await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists);
-        setCuratedPlaylists(curPls);
+        fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists)
+          .then(curPls => setCuratedPlaylists(curPls))
+          .catch(() => {});
       }
 
-      // Load film-focused clubs
       fetchPublicClubs('Film')
         .then(clubs => setFilmClubs(clubs.slice(0, 8)))
         .catch(() => {});
 
-      const featureItems = featureGenre?.items ?? [];
-      if (featureItems.length > 0) setFeaturedItem(featureItems[0]);
-
-      // Fetch characters from worlds linked to platform videos
+      // Fetch characters — non-blocking
       const worldIds = [...new Set(
         cinemaVideos.filter(v => (v as any).worldId).map(v => (v as any).worldId as string)
       )].slice(0, 4);
       if (worldIds.length > 0) {
-        const charArrays = await Promise.all(worldIds.map(id => fetchWorldCharacters(id)));
-        setFeaturedCharacters(charArrays.flat().filter(c => c.imageUrl).slice(0, 12));
+        Promise.all(worldIds.map(id => fetchWorldCharacters(id)))
+          .then(charArrays => setFeaturedCharacters(charArrays.flat().filter(c => c.imageUrl).slice(0, 12)))
+          .catch(() => {});
       }
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+
+    // Phase 2: slow Archive.org + public worlds — load in background
+    try {
+      const [allGenres, publicWorlds] = await Promise.all([
+        fetchArchiveByAllGenres(15),
+        fetchAllPublicWorlds(),
+      ]);
+      const featureGenre = allGenres.find(g => g.genre === 'Feature Films');
+      const tvGenre = allGenres.find(g => g.genre === 'Classic TV');
+      setGenreCollections(allGenres);
+      setMovies(featureGenre?.items ?? []);
+      setTvSeries(tvGenre?.items ?? []);
+      setWorlds(publicWorlds);
+      const featureItems = featureGenre?.items ?? [];
+      if (featureItems.length > 0) setFeaturedItem(prev => prev ?? featureItems[0]);
+    } catch (err) {
+      console.error('[Taleo] Archive fetch failed:', err);
+    } finally {
+      setArchiveLoading(false);
     }
   };
 
@@ -962,10 +973,26 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#131314] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-2 border-[#D0BCFF]/20 border-t-[#D0BCFF] rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D0BCFF]/60">Loading Taleo…</p>
+      <div className="min-h-screen bg-[#131314]">
+        {/* Tab nav stays visible so it feels interactive */}
+        <TaleoTabNav currentSubView="HOME" setCurrentSubView={() => {}} onNavigate={onNavigate} />
+        {/* Hero skeleton */}
+        <div className="h-[80vh] bg-gradient-to-br from-[#1C1B2E] to-[#131314] animate-pulse" />
+        {/* Section skeletons */}
+        <div className="px-6 md:px-12 py-10 space-y-10">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="space-y-4">
+              <div className="h-3 w-40 bg-white/5 rounded-full animate-pulse" />
+              <div className="flex gap-4">
+                {[1,2,3,4,5].map(j => (
+                  <div key={j} className="w-36 flex-shrink-0">
+                    <div className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse" />
+                    <div className="h-2 mt-2 bg-white/5 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -1099,26 +1126,45 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           transition={{ duration: 0.45 }}
         >
           {currentSubView === 'HOME' && (
-            <HomeView
-              universes={universes}
-              movies={movies}
-              tvSeries={tvSeries}
-              genreCollections={genreCollections}
-              curatedPlaylists={curatedPlaylists}
-              featuredItem={featuredItem}
-              onSelectArchiveItem={handleSelectArchiveItem}
-              onSelectMovie={onSelectMovie}
-              setCurrentSubView={setCurrentSubView}
-              setActiveAllyUrl={setActiveAllyUrl}
-              onSelectCuratedPlaylist={handleSelectCuratedPlaylist}
-              tabNav={tabNavEl}
-              onRequestSignIn={action => setSignInAction(action)}
-              platformVideos={adaptedPlatformVideos}
-              worlds={worlds}
-              featuredCharacters={featuredCharacters}
-              filmClubs={filmClubs}
-              onNavigate={onNavigate}
-            />
+            <>
+              <HomeView
+                universes={universes}
+                movies={movies}
+                tvSeries={tvSeries}
+                genreCollections={archiveLoading ? [] : genreCollections}
+                curatedPlaylists={curatedPlaylists}
+                featuredItem={featuredItem}
+                onSelectArchiveItem={handleSelectArchiveItem}
+                onSelectMovie={onSelectMovie}
+                setCurrentSubView={setCurrentSubView}
+                setActiveAllyUrl={setActiveAllyUrl}
+                onSelectCuratedPlaylist={handleSelectCuratedPlaylist}
+                tabNav={tabNavEl}
+                onRequestSignIn={action => setSignInAction(action)}
+                platformVideos={adaptedPlatformVideos}
+                worlds={worlds}
+                featuredCharacters={featuredCharacters}
+                filmClubs={filmClubs}
+                onNavigate={onNavigate}
+              />
+              {archiveLoading && (
+                <div className="px-6 md:px-12 py-8 space-y-8">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="space-y-3">
+                      <div className="h-2.5 w-32 bg-white/5 rounded-full animate-pulse" />
+                      <div className="flex gap-4 overflow-hidden">
+                        {[1, 2, 3, 4, 5].map(j => (
+                          <div key={j} className="w-36 flex-shrink-0">
+                            <div className="aspect-[2/3] rounded-xl bg-white/[0.04] animate-pulse" />
+                            <div className="h-2 mt-2 w-24 bg-white/[0.04] rounded animate-pulse" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
           {currentSubView === 'TV' && (
             <div className="pt-16">

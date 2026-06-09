@@ -67,6 +67,8 @@ interface GlobalPlayerContextType {
   incrementPlayCount: (id: string, type: 'TRACK' | 'VIDEO') => Promise<void>;
   clearMedia: () => void;
   activateVideoSource: (video: Video) => void;
+  isPlayerExpanded: boolean;
+  setIsPlayerExpanded: (val: boolean) => void;
 }
 
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
@@ -99,6 +101,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
   const [isTVMode, setIsTVMode] = useState(false);
   const [isMiniPlayerActive, setIsMiniPlayerActive] = useState(false);
+  const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [isPhoneMode, setIsPhoneMode] = useState(false);
   const [isShrunk, setIsShrunk] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -854,7 +857,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
-    toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource
+    toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
+    isPlayerExpanded, setIsPlayerExpanded,
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
@@ -863,6 +867,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
+    isPlayerExpanded, setIsPlayerExpanded,
   ]);
 
   const progressValue: GlobalPlayerProgressContextType = useMemo(() => ({

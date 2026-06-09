@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "sports:agent": "tsx scripts/localSportsAgent.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts"
   },
   "dependencies": {

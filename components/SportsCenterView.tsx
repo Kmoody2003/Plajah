@@ -414,7 +414,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
         <motion.button
           onClick={() => setShowStatCard(true)}
           whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#FF8C00]/10 border border-[#FF8C00]/30 rounded-full text-[9px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#FF8C00]/10 border border-[#FF8C00]/30 rounded-full text-xs font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all"
         >
           <CreditCard size={11} /> Stat Cards
         </motion.button>
@@ -422,11 +422,23 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           <motion.button
             onClick={() => setShowRaceHistory(true)}
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
           >
             <History size={11} /> Race Deep Dive
           </motion.button>
         )}
+        {/* Ask Aria — sports research agent, available for all leagues */}
+        <motion.button
+          onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', {
+            detail: {
+              prompt: `Act as Aria, Plajah's sports analytics expert. I'm looking at ${selectedSportsTab}. Give me a deep, insightful breakdown: current standings outlook, top performers to watch, key storylines this season, and 3 surprising stats most fans don't know. Be specific, data-driven, and fan-friendly.`,
+            },
+          }))}
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/10 border border-purple-500/30 rounded-full text-xs font-black uppercase tracking-widest text-purple-400 hover:bg-purple-500/20 transition-all"
+        >
+          <Sparkles size={11} /> Ask Aria
+        </motion.button>
       </div>
 
       {/* Learn How To Play button */}
@@ -461,8 +473,8 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                     className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
                     {article.images?.[0]?.url && <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
-                      <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
+                      <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
                     </div>
                   </a>
                 ))}
@@ -676,7 +688,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                               >
                                 <span className={`text-[8px] font-black w-4 shrink-0 ${ei === 0 ? 'text-[#FF8C00]' : 'text-white/20'}`}>{ei + 1}</span>
                                 <img src={entry.team?.logos?.[0]?.href || ''} alt="" className="w-5 h-5 object-contain opacity-60 shrink-0" loading="lazy" />
-                                <span className="flex-1 text-[9px] font-black uppercase truncate group-hover:text-[#FF8C00] transition-colors text-left">{tName}</span>
+                                <span className="flex-1 text-xs font-black uppercase truncate group-hover:text-[#FF8C00] transition-colors text-left">{tName}</span>
                                 {isSoccer ? (
                                   <div className="hidden sm:flex items-center gap-3 text-[8px] font-bold text-white/40 shrink-0">
                                     {wins  !== '' && <span className="w-4 text-right">{wins}</span>}
@@ -726,8 +738,8 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                             ? <img src={leader.photo} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" loading="lazy" />
                             : <div className="w-6 h-6 rounded-full bg-white/10 shrink-0" />
                           }
-                          <span className="flex-1 text-[8px] font-bold truncate group-hover:text-[#FF8C00] transition-colors">{leader.name}</span>
-                          <span className={`text-[9px] font-black shrink-0 ${li === 0 ? 'text-[#FF8C00]' : 'text-white/60'}`}>{leader.displayValue}</span>
+                          <span className="flex-1 text-xs font-bold truncate group-hover:text-[#FF8C00] transition-colors">{leader.name}</span>
+                          <span className={`text-xs font-black shrink-0 ${li === 0 ? 'text-[#FF8C00]' : 'text-white/60'}`}>{leader.displayValue}</span>
                         </button>
                       ))}
                     </div>
@@ -1122,8 +1134,8 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                       <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
-                      <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
+                      <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
                     </div>
                   </a>
                 ))}
