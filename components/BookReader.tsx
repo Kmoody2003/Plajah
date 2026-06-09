@@ -8,6 +8,7 @@ import { cacheExternalBookAssets } from '../services/bookStorageService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
+import { BookOpeningScene } from './BookOpeningScene';
 import { ReactReader, ReactReaderStyle } from 'react-reader';
 import { Rendition, Book as EPubBook } from 'epubjs';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -96,6 +97,7 @@ interface BookReaderProps {
 const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio }) => {
   const { theme } = useGlobalPlayerState();
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+  const [showOpeningScene, setShowOpeningScene] = useState(true);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -658,6 +660,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const txtFontFamily =
     fontFamily === 'serif' ? 'font-serif' :
     fontFamily === 'mono'  ? 'font-mono'  : 'font-sans';
+
+  if (showOpeningScene) {
+    return (
+      <BookOpeningScene
+        coverImage={book.coverImage ?? undefined}
+        title={book.title}
+        author={book.artist ?? undefined}
+        onBeginReading={() => setShowOpeningScene(false)}
+      />
+    );
+  }
 
   return (
     <div className={`fixed inset-0 ${s.bg} z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 transition-colors duration-500`}>

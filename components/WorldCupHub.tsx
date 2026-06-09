@@ -379,9 +379,9 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
   const live = useMemo(() => getLiveMatches(), []);
 
   // Navigate to Live Hub pre-loaded with match context
-  const openFanRoom = useCallback((matchId: string) => {
+  const openFanRoom = useCallback((_matchId: string) => {
     window.dispatchEvent(new CustomEvent('NAVIGATE', {
-      detail: { target: 'LIVE_HUB', params: { wcMatchId: matchId } },
+      detail: { target: 'CLUBS' },
     }));
   }, []);
 

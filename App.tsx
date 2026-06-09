@@ -716,6 +716,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setSelectedAlbum(null);
       }
       setView('PLAYER');
+    } else if (target === 'CLUBS') {
+      setView('CLUBS');
+    } else if (target === 'LIVE_HUB') {
+      setView('LIVE_HUB');
     }
   };
 
@@ -1591,7 +1595,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         MOVIES_TV: { label: 'Taleo', icon: Film },
                         PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap },
                         ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                        BOOKS: { label: 'The Book Shelf', icon: BookOpen },
+                        BOOKS: { label: 'Lorea', icon: BookOpen },
                         PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
@@ -1741,7 +1745,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'The Book Shelf', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -1821,7 +1825,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'The Book Shelf', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -2078,7 +2082,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'MUSIC', icon: Music2, label: 'Music' },
                         { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
                         { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
-                        { id: 'BOOKS', icon: BookOpen, label: 'Books' },
+                        { id: 'BOOKS', icon: BookOpen, label: 'Lorea' },
                         { id: 'PLAJAH_LABS', icon: FlaskConical, label: 'Labs' },
                         { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },

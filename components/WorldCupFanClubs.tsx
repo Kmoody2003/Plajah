@@ -159,10 +159,11 @@ export const FanClubDetail: React.FC<{
   // Subscribe to posts
   useEffect(() => {
     const q = query(postsCol, orderBy('createdAt', 'desc'), limit(30));
-    return onSnapshot(q, snap => {
-      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost)));
-    });
-  }, [team.id]);
+    return onSnapshot(q,
+      snap => setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost))),
+      err  => console.error('wcFanClub posts listener error:', err.code, err.message),
+    );
+  }, [postsCol]);
 
   // Subscribe to own membership
   useEffect(() => {
@@ -195,12 +196,20 @@ export const FanClubDetail: React.FC<{
 
   const handleFanClubPost = useCallback(async (data: ComposerPostData) => {
     if (!uid || !data.text.trim()) return;
-    await addDoc(postsCol, {
-      uid,
-      displayName: currentUser?.displayName ?? auth.currentUser?.displayName ?? 'Fan',
-      text: data.text.trim(),
-      createdAt: serverTimestamp(),
-    });
+    try {
+      await addDoc(postsCol, {
+        uid,
+        displayName: currentUser?.displayName ?? auth.currentUser?.displayName ?? 'Fan',
+        text: data.text.trim(),
+        createdAt: serverTimestamp(),
+      });
+    } catch (err: any) {
+      const msg = err?.code === 'permission-denied'
+        ? 'Post failed: permission denied. Please sign in and try again.'
+        : `Post failed: ${err?.message ?? 'unknown error'}`;
+      alert(msg);
+      throw err;
+    }
   }, [uid, currentUser, postsCol]);
 
   const players = getPlayersByTeam(team.id);
