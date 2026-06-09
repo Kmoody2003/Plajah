@@ -528,6 +528,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       SCIENCE_ENGINEER: 'PLAJAH_LABS',
     };
     setView(expRouteMap[mode]);
+    // Show feature highlights tour immediately after experience picker
+    setTimeout(() => setShowOnboarding(true), 400);
   };
 
   const handleEnterApp = () => {
