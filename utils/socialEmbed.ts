@@ -88,6 +88,15 @@ export function parseSocialUrl(raw: string): SocialEmbed | null {
   }
 }
 
+export function stripUrlsFromText(text: string): string {
+  return text
+    .replace(/https?:\/\/[^\s<>"{}|\\^`[\]]+/gi, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/^ +| +$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function detectSocialEmbeds(text: string): SocialEmbed[] {
   if (!text) return [];
   const seen = new Set<string>();

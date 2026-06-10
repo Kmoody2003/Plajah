@@ -3,7 +3,8 @@ import { Post, Album, Club, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 const PollCard = lazy(() => import('./PollCard'));
 const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2 } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords } from 'lucide-react';
+import PostDebateModal from './PostDebateModal';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
@@ -14,7 +15,7 @@ import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
-import { parseSocialUrl, detectSocialEmbeds } from '../utils/socialEmbed';
+import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
 
 interface PostCardProps {
   post: Post;
@@ -49,6 +50,30 @@ const RenderTextWithMentions: React.FC<{ text: string; onVisitUser?: (uid: strin
   );
 };
 
+const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
+  let domain = '';
+  try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:bg-white/[0.07] hover:border-white/[0.15] transition-all group"
+      style={{ textDecoration: 'none' }}
+    >
+      <LinkIcon size={11} className="text-small-orange/60 shrink-0" />
+      <span className="text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 group-hover:text-white/80 transition-colors">
+        {domain}
+      </span>
+      <span className="text-[9px] text-white/20 truncate flex-1 min-w-0 font-mono group-hover:text-white/35 transition-colors">
+        {url}
+      </span>
+      <ExternalLink size={9} className="text-white/15 group-hover:text-white/45 shrink-0 transition-colors" />
+    </a>
+  );
+};
+
 const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [isLiked, setIsLiked] = useState(() => !!(auth.currentUser && post.likedBy?.includes(auth.currentUser.uid)));
   const [likes, setLikes] = useState(post.likesCount);
@@ -71,6 +96,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [loadingClubs, setLoadingClubs] = useState(false);
   const [sendingToClub, setSendingToClub] = useState('');
   const [sentToClub, setSentToClub] = useState('');
+
+  const [showDebateModal, setShowDebateModal] = useState(false);
 
   // ── @mention autocomplete for edit mode ───────────────────────────────────
   const [editMentionQuery, setEditMentionQuery]     = useState<string | null>(null);
@@ -244,6 +271,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     () => (post.text ? detectSocialEmbeds(post.text).filter(e => !mediaLinkUrls.has(e.originalUrl)) : []),
     [post.text, mediaLinkUrls]
   );
+
+  // Plain (non-social) links in post text → rendered as slim link banners
+  const nonSocialLinksFromText = useMemo(() => {
+    if (!post.text) return [];
+    const socialOriginals = new Set(socialEmbedsFromText.map(e => e.originalUrl));
+    return extractUrlsFromText(post.text).filter(
+      url => !socialOriginals.has(url) && !mediaLinkUrls.has(url)
+    );
+  }, [post.text, socialEmbedsFromText, mediaLinkUrls]);
+
+  // Post text with all URLs stripped (they appear as banners/embeds below)
+  const displayText = useMemo(() => (post.text ? stripUrlsFromText(post.text) : ''), [post.text]);
 
   const renderMedia = () => {
     if (!post.media || post.media.length === 0) return null;
@@ -531,9 +570,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               </div>
             </div>
           ) : (
-            post.text && (
+            displayText && (
               <p className="text-[14px] leading-normal text-white/80 whitespace-pre-wrap">
-                <RenderTextWithMentions text={post.text} onVisitUser={onVisitUser} />
+                <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
             )
           )}
@@ -543,6 +582,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             <div className="mt-3 space-y-3">
               {socialEmbedsFromText.map((embed, i) => (
                 <SocialEmbedCard key={i} embed={embed} />
+              ))}
+            </div>
+          )}
+
+          {/* Plain link banners — slim bar shown when post text contains non-social URLs */}
+          {nonSocialLinksFromText.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {nonSocialLinksFromText.map((url, i) => (
+                <PostLinkBanner key={i} url={url} />
               ))}
             </div>
           )}
@@ -660,6 +708,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             >
               <Users size={15} strokeWidth={1.5} />
             </motion.button>
+
+            {/* Debate — non-author only, post must have text to challenge */}
+            {!isAuthor && post.text && (
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => {
+                  if (!auth.currentUser) { setSignInAction('challenge a post to a debate'); return; }
+                  setShowDebateModal(true);
+                }}
+                title="Challenge this post to a structured debate"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-orange-400 hover:bg-orange-400/10"
+              >
+                <Swords size={15} strokeWidth={1.5} />
+              </motion.button>
+            )}
 
             {/* Share */}
             <div className="ml-auto">
@@ -852,6 +915,23 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
         <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
       )}
     </AnimatePresence>
+
+    {/* Debate challenge modal */}
+    {showDebateModal && (
+      <PostDebateModal
+        postId={post.id}
+        postText={post.text || ''}
+        postAuthorId={post.authorId}
+        postAuthorName={post.authorName}
+        postAuthorPhoto={post.authorPhoto}
+        heroImageUrl={(post.media || []).find(m => m.type === 'PHOTO')?.url}
+        onClose={() => setShowDebateModal(false)}
+        onDebateCreated={(debateId) => {
+          setShowDebateModal(false);
+          window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId } }));
+        }}
+      />
+    )}
 
     {/* Image lightbox — uncropped pop-up with fullscreen option */}
     <AnimatePresence>
