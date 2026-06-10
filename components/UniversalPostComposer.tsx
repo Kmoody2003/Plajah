@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Image, Smile, Globe, X, Mic, Camera, Square, Share2,
   BarChart2, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2,
@@ -7,6 +7,8 @@ import {
 import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld } from '../types';
 import { useFediverse } from '../contexts/FediverseContext';
+import SocialEmbedCard from './SocialEmbedCard';
+import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -159,6 +161,13 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [selectedCountdownMs, setSelectedCountdownMs] = useState(COUNTDOWN_OPTIONS[3].ms); // default 2hr
   const [selectedViewLimit, setSelectedViewLimit]     = useState(25);
   const [camSeconds, setCamSeconds] = useState(0);
+  const [detectedEmbeds, setDetectedEmbeds] = useState<SocialEmbed[]>([]);
+
+  // Detect social URLs in text as user types (debounced 350ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDetectedEmbeds(detectSocialEmbeds(text)), 350);
+    return () => clearTimeout(t);
+  }, [text]);
 
   const { broadcast, accounts } = useFediverse();
   const hasFediverse = accounts.length > 0;
@@ -511,6 +520,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
                 </button>
               )}
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Social embed live preview */}
+      {detectedEmbeds.length > 0 && (
+        <div className="pl-12 space-y-2">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Embed preview</p>
+          {detectedEmbeds.map((embed, i) => (
+            <SocialEmbedCard key={i} embed={embed} />
           ))}
         </div>
       )}

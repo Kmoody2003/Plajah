@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { Post, Album, Club } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 const PollCard = lazy(() => import('./PollCard'));
@@ -13,6 +13,8 @@ import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import SignInPrompt from './SignInPrompt';
+import SocialEmbedCard from './SocialEmbedCard';
+import { parseSocialUrl, detectSocialEmbeds } from '../utils/socialEmbed';
 
 interface PostCardProps {
   post: Post;
@@ -170,6 +172,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
     }
   };
 
+  // URLs already covered by explicit LINK media items — don't double-render
+  const mediaLinkUrls = useMemo(() => {
+    const s = new Set<string>();
+    (post.media || []).filter(m => m.type === 'LINK').forEach(m => {
+      if (m.url) s.add(m.url);
+      if ((m as any).linkPreview?.url) s.add((m as any).linkPreview.url);
+    });
+    return s;
+  }, [post.media]);
+
+  // Social embeds detected from the post text body
+  const socialEmbedsFromText = useMemo(
+    () => (post.text ? detectSocialEmbeds(post.text).filter(e => !mediaLinkUrls.has(e.originalUrl)) : []),
+    [post.text, mediaLinkUrls]
+  );
+
   const renderMedia = () => {
     if (!post.media || post.media.length === 0) return null;
 
@@ -212,26 +230,32 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                   </div>
                 </div>
               );
-            case 'LINK':
-              if (item.linkPreview) {
+            case 'LINK': {
+              const linkUrl = (item as any).linkPreview?.url || item.url || '';
+              const socialEmbed = linkUrl ? parseSocialUrl(linkUrl) : null;
+              if (socialEmbed) {
+                return <SocialEmbedCard key={idx} embed={socialEmbed} />;
+              }
+              if ((item as any).linkPreview) {
+                const lp = (item as any).linkPreview;
                 return (
                   <a
                     key={idx}
-                    href={item.linkPreview.url}
+                    href={lp.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:bg-white/10 transition-all group media-lift"
                   >
-                    {item.linkPreview.image && (
-                      <img src={item.linkPreview.image || null} alt="Preview" className="w-full h-48 object-cover opacity-80 group-hover:opacity-100 transition-all" loading="lazy" />
+                    {lp.image && (
+                      <img src={lp.image} alt="Preview" className="w-full h-48 object-cover opacity-80 group-hover:opacity-100 transition-all" loading="lazy" />
                     )}
                     <div className="p-6">
                       <div className="flex items-center gap-2 mb-2">
                         <LinkIcon size={12} className="text-small-orange" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40 truncate">{new URL(item.linkPreview.url).hostname}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40 truncate">{new URL(lp.url).hostname}</span>
                       </div>
-                      <h4 className="text-sm font-black uppercase tracking-widest mb-2 group-hover:text-small-orange transition-colors">{item.linkPreview.title}</h4>
-                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest line-clamp-2 leading-relaxed">{item.linkPreview.description}</p>
+                      <h4 className="text-sm font-black uppercase tracking-widest mb-2 group-hover:text-small-orange transition-colors">{lp.title}</h4>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest line-clamp-2 leading-relaxed">{lp.description}</p>
                     </div>
                   </a>
                 );
@@ -248,6 +272,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                   <span className="text-xs font-black uppercase tracking-widest truncate">{item.url}</span>
                 </a>
               );
+            }
             default:
               return null;
           }
@@ -411,6 +436,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                 <RenderTextWithMentions text={post.text} onVisitUser={onVisitUser} />
               </p>
             )
+          )}
+
+          {/* Social embeds detected in post text (YouTube, TikTok, X, Instagram) */}
+          {socialEmbedsFromText.length > 0 && (
+            <div className="mt-3 space-y-3">
+              {socialEmbedsFromText.map((embed, i) => (
+                <SocialEmbedCard key={i} embed={embed} />
+              ))}
+            </div>
           )}
 
           {/* Embedded Album Player */}
