@@ -7,14 +7,35 @@ import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
 
+// Returns true if any audio or video element is actively playing.
+// We also check window.__plajahMediaActive which media components can set
+// for cases that don't use HTMLMediaElement (e.g. Web Audio, YouTube iframe API).
+function isMediaActive(): boolean {
+  if ((window as any).__plajahMediaActive) return true;
+  return Array.from(document.querySelectorAll<HTMLMediaElement>('audio, video'))
+    .some(el => !el.paused && !el.ended && el.readyState > 2);
+}
+
 if ('serviceWorker' in navigator) {
-  registerSW({
+  // Use 'prompt' mode so we control exactly when the update is applied.
+  // autoUpdate would call location.reload() the moment any new deploy lands,
+  // which interrupts video, audio, and games with no warning.
+  const updateSW = registerSW({
     onNeedRefresh() {
-      console.log('Update available - keeping current version to avoid interruption.');
+      // If the user just arrived (page loaded under 6 seconds ago) AND nothing
+      // is playing yet, silently reload to apply the update — feels like normal
+      // page load to the user. Use setTimeout so updateSW is definitely assigned.
+      if (performance.now() < 6000 && !isMediaActive()) {
+        setTimeout(() => updateSW(true), 0);
+        return;
+      }
+      // Mid-session: leave the waiting SW alone. It will activate automatically
+      // the next time the user opens a fresh tab (all old tabs closed). No
+      // interruption to whatever they are doing now.
     },
     onOfflineReady() {
-      console.log('App ready for offline use.');
-    }
+      console.log('[SW] App ready for offline use.');
+    },
   });
 }
 

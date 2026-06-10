@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         react(), 
         tailwindcss(),
         VitePWA({
-          registerType: 'autoUpdate',
+          registerType: 'prompt',
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
             name: "Plajah",
@@ -45,8 +45,6 @@ export default defineConfig(({ mode }) => {
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-            skipWaiting: true,       // new SW activates immediately, no waiting for tab close
-            clientsClaim: true,      // new SW takes control of all open tabs right away
             cleanupOutdatedCaches: true,
             navigateFallback: null,
             runtimeCaching: [
