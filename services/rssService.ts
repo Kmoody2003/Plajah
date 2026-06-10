@@ -31,8 +31,8 @@ const RSS_FEEDS: Record<string, string[]> = {
   'SPORTS_VOLLEYBALL': ['https://www.ncaa.com/news/volleyball-women/rss.xml'],
   'SPORTS_LACROSSE': ['https://www.ncaa.com/news/lacrosse-men/rss.xml'],
   'SPORTS_F1':     ['https://www.espn.com/espn/rss/rpm/news', 'https://www.motorsport.com/rss/f1/news/'],
-  'SPORTS_NASCAR': ['https://www.espn.com/espn/rss/rpm/news'],
-  'SPORTS_INDYCAR':['https://www.espn.com/espn/rss/rpm/news'],
+  'SPORTS_NASCAR': ['https://www.motorsport.com/rss/nascar-cup/news/', 'https://www.espn.com/espn/rss/rpm/news'],
+  'SPORTS_INDYCAR':['https://www.motorsport.com/rss/indycar/news/', 'https://www.espn.com/espn/rss/rpm/news'],
 
   // Other
   'SCIENCE': ['https://rss.nytimes.com/services/xml/rss/nyt/Science.xml', 'https://www.wired.com/feed/category/science/latest/rss'],
@@ -76,7 +76,15 @@ function parseRSS(text: string): any[] {
 }
 
 const fetchFeedXml = async (url: string): Promise<string> => {
-  // Try allorigins first (returns JSON wrapper with raw content)
+  // First choice: our own server proxy (no third-party SLA dependency)
+  try {
+    const r0 = await fetch(`/api/fetch-rss?url=${encodeURIComponent(url)}`);
+    if (r0.ok) {
+      const text = await r0.text();
+      if (text.includes('<')) return text;
+    }
+  } catch (_) {}
+  // Fallback: allorigins (returns JSON wrapper with raw content)
   try {
     const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
     if (r.ok) {

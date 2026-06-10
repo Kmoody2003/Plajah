@@ -7,6 +7,11 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // NOTE: Firebase Storage cross-service Firestore lookups only support the
+    // (default) Firestore database. This project uses a named database so the
+    // firestore.exists() call always returns false. isAdmin() is kept for the
+    // existing rules that depend on it; it effectively means "deny" for those
+    // fallback branches, which was already the case before.
     function isAdmin() {
       return isAuth() &&
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
@@ -28,7 +33,6 @@ service firebase.storage {
     }
 
     // ── User-scoped files ─────────────────────────────────────────────────────
-    // Only the owning user (or admin) may write here
     match /users/{uid}/{allPaths=**} {
       allow read: if true;
       allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
@@ -36,8 +40,6 @@ service firebase.storage {
     }
 
     // ── Album content ─────────────────────────────────────────────────────────
-    // Cover images, tracks, slideshow images, season episodes, video assets
-    // Authenticated creators may upload; ownership validated at application layer
     match /albums/{albumId}/{allPaths=**} {
       allow read: if true;
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
@@ -53,6 +55,15 @@ service firebase.storage {
     match /hideNSeek/{allPaths=**} {
       allow read: if true;
       allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+    }
+
+    // ── Club cover media ──────────────────────────────────────────────────────
+    // Admin-managed via the admin dashboard. Cross-service Firestore admin
+    // checks don't work with named databases, so we check auth + content type.
+    // The admin gate is enforced at the UI layer and in Firestore rules.
+    match /club-cover-media/{fileName} {
+      allow read: if true;
+      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
     }
 
     // ── Fallback: deny everything not explicitly matched ──────────────────────

@@ -1275,6 +1275,15 @@ export interface Playlist {
   timestamp: number;
 }
 
+export interface CommunityPlaylist extends Omit<Playlist, 'timestamp'> {
+  tags: string[];                  // 'workout', 'wellness', 'meditation', 'study', 'hype', 'chill', 'sleep'
+  likes: number;
+  plays: number;
+  isPublic: true;
+  sharedAt: number;
+  timestamp: number;
+}
+
 export interface MembershipTier {
   id: string;
   name: string;
@@ -1784,7 +1793,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'DEBATES' | 'DEBATE_DETAIL'
   // Social feature hubs
   | 'CHALLENGES' | 'BROADCAST_CHANNELS' | 'CLOSE_FRIENDS' | 'POLL_ARCHIVE'
-  | 'SOCIAL_INSIGHTS' | 'SIGNATURE_MOMENTS';
+  | 'SOCIAL_INSIGHTS' | 'SIGNATURE_MOMENTS'
+  // Health & Fitness hub
+  | 'HEALTH_FITNESS';
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 

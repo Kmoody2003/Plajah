@@ -100,7 +100,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   }
 
   // Lab tool views
-  if (openTool === 'notebook')  return <LabsNotebook currentUser={currentUser} onBack={() => setOpenTool(null)} />;
+  if (openTool === 'notebook')  return <LabsNotebook currentUser={currentUser} context="labs" storageKeyOverride={`labsNotebook_${currentUser?.uid ?? 'guest'}`} onBack={() => setOpenTool(null)} />;
   if (openTool === 'citations') return <LabsCitationManager currentUser={currentUser} onBack={() => setOpenTool(null)} />;
   if (openTool === 'formula')   return <LabsFormulaEditor currentUser={currentUser} onBack={() => setOpenTool(null)} />;
   if (openTool === 'grants')    return <LabsGrantTracker currentUser={currentUser} onBack={() => setOpenTool(null)} />;

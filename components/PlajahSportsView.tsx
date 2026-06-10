@@ -2,13 +2,20 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
 import WorldCupHub from './WorldCupHub';
+import { SportsIntelligenceSection } from './SportsIntelligenceSection';
+import ResearchDrawer from './ResearchDrawer';
+import LabsNotebook from './LabsNotebook';
+import PlajahHealthFitnessView from './PlajahHealthFitnessView';
 import {
   Zap, Search, X, Plus, MapPin, Trophy, TrendingUp, Newspaper,
   ChevronRight, ChevronLeft, Star, Shield, BarChart2, Flag, Gauge,
   Radio, Gamepad2, Globe, RefreshCw, Dumbbell, Target, CircleDot,
+  BookOpen, Heart, Activity,
 } from 'lucide-react';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { fetchNewsFromRSS } from '../services/rssService';
-import { Article, UserProfile } from '../types';
+import { Article, UserProfile, Post } from '../types';
 import { fetchLeagueNews, fetchLeagueScores } from '../services/sportsService';
 import { SPORTS_INTELLIGENCE_DOMAINS, seedSportsSourceRegistry } from '../services/sportsKnowledgeService';
 import { getLeagueStaticTeams } from '../data/leagueTeams';
@@ -43,6 +50,8 @@ const LEAGUES = [
   { id: 'WRESTLING', label: 'Wrestling', icon: Dumbbell,color: '#A16207' },
   { id: 'VOLLEYBALL', label: 'Volleyball', icon: CircleDot, color: '#0EA5E9' },
   { id: 'LACROSSE', label: 'Lacrosse',  icon: Target,   color: '#9333EA' },
+  { id: 'FITNESS',  label: 'Fitness',   icon: Dumbbell, color: '#06D6A0' },
+  { id: 'HEALTH',   label: 'Health',    icon: Heart,    color: '#E63946' },
 ] as const;
 
 const LEAGUE_LOGOS: Record<string, string> = {
@@ -72,10 +81,12 @@ const LEAGUE_LOGOS: Record<string, string> = {
 };
 
 const HERO_FALLBACKS = [
-  { id: 'h1', title: 'World Sport Today', subtitle: 'Breaking headlines across every league', imageUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1400&q=80' },
-  { id: 'h2', title: 'Game Day Coverage', subtitle: 'Live scores, analysis and highlights', imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80' },
-  { id: 'h3', title: 'Formula 1 Season',  subtitle: 'Race results, standings and replay', imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80' },
-  { id: 'h4', title: 'Court & Field',     subtitle: 'NBA, NFL, MLB — your leagues in one place', imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1400&q=80' },
+  { id: 'h1', title: 'World Sport Today',   subtitle: 'Breaking headlines across every league', imageUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1400&q=80', leagueId: 'ALL' },
+  { id: 'h2', title: 'Game Day Coverage',   subtitle: 'Live scores, analysis and highlights',   imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80', leagueId: 'NBA' },
+  { id: 'h3', title: 'Formula 1 Season',    subtitle: 'Race results, standings and replay',     imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80', leagueId: 'F1' },
+  { id: 'h4', title: 'NASCAR Thunder',      subtitle: 'Cup Series — picks, standings, history', imageUrl: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=1400&q=80', leagueId: 'NASCAR' },
+  { id: 'h5', title: 'IndyCar Open Wheel',  subtitle: 'Indy 500, road courses & ovals',        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&q=80', leagueId: 'INDYCAR' },
+  { id: 'h6', title: 'World Cup 2026',      subtitle: '48 nations · FIFA USA · June–July 2026', imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80', leagueId: 'WORLD_CUP' },
 ];
 
 const normalizeSportsArticle = (item: any, fallbackSource = 'Sports'): Article => ({
@@ -89,7 +100,10 @@ const normalizeSportsArticle = (item: any, fallbackSource = 'Sports'): Article =
 } as Article);
 
 // ─── Hero carousel ─────────────────────────────────────────────────────────────
-const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
+const SportsHero: React.FC<{
+  items: any[];
+  onNavigate?: (leagueId?: string, url?: string) => void;
+}> = ({ items, onNavigate }) => {
   const [idx, setIdx] = useState(0);
   const [direction, setDir] = useState(1);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -106,6 +120,12 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [items.length]);
 
+  const handleItemClick = (item: any) => {
+    if (!onNavigate) return;
+    if (item.leagueId) onNavigate(item.leagueId);
+    else if (item.url && item.url !== '#') onNavigate(undefined, item.url);
+  };
+
   if (!items.length) return (
     <div className="relative h-[40vh] sm:h-[55vh] min-h-[240px] bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] rounded-[2.5rem] overflow-hidden flex items-end p-6 sm:p-8">
       <div>
@@ -118,7 +138,11 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
   const item = items[idx];
 
   return (
-    <div className="relative h-[40vh] sm:h-[55vh] min-h-[240px] rounded-[2.5rem] overflow-hidden group shadow-2xl">
+    <div
+      className="relative h-[40vh] sm:h-[55vh] min-h-[240px] rounded-[2.5rem] overflow-hidden group shadow-2xl"
+      onClick={() => handleItemClick(item)}
+      style={{ cursor: onNavigate ? 'pointer' : 'default' }}
+    >
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={idx}
@@ -151,7 +175,7 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="px-3 py-1 bg-[#FF8C00]/90 rounded-xl text-[8px] font-black uppercase tracking-widest text-white">
-                Plajah Sports
+                {item.leagueId ? item.leagueId : 'Plajah Sports'}
               </span>
               {item.subtitle && (
                 <span className="text-[9px] font-black uppercase tracking-widest text-white/50">{item.subtitle}</span>
@@ -160,6 +184,16 @@ const SportsHero: React.FC<{ items: any[] }> = ({ items }) => {
             <h2 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight leading-[0.9] text-white drop-shadow-2xl">
               {item.title}
             </h2>
+            {/* CTA */}
+            {onNavigate && (
+              <button
+                onClick={e => { e.stopPropagation(); handleItemClick(item); }}
+                className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest hover:bg-white transition-colors"
+              >
+                {item.leagueId ? `Open ${item.leagueId}` : item.url && item.url !== '#' ? 'Read Article' : 'Explore'}
+                <ChevronRight size={12} />
+              </button>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -287,6 +321,47 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
   const [manualCity, setManualCity]   = useState('');
   const [showStatCard, setShowStatCard] = useState(false);
   const [loadingNews, setLoadingNews] = useState(false);
+  const [platformPosts, setPlatformPosts] = useState<Post[]>([]);
+  const [platformAccounts, setPlatformAccounts] = useState<UserProfile[]>([]);
+
+  // ── Research Notebook + Intelligence drawer ──────────────────────────────────
+  const [drawerArticle, setDrawerArticle]     = useState<Article | null>(null);
+  const [drawerOpen, setDrawerOpen]           = useState(false);
+  const [showNotebook, setShowNotebook]       = useState(false);
+  const [bookmarkedIds, setBookmarkedIds]     = useState<Set<string>>(new Set());
+
+  const openDrawer = (article?: Article) => {
+    setDrawerArticle(article ?? null);
+    setDrawerOpen(true);
+  };
+
+  const handleBookmark = (article: Article) => {
+    setBookmarkedIds(prev => new Set([...prev, article.id]));
+    openDrawer(article);
+  };
+
+  // ── Load platform sports posts + accounts when ALL tab is active ────────────
+  useEffect(() => {
+    if (activeTab !== 'ALL') return;
+    const SPORT_TAGS = ['sports','basketball','football','soccer','baseball','hockey','tennis','golf','mma','boxing','racing','nba','nfl','mlb','nhl','ufc','fifa','f1','nascar','indycar','wrestling','rugby','cricket','volleyball','lacrosse'];
+    getDocs(
+      query(collection(db, 'posts'),
+        where('isPublic', '==', true),
+        where('tags', 'array-contains-any', SPORT_TAGS.slice(0, 10)),
+        orderBy('timestamp', 'desc'),
+        limit(8)
+      )
+    ).then(snap => setPlatformPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)))).catch(() => {});
+
+    getDocs(
+      query(collection(db, 'users'),
+        where('favoriteSportsTeams', '!=', null),
+        orderBy('favoriteSportsTeams'),
+        orderBy('followerCount', 'desc'),
+        limit(8)
+      )
+    ).then(snap => setPlatformAccounts(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)))).catch(() => {});
+  }, [activeTab]);
 
   // ── Persist favorite teams ──────────────────────────────────────────────────
   useEffect(() => {
@@ -311,7 +386,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
 
   // ── Load news & scores ──────────────────────────────────────────────────────
   const loadData = async (tab: string) => {
-    if (tab === 'WORLD_CUP') return; // WorldCupHub manages its own data
+    if (tab === 'WORLD_CUP' || tab === 'FITNESS' || tab === 'HEALTH') return;
     setLoadingNews(true);
     try {
       const scoreTabs = ['NBA', 'NFL', 'MLB', 'NHL', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
@@ -335,11 +410,18 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
       setHeadlines(newsArr.slice(0, 16));
       setLiveScores(scoreArr.slice(0, 12));
 
-      // Build hero from news with images
+      // Build hero from news with images — attach leagueId so clicking navigates
       const heroItems = newsArr
         .filter((n: any) => n.imageUrl)
         .slice(0, 6)
-        .map((n: any, i: number) => ({ id: n.id || `n${i}`, title: n.title, subtitle: n.source || tab, imageUrl: n.imageUrl }));
+        .map((n: any, i: number) => ({
+          id: n.id || `n${i}`,
+          title: n.title,
+          subtitle: n.source || tab,
+          imageUrl: n.imageUrl,
+          url: n.url,
+          leagueId: tab !== 'ALL' ? tab : undefined,
+        }));
       if (heroItems.length >= 2) setHero(heroItems);
     } finally {
       setLoadingNews(false);
@@ -416,6 +498,12 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowNotebook(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+            >
+              <BookOpen size={12} /> Notebook
+            </button>
+            <button
               onClick={() => setShowStatCard(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF8C00]/10 border border-[#FF8C00]/30 text-[#FF8C00] text-[9px] font-black uppercase tracking-widest hover:bg-[#FF8C00]/20 transition-all"
             >
@@ -433,8 +521,21 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
 
       <div className="max-w-[1600px] mx-auto px-5 lg:px-10 py-6 space-y-8">
 
+        {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
+        <SportsIntelligenceSection
+          onBookmark={handleBookmark}
+          bookmarkedIds={bookmarkedIds}
+          onOpenNotebook={() => setShowNotebook(true)}
+        />
+
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
-        <SportsHero items={hero} />
+        <SportsHero
+          items={hero}
+          onNavigate={(leagueId, url) => {
+            if (leagueId) setActiveTab(leagueId);
+            else if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }}
+        />
 
         {/* ── LIVE SCORES STRIP ─────────────────────────────────────────────── */}
         {liveScores.length > 0 && (
@@ -450,26 +551,91 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
         )}
 
         {/* ── LEAGUE NAV TABS ───────────────────────────────────────────────── */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {LEAGUES.map(league => {
-            const Icon = league.icon;
-            const active = activeTab === league.id;
-            return (
+        <div className="space-y-2">
+          {/* Health & Fitness quick-row */}
+          <div className="flex items-center gap-2">
+            <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25 shrink-0">Health</span>
+            {[
+              { id: 'FITNESS', label: 'Fitness', color: '#06D6A0', Icon: Dumbbell },
+              { id: 'HEALTH',  label: 'Health',  color: '#E63946', Icon: Heart },
+            ].map(m => (
               <button
-                key={league.id}
-                onClick={() => setActiveTab(league.id)}
-                className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full font-black text-[9px] uppercase tracking-widest transition-all border ${
-                  active
-                    ? 'text-black border-transparent shadow-lg'
-                    : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10 hover:border-white/15'
+                key={m.id}
+                onClick={() => setActiveTab(m.id)}
+                className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full font-black text-[9px] uppercase tracking-widest transition-all border ${
+                  activeTab === m.id ? 'text-black border-transparent' : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10'
                 }`}
-                style={active ? { background: league.color } : {}}
+                style={activeTab === m.id ? { background: m.color } : {}}
               >
-                <Icon size={11} />
-                {league.label}
+                <m.Icon size={11} />
+                {m.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
+          {/* Motorsport quick-row (always visible above the main tab strip) */}
+          <div className="flex items-center gap-2">
+            <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25 shrink-0">Motorsport</span>
+            {[
+              { id: 'F1',      label: 'Formula 1', color: '#E10600', img: LEAGUE_LOGOS.F1 },
+              { id: 'NASCAR',  label: 'NASCAR',     color: '#FFB514', img: LEAGUE_LOGOS.NASCAR },
+              { id: 'INDYCAR', label: 'IndyCar',    color: '#C5232A', img: LEAGUE_LOGOS.INDYCAR },
+            ].map(m => (
+              <button
+                key={m.id}
+                onClick={() => setActiveTab(m.id)}
+                className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full font-black text-[9px] uppercase tracking-widest transition-all border ${
+                  activeTab === m.id ? 'text-black border-transparent' : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10'
+                }`}
+                style={activeTab === m.id ? { background: m.color } : {}}
+              >
+                <img src={m.img} alt={m.label} className="w-4 h-4 object-contain" loading="lazy" />
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Main tab strip */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {LEAGUES.filter(l => !['F1', 'NASCAR', 'INDYCAR'].includes(l.id)).map(league => {
+              const Icon = league.icon;
+              const active = activeTab === league.id;
+              return (
+                <button
+                  key={league.id}
+                  onClick={() => setActiveTab(league.id)}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full font-black text-[9px] uppercase tracking-widest transition-all border ${
+                    active
+                      ? 'text-black border-transparent shadow-lg'
+                      : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10 hover:border-white/15'
+                  }`}
+                  style={active ? { background: league.color } : {}}
+                >
+                  <Icon size={11} />
+                  {league.label}
+                </button>
+              );
+            })}
+            {/* Motorsport also in main strip for discoverability */}
+            <div className="w-px bg-white/10 self-stretch mx-1" />
+            {['F1', 'NASCAR', 'INDYCAR'].map(id => {
+              const league = LEAGUES.find(l => l.id === id)!;
+              const Icon = league.icon;
+              const active = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full font-black text-[9px] uppercase tracking-widest transition-all border ${
+                    active ? 'text-black border-transparent shadow-lg' : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10 hover:border-white/15'
+                  }`}
+                  style={active ? { background: league.color } : {}}
+                >
+                  <Icon size={11} />
+                  {league.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── MAIN CONTENT GRID ─────────────────────────────────────────────── */}
@@ -482,28 +648,148 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
               <WorldCupHub currentUser={currentUser ?? null} />
             )}
 
+            {/* Health & Fitness hub tabs */}
+            {(activeTab === 'FITNESS' || activeTab === 'HEALTH') && (
+              <PlajahHealthFitnessView
+                currentUser={currentUser}
+                onBack={() => setActiveTab('ALL')}
+              />
+            )}
+
             {/* League-specific sports center */}
-            {activeTab !== 'ALL' && activeTab !== 'WORLD_CUP' && (
+            {activeTab !== 'ALL' && activeTab !== 'WORLD_CUP' && activeTab !== 'FITNESS' && activeTab !== 'HEALTH' && (
               <SportsCenterView selectedSportsTab={activeTab as any} />
             )}
 
             {/* ALL view: league grid */}
             {activeTab === 'ALL' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {Object.entries(LEAGUE_LOGOS).map(([lg, logo]) => (
-                    <motion.button
-                      key={lg}
-                      whileHover={{ y: -3 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => setActiveTab(lg)}
-                      className="flex flex-col items-center gap-3 p-5 bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/40 rounded-[1.5rem] transition-all group"
-                    >
-                      <img src={logo} alt={lg} className="w-12 h-12 object-contain drop-shadow group-hover:scale-110 transition-transform" loading="lazy" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-[#FF8C00] transition-colors">{lg}</span>
-                    </motion.button>
-                  ))}
+                {/* Motorsport feature row */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge size={11} className="text-[#FF8C00]" />
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.35em] text-white/60">Motorsport</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'F1',      label: 'Formula 1',  color: '#E10600', img: LEAGUE_LOGOS.F1,      desc: 'Race calendar, standings & replay' },
+                      { id: 'NASCAR',  label: 'NASCAR',      color: '#FFB514', img: LEAGUE_LOGOS.NASCAR,  desc: 'Cup Series, picks & history' },
+                      { id: 'INDYCAR', label: 'IndyCar',     color: '#C5232A', img: LEAGUE_LOGOS.INDYCAR, desc: 'Indy 500, ovals & road courses' },
+                    ].map(m => (
+                      <motion.button
+                        key={m.id}
+                        whileHover={{ y: -3 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setActiveTab(m.id)}
+                        className="relative flex flex-col items-center gap-3 p-5 rounded-[1.5rem] border border-white/8 overflow-hidden text-center group"
+                        style={{ background: `${m.color}10` }}
+                      >
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `${m.color}18` }} />
+                        <img src={m.img} alt={m.label} className="w-14 h-14 object-contain drop-shadow-lg group-hover:scale-110 transition-transform" loading="lazy" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white">{m.label}</p>
+                          <p className="text-[7px] text-white/35 mt-0.5">{m.desc}</p>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* All leagues grid */}
+                <div>
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.35em] text-white/40 mb-3">All Leagues</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {Object.entries(LEAGUE_LOGOS).map(([lg, logo]) => (
+                      <motion.button
+                        key={lg}
+                        whileHover={{ y: -3 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setActiveTab(lg)}
+                        className="flex flex-col items-center gap-3 p-5 bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/40 rounded-[1.5rem] transition-all group"
+                      >
+                        <img src={logo} alt={lg} className="w-12 h-12 object-contain drop-shadow group-hover:scale-110 transition-transform" loading="lazy" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-[#FF8C00] transition-colors">{lg}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Platform Sports Accounts */}
+                {platformAccounts.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[9px] font-black uppercase tracking-[0.35em] text-white/60 flex items-center gap-2">
+                        <Shield size={10} className="text-[#FF8C00]" /> Sports Accounts
+                      </h3>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+                      {platformAccounts.map(acc => (
+                        <button
+                          key={acc.uid}
+                          onClick={() => onVisitUser?.(acc.uid)}
+                          className="flex-none flex flex-col items-center gap-2 p-3 w-[88px] bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/30 rounded-2xl transition-all group"
+                        >
+                          <div className="relative w-11 h-11 rounded-full overflow-hidden bg-white/10 shrink-0">
+                            {(acc.customPhotoURL || acc.photoURL) ? (
+                              <img src={acc.customPhotoURL || acc.photoURL} alt={acc.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-white/30 font-black text-sm">
+                                {acc.displayName?.[0]?.toUpperCase() ?? '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center min-w-0 w-full">
+                            <p className="text-[8px] font-black text-white/80 truncate group-hover:text-white transition-colors">{acc.displayName}</p>
+                            <p className="text-[7px] text-white/30 mt-0.5">{acc.followerCount ?? 0} followers</p>
+                          </div>
+                          {acc.favoriteSportsTeams && acc.favoriteSportsTeams.length > 0 && (
+                            <p className="text-[6px] text-[#FF8C00]/70 font-bold truncate w-full text-center">{acc.favoriteSportsTeams[0]}</p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Platform Sports Posts */}
+                {platformPosts.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.35em] text-white/60 flex items-center gap-2">
+                      <TrendingUp size={10} className="text-[#FF8C00]" /> Platform Highlights
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {platformPosts.map(post => {
+                        const thumb = post.media?.find(m => m.thumbnail || (m.type === 'PHOTO' && m.url))?.thumbnail
+                          || post.media?.find(m => m.type === 'PHOTO')?.url
+                          || post.media?.find(m => m.thumbnail)?.thumbnail;
+                        return (
+                          <button
+                            key={post.id}
+                            onClick={() => onVisitUser?.(post.authorId)}
+                            className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/30 rounded-2xl transition-all text-left group"
+                          >
+                            {thumb ? (
+                              <img src={thumb} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                                <TrendingUp size={14} className="text-white/20" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[9px] font-black text-white/80 line-clamp-2 group-hover:text-white transition-colors">{post.text || '—'}</p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[7px] text-white/30">{post.authorName}</span>
+                                {post.tags?.slice(0, 2).map(t => (
+                                  <span key={t} className="px-1 py-0.5 rounded bg-[#FF8C00]/10 text-[#FF8C00]/70 text-[6px] font-black uppercase">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* World news when on ALL tab */}
                 <div className="space-y-3">
@@ -704,6 +990,56 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
       <AnimatePresence>
         {showStatCard && (
           <StatCardBuilder onClose={() => setShowStatCard(false)} currentUser={null} initialTab={activeTab !== 'ALL' ? activeTab : 'NBA'} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Research Drawer (slide-in from right) ────────────────────────────── */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <>
+            <motion.div
+              key="drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setDrawerOpen(false)}
+            />
+            <motion.div
+              key="drawer-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 350, damping: 40 }}
+              className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm bg-[#0d0d0d] border-l border-white/10 shadow-2xl overflow-hidden"
+            >
+              <ResearchDrawer
+                article={drawerArticle}
+                currentUser={currentUser}
+                onClose={() => setDrawerOpen(false)}
+                onOpenFull={() => { setDrawerOpen(false); setShowNotebook(true); }}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Full Research Notebook overlay ───────────────────────────────────── */}
+      <AnimatePresence>
+        {showNotebook && (
+          <motion.div
+            key="notebook-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-[#0a0a0a] overflow-hidden"
+          >
+            <LabsNotebook
+              currentUser={currentUser}
+              context="sports"
+              onBack={() => setShowNotebook(false)}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

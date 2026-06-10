@@ -17,8 +17,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff']
+      );
     }
 
     function hasRequiredFields(fields) {
@@ -1441,6 +1443,60 @@ service cloud.firestore {
     match /wcPicks/{userId} {
       allow read:  if isAuthenticated();   // leaderboard visibility
       allow write: if isOwner(userId);
+    }
+
+    // Club cover media — cycling hero images/videos, admin-managed
+    match /clubCoverMedia/{mediaId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Club cover display settings (mode, single item, slideshow order)
+    match /clubCoverSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── WC Video Chat Rooms ──────────────────────────────────────────────────────
+    match /wcVideoRooms/{clubId} {
+      allow read: if isAuthenticated();
+      // Room doc: any authenticated user can create/update (join/leave session state)
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+
+      // Presence: each user manages their own presence doc
+      match /presence/{uid} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == uid;
+        allow delete: if isAuthenticated() && request.auth.uid == uid;
+        allow update: if isAuthenticated() && request.auth.uid == uid;
+      }
+
+      // WebRTC signaling: any participant in the room can read/write
+      match /signals/{pairKey} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAuthenticated();
+      }
+    }
+
+    // ===============================================================
+    // COMMUNITY PLAYLISTS — public playlist sharing across the platform
+    // ===============================================================
+    match /communityPlaylists/{playlistId} {
+      allow read: if true;
+      // Owner can create/update/delete their own shared playlists
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        // Any authenticated user can increment likes/plays
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     // Fan clubs — unofficial per-nation communities

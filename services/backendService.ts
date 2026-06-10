@@ -1157,6 +1157,58 @@ export const uploadLandingBgAsset = async (
   return { url };
 };
 
+
+// ── Club Cover Media ─────────────────────────────────────────────────────────
+
+export interface ClubCoverMediaDoc {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  name: string;
+  order: number;
+  uploadedAt: number;
+}
+
+export const uploadClubCoverMediaFile = async (
+  file: File,
+  order: number,
+  onProgress?: (pct: number) => void,
+): Promise<ClubCoverMediaDoc> => {
+  const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const ext  = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const type = IMAGE_EXTS.includes(ext) ? 'image' : 'video';
+  const slug = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+  const sRef = ref(storage, `club-cover-media/${slug}`);
+  // Explicit contentType so Storage rules isAllowedContentType() check passes.
+  const contentType = file.type || (type === 'video' ? 'video/mp4' : 'image/jpeg');
+  const task = uploadBytesResumable(sRef, file, { contentType });
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve,
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  const docData: Omit<ClubCoverMediaDoc, 'id'> = {
+    url, type, name: file.name, order, uploadedAt: Date.now(),
+  };
+  await setDoc(doc(db, 'clubCoverMedia', slug), docData);
+  return { id: slug, ...docData };
+};
+
+export const deleteClubCoverMediaFile = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'clubCoverMedia', id));
+};
+
+export const saveClubCoverSettings = async (settings: {
+  mode: 'off' | 'single' | 'slideshow';
+  singleItemId?: string | null;
+  slideshowOrder?: 'random' | 'sequential';
+}): Promise<void> => {
+  await setDoc(doc(db, 'clubCoverSettings', 'main'), settings, { merge: true });
+};
+
 export const deleteGlobalArchiveItem = async (id: string) => {
   const path = `albums/${id}`;
   try {
@@ -4926,6 +4978,108 @@ export const deletePlaylist = async (playlistId: string) => {
     await deleteDoc(doc(db, 'personal_playlists', playlistId));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+// ── Community Playlists ────────────────────────────────────────────────────────
+// Shared to the public `communityPlaylists` collection with tags like
+// 'workout', 'wellness', 'meditation', 'study', 'hype', 'chill', 'sleep'.
+
+export const sharePlaylistToCommunity = async (
+  playlist: Playlist,
+  tags: string[],
+) => {
+  if (!auth.currentUser) return null;
+  const u = auth.currentUser;
+  const id = `cp_${playlist.id}_${u.uid}`;
+  const doc_ = doc(db, 'communityPlaylists', id);
+  const data = {
+    ...playlist,
+    id,
+    ownerId: u.uid,
+    authorName: u.displayName ?? 'Unknown',
+    authorPhoto: u.photoURL ?? '',
+    tags,
+    likes: 0,
+    plays: 0,
+    isPublic: true,
+    sharedAt: Date.now(),
+    timestamp: Date.now(),
+  };
+  try {
+    await setDoc(doc_, data);
+    return data;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, 'communityPlaylists');
+    return null;
+  }
+};
+
+export const fetchCommunityPlaylistsByTag = async (tag: string, limitCount = 20) => {
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('isPublic', '==', true),
+      where('tags', 'array-contains', tag),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data()) as import('../types').CommunityPlaylist[];
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
+  }
+};
+
+export const fetchAllCommunityPlaylists = async (limitCount = 40) => {
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('isPublic', '==', true),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => d.data() as import('../types').CommunityPlaylist)
+      .sort((a, b) => (b.sharedAt ?? 0) - (a.sharedAt ?? 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
+  }
+};
+
+export const likeCommunityPlaylist = async (playlistId: string) => {
+  try {
+    await updateDoc(doc(db, 'communityPlaylists', playlistId), {
+      likes: (await getDoc(doc(db, 'communityPlaylists', playlistId))).data()?.likes + 1 || 1,
+    });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `communityPlaylists/${playlistId}`);
+  }
+};
+
+export const incrementPlaylistPlays = async (playlistId: string) => {
+  try {
+    const ref = doc(db, 'communityPlaylists', playlistId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) await updateDoc(ref, { plays: (snap.data().plays ?? 0) + 1 });
+  } catch {}
+};
+
+export const fetchMySharedPlaylists = async () => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(
+      collection(db, 'communityPlaylists'),
+      where('ownerId', '==', auth.currentUser.uid),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => d.data() as import('../types').CommunityPlaylist)
+      .sort((a, b) => (b.sharedAt ?? 0) - (a.sharedAt ?? 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'communityPlaylists');
+    return [];
   }
 };
 

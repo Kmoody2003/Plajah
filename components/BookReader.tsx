@@ -94,10 +94,28 @@ interface BookReaderProps {
   onOpenAudioStudio?: () => void;
 }
 
+const POSITION_KEY = (bookId: string) => `lorea_pos_${bookId}`;
+
+function loadSavedPosition(bookId: string): { chapter: number; page: number } {
+  try {
+    const raw = localStorage.getItem(POSITION_KEY(bookId));
+    if (!raw) return { chapter: 0, page: 0 };
+    const parsed = JSON.parse(raw);
+    return { chapter: Number(parsed.chapter) || 0, page: Number(parsed.page) || 0 };
+  } catch { return { chapter: 0, page: 0 }; }
+}
+
 const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio }) => {
   const { theme } = useGlobalPlayerState();
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+
+  // Restore last-read position from localStorage
+  const savedPos = loadSavedPosition(book.id);
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(savedPos.chapter);
   const [showOpeningScene, setShowOpeningScene] = useState(true);
+
+  // Unmount guard — prevents setState after the component is torn down
+  const mountedRef = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -197,7 +215,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   };
 
   const s = getThemeStyles();
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState(savedPos.page);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);
@@ -335,32 +353,39 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt]);
 
   const loadFullText = async (url: string) => {
+    if (!mountedRef.current) return;
     setIsLoadingContent(true);
+    const controller = new AbortController();
+    const abortOnUnmount = () => controller.abort();
+    // Abort if component unmounts before fetch completes
+    const cleanup = () => { if (!mountedRef.current) abortOnUnmount(); };
     try {
-      // Use proxy if it's an external URL to avoid CORS "Failed to fetch"
-      const fetchUrl = url.startsWith('http') 
-        ? `/api/proxy?url=${encodeURIComponent(url)}` 
+      const fetchUrl = url.startsWith('http')
+        ? `/api/proxy?url=${encodeURIComponent(url)}`
         : url;
-        
-      const response = await fetch(fetchUrl);
+
+      const response = await fetch(fetchUrl, { signal: controller.signal });
+      if (!mountedRef.current) return;
       if (!response.ok) throw new Error(`Signal loss: ${response.status} ${response.statusText}`);
-      
+
       const contentType = response.headers.get('content-type') || '';
       if (contentType && !/text|html|json|xml/i.test(contentType)) {
         throw new Error(`Unsupported text content type: ${contentType}`);
       }
 
-      let text = await response.text();
+      const text = await response.text();
+      if (!mountedRef.current) return;
       if (!text || text.trim().length === 0) {
-        throw new Error("Empty frequency captured (Zero length content)");
+        throw new Error('Empty frequency captured (Zero length content)');
       }
       setChapterContent(formatReadableText(text));
-    } catch (error) {
+    } catch (error: any) {
+      if (!mountedRef.current || error?.name === 'AbortError') return;
       console.error('Error loading full text:', error);
       setReaderError('This book file could not be converted into native text. Try the original download while Plajah retries storage sync.');
       setChapterContent('');
     } finally {
-      setIsLoadingContent(false);
+      if (mountedRef.current) setIsLoadingContent(false);
     }
   };
 
@@ -368,6 +393,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     const unsubscribe = subscribeToComments(book.id, null, null, setComments);
     return () => unsubscribe();
   }, [book.id]);
+
+  // Persist last-read position so the book re-opens at the right place
+  useEffect(() => {
+    if (showOpeningScene) return; // don't save the initial position before reading starts
+    try {
+      localStorage.setItem(POSITION_KEY(book.id), JSON.stringify({ chapter: currentChapterIndex, page: currentPageIndex }));
+    } catch {}
+  }, [currentChapterIndex, currentPageIndex, book.id, showOpeningScene]);
 
   const handlePostComment = async (text: string, parentId?: string) => {
     if (!currentUser) return;
@@ -1598,8 +1631,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         coverImage={book.coverImage ?? undefined}
         title={book.title}
         author={book.artist ?? undefined}
-        onBeginReading={() => setShowOpeningScene(false)}
-        firstPageText={chapterContent || undefined}
+        onBeginReading={() => { if (mountedRef.current) setShowOpeningScene(false); }}
+        chapterTitle={book.bookChapters?.[currentChapterIndex]?.title ?? undefined}
+        pageIndex={currentPageIndex}
+        resuming={savedPos.chapter > 0 || savedPos.page > 0}
       />
     )}
     </>

@@ -1,364 +1,228 @@
-// Cinematic book opening — plays a randomly selected pre-built MP4 animation,
-// chroma-keys the colored placeholder regions, and composites the real book
-// cover image and first-page text onto the video in real time.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// BookOpeningScene — stable CSS overlay that masks the reader while it loads,
+// then fades away to reveal the reader at the last-read position.
+// Replaces the previous canvas/MP4/RAF compositing approach.
+
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
   coverImage?: string;
   title: string;
   author?: string;
   onBeginReading: () => void;
-  firstPageText?: string;
+  chapterTitle?: string;
+  pageIndex?: number;      // 0-based; shown as "Page X"
+  resuming?: boolean;      // true when opening to a saved position
 }
 
-// ── Video assets (served from public/loera/) ────────────────────────────────
-const VIDEO_SOURCES = [
-  '/loera/Closed_book_opens_on_table_202606091118.mp4',
-  '/loera/Closed_book_opens_on_table_202606091119%20(1).mp4',
-  '/loera/Closed_book_opens_on_table_202606091119.mp4',
-] as const;
-
-// ── Placeholder color ────────────────────────────────────────────────────────
-// Both the cover face and the open page spread use the same placeholder color.
-// The compositing code auto-detects which content to use based on region shape:
-//   portrait (taller than wide)  → book cover image
-//   landscape (wider than tall)  → first-page text
-const PLACEHOLDER = [84, 81, 77] as const;
-const TOLERANCE   = 22;           // per-channel; total manhattan threshold = 66
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function colorMatch(r: number, g: number, b: number): boolean {
-  const [tr, tg, tb] = PLACEHOLDER;
-  return Math.abs(r - tr) + Math.abs(g - tg) + Math.abs(b - tb) < TOLERANCE * 3;
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const t = cur ? `${cur} ${w}` : w;
-    if (cur && ctx.measureText(t).width > maxW) { lines.push(cur); cur = w; }
-    else cur = t;
-  }
-  if (cur) lines.push(cur);
-  return lines;
-}
-
-// Detects the placeholder region, decides cover vs page by aspect ratio,
-// then per-scanline UV composites the correct source onto those pixels.
-function compositeFrame(
-  data: Uint8ClampedArray,
-  W: number,
-  H: number,
-  coverSrc: { data: Uint8ClampedArray; w: number; h: number } | null,
-  pageSrc:  { data: Uint8ClampedArray; w: number; h: number } | null,
-): void {
-  const rowL = new Int32Array(H).fill(-1);
-  const rowR = new Int32Array(H).fill(-1);
-  let y1 = H, y2 = 0;
-
-  // Pass 1 — per-row extents
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = (y * W + x) * 4;
-      if (colorMatch(data[i], data[i + 1], data[i + 2])) {
-        if (rowL[y] === -1) rowL[y] = x;
-        rowR[y] = x;
-        if (y < y1) y1 = y;
-        if (y > y2) y2 = y;
-      }
-    }
-  }
-  if (y1 >= y2) return;
-
-  // Decide content by bounding-box aspect ratio
-  let minX = W, maxX = 0;
-  for (let y = y1; y <= y2; y++) {
-    if (rowL[y] >= 0) { minX = Math.min(minX, rowL[y]); maxX = Math.max(maxX, rowR[y]); }
-  }
-  const bbW = maxX - minX, bbH = y2 - y1;
-  // Wide region (open pages spread) → page text; narrow/tall → cover image
-  const src = bbW > bbH * 1.3 ? pageSrc : coverSrc;
-  if (!src) return;
-
-  // Pass 2 — per-scanline UV replacement
-  for (let y = y1; y <= y2; y++) {
-    const l = rowL[y], r = rowR[y];
-    if (l < 0) continue;
-    const v  = (y - y1) / (y2 - y1);
-    const sy = Math.min(Math.floor(v * src.h), src.h - 1);
-    const span = r - l || 1;
-    for (let x = l; x <= r; x++) {
-      const i = (y * W + x) * 4;
-      if (!colorMatch(data[i], data[i + 1], data[i + 2])) continue;
-      const u  = (x - l) / span;
-      const sx = Math.min(Math.floor(u * src.w), src.w - 1);
-      const si = (sy * src.w + sx) * 4;
-      data[i]     = src.data[si];
-      data[i + 1] = src.data[si + 1];
-      data[i + 2] = src.data[si + 2];
-    }
-  }
-}
-
-// ── Component ────────────────────────────────────────────────────────────────
+const HOLD_MS  = 1800; // how long the cover is shown before auto-dismiss
+const FADE_MS  =  400; // CSS fade-out duration
 
 export const BookOpeningScene: React.FC<Props> = ({
   coverImage,
   title,
   author,
   onBeginReading,
-  firstPageText,
+  chapterTitle,
+  pageIndex,
+  resuming = false,
 }) => {
-  const videoRef   = useRef<HTMLVideoElement>(null);
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  // Cached pixel data for offscreen canvases (rebuilt only when content changes)
-  const coverPx    = useRef<{ data: Uint8ClampedArray; w: number; h: number } | null>(null);
-  const pagePx     = useRef<{ data: Uint8ClampedArray; w: number; h: number } | null>(null);
-  const rafRef     = useRef<number>(0);
-  const lastTick   = useRef<number>(0);
-  const sizeReady  = useRef(false);
+  const [dismissed, setDismissed] = useState(false);
+  const calledRef  = useRef(false);
+  const holdTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [fading, setFading] = useState(false);
-
-  // Pick one video at random for this mount
-  const videoSrc = useMemo(() => {
-    const i = Math.floor(Math.random() * VIDEO_SOURCES.length);
-    return VIDEO_SOURCES[i];
-  }, []);
-
-  // Build cover pixel data once
-  useEffect(() => {
-    const c = document.createElement('canvas');
-    const finalize = () => {
-      const ctx = c.getContext('2d');
-      if (!ctx) return;
-      const id = ctx.getImageData(0, 0, c.width, c.height);
-      coverPx.current = { data: id.data, w: c.width, h: c.height };
-    };
-
-    if (coverImage) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        c.width  = img.naturalWidth;
-        c.height = img.naturalHeight;
-        c.getContext('2d')!.drawImage(img, 0, 0);
-        finalize();
-      };
-      img.src = coverImage;
-    } else {
-      // Fallback leather gradient with title
-      c.width = 400; c.height = 560;
-      const ctx = c.getContext('2d')!;
-      const g = ctx.createLinearGradient(0, 0, 400, 560);
-      g.addColorStop(0,    '#7a2e1a');
-      g.addColorStop(0.55, '#4e1a0b');
-      g.addColorStop(1,    '#3a1208');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 400, 560);
-      ctx.strokeStyle = 'rgba(255,200,120,0.12)';
-      ctx.strokeRect(18, 18, 364, 524);
-      ctx.fillStyle = 'rgba(255,210,140,0.88)';
-      ctx.font = 'bold 30px Georgia, serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const words = title.split(' ');
-      let line = '', lines: string[] = [], y = 180;
-      for (const w of words) {
-        const t = line ? `${line} ${w}` : w;
-        if (ctx.measureText(t).width > 340 && line) { lines.push(line); line = w; }
-        else line = t;
-      }
-      if (line) lines.push(line);
-      lines.forEach((l, i) => ctx.fillText(l, 200, y + i * 42));
-      if (author) {
-        ctx.font = '13px Georgia, serif';
-        ctx.fillStyle = 'rgba(255,190,110,0.5)';
-        ctx.fillText(author, 200, 480);
-      }
-      finalize();
-    }
-  }, [coverImage, title, author]);
-
-  // Build page pixel data once
-  useEffect(() => {
-    const c = document.createElement('canvas');
-    c.width = 620; c.height = 860;
-    const ctx = c.getContext('2d')!;
-
-    // Cream paper
-    const bg = ctx.createLinearGradient(0, 0, 620, 860);
-    bg.addColorStop(0, '#faf1e2');
-    bg.addColorStop(1, '#f0e2c4');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 620, 860);
-
-    // Ruled lines
-    ctx.strokeStyle = 'rgba(110,75,35,0.09)';
-    ctx.lineWidth = 1;
-    for (let ly = 64; ly < 820; ly += 24) {
-      ctx.beginPath(); ctx.moveTo(36, ly); ctx.lineTo(584, ly); ctx.stroke();
-    }
-
-    // Chapter text
-    if (firstPageText) {
-      ctx.fillStyle    = '#1a1008';
-      ctx.font         = '14.5px Georgia, "Times New Roman", serif';
-      ctx.textBaseline = 'alphabetic';
-      const lines = wrapText(ctx, firstPageText.replace(/\s+/g, ' ').trim().slice(0, 1000), 524);
-      lines.slice(0, 32).forEach((l, i) => ctx.fillText(l, 50, 58 + i * 24));
-    } else {
-      // placeholder lines when text is still loading
-      ctx.fillStyle = 'rgba(90,55,20,0.12)';
-      for (let i = 0; i < 20; i++) {
-        const w = 380 + Math.sin(i * 1.7) * 120;
-        ctx.fillRect(50, 50 + i * 26, w, 10);
-      }
-    }
-
-    // Gutter shadow
-    const gutter = ctx.createLinearGradient(0, 0, 70, 0);
-    gutter.addColorStop(0, 'rgba(0,0,0,0.13)');
-    gutter.addColorStop(1, 'transparent');
-    ctx.fillStyle = gutter;
-    ctx.fillRect(0, 0, 70, 860);
-
-    const id = ctx.getImageData(0, 0, c.width, c.height);
-    pagePx.current = { data: id.data, w: c.width, h: c.height };
-  }, [firstPageText]);
-
-  // Composite loop
-  const tick = useCallback(() => {
-    const video  = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.paused || video.ended) return;
-
-    // Throttle to ~24 fps
-    const now = performance.now();
-    if (now - lastTick.current < 41) {
-      rafRef.current = requestAnimationFrame(tick);
-      return;
-    }
-    lastTick.current = now;
-
-    // Set canvas dimensions once from video metadata
-    if (!sizeReady.current && video.videoWidth > 0) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-      sizeReady.current = true;
-    }
-    if (!sizeReady.current) {
-      rafRef.current = requestAnimationFrame(tick);
-      return;
-    }
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const W = canvas.width, H = canvas.height;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const data = imageData.data;
-
-    compositeFrame(data, W, H, coverPx.current, pagePx.current);
-
-    ctx.putImageData(imageData, 0, 0);
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  const dismiss = () => {
+    if (calledRef.current) return;
+    calledRef.current = true;
+    setDismissed(true);
+    // Call after fade duration
+    fadeTimer.current = setTimeout(onBeginReading, FADE_MS + 50);
+  };
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const onPlay = () => { rafRef.current = requestAnimationFrame(tick); };
-    const onEnded = () => {
-      cancelAnimationFrame(rafRef.current);
-      setFading(true);
-      setTimeout(onBeginReading, 700);
-    };
-
-    video.addEventListener('play',  onPlay);
-    video.addEventListener('ended', onEnded);
-    video.play().catch(() => {});
-
+    holdTimer.current = setTimeout(dismiss, HOLD_MS);
     return () => {
-      cancelAnimationFrame(rafRef.current);
-      video.removeEventListener('play',  onPlay);
-      video.removeEventListener('ended', onEnded);
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      if (fadeTimer.current) clearTimeout(fadeTimer.current);
     };
-  }, [onBeginReading, tick]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const showResume = resuming && (chapterTitle || (pageIndex !== undefined && pageIndex > 0));
 
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: '#000',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Hidden video source */}
-      <video
-        ref={videoRef}
-        src={videoSrc}
-        muted
-        playsInline
-        preload="auto"
-        style={{ display: 'none' }}
-      />
+    <AnimatePresence>
+      {!dismissed && (
+        <motion.div
+          key="book-scene"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: FADE_MS / 1000, ease: 'easeInOut' }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: '#111',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 24,
+            padding: 32,
+          }}
+        >
+          {/* Book cover */}
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'relative',
+              width: Math.min(220, window.innerWidth * 0.45),
+              aspectRatio: '2/3',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)',
+              background: '#1e1a15',
+              flexShrink: 0,
+            }}
+          >
+            {coverImage ? (
+              <img
+                src={coverImage}
+                alt={title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              /* Fallback leather-look cover */
+              <div style={{
+                width: '100%', height: '100%',
+                background: 'linear-gradient(160deg, #7a2e1a 0%, #4e1a0b 55%, #3a1208 100%)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                padding: 20, textAlign: 'center',
+              }}>
+                <div style={{ color: 'rgba(255,210,140,0.85)', fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 700, lineHeight: 1.4 }}>
+                  {title}
+                </div>
+                {author && (
+                  <div style={{ color: 'rgba(255,190,110,0.45)', fontFamily: 'Georgia, serif', fontSize: 10, marginTop: 12 }}>
+                    {author}
+                  </div>
+                )}
+              </div>
+            )}
 
-      {/* Composited output */}
-      <canvas
-        ref={canvasRef}
-        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
-      />
+            {/* Spine shadow */}
+            <div style={{
+              position: 'absolute', left: 0, top: 0, width: 18, height: '100%',
+              background: 'linear-gradient(90deg,rgba(0,0,0,0.35),transparent)',
+              pointerEvents: 'none',
+            }} />
+            {/* Bottom vignette */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
+              background: 'linear-gradient(transparent,rgba(0,0,0,0.5))',
+              pointerEvents: 'none',
+            }} />
+          </motion.div>
 
-      {/* Skip */}
-      <button
-        onClick={onBeginReading}
-        style={{
-          position: 'absolute', top: 18, right: 18, zIndex: 10,
-          fontSize: 8, fontWeight: 900, letterSpacing: '0.35em',
-          color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase',
-          background: 'none', border: 'none', cursor: 'pointer', padding: '8px 14px',
-          transition: 'color 0.2s',
-        }}
-        onMouseEnter={e => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}
-        onMouseLeave={e => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.18)')}
-      >
-        Skip →
-      </button>
+          {/* Title + resume info */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            style={{ textAlign: 'center', maxWidth: 300 }}
+          >
+            <p style={{
+              color: 'rgba(255,255,255,0.85)',
+              fontFamily: 'Georgia, serif',
+              fontSize: 16,
+              fontWeight: 700,
+              lineHeight: 1.35,
+              marginBottom: 6,
+            }}>
+              {title}
+            </p>
+            {author && (
+              <p style={{
+                color: 'rgba(255,255,255,0.3)',
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: '0.05em',
+                marginBottom: 10,
+              }}>
+                {author}
+              </p>
+            )}
 
-      {/* Loading label */}
-      <div
-        style={{
-          position: 'absolute', bottom: 44, left: 0, right: 0,
-          textAlign: 'center',
-          fontSize: 8, fontWeight: 900, letterSpacing: '0.42em',
-          color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase',
-          pointerEvents: 'none',
-        }}
-      >
-        Loading your book…
-      </div>
+            {showResume ? (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px',
+                background: 'rgba(255,255,255,0.06)',
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  {chapterTitle ? `Continuing — ${chapterTitle}` : `Continuing — Page ${(pageIndex ?? 0) + 1}`}
+                </span>
+              </div>
+            ) : (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px',
+                background: 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  Opening book…
+                </span>
+              </div>
+            )}
+          </motion.div>
 
-      {/* Fade-to-black overlay on video end */}
-      <div
-        style={{
-          position: 'absolute', inset: 0,
-          background: '#000',
-          opacity: fading ? 1 : 0,
-          transition: 'opacity 0.7s ease',
-          pointerEvents: 'none',
-          zIndex: 5,
-        }}
-      />
-    </div>
+          {/* Progress bar */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            style={{ width: Math.min(200, window.innerWidth * 0.5) }}
+          >
+            <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: HOLD_MS / 1000 - 0.1, ease: 'linear', delay: 0.1 }}
+                style={{ height: '100%', background: 'rgba(255,255,255,0.25)', borderRadius: 2 }}
+              />
+            </div>
+          </motion.div>
+
+          {/* Skip / Begin reading */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            onClick={dismiss}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              background: 'none', border: 'none',
+              color: 'rgba(255,255,255,0.18)',
+              fontSize: 8, fontWeight: 900,
+              letterSpacing: '0.35em', textTransform: 'uppercase',
+              cursor: 'pointer', padding: '8px 14px',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={e => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.5)')}
+            onMouseLeave={e => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.18)')}
+          >
+            Skip →
+          </motion.button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
-
-export default BookOpeningScene;

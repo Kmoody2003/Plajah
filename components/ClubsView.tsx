@@ -5,8 +5,9 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubJoinProcess, PitchDeck } from '../types';
 import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
+import { useClubCoverMedia, useClubCoverSettings } from '../hooks/useClubCoverMedia';
 import ClubDetailView from './ClubDetailView';
-import { FanClubDetail, LiveScoresTicker } from './WorldCupFanClubs';
+import { FanClubDetail, LiveScoresTicker, CoverMediaCycler } from './WorldCupFanClubs';
 import { WC26_TEAMS, type WC26Team } from '../data/worldCup2026';
 
 interface ClubsViewProps {
@@ -18,6 +19,11 @@ interface ClubsViewProps {
 const CATEGORIES = ['All', 'Music', 'Art', 'Film', 'Gaming', 'Literature', 'Tech', 'Sports', 'Lifestyle', 'Charity'];
 
 const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitchDeck }) => {
+  const coverItems    = useClubCoverMedia();
+  const coverSettings = useClubCoverSettings();
+  const singleItem    = coverSettings.mode === 'single' && coverSettings.singleItemId
+    ? coverItems.find(i => i.id === coverSettings.singleItemId) ?? null
+    : null;
   const [clubs, setClubs] = useState<Club[]>([]);
   const [myClubs, setMyClubs] = useState<Club[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -119,8 +125,18 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitc
       {/* Hero */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src="https://picsum.photos/seed/community/1920/1080" className="w-full h-full object-cover opacity-30 blur-sm" alt="" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
+          {coverSettings.mode === 'slideshow' && coverItems.length > 0 && (
+            <CoverMediaCycler items={coverItems} order={coverSettings.slideshowOrder} />
+          )}
+          {coverSettings.mode === 'single' && singleItem && (
+            singleItem.type === 'video'
+              ? <video src={singleItem.url} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+              : <img src={singleItem.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          {(coverSettings.mode === 'off' || (coverSettings.mode === 'single' && !singleItem) || (coverSettings.mode === 'slideshow' && coverItems.length === 0)) && (
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-900/60 to-indigo-900/40" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" style={{ zIndex: 1 }} />
         </div>
         <div className="relative z-10 text-center px-6 max-w-4xl w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>

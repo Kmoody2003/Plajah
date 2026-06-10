@@ -2,25 +2,31 @@
 import { motion, AnimatePresence } from 'motion/react';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
-  fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile,
+  fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile, fetchPlayerCareer,
   fetchRacingSchedule, fetchRacingStandings, fetchRacingNews,
+  fetchRacingDrivers, fetchRacingConstructors,
   getRacingCfg, ESPORTS_ORGS, LEAGUE_CHAMPIONS,
   getSpecialtySportCfg,
   type SportsTeam, type EsportsOrg, type LeaderCategory,
   type RaceEvent, type RacingStanding, type ChampionEntry,
+  type RacingDriver, type RacingConstructor, type PlayerCareer,
 } from '../services/sportsService';
+import { fetchF1DriversByYear, type F1Driver } from '../services/openf1Service';
 import { TeamPageView } from './sports/TeamPageView';
 import { getLeagueStaticTeams, findStaticTeam } from '../data/leagueTeams';
 import ErrorBoundary from './ErrorBoundary';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 const StatCardBuilder       = lazy(() => import('./sports/StatCardBuilder').then(m => ({ default: m.StatCardBuilder })));
 const RaceHistoryView       = lazy(() => import('./sports/RaceHistoryView').then(m => ({ default: m.RaceHistoryView })));
+const RaceReplayView        = lazy(() => import('./sports/RaceReplayView').then(m => ({ default: m.RaceReplayView })));
+const CircuitMapView        = lazy(() => import('./sports/CircuitMapView').then(m => ({ default: m.CircuitMapView })));
+const TrackMap3D            = lazy(() => import('./sports/TrackMap3D').then(m => ({ default: m.TrackMap3D })));
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
   Pin, PinOff, RefreshCw, AlertCircle, Gamepad2, Globe, Flag, Clock,
   BarChart2, Award, Zap, Shield, ChevronRight, X, BookOpen, CreditCard, History,
-  Sparkles,
+  Sparkles, Gauge, Radio, Layers, Activity, Car,
 } from 'lucide-react';
 
 interface Props {
@@ -51,12 +57,14 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [predictions, setPredictions]     = useState<Record<string, 'home' | 'away'>>({});
   const [showStatCard, setShowStatCard]   = useState(false);
   const [showRaceHistory, setShowRaceHistory] = useState(false);
+  const [showRaceReplay, setShowRaceReplay]   = useState(false);
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
 
   const [selectedPlayer, setSelectedPlayer]   = useState<{ id: string; name: string } | null>(null);
   const [playerProfile, setPlayerProfile]     = useState<any>(null);
+  const [playerCareer, setPlayerCareer]       = useState<PlayerCareer | null>(null);
   const [playerLoading, setPlayerLoading]     = useState(false);
 
   const isLeague  = (LEAGUE_TABS as readonly string[]).includes(selectedSportsTab);
@@ -170,9 +178,13 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     if (!selectedPlayer) return;
     setPlayerLoading(true);
     setPlayerProfile(null);
+    setPlayerCareer(null);
     fetchPlayerProfile(selectedSportsTab, selectedPlayer.id)
       .then(p => { setPlayerProfile(p); setPlayerLoading(false); })
       .catch(() => setPlayerLoading(false));
+    fetchPlayerCareer(selectedSportsTab, selectedPlayer.id)
+      .then(c => setPlayerCareer(c))
+      .catch(() => {});
   }, [selectedPlayer, selectedSportsTab]);
 
   // â"€â"€â"€ RACING â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -303,6 +315,53 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               </div>
             )}
 
+            {/* Career — roster history + season-by-season table */}
+            {playerCareer && playerCareer.categories[0]?.seasons?.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><History size={10} /> Career History</h4>
+
+                {playerCareer.teamHistory.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {playerCareer.teamHistory.map(t => (
+                      <span key={t.teamId}
+                        className="px-2.5 py-1 rounded-full border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/70"
+                        style={{ backgroundColor: `${t.color}33` }}>
+                        {t.teamAbbr || t.teamName}
+                        <span className="text-white/35"> · {t.seasons[0]}{t.seasons.length > 1 ? `–${t.seasons[t.seasons.length - 1]}` : ''}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left min-w-[560px]">
+                      <thead>
+                        <tr className="bg-white/5">
+                          <th className="px-3 py-2 text-[7px] font-black uppercase tracking-widest text-white/30">Season</th>
+                          <th className="px-3 py-2 text-[7px] font-black uppercase tracking-widest text-white/30">Team</th>
+                          {playerCareer.categories[0].labels.slice(0, 8).map(l => (
+                            <th key={l} className="px-3 py-2 text-[7px] font-black uppercase tracking-widest text-white/30 text-right">{l}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...playerCareer.categories[0].seasons].reverse().map((row, i) => (
+                          <tr key={`${row.year}-${row.teamId}`} className={`border-t border-white/5 ${i % 2 ? 'bg-white/[0.02]' : ''}`}>
+                            <td className="px-3 py-2 text-[10px] font-black">{row.seasonDisplay}</td>
+                            <td className="px-3 py-2 text-[10px] font-bold text-white/50">{row.teamAbbr || row.teamName}</td>
+                            {playerCareer.categories[0].labels.slice(0, 8).map((_, ci) => (
+                              <td key={ci} className="px-3 py-2 text-[10px] font-bold tabular-nums text-right text-white/70">{row.stats[ci] ?? '—'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Bio */}
             {playerProfile.notes?.map && (
               <div className="p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/8">
@@ -419,13 +478,24 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           <CreditCard size={11} /> Stat Cards
         </motion.button>
         {(selectedSportsTab === 'F1' || selectedSportsTab === 'NASCAR' || selectedSportsTab === 'INDYCAR') && (
-          <motion.button
-            onClick={() => setShowRaceHistory(true)}
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
-          >
-            <History size={11} /> Race Deep Dive
-          </motion.button>
+          <>
+            <motion.button
+              onClick={() => setShowRaceHistory(true)}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
+            >
+              <History size={11} /> Race Deep Dive
+            </motion.button>
+            {selectedSportsTab === 'F1' && (
+              <motion.button
+                onClick={() => setShowRaceReplay(true)}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#E10600]/10 border border-[#E10600]/30 rounded-full text-xs font-black uppercase tracking-widest text-[#E10600]/80 hover:text-[#E10600] hover:border-[#E10600]/60 transition-all"
+              >
+                <Flag size={11} /> Race Replay
+              </motion.button>
+            )}
+          </>
         )}
         {/* Ask Aria — sports research agent, available for all leagues */}
         <motion.button
@@ -884,6 +954,29 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Race Replay (F1 telemetry + animated circuit map) ─────────────────── */}
+      <AnimatePresence>
+        {showRaceReplay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-hidden"
+          >
+            <ErrorBoundary>
+              <Suspense fallback={
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                  <div className="w-10 h-10 border-2 border-[#E10600]/20 border-t-[#E10600] rounded-full animate-spin" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Loading Race Replay…</p>
+                </div>
+              }>
+                <RaceReplayView onClose={() => setShowRaceReplay(false)} />
+              </Suspense>
+            </ErrorBoundary>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
@@ -959,35 +1052,87 @@ const OrgCard: React.FC<{
   </div>
 );
 
-// â"€â"€â"€ Racing Center View (F1 / NASCAR / IndyCar) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+
+// ─── Manufacturer colors ────────────────────────────────────────────────────
+const MFR_COLOR: Record<string, string> = {
+  Chevrolet: '#FFD700', Chevy: '#FFD700',
+  Toyota:    '#EB0A1E',
+  Ford:      '#1B5FA8',
+  Honda:     '#E40521',
+};
+
+// ─── NASCAR track type helper ────────────────────────────────────────────────
+function nascarTrackType(venue: string): string {
+  const v = venue.toLowerCase();
+  if (/daytona|talladega|pocono/.test(v)) return 'Superspeedway';
+  if (/bristol|martinsville|richmond/.test(v)) return 'Short Track';
+  if (/watkins|sonoma|cota|road america|chicago/.test(v)) return 'Road Course';
+  return 'Intermediate';
+}
+
+// ─── F1 flag emoji helper ───────────────────────────────────────────────────
+function countryFlag(code: string): string {
+  if (!code || code.length !== 3) return '';
+  const iso2: Record<string, string> = {
+    GBR:'GB',NLD:'NL',MON:'MC',ESP:'ES',FIN:'FI',AUS:'AU',MEX:'MX',
+    FRA:'FR',GER:'DE',ITA:'IT',CAN:'CA',JPN:'JP',CHN:'CN',USA:'US',
+    THA:'TH',CHI:'CN',BRA:'BR',ARG:'AR',POL:'PL',DEN:'DK',BEL:'BE',
+    NZL:'NZ',ZIM:'ZW',AUT:'AT',VEN:'VE',IND:'IN',
+  };
+  const c = iso2[code.toUpperCase()];
+  if (!c) return '';
+  return String.fromCodePoint(...c.split('').map(x => 0x1F1E0 + x.charCodeAt(0) - 65));
+}
+
+// ─── F1 team color accent helper ─────────────────────────────────────────────
+function f1TeamColor(hex: string): string {
+  return hex && hex.length === 6 ? `#${hex}` : '#FF8C00';
+}
+
+// ─── RacingCenterView ────────────────────────────────────────────────────────
+type RacingSection = 'DRIVERS' | 'TEAMS' | 'STANDINGS' | 'SCHEDULE' | 'TRACKS' | 'NEWS' | 'TOOLS';
 
 const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
   const cfg = getRacingCfg(tab)!;
-  const [schedule, setSchedule] = useState<RaceEvent[]>([]);
-  const [standings, setStandings] = useState<RacingStanding[]>([]);
-  const [news, setNews] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const isF1      = tab === 'F1';
+  const isNascar  = tab === 'NASCAR';
+  const isIndycar = tab === 'INDYCAR';
+
+  const [activeSection, setActiveSection] = useState<RacingSection>('DRIVERS');
+  const [schedule,      setSchedule]      = useState<RaceEvent[]>([]);
+  const [standings,     setStandings]     = useState<RacingStanding[]>([]);
+  const [news,          setNews]          = useState<any[]>([]);
+  const [drivers,       setDrivers]       = useState<RacingDriver[]>([]);
+  const [constructors,  setConstructors]  = useState<RacingConstructor[]>([]);
+  const [f1Drivers,     setF1Drivers]     = useState<F1Driver[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [showRaceHistory, setShowRaceHistory] = useState(false);
+  const [showRaceReplay,  setShowRaceReplay]  = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    setError(false);
-    setSchedule([]);
-    setStandings([]);
-    setNews([]);
+    setSchedule([]); setStandings([]); setNews([]);
+    setDrivers([]); setConstructors([]); setF1Drivers([]);
+    setActiveSection('DRIVERS');
 
-    Promise.all([
+    const tasks: Promise<any>[] = [
       fetchRacingSchedule(tab),
       fetchRacingStandings(tab),
       fetchRacingNews(tab),
-    ]).then(([sched, stand, articles]) => {
-      setSchedule(sched);
-      setStandings(stand);
-      setNews(articles);
+      fetchRacingDrivers(tab),
+      fetchRacingConstructors(tab),
+    ];
+    if (isF1) tasks.push(fetchF1DriversByYear(2025));
+
+    Promise.allSettled(tasks).then(results => {
+      const v = (r: any) => r.status === 'fulfilled' ? r.value : [];
+      setSchedule(v(results[0]));
+      setStandings(v(results[1]));
+      setNews(v(results[2]));
+      setDrivers(v(results[3]));
+      setConstructors(v(results[4]));
+      if (isF1 && results[5]) setF1Drivers(v(results[5]));
       setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-      setError(true);
     });
   }, [tab]);
 
@@ -995,177 +1140,650 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
   const recent   = schedule.filter(e => e.status === 'post');
   const live     = schedule.filter(e => e.status === 'in');
 
+  const standingDrivers = useMemo<RacingDriver[]>(() =>
+    standings.map((s, i) => ({
+      id: `s${i}`, name: s.driverName, number: '',
+      teamName: s.teamName, manufacturer: '', nationality: '',
+      headshot: s.driverLogo, teamColor: '#FF8C00', teamLogo: '',
+    })),
+  [standings]);
+
+  const displayDrivers = drivers.length > 0 ? drivers : standingDrivers;
+
+  const TABS: { id: RacingSection; label: string; icon: React.ReactNode }[] = [
+    { id: 'DRIVERS',   label: 'Drivers',  icon: <User size={10} /> },
+    { id: 'TEAMS',     label: isF1 ? 'Constructors' : 'Teams', icon: <Shield size={10} /> },
+    { id: 'STANDINGS', label: 'Standings', icon: <Trophy size={10} /> },
+    { id: 'SCHEDULE',  label: 'Schedule',  icon: <Calendar size={10} /> },
+    { id: 'TRACKS',    label: '3D Tracks', icon: <MapPin size={10} /> },
+    { id: 'NEWS',      label: 'News',      icon: <Newspaper size={10} /> },
+    ...(isF1 ? [{ id: 'TOOLS' as RacingSection, label: 'Tools', icon: <Activity size={10} /> }] : []),
+  ];
+
+  const SERIES_COLOR = isF1 ? '#E10600' : isNascar ? '#FFB514' : '#C5232A';
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-      <div className="flex items-center gap-3">
-        <Flag size={14} className="text-[#FF8C00]" />
-        <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/60">{cfg.label}</h3>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div style={{ background: `${SERIES_COLOR}20`, borderColor: `${SERIES_COLOR}40` }}
+            className="w-9 h-9 rounded-xl border flex items-center justify-center">
+            <Flag size={14} style={{ color: SERIES_COLOR }} />
+          </div>
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/30">Racing</p>
+            <h2 className="text-base font-black uppercase tracking-tight">{cfg.label}</h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isF1 && (
+            <>
+              <button onClick={() => setShowRaceReplay(true)}
+                style={{ borderColor: '#E1060040', color: '#E10600' }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#E10600]/10 border rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-[#E10600]/20 transition-all">
+                <Activity size={10} /> Replay
+              </button>
+              <button onClick={() => setShowRaceHistory(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/40 transition-all">
+                <History size={10} /> Deep Dive
+              </button>
+            </>
+          )}
+          <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', {
+            detail: { prompt: `Give me a deep expert breakdown of ${cfg.label}: current championship standings, top drivers, key storylines this season, and 3 stats most fans don't know.` }
+          }))}
+            className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-purple-400 hover:bg-purple-500/20 transition-all">
+            <Sparkles size={10} /> Ask Aria
+          </button>
+        </div>
       </div>
 
-      {loading && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[...Array(8)].map((_, i) => <div key={i} className="h-20 rounded-[1.5rem] bg-white/5 animate-pulse" />)}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-[1.5rem] bg-white/5 animate-pulse" />)}</div>
-        </div>
-      )}
-
-      {!loading && error && (
-        <div className="py-16 text-center space-y-4">
-          <AlertCircle size={32} className="mx-auto text-white/15" />
-          <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Could not load {cfg.label} data</p>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <>
-          {live.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-red-400 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Live Now
-              </h4>
-              {live.map(race => (
-                <div key={race.id} className="bg-red-500/5 border border-red-500/20 rounded-[1.5rem] p-5 space-y-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-black">{race.name}</p>
-                      <p className="text-[8px] font-bold text-white/35 mt-1 flex items-center gap-1"><MapPin size={8} />{race.venue}{race.city ? ` Â· ${race.city}` : ''}</p>
-                    </div>
-                    <span className="text-[7px] font-black uppercase tracking-widest text-red-400 animate-pulse shrink-0">â— Live</span>
-                  </div>
-                  {race.results.length > 0 && (
-                    <div className="space-y-1.5">
-                      {race.results.slice(0, 5).map((r, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <span className="text-[8px] font-black text-white/30 w-4">{r.pos}</span>
-                          {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-80" loading="lazy" />}
-                          <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
-                          <span className="text-[7px] font-bold text-white/35 truncate">{r.teamName}</span>
-                          {r.time && <span className="text-[8px] font-black text-white/50 shrink-0">{r.time}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {standings.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Trophy size={10} /> Championship Standings</h4>
-              <div className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] overflow-hidden">
-                <div className="divide-y divide-white/5">
-                  {standings.slice(0, 20).map((s, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all">
-                      <span className={`text-[9px] font-black w-5 shrink-0 ${i === 0 ? 'text-[#FF8C00]' : i < 3 ? 'text-white/60' : 'text-white/20'}`}>{s.rank || i + 1}</span>
-                      {s.driverLogo
-                        ? <img src={s.driverLogo} alt="" className="w-6 h-6 rounded-full object-cover opacity-80 shrink-0" loading="lazy" />
-                        : <div className="w-6 h-6 rounded-full bg-white/10 shrink-0 flex items-center justify-center"><User size={10} className="text-white/30" /></div>
-                      }
-                      <span className="flex-1 text-[9px] font-bold truncate">{s.driverName}</span>
-                      <span className="text-[8px] font-bold text-white/30 truncate max-w-[90px] hidden md:block">{s.teamName}</span>
-                      {s.wins > 0 && <span className="text-[7px] font-black text-[#FF8C00] shrink-0">{s.wins}W</span>}
-                      <span className={`text-[9px] font-black shrink-0 ${i === 0 ? 'text-[#FF8C00]' : 'text-white/60'}`}>{s.points} pts</span>
+      {/* Live race banner */}
+      {live.length > 0 && (
+        <div className="bg-red-500/5 border border-red-500/30 rounded-[1.5rem] p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[8px] font-black uppercase tracking-[0.4em] text-red-400">Live Now</span>
+          </div>
+          {live.slice(0, 1).map(race => (
+            <div key={race.id} className="space-y-3">
+              <p className="text-sm font-black">{race.name}</p>
+              <p className="text-[7px] text-white/30 flex items-center gap-1"><MapPin size={7} />{race.venue}{race.city ? ` · ${race.city}` : ''}</p>
+              {race.results.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {race.results.slice(0, 6).map((r, i) => (
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 bg-white/5 rounded-xl">
+                      <span className="text-[8px] font-black w-4"
+                        style={{ color: i === 0 ? SERIES_COLOR : 'rgba(255,255,255,0.25)' }}>{r.pos}</span>
+                      {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-80" loading="lazy" />}
+                      <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
+                      {r.time && <span className="text-[8px] font-black text-white/50 shrink-0">{r.time}</span>}
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
-          {upcoming.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Calendar size={10} /> Upcoming Races</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {upcoming.slice(0, 6).map(race => (
-                  <div key={race.id} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] p-4 space-y-2 hover:bg-white/[0.06] hover:border-white/15 transition-all">
-                    <p className="text-[9px] font-black leading-snug">{race.name}</p>
-                    <p className="text-[7px] font-bold text-white/30 flex items-center gap-1"><MapPin size={7} />{race.venue || race.city}</p>
-                    <p className="text-[7px] font-black text-[#FF8C00] flex items-center gap-1"><Clock size={7} />
-                      {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Section tab bar */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveSection(t.id)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+              activeSection === t.id ? 'text-black' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+            }`}
+            style={activeSection === t.id ? { background: SERIES_COLOR } : {}}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
 
-          {recent.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Clock size={10} /> Recent Results</h4>
-              <div className="space-y-3">
-                {recent.slice(0, 4).map(race => (
-                  <div key={race.id} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[9px] font-black">{race.name}</p>
-                        <p className="text-[7px] font-bold text-white/30 mt-0.5">{race.city || race.venue}</p>
-                      </div>
-                      <span className="text-[7px] font-black uppercase tracking-widest text-white/20 shrink-0">
-                        {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                      </span>
-                    </div>
-                    {race.results.length > 0 && (
-                      <div className="space-y-1.5">
-                        {race.results.slice(0, 3).map((r, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <span className={`text-[8px] font-black w-4 shrink-0 ${i === 0 ? 'text-[#FF8C00]' : 'text-white/20'}`}>{r.pos}</span>
-                            {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-75" loading="lazy" />}
-                            <span className="flex-1 text-[9px] font-bold truncate">{r.driverName}</span>
-                            <span className="text-[7px] text-white/30 truncate">{r.teamName}</span>
+      {loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[...Array(8)].map((_, i) => <div key={i} className="h-40 rounded-[1.5rem] bg-white/5 animate-pulse" />)}
+        </div>
+      )}
+
+      {!loading && (
+        <AnimatePresence mode="wait">
+
+          {/* DRIVERS TAB */}
+          {activeSection === 'DRIVERS' && (
+            <motion.div key="drivers" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+
+              {/* F1: OpenF1 driver grid */}
+              {isF1 && f1Drivers.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {f1Drivers.map(d => {
+                    const tc = f1TeamColor(d.team_colour);
+                    return (
+                      <div key={d.driver_number} style={{ borderColor: `${tc}25` }}
+                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] transition-all">
+                        <div style={{ background: tc }} className="h-1 w-full" />
+                        <div className="p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span style={{ color: tc }} className="text-2xl font-black leading-none">{d.driver_number}</span>
+                            <span className="text-base">{countryFlag(d.country_code)}</span>
                           </div>
-                        ))}
+                          {d.headshot_url ? (
+                            <div className="h-28 flex items-end justify-center overflow-hidden">
+                              <img src={d.headshot_url} alt={d.full_name}
+                                className="h-full w-auto object-contain object-bottom" loading="lazy" />
+                            </div>
+                          ) : (
+                            <div className="h-28 flex items-center justify-center">
+                              <User size={40} className="text-white/10" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-wide leading-tight">{d.broadcast_name}</p>
+                            <p style={{ color: tc }} className="text-[6px] font-black uppercase tracking-widest mt-0.5 truncate">{d.team_name}</p>
+                          </div>
+                          <div style={{ background: `${tc}20`, color: tc }}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[7px] font-black">
+                            {d.name_acronym}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isF1 && f1Drivers.length === 0 && (
+                <div className="py-12 text-center">
+                  <User size={32} className="mx-auto text-white/10 mb-3" />
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Loading F1 driver data…</p>
+                </div>
+              )}
+
+              {/* NASCAR / IndyCar: ESPN driver cards with car number as hero */}
+              {!isF1 && displayDrivers.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {displayDrivers.map(d => {
+                    const mfrColor = MFR_COLOR[d.manufacturer] ?? '#888';
+                    return (
+                      <div key={d.id} style={{ borderColor: `${d.teamColor}25` }}
+                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] transition-all">
+                        <div style={{ background: d.teamColor }} className="h-1 w-full" />
+                        {d.number && (
+                          <div style={{ color: d.teamColor }}
+                            className="absolute right-1 top-3 text-[72px] font-black opacity-[0.08] select-none leading-none pointer-events-none">
+                            {d.number}
+                          </div>
+                        )}
+                        <div className="p-3 space-y-2 relative">
+                          {d.headshot ? (
+                            <div className="h-24 flex items-end overflow-hidden rounded-xl bg-white/5">
+                              <img src={d.headshot} alt={d.name}
+                                className="h-full w-full object-cover object-top" loading="lazy" />
+                            </div>
+                          ) : (
+                            <div className="h-24 flex items-center justify-center rounded-xl bg-white/5">
+                              <User size={32} className="text-white/15" />
+                            </div>
+                          )}
+                          {d.number && (
+                            <div style={{ background: `${d.teamColor}25`, color: d.teamColor }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black">
+                              <Car size={9} /> #{d.number}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-wide leading-tight">{d.name}</p>
+                            <p className="text-[6px] font-bold text-white/35 mt-0.5 truncate">{d.teamName}</p>
+                          </div>
+                          {d.manufacturer && (
+                            <span style={{ color: mfrColor, borderColor: `${mfrColor}40` }}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest border">
+                              {d.manufacturer}
+                            </span>
+                          )}
+                          {isIndycar && !d.manufacturer && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest border border-white/10 text-white/25">
+                              Dallara Chassis
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!isF1 && displayDrivers.length === 0 && (
+                <div className="py-12 text-center">
+                  <User size={32} className="mx-auto text-white/10 mb-3" />
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Driver data loading…</p>
+                </div>
+              )}
+            </motion.div>
           )}
 
-          {news.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Newspaper size={10} /> {cfg.label} News</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {news.slice(0, 8).map((article: any, i: number) => (
-                  <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
-                    className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
-                    {article.images?.[0]?.url && (
-                      <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
+          {/* TEAMS / CONSTRUCTORS TAB */}
+          {activeSection === 'TEAMS' && (
+            <motion.div key="teams" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+
+              {isF1 && (
+                <>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                    <Trophy size={10} /> Constructor Championship
+                  </h4>
+                  {constructors.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {constructors.map((c, i) => (
+                        <div key={c.id} style={{ borderColor: `${c.color}30` }}
+                          className="flex items-center gap-4 p-4 bg-white/[0.03] border rounded-[1.5rem] hover:bg-white/[0.06] transition-all">
+                          <span className="text-lg font-black w-8 shrink-0"
+                            style={{ color: i === 0 ? SERIES_COLOR : i < 3 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)' }}>
+                            {c.rank}
+                          </span>
+                          {c.logo
+                            ? <img src={c.logo} alt="" className="w-10 h-10 object-contain shrink-0" loading="lazy" />
+                            : <div style={{ background: `${c.color}25` }} className="w-10 h-10 rounded-xl shrink-0" />
+                          }
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black truncate">{c.name}</p>
+                            {c.wins > 0 && <p className="text-[7px] font-black mt-0.5" style={{ color: SERIES_COLOR }}>{c.wins} wins</p>}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-black" style={{ color: i === 0 ? SERIES_COLOR : 'rgba(255,255,255,0.5)' }}>{c.points}</p>
+                            <p className="text-[6px] font-black uppercase tracking-widest text-white/25">pts</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </a>
-                ))}
+                  ) : (
+                    <div className="py-10 text-center">
+                      <Shield size={28} className="mx-auto text-white/10 mb-2" />
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Constructor data loading…</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {isNascar && (
+                <>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                    <Car size={10} /> Manufacturer Standings
+                  </h4>
+                  {constructors.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      {constructors.slice(0, 3).map((c, i) => {
+                        const mColor = MFR_COLOR[c.name] ?? c.color;
+                        return (
+                          <div key={c.id} style={{ borderColor: `${mColor}30` }}
+                            className="p-5 bg-white/[0.03] border rounded-[1.5rem] text-center space-y-2 hover:bg-white/[0.06] transition-all">
+                            <span className="text-2xl font-black" style={{ color: mColor }}>{c.rank}</span>
+                            {c.logo
+                              ? <img src={c.logo} alt="" className="w-12 h-8 object-contain mx-auto" loading="lazy" />
+                              : <p className="text-xs font-black" style={{ color: mColor }}>{c.name}</p>
+                            }
+                            <p className="text-[8px] font-bold text-white/30">{c.points} pts</p>
+                            {c.wins > 0 && <p className="text-[7px] font-black" style={{ color: mColor }}>{c.wins}W</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Manufacturer data loading…</p>
+                    </div>
+                  )}
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2 mt-4">
+                    <Users size={10} /> Cup Teams
+                  </h4>
+                  <div className="bg-white/[0.02] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                    {standings.slice(0, 20).map((s, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-all">
+                        <span className="text-[8px] font-black w-5 shrink-0 text-white/20">{s.rank || i + 1}</span>
+                        {s.driverLogo
+                          ? <img src={s.driverLogo} alt="" className="w-7 h-7 rounded-full object-cover opacity-80 shrink-0" loading="lazy" />
+                          : <div className="w-7 h-7 rounded-full bg-white/10 shrink-0 flex items-center justify-center"><User size={10} className="text-white/30" /></div>
+                        }
+                        <span className="flex-1 text-[9px] font-bold truncate">{s.driverName}</span>
+                        <span className="text-[7px] text-white/25 truncate max-w-[100px] hidden sm:block">{s.teamName}</span>
+                        {s.wins > 0 && <span className="text-[7px] font-black shrink-0" style={{ color: SERIES_COLOR }}>{s.wins}W</span>}
+                        <span className="text-[9px] font-black text-white/50 shrink-0">{s.points}pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {isIndycar && (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {[
+                      { name: 'Honda', color: '#E40521', note: 'Engine Supplier' },
+                      { name: 'Chevrolet', color: '#FFD700', note: 'Engine Supplier' },
+                    ].map(eng => (
+                      <div key={eng.name} style={{ borderColor: `${eng.color}30` }}
+                        className="p-5 bg-white/[0.03] border rounded-[1.5rem] text-center space-y-1.5 hover:bg-white/[0.06] transition-all">
+                        <Gauge size={20} style={{ color: eng.color }} className="mx-auto" />
+                        <p className="text-sm font-black" style={{ color: eng.color }}>{eng.name}</p>
+                        <p className="text-[7px] font-black uppercase tracking-widest text-white/30">{eng.note}</p>
+                        <p className="text-[6px] text-white/20">Dallara IR-18 Chassis</p>
+                      </div>
+                    ))}
+                  </div>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                    <Users size={10} /> IndyCar Teams
+                  </h4>
+                  <div className="bg-white/[0.02] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                    {standings.slice(0, 20).map((s, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-all">
+                        <span className="text-[8px] font-black w-5 shrink-0 text-white/20">{s.rank || i + 1}</span>
+                        {s.driverLogo
+                          ? <img src={s.driverLogo} alt="" className="w-7 h-7 rounded-full object-cover opacity-80 shrink-0" loading="lazy" />
+                          : <div className="w-7 h-7 rounded-full bg-white/10 shrink-0 flex items-center justify-center"><User size={10} className="text-white/30" /></div>
+                        }
+                        <span className="flex-1 text-[9px] font-bold truncate">{s.driverName}</span>
+                        <span className="text-[7px] text-white/25 truncate max-w-[100px] hidden sm:block">{s.teamName}</span>
+                        {s.wins > 0 && <span className="text-[7px] font-black shrink-0" style={{ color: SERIES_COLOR }}>{s.wins}W</span>}
+                        <span className="text-[9px] font-black text-white/50 shrink-0">{s.points}pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {/* STANDINGS TAB */}
+          {activeSection === 'STANDINGS' && (
+            <motion.div key="standings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                <Trophy size={10} /> Driver Championship
+              </h4>
+              {standings.length > 0 ? (
+                <div className="bg-white/[0.02] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                  {standings.slice(0, 30).map((s, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-all">
+                      <span className="text-[9px] font-black w-6 shrink-0"
+                        style={{ color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'rgba(255,255,255,0.2)' }}>
+                        {s.rank || i + 1}
+                      </span>
+                      {s.driverLogo
+                        ? <img src={s.driverLogo} alt="" className="w-7 h-7 rounded-full object-cover opacity-80 shrink-0" loading="lazy" />
+                        : <div className="w-7 h-7 rounded-full bg-white/10 shrink-0 flex items-center justify-center"><User size={10} className="text-white/30" /></div>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-bold truncate">{s.driverName}</p>
+                        <p className="text-[6px] text-white/25 truncate">{s.teamName}</p>
+                      </div>
+                      {s.wins > 0 && (
+                        <span className="text-[7px] font-black shrink-0 px-2 py-0.5 rounded-full"
+                          style={{ background: `${SERIES_COLOR}20`, color: SERIES_COLOR }}>{s.wins}W</span>
+                      )}
+                      <span className="text-[10px] font-black shrink-0"
+                        style={{ color: i === 0 ? SERIES_COLOR : 'rgba(255,255,255,0.5)' }}>{s.points}</span>
+                      <span className="text-[6px] text-white/20 shrink-0">pts</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-10 text-center">
+                  <Trophy size={28} className="mx-auto text-white/10 mb-2" />
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Standings loading…</p>
+                </div>
+              )}
+              {constructors.length > 0 && (
+                <>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2 mt-4">
+                    <Shield size={10} /> {isF1 ? 'Constructor' : isNascar ? 'Manufacturer' : 'Team'} Standings
+                  </h4>
+                  <div className="bg-white/[0.02] border border-white/8 rounded-[1.5rem] overflow-hidden">
+                    {constructors.map((c, i) => (
+                      <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-all">
+                        <span className="text-[9px] font-black w-6 shrink-0 text-white/20">{c.rank}</span>
+                        {c.logo
+                          ? <img src={c.logo} alt="" className="w-7 h-7 object-contain shrink-0" loading="lazy" />
+                          : <div style={{ background: `${c.color}25` }} className="w-7 h-7 rounded-lg shrink-0" />
+                        }
+                        <span className="flex-1 text-[9px] font-bold truncate">{c.name}</span>
+                        {c.wins > 0 && <span className="text-[7px] font-black shrink-0" style={{ color: SERIES_COLOR }}>{c.wins}W</span>}
+                        <span className="text-[10px] font-black shrink-0 text-white/50">{c.points}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {/* SCHEDULE TAB */}
+          {activeSection === 'SCHEDULE' && (
+            <motion.div key="schedule" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              {upcoming.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                    <Calendar size={10} /> Upcoming
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {upcoming.slice(0, 9).map(race => {
+                      const trackType = isNascar ? nascarTrackType(`${race.venue} ${race.city}`) : '';
+                      return (
+                        <div key={race.id} style={{ borderColor: `${SERIES_COLOR}20` }}
+                          className="bg-white/[0.03] border rounded-[1.5rem] p-4 space-y-2 hover:bg-white/[0.06] transition-all">
+                          <p className="text-[9px] font-black leading-snug">{race.name}</p>
+                          <p className="text-[7px] font-bold text-white/30 flex items-center gap-1"><MapPin size={7} />{race.venue || race.city}</p>
+                          {trackType && (
+                            <span className="inline-flex text-[6px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                              style={{ background: `${SERIES_COLOR}20`, color: SERIES_COLOR }}>
+                              {trackType}
+                            </span>
+                          )}
+                          <p className="text-[7px] font-black flex items-center gap-1" style={{ color: SERIES_COLOR }}>
+                            <Clock size={7} />
+                            {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {recent.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                    <Clock size={10} /> Recent Results
+                  </h4>
+                  <div className="space-y-3">
+                    {recent.slice(0, 6).map(race => (
+                      <div key={race.id} className="bg-white/[0.03] border border-white/8 rounded-[1.5rem] p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[10px] font-black">{race.name}</p>
+                            <p className="text-[7px] text-white/30 mt-0.5 flex items-center gap-1"><MapPin size={6} />{race.city || race.venue}</p>
+                          </div>
+                          <span className="text-[7px] font-black text-white/20 shrink-0">
+                            {race.date ? new Date(race.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                          </span>
+                        </div>
+                        {race.results.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {race.results.slice(0, 3).map((r, i) => (
+                              <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5">
+                                <span className="text-[9px] w-4 shrink-0">{i === 0 ? '🏆' : i === 1 ? '🥈' : '🥉'}</span>
+                                {r.driverLogo && <img src={r.driverLogo} alt="" className="w-5 h-5 rounded-full object-cover opacity-75 shrink-0" loading="lazy" />}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[8px] font-bold truncate">{r.driverName}</p>
+                                  <p className="text-[6px] text-white/25 truncate">{r.teamName}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {upcoming.length === 0 && recent.length === 0 && (
+                <div className="py-12 text-center">
+                  <Calendar size={28} className="mx-auto text-white/10 mb-2" />
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Schedule loading…</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* 3D TRACKS TAB */}
+          {activeSection === 'TRACKS' && (
+            <motion.div key="tracks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <ErrorBoundary>
+                <Suspense fallback={
+                  <div className="flex items-center justify-center py-24">
+                    <div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" />
+                  </div>
+                }>
+                  <TrackMap3D series={tab as 'F1' | 'NASCAR' | 'INDYCAR'} />
+                </Suspense>
+              </ErrorBoundary>
+            </motion.div>
+          )}
+
+          {/* NEWS TAB */}
+          {activeSection === 'NEWS' && (
+            <motion.div key="news" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {news.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {news.slice(0, 10).map((article: any, i: number) => (
+                    <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
+                      className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
+                      {article.images?.[0]?.url && (
+                        <img src={article.images[0].url} alt=""
+                          className="w-16 h-12 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">
+                          {article.headline || article.title}
+                        </p>
+                        <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-1.5">
+                          {article.published ? new Date(article.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <Newspaper size={28} className="mx-auto text-white/10 mb-2" />
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20">News loading…</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* F1 TOOLS TAB */}
+          {activeSection === 'TOOLS' && isF1 && (
+            <motion.div key="tools" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onClick={() => setShowRaceReplay(true)}
+                  className="p-6 bg-[#E10600]/10 border border-[#E10600]/30 rounded-[2rem] hover:bg-[#E10600]/20 transition-all text-left space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#E10600]/20 flex items-center justify-center">
+                      <Activity size={16} className="text-[#E10600]" />
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#E10600]">Race Replay</span>
+                  </div>
+                  <p className="text-sm font-black leading-tight">Telemetry-Driven Race Replay</p>
+                  <p className="text-[8px] text-white/40 leading-relaxed">Animated GPS circuit map with real car positions from OpenF1. SVG circuit view and Leaflet satellite map. Focus any driver for live telemetry overlay.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-[#E10600]/20 text-[#E10600]">GPS Positions</span>
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-white/5 text-white/40">Satellite Map</span>
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-white/5 text-white/40">Car Data</span>
+                  </div>
+                </button>
+
+                <button onClick={() => setShowRaceHistory(true)}
+                  className="p-6 bg-white/[0.04] border border-white/10 rounded-[2rem] hover:bg-white/[0.07] hover:border-[#FF8C00]/30 transition-all text-left space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center">
+                      <History size={16} className="text-[#FF8C00]" />
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#FF8C00]">Deep Dive</span>
+                  </div>
+                  <p className="text-sm font-black leading-tight">Race History & Lap Analysis</p>
+                  <p className="text-[8px] text-white/40 leading-relaxed">Full season calendar, lap times per stint, tire strategy, pitstop analysis, speed traps, and driver comparisons from OpenF1.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-[#FF8C00]/15 text-[#FF8C00]">Lap Times</span>
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-white/5 text-white/40">Tire Strategy</span>
+                    <span className="text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-white/5 text-white/40">Pitstops</span>
+                  </div>
+                </button>
               </div>
-            </div>
-          )}
 
-          {schedule.length === 0 && standings.length === 0 && news.length === 0 && (
-            <div className="py-16 text-center space-y-4">
-              <Flag size={32} className="mx-auto text-white/10" />
-              <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">No {cfg.label} data available right now</p>
-            </div>
-          )}
-
-          {/* ── F1 Race Deep Dive (OpenF1 data) ───────────────────────────── */}
-          {tab === 'F1' && (
-            <div className="mt-4">
               <div className="border-t border-white/8 pt-6">
                 <div className="flex items-center gap-2 mb-5">
-                  <History size={14} className="text-[#FF8C00]" />
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/50">Race Deep Dive · OpenF1 Data</h4>
+                  <Radio size={13} className="text-[#E10600]" />
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/50">OpenF1 Data · Session Browser</h4>
                 </div>
-                <Suspense fallback={<div className="h-24 bg-white/5 rounded-2xl animate-pulse" />}>
+                <ErrorBoundary>
+                  <Suspense fallback={<div className="h-24 bg-white/5 rounded-2xl animate-pulse" />}>
+                    <RaceHistoryView tab="F1" />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      )}
+
+      {/* Race Replay full-screen overlay */}
+      <AnimatePresence>
+        {showRaceReplay && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#0a0a0a] overflow-hidden">
+            <ErrorBoundary>
+              <Suspense fallback={
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                  <div className="w-10 h-10 border-2 border-[#E10600]/20 border-t-[#E10600] rounded-full animate-spin" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Loading Race Replay…</p>
+                </div>
+              }>
+                <RaceReplayView onClose={() => setShowRaceReplay(false)} />
+              </Suspense>
+            </ErrorBoundary>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Race History full-screen overlay */}
+      <AnimatePresence>
+        {showRaceHistory && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-4 py-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">OpenF1 Data</p>
+                  <h2 className="text-2xl font-black uppercase tracking-tight">Race History & Analysis</h2>
+                </div>
+                <button onClick={() => setShowRaceHistory(false)}
+                  className="p-2.5 text-white/40 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" /></div>}>
                   <RaceHistoryView tab="F1" />
                 </Suspense>
-              </div>
+              </ErrorBoundary>
             </div>
-          )}
-        </>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </motion.div>
   );
 };

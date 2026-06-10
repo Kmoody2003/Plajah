@@ -3,6 +3,21 @@ import { Album, AppView, ThemeType, Game, IPWorld } from './types';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 
+// Suppress Firestore SDK internal assertion errors that occur during onSnapshot teardown.
+// This is a known Firestore SDK bug (ID: b815/ca9) where the watch stream delivers
+// a batched update after a listener's target has been removed from internal state.
+// The error fires asynchronously inside the SDK and cannot be caught by Error Boundaries.
+if (typeof window !== 'undefined') {
+  const _isFSAssertion = (msg?: string) =>
+    typeof msg === 'string' && msg.includes('FIRESTORE') && msg.includes('INTERNAL ASSERTION FAILED');
+  window.addEventListener('error', e => {
+    if (_isFSAssertion(e?.message)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  window.addEventListener('unhandledrejection', e => {
+    if (_isFSAssertion(e?.reason?.message)) { e.preventDefault(); }
+  });
+}
+
 // Standard lazy loading with retry logic for network stability
 const retryLazy = <T extends React.ComponentType<any>>(
   componentImport: () => Promise<{ default: T }>,
@@ -74,6 +89,8 @@ const FilmSchoolView = retryLazy(() => import('./components/FilmSchoolView'));
 const MathClassroom = retryLazy(() => import('./components/MathClassroom'));
 // Science & Engineering hub
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
+// Health & Fitness hub
+const PlajahHealthFitnessView = retryLazy(() => import('./components/PlajahHealthFitnessView'));
 // Plajah Research Manifesto
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
 // TV Studio — browser production switcher
@@ -206,7 +223,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -1545,6 +1562,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'VIDEOS', order: 3, isVisible: true },
                     { id: 'MOVIES_TV', order: 4.5, isVisible: true },
                     { id: 'PLAJAH_SPORTS', order: 4, isVisible: true },
+                    { id: 'HEALTH_FITNESS', order: 4.3, isVisible: true },
                     { id: 'ARTICLES', order: 5, isVisible: true },
                     { id: 'BOOKS', order: 6, isVisible: true },
                     { id: 'PLAJAH_LABS', order: 6.5, isVisible: true },
@@ -1596,6 +1614,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         VIDEOS: { label: 'Reello', icon: VideoIcon },
                         MOVIES_TV: { label: 'Taleo', icon: Film },
                         PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap },
+                        HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                         ARTICLES: { label: 'The Newstand', icon: Newspaper },
                         BOOKS: { label: 'Lorea', icon: BookOpen },
                         PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
@@ -1746,7 +1765,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
-                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
+                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
+                      ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
@@ -1773,7 +1793,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     const groups = [
                       { id: 'discover', label: 'Discover', ids: ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH'] },
                       { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS'] },
-                      { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'ARTICLES'] },
+                      { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
                       { id: 'creator', label: 'Creator Tools', ids: [...(user ? ['ARTIST_MANAGER', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN'] },
@@ -1826,7 +1846,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
-                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, ARTICLES: { label: 'The Newstand', icon: Newspaper },
+                      PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
+                      ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
@@ -1841,7 +1862,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', ...(user ? ['ARTIST_MANAGER', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', ...(user ? ['ARTIST_MANAGER', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -2185,6 +2206,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onNavigate={setView}
                   onVisitUser={handleVisitUser}
                 />
+              </Suspense>
+            )}
+
+            {view === 'HEALTH_FITNESS' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-[#E63946]/30 border-t-[#E63946] rounded-full animate-spin" /></div>}>
+                <PlajahHealthFitnessView currentUser={userProfile} />
               </Suspense>
             )}
 

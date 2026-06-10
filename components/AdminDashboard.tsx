@@ -90,6 +90,8 @@ import FileUploader from './FileUploader';
 import { ThemePresetManager } from './ThemePresetManager';
 import { AdminLiveFeedsManager } from './AdminLiveFeedsManager';
 import AdminLandingBgManager from './AdminLandingBgManager';
+import AdminClubCoverMediaManager from './AdminClubCoverMediaManager';
+import AdminSiteHealth from './AdminSiteHealth';
 import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
 import AdminSportsAgentsPanel from './AdminSportsAgentsPanel';
 
@@ -100,7 +102,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   
@@ -505,7 +507,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
         <nav className="flex-1 space-y-2">
           {[
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
-            { id: 'STATS', label: 'Site Health', icon: Activity },
+            { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
+            { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
             { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
@@ -514,6 +517,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
             { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
             { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
+            { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
             { id: 'CURATED', label: 'Curated Content', icon: Sparkles },
             { id: 'FEATURES', label: 'Feature Toggles', icon: Zap },
             { id: 'MAINTENANCE', label: 'Maintenance', icon: Settings },
@@ -1153,6 +1157,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                 className="max-w-5xl"
               >
                 <AdminLandingBgManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'CLUB_COVER_MEDIA' && (
+              <motion.div
+                key="clubCoverMedia"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminClubCoverMediaManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'SITE_HEALTH' && (
+              <motion.div
+                key="siteHealth"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-5xl"
+              >
+                <AdminSiteHealth />
               </motion.div>
             )}
 

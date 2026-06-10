@@ -19,8 +19,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Pause, SkipBack, SkipForward, ChevronDown,
   Flag, Zap, Clock, Gauge, AlertTriangle, Wind,
-  ChevronLeft, ChevronRight, RefreshCw,
+  ChevronLeft, ChevronRight, RefreshCw, Map as MapIcon, Layers,
 } from 'lucide-react';
+import { CircuitMapView, type CarPosition } from './CircuitMapView';
 import {
   fetchF1SeasonCalendar, fetchF1SessionsByMeeting, fetchF1Drivers,
   fetchF1Pit, fetchF1Stints, fetchF1Laps, fetchF1RaceResult, fetchF1Weather,
@@ -384,6 +385,7 @@ export const RaceReplayView: React.FC<RaceReplayViewProps> = ({ onClose }) => {
   const [isPlaying, setIsPlaying]       = useState(false);
   const [playSpeed, setPlaySpeed]       = useState(5); // 5× real-time default
   const [focusedDriver, setFocused]     = useState<number | undefined>(undefined);
+  const [mapMode, setMapMode]           = useState<'svg' | 'satellite'>('svg');
   const [loading, setLoading]           = useState(false);
   const animRef                         = useRef<number | null>(null);
   const lastTickRef                     = useRef<number>(0);
@@ -542,6 +544,35 @@ export const RaceReplayView: React.FC<RaceReplayViewProps> = ({ onClose }) => {
 
   const circuitInfo = getCircuitInfo(selectedMeeting?.meeting?.circuit_short_name ?? '');
 
+  // Raw x/y positions for CircuitMapView (Leaflet satellite map)
+  const carPositionsForMap = useMemo<CarPosition[]>(() => {
+    if (!locations.length || !result.length) return [];
+    const locsByDriver = new Map<number, F1Location[]>();
+    for (const loc of locations) {
+      if (!locsByDriver.has(loc.driver_number)) locsByDriver.set(loc.driver_number, []);
+      locsByDriver.get(loc.driver_number)!.push(loc);
+    }
+    const target = new Date(currentAbsMs).toISOString();
+    return result.map(r => {
+      const driverLocs = locsByDriver.get(r.driver_number);
+      if (!driverLocs?.length) return null;
+      let lo = 0, hi = driverLocs.length - 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (driverLocs[mid].date < target) lo = mid + 1; else hi = mid;
+      }
+      const loc = driverLocs[Math.min(lo, driverLocs.length - 1)];
+      return {
+        driverNumber: r.driver_number,
+        x: loc.x,
+        y: loc.y,
+        color: `#${drivers.find(d => d.driver_number === r.driver_number)?.team_colour ?? 'FF8C00'}`,
+        acronym: driverAcronyms.get(r.driver_number) ?? `${r.driver_number}`,
+        isFocused: focusedDriver === r.driver_number,
+      } as CarPosition;
+    }).filter(Boolean) as CarPosition[];
+  }, [locations, result, currentAbsMs, drivers, driverAcronyms, focusedDriver]);
+
   // Current driver telemetry (lap-based estimate)
   const driverTelemetry = useMemo(() => {
     const currentLapNum = Math.max(1, Math.floor(currentTimeMs / (raceDurationMs / Math.max(1, ...result.map(r => r.total_laps)))));
@@ -624,35 +655,71 @@ export const RaceReplayView: React.FC<RaceReplayViewProps> = ({ onClose }) => {
               </p>
             </div>
 
-            {/* 2D circuit with cars */}
-            {circuitInfo ? (
-              <div className="relative">
-                <CircuitReplayMap
-                  circuit={circuitInfo}
-                  driverPositions={driverPositions}
-                  driverColors={driverColors}
-                  driverAcronyms={driverAcronyms}
-                  focusedDriver={focusedDriver}
-                  width={360}
-                  height={360}
-                />
-                {loadingLocations && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl">
-                    <div className="space-y-2 text-center">
-                      <div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin mx-auto" />
-                      <p className="text-[7px] font-black uppercase tracking-widest text-white/50">Loading GPS…</p>
+            {/* Map mode toggle */}
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-0.5">
+              <button
+                onClick={() => setMapMode('svg')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${mapMode === 'svg' ? 'bg-[#FF8C00] text-black' : 'text-white/40 hover:text-white'}`}
+              >
+                <Layers size={9} /> SVG
+              </button>
+              <button
+                onClick={() => setMapMode('satellite')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${mapMode === 'satellite' ? 'bg-[#FF8C00] text-black' : 'text-white/40 hover:text-white'}`}
+              >
+                <MapIcon size={9} /> Satellite
+              </button>
+            </div>
+
+            {/* Circuit view — SVG or Leaflet satellite */}
+            <AnimatePresence mode="wait">
+              {mapMode === 'svg' ? (
+                <motion.div key="svg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative">
+                  {circuitInfo ? (
+                    <>
+                      <CircuitReplayMap
+                        circuit={circuitInfo}
+                        driverPositions={driverPositions}
+                        driverColors={driverColors}
+                        driverAcronyms={driverAcronyms}
+                        focusedDriver={focusedDriver}
+                        width={360}
+                        height={360}
+                      />
+                      {loadingLocations && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl">
+                          <div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin mx-auto" />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-72 h-72 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center">
+                      <div className="text-center space-y-2">
+                        <Flag size={32} className="mx-auto text-[#FF8C00]/30" />
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/25">Circuit map not available</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-72 h-72 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center">
-                <div className="text-center space-y-2">
-                  <Flag size={32} className="mx-auto text-[#FF8C00]/30" />
-                  <p className="text-[8px] font-black uppercase tracking-widest text-white/25">Circuit map not available</p>
-                </div>
-              </div>
-            )}
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div key="satellite" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="w-full max-w-sm rounded-[2rem] overflow-hidden border border-white/10"
+                  style={{ height: 360 }}>
+                  {selectedMeeting?.meeting?.circuit_short_name ? (
+                    <CircuitMapView
+                      circuitShortName={selectedMeeting.meeting.circuit_short_name}
+                      carPositions={carPositionsForMap}
+                      onDriverClick={num => setFocused(f => f === num ? undefined : num)}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-white/5">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/25">Select a race first</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Timeline */}
             <div className="w-full max-w-sm">

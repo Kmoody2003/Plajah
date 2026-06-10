@@ -47,6 +47,25 @@ async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<an
 }
 
 const ESPN_SOURCE_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
+// ESPN moved standings/leaders/athlete-stats off the site API — these hosts carry them now.
+const ESPN_WEB = 'https://site.web.api.espn.com/apis';
+const ESPN_CORE = 'https://sports.core.api.espn.com/v2/sports';
+
+// Resolve ESPN core-API `$ref` URLs with bounded concurrency (core responses link
+// athletes/teams by reference instead of embedding them).
+async function resolveRefs<T = any>(refs: string[], concurrency = 8): Promise<(T | null)[]> {
+  const out: (T | null)[] = new Array(refs.length).fill(null);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, refs.length) }, async () => {
+    while (next < refs.length) {
+      const i = next++;
+      const url = refs[i].replace('http://', 'https://');
+      out[i] = await safeFetch(url, `ref:${url}`, TTL.roster);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 // ---------- league config --------------------------------------------------
 export type LeagueTab =
@@ -533,7 +552,8 @@ export async function fetchLeagueStandings(tab: string): Promise<any[]> {
   const cached = fromCache(key, TTL.standings);
   if (cached) return cached;
 
-  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/standings`;
+  // site.api.espn.com no longer returns standings entries — site.web.api still does
+  const sourceUrl = `${ESPN_WEB}/v2/sports/${cfg.sport}/${cfg.league}/standings`;
   const data = await safeFetch(sourceUrl);
   // ESPN standings: data.children = [ { name: 'Eastern', standings: { entries: [] } } ]
   const groups = data?.children ?? (data?.standings?.entries ? [data] : stored?.data ?? []);
@@ -808,9 +828,9 @@ async function fetchWikiSummary(title: string): Promise<string> {
 export type RacingTab = 'F1' | 'NASCAR' | 'INDYCAR';
 
 const RACING: Record<RacingTab, { sport: string; league: string; label: string }> = {
-  F1:      { sport: 'racing', league: 'f1',                label: 'Formula 1' },
-  NASCAR:  { sport: 'racing', league: 'nascar-cup-series', label: 'NASCAR Cup' },
-  INDYCAR: { sport: 'racing', league: 'irl',               label: 'IndyCar' },
+  F1:      { sport: 'racing', league: 'f1',             label: 'Formula 1' },
+  NASCAR:  { sport: 'racing', league: 'nascar-premier', label: 'NASCAR Cup' },  // ESPN retired the 'nascar-cup-series' slug
+  INDYCAR: { sport: 'racing', league: 'irl',            label: 'IndyCar' },
 };
 
 export function getRacingCfg(tab: string) {
@@ -894,7 +914,7 @@ export async function fetchRacingStandings(tab: string): Promise<RacingStanding[
   const c = fromCache(key, TTL.standings);
   if (c) return c;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/standings`);
+  const data = await safeFetch(`${ESPN_WEB}/v2/sports/${cfg.sport}/${cfg.league}/standings`);
   const entries: any[] = data?.children?.[0]?.standings?.entries
     ?? data?.standings?.entries
     ?? [];
@@ -924,9 +944,107 @@ export async function fetchRacingNews(tab: string): Promise<any[]> {
   if (c) return c;
 
   const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/news?limit=20`);
-  const articles = data?.articles ?? [];
+  let articles = data?.articles ?? [];
+  // ESPN's nascar-premier news feed is empty — fall back to motorsport RSS
+  if (articles.length === 0) {
+    try {
+      const { fetchNewsFromRSS } = await import('./rssService');
+      const rssCategory = tab === 'F1' ? 'SPORTS_F1' : tab === 'INDYCAR' ? 'SPORTS_INDYCAR' : 'SPORTS_NASCAR';
+      const rss = await fetchNewsFromRSS(rssCategory);
+      articles = rss.map((item: any) => normalizeArticle(item, cfg.label));
+    } catch { /* keep empty */ }
+  }
   toCache(key, articles);
   return articles;
+}
+
+// ─── RACING DRIVERS & CONSTRUCTORS ──────────────────────────────────────────
+
+export interface RacingDriver {
+  id: string;
+  name: string;
+  number: string;       // car number — primary identity for NASCAR/IndyCar
+  teamName: string;
+  manufacturer: string; // Chevy/Toyota/Ford (NASCAR), Honda/Chevy (IndyCar)
+  nationality: string;
+  headshot: string;
+  teamColor: string;
+  teamLogo: string;
+}
+
+export interface RacingConstructor {
+  id: string;
+  name: string;
+  abbreviation: string;
+  logo: string;
+  color: string;
+  wins: number;
+  points: number;
+  rank: number;
+}
+
+export async function fetchRacingDrivers(tab: string): Promise<RacingDriver[]> {
+  const cfg = getRacingCfg(tab);
+  if (!cfg) return [];
+  const key = `racing:drivers:${tab}`;
+  const c = fromCache(key, TTL.teams);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/athletes?limit=80&active=true`);
+  const items: any[] = data?.items ?? data?.athletes ?? [];
+  if (!items.length) { toCache(key, []); return []; }
+
+  const drivers: RacingDriver[] = items.slice(0, 60).map((a: any) => ({
+    id: a.id ?? '',
+    name: a.displayName ?? a.fullName ?? '',
+    number: a.jersey ?? '',
+    teamName: a.team?.displayName ?? a.team?.shortDisplayName ?? '',
+    manufacturer: a.team?.manufacturer?.displayName ?? '',
+    nationality: a.citizenship ?? a.birthPlace?.country ?? '',
+    headshot: a.headshot?.href ?? '',
+    teamColor: a.team?.color ? `#${a.team.color}` : '#FF8C00',
+    teamLogo: a.team?.logos?.[0]?.href ?? '',
+  }));
+
+  toCache(key, drivers);
+  return drivers;
+}
+
+export async function fetchRacingConstructors(tab: string): Promise<RacingConstructor[]> {
+  const cfg = getRacingCfg(tab);
+  if (!cfg) return [];
+  const key = `racing:constructors:${tab}`;
+  const c = fromCache(key, TTL.standings);
+  if (c) return c;
+
+  const data = await safeFetch(`${ESPN_WEB}/v2/sports/${cfg.sport}/${cfg.league}/standings`);
+  const children: any[] = data?.children ?? [];
+
+  // F1: children[1] = constructor standings
+  // NASCAR: find the group named "manufacturer"
+  // IndyCar: children[1] if it exists
+  const constructorGroup = tab === 'NASCAR'
+    ? children.find((g: any) => /manufacturer/i.test(g.name ?? '')) ?? children[1]
+    : children[1];
+
+  const entries: any[] = constructorGroup?.standings?.entries ?? [];
+  const result: RacingConstructor[] = entries.slice(0, 15).map((e: any, i: number) => {
+    const stats = e.stats ?? [];
+    const get = (n: string) => stats.find((s: any) => s.name === n)?.value ?? 0;
+    return {
+      id: e.team?.id ?? e.athlete?.id ?? `${i}`,
+      name: e.team?.displayName ?? e.athlete?.displayName ?? `Team ${i + 1}`,
+      abbreviation: e.team?.abbreviation ?? '',
+      logo: e.team?.logos?.[0]?.href ?? '',
+      color: e.team?.color ? `#${e.team.color}` : '#FF8C00',
+      wins: get('wins') || 0,
+      points: get('points') || 0,
+      rank: i + 1,
+    };
+  });
+
+  toCache(key, result);
+  return result;
 }
 
 // ─── LEAGUE LEADERS ─────────────────────────────────────────────────────────
@@ -958,21 +1076,29 @@ export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]>
   const c = fromCache(key, TTL.standings);
   if (c) return c;
 
+  const stored = await readSportsKnowledge<LeaderCategory[]>('sports_league_leaders', makeSportsDocId(tab, 'current'), TTL.standings);
+  if (stored?.data?.length) { toCache(key, stored.data); return stored.data; }
+
   try {
-    const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/leaders`);
+    // The site API /leaders endpoint now 404s — use the core API and resolve refs.
+    const season = new Date().getFullYear();
+    let data = await safeFetch(`${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season}/types/2/leaders?limit=5`);
+    if (!Array.isArray(data?.categories) || data.categories.length === 0) {
+      data = await safeFetch(`${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season - 1}/types/2/leaders?limit=5`);
+    }
     if (!Array.isArray(data?.categories)) return [];
 
     const PRIORITY: Record<string, string[]> = {
       NBA:  ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
       NFL:  ['passingYards', 'rushingYards', 'receivingYards', 'sacks'],
       NHL:  ['points', 'goals', 'assists', 'plusMinus'],
-      MLB:  ['battingAvg', 'homeRuns', 'rbi', 'era'],
+      MLB:  ['battingAvg', 'homeRuns', 'RBIs', 'ERA'],
       NCAA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
       WNBA: ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'blocksPerGame'],
     };
     const priority = PRIORITY[tab] ?? [];
 
-    const cats: LeaderCategory[] = (data.categories as any[])
+    const rawCats = (data.categories as any[])
       .filter((cat: any) => priority.length === 0 || priority.includes(cat.name))
       .sort((a: any, b: any) => {
         const ai = priority.indexOf(a.name);
@@ -980,22 +1106,40 @@ export async function fetchLeagueLeaders(tab: string): Promise<LeaderCategory[]>
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       })
       .slice(0, 4)
-      .map((cat: any) => ({
-        name: cat.name,
-        displayName: cat.displayName || cat.name,
-        shortName: cat.shortDisplayName || cat.abbreviation || cat.name,
-        leaders: (cat.leaders ?? []).slice(0, 5).map((l: any) => ({
-          athleteId: String(l.athlete?.id ?? ''),
-          name: l.athlete?.displayName ?? l.athlete?.fullName ?? 'Unknown',
-          photo: l.athlete?.headshot?.href ?? '',
-          teamAbbr: l.athlete?.team?.abbreviation ?? l.team?.abbreviation ?? '',
-          teamLogo: l.athlete?.team?.logos?.[0]?.href ?? '',
+      .map((cat: any) => ({ ...cat, leaders: (cat.leaders ?? []).slice(0, 5) }));
+
+    // Core API links athletes/teams by $ref — resolve them all in one bounded pass
+    const athleteRefs = rawCats.flatMap((c: any) => c.leaders.map((l: any) => l.athlete?.$ref ?? ''));
+    const teamRefs    = rawCats.flatMap((c: any) => c.leaders.map((l: any) => l.team?.$ref ?? ''));
+    const [athletes, teams] = await Promise.all([resolveRefs(athleteRefs), resolveRefs(teamRefs)]);
+
+    let cursor = 0;
+    const cats: LeaderCategory[] = rawCats.map((cat: any) => ({
+      name: cat.name,
+      displayName: cat.displayName || cat.name,
+      shortName: cat.shortDisplayName || cat.abbreviation || cat.name,
+      leaders: cat.leaders.map((l: any) => {
+        const athlete: any = athletes[cursor];
+        const team: any = teams[cursor];
+        cursor++;
+        return {
+          athleteId: String(athlete?.id ?? ''),
+          name: athlete?.displayName ?? athlete?.fullName ?? 'Unknown',
+          photo: athlete?.headshot?.href ?? '',
+          teamAbbr: team?.abbreviation ?? '',
+          teamLogo: team?.logos?.[0]?.href ?? '',
           value: l.value ?? 0,
           displayValue: l.displayValue ?? String(l.value ?? 0),
-        })),
-      }));
+        };
+      }).filter((l: LeaderEntry) => l.athleteId),
+    })).filter((c: LeaderCategory) => c.leaders.length > 0);
 
     toCache(key, cats);
+    if (cats.length) {
+      writeSportsKnowledge('sports_league_leaders', makeSportsDocId(tab, 'current'), cats, [
+        sportsSource('ESPN', `${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season}/types/2/leaders`, `${tab} current leaders`),
+      ], ['sports', tab, 'leaders', 'current'], 'HIGH').catch(() => {});
+    }
     return cats;
   } catch {
     return [];
@@ -1011,9 +1155,25 @@ export async function fetchPlayerProfile(tab: string, athleteId: string): Promis
   const c = fromCache(key, TTL.roster);
   if (c !== null) return c;
   const stored = await readSportsKnowledge<any>('sports_player_profiles', makeSportsDocId(tab, athleteId), TTL.roster);
-  const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/athletes/${athleteId}`;
-  const data = await safeFetch(sourceUrl);
+
+  // Bio from the common v3 athlete endpoint; current-season stats from the core
+  // API (the old site-API athlete endpoint no longer carries either reliably).
+  const season = new Date().getFullYear();
+  const sourceUrl = `${ESPN_WEB}/common/v3/sports/${cfg.sport}/${cfg.league}/athletes/${athleteId}`;
+  const [data, statsNow, statsPrev] = await Promise.all([
+    safeFetch(sourceUrl),
+    safeFetch(`${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season}/types/2/athletes/${athleteId}/statistics`),
+    safeFetch(`${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season - 1}/types/2/athletes/${athleteId}/statistics`),
+  ]);
+
   const profile = data?.athlete ?? stored?.data ?? null;
+  if (profile) {
+    const splits = statsNow?.splits?.categories?.length ? statsNow.splits
+      : statsPrev?.splits?.categories?.length ? statsPrev.splits
+      : profile.statistics?.splits ?? null;
+    if (splits) profile.statistics = { ...(profile.statistics ?? {}), splits };
+  }
+
   toCache(key, profile);
   if (profile) {
     writeSportsKnowledge('sports_player_profiles', makeSportsDocId(tab, athleteId), profile, [
@@ -1021,6 +1181,98 @@ export async function fetchPlayerProfile(tab: string, athleteId: string): Promis
     ], ['sports', tab, 'player', athleteId], 'HIGH').catch(() => {});
   }
   return profile;
+}
+
+// ─── PLAYER CAREER TABLE (season-by-season stats + roster history) ─────────
+// Backed by ESPN's common v3 /stats endpoint: every season the athlete played,
+// which team they were on, and per-season stat lines. This powers career stats
+// on profile cards and team-by-team roster history.
+
+export interface CareerSeasonRow {
+  year: number;
+  seasonDisplay: string;   // "2003-04"
+  teamId: string;
+  teamAbbr: string;
+  teamName: string;
+  stats: string[];         // aligned with CareerCategory.labels
+}
+
+export interface CareerCategory {
+  name: string;            // 'averages' | 'totals' | ...
+  displayName: string;
+  labels: string[];        // ["GP", "PTS", ...]
+  names: string[];         // ["gamesPlayed", ...]
+  displayNames: string[];
+  seasons: CareerSeasonRow[];
+  careerTotals?: string[]; // career summary row, aligned with labels
+}
+
+export interface PlayerCareer {
+  athleteId: string;
+  categories: CareerCategory[];
+  /** Roster history: every team the athlete appeared for, with season ranges */
+  teamHistory: { teamId: string; teamName: string; teamAbbr: string; color: string; seasons: string[] }[];
+}
+
+export async function fetchPlayerCareer(tab: string, athleteId: string): Promise<PlayerCareer | null> {
+  const cfg = getLeagueCfg(tab);
+  if (!cfg) return null;
+  const key = `career:${tab}:${athleteId}`;
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+  const docId = makeSportsDocId(tab, athleteId, 'career');
+  const stored = await readSportsKnowledge<PlayerCareer>('sports_player_stats', docId, TTL.teams);
+
+  const sourceUrl = `${ESPN_WEB}/common/v3/sports/${cfg.sport}/${cfg.league}/athletes/${athleteId}/stats`;
+  const data = await safeFetch(sourceUrl);
+  if (!Array.isArray(data?.categories) || data.categories.length === 0) return stored?.data ?? null;
+
+  const teamsMap: Record<string, any> = data.teams ?? {};
+  const teamBySlugOrId = (row: any) => teamsMap[row.teamSlug] ?? Object.values(teamsMap).find((t: any) => t.id === row.teamId) ?? null;
+
+  const categories: CareerCategory[] = (data.categories as any[]).map((cat: any) => ({
+    name: cat.name,
+    displayName: cat.displayName || cat.name,
+    labels: cat.labels ?? [],
+    names: cat.names ?? [],
+    displayNames: cat.displayNames ?? [],
+    seasons: (cat.statistics ?? []).map((row: any) => {
+      const team = teamBySlugOrId(row);
+      return {
+        year: row.season?.year ?? 0,
+        seasonDisplay: row.season?.displayName ?? String(row.season?.year ?? ''),
+        teamId: String(row.teamId ?? team?.id ?? ''),
+        teamAbbr: team?.abbreviation ?? '',
+        teamName: team?.displayName ?? '',
+        stats: row.stats ?? [],
+      };
+    }),
+    careerTotals: cat.totals ?? cat.career?.stats ?? undefined,
+  }));
+
+  // Derive roster history from the primary category's season rows
+  const primary = categories[0];
+  const historyMap = new Map<string, { teamId: string; teamName: string; teamAbbr: string; color: string; seasons: string[] }>();
+  for (const row of primary?.seasons ?? []) {
+    if (!row.teamId) continue;
+    const team: any = Object.values(teamsMap).find((t: any) => String(t.id) === row.teamId) ?? {};
+    const entry = historyMap.get(row.teamId) ?? {
+      teamId: row.teamId,
+      teamName: row.teamName || team.displayName || '',
+      teamAbbr: row.teamAbbr || team.abbreviation || '',
+      color: team.color ? `#${team.color}` : '#333333',
+      seasons: [],
+    };
+    entry.seasons.push(row.seasonDisplay);
+    historyMap.set(row.teamId, entry);
+  }
+
+  const career: PlayerCareer = { athleteId, categories, teamHistory: [...historyMap.values()] };
+  toCache(key, career);
+  writeSportsKnowledge('sports_player_stats', docId, career, [
+    sportsSource('ESPN', sourceUrl, `${tab} player career ${athleteId}`),
+  ], ['sports', tab, 'player_career', athleteId], 'HIGH').catch(() => {});
+  return career;
 }
 
 // ─── TEAM FULL SCHEDULE ─────────────────────────────────────────────────────
@@ -1063,8 +1315,36 @@ export async function fetchTeamRosterForSeason(
   const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/teams/${resolvedTeamId}/roster?season=${season}`;
   const data = await safeFetch(sourceUrl);
   const rawAthletes: any[] = data?.athletes ?? [];
-  const roster = parseRosterAthletes(rawAthletes);
-  const finalRoster = roster.length ? roster : (stored?.data ?? []);
+  let roster = parseRosterAthletes(rawAthletes);
+
+  // The site API ignores ?season= for pro leagues (returns empty groups or group
+  // skeletons for past years). The core API keeps full historical rosters — fetch
+  // the season's athlete refs and resolve them into the same grouped shape.
+  const totalAthletes = roster.reduce((s, g) => s + g.athletes.length, 0);
+  if (totalAthletes === 0) {
+    const coreUrl = `${ESPN_CORE}/${cfg.sport}/leagues/${cfg.league}/seasons/${season}/teams/${resolvedTeamId}/athletes?limit=200`;
+    const core = await safeFetch(coreUrl, `coreroster:${tab}:${resolvedTeamId}:${season}`, TTL.roster);
+    const refs: string[] = (core?.items ?? []).map((i: any) => i.$ref).filter(Boolean);
+    if (refs.length) {
+      const resolved = (await resolveRefs(refs)).filter(Boolean) as any[];
+      const athletes = resolved.map((a: any) => ({
+        id: String(a.id),
+        displayName: a.displayName ?? a.fullName ?? '',
+        fullName: a.fullName ?? a.displayName ?? '',
+        jersey: a.jersey ?? '',
+        position: a.position ? { name: a.position.name, abbreviation: a.position.abbreviation, displayName: a.position.displayName } : undefined,
+        headshot: a.headshot ? { href: a.headshot.href } : undefined,
+        displayHeight: a.displayHeight ?? '',
+        displayWeight: a.displayWeight ?? '',
+        dateOfBirth: a.dateOfBirth ?? '',
+        birthPlace: a.birthPlace,
+        experience: a.experience,
+      }));
+      roster = parseRosterAthletes(athletes);
+    }
+  }
+
+  const finalRoster = roster.some(g => g.athletes.length > 0) ? roster : (stored?.data ?? []);
   if (finalRoster.length > 0) {
     toCache(key, finalRoster);
     writeSportsKnowledge('sports_team_rosters', makeSportsDocId(tab, resolvedTeamId, season), finalRoster, [

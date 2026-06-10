@@ -4,12 +4,12 @@ import {
   ArrowLeft, Plus, Trash2, Download, Share2, Tag, Calendar,
   ChevronRight, FlaskConical, BookOpen, Microscope, Brain,
   Lightbulb, Database, FileText, Edit3, Check, X, Copy,
-  Search, Filter, Bookmark, Clock,
+  Search, Filter, Bookmark, Clock, Link2, ExternalLink,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type EntryType = 'NOTE' | 'EXPERIMENT' | 'OBSERVATION' | 'HYPOTHESIS' | 'DATA';
+export type EntryType = 'NOTE' | 'EXPERIMENT' | 'OBSERVATION' | 'HYPOTHESIS' | 'DATA' | 'LINK';
 
 export interface ExperimentFields {
   hypothesis: string;
@@ -19,12 +19,20 @@ export interface ExperimentFields {
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
+export interface BookmarkSource {
+  url: string;
+  thumbnail?: string;
+  name?: string;
+  leagueId?: string;
+}
+
 export interface NotebookEntry {
   id: string;
   type: EntryType;
   title: string;
   content: string;
   experiment?: ExperimentFields;
+  bookmarkSource?: BookmarkSource;
   tags: string[];
   discipline?: string;
   createdAt: number;
@@ -36,12 +44,13 @@ export interface NotebookEntry {
 
 const uid_short = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
-const TYPE_META: Record<EntryType, { label: string; icon: React.ElementType; color: string; desc: string }> = {
+const TYPE_META: Record<EntryType, { label: string; icon: React.ElementType; color: string; desc: string; scienceOnly?: boolean }> = {
   NOTE:        { label: 'Note',         icon: FileText,   color: '#60a5fa', desc: 'General research note or literature summary' },
-  EXPERIMENT:  { label: 'Experiment',   icon: FlaskConical, color: '#06D6A0', desc: 'Structured experiment with hypothesis, method, results' },
+  LINK:        { label: 'Bookmark',     icon: Bookmark,   color: '#FF8C00', desc: 'Bookmarked article, link, or resource' },
   OBSERVATION: { label: 'Observation',  icon: Microscope, color: '#fbbf24', desc: 'Direct observation or field log entry' },
-  HYPOTHESIS:  { label: 'Hypothesis',   icon: Lightbulb,  color: '#a78bfa', desc: 'Testable prediction or theoretical proposition' },
-  DATA:        { label: 'Dataset',      icon: Database,   color: '#34d399', desc: 'Raw data deposit or dataset description' },
+  HYPOTHESIS:  { label: 'Hypothesis',   icon: Lightbulb,  color: '#a78bfa', desc: 'Testable prediction or theoretical proposition', scienceOnly: true },
+  EXPERIMENT:  { label: 'Experiment',   icon: FlaskConical, color: '#06D6A0', desc: 'Structured experiment with hypothesis, method, results', scienceOnly: true },
+  DATA:        { label: 'Dataset',      icon: Database,   color: '#34d399', desc: 'Raw data deposit or dataset description', scienceOnly: true },
 };
 
 const CONFIDENCE_META = {
@@ -131,10 +140,29 @@ const EntryEditor: React.FC<{
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+        {/* Bookmark source preview for LINK entries */}
+        {entry.type === 'LINK' && entry.bookmarkSource && (
+          <div className="flex gap-3 p-3 bg-[#FF8C00]/5 border border-[#FF8C00]/20 rounded-2xl">
+            {entry.bookmarkSource.thumbnail && (
+              <img src={entry.bookmarkSource.thumbnail} alt="" className="w-20 h-16 rounded-xl object-cover shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              {entry.bookmarkSource.name && (
+                <p className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00] mb-1">{entry.bookmarkSource.name}</p>
+              )}
+              <a href={entry.bookmarkSource.url} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1.5 text-[10px] font-black text-white/70 hover:text-white truncate transition-colors">
+                <Link2 size={10} className="shrink-0 text-[#FF8C00]" />
+                <span className="truncate">{entry.bookmarkSource.url}</span>
+                <ExternalLink size={9} className="shrink-0 text-white/30" />
+              </a>
+            </div>
+          </div>
+        )}
         {/* Content */}
         <div>
           <label className="block text-[8px] font-black uppercase tracking-widest text-white/25 mb-2">
-            {entry.type === 'EXPERIMENT' ? 'Notes & Context' : 'Content'}
+            {entry.type === 'EXPERIMENT' ? 'Notes & Context' : entry.type === 'LINK' ? 'Notes' : 'Content'}
           </label>
           <textarea
             ref={textRef}
@@ -208,19 +236,33 @@ const EntryEditor: React.FC<{
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+export interface NotebookInitialEntry {
+  title: string;
+  content?: string;
+  bookmarkSource?: BookmarkSource;
+  tags?: string[];
+}
+
 interface Props {
   currentUser: any;
   onBack: () => void;
+  context?: 'labs' | 'sports' | 'general';
+  storageKeyOverride?: string;
+  initialEntry?: NotebookInitialEntry;
 }
 
-const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
+const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', storageKeyOverride, initialEntry }) => {
   const [entries, setEntries] = useState<NotebookEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<EntryType | 'ALL'>('ALL');
   const [copied, setCopied] = useState(false);
+  const initialEntryApplied = useRef(false);
 
-  const storageKey = `labsNotebook_${currentUser?.uid ?? 'guest'}`;
+  const storageKey = storageKeyOverride ?? `plajahNotebook_${currentUser?.uid ?? 'guest'}`;
+  const visibleTypes = (Object.keys(TYPE_META) as EntryType[]).filter(t =>
+    context === 'labs' ? true : !TYPE_META[t].scienceOnly
+  );
 
   useEffect(() => {
     try { const s = localStorage.getItem(storageKey); if (s) setEntries(JSON.parse(s)); } catch {}
@@ -230,14 +272,36 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
     setEntries(updated); localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
-  const createEntry = (type: EntryType) => {
+  const createEntry = (type: EntryType, preset?: Partial<NotebookEntry>) => {
     const entry: NotebookEntry = {
-      id: uid_short(), type, title: '', content: '',
-      tags: [], createdAt: Date.now(), updatedAt: Date.now(),
+      id: uid_short(), type, title: preset?.title ?? '', content: preset?.content ?? '',
+      tags: preset?.tags ?? [], createdAt: Date.now(), updatedAt: Date.now(),
+      bookmarkSource: preset?.bookmarkSource,
       experiment: type === 'EXPERIMENT' ? { hypothesis: '', method: '', results: '', conclusion: '', confidence: 'MEDIUM' } : undefined,
     };
     const updated = [entry, ...entries]; save(updated); setSelectedId(entry.id);
   };
+
+  // Create pre-filled LINK entry from initialEntry prop (once per mount)
+  useEffect(() => {
+    if (!initialEntry || initialEntryApplied.current) return;
+    initialEntryApplied.current = true;
+    const stored = localStorage.getItem(storageKey);
+    const existingEntries: NotebookEntry[] = stored ? JSON.parse(stored) : [];
+    const entry: NotebookEntry = {
+      id: uid_short(), type: 'LINK',
+      title: initialEntry.title,
+      content: initialEntry.content ?? '',
+      tags: initialEntry.tags ?? [],
+      bookmarkSource: initialEntry.bookmarkSource,
+      createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    const updated = [entry, ...existingEntries];
+    setEntries(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    setSelectedId(entry.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateEntry = (entry: NotebookEntry) => save(entries.map(e => e.id === entry.id ? entry : e));
   const deleteEntry = (id: string) => { save(entries.filter(e => e.id !== id)); setSelectedId(null); };
@@ -249,8 +313,9 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
 
   const filtered = entries.filter(e => {
     const matchType = filterType === 'ALL' || e.type === filterType;
+    const matchVisible = visibleTypes.includes(e.type) || context === 'labs';
     const matchSearch = !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.content.toLowerCase().includes(search.toLowerCase()) || e.tags.some(t => t.includes(search.toLowerCase()));
-    return matchType && matchSearch;
+    return matchType && matchVisible && matchSearch;
   });
 
   const selected = entries.find(e => e.id === selectedId) ?? null;
@@ -262,10 +327,14 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
         <button onClick={onBack} className="text-white/30 hover:text-white transition-colors"><ArrowLeft size={16} /></button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <BookOpen size={15} className="text-[#60a5fa]" />
-            <h1 className="font-black text-white text-sm">Lab Notebook</h1>
+            <BookOpen size={15} className={context === 'sports' ? 'text-[#FF8C00]' : context === 'general' ? 'text-[#a78bfa]' : 'text-[#60a5fa]'} />
+            <h1 className="font-black text-white text-sm">
+              {context === 'sports' ? 'Research Notebook' : context === 'general' ? 'Research Notebook' : 'Lab Notebook'}
+            </h1>
           </div>
-          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">{entries.length} entries · Plajah Labs</p>
+          <p className="text-[8px] text-white/25 uppercase tracking-widest mt-0.5">
+            {entries.length} entries · {context === 'sports' ? 'Plajah Sports' : context === 'general' ? 'Research' : 'Plajah Labs'}
+          </p>
         </div>
         {copied && <span className="text-[9px] text-green-400 font-black">✓ Copied to clipboard</span>}
       </div>
@@ -281,7 +350,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
                 className="w-full pl-8 pr-3 py-2 bg-white/5 border border-white/8 rounded-xl text-xs text-white placeholder:text-white/20 focus:outline-none" />
             </div>
             <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
-              {(['ALL', ...Object.keys(TYPE_META)] as (EntryType | 'ALL')[]).map(t => (
+              {(['ALL', ...visibleTypes] as (EntryType | 'ALL')[]).map(t => (
                 <button key={t} onClick={() => setFilterType(t)}
                   className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${filterType === t ? 'bg-white text-black' : 'bg-white/5 text-white/30 hover:text-white'}`}>
                   {t === 'ALL' ? 'All' : TYPE_META[t].label}
@@ -293,7 +362,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack }) => {
           {/* New entry buttons */}
           <div className="p-3 border-b border-white/6 shrink-0">
             <div className="grid grid-cols-2 gap-1.5">
-              {(Object.keys(TYPE_META) as EntryType[]).map(t => {
+              {visibleTypes.map(t => {
                 const M = TYPE_META[t]; const Icon = M.icon as any;
                 return (
                   <button key={t} onClick={() => createEntry(t)}
