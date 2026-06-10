@@ -639,7 +639,13 @@ const WorldCupHistoryHub: React.FC = () => {
                 <div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" />
               </div>
             }>
-              <WorldCupHallOfLegends />
+              <WorldCupHallOfLegends
+                onOpenTeam={(teamId, y) => {
+                  setYear(y);
+                  setSelectedPlayer(null);
+                  setSelectedTeamId(teamId);
+                }}
+              />
             </Suspense>
           )}
         </motion.div>

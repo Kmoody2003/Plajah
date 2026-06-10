@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
-import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost } from '../services/backendService';
@@ -332,7 +332,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const isEpub = currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub');
   const isPdf = currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('pdf');
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
+    currentChapter?.format === 'TXT' ||
     currentChapter?.url?.toLowerCase().endsWith('.txt') ||
+    currentChapter?.url?.toLowerCase().includes('.txt.') ||
     currentChapter?.url?.includes('/txt') ||
     currentChapter?.url?.includes('text%2Fplain') ||
     currentChapter?.url?.includes('text/plain') ||
@@ -890,7 +892,41 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             className="transition-transform duration-300 ease-out w-full h-full flex items-center justify-center"
             style={{ transform: `scale(${zoom})` }}
           >
-            {(readerError || isLoadingContent) ? (
+            {readerError ? (
+              <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
+                <div className="text-center p-12">
+                  <div className={`w-14 h-14 mx-auto mb-8 rounded-full border-2 flex items-center justify-center ${theme === 'LIGHT' ? 'border-red-300 bg-red-50' : 'border-red-500/40 bg-red-500/10'}`}>
+                    <AlertCircle size={26} className="text-red-400" />
+                  </div>
+                  <h3 className={`text-xl font-black uppercase tracking-widest mb-3 ${s.text}`}>Unable to Load</h3>
+                  <p className={`text-sm ${s.subtext} mb-8 max-w-xs mx-auto leading-relaxed`}>{readerError}</p>
+                  <div className="flex flex-col items-center gap-3">
+                    {currentChapter?.url && (
+                      <a
+                        href={currentChapter.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-orange-500 text-black text-xs font-black uppercase tracking-widest hover:bg-orange-400 transition-all"
+                      >
+                        <ExternalLink size={13} />
+                        Open Original Source
+                      </a>
+                    )}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setReaderError(null);
+                        if (isTxt && currentChapter?.url) loadFullText(currentChapter.url);
+                      }}
+                      className={`text-xs font-bold uppercase tracking-widest ${s.subtext} hover:text-orange-400 transition-colors`}
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : isLoadingContent ? (
               <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
                 <div className="text-center p-12">
                   <div className={`w-14 h-14 mx-auto mb-8 rounded-full border-2 border-t-transparent animate-spin ${theme === 'LIGHT' ? 'border-black/20' : 'border-white/20'}`} style={{ borderTopColor: 'transparent' }} />

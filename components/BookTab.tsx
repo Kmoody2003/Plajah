@@ -197,18 +197,19 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         }
       }
     } else {
-      // Prioritize EPUB format for better reading experience, fallback to text
-      const epubUrl = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => f.includes('epub'));
+      // Prefer TXT for Gutenberg: EPUB files are ~24MB redirects that often fail to parse;
+      // TXT is ~750KB, reliable, and sufficient for classic prose.
       const textUrl = archiveBook.formats['text/plain; charset=utf-8'] || archiveBook.formats['text/plain'] || Object.values(archiveBook.formats).find(f => f.includes('text/plain'));
-      
-      const formatUrl = epubUrl || textUrl || '';
-      
+      const epubUrl = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => f.includes('epub'));
+
+      const formatUrl = textUrl || epubUrl || '';
+
       bookChapters = [
         {
           id: 'full-text',
           title: 'Complete Work',
           url: formatUrl,
-          format: epubUrl ? 'EPUB' : textUrl ? 'TXT' : undefined,
+          format: textUrl ? 'TXT' : epubUrl ? 'EPUB' : undefined,
         }
       ];
     }
