@@ -48,7 +48,7 @@ async function getGoogleAccessToken(): Promise<string | null> {
     const b64url = (s: string) => Buffer.from(s).toString('base64url');
     const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify({
       iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/datastore',
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
       iat: now,
       exp: now + 3600,
@@ -671,6 +671,80 @@ async function startServer() {
 
   // Liveness probe for uptime monitors / load balancers
   app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+  // ── Classic Books Seeder ─────────────────────────────────────────────────
+  // One-time admin endpoint: downloads 40 Gutenberg public-domain TXTs and
+  // uploads them to Firebase Storage at books/classics/{id}/text.txt so the
+  // reader can fetch them directly (no proxy, no Gutenberg rate-limits).
+  // Hit once after deploy: GET /api/admin/seed-classic-books?key=<ADMIN_KEY>
+  app.get('/api/admin/seed-classic-books', async (req: any, res: any) => {
+    if (req.query.key !== process.env.ADMIN_SEED_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const BUCKET = 'gen-lang-client-0665118474.firebasestorage.app';
+    const CLASSIC_IDS = [
+      1342, 84, 11, 2701, 98, 345, 76, 174, 1260, 768,
+      514, 120, 1513, 1524, 1400, 730, 46, 2554, 2600, 1399,
+      996, 1184, 135, 161, 158, 1257, 103, 164, 36, 35,
+      43, 215, 236, 844, 5200, 74, 25344, 1727, 6130, 145,
+    ];
+    const results: { id: number; status: string; url?: string }[] = [];
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.flushHeaders?.();
+
+    const token = await getGoogleAccessToken();
+    if (!token) {
+      res.write(`data: ${JSON.stringify({ error: 'GOOGLE_SERVICE_ACCOUNT_JSON not configured' })}\n\n`);
+      return res.end();
+    }
+
+    for (const id of CLASSIC_IDS) {
+      const storagePath = `books/classics/${id}/text.txt`;
+      const encodedPath = encodeURIComponent(storagePath);
+      const downloadUrl  = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodedPath}?alt=media`;
+
+      // Skip if already uploaded (HEAD the download URL)
+      try {
+        const check = await fetch(downloadUrl, { method: 'HEAD' });
+        if (check.ok) {
+          results.push({ id, status: 'skipped (already exists)', url: downloadUrl });
+          res.write(`data: ${JSON.stringify({ id, status: 'exists' })}\n\n`);
+          continue;
+        }
+      } catch { /* not found — proceed with upload */ }
+
+      try {
+        const gutenbergUrl = `https://www.gutenberg.org/ebooks/${id}.txt.utf-8`;
+        const txtRes = await safeOutboundFetch(gutenbergUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Plajah/1.0)' },
+        }, 6);
+        if (!txtRes.ok) throw new Error(`Gutenberg fetch failed: ${txtRes.status}`);
+        const text = await txtRes.text();
+
+        const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?uploadType=media&name=${encodedPath}`;
+        const up = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain; charset=utf-8' },
+          body: text,
+        });
+        if (!up.ok) {
+          const err = await up.text();
+          throw new Error(`Storage upload failed: ${up.status} ${err}`);
+        }
+        results.push({ id, status: 'uploaded', url: downloadUrl });
+        res.write(`data: ${JSON.stringify({ id, status: 'uploaded', url: downloadUrl })}\n\n`);
+      } catch (err: any) {
+        results.push({ id, status: `error: ${err.message}` });
+        res.write(`data: ${JSON.stringify({ id, status: 'error', error: err.message })}\n\n`);
+      }
+      // Polite delay — Gutenberg rate-limits aggressive crawlers
+      await new Promise(r => setTimeout(r, 800));
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true, results })}\n\n`);
+    res.end();
+  });
 
   // ── Stripe Connect: Creator Payout Onboarding ────────────────────────────
   // Creates or retrieves a Stripe Express account for the creator and returns an onboarding URL.

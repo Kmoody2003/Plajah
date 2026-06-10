@@ -362,7 +362,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     // Abort if component unmounts before fetch completes
     const cleanup = () => { if (!mountedRef.current) abortOnUnmount(); };
     try {
-      const fetchUrl = url.startsWith('http')
+      // Firebase Storage URLs are public-CORS CDN — fetch directly, no proxy round-trip.
+      const isFirebaseStorage = url.includes('firebasestorage.googleapis.com') ||
+                                url.includes('storage.googleapis.com');
+      const fetchUrl = url.startsWith('http') && !isFirebaseStorage
         ? `/api/proxy?url=${encodeURIComponent(url)}`
         : url;
 
