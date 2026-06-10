@@ -40,6 +40,8 @@ import BookClubCreator from './BookClubCreator';
 // Classrooms
 import ClassroomAnalyticsView from './ClassroomAnalyticsView';
 import CertificateGenerator from './CertificateGenerator';
+// Content & Safety
+const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
 
 interface UserDashboardProps {
   user: any;
@@ -68,7 +70,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
-    'CLASSROOM_ANALYTICS' | 'CERTIFICATES'
+    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY'
   >('ACCOUNT');
   const [showFilmWizard, setShowFilmWizard]   = useState(false);
   const [showBookWizard, setShowBookWizard]   = useState(false);
@@ -222,6 +224,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
         <nav className="flex-1 space-y-2">
           {[
             { id: 'ACCOUNT', label: 'Account Settings', icon: User },
+            { id: 'SAFETY', label: 'Content & Safety', icon: Settings },
             { id: 'ALIASES', label: 'Emails & Aliases', icon: Mail },
             { id: 'INTERESTS', label: 'Interest Notebook', icon: Notebook },
             { id: 'WORLDS', label: 'My Worlds', icon: Globe },
@@ -717,6 +720,18 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   {isSaving ? 'Synchronizing Station...' : 'Go Live / Save Content'}
                 </button>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'SAFETY' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+              <header>
+                <h1 className="text-5xl md:text-[8rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Content & Safety</h1>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">Control what you see — filters, mutes, and community guidelines</p>
+              </header>
+              <React.Suspense fallback={<div className="w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />}>
+                <LazyContentSafetySettings />
+              </React.Suspense>
             </motion.div>
           )}
 

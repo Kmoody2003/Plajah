@@ -10,6 +10,7 @@ import { useFediverse } from '../contexts/FediverseContext';
 import SocialEmbedCard from './SocialEmbedCard';
 import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
 import { searchUsers } from '../services/backendService';
+import ContentLabelPicker from './safety/ContentLabelPicker';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ export interface ComposerPostData {
   poll?: ComposerPoll;
   dataViz?: ComposerDataViz;
   exclusive?: ExclusiveConfig;
+  /** Creator-applied content labels (graphic / 18+ / artistic nudity / sensitive) */
+  contentLabels?: import('../services/contentSafetyService').ContentLabel[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -147,6 +150,8 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [gifResults, setGifResults] = useState<any[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
+  const [contentLabels, setContentLabels] = useState<import('../services/contentSafetyService').ContentLabel[]>([]);
+  const [safetyBlock, setSafetyBlock] = useState<string | null>(null);
   const [assetTab, setAssetTab]     = useState<AssetTab>('Albums');
   const [moreAssetType, setMoreAssetType] = useState<AssetEmbed['type'] | null>(null);
   const [moreAssetId, setMoreAssetId]     = useState('');
@@ -423,17 +428,41 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const handlePost = async () => {
     if (!canPost || posting) return;
     setPosting(true);
+    setSafetyBlock(null);
     try {
+      // AI safety screen: blocks likely-prohibited content (porn, real gore,
+      // doxxing, non-consensual likeness) and auto-adds missing content labels.
+      let finalLabels = contentLabels;
+      if (text.trim().length > 0) {
+        try {
+          const { aiScreenContent } = await import('../services/contentSafetyService');
+          const screen = await aiScreenContent(text, attachments.map(a => `${a.type}${a.title ? `: ${a.title}` : ''}`));
+          if (screen) {
+            const hardBlock = screen.prohibited.length > 0 && screen.confidence === 'HIGH';
+            if (hardBlock) {
+              setSafetyBlock(`This post appears to violate Plajah's guidelines (${screen.prohibited.map(p => p.reason).join('; ')}). It can't be published. If you believe this is a mistake, adjust the content and try again.`);
+              const { reportContent } = await import('../services/contentSafetyService');
+              reportContent({ contentId: 'pre-publish', contentType: 'post', reason: (screen.prohibited[0].id as any) ?? 'other', details: text.slice(0, 500) }).catch(() => {});
+              return;
+            }
+            if (screen.suggestedLabels.length) {
+              finalLabels = [...new Set([...contentLabels, ...screen.suggestedLabels])];
+              setContentLabels(finalLabels);
+            }
+          }
+        } catch { /* screening unavailable — never block posting on AI downtime */ }
+      }
+
       const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
         ? { ...poll, options: poll.options.filter(o => o.trim()) }
         : undefined;
-      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig() });
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}) });
       if (crossPost && hasFediverse && text.trim()) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
       setText(''); setAttachments([]); setAssetEmbed(undefined); setTheme('STANDARD');
       setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
-      setExclusive(null); setShowExclusive(false);
+      setExclusive(null); setShowExclusive(false); setContentLabels([]);
       setExpanded(false);
     } finally { setPosting(false); }
   };
@@ -574,6 +603,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             {t.label}
           </button>
         ))}
+      </div>
+
+      {/* Content labels + community guidelines */}
+      <div className="pl-12">
+        <ContentLabelPicker selected={contentLabels} onChange={setContentLabels} />
+        {safetyBlock && (
+          <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+            <p className="text-[9px] font-bold text-red-300 leading-relaxed">{safetyBlock}</p>
+          </div>
+        )}
       </div>
 
       {/* Attachment preview strip */}

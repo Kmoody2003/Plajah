@@ -638,6 +638,56 @@ const CrowdFlashes: React.FC = () => (
   </group>
 );
 
+// Rack-focus controller — behaves like a real camera operator pulling focus.
+// Each frame, find the trophy closest to the center of the frame (weighted
+// toward nearer subjects, like autofocus), then ease the depth-of-field
+// focal plane onto it. Everything nearer/farther than the focal plane blurs
+// progressively with distance.
+const FocusRack: React.FC<{ dofRef: React.MutableRefObject<any> }> = ({ dofRef }) => {
+  const focus = useRef(new THREE.Vector3(0, 3.2, 0));
+  const tmpDir = useMemo(() => new THREE.Vector3(), []);
+  const tmpFwd = useMemo(() => new THREE.Vector3(), []);
+  const bestVec = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame(({ camera }) => {
+    camera.getWorldDirection(tmpFwd);
+    let bestScore = Infinity;
+    let found = false;
+
+    for (let i = 0; i < COUNT; i++) {
+      if (WC_FINALS[i].cancelled) continue;
+      tmpDir.set(xFor(i) - camera.position.x, 3.2 - camera.position.y, -camera.position.z);
+      const dist = tmpDir.length();
+      tmpDir.normalize();
+      const cos = tmpDir.dot(tmpFwd);
+      if (cos < 0.55) continue;                     // outside the lens cone
+      const angle = Math.acos(Math.min(1, cos));
+      // centered in frame matters most; among similar framing, prefer the nearer trophy
+      const score = angle * 60 + dist * 0.12;
+      if (score < bestScore) {
+        bestScore = score;
+        bestVec.set(xFor(i), 3.2, 0);
+        found = true;
+      }
+    }
+
+    // No trophy in frame — focus mid-distance along the view ray so the
+    // scene still has a believable focal plane instead of snapping.
+    if (!found) {
+      bestVec.copy(camera.position).addScaledVector(tmpFwd, Math.max(14, focus.current.distanceTo(camera.position)));
+    }
+
+    // Smooth focus pull (a hard cut between focal planes reads as a glitch)
+    focus.current.lerp(bestVec, 0.08);
+
+    const effect = dofRef.current;
+    if (!effect) return;
+    if (effect.target) effect.target.copy(focus.current);
+    else effect.target = focus.current.clone();
+  });
+  return null;
+};
+
 // Camera fly-to controller
 const CameraRig: React.FC<{ targetIndex: number; flyToken: number; controlsRef: React.MutableRefObject<any> }> = ({ targetIndex, flyToken, controlsRef }) => {
   const flying = useRef(false);
@@ -682,6 +732,7 @@ export const WorldCupHallOfLegends: React.FC<HallProps> = ({ onOpenTeam }) => {
   const [touring, setTouring] = useState(false);
   const [cinematic, setCinematic] = useState(true);
   const controlsRef = useRef<any>(null);
+  const dofRef = useRef<any>(null);
 
   const marble = useMarbleTexture();
   const flare = useFlareTexture();
@@ -747,13 +798,16 @@ export const WorldCupHallOfLegends: React.FC<HallProps> = ({ onOpenTeam }) => {
 
             <OrbitControls ref={controlsRef} maxPolarAngle={Math.PI / 2.08} minDistance={5} maxDistance={420} />
             <CameraRig targetIndex={selected} flyToken={flyToken} controlsRef={controlsRef} />
+            {cinematic && <FocusRack dofRef={dofRef} />}
 
             {/* cinematic post pipeline */}
             {cinematic && (
               <EffectComposer multisampling={0}>
                 <N8AO aoRadius={2.2} intensity={2.4} distanceFalloff={1.2} halfRes />
                 <Bloom intensity={0.75} luminanceThreshold={0.78} luminanceSmoothing={0.2} mipmapBlur />
-                <DepthOfField target={[xFor(selected), 3.2, 0]} focalLength={0.045} bokehScale={3.2} height={500} />
+                {/* shallow focal band: the framed trophy is tack-sharp, each row
+                    behind it melts further into bokeh — focus driven by FocusRack */}
+                <DepthOfField ref={dofRef} target={[xFor(defaultIndex), 3.2, 0]} focalLength={0.018} bokehScale={4.2} height={600} />
                 <ChromaticAberration offset={[0.00055, 0.0004]} />
                 <Noise opacity={0.045} />
                 <Vignette eskil={false} offset={0.18} darkness={0.78} />

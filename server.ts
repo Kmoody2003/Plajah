@@ -10,6 +10,8 @@ import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
 import { readFileSync } from 'fs';
+import { lookup as dnsLookup } from 'node:dns/promises';
+import nodeCrypto from 'node:crypto';
 import { coraRouter } from './routes/cora';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
@@ -30,13 +32,59 @@ for (const envFile of ['.env.local', '.env']) {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ── Google service-account auth for Firestore REST ──────────────────────────
+// Unauthenticated REST calls evaluate as request.auth == null in security
+// rules, so every server-side WRITE was silently rejected. With
+// GOOGLE_SERVICE_ACCOUNT_JSON set (full service-account key JSON), we mint
+// short-lived OAuth tokens and the server gets full datastore access.
+let _gsaToken: { token: string; exp: number } | null = null;
+async function getGoogleAccessToken(): Promise<string | null> {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  if (_gsaToken && Date.now() < _gsaToken.exp - 120_000) return _gsaToken.token;
+  try {
+    const sa = JSON.parse(raw);
+    const now = Math.floor(Date.now() / 1000);
+    const b64url = (s: string) => Buffer.from(s).toString('base64url');
+    const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify({
+      iss: sa.client_email,
+      scope: 'https://www.googleapis.com/auth/datastore',
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+    }))}`;
+    const signer = nodeCrypto.createSign('RSA-SHA256');
+    signer.update(unsigned);
+    const jwt = `${unsigned}.${signer.sign(sa.private_key).toString('base64url')}`;
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${jwt}`,
+    });
+    const data = await res.json() as any;
+    if (!data.access_token) return null;
+    _gsaToken = { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000 };
+    return _gsaToken.token;
+  } catch (err: any) {
+    console.error('[Auth] Service account token mint failed:', err.message);
+    return null;
+  }
+}
+
+async function firestoreAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getGoogleAccessToken();
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    : { 'Content-Type': 'application/json' };
+}
+
 // Simple REST fetch for Firebase DB without needing admin SDK initialized
 const fetchFirebaseDoc = async (collection: string, id: string) => {
   const projectId = 'gen-lang-client-0665118474';
   const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: await firestoreAuthHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch(e) { return null; }
@@ -182,11 +230,12 @@ async function firestoreWrite(collection: string, id: string, data: object) {
     else if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map(i => ({ stringValue: String(i) })) } };
     else fields[k] = { stringValue: JSON.stringify(v) };
   }
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await firestoreAuthHeaders(),
     body: JSON.stringify({ fields }),
   });
+  if (!res.ok) console.error(`[Firestore] write ${collection}/${id} failed: HTTP ${res.status}${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? '' : ' (GOOGLE_SERVICE_ACCOUNT_JSON not set — server writes are unauthenticated)'}`);
 }
 
 async function firestoreCreate(collection: string, data: object) {
@@ -204,9 +253,10 @@ async function firestoreCreate(collection: string, data: object) {
   }
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await firestoreAuthHeaders(),
     body: JSON.stringify({ fields }),
   });
+  if (!res.ok) console.error(`[Firestore] create in ${collection} failed: HTTP ${res.status}${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? '' : ' (GOOGLE_SERVICE_ACCOUNT_JSON not set — server writes are unauthenticated)'}`);
   const json = await res.json() as any;
   return json.name?.split('/').pop() ?? null;
 }
@@ -242,12 +292,67 @@ function isPrivateHost(hostname: string): boolean {
   return /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|0\.0\.0\.0|169\.254\.)/.test(hostname);
 }
 
-function validateProxyUrl(rawUrl: string): URL {
-  let parsed: URL;
-  try { parsed = new URL(decodeURIComponent(rawUrl)); } catch { throw new Error('Invalid URL'); }
+function checkUrlBasics(parsed: URL): URL {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('Only http/https URLs allowed');
   if (isPrivateHost(parsed.hostname)) throw new Error('Private network access blocked');
   return parsed;
+}
+
+function validateProxyUrl(rawUrl: string): URL {
+  let parsed: URL;
+  try { parsed = new URL(decodeURIComponent(rawUrl)); } catch { throw new Error('Invalid URL'); }
+  return checkUrlBasics(parsed);
+}
+
+// The hostname string check above is bypassable: a public hostname can resolve
+// to a private IP (DNS-based SSRF). Resolve and verify every address.
+function isPrivateIp(ip: string): boolean {
+  if (ip.includes(':')) {
+    const v6 = ip.toLowerCase();
+    if (v6 === '::1' || v6 === '::') return true;
+    if (v6.startsWith('fc') || v6.startsWith('fd') || v6.startsWith('fe8') || v6.startsWith('fe9') || v6.startsWith('fea') || v6.startsWith('feb')) return true;
+    if (v6.startsWith('::ffff:')) return isPrivateIp(v6.slice(7)); // v4-mapped
+    return false;
+  }
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => Number.isNaN(p))) return true; // unparseable → refuse
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||      // CGNAT
+    (a === 169 && b === 254) ||                // link-local / cloud metadata
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168);
+}
+
+async function assertPublicHost(parsed: URL): Promise<void> {
+  try {
+    const addrs = await dnsLookup(parsed.hostname, { all: true });
+    if (addrs.length === 0 || addrs.some(a => isPrivateIp(a.address))) {
+      throw new Error('Private network access blocked');
+    }
+  } catch (e: any) {
+    if (e?.message === 'Private network access blocked') throw e;
+    throw new Error('Host could not be resolved');
+  }
+}
+
+// SSRF-hardened outbound fetch: validates the URL AND its resolved IPs, and
+// follows redirects manually so every hop is re-validated (a 302 to the cloud
+// metadata service or an internal host is refused instead of followed).
+async function safeOutboundFetch(target: string | URL, init: RequestInit = {}, maxRedirects = 4): Promise<Response> {
+  let current = typeof target === 'string' ? checkUrlBasics(new URL(target)) : checkUrlBasics(target);
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    await assertPublicHost(current);
+    const res = await fetch(current.toString(), { ...init, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location');
+      if (!loc) return res;
+      current = checkUrlBasics(new URL(loc, current));
+      continue;
+    }
+    return res;
+  }
+  throw new Error('Too many redirects');
 }
 
 const LIGHTS_ALLOWED_HOSTS = new Set(['api.meethue.com', 'developer.api.govee.com', 'api.govee.com', 'api2.govee.com']);
@@ -563,6 +668,9 @@ async function startServer() {
   app.use('/api/proxy',        proxyLimiter);
   app.use('/api/lights/proxy', proxyLimiter);
   app.use('/api/social',       apiLimiter);
+
+  // Liveness probe for uptime monitors / load balancers
+  app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
   // ── Stripe Connect: Creator Payout Onboarding ────────────────────────────
   // Creates or retrieves a Stripe Express account for the creator and returns an onboarding URL.
@@ -2142,9 +2250,8 @@ async function startServer() {
 
       console.log(`[Proxy] ${range ? 'Streaming' : 'Fetching'}: ${parsed.hostname}${parsed.pathname}`);
 
-      const response = await fetch(decodedUrl, {
+      const response = await safeOutboundFetch(parsed, {
         headers,
-        redirect: 'follow',
         signal: controller.signal
       });
       
@@ -2301,13 +2408,12 @@ async function startServer() {
     const targetUrl = parsed.toString();
 
     try {
-      const upstream = await fetch(targetUrl, {
+      const upstream = await safeOutboundFetch(targetUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
         },
-        redirect: 'follow',
       });
 
       const contentType = upstream.headers.get('content-type') || 'text/html; charset=utf-8';
@@ -3760,7 +3866,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     if (!rawUrl) return res.status(400).json({ error: 'Missing url param' });
     try {
       const parsed = validateProxyUrl(rawUrl);
-      const upstream = await fetch(parsed.href, {
+      const upstream = await safeOutboundFetch(parsed, {
         signal: AbortSignal.timeout(20_000),
         headers: {
           'User-Agent': 'Plajah-Podcast-Bot/1.0',

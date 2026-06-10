@@ -1322,6 +1322,8 @@ export interface Post {
   authorName: string;
   authorPhoto: string;
   text: string;
+  /** Creator-applied safety labels — viewer settings decide blur/consent gating */
+  contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
   media?: {
     type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'ALBUM' | 'LINK' | 'GIF' | 'STICKER';
     url?: string;

@@ -146,6 +146,7 @@ service cloud.firestore {
              (!('payItForwardWinsYear' in data) || (data.payItForwardWinsYear is number)) &&
              (!('lastPayItForwardWinTimestamp' in data) || (data.lastPayItForwardWinTimestamp is number)) &&
              (!('liveStreamConfig' in data) || (data.liveStreamConfig is map)) &&
+             (!('safetySettings' in data) || (data.safetySettings is map)) &&
              (!('mailingListCount' in data) || (data.mailingListCount is number)) &&
              (!('xHandle' in data) || (data.xHandle is string && data.xHandle.size() < 100)) &&
              (!('xUrl' in data) || (data.xUrl is string && data.xUrl.size() < 500)) &&
@@ -1522,6 +1523,67 @@ service cloud.firestore {
         allow delete: if isAuthenticated()
                       && (resource.data.uid == request.auth.uid || isAdmin());
       }
+    }
+
+    // ===============================================================
+    // CONTENT SAFETY — user reports
+    // ===============================================================
+    // Anyone signed in can file a report; reports are only readable by staff.
+    match /content_reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.reason is string
+                    && request.resource.data.contentId is string
+                    && (!('details' in request.resource.data) || request.resource.data.details.size() <= 2000);
+      allow update, delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // COMMUNITY NOTES — crowd-sourced context on posts
+    // ===============================================================
+    // Contributors propose notes; raters score them; a note publishes when it
+    // is found helpful by raters who usually disagree (bridge scoring,
+    // computed client/agent-side and finalized by staff/admin tooling).
+    match /community_notes/{noteId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.contentId is string
+                    && request.resource.data.summary is string
+                    && request.resource.data.summary.size() >= 30
+                    && request.resource.data.summary.size() <= 1200
+                    && request.resource.data.sources is list
+                    && request.resource.data.sources.size() >= 1
+                    && request.resource.data.status == 'NEEDS_RATINGS';
+      // Authors may edit only while gathering ratings; status/score fields are
+      // managed by admin tooling.
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && resource.data.authorId == request.auth.uid
+                     && resource.data.status == 'NEEDS_RATINGS'
+                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['summary', 'sources', 'updatedAt']));
+      allow delete: if isAdmin();
+
+      match /ratings/{raterId} {
+        allow read: if true;
+        // One rating per user, written as themselves, never on their own note
+        allow create, update: if isAuthenticated()
+                      && request.auth.uid == raterId
+                      && request.resource.data.raterId == request.auth.uid
+                      && request.resource.data.helpful in ['HELPFUL', 'SOMEWHAT', 'NOT_HELPFUL']
+                      && get(/databases/$(database)/documents/community_notes/$(noteId)).data.authorId != request.auth.uid;
+        allow delete: if isAuthenticated() && request.auth.uid == raterId;
+      }
+    }
+
+    match /note_contributors/{uid} {
+      allow read: if true;
+      // Users enroll themselves; reputation fields are managed by admin tooling.
+      allow create: if isOwner(uid)
+                    && request.resource.data.keys().hasOnly(['uid', 'joinedAt', 'agreedToGuidelines'])
+                    && request.resource.data.agreedToGuidelines == true;
+      allow update: if isAdmin();
+      allow delete: if isOwner(uid) || isAdmin();
     }
   }
 }

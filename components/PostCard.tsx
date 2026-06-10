@@ -16,6 +16,8 @@ import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
+import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
+const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 
 interface PostCardProps {
   post: Post;
@@ -44,7 +46,8 @@ const RenderTextWithMentions: React.FC<{ text: string; onVisitUser?: (uid: strin
             </span>
           );
         }
-        return part;
+        // Plain text runs through the viewer's Clean Speech filter
+        return <CleanText key={i} text={part} />;
       })}
     </>
   );
@@ -570,12 +573,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               </div>
             </div>
           ) : (
-            displayText && (
+            // Safety gates: muted words/topics blur the CONTENT (author stays
+            // visible above); creator content labels gate behind blur+consent.
+            <MutedContentGate text={post.text}>
+            <SensitiveContentGate labels={post.contentLabels as any}>
+            {displayText && (
               <p className="text-[14px] leading-normal text-white/80 whitespace-pre-wrap">
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
-            )
-          )}
+            )}
 
           {/* Social embeds detected in post text (YouTube, TikTok, X, Instagram) */}
           {socialEmbedsFromText.length > 0 && (
@@ -612,6 +618,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                 <PollCard postId={post.id} poll={(post as any).poll} />
               </Suspense>
             </div>
+          )}
+            </SensitiveContentGate>
+            </MutedContentGate>
           )}
 
           {/* Data Viz embed preview */}
@@ -791,6 +800,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             )}
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* Community Notes — crowd-sourced context */}
+      <div className="px-4 pb-2">
+        <Suspense fallback={null}>
+          <CommunityNoteBadge contentId={post.id} contentType="post" postAuthorId={post.authorId} />
+        </Suspense>
       </div>
 
       {/* Comment section */}

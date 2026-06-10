@@ -2578,6 +2578,7 @@ const toggleFavoriteTeam = async (team: string) => {
                 isPublic: true,
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
               });
             }}
             onMakeStory={() => setShowStoryCreator(true)}

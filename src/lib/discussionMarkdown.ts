@@ -6,8 +6,10 @@ export function renderDiscussionMarkdown(text: string): string {
   if (!text) return '';
   let s = text;
 
-  // Escape HTML entities first
-  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Escape HTML entities first — quotes included, otherwise a crafted
+  // [text](https://x"onclick="...) URL can break out of the href attribute.
+  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   // Code blocks (``` ... ```)
   s = s.replace(/```([\s\S]*?)```/g, (_, code) =>
