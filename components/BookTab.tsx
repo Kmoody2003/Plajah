@@ -197,19 +197,22 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         }
       }
     } else {
-      // Prefer TXT for Gutenberg: EPUB files are ~24MB redirects that often fail to parse;
-      // TXT is ~750KB, reliable, and sufficient for classic prose.
-      const textUrl = archiveBook.formats['text/plain; charset=utf-8'] || archiveBook.formats['text/plain'] || Object.values(archiveBook.formats).find(f => f.includes('text/plain'));
-      const epubUrl = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => f.includes('epub'));
+      // Primary: Firebase Storage hosted copy (fast CDN, no Gutenberg rate-limits).
+      // Fallback: Gutenberg TXT (~750KB) used when the Storage copy doesn't exist yet.
+      const storedUrl  = archiveBook.formats['text/plain; charset=utf-8'];   // Firebase Storage
+      const gutenbUrl  = archiveBook.formats['text/plain'];                   // Gutenberg TXT
+      const epubUrl    = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => f.includes('epub'));
 
-      const formatUrl = textUrl || epubUrl || '';
+      const primaryUrl = storedUrl || gutenbUrl || epubUrl || '';
 
       bookChapters = [
         {
           id: 'full-text',
           title: 'Complete Work',
-          url: formatUrl,
-          format: textUrl ? 'TXT' : epubUrl ? 'EPUB' : undefined,
+          url: primaryUrl,
+          format: (storedUrl || gutenbUrl) ? 'TXT' : epubUrl ? 'EPUB' : undefined,
+          // Keep Gutenberg as a fallback so the reader can retry if Storage 404s
+          ...(storedUrl && gutenbUrl ? { fallbackUrl: gutenbUrl } : {}),
         }
       ];
     }

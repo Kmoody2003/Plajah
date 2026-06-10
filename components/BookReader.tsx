@@ -348,46 +348,54 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     if (currentChapter?.content) {
       setChapterContent(formatReadableText(currentChapter.content));
     } else if (isTxt && currentChapter?.url) {
-      loadFullText(currentChapter.url);
+      loadFullText(currentChapter.url, currentChapter.fallbackUrl);
     } else {
       setChapterContent('');
     }
   }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt]);
 
-  const loadFullText = async (url: string) => {
+  const loadFullText = async (url: string, fallback?: string) => {
     if (!mountedRef.current) return;
     setIsLoadingContent(true);
     const controller = new AbortController();
-    const abortOnUnmount = () => controller.abort();
-    // Abort if component unmounts before fetch completes
-    const cleanup = () => { if (!mountedRef.current) abortOnUnmount(); };
-    try {
-      // Firebase Storage URLs are public-CORS CDN — fetch directly, no proxy round-trip.
-      const isFirebaseStorage = url.includes('firebasestorage.googleapis.com') ||
-                                url.includes('storage.googleapis.com');
-      const fetchUrl = url.startsWith('http') && !isFirebaseStorage
-        ? `/api/proxy?url=${encodeURIComponent(url)}`
-        : url;
 
+    const tryFetch = async (src: string): Promise<string> => {
+      // Always proxy external URLs — direct browser fetches to Firebase Storage
+      // fail due to CORS unless the bucket has explicit gsutil cors config.
+      const fetchUrl = src.startsWith('http')
+        ? `/api/proxy?url=${encodeURIComponent(src)}`
+        : src;
       const response = await fetch(fetchUrl, { signal: controller.signal });
-      if (!mountedRef.current) return;
-      if (!response.ok) throw new Error(`Signal loss: ${response.status} ${response.statusText}`);
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const contentType = response.headers.get('content-type') || '';
       if (contentType && !/text|html|json|xml/i.test(contentType)) {
-        throw new Error(`Unsupported text content type: ${contentType}`);
+        throw new Error(`Unexpected content-type: ${contentType}`);
       }
-
       const text = await response.text();
-      if (!mountedRef.current) return;
-      if (!text || text.trim().length === 0) {
-        throw new Error('Empty frequency captured (Zero length content)');
+      if (!text || text.trim().length === 0) throw new Error('Empty response');
+      return text;
+    };
+
+    try {
+      let text: string;
+      try {
+        text = await tryFetch(url);
+      } catch (primaryErr: any) {
+        if (!mountedRef.current || primaryErr?.name === 'AbortError') return;
+        // Primary failed (Storage 404, network issue, etc.) — try Gutenberg fallback
+        if (fallback) {
+          console.warn('[BookReader] Primary URL failed, trying fallback:', primaryErr.message);
+          text = await tryFetch(fallback);
+        } else {
+          throw primaryErr;
+        }
       }
+      if (!mountedRef.current) return;
       setChapterContent(formatReadableText(text));
     } catch (error: any) {
       if (!mountedRef.current || error?.name === 'AbortError') return;
       console.error('Error loading full text:', error);
-      setReaderError('This book file could not be converted into native text. Try the original download while Plajah retries storage sync.');
+      setReaderError('This book could not be loaded. Check your connection or try the original source.');
       setChapterContent('');
     } finally {
       if (mountedRef.current) setIsLoadingContent(false);
@@ -920,7 +928,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       onClick={e => {
                         e.stopPropagation();
                         setReaderError(null);
-                        if (isTxt && currentChapter?.url) loadFullText(currentChapter.url);
+                        if (isTxt && currentChapter?.url) loadFullText(currentChapter.url, currentChapter.fallbackUrl);
                       }}
                       className={`text-xs font-bold uppercase tracking-widest ${s.subtext} hover:text-orange-400 transition-colors`}
                     >

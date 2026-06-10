@@ -246,6 +246,7 @@ export interface BookChapter {
   description?: string;
   tags?: string[];
   format?: 'EPUB' | 'PDF' | 'TXT' | 'COMIC' | 'DOCX' | 'RTF' | 'FB2' | 'HTML' | 'MOBI' | 'DJVU' | 'FILE';
+  fallbackUrl?: string; // tried if url fails to load (e.g. Gutenberg when Storage miss)
 }
 
 // ── Book Authoring Studio types ────────────────────────────────────────────────
