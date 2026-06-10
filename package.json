@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "sports:agent": "tsx scripts/localSportsAgent.ts",
+    "sports:archive": "tsx scripts/localArchiveAgent.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts"
   },
   "dependencies": {

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Trophy, Star, Bell, BellOff, Shield,
   TrendingUp, Newspaper, ImageIcon, User, Medal,
-  ChevronRight,
+  ChevronRight, Crown,
 } from 'lucide-react';
+
+const WorldCupHallOfLegends = lazy(() => import('./sports/WorldCupHallOfLegends'));
 import {
   WCYear, HistoricalTeam, HistoricalPlayer,
   TEAMS_2022, TEAMS_2018, PLAYERS_2022, PLAYERS_2018, EDITIONS,
@@ -525,7 +527,7 @@ const NationsGrid: React.FC<{ year: WCYear; onTeamClick: (teamId: string) => voi
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type HistTab = 'summary' | 'nations';
+type HistTab = 'summary' | 'nations' | 'legends';
 
 const WorldCupHistoryHub: React.FC = () => {
   const [year, setYear]               = useState<WCYear>(2022);
@@ -584,7 +586,8 @@ const WorldCupHistoryHub: React.FC = () => {
         <Medal size={22} className="text-[#FF8C00]" />
       </div>
 
-      {/* Year selector */}
+      {/* Year selector (deep-dive editions; the Hall of Legends spans 1930→today) */}
+      {histTab !== 'legends' && (
       <div className="flex items-center gap-2">
         {([2022, 2018] as WCYear[]).map(y => (
           <button
@@ -596,12 +599,14 @@ const WorldCupHistoryHub: React.FC = () => {
           </button>
         ))}
       </div>
+      )}
 
       {/* Sub-tabs */}
       <div className="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/8 rounded-2xl">
         {([
           { id: 'summary', label: 'Summary', icon: Trophy },
           { id: 'nations', label: 'Nations', icon: Medal },
+          { id: 'legends', label: 'Hall of Legends', icon: Crown },
         ] as { id: HistTab; label: string; icon: React.ElementType }[]).map(t => (
           <button
             key={t.id}
@@ -627,6 +632,15 @@ const WorldCupHistoryHub: React.FC = () => {
           )}
           {histTab === 'nations' && (
             <NationsGrid year={year} onTeamClick={handleTeamClick} />
+          )}
+          {histTab === 'legends' && (
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-24">
+                <div className="w-8 h-8 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" />
+              </div>
+            }>
+              <WorldCupHallOfLegends />
+            </Suspense>
           )}
         </motion.div>
       </AnimatePresence>

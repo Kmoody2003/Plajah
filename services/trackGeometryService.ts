@@ -46,15 +46,38 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 const _cache = new Map<string, any>();
 
+const LS_TTL = 7 * 24 * 60 * 60 * 1000;
+
 async function proxiedJson(url: string): Promise<any> {
   if (_cache.has(url)) return _cache.get(url);
+  const isBrowser = typeof window !== 'undefined';
+  const lsKey = `plajah_trackgeo:${url}`;
+  if (isBrowser) {
+    try {
+      const raw = localStorage.getItem(lsKey);
+      if (raw) {
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts < LS_TTL) { _cache.set(url, data); return data; }
+      }
+    } catch { /* corrupted entry — refetch */ }
+  }
   try {
-    const isBrowser = typeof window !== 'undefined';
-    const requestUrl = isBrowser ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
-    const res = await fetch(requestUrl, { signal: AbortSignal.timeout(20000) });
+    // Overpass rejects "Mozilla/5.0 (compatible; ...)" bot UAs with 406 but
+    // serves real browsers (CORS enabled) and plainly-identified bots — so hit
+    // it directly from the browser and with a bot UA from node. Everything
+    // else goes through the server proxy in the browser as usual.
+    const isOverpass = url.includes('overpass');
+    const requestUrl = isBrowser && !isOverpass ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+    const res = await fetch(requestUrl, {
+      signal: AbortSignal.timeout(20000),
+      ...(isBrowser ? {} : { headers: { 'User-Agent': 'Plajah/1.0 (sports data archive)' } }),
+    });
     if (!res.ok) return null;
     const data = await res.json();
     _cache.set(url, data);
+    if (isBrowser) {
+      try { localStorage.setItem(lsKey, JSON.stringify({ ts: Date.now(), data })); } catch { /* quota */ }
+    }
     return data;
   } catch { return null; }
 }
@@ -67,11 +90,38 @@ function projectToLocal(coords: [number, number][]): TrackPoint[] {
   const lon0 = coords.reduce((s, c) => s + c[0], 0) / coords.length;
   const mPerDegLat = 111_132;
   const mPerDegLon = 111_320 * Math.cos((lat0 * Math.PI) / 180);
-  return coords.map(([lon, lat]) => ({
+  const pts = coords.map(([lon, lat]) => ({
     x: (lon - lon0) * mPerDegLon,
     y: (lat - lat0) * mPerDegLat,
     z: 0,
   }));
+  return resampleLoop(pts, 300);
+}
+
+// Evenly resample a closed polyline — OSM/GeoJSON sources vary from ~25 to
+// ~150 vertices; a uniform 300 keeps ribbons smooth and turn detection stable.
+function resampleLoop(pts: TrackPoint[], n: number): TrackPoint[] {
+  if (pts.length < 3) return pts;
+  const closed = [...pts, pts[0]];
+  const cum: number[] = [0];
+  for (let i = 1; i < closed.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(closed[i].x - closed[i - 1].x, closed[i].y - closed[i - 1].y));
+  }
+  const total = cum[cum.length - 1];
+  if (total === 0) return pts;
+  const out: TrackPoint[] = [];
+  let seg = 0;
+  for (let k = 0; k < n; k++) {
+    const target = (k / n) * total;
+    while (seg < cum.length - 2 && cum[seg + 1] < target) seg++;
+    const t = (target - cum[seg]) / Math.max(1e-9, cum[seg + 1] - cum[seg]);
+    out.push({
+      x: closed[seg].x + (closed[seg + 1].x - closed[seg].x) * t,
+      y: closed[seg].y + (closed[seg + 1].y - closed[seg].y) * t,
+      z: 0,
+    });
+  }
+  return out;
 }
 
 // ─── F1 circuits (real geometry) ─────────────────────────────────────────────
@@ -290,14 +340,44 @@ async function overpassRaceways(lat: number, lon: number): Promise<any[]> {
   return [];
 }
 
+// OSM often splits a circuit into multiple ways — stitch ways end-to-end
+// (matching endpoints within ~40 m) starting from the longest segment.
+function stitchWays(ways: any[]): [number, number][] {
+  const segs: [number, number][][] = ways
+    .map(w => w.geometry.map((g: any) => [g.lon, g.lat] as [number, number]))
+    .filter(s => s.length >= 2);
+  if (!segs.length) return [];
+  segs.sort((a, b) => b.length - a.length);
+
+  const close = (a: [number, number], b: [number, number]) =>
+    Math.hypot((a[0] - b[0]) * 111320 * Math.cos((a[1] * Math.PI) / 180), (a[1] - b[1]) * 111132) < 40;
+
+  let chain = segs.shift()!;
+  let extended = true;
+  while (extended && segs.length) {
+    extended = false;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      const head = chain[0], tail = chain[chain.length - 1];
+      if (close(tail, s[0]))      { chain = chain.concat(s.slice(1)); }
+      else if (close(tail, s[s.length - 1])) { chain = chain.concat([...s].reverse().slice(1)); }
+      else if (close(head, s[s.length - 1])) { chain = s.slice(0, -1).concat(chain); }
+      else if (close(head, s[0])) { chain = [...s].reverse().slice(0, -1).concat(chain); }
+      else continue;
+      segs.splice(i, 1);
+      extended = true;
+      break;
+    }
+  }
+  return chain;
+}
+
 async function osmGeometry(id: string): Promise<TrackGeometry | null> {
   const spec = OSM_COURSES[id.replace(/^osm:/, '')];
   if (!spec) return null;
   const ways = await overpassRaceways(spec.lat, spec.lon);
   if (!ways.length) return null;
-  // Use the longest way (main circuit, not pit lane / kart track)
-  const main = ways.reduce((best, w) => (w.geometry.length > (best?.geometry?.length ?? 0) ? w : best), null);
-  const coords: [number, number][] = main.geometry.map((g: any) => [g.lon, g.lat]);
+  const coords = stitchWays(ways);
   if (coords.length < 20) return null;
   const points = projectToLocal(coords);
   return {

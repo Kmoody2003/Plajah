@@ -21,6 +21,7 @@ const RaceHistoryView       = lazy(() => import('./sports/RaceHistoryView').then
 const RaceReplayView        = lazy(() => import('./sports/RaceReplayView').then(m => ({ default: m.RaceReplayView })));
 const CircuitMapView        = lazy(() => import('./sports/CircuitMapView').then(m => ({ default: m.CircuitMapView })));
 const TrackMap3D            = lazy(() => import('./sports/TrackMap3D').then(m => ({ default: m.TrackMap3D })));
+const SportsArchiveView     = lazy(() => import('./sports/SportsArchiveView').then(m => ({ default: m.SportsArchiveView })));
 import {
   Search, ChevronLeft, Newspaper, Users, Trophy, Calendar,
   MapPin, Building2, Star, TrendingUp, User, ExternalLink,
@@ -56,6 +57,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   const [pinnedIds, setPinnedIds]         = useState<string[]>(() => loadPins());
   const [predictions, setPredictions]     = useState<Record<string, 'home' | 'away'>>({});
   const [showStatCard, setShowStatCard]   = useState(false);
+  const [showArchive, setShowArchive]     = useState(false);
   const [showRaceHistory, setShowRaceHistory] = useState(false);
   const [showRaceReplay, setShowRaceReplay]   = useState(false);
 
@@ -362,6 +364,23 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               </div>
             )}
 
+            {/* In-depth analysis via Aria, grounded in the real career table */}
+            <button
+              onClick={() => {
+                const careerSummary = playerCareer?.categories[0]?.seasons
+                  ?.map(s => `${s.seasonDisplay} ${s.teamAbbr}: ${playerCareer.categories[0].labels.slice(0, 6).map((l, i) => `${l}=${s.stats[i] ?? '-'}`).join(' ')}`)
+                  .join('; ') ?? 'no career data';
+                window.dispatchEvent(new CustomEvent('OPEN_ARIA', {
+                  detail: {
+                    prompt: `Act as Aria, Plajah's sports analytics expert. Give me an in-depth player analysis of ${playerProfile.displayName || selectedPlayer.name} (${selectedSportsTab}). Here is their real season-by-season stat line from our archive: ${careerSummary}. Identify their peak seasons, career trajectory (rising/prime/declining), playing style, statistical strengths and weaknesses, historical comparisons to similar players, and their legacy outlook. Be specific and data-driven.`,
+                  },
+                }));
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-[1.5rem] text-[9px] font-black uppercase tracking-widest text-purple-400 hover:bg-purple-500/20 transition-all"
+            >
+              <Sparkles size={11} /> In-Depth Player Analysis
+            </button>
+
             {/* Bio */}
             {playerProfile.notes?.map && (
               <div className="p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/8">
@@ -476,6 +495,13 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           className="flex items-center gap-2 px-4 py-2.5 bg-[#FF8C00]/10 border border-[#FF8C00]/30 rounded-full text-xs font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all"
         >
           <CreditCard size={11} /> Stat Cards
+        </motion.button>
+        <motion.button
+          onClick={() => setShowArchive(true)}
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-[#FF8C00]/50 transition-all"
+        >
+          <History size={11} /> Archive Vault
         </motion.button>
         {(selectedSportsTab === 'F1' || selectedSportsTab === 'NASCAR' || selectedSportsTab === 'INDYCAR') && (
           <>
@@ -923,6 +949,14 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               onClose={() => setShowStatCard(false)}
               currentUser={null}
               initialTab={isEsports ? 'NBA' : selectedSportsTab}
+            />
+          </Suspense>
+        )}
+        {showArchive && (
+          <Suspense fallback={null}>
+            <SportsArchiveView
+              initialLeague={selectedSportsTab}
+              onClose={() => setShowArchive(false)}
             />
           </Suspense>
         )}
