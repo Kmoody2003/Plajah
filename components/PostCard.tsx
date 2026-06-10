@@ -1,5 +1,5 @@
-import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { Post, Album, Club } from '../types';
+import React, { useState, useMemo, useEffect, useRef, Suspense, lazy } from 'react';
+import { Post, Album, Club, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 const PollCard = lazy(() => import('./PollCard'));
 const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
@@ -8,7 +8,7 @@ import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import { formatDistanceToNow } from 'date-fns';
-import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
+import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost, searchUsers } from '../services/backendService';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
@@ -71,6 +71,63 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [loadingClubs, setLoadingClubs] = useState(false);
   const [sendingToClub, setSendingToClub] = useState('');
   const [sentToClub, setSentToClub] = useState('');
+
+  // ── @mention autocomplete for edit mode ───────────────────────────────────
+  const [editMentionQuery, setEditMentionQuery]     = useState<string | null>(null);
+  const [editMentionResults, setEditMentionResults] = useState<UserProfile[]>([]);
+  const [editMentionLoading, setEditMentionLoading] = useState(false);
+  const [editMentionIndex, setEditMentionIndex]     = useState(0);
+  const [editMentionAnchor, setEditMentionAnchor]   = useState(0);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editMentionQuery === null || editMentionQuery.length === 0) {
+      setEditMentionResults([]); return;
+    }
+    setEditMentionLoading(true);
+    const t = setTimeout(async () => {
+      const results = await searchUsers(editMentionQuery);
+      setEditMentionResults(results.slice(0, 6));
+      setEditMentionIndex(0);
+      setEditMentionLoading(false);
+    }, 220);
+    return () => clearTimeout(t);
+  }, [editMentionQuery]);
+
+  const handleEditTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setEditedText(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const match = val.slice(0, cursor).match(/@([A-Za-z0-9_]*)$/);
+    if (match) {
+      setEditMentionQuery(match[1]);
+      setEditMentionAnchor(cursor - match[0].length);
+    } else {
+      setEditMentionQuery(null);
+    }
+  };
+
+  const insertEditMention = (user: UserProfile) => {
+    const cursor = editTextareaRef.current?.selectionStart ?? editedText.length;
+    const token = `@[${user.displayName}](${user.uid}) `;
+    const newText = editedText.slice(0, editMentionAnchor) + token + editedText.slice(cursor);
+    setEditedText(newText);
+    setEditMentionQuery(null);
+    setEditMentionResults([]);
+    const newCursor = editMentionAnchor + token.length;
+    requestAnimationFrame(() => {
+      editTextareaRef.current?.focus();
+      editTextareaRef.current?.setSelectionRange(newCursor, newCursor);
+    });
+  };
+
+  const handleEditMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (editMentionQuery === null || editMentionResults.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setEditMentionIndex(i => Math.min(i + 1, editMentionResults.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setEditMentionIndex(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertEditMention(editMentionResults[editMentionIndex]); }
+    else if (e.key === 'Escape') { setEditMentionQuery(null); }
+  };
 
   const waterfallItems: WaterfallMediaItem[] = (post.media || []).map(m => ({
     type: m.type as WaterfallMediaItem['type'],
@@ -408,12 +465,55 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
           {/* Post text / edit */}
           {isEditing ? (
             <div className="space-y-3 mt-2">
-              <textarea
-                value={editedText}
-                onChange={(e) => setEditedText(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm font-medium leading-relaxed text-white outline-none focus:border-small-orange/50 transition-all"
-                rows={4}
-              />
+              <div className="relative">
+                <textarea
+                  ref={editTextareaRef}
+                  value={editedText}
+                  onChange={handleEditTextChange}
+                  onKeyDown={handleEditMentionKeyDown}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm font-medium leading-relaxed text-white outline-none focus:border-small-orange/50 transition-all"
+                  rows={4}
+                />
+                {/* @mention dropdown */}
+                {editMentionQuery !== null && (
+                  <div className="absolute top-full left-0 z-50 mt-1 w-72 bg-[#0e0e0e]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                    {editMentionLoading ? (
+                      <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">Searching…</div>
+                    ) : editMentionQuery.length === 0 ? (
+                      <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">Type a name to search</div>
+                    ) : editMentionResults.length === 0 ? (
+                      <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">No users found for "{editMentionQuery}"</div>
+                    ) : (
+                      editMentionResults.map((user, i) => (
+                        <button
+                          key={user.uid}
+                          onMouseDown={e => { e.preventDefault(); insertEditMention(user); }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                            i === editMentionIndex ? 'bg-white/8' : 'hover:bg-white/5'
+                          }`}
+                        >
+                          <img
+                            src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`}
+                            className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                            alt=""
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-black truncate text-white">{user.displayName}</p>
+                            {user.bio && <p className="text-[8px] text-white/35 truncate mt-0.5">{user.bio}</p>}
+                          </div>
+                          {user.followerCount > 0 && (
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white/20 shrink-0">{user.followerCount} followers</span>
+                          )}
+                        </button>
+                      ))
+                    )}
+                    <div className="px-4 py-2 border-t border-white/5">
+                      <p className="text-[7px] font-black uppercase tracking-widest text-white/15">↑↓ navigate · Enter select · Esc dismiss</p>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSaveEdit}
