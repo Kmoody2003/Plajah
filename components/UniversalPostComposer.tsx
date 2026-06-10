@@ -5,10 +5,11 @@ import {
   ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
-import { Album, IPWorld } from '../types';
+import { Album, IPWorld, UserProfile } from '../types';
 import { useFediverse } from '../contexts/FediverseContext';
 import SocialEmbedCard from './SocialEmbedCard';
 import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
+import { searchUsers } from '../services/backendService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -168,6 +169,65 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     const t = setTimeout(() => setDetectedEmbeds(detectSocialEmbeds(text)), 350);
     return () => clearTimeout(t);
   }, [text]);
+
+  // ── @mention autocomplete ─────────────────────────────────────────────────
+  const [mentionQuery, setMentionQuery]       = useState<string | null>(null);
+  const [mentionResults, setMentionResults]   = useState<UserProfile[]>([]);
+  const [mentionLoading, setMentionLoading]   = useState(false);
+  const [mentionIndex, setMentionIndex]       = useState(0);
+  const [mentionAnchor, setMentionAnchor]     = useState(0); // index of the triggering @
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (mentionQuery === null || mentionQuery.length === 0) {
+      setMentionResults([]);
+      return;
+    }
+    setMentionLoading(true);
+    const t = setTimeout(async () => {
+      const results = await searchUsers(mentionQuery);
+      setMentionResults(results.slice(0, 6));
+      setMentionIndex(0);
+      setMentionLoading(false);
+    }, 220);
+    return () => clearTimeout(t);
+  }, [mentionQuery]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setText(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const before = val.slice(0, cursor);
+    const match = before.match(/@([A-Za-z0-9_]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionAnchor(cursor - match[0].length);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMention = (user: UserProfile) => {
+    const cursor = textareaRef.current?.selectionStart ?? text.length;
+    const token = `@[${user.displayName}](${user.uid}) `;
+    const newText = text.slice(0, mentionAnchor) + token + text.slice(cursor);
+    setText(newText);
+    setMentionQuery(null);
+    setMentionResults([]);
+    const newCursor = mentionAnchor + token.length;
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(newCursor, newCursor);
+    });
+  };
+
+  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery === null || mentionResults.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionResults.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(mentionResults[mentionIndex]); }
+    else if (e.key === 'Escape') { setMentionQuery(null); }
+  };
 
   const { broadcast, accounts } = useFediverse();
   const hasFediverse = accounts.length > 0;
@@ -441,14 +501,64 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           className="w-9 h-9 rounded-full border border-white/10 shrink-0 mt-1"
           alt=""
         />
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder={placeholder}
-          rows={3}
-          className="flex-1 bg-transparent text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[80px] leading-relaxed"
-          autoFocus
-        />
+        <div className="flex-1 relative min-w-0">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={handleMentionKeyDown}
+            placeholder={placeholder}
+            rows={3}
+            className="w-full bg-transparent text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[80px] leading-relaxed"
+            autoFocus
+          />
+
+          {/* @mention dropdown */}
+          {mentionQuery !== null && (
+            <div className="absolute top-full left-0 z-50 mt-1 w-72 bg-[#0e0e0e]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+              {mentionLoading ? (
+                <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">
+                  Searching…
+                </div>
+              ) : mentionQuery.length === 0 ? (
+                <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">
+                  Type a name to search
+                </div>
+              ) : mentionResults.length === 0 ? (
+                <div className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-white/25">
+                  No users found for "{mentionQuery}"
+                </div>
+              ) : (
+                mentionResults.map((user, i) => (
+                  <button
+                    key={user.uid}
+                    onMouseDown={e => { e.preventDefault(); insertMention(user); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                      i === mentionIndex ? 'bg-white/8' : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <img
+                      src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`}
+                      className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                      alt=""
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black truncate text-white">{user.displayName}</p>
+                      {user.bio && <p className="text-[8px] text-white/35 truncate mt-0.5">{user.bio}</p>}
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white/20 shrink-0">
+                      {user.followerCount > 0 ? `${user.followerCount} followers` : ''}
+                    </span>
+                  </button>
+                ))
+              )}
+              <div className="px-4 py-2 border-t border-white/5">
+                <p className="text-[7px] font-black uppercase tracking-widest text-white/15">↑↓ navigate · Enter select · Esc dismiss</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Theme chips */}
