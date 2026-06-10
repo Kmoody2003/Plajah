@@ -219,9 +219,39 @@ export interface WC26Podcast {
 }
 
 export const WC26_PODCASTS: WC26Podcast[] = [
-  { title: 'The Athletic Football Podcast', description: 'Deep analysis and reporting from The Athletic\'s football journalists.', coverUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=400&q=80', rssUrl: 'https://feeds.megaphone.fm/athleticfc', language: 'EN' },
-  { title: 'Men in Blazers', description: 'Roger Bennett and Michael Davies on the beautiful game.', coverUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=400&q=80', rssUrl: 'https://feeds.megaphone.fm/meninblazers', language: 'EN' },
-  { title: 'ESPN FC', description: 'Daily football news, results and opinions from ESPN\'s global team.', coverUrl: 'https://images.unsplash.com/photo-1606925797300-0b35e9d1794e?w=400&q=80', rssUrl: 'https://www.espn.com/espnradio/podcast/feeds/itunes/podCast.xml?id=3035801', language: 'EN' },
-  { title: 'BBC Football Daily', description: 'The BBC Sport football team breaks down the day\'s action.', coverUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80', rssUrl: 'https://podcasts.files.bbci.co.uk/p02gsrmh.rss', language: 'EN' },
-  { title: 'Total Football Analysis', description: 'In-depth tactical breakdowns of matches and teams worldwide.', coverUrl: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400&q=80', rssUrl: 'https://anchor.fm/s/totalfootballanalysis/podcast/rss', language: 'EN' },
+  {
+    title: 'The Athletic FC Podcast',
+    description: 'In-depth football analysis, news and debate from The Athletic\'s global team of football journalists.',
+    coverUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=400&q=80',
+    rssUrl: 'https://feeds.acast.com/public/shows/the-athletic-fc-podcast',
+    language: 'EN',
+  },
+  {
+    title: 'Men in Blazers',
+    description: 'Roger Bennett and Michael Davies celebrate the beautiful game with wit, passion, and GLORIOUS football conversation.',
+    coverUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=400&q=80',
+    rssUrl: 'https://rss.art19.com/men-in-blazers',
+    language: 'EN',
+  },
+  {
+    title: 'Guardian Football Weekly',
+    description: 'The Guardian\'s award-winning football podcast — match analysis, interviews, and the week\'s biggest stories.',
+    coverUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80',
+    rssUrl: 'https://www.theguardian.com/football/series/footballweekly/podcast.xml',
+    language: 'EN',
+  },
+  {
+    title: 'Tifo Football Podcast',
+    description: 'Tactical breakdowns, big ideas, and the culture of the game from the team behind Tifo Football on YouTube.',
+    coverUrl: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400&q=80',
+    rssUrl: 'https://feeds.acast.com/public/shows/tifo-football-podcast',
+    language: 'EN',
+  },
+  {
+    title: 'American Soccer Analysis',
+    description: 'Data-driven analysis of MLS, the USMNT, USWNT, and world football from America\'s leading soccer analytics outlet.',
+    coverUrl: 'https://images.unsplash.com/photo-1606925797300-0b35e9d1794e?w=400&q=80',
+    rssUrl: 'https://feeds.acast.com/public/shows/american-soccer-analysis',
+    language: 'EN',
+  },
 ];
