@@ -4,11 +4,26 @@ import {
   uploadBytesResumable,
   getDownloadURL 
 } from 'firebase/storage';
-import { 
+import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
-  query, where, orderBy, limit, onSnapshot, Timestamp, increment,
+  query, where, orderBy, limit, onSnapshot as rawOnSnapshot, Timestamp, increment,
   arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer
 } from 'firebase/firestore';
+
+// Firestore's watch stream can corrupt itself after quota/permission errors
+// (firebase-js-sdk bug: INTERNAL ASSERTION FAILED ca9/b815) and then throw
+// SYNCHRONOUSLY from any later onSnapshot registration — crashing whatever
+// React tree subscribed. Every subscription in this file goes through this
+// guard: a failed registration logs and returns a no-op unsubscribe instead
+// of taking down the UI. Realtime updates degrade; reading/playback survives.
+const onSnapshot: typeof rawOnSnapshot = ((...args: any[]) => {
+  try {
+    return (rawOnSnapshot as any)(...args);
+  } catch (e) {
+    console.warn('[backendService] snapshot subscription failed:', (e as Error)?.message?.slice(0, 200));
+    return () => {};
+  }
+}) as typeof rawOnSnapshot;
 import {
   signInWithPopup,
   linkWithPopup,

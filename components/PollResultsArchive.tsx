@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BarChart2, Clock, Trophy, ChevronDown, ChevronUp, ArrowLeft, Inbox } from 'lucide-react';
-import { collection, query, where, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { PollArchiveEntry } from '../types';
 import { formatDistanceToNow, format } from 'date-fns';

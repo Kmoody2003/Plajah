@@ -4,10 +4,8 @@ import { Camera, Mic, X, Radio, MessageCircle, Users, Eye, Settings2, MicOff, Vi
 import { auth } from '../services/backendService';
 import { db } from '../services/firebase';
 import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
-import {
-  doc, setDoc, collection, addDoc, onSnapshot,
-  deleteDoc, updateDoc, increment, serverTimestamp, Timestamp
-} from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, deleteDoc, updateDoc, increment, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 
 const ICE_SERVERS = {
   iceServers: [

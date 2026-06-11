@@ -36,10 +36,8 @@
  */
 
 import { auth } from './backendService';
-import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc,
-  query, orderBy, limit, serverTimestamp, onSnapshot,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db } from './firebase';
 
 // ── Tier definitions ──────────────────────────────────────────────────────────

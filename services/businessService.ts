@@ -1,7 +1,5 @@
-import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, addDoc, onSnapshot, runTransaction
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import {
   BusinessPage, BusinessOrder, BusinessReward, DigitalSignageSlide,

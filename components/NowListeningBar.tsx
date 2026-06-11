@@ -11,10 +11,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Music2, Users, Headphones, Play, X, Radio } from 'lucide-react';
-import {
-  collection, doc, setDoc, deleteDoc, onSnapshot,
-  query, where, serverTimestamp, Timestamp,
-} from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { NowListeningPresence } from '../types';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';

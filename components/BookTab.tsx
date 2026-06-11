@@ -227,8 +227,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
       const primaryUrl = epubUrl || storedUrl || gutenbUrl || '';
       const isEpubPrimary = !!epubUrl;
-      // TXT to fall back to when EPUB fails (BookReader "Try Text Version" button)
-      const txtFallback = storedUrl || gutenbUrl || undefined;
+      // TXT to fall back to when EPUB fails. Prefer the Gutenberg cache URL:
+      // the Firebase Storage copy 404s until the seed endpoint has run.
+      const txtFallback = gutenbUrl || storedUrl || undefined;
 
       bookChapters = [
         {

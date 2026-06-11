@@ -36,15 +36,16 @@ class ErrorBoundary extends React.Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
     if (isRecoverableBackendError(error)) {
-      // Allow up to 3 silent recoveries per 30s; beyond that, show the screen
-      // so a genuine crash loop is still visible.
+      // Backend stream noise is categorically not an app bug — keep
+      // recovering, with growing delay so a tight rethrow loop can't peg
+      // the CPU. Genuine app crashes don't match the pattern and still
+      // show the interruption screen immediately.
       const now = Date.now();
       this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
-      if (this.autoRecoveries.length < 3) {
-        this.autoRecoveries.push(now);
-        console.warn('[ErrorBoundary] Auto-recovering from backend stream error.');
-        setTimeout(() => this.setState({ hasError: false, error: null }), 50);
-      }
+      this.autoRecoveries.push(now);
+      const delay = Math.min(5_000, 100 * Math.pow(2, this.autoRecoveries.length - 1));
+      console.warn(`[ErrorBoundary] Auto-recovering from backend stream error (retry in ${delay}ms).`);
+      setTimeout(() => this.setState({ hasError: false, error: null }), delay);
     }
   }
 

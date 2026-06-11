@@ -13,9 +13,8 @@
  */
 
 import { db } from './firebase';
-import {
-  doc, getDoc, setDoc, onSnapshot, serverTimestamp,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 
 // ─── Flag Names ────────────────────────────────────────────────────────────────
 

@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Star, UserMinus, Search, Lock, Users, Plus, ArrowLeft, Check } from 'lucide-react';
 import { CloseFriend } from '../types';
-import {
-  collection, doc, setDoc, deleteDoc, onSnapshot,
-  query, orderBy, getDocs, where,
-} from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { searchUsers } from '../services/backendService';
 import { formatDistanceToNow } from 'date-fns';

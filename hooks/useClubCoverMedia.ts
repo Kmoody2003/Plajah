@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/firebase';
 
 export interface ClubCoverItem {

@@ -7,10 +7,8 @@ import {
 } from 'lucide-react';
 import GifStickerPicker from './GifStickerPicker';
 import DebateChallengeButton from './DebateChallengeButton';
-import {
-  collection, addDoc, getDocs, query, where, onSnapshot,
-  doc, updateDoc, arrayUnion, arrayRemove, orderBy,
-} from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/firebase';
 import {
   auth,

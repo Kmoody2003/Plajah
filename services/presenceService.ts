@@ -1,7 +1,5 @@
-import {
-  collection, doc, setDoc, deleteDoc, onSnapshot,
-  query, where, serverTimestamp, Timestamp,
-} from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db } from './firebase';
 import { NowActiveEntry } from '../types';
 

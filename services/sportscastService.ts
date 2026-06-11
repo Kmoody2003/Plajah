@@ -6,10 +6,8 @@
  */
 
 import { db } from './firebase';
-import {
-  doc, collection, onSnapshot, setDoc, addDoc,
-  query, orderBy, limit,
-} from 'firebase/firestore';
+import { doc, collection, setDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -3,9 +3,8 @@ import { motion } from 'motion/react';
 import { X, Users, MessageCircle, Heart, Send, Radio, Wifi, WifiOff } from 'lucide-react';
 import { auth } from '../services/backendService';
 import { db } from '../services/firebase';
-import {
-  doc, collection, addDoc, onSnapshot, setDoc, updateDoc, increment
-} from 'firebase/firestore';
+import { doc, collection, addDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 
 const ICE_SERVERS = {
   iceServers: [

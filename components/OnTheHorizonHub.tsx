@@ -28,7 +28,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { auth, db } from '../services/firebase';
-import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
+import { collection, query, where, QuerySnapshot, DocumentData } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { registerHorizonInterest } from '../services/horizonFeaturesService';
 
 // ─── Feature registry ─────────────────────────────────────────────────────────

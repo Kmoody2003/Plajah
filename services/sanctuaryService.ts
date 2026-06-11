@@ -1,8 +1,5 @@
-import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, onSnapshot, addDoc, increment,
-  arrayUnion, arrayRemove,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import type {
   SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent,

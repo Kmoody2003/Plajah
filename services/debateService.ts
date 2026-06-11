@@ -9,11 +9,8 @@
  *  - Aria judges at the end: factual accuracy, academic debate rubric, civility
  */
 
-import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc,
-  query, where, orderBy, limit, onSnapshot, increment, arrayUnion,
-  runTransaction, serverTimestamp, Timestamp,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, query, where, orderBy, limit, increment, arrayUnion, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './backendService';
 import { Debate, DebatePost, DebateStatus, DebateSide, DebateVerdict } from '../types';
 

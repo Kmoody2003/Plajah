@@ -11,7 +11,8 @@ import {
   Share2, Copy, RefreshCw, Loader2 as Loader,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { Club, ClubPost, ClubMembership, ClubGalleryItem, ClubChatMessage, ClubRole, ClubEvent, UserProfile, Album, Video, MerchItem, PitchDeck } from '../types';
 import { generateClubDeck } from '../services/pitchDeckTemplates';
 import {

@@ -15,10 +15,8 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import {
-  collection, query, where, orderBy, limit,
-  onSnapshot, getDoc, doc, getDocs,
-} from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDoc, doc, getDocs } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './backendService';
 import { AppNotification, UserProfile } from '../types';
 

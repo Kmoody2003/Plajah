@@ -5,7 +5,8 @@ import { WC26Player, WC26Position, getPositionLabel, getPositionColor } from '..
 import { WC26Team } from '../data/worldCup2026';
 import { auth } from '../services/backendService';
 import { db } from '../services/backendService';
-import { doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 
 // ── Wikipedia photo lookup via Wikimedia REST API ─────────────────────────────
 async function fetchWikiPhoto(slug: string): Promise<string | null> {

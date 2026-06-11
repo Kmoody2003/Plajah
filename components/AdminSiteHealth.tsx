@@ -6,10 +6,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  collection, onSnapshot, query, where, orderBy, limit,
-  getCountFromServer, Timestamp,
-} from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getCountFromServer, Timestamp } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth, storage } from '../services/firebase';
 import { ref, list } from 'firebase/storage';
 import {

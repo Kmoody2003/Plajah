@@ -5,11 +5,8 @@ import {
   BarChart2, Send, X, Upload, ArrowLeft,
 } from 'lucide-react';
 import { Challenge, ChallengeEntry } from '../types';
-import {
-  collection, query, where, orderBy, limit,
-  onSnapshot, addDoc, doc, updateDoc, increment,
-  arrayUnion, arrayRemove, getDoc, setDoc, serverTimestamp,
-} from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, addDoc, doc, updateDoc, increment, arrayUnion, arrayRemove, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { formatDistanceToNow } from 'date-fns';
 

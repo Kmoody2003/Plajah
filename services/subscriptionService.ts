@@ -1,7 +1,5 @@
-import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, onSnapshot, orderBy, limit, runTransaction, serverTimestamp
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import {
   PlajahPlusSubscription, CreatorSplit, CreatorSplitEntry, SubscriptionTier

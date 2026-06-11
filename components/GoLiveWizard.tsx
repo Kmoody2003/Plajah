@@ -8,7 +8,8 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus, saveStreamArchive } from '../services/backendService';
 import { db } from '../services/backendService';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import PlajahLivePlayer from './PlajahLivePlayer';
 import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 import SportsProducerPanel from './SportsProducerPanel';

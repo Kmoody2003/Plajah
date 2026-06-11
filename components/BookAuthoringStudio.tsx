@@ -23,7 +23,7 @@ import {
   Sparkles, PenTool, MoreHorizontal, Loader2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { StudioBook, StudioPage, StudioPanel, StudioPageType } from '../types';
+import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { auth, storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -765,6 +765,88 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [importDragging, setImportDragging] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
+  // Publish & Protect: ship the book to the Lorea marketplace and anchor a
+  // creation certificate (SHA-256 of the manuscript, inscribed via Ordinals)
+  // so authorship is provable before the work circulates.
+  const [showPublish, setShowPublish] = useState(false);
+  const [publishPrice, setPublishPrice] = useState('0');
+  const [protectOnChain, setProtectOnChain] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+  const [publishOutcome, setPublishOutcome] = useState<{ albumId: string; certificateId?: string; certError?: string } | null>(null);
+
+  const handlePublish = async () => {
+    const user = auth.currentUser;
+    if (!user) { alert('Sign in to publish your book.'); return; }
+    setPublishing(true);
+    setPublishOutcome(null);
+    try {
+      const stripHtml = (html: string) => {
+        const el = document.createElement('div');
+        el.innerHTML = html;
+        return (el.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+      };
+      const chapters = [...book.pages]
+        .sort((a, b) => a.order - b.order)
+        .map((p, i) => ({
+          id: p.id,
+          title: p.chapterTitle || `Chapter ${i + 1}`,
+          content: p.richText ? stripHtml(p.richText) : '',
+        }))
+        .filter(c => c.content.length > 0);
+      if (chapters.length === 0) { alert('Write at least one chapter before publishing.'); setPublishing(false); return; }
+
+      const { publishToCloud } = await import('../services/backendService');
+      const albumId = book.publishedAlbumId || `authored-${book.id}`;
+      const price = Math.max(0, parseFloat(publishPrice) || 0);
+      const album: Album = {
+        id: albumId,
+        title: book.title || 'Untitled',
+        artist: book.author || user.displayName || 'Independent Author',
+        coverImage: book.coverImageUrl || '',
+        type: 'BOOK',
+        subType: ['NOVEL', 'NON_FICTION', 'ILLUSTRATED'].includes(book.format) ? 'NOVEL' : 'GRAPHIC_NOVEL',
+        genre: book.genre || 'Independent',
+        description: book.synopsis || '',
+        ownerId: user.uid,
+        createdAt: Date.now(),
+        themeColor: '#FF8C00',
+        tracks: [],
+        bookChapters: chapters,
+        ...(price > 0 ? { price, isPaywalled: true } : {}),
+      } as Album;
+      await publishToCloud(album);
+      setBookField('publishedAlbumId', albumId);
+
+      let certificateId: string | undefined;
+      let certError: string | undefined;
+      if (protectOnChain) {
+        try {
+          const { hashContent, requestCreationCertificate } = await import('../services/ordinalsService');
+          const manuscript = chapters.map(c => `${c.title}\n\n${c.content}`).join('\n\n— — —\n\n');
+          const contentHash = await hashContent(manuscript);
+          const cert = await requestCreationCertificate({
+            contentId: albumId,
+            contentType: 'BOOK',
+            vertical: 'LOREA',
+            creatorId: user.uid,
+            creatorName: book.author || user.displayName || 'Independent Author',
+            title: book.title || 'Untitled',
+            contentHash,
+          });
+          certificateId = cert.certificateId;
+        } catch (e: any) {
+          certError = e?.message || 'Certificate request failed';
+          console.warn('[Publish] Creation certificate failed:', e);
+        }
+      }
+      setPublishOutcome({ albumId, certificateId, certError });
+    } catch (e: any) {
+      alert(`Publish failed: ${e?.message || e}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const saved = useDebouncedSave(book);
 
   const sortedPages = useMemo(() => [...book.pages].sort((a,b) => a.order - b.order), [book.pages]);
@@ -877,6 +959,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                 <motion.div initial={{opacity:0,y:-6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-6}} transition={{duration:.12}}
                   className="absolute right-0 top-full mt-2 w-48 bg-[#181818] border border-white/8 rounded-xl overflow-hidden shadow-2xl z-50">
                   {[
+                    { label:'Publish & Protect', icon:<Globe size={12}/>, action:()=>setShowPublish(true) },
                     { label:'Print / PDF', icon:<Printer size={12}/>, action:()=>window.print() },
                     { label:'HTML file', icon:<Download size={12}/>, action:()=>{ const h=buildHTML(book); const b=new Blob([h],{type:'text/html'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`${book.title}.html`; a.click(); URL.revokeObjectURL(u); } },
                   ].map(({label,icon,action}) => (
@@ -1038,6 +1121,71 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ── Publish & Protect modal ── */}
+      <AnimatePresence>
+        {showPublish && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => !publishing && setShowPublish(false)}>
+            <motion.div initial={{scale:.96,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.96,opacity:0}} transition={{duration:.15}}
+              className="bg-[#141414] border border-white/8 rounded-2xl p-8 max-w-md w-full"
+              onClick={e => e.stopPropagation()}>
+              {publishOutcome ? (
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                    <Check size={24} className="text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-2">Published to Lorea</h3>
+                  <p className="text-xs text-white/40 leading-relaxed mb-4">
+                    “{book.title}” is live in the marketplace{(parseFloat(publishPrice) || 0) > 0 ? ` at $${(parseFloat(publishPrice) || 0).toFixed(2)}` : ' as a free read'}.
+                  </p>
+                  {publishOutcome.certificateId ? (
+                    <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 mb-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-300 mb-1">Creation Certificate Queued</p>
+                      <p className="text-[10px] text-white/40 leading-relaxed">
+                        Your manuscript's fingerprint is being inscribed on Bitcoin via Ordinals — permanent, timestamped proof you wrote it first.
+                      </p>
+                      <p className="text-[9px] text-white/25 mt-2 font-mono break-all">{publishOutcome.certificateId}</p>
+                    </div>
+                  ) : publishOutcome.certError ? (
+                    <p className="text-[10px] text-amber-400/70 mb-5">Certificate request deferred: {publishOutcome.certError}. Your book is still published; protection will retry.</p>
+                  ) : null}
+                  <button onClick={() => { setShowPublish(false); setPublishOutcome(null); }}
+                    className="w-full py-3 rounded-xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-white/90 transition-colors">Done</button>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-black text-white mb-1">Publish & Protect</h3>
+                  <p className="text-xs text-white/40 leading-relaxed mb-6">
+                    Ship “{book.title || 'Untitled'}” to the Lorea marketplace, with optional on-chain proof of authorship.
+                  </p>
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 mb-1.5">Price (USD — 0 for free)</label>
+                  <input type="number" min="0" step="0.01" value={publishPrice}
+                    onChange={e => setPublishPrice(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white mb-4 focus:outline-none focus:border-orange-500/50" />
+                  <button onClick={() => setProtectOnChain(v => !v)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-colors mb-6 ${protectOnChain ? 'bg-orange-500/10 border-orange-500/30' : 'bg-white/[0.03] border-white/8'}`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${protectOnChain ? 'bg-orange-500 border-orange-500' : 'border-white/20'}`}>
+                      {protectOnChain && <Check size={11} className="text-black" />}
+                    </div>
+                    <span>
+                      <span className="block text-[11px] font-bold text-white/80">Creation Certificate (recommended)</span>
+                      <span className="block text-[10px] text-white/35 leading-relaxed mt-0.5">
+                        Inscribe a SHA-256 fingerprint of your manuscript on Bitcoin — court-friendly, timestamped proof of authorship that exists independent of Plajah.
+                      </span>
+                    </span>
+                  </button>
+                  <button onClick={handlePublish} disabled={publishing}
+                    className="w-full py-3.5 rounded-xl bg-orange-500 text-black text-xs font-black uppercase tracking-widest hover:bg-orange-400 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                    {publishing ? (<><Loader2 size={14} className="animate-spin" /> Publishing…</>) : (<><Globe size={14} /> Publish to Lorea</>)}
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Import modal ── */}
       <AnimatePresence>

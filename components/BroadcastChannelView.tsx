@@ -5,11 +5,8 @@ import {
   Smile, Image as ImageIcon, BarChart2, Pin, Trash2, Radio,
 } from 'lucide-react';
 import { BroadcastChannel, BroadcastMessage } from '../types';
-import {
-  collection, query, where, orderBy, limit, onSnapshot,
-  addDoc, doc, updateDoc, deleteDoc, setDoc, arrayUnion, arrayRemove,
-  serverTimestamp, increment,
-} from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, addDoc, doc, updateDoc, deleteDoc, setDoc, arrayUnion, arrayRemove, serverTimestamp, increment } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { formatDistanceToNow } from 'date-fns';
 

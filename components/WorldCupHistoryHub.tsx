@@ -14,7 +14,8 @@ import {
   TournamentEdition,
 } from '../data/wcHistory';
 import { auth, db } from '../services/backendService';
-import { doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

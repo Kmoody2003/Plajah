@@ -22,17 +22,8 @@ import {
   listenToActiveLiveTalks,
   db
 } from '../services/backendService';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  onSnapshot, 
-  arrayUnion 
-} from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, arrayUnion } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 const rtcConfig = {

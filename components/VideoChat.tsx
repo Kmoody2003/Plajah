@@ -8,9 +8,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { VideoChatSession, ChatRoom } from '../types';
 import { startVideoChat, auth } from '../services/backendService';
 import { db } from '../services/firebase';
-import {
-  doc, setDoc, updateDoc, addDoc, collection, onSnapshot, deleteDoc,
-} from 'firebase/firestore';
+import { doc, setDoc, updateDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },

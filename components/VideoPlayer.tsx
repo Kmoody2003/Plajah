@@ -15,7 +15,8 @@ import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/Globa
 import CommentSection from './CommentSection';
 import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/firebase';
 
 // ── Mux HLS player ────────────────────────────────────────────────────────────

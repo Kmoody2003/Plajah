@@ -11,9 +11,8 @@ import { WC26_TEAMS, WC26_MATCHES, getTeam, ROUND_LABELS, type WC26Team, type WC
 import { WC26Player, getPlayersByTeam, getPositionLabel, getPositionColor } from '../data/worldCupPlayers';
 import { auth, db, listenToClubPosts, createClubPost, toggleClubPostLike, deleteClubPost } from '../services/backendService';
 import { onAuthStateChanged } from 'firebase/auth';
-import {
-  collection, doc, setDoc, deleteDoc, getCountFromServer, onSnapshot,
-} from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getCountFromServer } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { UserProfile, ClubPost } from '../types';
 import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer';
 import { type ClubCoverItem } from '../hooks/useClubCoverMedia';

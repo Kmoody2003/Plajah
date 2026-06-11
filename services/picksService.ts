@@ -3,7 +3,8 @@
 // Stored under Firestore: wcPicks/{userId}
 
 import { db } from './backendService';
-import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 
 export type MatchResult = 'H' | 'D' | 'A'; // Home win / Draw / Away win
 

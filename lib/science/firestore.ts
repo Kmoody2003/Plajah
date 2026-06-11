@@ -1,8 +1,5 @@
-import {
-  collection, doc, addDoc, getDoc, getDocs, updateDoc, deleteDoc,
-  query, where, orderBy, limit, onSnapshot, increment,
-  serverTimestamp, runTransaction, arrayUnion, arrayRemove,
-} from 'firebase/firestore';
+import { collection, doc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit, increment, serverTimestamp, runTransaction, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { onSnapshot } from '../../services/safeSnapshot';
 import { db, auth } from '../../services/backendService';
 import type {
   SciencePost, ScienceMeta, ScienceComment, ScienceCommentType,

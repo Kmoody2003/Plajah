@@ -419,6 +419,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const isEpub = !forceTxtFallback && (currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub'));
   const isPdf = currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('pdf');
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
+    // Forced text fallback: the chapter itself is EPUB but we read its TXT
+    // fallbackUrl — without this clause the reader showed "no visual data".
+    (forceTxtFallback && !!currentChapter?.fallbackUrl) ||
     currentChapter?.format === 'TXT' ||
     currentChapter?.url?.toLowerCase().endsWith('.txt') ||
     currentChapter?.url?.toLowerCase().includes('.txt.') ||
@@ -485,10 +488,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       setChapterContent(formatted);
       setParsedChapters(parseChaptersFromText(formatted));
     } else if (isTxt && currentChapter?.url) {
-      const txtUrl = forceTxtFallback && currentChapter.fallbackUrl
-        ? currentChapter.fallbackUrl
-        : currentChapter.url;
-      loadFullText(txtUrl);
+      if (forceTxtFallback && currentChapter.fallbackUrl) {
+        loadFullText(currentChapter.fallbackUrl);
+      } else {
+        loadFullText(currentChapter.url, currentChapter.fallbackUrl);
+      }
     } else if (!isEpub) {
       setChapterContent('');
     }

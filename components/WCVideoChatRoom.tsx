@@ -15,10 +15,8 @@ import {
   UserPlus, X, Timer, Sparkles, AlertCircle,
 } from 'lucide-react';
 import { db, followUser } from '../services/backendService';
-import {
-  doc, collection, setDoc, deleteDoc, onSnapshot,
-  runTransaction, arrayUnion, increment, getDoc, updateDoc,
-} from 'firebase/firestore';
+import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import type { WC26Team } from '../data/worldCup2026';
 
 // ── Constants ──────────────────────────────────────────────────────────────────

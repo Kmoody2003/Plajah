@@ -11,7 +11,8 @@ import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
-import { getDoc, doc, onSnapshot } from 'firebase/firestore';
+import { getDoc, doc } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import {
   db, auth,
   fetchWorldCharacters,
