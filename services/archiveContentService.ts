@@ -40,6 +40,106 @@ export interface ArchiveTrack {
 const GUTENDEX_BASE = 'https://gutendex.com/books';
 const INTERNET_ARCHIVE_BASE = 'https://archive.org/advancedsearch.php';
 const INTERNET_ARCHIVE_DETAILS = 'https://archive.org/metadata';
+const LOC_BASE = 'https://www.loc.gov';
+const ARXIV_BASE = 'https://export.arxiv.org/api/query';
+
+const viaProxy = (url: string) => `/api/proxy?url=${encodeURIComponent(url)}`;
+
+// ── Library of Congress (native loc.gov JSON API) ──────────────────────────
+// Open-access digitized books with downloadable PDFs — no IA mirror involved.
+export const fetchLibraryOfCongressBooks = async (query = '', limit = 30): Promise<ArchiveBook[]> => {
+  return cached(`loc-books:${query}:${limit}`, 1000 * 60 * 60, async () => {
+    const params = new URLSearchParams({ fo: 'json', c: String(limit) });
+    if (query) params.set('q', query);
+    const url = `${LOC_BASE}/collections/open-access-books/?${params.toString()}`;
+    const response = await fetch(viaProxy(url));
+    if (!response.ok) throw new Error(`LoC HTTP ${response.status}`);
+    const data = await response.json();
+    const results: any[] = data?.results || [];
+    return results
+      .map((r: any): ArchiveBook | null => {
+        const pdf =
+          r?.resources?.find((res: any) => res?.pdf)?.pdf ||
+          (Array.isArray(r?.url) ? undefined : undefined);
+        if (!pdf) return null; // only list items we can actually open
+        const image = Array.isArray(r.image_url) ? r.image_url[r.image_url.length - 1] : r.image_url;
+        return {
+          id: `loc-${String(r.id || r.url || r.title).replace(/\W+/g, '-').slice(-60)}`,
+          title: r.title || 'Untitled',
+          authors: Array.isArray(r.contributor) ? r.contributor : (r.contributor ? [r.contributor] : ['Library of Congress']),
+          subjects: Array.isArray(r.subject) ? r.subject : (r.subject ? [r.subject] : ['Open Access']),
+          formats: { 'application/pdf': pdf },
+          download_count: 0,
+          coverImage: image,
+          genre: 'Library of Congress',
+        };
+      })
+      .filter(Boolean) as ArchiveBook[];
+  }).catch((error) => {
+    console.error('Error fetching Library of Congress books:', error);
+    return [];
+  });
+};
+
+// ── Research papers (arXiv) with discipline categorization ─────────────────
+const ARXIV_DISCIPLINES: Array<[RegExp, string]> = [
+  [/^cs\./, 'Computer Science'],
+  [/^math\./, 'Mathematics'],
+  [/^(physics|astro-ph|cond-mat|gr-qc|hep-|nucl-|quant-ph|nlin)/, 'Physics'],
+  [/^q-bio\./, 'Biology'],
+  [/^q-fin\./, 'Quantitative Finance'],
+  [/^stat\./, 'Statistics'],
+  [/^eess\./, 'Electrical Engineering'],
+  [/^econ\./, 'Economics'],
+];
+
+export const disciplineForArxivCategory = (category: string): string => {
+  for (const [re, label] of ARXIV_DISCIPLINES) if (re.test(category)) return label;
+  return 'Interdisciplinary';
+};
+
+export const fetchResearchPapers = async (categoryPrefix = 'cs', limit = 30): Promise<ArchiveBook[]> => {
+  return cached(`arxiv:${categoryPrefix}:${limit}`, 1000 * 60 * 30, async () => {
+    const params = new URLSearchParams({
+      search_query: `cat:${categoryPrefix}*`,
+      sortBy: 'submittedDate',
+      sortOrder: 'descending',
+      max_results: String(limit),
+    });
+    const response = await fetch(viaProxy(`${ARXIV_BASE}?${params.toString()}`));
+    if (!response.ok) throw new Error(`arXiv HTTP ${response.status}`);
+    const xml = await response.text();
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const entries = [...doc.querySelectorAll('entry')];
+    return entries.map((entry): ArchiveBook => {
+      const get = (sel: string) => entry.querySelector(sel)?.textContent?.trim() || '';
+      const id = get('id');
+      const arxivId = id.split('/abs/')[1] || id;
+      const primaryCat =
+        entry.querySelector('primary_category')?.getAttribute('term') ||
+        entry.querySelector('category')?.getAttribute('term') || '';
+      const pdfLink =
+        [...entry.querySelectorAll('link')].find(l => l.getAttribute('title') === 'pdf')?.getAttribute('href') ||
+        id.replace('/abs/', '/pdf/');
+      const categories = [...entry.querySelectorAll('category')]
+        .map(c => c.getAttribute('term') || '')
+        .filter(Boolean);
+      return {
+        id: `arxiv-${arxivId}`,
+        title: get('title').replace(/\s+/g, ' '),
+        authors: [...entry.querySelectorAll('author > name')].map(n => n.textContent?.trim() || '').filter(Boolean),
+        subjects: [disciplineForArxivCategory(primaryCat), ...categories],
+        formats: { 'application/pdf': pdfLink.startsWith('http') ? pdfLink.replace(/^http:/, 'https:') : pdfLink },
+        download_count: 0,
+        coverImage: undefined,
+        genre: disciplineForArxivCategory(primaryCat),
+      };
+    });
+  }).catch((error) => {
+    console.error('Error fetching research papers:', error);
+    return [];
+  });
+};
 
 export const fetchArchiveMusic = async (genre: string = 'Jazz', limit: number = 30): Promise<ArchiveTrack[]> => {
   try {

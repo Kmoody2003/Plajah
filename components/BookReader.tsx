@@ -131,6 +131,7 @@ interface BookReaderProps {
 }
 
 const POSITION_KEY = (bookId: string) => `lorea_pos_${bookId}`;
+const EPUB_POS_KEY = (bookId: string) => `lorea_epub_pos_${bookId}`;
 
 function loadSavedPosition(bookId: string): { chapter: number; page: number } {
   try {
@@ -284,7 +285,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [epubRendition, setEpubRendition] = useState<Rendition | null>(null);
   const [epubBook, setEpubBook] = useState<EPubBook | null>(null);
   const [toc, setToc] = useState<any[]>([]);
-  const [epubLocation, setEpubLocation] = useState<string | null>(null);
+  const [epubLocation, setEpubLocation] = useState<string | null>(() => {
+    try { return localStorage.getItem(EPUB_POS_KEY(book.id)); } catch { return null; }
+  });
   const [epubProgress, setEpubProgress] = useState(0);
   // EPUB bytes are fetched by us (cached, deduped, retried) and handed to the
   // reader as a binary — epub.js fetching its own URL has no retry and a
@@ -296,6 +299,29 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [fontSize, setFontSize] = useState(100);
   const [readingTheme, setReadingTheme] = useState<'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER'>('SEPIA');
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif' | 'mono'>('sans');
+
+  // Display mode scales the whole reading surface for the device class:
+  // phone-in-hand, desk monitor, or a TV viewed from across the room.
+  const [displayMode, setDisplayMode] = useState<'AUTO' | 'MOBILE' | 'DESKTOP' | 'TV'>(() => {
+    try { return (localStorage.getItem('lorea_display_mode') as any) || 'AUTO'; } catch { return 'AUTO'; }
+  });
+  const [viewportW, setViewportW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1280));
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('lorea_display_mode', displayMode); } catch {}
+  }, [displayMode]);
+  const resolvedMode: 'MOBILE' | 'DESKTOP' | 'TV' =
+    displayMode !== 'AUTO' ? displayMode
+    : viewportW >= 1900 ? 'TV'
+    : viewportW >= 1024 ? 'DESKTOP'
+    : 'MOBILE';
+  const modeScale   = resolvedMode === 'TV' ? 1.5 : resolvedMode === 'DESKTOP' ? 1.1 : 1.0;
+  const modeMaxW    = resolvedMode === 'TV' ? 'max-w-6xl' : resolvedMode === 'DESKTOP' ? 'max-w-3xl' : 'max-w-xl';
+  const modeLeading = resolvedMode === 'TV' ? 'leading-[2.1]' : 'leading-[1.9]';
 
   // Read Along (Book Club) State
   const [isReadAlongActive, setIsReadAlongActive] = useState(false);
@@ -315,6 +341,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const aiAudioRef = useRef<HTMLAudioElement>(null);
   const [isAiPlaying, setIsAiPlaying] = useState(false);
   
+  // Read-along narration: browser speech synthesis with word-boundary events
+  // drives a live highlight of the word being spoken. Works fully on-device.
+  const [readAlongPos, setReadAlongPos] = useState<{ para: number; word: number } | null>(null);
+  const [readAlongAutoNext, setReadAlongAutoNext] = useState(false);
+  const readAlongSession = useRef<{ stop: boolean }>({ stop: true });
+  const readAlongWordRef = useRef<HTMLSpanElement | null>(null);
+
   // PDF State
   const [numPdfPages, setNumPdfPages] = useState<number>();
   const [pdfPageNumber, setPdfPageNumber] = useState<number>(1);
@@ -529,7 +562,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // Apply EPUB Styles
   useEffect(() => {
     if (epubRendition) {
-      epubRendition.themes.fontSize(`${fontSize}%`);
+      epubRendition.themes.fontSize(`${Math.round(fontSize * modeScale)}%`);
       
       let textColor = '#fff';
       let bgColor = 'transparent';
@@ -560,7 +593,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       });
       epubRendition.themes.select('custom');
     }
-  }, [epubRendition, fontSize, readingTheme, fontFamily, theme]);
+  }, [epubRendition, fontSize, modeScale, readingTheme, fontFamily, theme]);
 
   const nextPage = useCallback(() => {
     if (isEpub && epubRendition) {
@@ -614,6 +647,93 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextPage, prevPage, onBack]);
+
+  // ── Read-along narration ─────────────────────────────────────────────────
+  const stopReadAlong = useCallback(() => {
+    readAlongSession.current.stop = true;
+    setReadAlongAutoNext(false);
+    try { window.speechSynthesis?.cancel(); } catch {}
+    setReadAlongPos(null);
+  }, []);
+
+  const pickNarrationVoice = (): SpeechSynthesisVoice | undefined => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    // Prefer the higher-quality neural voices when the platform exposes them
+    return (
+      voices.find(v => /^en/i.test(v.lang) && /natural|neural|online|premium/i.test(v.name)) ||
+      voices.find(v => /^en/i.test(v.lang) && v.localService) ||
+      voices.find(v => /^en/i.test(v.lang)) ||
+      voices[0]
+    );
+  };
+
+  const startReadAlong = useCallback((startPara = 0) => {
+    if (!('speechSynthesis' in window)) {
+      setReaderError('Read-along narration is not supported on this device.');
+      return;
+    }
+    readAlongSession.current.stop = true;
+    try { window.speechSynthesis.cancel(); } catch {}
+    const session = { stop: false };
+    readAlongSession.current = session;
+
+    const activeCh = parsedChapters[activeParsedChapter];
+    const paras = activeCh?.pages[activeParsedPage] || [];
+    if (!paras.length) return;
+
+    const speakFrom = (idx: number) => {
+      if (session.stop) return;
+      if (idx >= paras.length) {
+        // Page finished — turn it and keep narrating (effect below restarts)
+        const moreContent =
+          activeParsedPage < (activeCh?.pages.length ?? 0) - 1 ||
+          activeParsedChapter < parsedChapters.length - 1;
+        if (moreContent) {
+          setReadAlongAutoNext(true);
+          nextPage();
+        } else {
+          setReadAlongPos(null);
+        }
+        return;
+      }
+      const text = paras[idx];
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = narrationRate;
+      const voice = pickNarrationVoice();
+      if (voice) utterance.voice = voice;
+      utterance.onboundary = (e: SpeechSynthesisEvent) => {
+        if (session.stop) return;
+        const before = text.slice(0, e.charIndex);
+        const word = before.trim() ? before.trim().split(/\s+/).length : 0;
+        setReadAlongPos({ para: idx, word });
+      };
+      utterance.onend = () => { if (!session.stop) speakFrom(idx + 1); };
+      utterance.onerror = () => { if (!session.stop) speakFrom(idx + 1); };
+      setReadAlongPos({ para: idx, word: 0 });
+      window.speechSynthesis.speak(utterance);
+    };
+    speakFrom(startPara);
+  }, [parsedChapters, activeParsedChapter, activeParsedPage, narrationRate, nextPage]);
+
+  // Continue narration on the new page after an automatic page turn
+  useEffect(() => {
+    if (readAlongAutoNext) {
+      setReadAlongAutoNext(false);
+      startReadAlong(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeParsedPage, activeParsedChapter]);
+
+  // Keep the spoken word visible
+  useEffect(() => {
+    readAlongWordRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [readAlongPos?.para]);
+
+  // Silence narration when leaving the reader or switching chapters
+  useEffect(() => () => {
+    readAlongSession.current.stop = true;
+    try { window.speechSynthesis?.cancel(); } catch {}
+  }, [currentChapterIndex]);
 
   const jumpToChapter = (chapterId: string) => {
     const idx = book.bookChapters?.findIndex(c => c.id === chapterId);
@@ -1105,7 +1225,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     url={epubData}
                     title={book.title || ""}
                     location={epubLocation || undefined}
-                    locationChanged={(epubcifi: string) => setEpubLocation(epubcifi)}
+                    locationChanged={(epubcifi: string) => {
+                      setEpubLocation(epubcifi);
+                      try { localStorage.setItem(EPUB_POS_KEY(book.id), epubcifi); } catch {}
+                    }}
                     epubInitOptions={{
                         openAs: 'binary',
                     }}
@@ -1127,6 +1250,21 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     getRendition={(rendition) => {
                       setReaderError(null);
                       setEpubRendition(rendition);
+                      // Real reading progress: generate location points once,
+                      // then map every relocation to a percentage.
+                      const epBook: any = (rendition as any).book;
+                      const updateProgress = (cfi?: string) => {
+                        try {
+                          if (cfi && epBook?.locations?.length()) {
+                            setEpubProgress(Math.round((epBook.locations.percentageFromCfi(cfi) || 0) * 100));
+                          }
+                        } catch { /* locations not ready yet */ }
+                      };
+                      rendition.on('relocated', (loc: any) => updateProgress(loc?.start?.cfi));
+                      epBook?.ready
+                        ?.then(() => epBook.locations.length() ? null : epBook.locations.generate(600))
+                        .then(() => updateProgress((rendition as any).currentLocation?.()?.start?.cfi))
+                        .catch(() => { /* progress is cosmetic — never block reading */ });
                     }}
                     tocChanged={(toc) => setToc(toc)}
                   />
@@ -1228,7 +1366,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               const activePg = activeCh.pages[activeParsedPage] || activeCh.pages[0] || [];
               const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
               return (
-                <div className={`max-w-3xl w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
+                <div className={`${modeMaxW} w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
                   {book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0 && (
                     <div className="relative h-40 overflow-hidden rounded-t-3xl">
                       <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
@@ -1242,9 +1380,32 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     {!(book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0) && (
                       <h3 className={`text-2xl font-black uppercase tracking-tight mb-10 text-center ${txtHdColor}`}>{chTitle}</h3>
                     )}
-                    <div className={`${txtFontFamily} text-lg leading-[1.9] ${txtColor} space-y-0`} style={{ fontSize: `${fontSize}%` }}>
+                    <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
                       {activePg.map((para, i) => (
-                        <p key={i} className="mb-5">{para}</p>
+                        <p key={i} className="mb-5">
+                          {readAlongPos?.para === i
+                            ? (() => {
+                                // Wrap words so the one being narrated can glow
+                                let w = 0;
+                                return para.split(/(\s+)/).map((tok, k) => {
+                                  if (!tok || /^\s+$/.test(tok)) return tok;
+                                  const idx = w++;
+                                  const isCurrent = idx === readAlongPos.word;
+                                  return (
+                                    <span
+                                      key={k}
+                                      ref={isCurrent ? readAlongWordRef : undefined}
+                                      className={isCurrent
+                                        ? 'bg-orange-500/50 text-white rounded-md px-1 -mx-1 shadow-[0_0_12px_rgba(249,115,22,0.45)] transition-all duration-100'
+                                        : 'transition-colors duration-100'}
+                                    >
+                                      {tok}
+                                    </span>
+                                  );
+                                });
+                              })()
+                            : para}
+                        </p>
                       ))}
                     </div>
                     {/* Page turn hint at bottom */}
@@ -1456,6 +1617,31 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   </div>
                 </section>
 
+                {/* Display Mode — device-class scaling (phone / desk / 10-foot TV) */}
+                <section>
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-6 block">Display Mode</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {([
+                      ['AUTO', 'Auto', <Sparkles key="a" size={14} />],
+                      ['MOBILE', 'Phone', <Smartphone key="m" size={14} />],
+                      ['DESKTOP', 'Desk', <Monitor key="d" size={14} />],
+                      ['TV', 'TV', <VideoIcon key="t" size={14} />],
+                    ] as const).map(([mode, label, icon]) => (
+                      <button
+                        key={mode}
+                        onClick={() => setDisplayMode(mode)}
+                        className={`flex flex-col items-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${displayMode === mode ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                      >
+                        {icon}
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[9px] opacity-30 mt-3 font-medium">
+                    {displayMode === 'AUTO' ? `Following your screen — currently ${resolvedMode.toLowerCase()} scale.` : 'TV mode enlarges type for reading across the room.'}
+                  </p>
+                </section>
+
                 {/* Appearance */}
                 <section>
                   <label className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-6 block">Visual Mode</label>
@@ -1665,6 +1851,31 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       {r}×
                     </button>
                   ))}
+                </div>
+
+                {/* Read-along: on-device voice with live word highlighting */}
+                <div className="mb-4 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Highlighter size={12} className="text-orange-400" />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white/50">Read Along — follows the narrator word by word</span>
+                  </div>
+                  {parsedChapters.length > 0 ? (
+                    <button
+                      onClick={() => (readAlongPos ? stopReadAlong() : startReadAlong(0))}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${readAlongPos ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30'}`}
+                    >
+                      {readAlongPos ? (<><Pause size={12} /> Stop Read Along</>) : (<><Play size={12} /> Start Read Along</>)}
+                    </button>
+                  ) : isEpub && currentChapter?.fallbackUrl ? (
+                    <button
+                      onClick={() => setForceTxtFallback(true)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 text-white/50 border border-white/10 transition-all"
+                    >
+                      <Type size={12} /> Switch to text view for Read Along
+                    </button>
+                  ) : (
+                    <p className="text-[9px] text-white/30 text-center py-2">Read Along is available for text-view books.</p>
+                  )}
                 </div>
 
                 {/* Generate / Play */}

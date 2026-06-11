@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Book, Album, BookChapter } from '../types';
 import PageHeader from './PageHeader';
-import { fetchClassicBooks, fetchArchiveBooks, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
+import { fetchClassicBooks, fetchArchiveBooks, fetchLibraryOfCongressBooks, fetchResearchPapers, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
 import { CLASSIC_BOOKS } from '../data/classicBooks';
@@ -18,15 +18,22 @@ interface BookTabProps {
   onCreateScript?: () => void;
 }
 
-const GENRES = [
+const GENRES: Array<{ id: string; name: string; topic: string; source?: 'gutendex' | 'ia' | 'loc' | 'arxiv' }> = [
   { id: 'all', name: 'All Classics', topic: '' },
-  { id: 'loc', name: 'Library of Congress', topic: 'collection:library_of_congress' },
+  // Native loc.gov open-access collection (not the Internet Archive mirror)
+  { id: 'loc', name: 'Library of Congress', topic: '', source: 'loc' },
   { id: 'fiction', name: 'Fiction', topic: 'fiction' },
   { id: 'mystery', name: 'Mystery', topic: 'mystery' },
   { id: 'sci-fi', name: 'Sci-Fi', topic: 'science fiction' },
   { id: 'fantasy', name: 'Fantasy', topic: 'fantasy' },
-  { id: 'art', name: 'Museum & Art', topic: 'collection:metropolitanmuseumofart-gallery' },
+  { id: 'art', name: 'Museum & Art', topic: 'collection:metropolitanmuseumofart-gallery', source: 'ia' },
   { id: 'history', name: 'History', topic: 'history' },
+  // Research papers, auto-categorized by discipline from arXiv taxonomy
+  { id: 'papers-cs', name: 'Papers · Computing', topic: 'cs', source: 'arxiv' },
+  { id: 'papers-physics', name: 'Papers · Physics', topic: 'physics', source: 'arxiv' },
+  { id: 'papers-math', name: 'Papers · Math', topic: 'math', source: 'arxiv' },
+  { id: 'papers-eng', name: 'Papers · Engineering', topic: 'eess', source: 'arxiv' },
+  { id: 'papers-bio', name: 'Papers · Biology', topic: 'q-bio', source: 'arxiv' },
 ];
 
 // Module-level caches — survive tab switches, only fetch once per session
@@ -131,17 +138,18 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   const loadClassicBooks = async () => {
     const cacheKey = activeGenre.id;
-    const cache = (activeGenre.id === 'loc' || activeGenre.id === 'art') ? _archiveCache : _classicCache;
+    const cache = activeGenre.source ? _archiveCache : _classicCache;
     if (cache.has(cacheKey)) { setArchiveBooks(cache.get(cacheKey)!); setIsLoading(false); return; }
     // Show static classics immediately for 'all' so the page is never blank while fetching
     if (activeGenre.id === 'all' && archiveBooks.length === 0) setArchiveBooks(CLASSIC_BOOKS);
     setIsLoading(archiveBooks.length === 0 && activeGenre.id !== 'all');
     let books: ArchiveBook[] = [];
     try {
-      if (activeGenre.id === 'loc' || activeGenre.id === 'art') {
-        books = await fetchArchiveBooks(activeGenre.topic);
-      } else {
-        books = await fetchClassicBooks(activeGenre.topic);
+      switch (activeGenre.source) {
+        case 'loc':   books = await fetchLibraryOfCongressBooks(searchTerm); break;
+        case 'arxiv': books = await fetchResearchPapers(activeGenre.topic); break;
+        case 'ia':    books = await fetchArchiveBooks(activeGenre.topic); break;
+        default:      books = await fetchClassicBooks(activeGenre.topic);
       }
       if (books.length > 0) {
         cache.set(cacheKey, books);
@@ -166,11 +174,25 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   const handleBookSelect = async (archiveBook: ArchiveBook) => {
     // Transform ArchiveBook to the Album format expected by BookReader
-    const isIA = !archiveBook.id.match(/^\d+$/); // Gutendex IDs are numeric strings
-    
+    // LoC and arXiv items carry direct file URLs — no IA metadata lookup.
+    const isDirect = archiveBook.id.startsWith('loc-') || archiveBook.id.startsWith('arxiv-');
+    const isIA = !isDirect && !archiveBook.id.match(/^\d+$/); // Gutendex IDs are numeric strings
+
     let bookChapters: BookChapter[] = [];
-    
-    if (isIA) {
+
+    if (isDirect) {
+      const pdfUrl  = archiveBook.formats['application/pdf'];
+      const epubUrl = archiveBook.formats['application/epub+zip'];
+      const url = epubUrl || pdfUrl || Object.values(archiveBook.formats)[0] || '';
+      if (url) {
+        bookChapters = [{
+          id: 'full-doc',
+          title: archiveBook.id.startsWith('arxiv-') ? 'Full Paper' : 'Complete Work',
+          url,
+          format: epubUrl ? 'EPUB' : 'PDF',
+        }];
+      }
+    } else if (isIA) {
       // For IA books, let's try to find page images to ensure "more than 1 or 2 pages"
       const files = await getArchiveItemFiles(archiveBook.id);
       const jp2Files = files.filter((f: any) => f.name.endsWith('.jp2') || (f.name.endsWith('.jpg') && !f.name.includes('thumb'))).sort((a: any, b: any) => a.name.localeCompare(b.name));
@@ -225,7 +247,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     }
     
     const transformedBook: Album = {
-      id: isIA ? `archive-${archiveBook.id}` : `guttenberg-${archiveBook.id}`,
+      id: isDirect ? archiveBook.id : isIA ? `archive-${archiveBook.id}` : `guttenberg-${archiveBook.id}`,
       title: archiveBook.title,
       artist: archiveBook.authors.join(', '),
       coverImage: archiveBook.coverImage || '',
