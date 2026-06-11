@@ -642,6 +642,11 @@ async function startServer() {
   app.use(helmet({
     contentSecurityPolicy: false,      // SPA served as static — no server-side CSP needed
     crossOriginEmbedderPolicy: false,  // Required for video/iframe embeds
+    // Helmet's default COOP is 'same-origin', which BREAKS signInWithPopup
+    // (Google/X/Facebook/Microsoft) — the OAuth popup can't postMessage the
+    // result back to the opener. 'same-origin-allow-popups' keeps COOP
+    // protection while letting the auth popup communicate back.
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   }));
 
   const isProd = process.env.NODE_ENV === 'production';
