@@ -5,6 +5,8 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush,
 } from "lucide-react";
 import * as THREE from "three";
+import ConnectToWorld from "../Worlds/ConnectToWorld";
+import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
 /* ════════════════════════════════════════════════════════════
    FABULA — holistic storytelling studio. The whole story, then the telling.
@@ -430,6 +432,7 @@ export default function Fabula() {
   const [prod, setProd] = useState(null);
   const [sceneSel, setSceneSel] = useState(null); // {actId, sceneId}
   const [prodTab, setProdTab] = useState("structure"); // structure | cast | world
+  const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
   const [storageReady, setStorageReady] = useState(null);
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState("");
@@ -1772,7 +1775,43 @@ export default function Fabula() {
               {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush]].map(([id, lab, Ic]) => (
                 <button key={id} className={`ptab ${prodTab === id ? "on" : ""}`} onClick={() => setProdTab(id)}><Ic size={13} /> {lab}</button>
               ))}
+              {/* Connect this production to a Plajah World — share characters &
+                  world knowledge with Lorea / Worlds; entries land private. */}
+              <button
+                className={`ptab ${prod.worldId ? "on" : ""}`}
+                style={{ marginLeft: "auto" }}
+                onClick={() => setConnectWorldOpen(true)}
+                title={prod.worldId ? "Connected to a Plajah World" : "Connect to a Plajah World"}
+              >
+                <Globe size={13} /> {prod.worldId ? "WORLD ✓" : "CONNECT WORLD"}
+              </button>
             </div>
+
+            <ConnectToWorld
+              open={connectWorldOpen}
+              onClose={() => setConnectWorldOpen(false)}
+              source={{ app: "FABULA", projectId: prod.id, projectTitle: prod.title }}
+              connectedWorldId={prod.worldId || null}
+              onConnected={(wid) => updateProd((p) => { p.worldId = wid || undefined; })}
+              onSync={(worldId) => syncProductionToWorld(worldId, {
+                id: prod.id, title: prod.title,
+                cast: (prod.cast || []).map((c) => ({ id: c.id, name: c.name, visual_lock: c.looks, voice_profile: c.voice, arc_in_scene: c.personality })),
+                worldCats: prod.worldCats,
+              })}
+              onImport={async (worldId) => {
+                const incoming = await worldCharactersForProduction(worldId);
+                let added = 0;
+                updateProd((p) => {
+                  p.cast = p.cast || [];
+                  incoming.forEach((wc) => {
+                    if (!wc.name || p.cast.some((x) => (x.name || "").toLowerCase() === wc.name.toLowerCase())) return;
+                    p.cast.push({ id: uid(), name: wc.name, looks: wc.visual_lock || "", voice: "", personality: "", media: [], wardrobe: [], fromWorld: true });
+                    added++;
+                  });
+                });
+                return added;
+              }}
+            />
 
             {prodTab === "structure" && (prod.edits || []).length > 0 && (
               <div className="glass-card actcard">

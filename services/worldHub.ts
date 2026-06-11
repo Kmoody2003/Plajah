@@ -200,6 +200,18 @@ export async function publishSource(worldId: string, app: WorldSourceApp, projec
   return n;
 }
 
+/** Count a project's private (unpublished, non-discarded) entries awaiting publish. */
+export async function previewCounts(worldId: string, projectId: string): Promise<{ characters: number; lore: number }> {
+  const [chars, lore] = await Promise.all([
+    fetchWorldCharacters(worldId, false),
+    fetchWorldLore(worldId, false),
+  ]);
+  return {
+    characters: chars.filter(c => c.sourceProjectId === projectId && !c.discarded && c.isPublished === false).length,
+    lore: lore.filter(l => l.sourceProjectId === projectId && !l.discarded && l.isPublished === false).length,
+  };
+}
+
 /** Live (non-discarded) world characters in a generic shape for a tool to pull
  *  in — the reverse direction (e.g. FABULA reads Lorea-created characters). */
 export async function worldCharactersForImport(worldId: string): Promise<Array<{ id: string; name: string; bio: string; role: string; imageUrl: string; sourceApp?: WorldSourceApp }>> {
