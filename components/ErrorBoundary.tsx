@@ -11,7 +11,16 @@ interface State {
   error: Error | null;
 }
 
+// Known firebase-js-sdk defect: after a quota/permission error on its Watch
+// stream, Firestore throws "INTERNAL ASSERTION FAILED: Unexpected state
+// (ID: ca9/b815)" from listener dispatch. It's backend noise, not an app
+// bug — recovering instead of crashing keeps reading/playback alive.
+const isRecoverableBackendError = (error: Error | null): boolean =>
+  !!error && /FIRESTORE.*INTERNAL ASSERTION|code=resource-exhausted|code=permission-denied/i.test(error.message || '');
+
 class ErrorBoundary extends React.Component<Props, State> {
+  private autoRecoveries: number[] = [];
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -26,6 +35,17 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    if (isRecoverableBackendError(error)) {
+      // Allow up to 3 silent recoveries per 30s; beyond that, show the screen
+      // so a genuine crash loop is still visible.
+      const now = Date.now();
+      this.autoRecoveries = this.autoRecoveries.filter(t => now - t < 30_000);
+      if (this.autoRecoveries.length < 3) {
+        this.autoRecoveries.push(now);
+        console.warn('[ErrorBoundary] Auto-recovering from backend stream error.');
+        setTimeout(() => this.setState({ hasError: false, error: null }), 50);
+      }
+    }
   }
 
   private handleReset = () => {

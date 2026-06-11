@@ -132,6 +132,38 @@
 <body>
     <div id="root"></div>
     <script>
+      // rAF starvation guard: in never-painting webviews (headless previews,
+      // some Android TV launchers, background-restored tabs) the compositor
+      // never produces frames so requestAnimationFrame callbacks never run —
+      // which silently stalls every library that schedules with it (epub.js
+      // book rendering, motion exit animations). Install a wrapper BEFORE the
+      // app modules load (they capture rAF at import time): it delegates to
+      // the native rAF normally, and switches to 16ms timers only if a probe
+      // frame hasn't fired shortly after boot.
+      (function () {
+        try {
+          var native = window.requestAnimationFrame.bind(window);
+          var nativeCancel = (window.cancelAnimationFrame || window.clearTimeout).bind(window);
+          var starved = false;
+          var probeFired = false;
+          native(function () { probeFired = true; });
+          setTimeout(function () {
+            starved = !probeFired;
+            if (starved) console.warn('[plajah] rAF starved — timer-based frames for this session.');
+          }, 250);
+          window.requestAnimationFrame = function (cb) {
+            return starved
+              ? window.setTimeout(function () { cb(performance.now()); }, 16)
+              : native(cb);
+          };
+          window.cancelAnimationFrame = function (id) {
+            nativeCancel(id);
+            window.clearTimeout(id);
+          };
+        } catch (e) { /* leave native rAF untouched */ }
+      })();
+    </script>
+    <script>
       // Fix Android Chrome URL bar causing layout jumps.
       // Sets --real-vh so components can use calc(var(--real-vh) * 100)
       // instead of 100dvh, which reflows on every scroll.

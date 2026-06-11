@@ -39,6 +39,23 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Contain the known firebase-js-sdk Watch-stream assertion bug (thrown as
+// uncaught errors from the SDK's own event queue after quota/permission
+// failures). Without this, backend noise crashes the whole tab.
+const FIRESTORE_NOISE = /FIRESTORE.*INTERNAL ASSERTION/i;
+window.addEventListener('error', (e) => {
+  if (FIRESTORE_NOISE.test(e.message || '')) {
+    e.preventDefault();
+    console.warn('[global] Suppressed Firestore internal assertion error.');
+  }
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (FIRESTORE_NOISE.test(String(e.reason?.message || e.reason || ''))) {
+    e.preventDefault();
+    console.warn('[global] Suppressed Firestore internal assertion rejection.');
+  }
+});
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

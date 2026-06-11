@@ -5,6 +5,7 @@ import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '.
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost } from '../services/backendService';
 import { cacheExternalBookAssets } from '../services/bookStorageService';
+import { fetchBookBinary, fetchBookText } from '../services/bookContentService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -285,6 +286,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [toc, setToc] = useState<any[]>([]);
   const [epubLocation, setEpubLocation] = useState<string | null>(null);
   const [epubProgress, setEpubProgress] = useState(0);
+  // EPUB bytes are fetched by us (cached, deduped, retried) and handed to the
+  // reader as a binary — epub.js fetching its own URL has no retry and a
+  // single failed request leaves a permanently blank reader.
+  const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
+  const [downloadPct, setDownloadPct] = useState<number | null>(null);
 
   // Settings State
   const [fontSize, setFontSize] = useState(100);
@@ -398,7 +404,46 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setActiveParsedChapter(0);
     setActiveParsedPage(0);
     setForceTxtFallback(false);
+    setEpubData(null);
+    setDownloadPct(null);
   }, [currentChapter?.id, currentChapter?.url]);
+
+  // Download the EPUB binary ourselves (cached + deduped + retried), then hand
+  // the bytes to the reader. On failure, fall back to the TXT version
+  // automatically instead of dead-ending on a blank page.
+  useEffect(() => {
+    if (!isEpub || !currentChapter?.url) return;
+    let cancelled = false;
+    setIsLoadingContent(true);
+    setDownloadPct(0);
+    fetchBookBinary(currentChapter.url, {
+      expectZip: true,
+      onProgress: (loaded, total) => {
+        if (!cancelled && total) setDownloadPct(Math.min(100, Math.round((loaded / total) * 100)));
+      },
+    })
+      .then(buf => {
+        if (cancelled || !mountedRef.current) return;
+        setEpubData(buf);
+        setReaderError(null);
+      })
+      .catch(err => {
+        if (cancelled || !mountedRef.current) return;
+        console.warn('[BookReader] EPUB download failed:', err?.message);
+        if (currentChapter.fallbackUrl) {
+          setForceTxtFallback(true); // automatic TXT fallback
+        } else {
+          setReaderError('This book could not be downloaded. Check your connection or try the original source.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled && mountedRef.current) {
+          setIsLoadingContent(false);
+          setDownloadPct(null);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [isEpub, currentChapter?.url]);
 
   // Load content whenever the resolved format changes (including TXT fallback override)
   useEffect(() => {
@@ -411,43 +456,24 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         ? currentChapter.fallbackUrl
         : currentChapter.url;
       loadFullText(txtUrl);
-    } else {
+    } else if (!isEpub) {
       setChapterContent('');
     }
-  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt, forceTxtFallback]);
+  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt, isEpub, forceTxtFallback]);
 
   const loadFullText = async (url: string, fallback?: string) => {
     if (!mountedRef.current) return;
     setIsLoadingContent(true);
-    const controller = new AbortController();
-
-    const tryFetch = async (src: string): Promise<string> => {
-      // Always proxy external URLs — direct browser fetches to Firebase Storage
-      // fail due to CORS unless the bucket has explicit gsutil cors config.
-      const fetchUrl = src.startsWith('http')
-        ? `/api/proxy?url=${encodeURIComponent(src)}`
-        : src;
-      const response = await fetch(fetchUrl, { signal: controller.signal });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType && !/text|html|json|xml/i.test(contentType)) {
-        throw new Error(`Unexpected content-type: ${contentType}`);
-      }
-      const text = await response.text();
-      if (!text || text.trim().length === 0) throw new Error('Empty response');
-      return text;
-    };
-
     try {
       let text: string;
       try {
-        text = await tryFetch(url);
+        text = await fetchBookText(url);
       } catch (primaryErr: any) {
-        if (!mountedRef.current || primaryErr?.name === 'AbortError') return;
+        if (!mountedRef.current) return;
         // Primary failed (Storage 404, network issue, etc.) — try Gutenberg fallback
         if (fallback) {
           console.warn('[BookReader] Primary URL failed, trying fallback:', primaryErr.message);
-          text = await tryFetch(fallback);
+          text = await fetchBookText(fallback);
         } else {
           throw primaryErr;
         }
@@ -457,7 +483,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       setChapterContent(formatted);
       setParsedChapters(parseChaptersFromText(formatted));
     } catch (error: any) {
-      if (!mountedRef.current || error?.name === 'AbortError') return;
+      if (!mountedRef.current) return;
       console.error('Error loading full text:', error);
       setReaderError('This book could not be loaded. Check your connection or try the original source.');
       setChapterContent('');
@@ -1046,13 +1072,20 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </div>
             ) : isLoadingContent ? (
               <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
-                <div className="text-center p-12">
+                <div className="text-center p-12 w-full max-w-sm">
                   <div className={`w-14 h-14 mx-auto mb-8 rounded-full border-2 border-t-transparent animate-spin ${theme === 'LIGHT' ? 'border-black/20' : 'border-white/20'}`} style={{ borderTopColor: 'transparent' }} />
                   <h3 className={`text-xl font-black uppercase tracking-widest mb-3 ${s.text}`}>Loading</h3>
-                  <p className={`text-xs font-bold ${s.subtext} uppercase tracking-widest`}>Your book is on its way…</p>
+                  <p className={`text-xs font-bold ${s.subtext} uppercase tracking-widest`}>
+                    {downloadPct !== null ? `Downloading ${downloadPct}%` : 'Your book is on its way…'}
+                  </p>
+                  {downloadPct !== null && (
+                    <div className="mt-5 h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full rounded-full bg-orange-500 transition-all duration-300" style={{ width: `${downloadPct}%` }} />
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : isEpub ? (
+            ) : isEpub && epubData ? (
               <div 
                 className={`w-full h-full max-w-5xl rounded-lg shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
               >
@@ -1060,16 +1093,21 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   resetKey={currentChapter?.url || currentChapter?.id || book.id}
                   onError={(error) => {
                     console.error('EPUB reader failed:', error);
-                    setReaderError('This EPUB could not be opened in the native reader. Save it to your library to cache it on Plajah storage, or open the original source.');
+                    if (currentChapter?.fallbackUrl && !forceTxtFallback) {
+                      // Don't dead-end — switch to the text version automatically
+                      setForceTxtFallback(true);
+                    } else {
+                      setReaderError('This EPUB could not be opened in the native reader. Save it to your library to cache it on Plajah storage, or open the original source.');
+                    }
                   }}
                 >
                   <ReactReader
-                    url={proxiedEpubUrl}
+                    url={epubData}
                     title={book.title || ""}
                     location={epubLocation || undefined}
                     locationChanged={(epubcifi: string) => setEpubLocation(epubcifi)}
                     epubInitOptions={{
-                        openAs: 'epub',
+                        openAs: 'binary',
                     }}
                     readerStyles={{
                       ...ReactReaderStyle,
