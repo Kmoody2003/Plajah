@@ -197,22 +197,28 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         }
       }
     } else {
-      // Primary: Firebase Storage hosted copy (fast CDN, no Gutenberg rate-limits).
-      // Fallback: Gutenberg TXT (~750KB) used when the Storage copy doesn't exist yet.
+      // Priority: EPUB (native chapter/TOC) → Firebase Storage TXT (fast CDN) → Gutenberg TXT cache
+      const epubUrl    = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => typeof f === 'string' && f.includes('epub'));
       const storedUrl  = archiveBook.formats['text/plain; charset=utf-8'];   // Firebase Storage
-      const gutenbUrl  = archiveBook.formats['text/plain'];                   // Gutenberg TXT
-      const epubUrl    = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => f.includes('epub'));
+      const gutenbUrl  = archiveBook.formats['text/plain'];                   // Gutenberg TXT cache
 
-      const primaryUrl = storedUrl || gutenbUrl || epubUrl || '';
+      const primaryUrl = epubUrl || storedUrl || gutenbUrl || '';
+      const isEpubPrimary = !!epubUrl;
+      // TXT to fall back to when EPUB fails (BookReader "Try Text Version" button)
+      const txtFallback = storedUrl || gutenbUrl || undefined;
 
       bookChapters = [
         {
           id: 'full-text',
           title: 'Complete Work',
           url: primaryUrl,
-          format: (storedUrl || gutenbUrl) ? 'TXT' : epubUrl ? 'EPUB' : undefined,
-          // Keep Gutenberg as a fallback so the reader can retry if Storage 404s
-          ...(storedUrl && gutenbUrl ? { fallbackUrl: gutenbUrl } : {}),
+          format: isEpubPrimary ? 'EPUB' : 'TXT',
+          // fallbackUrl: for EPUB chapters → points to TXT; for TXT → next TXT option
+          ...(isEpubPrimary && txtFallback
+            ? { fallbackUrl: txtFallback }
+            : !isEpubPrimary && storedUrl && gutenbUrl
+            ? { fallbackUrl: gutenbUrl }
+            : {}),
         }
       ];
     }

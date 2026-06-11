@@ -3,10 +3,12 @@ import type { ArchiveBook } from '../services/archiveContentService';
 const BUCKET = 'gen-lang-client-0665118474.firebasestorage.app';
 
 const gcov   = (id: number) => `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`;
-// Primary source — hosted on Plajah's own Firebase Storage, no proxy needed.
+// EPUB (no images) — best format: native chapters, pagination, TOC via react-reader
+const gepub  = (id: number) => `https://www.gutenberg.org/ebooks/${id}.epub.noimages`;
+// Firebase Storage hosted TXT — fast CDN once seeded; used as secondary to epub
 const gstore = (id: number) => `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(`books/classics/${id}/text.txt`)}?alt=media`;
-// Fallback — only used until the seed endpoint has uploaded the book.
-const gtxt   = (id: number) => `https://www.gutenberg.org/ebooks/${id}.txt.utf-8`;
+// Direct Gutenberg TXT cache — reliable HTTP URL (no redirect chain)
+const gtxt   = (id: number) => `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`;
 
 const book = (
   id: number,
@@ -22,9 +24,10 @@ const book = (
   subjects,
   formats: {
     'image/jpeg': gcov(id),
-    // Firebase Storage URL is the primary; BookTab picks 'text/plain; charset=utf-8' first.
+    // BookTab prefers application/epub+zip first for native chapter navigation
+    'application/epub+zip': gepub(id),
+    // TXT kept so BookTab can fall back when EPUB fails
     'text/plain; charset=utf-8': gstore(id),
-    // Keep Gutenberg TXT as an explicit fallback key so BookTab can try it if needed.
     'text/plain': gtxt(id),
   },
   download_count: downloads,

@@ -266,6 +266,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [parsedChapters, setParsedChapters] = useState<ParsedChapter[]>([]);
   const [activeParsedChapter, setActiveParsedChapter] = useState(0);
   const [activeParsedPage, setActiveParsedPage] = useState(0);
+  // When EPUB fails, user can request plain-text fallback
+  const [forceTxtFallback, setForceTxtFallback] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
@@ -375,7 +377,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
   const currentUrl = currentChapter?.url || '';
   const lowerCurrentUrl = currentUrl.toLowerCase();
-  const isEpub = currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub');
+  const isEpub = !forceTxtFallback && (currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub'));
   const isPdf = currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('pdf');
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
     currentChapter?.format === 'TXT' ||
@@ -387,6 +389,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     (currentChapter?.url?.includes('archive.org') && !currentChapter?.url?.includes('.epub') && !currentChapter?.url?.includes('.pdf'))
   );
 
+  // Reset per-chapter state when the chapter changes
   useEffect(() => {
     setReaderError(null);
     setNumPdfPages(undefined);
@@ -394,16 +397,24 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setParsedChapters([]);
     setActiveParsedChapter(0);
     setActiveParsedPage(0);
+    setForceTxtFallback(false);
+  }, [currentChapter?.id, currentChapter?.url]);
+
+  // Load content whenever the resolved format changes (including TXT fallback override)
+  useEffect(() => {
     if (currentChapter?.content) {
       const formatted = formatReadableText(currentChapter.content);
       setChapterContent(formatted);
       setParsedChapters(parseChaptersFromText(formatted));
     } else if (isTxt && currentChapter?.url) {
-      loadFullText(currentChapter.url, currentChapter.fallbackUrl);
+      const txtUrl = forceTxtFallback && currentChapter.fallbackUrl
+        ? currentChapter.fallbackUrl
+        : currentChapter.url;
+      loadFullText(txtUrl);
     } else {
       setChapterContent('');
     }
-  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt]);
+  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt, forceTxtFallback]);
 
   const loadFullText = async (url: string, fallback?: string) => {
     if (!mountedRef.current) return;
@@ -990,13 +1001,26 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   <h3 className={`text-xl font-black uppercase tracking-widest mb-3 ${s.text}`}>Unable to Load</h3>
                   <p className={`text-sm ${s.subtext} mb-8 max-w-xs mx-auto leading-relaxed`}>{readerError}</p>
                   <div className="flex flex-col items-center gap-3">
+                    {currentChapter?.fallbackUrl && !forceTxtFallback && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          setReaderError(null);
+                          setForceTxtFallback(true);
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-orange-500 text-black text-xs font-black uppercase tracking-widest hover:bg-orange-400 transition-all"
+                      >
+                        <BookOpenIcon size={13} />
+                        Try Text Version
+                      </button>
+                    )}
                     {currentChapter?.url && (
                       <a
                         href={currentChapter.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}
-                        className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-orange-500 text-black text-xs font-black uppercase tracking-widest hover:bg-orange-400 transition-all"
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${currentChapter.fallbackUrl && !forceTxtFallback ? `${s.card} border border-white/10 ${s.text} hover:border-orange-400/50` : 'bg-orange-500 text-black hover:bg-orange-400'}`}
                       >
                         <ExternalLink size={13} />
                         Open Original Source
@@ -1006,7 +1030,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       onClick={e => {
                         e.stopPropagation();
                         setReaderError(null);
-                        if (isTxt && currentChapter?.url) loadFullText(currentChapter.url, currentChapter.fallbackUrl);
+                        if (isTxt && currentChapter?.url) {
+                          const txtUrl = forceTxtFallback && currentChapter.fallbackUrl
+                            ? currentChapter.fallbackUrl
+                            : currentChapter.url;
+                          loadFullText(txtUrl);
+                        }
                       }}
                       className={`text-xs font-bold uppercase tracking-widest ${s.subtext} hover:text-orange-400 transition-colors`}
                     >
