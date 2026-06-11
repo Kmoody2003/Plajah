@@ -10,7 +10,8 @@ import type { Album, BookChapter } from '../types';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Step = 'FORMAT' | 'DETAILS' | 'MONETIZE' | 'CHAPTERS' | 'RELEASE' | 'PREVIEW';
-type BookFormat = 'NOVEL' | 'SERIAL' | 'GRAPHIC_NOVEL' | 'NON_FICTION' | 'TEXTBOOK' | 'ZINE';
+type BookFormat = 'NOVEL' | 'SERIAL' | 'GRAPHIC_NOVEL' | 'NON_FICTION' | 'TEXTBOOK' | 'ZINE'
+  | 'FEATURE_FILM' | 'TV_PILOT' | 'TV_EPISODE' | 'SHORT_FILM' | 'WEB_SERIES' | 'STAGE_PLAY';
 type MonetizeModel = 'FREE' | 'FULL_PURCHASE' | 'CHAPTER_UNLOCK' | 'SUBSCRIPTION';
 type ReleaseModel = 'NOW' | 'SCHEDULED' | 'SERIAL' | 'EARLY_ACCESS';
 
@@ -20,13 +21,20 @@ const STEP_LABELS = ['Format', 'Details', 'Monetize', 'Chapters', 'Release', 'La
 const GENRES = ['Literary Fiction', 'Fantasy', 'Sci-Fi', 'Romance', 'Mystery', 'Thriller', 'Horror',
   'Non-Fiction', 'Biography', 'Self-Help', 'Comics', 'Graphic Novel', 'Manga', 'Academic', 'Other'];
 
-const FORMAT_OPTIONS: { id: BookFormat; label: string; desc: string; icon: string }[] = [
+const FORMAT_OPTIONS: { id: BookFormat; label: string; desc: string; icon: string; isScript?: boolean }[] = [
   { id: 'NOVEL',         label: 'Novel',          desc: 'Full-length prose fiction or narrative', icon: '📖' },
   { id: 'SERIAL',        label: 'Serial Fiction',  desc: 'Weekly/scheduled chapter drops',         icon: '📋' },
   { id: 'GRAPHIC_NOVEL', label: 'Graphic Novel',   desc: 'Comics, manga, webtoon-style pages',     icon: '🎨' },
   { id: 'NON_FICTION',   label: 'Non-Fiction',     desc: 'Essays, journalism, memoirs',             icon: '📰' },
   { id: 'TEXTBOOK',      label: 'Textbook',        desc: 'Educational reference or course book',   icon: '🎓' },
   { id: 'ZINE',          label: 'Zine / Chapbook', desc: 'Short-form self-published booklet',       icon: '📎' },
+  // ── Scripts ───────────────────────────────────────────────────────────────
+  { id: 'FEATURE_FILM',  label: 'Feature Film',    desc: 'Full feature screenplay (90–120 pages)',  icon: '🎬', isScript: true },
+  { id: 'TV_PILOT',      label: 'TV Pilot',        desc: 'Series pilot — one-hour or half-hour',   icon: '📺', isScript: true },
+  { id: 'TV_EPISODE',    label: 'TV Episode',      desc: 'Spec or produced episode script',         icon: '📡', isScript: true },
+  { id: 'SHORT_FILM',    label: 'Short Film',      desc: 'Short-form screenplay (under 30 pages)',  icon: '🎞', isScript: true },
+  { id: 'WEB_SERIES',    label: 'Web Series',      desc: 'Episode scripts for online-first shows', icon: '🌐', isScript: true },
+  { id: 'STAGE_PLAY',    label: 'Stage Play',      desc: 'Theatre script with stage directions',   icon: '🎭', isScript: true },
 ];
 
 const MONETIZE_OPTIONS: { id: MonetizeModel; label: string; desc: string; badge?: string; color: string }[] = [
@@ -62,22 +70,44 @@ function OptionCard({ selected, onClick, color = '#FF8C00', children }: {
 // ── Step components ────────────────────────────────────────────────────────────
 
 function StepFormat({ value, onChange }: { value: BookFormat | null; onChange: (v: BookFormat) => void }) {
+  const books   = FORMAT_OPTIONS.filter(o => !o.isScript);
+  const scripts = FORMAT_OPTIONS.filter(o =>  o.isScript);
   return (
-    <div className="space-y-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-5">What are you publishing?</p>
-      <div className="grid grid-cols-2 gap-3">
-        {FORMAT_OPTIONS.map(opt => (
-          <OptionCard key={opt.id} selected={value === opt.id} onClick={() => onChange(opt.id)}>
-            <div className="flex items-start gap-3">
-              <span className="text-xl flex-shrink-0">{opt.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs font-black uppercase tracking-widest ${value === opt.id ? 'text-white' : 'text-white/40'}`}>{opt.label}</p>
-                <p className="text-[9px] text-white/25 mt-0.5 leading-snug">{opt.desc}</p>
+    <div className="space-y-5">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">Books &amp; Publishing</p>
+        <div className="grid grid-cols-2 gap-3">
+          {books.map(opt => (
+            <OptionCard key={opt.id} selected={value === opt.id} onClick={() => onChange(opt.id)}>
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">{opt.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-black uppercase tracking-widest ${value === opt.id ? 'text-white' : 'text-white/40'}`}>{opt.label}</p>
+                  <p className="text-[9px] text-white/25 mt-0.5 leading-snug">{opt.desc}</p>
+                </div>
+                {value === opt.id && <Check size={11} className="text-[#FF8C00] flex-shrink-0 mt-0.5" />}
               </div>
-              {value === opt.id && <Check size={11} className="text-[#FF8C00] flex-shrink-0 mt-0.5" />}
-            </div>
-          </OptionCard>
-        ))}
+            </OptionCard>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">Scripts — Film &amp; TV</p>
+        <div className="grid grid-cols-2 gap-3">
+          {scripts.map(opt => (
+            <OptionCard key={opt.id} selected={value === opt.id} onClick={() => onChange(opt.id)} color="#6366f1">
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">{opt.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-black uppercase tracking-widest ${value === opt.id ? 'text-white' : 'text-white/40'}`}>{opt.label}</p>
+                  <p className="text-[9px] text-white/25 mt-0.5 leading-snug">{opt.desc}</p>
+                  {opt.isScript && <p className="text-[8px] text-indigo-400/60 mt-0.5 font-black uppercase tracking-widest">Opens Script Studio</p>}
+                </div>
+                {value === opt.id && <Check size={11} className="text-indigo-400 flex-shrink-0 mt-0.5" />}
+              </div>
+            </OptionCard>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -318,9 +348,12 @@ function StepPreview({ format, title, author, genre, monetize, release, chapterC
 interface Props {
   onLaunchCreator: (albumPartial: Partial<Album>) => void;
   onCancel: () => void;
+  onOpenScriptStudio?: (format: string) => void;
 }
 
-export default function BookCreatorWizard({ onLaunchCreator, onCancel }: Props) {
+const SCRIPT_FORMATS = new Set(['FEATURE_FILM', 'TV_PILOT', 'TV_EPISODE', 'SHORT_FILM', 'WEB_SERIES', 'STAGE_PLAY']);
+
+export default function BookCreatorWizard({ onLaunchCreator, onCancel, onOpenScriptStudio }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [dir, setDir]             = useState(1);
   const [format, setFormat]       = useState<BookFormat | null>(null);
@@ -349,6 +382,12 @@ export default function BookCreatorWizard({ onLaunchCreator, onCancel }: Props) 
   const back    = () => { setDir(-1); setStepIndex(i => Math.max(i - 1, 0)); };
 
   const handleLaunch = () => {
+    // Script formats open the dedicated Script Writing Studio instead
+    if (format && SCRIPT_FORMATS.has(format)) {
+      onOpenScriptStudio?.(format);
+      onCancel();
+      return;
+    }
     const isFree = monetize === 'FREE';
     const albumPartial: Partial<Album> = {
       type: 'BOOK',

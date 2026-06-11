@@ -15,6 +15,7 @@ interface BookTabProps {
   onSelectBook: (book: any) => void;
   onVisitUser?: (uid: string, tab?: string) => void;
   onCreateBook?: () => void;
+  onCreateScript?: () => void;
 }
 
 const GENRES = [
@@ -58,7 +59,7 @@ const pickArchiveReadableFile = (files: any[]) => {
   return null;
 };
 
-const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook }) => {
+const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook, onCreateScript }) => {
   const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('CLASSICS');
   const [archiveBooks, setArchiveBooks] = useState<ArchiveBook[]>(CLASSIC_BOOKS);
   const [marketplaceBooks, setMarketplaceBooks] = useState<Album[]>([]);
@@ -264,15 +265,26 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         </div>
         
         <div className="flex flex-col gap-4 items-end">
-          {/* Create a Book — launches the Book Authoring Studio */}
-          {onCreateBook && (
-            <button
-              onClick={onCreateBook}
-              className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
-            >
-              <BookOpen size={14} /> Create a Book
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Write a Script — opens Script Writing Studio */}
+            {onCreateScript && (
+              <button
+                onClick={onCreateScript}
+                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20"
+              >
+                <span>🎬</span> Write Script
+              </button>
+            )}
+            {/* Create a Book — launches the Book Authoring Studio */}
+            {onCreateBook && (
+              <button
+                onClick={onCreateBook}
+                className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+              >
+                <BookOpen size={14} /> Create a Book
+              </button>
+            )}
+          </div>
           <PlajahPlusBanner variant="COMPACT" className="w-72" />
           <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
             <button

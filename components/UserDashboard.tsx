@@ -49,6 +49,7 @@ interface UserDashboardProps {
   currentTheme?: ThemeType;
   onSetTheme?: (t: ThemeType) => void;
   onOpenTVStudio?: () => void;
+  onOpenScriptStudio?: (format?: string) => void;
 }
 
 const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
@@ -61,7 +62,7 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
   { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
 ];
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
@@ -2030,6 +2031,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           onLaunchCreator={(albumPartial) => {
             setShowBookWizard(false);
             setShowCreator({ active: true, album: albumPartial as any });
+          }}
+          onOpenScriptStudio={(fmt) => {
+            setShowBookWizard(false);
+            onOpenScriptStudio?.(fmt);
           }}
         />
       )}

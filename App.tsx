@@ -74,6 +74,8 @@ const FilmPitchDoc    = retryLazy(() => import('./components/SegmentLandingFilm'
 const WritersPitchDoc = retryLazy(() => import('./components/SegmentLandingWriters'));
 // Book Authoring Studio
 const BookAuthoringStudio = retryLazy(() => import('./components/BookAuthoringStudio'));
+// Script Writing Studio — film, TV, stage
+const ScriptWritingStudio = retryLazy(() => import('./components/ScriptWritingStudio'));
 // Pitch Deck Studio + Viewer
 const PitchDeckStudio  = retryLazy(() => import('./components/PitchDeckStudio'));
 const PitchDeckViewer  = retryLazy(() => import('./components/PitchDeckViewer'));
@@ -320,6 +322,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
   const [selectedMovieItem, setSelectedMovieItem] = useState<any | null>(null);
   const [selectedBook, setSelectedBook] = useState<Album | null>(null);
+  const [selectedScriptId, setSelectedScriptId] = useState<string | undefined>(undefined);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
   const [selectedRadioArtistId, setSelectedRadioArtistId] = useState<string | undefined>(undefined);
@@ -2621,12 +2624,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   }}
                   onVisitUser={(uid, tab) => handleVisitUser(uid, tab as any)}
                   onCreateBook={() => setView('BOOK_STUDIO')}
+                  onCreateScript={() => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }}
                 />
               </div>
             )}
             {view === 'BOOK_STUDIO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading studio…</div>}>
                 <BookAuthoringStudio onBack={() => setView('BOOKS')} />
+              </Suspense>
+            )}
+
+            {/* ── Script Writing Studio — film, TV, stage ── */}
+            {view === 'SCRIPT_STUDIO' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Script Studio…</div>}>
+                <ScriptWritingStudio
+                  scriptId={selectedScriptId}
+                  onBack={() => { setSelectedScriptId(undefined); setView('BOOKS'); }}
+                  user={user}
+                  onNavigate={(v) => setView(v as any)}
+                />
               </Suspense>
             )}
 
@@ -2687,7 +2703,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </Suspense>
               </ErrorBoundary>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
               <FeedView 

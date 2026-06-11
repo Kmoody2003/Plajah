@@ -418,6 +418,7 @@ export interface Album {
   gameScreenshots?: string[];
   gameVideoUrl?: string;
   allowPageSharing?: boolean;
+  scriptData?: ScriptData;
   // Audius decentralized publishing
   publishToAudius?: boolean;        // artist toggled "publish to Audius"
   audiusPublishStatus?: 'pending' | 'publishing' | 'published' | 'failed';
@@ -1798,7 +1799,72 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'CHALLENGES' | 'BROADCAST_CHANNELS' | 'CLOSE_FRIENDS' | 'POLL_ARCHIVE'
   | 'SOCIAL_INSIGHTS' | 'SIGNATURE_MOMENTS'
   // Health & Fitness hub
-  | 'HEALTH_FITNESS';
+  | 'HEALTH_FITNESS'
+  // Script Writing Studio — film, TV, stage
+  | 'SCRIPT_STUDIO';
+
+// ── Script Writing Studio ─────────────────────────────────────────────────────
+
+export type ScriptFormat =
+  | 'FEATURE_FILM' | 'TV_PILOT' | 'TV_EPISODE' | 'SHORT_FILM'
+  | 'WEB_SERIES' | 'STAGE_PLAY' | 'AUDIO_DRAMA';
+
+export type ScriptElementType =
+  | 'SCENE_HEADING' | 'ACTION' | 'CHARACTER' | 'DIALOGUE'
+  | 'PARENTHETICAL' | 'TRANSITION' | 'SHOT' | 'SECTION' | 'NOTE';
+
+export type RevisionColor =
+  | 'WHITE' | 'BLUE' | 'PINK' | 'YELLOW' | 'GREEN' | 'GOLDENROD';
+
+export interface ScriptElement {
+  id: string;
+  type: ScriptElementType;
+  text: string;
+  revColor?: RevisionColor;
+  notes?: string;
+  linkedCharId?: string;
+  locked?: boolean;
+}
+
+export interface ScriptBeat {
+  id: string;
+  label: string;
+  description: string;
+  pageTarget?: number;
+  sceneElementId?: string;
+  actNumber: number;
+  beatType: string;
+  color?: string;
+}
+
+export interface ScriptTitlePage {
+  title: string;
+  writtenBy: string;
+  basedOn?: string;
+  draftDate: string;
+  contact?: string;
+  address?: string;
+  wgaNumber?: string;
+  revisionColor?: RevisionColor;
+}
+
+export interface ScriptData {
+  id: string;
+  format: ScriptFormat;
+  genre?: string;
+  logline?: string;
+  synopsis?: string;
+  titlePage: ScriptTitlePage;
+  elements: ScriptElement[];
+  beats: ScriptBeat[];
+  linkedWorldId?: string;
+  linkedCharacterIds?: string[];
+  currentRevisionColor?: RevisionColor;
+  pageCount?: number;
+  ownerId?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
 
 export type ThemeType = 'DARK' | 'LIGHT' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS';
 
