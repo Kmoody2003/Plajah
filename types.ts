@@ -640,6 +640,10 @@ export interface Character {
   tags: string[];
   appearanceAt: { projectId: string; timestamp: number }[];
   isPublished?: boolean;
+  // FABULA bridge: links this entry back to the production/item it was synced
+  // from, so re-syncing updates in place instead of duplicating.
+  fabulaProductionId?: string;
+  fabulaRefId?: string;
   themeAlbumId?: string;
   themeTrackId?: string;
   actorName?: string;
@@ -672,6 +676,10 @@ export interface LoreEntry {
   type: 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY' | 'EVENT' | 'FACTION' | 'CREATURE';
   conflictsDetected: string[];
   isPublished?: boolean;
+  // FABULA bridge: links this lore entry back to the production world-item it
+  // was synced from, for idempotent re-sync.
+  fabulaProductionId?: string;
+  fabulaRefId?: string;
   // Enhanced fields
   gallery?: string[];          // Images for this lore entry
   clips?: string[];            // Video clips
