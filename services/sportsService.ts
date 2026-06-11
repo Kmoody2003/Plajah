@@ -285,6 +285,320 @@ export const ESPORTS_ORGS: EsportsOrg[] = [
   { id: 'heroic',   name: 'Heroic',              abbreviation: 'HC',   region: 'EU',   games: ['CS2','Valorant'],                  logo: 'https://logo.clearbit.com/heroicgg.com',    color: '#E85912', altColor: '#FFFFFF', founded: '2017', description: 'Danish esports organization that has been a consistent top-10 CS2 team in the world.' },
   { id: 'spirit',   name: 'Team Spirit',         abbreviation: 'SP',   region: 'CIS',  games: ['CS2','Dota 2','Valorant'],         logo: 'https://logo.clearbit.com/teamspirit.gg',   color: '#4A90D9', altColor: '#FFFFFF', founded: '2015', description: 'Russian esports organization and winners of The International 2021 and multiple CS2 majors.' },
   { id: 'complexity',name: 'Complexity Gaming',  abbreviation: 'COL',  region: 'NA',   games: ['CS2','Valorant','Halo'],           logo: 'https://logo.clearbit.com/complexity.gg',   color: '#002366', altColor: '#F5A623', founded: '2003', description: 'North American veteran organization owned by the Dallas Cowboys, one of the founding orgs in esports.' },
+  { id: 'geng',      name: 'Gen.G Esports',       abbreviation: 'GEN',  region: 'KR',   games: ['League of Legends','Valorant'],    logo: 'https://logo.clearbit.com/gen.g',           color: '#C69B3A', altColor: '#000000', founded: '2017', description: 'Korean esports organization home to Chovy, consistently among the world\'s best LoL and Valorant teams.' },
+  { id: 'drx',       name: 'DRX',                 abbreviation: 'DRX',  region: 'KR',   games: ['League of Legends','Valorant'],    logo: 'https://logo.clearbit.com/drx.gg',          color: '#00B4D8', altColor: '#FFFFFF', founded: '2017', description: 'Korean org famous for DRX\'s miraculous 2022 Worlds run from Play-Ins all the way to the Championship.' },
+  { id: 'jdg',       name: 'JDG Esports',         abbreviation: 'JDG',  region: 'CN',   games: ['League of Legends'],               logo: 'https://logo.clearbit.com/jdgesports.com',  color: '#0066CC', altColor: '#FFFFFF', founded: '2015', description: 'Dominant Chinese LPL organization and 2023 MSI Champions, home to some of the world\'s best imported talent.' },
+  { id: 'blg',       name: 'Bilibili Gaming',     abbreviation: 'BLG',  region: 'CN',   games: ['League of Legends'],               logo: 'https://logo.clearbit.com/blg.gg',          color: '#00A1D6', altColor: '#FFFFFF', founded: '2018', description: 'Chinese LPL team backed by Bilibili, known for their aggressive playstyle and MSI championship pedigree.' },
+];
+
+// ── Esports Players ──────────────────────────────────────────────────────────
+
+export interface EsportsPlayer {
+  id: string;
+  ign: string;
+  name: string;
+  role: string;
+  game: string;
+  orgId?: string;
+  orgName: string;
+  nationality: string;
+  flag: string;
+  bio: string;
+  stats: { label: string; value: string }[];
+  achievements: string[];
+  socials?: { twitch?: string; twitter?: string };
+}
+
+export const ESPORTS_PLAYERS: EsportsPlayer[] = [
+  // ── CS2 ──
+  { id: 'zywoo', ign: 'ZywOo', name: 'Mathieu Herbaut', role: 'AWP / Rifler', game: 'CS2', orgId: 'vitality', orgName: 'Team Vitality',
+    nationality: 'French', flag: '🇫🇷',
+    bio: 'The most dominant individual performer in CS history. ZywOo won 5 consecutive #1 HLTV rankings (2019–2023) and delivered his first Major title at blast.tv Paris 2023 with Team Vitality.',
+    stats: [{ label: 'HLTV Rating (career)', value: '1.34' }, { label: 'Major Wins', value: '1' }, { label: '#1 HLTV Rankings', value: '5' }, { label: 'K/D Ratio', value: '1.27' }],
+    achievements: ['blast.tv Paris 2023 Major Champion', '5× HLTV #1 Player (2019–2023)', 'BLAST Premier World Final 2023 Champion', 'IEM Cologne 2023 Champion'],
+    socials: { twitch: 'https://www.twitch.tv/zywoo', twitter: 'https://twitter.com/ZywOo' },
+  },
+  { id: 'donk', ign: 'donk', name: 'Danil Kryshkovets', role: 'Rifler', game: 'CS2', orgId: 'spirit', orgName: 'Team Spirit',
+    nationality: 'Russian', flag: '🇷🇺',
+    bio: 'The 18-year-old prodigy who broke every CS2 individual record, posting the highest HLTV rating ever recorded (1.48) en route to the PGL Copenhagen 2024 Major championship.',
+    stats: [{ label: 'HLTV Rating (2024)', value: '1.48' }, { label: 'Major Wins', value: '1' }, { label: '#1 HLTV Rankings', value: '1' }, { label: 'ADR', value: '89.3' }],
+    achievements: ['PGL Copenhagen 2024 Major Champion & MVP', '#1 HLTV 2024 (youngest ever)', 'BLAST Premier Fall 2024 Champion', 'Record HLTV Rating 1.48'],
+    socials: { twitter: 'https://twitter.com/donk_cs2' },
+  },
+  { id: 'niko', ign: 'NiKo', name: 'Nikola Kovač', role: 'Rifler', game: 'CS2', orgId: 'g2', orgName: 'G2 Esports',
+    nationality: 'Bosnian', flag: '🇧🇦',
+    bio: 'A top-5 player for over a decade, NiKo\'s mechanical precision and clutch performance have made him one of the most revered riflers in Counter-Strike history across mouz, FaZe, and G2.',
+    stats: [{ label: 'HLTV Rating (career)', value: '1.21' }, { label: 'Major Wins', value: '1' }, { label: 'Years Pro', value: '14+' }, { label: 'K/D Ratio', value: '1.19' }],
+    achievements: ['PGL Antwerp 2022 Major Champion', 'IEM Katowice 2024 Champion', 'HLTV Top-5 eight consecutive years', 'ESL One Cologne 2022 Champion'],
+    socials: { twitter: 'https://twitter.com/G2NiKo' },
+  },
+  { id: 'device', ign: 'device', name: 'Nicolai Reedtz', role: 'AWPer', game: 'CS2', orgId: 'astralis', orgName: 'Astralis',
+    nationality: 'Danish', flag: '🇩🇰',
+    bio: 'The most decorated AWPer in Major history. device anchored the Astralis dynasty that won 4 Majors and revolutionized how tactical shooters are played with a data-driven, team-first philosophy.',
+    stats: [{ label: 'Major Wins', value: '4' }, { label: 'HLTV Peak Rating', value: '1.22' }, { label: '#1 HLTV Rankings', value: '1' }, { label: 'Major MVPs', value: '2' }],
+    achievements: ['4× CS:GO Major Champion (Astralis era)', '#1 HLTV Player 2018', '2× Major MVP', 'IEM Katowice 2019 Champion'],
+    socials: { twitter: 'https://twitter.com/device' },
+  },
+  { id: 'm0nesy', ign: 'm0NESY', name: 'Ilya Osipov', role: 'AWPer', game: 'CS2', orgId: 'g2', orgName: 'G2 Esports',
+    nationality: 'Russian', flag: '🇷🇺',
+    bio: 'A prodigy who debuted at 16, m0NESY rapidly became one of the most feared AWPers in CS2, known for his aggressive peeking, absurd reaction time, and mechanical ceiling that rivals any player.',
+    stats: [{ label: 'HLTV Rating (2023)', value: '1.24' }, { label: 'Pro Debut Age', value: '16' }, { label: 'Major Finals', value: '1' }, { label: 'K/D Ratio', value: '1.18' }],
+    achievements: ['IEM Cologne 2023 Champion', 'BLAST Premier World Final 2023 Champion', 'HLTV Top-10 Player 2022 & 2023', 'Youngest player at Major Grand Final'],
+    socials: { twitch: 'https://www.twitch.tv/m0nesy', twitter: 'https://twitter.com/m0nesyCS' },
+  },
+  // ── Valorant ──
+  { id: 'tenz', ign: 'TenZ', name: 'Tyson Ngo', role: 'Duelist', game: 'Valorant', orgId: 'sentinels', orgName: 'Sentinels',
+    nationality: 'Canadian', flag: '🇨🇦',
+    bio: 'The face of North American Valorant. TenZ\'s Jett and Raze mechanics set a new standard for Duelist play and his highlight reel — including a 1v5 clutch at Champions 2021 — made him the game\'s breakout star.',
+    stats: [{ label: 'Peak Rank', value: '#1 NA Radiant' }, { label: 'VCT Stage Wins', value: '1' }, { label: 'K/D Ratio', value: '1.14' }, { label: 'Avg ACS', value: '248' }],
+    achievements: ['2021 VCT Stage 1 NA Champion', 'VCT Classic 2021 Standout Performer', 'Perennial #1 Radiant ranking', 'Sentinels Franchise Cornerstone'],
+    socials: { twitch: 'https://www.twitch.tv/tenz', twitter: 'https://twitter.com/TenZOfficial' },
+  },
+  { id: 'aspas', ign: 'aspas', name: 'Victor Gonçalves', role: 'Duelist', game: 'Valorant', orgId: 'loud', orgName: 'LOUD',
+    nationality: 'Brazilian', flag: '🇧🇷',
+    bio: 'Brazil\'s greatest Valorant player. aspas\'s Raze play at 2022 Champions redefined the Duelist ceiling, and he has maintained that level across three Champions appearances — consistently among the highest-ACS players in the world.',
+    stats: [{ label: 'VCT Americas Wins', value: '2' }, { label: 'Champions Appearances', value: '3' }, { label: 'K/D Ratio', value: '1.19' }, { label: 'Avg ACS', value: '266' }],
+    achievements: ['2× VCT Americas Champion', '2022 VCT Champions Finalist', '2023 VCT Champions Finalist', 'Highest single-event ACS at Champions'],
+    socials: { twitch: 'https://www.twitch.tv/aspas', twitter: 'https://twitter.com/aspas' },
+  },
+  { id: 'derke', ign: 'Derke', name: 'Nikita Sirmitev', role: 'Duelist', game: 'Valorant', orgId: 'fnatic', orgName: 'Fnatic',
+    nationality: 'Finnish', flag: '🇫🇮',
+    bio: 'Fnatic\'s star carry and the face of European Valorant. Derke\'s aggressive Jett mechanics and tactical versatility make him a consistent top performer at every international tournament.',
+    stats: [{ label: 'VCT EMEA Wins', value: '3' }, { label: 'Lock//In Finish', value: 'Finalist 2023' }, { label: 'K/D Ratio', value: '1.12' }, { label: 'Avg ACS', value: '238' }],
+    achievements: ['3× VCT EMEA Champion', '2023 VCT Lock//In São Paulo Finalist', 'VCT Masters Tokyo 2023 Participant', 'EMEA MVP multiple splits'],
+    socials: { twitch: 'https://www.twitch.tv/derke', twitter: 'https://twitter.com/Derke' },
+  },
+  { id: 'nats', ign: 'nAts', name: 'Ayaz Akbarli', role: 'Sentinel', game: 'Valorant', orgId: 'navi', orgName: 'Natus Vincere',
+    nationality: 'Russian', flag: '🇷🇺',
+    bio: 'Considered the best sentinel player in Valorant history, nAts redefined Cypher and Chamber with his information control and clutch plays, anchoring NAVI to a Masters championship and Champions finals appearance.',
+    stats: [{ label: 'VCT Masters Win', value: '2022' }, { label: 'Champions Finish', value: 'Finalist 2022' }, { label: 'K/D Ratio', value: '1.09' }, { label: 'Clutch Win %', value: '42%' }],
+    achievements: ['VCT Masters Reykjavík 2022 Champion', '2022 VCT Champions Finalist', 'Best Sentinel by rating 2022', 'EMEA VCT consistent top-3 performer'],
+    socials: { twitter: 'https://twitter.com/nAtsvalorant' },
+  },
+  { id: 'boaster', ign: 'Boaster', name: 'Jake Howlett', role: 'IGL / Controller', game: 'Valorant', orgId: 'fnatic', orgName: 'Fnatic',
+    nationality: 'British', flag: '🇬🇧',
+    bio: 'The charismatic and cerebral IGL who transformed Fnatic into the dominant European force. Boaster\'s game sense, entry fragging on Omen, and leadership are widely regarded as the best in EMEA Valorant.',
+    stats: [{ label: 'VCT EMEA Wins', value: '3' }, { label: 'First Bloods Avg', value: '0.21' }, { label: 'Maps Played (VCT)', value: '200+' }, { label: 'IGL Win Rate', value: '68%' }],
+    achievements: ['3× VCT EMEA Champion as IGL', '2023 VCT Lock//In São Paulo Finalist', 'Voted Best IGL in EMEA multiple years', 'Fnatic Valorant team founder'],
+    socials: { twitch: 'https://www.twitch.tv/boaster', twitter: 'https://twitter.com/Boaster' },
+  },
+  // ── League of Legends ──
+  { id: 'faker', ign: 'Faker', name: 'Lee Sang-hyeok', role: 'Mid Laner', game: 'League of Legends', orgId: 't1', orgName: 'T1',
+    nationality: 'Korean', flag: '🇰🇷',
+    bio: 'The greatest League of Legends player of all time and the game\'s first global superstar. Active since 2013, Faker holds the record for most World Championships at 4 — and was named an Olympic Torchbearer for his cultural impact.',
+    stats: [{ label: 'World Championships', value: '4' }, { label: 'LCK Titles', value: '10+' }, { label: 'Years Active', value: '12+' }, { label: 'Worlds Games', value: '100+' }],
+    achievements: ['4× World Champion (2013, 2015, 2016, 2023)', '3× Worlds MVP', '10× LCK Champion', 'Olympic Torchbearer (2024 Paris)', 'KeSPA Player of the Year multiple times'],
+    socials: { twitch: 'https://www.twitch.tv/faker', twitter: 'https://twitter.com/faker' },
+  },
+  { id: 'chovy', ign: 'Chovy', name: 'Jung Ji-hoon', role: 'Mid Laner', game: 'League of Legends', orgId: 'geng', orgName: 'Gen.G',
+    nationality: 'Korean', flag: '🇰🇷',
+    bio: 'Holder of the highest individual performance metrics in modern LoL. Chovy\'s CS leads, damage output, and champion pool depth are consistently unmatched — some analysts consider him the most mechanically gifted player ever.',
+    stats: [{ label: 'LCK Titles', value: '3' }, { label: 'Worlds Appearances', value: '6' }, { label: 'CS Diff @15 (avg)', value: '+18.3' }, { label: 'DPM (avg)', value: '695' }],
+    achievements: ['3× LCK Champion', '2023 Worlds Finalist', '2024 MSI Champion', 'Highest DPM in Worlds history (single split)'],
+    socials: { twitter: 'https://twitter.com/Chovy_GenG' },
+  },
+  { id: 'zeus', ign: 'Zeus', name: 'Choi Woo-je', role: 'Top Laner', game: 'League of Legends', orgId: 't1', orgName: 'T1',
+    nationality: 'Korean', flag: '🇰🇷',
+    bio: 'T1\'s stone-cold top laner and 2023 World Champion. Zeus is known for his Renekton and Jayce mastery and his ability to carry the highest-pressure moments on the international stage.',
+    stats: [{ label: 'World Championships', value: '1' }, { label: 'LCK Titles', value: '3' }, { label: 'CS Diff @15', value: '+8.2' }, { label: 'Worlds Finals', value: '2' }],
+    achievements: ['2023 World Champion', '3× LCK Champion', '2024 MSI Champion', 'LCK 2023 Spring MVP'],
+    socials: { twitter: 'https://twitter.com/T1Zeus' },
+  },
+  { id: 'ruler', ign: 'Ruler', name: 'Park Jae-hyuk', role: 'ADC', game: 'League of Legends', orgId: 'blg', orgName: 'Bilibili Gaming',
+    nationality: 'Korean', flag: '🇰🇷',
+    bio: 'One of the most decorated ADCs in LoL history across SSG, Gen.G, JDG, and BLG. Ruler has appeared in 4 Worlds Finals and won the 2018 World Championship — a career spanning the entire modern era of the game.',
+    stats: [{ label: 'World Championships', value: '1' }, { label: 'Worlds Finals', value: '4' }, { label: 'Years Active', value: '9+' }, { label: 'MSI Wins', value: '1' }],
+    achievements: ['2018 World Champion (Samsung Galaxy)', '2023 MSI Champion (JDG)', '4× Worlds Finalist', 'Multiple LCK/LPL All-Star selections'],
+    socials: { twitter: 'https://twitter.com/JDG_Ruler' },
+  },
+  { id: 'beryl', ign: 'BeryL', name: 'Cho Gun-hee', role: 'Support', game: 'League of Legends', orgId: 'drx', orgName: 'DRX',
+    nationality: 'Korean', flag: '🇰🇷',
+    bio: 'The support who guided DRX through the most remarkable Worlds run in history — entering at Play-Ins and winning the 2022 World Championship. BeryL is known for his champion pool, vision control, and leadership.',
+    stats: [{ label: 'World Championships', value: '1' }, { label: 'LCK Titles', value: '2' }, { label: '2022 Worlds Path', value: 'Play-In → Champ' }, { label: 'Vision Score Avg', value: '62.3' }],
+    achievements: ['2022 World Champion (DRX — Play-Ins to Title)', '2× LCK Champion', 'LCK All-Pro Team multiple seasons', 'Longest Worlds run by seed (2022)'],
+    socials: { twitter: 'https://twitter.com/DRX_BeryL' },
+  },
+  // ── Dota 2 ──
+  { id: 'n0tail', ign: 'N0tail', name: 'Johan Sundstein', role: 'Pos 4 Support', game: 'Dota 2', orgId: 'og', orgName: 'OG Esports',
+    nationality: 'Danish', flag: '🇩🇰',
+    bio: 'Captain of OG\'s legendary back-to-back TI championship teams (2018, 2019), N0tail is the only person to win The International twice and is widely considered one of the greatest Dota 2 leaders of all time.',
+    stats: [{ label: 'TI Wins', value: '2 (TI8, TI9)' }, { label: 'Career Earnings', value: '$7M+' }, { label: 'TI Appearances', value: '8' }, { label: 'TI Win Rate', value: '65%' }],
+    achievements: ['TI8 Champion (OG)', 'TI9 Champion (OG) — first back-to-back ever', 'Record career Dota 2 prize earnings at the time', 'Esports Hall of Fame inductee'],
+    socials: { twitch: 'https://www.twitch.tv/n0tail', twitter: 'https://twitter.com/n0tail' },
+  },
+  { id: 'arteezy', ign: 'Arteezy', name: 'Artour Babaev', role: 'Pos 1 Carry', game: 'Dota 2', orgId: 'eg', orgName: 'Evil Geniuses',
+    nationality: 'Canadian', flag: '🇨🇦',
+    bio: 'The most consistent North American carry in Dota 2 history. Arteezy has competed at the elite level since 2013, known for his precise last-hitting, Terrorblade mastery, and multiple TI deep runs with Evil Geniuses.',
+    stats: [{ label: 'TI Appearances', value: '8+' }, { label: 'Best TI Finish', value: '2nd (TI9)' }, { label: 'Career Earnings', value: '$3M+' }, { label: 'Hero Pool', value: '120+' }],
+    achievements: ['TI9 Runner-Up with EG', 'Multiple TI Top-8 finishes', 'ESL One Major Champion multiple times', 'NA Dota 2 cornerstone player'],
+    socials: { twitch: 'https://www.twitch.tv/arteezy', twitter: 'https://twitter.com/arteezy' },
+  },
+  { id: 'miracle', ign: 'Miracle-', name: 'Amer Al-Barkawi', role: 'Pos 1 / Pos 2', game: 'Dota 2', orgId: 'liquid', orgName: 'Team Liquid',
+    nationality: 'Jordanian', flag: '🇯🇴',
+    bio: 'TI7 champion with Team Liquid and the first player ever to reach 9000 MMR. Miracle-\'s impossible mechanics and diverse hero pool made him the benchmark for carry play in Dota 2\'s peak era.',
+    stats: [{ label: 'TI Wins', value: '1 (TI7)' }, { label: 'Peak MMR', value: '9000 (first ever)' }, { label: 'Career Earnings', value: '$2.8M+' }, { label: 'TI7 KDA', value: '7.2' }],
+    achievements: ['TI7 Champion (Team Liquid)', 'First player to reach 9000 MMR', 'ESL One Frankfurt 2017 Champion', 'Multiple TI Top-4 finishes'],
+    socials: { twitch: 'https://www.twitch.tv/miracledota', twitter: 'https://twitter.com/Miracle_Dota2' },
+  },
+  // ── Apex Legends ──
+  { id: 'imperialhal', ign: 'ImperialHal', name: 'Philip Dosen', role: 'IGL / Fragger', game: 'Apex Legends', orgId: 'tsm', orgName: 'TSM',
+    nationality: 'American', flag: '🇺🇸',
+    bio: 'The "Emperor" of competitive Apex Legends. ImperialHal\'s IGL calls, Pathfinder positioning, and clutch fragging have made him the undisputed face of the scene since the game\'s competitive launch.',
+    stats: [{ label: 'ALGS Wins', value: '5+' }, { label: 'Year 2 Championship', value: '✓' }, { label: 'Avg Damage/Round', value: '712' }, { label: 'Win Rate', value: '38%' }],
+    achievements: ['ALGS Year 2 Championship', '5× ALGS Split Champion', 'TSM franchise cornerstone', 'Most-watched Apex competitive player'],
+    socials: { twitch: 'https://www.twitch.tv/imperialhal', twitter: 'https://twitter.com/ImperialHal' },
+  },
+  { id: 'genburten', ign: 'Genburten', name: 'Phillip Boman', role: 'Fragger', game: 'Apex Legends', orgId: 'nrg', orgName: 'NRG',
+    nationality: 'Dutch', flag: '🇳🇱',
+    bio: 'Widely considered the best mechanical fragger in competitive Apex Legends history. Genburten\'s aim, movement, and game sense are unmatched, anchoring NRG to multiple ALGS championships.',
+    stats: [{ label: 'ALGS Year 3 Win', value: '✓' }, { label: 'Avg Damage/Round', value: '856' }, { label: 'K/D Ratio', value: '4.8' }, { label: 'Headshot %', value: '34%' }],
+    achievements: ['ALGS Year 3 Championship (NRG)', 'Multiple ALGS Pro League Split wins', 'Consistent #1 fragger rating in global standings', 'NRG ALGS dynasty anchor'],
+    socials: { twitch: 'https://www.twitch.tv/genburten', twitter: 'https://twitter.com/genburten' },
+  },
+  // ── Rocket League ──
+  { id: 'jstn', ign: 'jstn', name: 'Justin Morales', role: 'Midfielder / Striker', game: 'Rocket League', orgId: 'nrg', orgName: 'NRG',
+    nationality: 'American', flag: '🇺🇸',
+    bio: 'The 2018 RLCS World Champion whose overtime double-tap goal is the most iconic play in Rocket League history. jstn rose from relative obscurity at age 16 to become a World Champion in a single year.',
+    stats: [{ label: 'RLCS Wins', value: '1 (2018)' }, { label: 'Season MVPs', value: '2' }, { label: 'Goals Per Game', value: '1.12' }, { label: 'Shot %', value: '29%' }],
+    achievements: ['2018 RLCS World Champion (NRG)', 'RLCS Season 5 Champion', 'Iconic overtime double-tap winner vs. G2', 'Youngest RLCS Champion at the time (16)'],
+    socials: { twitch: 'https://www.twitch.tv/jstn', twitter: 'https://twitter.com/jstn_RL' },
+  },
+  // ── Fortnite ──
+  { id: 'bugha', ign: 'Bugha', name: 'Kyle Giersdorf', role: 'Solo Fragger / Builder', game: 'Fortnite', orgId: 'sentinels', orgName: 'Sentinels',
+    nationality: 'American', flag: '🇺🇸',
+    bio: 'The 2019 Fortnite World Cup Solo Champion who won $3 million at age 16. Bugha\'s editing speed, building mechanics, and under-pressure performance remain the gold standard in competitive Fortnite.',
+    stats: [{ label: 'World Cup Win', value: '2019 Solo' }, { label: 'Prize Money', value: '$3M' }, { label: 'Age at Win', value: '16' }, { label: 'Edit Speed (cps)', value: '16+' }],
+    achievements: ['2019 Fortnite World Cup Solo Champion ($3M)', 'FNCS Champion multiple seasons', 'Youngest major esports World Champion ($3M prize)', 'Sentinels franchise player'],
+    socials: { twitch: 'https://www.twitch.tv/bugha', twitter: 'https://twitter.com/bugha' },
+  },
+];
+
+// ── Esports Tournament Watch Links ──────────────────────────────────────────
+
+export interface EsportsTournamentWatch {
+  id: string;
+  game: string;
+  name: string;
+  organizer: string;
+  description: string;
+  watchUrl: string;
+  liveUrl: string;
+  color: string;
+}
+
+export const ESPORTS_TOURNAMENT_WATCH: EsportsTournamentWatch[] = [
+  // CS2
+  { id: 'blast-premier', game: 'CS2', name: 'BLAST Premier', organizer: 'BLAST', color: '#FFC72C',
+    description: 'The premier CS2 global circuit — Spring & Fall Finals plus the World Final',
+    watchUrl: 'https://www.youtube.com/@BLASTPremier', liveUrl: 'https://www.twitch.tv/blast_premier_show' },
+  { id: 'pgl-major', game: 'CS2', name: 'PGL Major', organizer: 'PGL', color: '#E85912',
+    description: 'The flagship CS2 Major with $1.25M prize pool and 24 invited teams',
+    watchUrl: 'https://www.youtube.com/@PGLtv', liveUrl: 'https://www.twitch.tv/pgl_cs2' },
+  { id: 'iem', game: 'CS2', name: 'IEM (Intel Extreme Masters)', organizer: 'ESL Gaming', color: '#00B4D8',
+    description: "The world's longest-running esports circuit — Cologne, Katowice, Dallas",
+    watchUrl: 'https://www.youtube.com/@ESLCS', liveUrl: 'https://www.twitch.tv/esl_csgo' },
+  // Valorant
+  { id: 'vct-champions', game: 'Valorant', name: 'VCT Champions', organizer: 'Riot Games', color: '#FF4655',
+    description: 'The annual Valorant World Championship — the biggest prize in the game',
+    watchUrl: 'https://www.youtube.com/@ValorantChampionsTour', liveUrl: 'https://www.twitch.tv/valorant' },
+  { id: 'vct-masters', game: 'Valorant', name: 'VCT Masters', organizer: 'Riot Games', color: '#A970FF',
+    description: 'The mid-season Valorant international — East vs West',
+    watchUrl: 'https://www.youtube.com/@ValorantChampionsTour', liveUrl: 'https://www.twitch.tv/valorant' },
+  { id: 'vct-lock-in', game: 'Valorant', name: 'VCT Lock//In', organizer: 'Riot Games', color: '#00C4B4',
+    description: 'Opening season international with all 30 partnered teams competing',
+    watchUrl: 'https://www.youtube.com/@ValorantChampionsTour', liveUrl: 'https://www.twitch.tv/valorant' },
+  // League of Legends
+  { id: 'lol-worlds', game: 'League of Legends', name: 'World Championship', organizer: 'Riot Games', color: '#C69B3A',
+    description: 'The LoL World Championship — the biggest annual event in esports',
+    watchUrl: 'https://www.youtube.com/@lolEsports', liveUrl: 'https://www.twitch.tv/riotgames' },
+  { id: 'lol-msi', game: 'League of Legends', name: 'Mid-Season Invitational', organizer: 'Riot Games', color: '#DB4446',
+    description: 'Annual inter-regional LoL tournament — best of each region in May',
+    watchUrl: 'https://www.youtube.com/@lolEsports', liveUrl: 'https://www.twitch.tv/riotgames' },
+  { id: 'lck', game: 'League of Legends', name: 'LCK (Korea)', organizer: 'LCK', color: '#00B4D8',
+    description: 'Korea\'s premier LoL league — most consistently the strongest region in the world',
+    watchUrl: 'https://www.youtube.com/@lck', liveUrl: 'https://www.twitch.tv/lck' },
+  // Dota 2
+  { id: 'the-international', game: 'Dota 2', name: 'The International', organizer: 'Valve', color: '#A970FF',
+    description: 'Dota 2\'s annual championship — holder of the largest prize pools in esports history',
+    watchUrl: 'https://www.youtube.com/@dota2', liveUrl: 'https://www.twitch.tv/dota2ti' },
+  { id: 'dpc-majors', game: 'Dota 2', name: 'DPC Major Tournaments', organizer: 'Valve/ESL/PGL', color: '#4A90D9',
+    description: 'The Dota Pro Circuit regional qualifiers and international Majors leading to TI',
+    watchUrl: 'https://www.youtube.com/@dota2', liveUrl: 'https://www.twitch.tv/dota2' },
+  // Apex Legends
+  { id: 'algs-championship', game: 'Apex Legends', name: 'ALGS Championship', organizer: 'Electronic Arts', color: '#FF8C00',
+    description: 'The Apex Legends Global Series Championship — the biggest annual ALGS event',
+    watchUrl: 'https://www.youtube.com/@EAPlayPro', liveUrl: 'https://www.twitch.tv/playapex' },
+  { id: 'algs-majors', game: 'Apex Legends', name: 'ALGS Major', organizer: 'Electronic Arts', color: '#C69B3A',
+    description: 'ALGS Pro League Season Majors held globally throughout the year',
+    watchUrl: 'https://www.youtube.com/@EAPlayPro', liveUrl: 'https://www.twitch.tv/playapex' },
+  // Rocket League
+  { id: 'rlcs-worlds', game: 'Rocket League', name: 'RLCS World Championship', organizer: 'Psyonix / Epic', color: '#00C4B4',
+    description: 'The Rocket League Championship Series annual World Championship',
+    watchUrl: 'https://www.youtube.com/@RocketLeagueEsports', liveUrl: 'https://www.twitch.tv/rocketleague' },
+  { id: 'rlcs-majors', game: 'Rocket League', name: 'RLCS Majors', organizer: 'Psyonix / Epic', color: '#6DC5F3',
+    description: 'Regional Majors across NA, EU, SAM, MENA, OCE, APAC throughout the season',
+    watchUrl: 'https://www.youtube.com/@RocketLeagueEsports', liveUrl: 'https://www.twitch.tv/rocketleague' },
+  // Fortnite
+  { id: 'fncs', game: 'Fortnite', name: 'Fortnite Champion Series', organizer: 'Epic Games', color: '#A970FF',
+    description: 'The official Fortnite competitive circuit featuring Solos, Duos, and Trios formats',
+    watchUrl: 'https://www.youtube.com/@Fortnite', liveUrl: 'https://www.twitch.tv/fortnitegame' },
+  { id: 'fwc', game: 'Fortnite', name: 'Fortnite World Cup', organizer: 'Epic Games', color: '#FFC72C',
+    description: 'The Fortnite World Cup — the landmark event with $30M total prize pool',
+    watchUrl: 'https://www.youtube.com/results?search_query=fortnite+world+cup+final+official', liveUrl: 'https://www.twitch.tv/fortnitegame' },
+];
+
+// ── LoL Worlds Opening Ceremonies ───────────────────────────────────────────
+
+export interface LolWorldsOpen {
+  year: number;
+  anthem: string;
+  artist: string;
+  location: string;
+  winner: string;
+  watchUrl: string;
+  color: string;
+}
+
+export const LOL_WORLDS_OPENS: LolWorldsOpen[] = [
+  { year: 2024, anthem: 'Heavy Is The Crown', artist: 'Linkin Park', location: 'The O2, London, UK',
+    winner: 'T1', color: '#DB4446',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2024+opening+ceremony+heavy+is+the+crown+linkin+park' },
+  { year: 2023, anthem: 'GODS', artist: 'NewJeans', location: 'Gocheok Sky Dome, Seoul, South Korea',
+    winner: 'T1', color: '#C69B3A',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2023+opening+ceremony+gods+newjeans+official' },
+  { year: 2022, anthem: 'Star Walking', artist: 'Nicki Minaj', location: 'Chase Center, San Francisco, USA',
+    winner: 'DRX', color: '#00B4D8',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2022+opening+ceremony+star+walking+nicki+minaj' },
+  { year: 2021, anthem: 'Enemy', artist: 'Imagine Dragons & JID', location: 'Reykjavík, Iceland',
+    winner: 'EDward Gaming', color: '#A970FF',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2021+opening+ceremony+enemy+imagine+dragons' },
+  { year: 2020, anthem: 'Take Over', artist: 'Jeremy McKinnon, Henry Lau & Against The Current', location: 'Pudong Football Stadium, Shanghai, China',
+    winner: 'DAMWON Gaming', color: '#FFC72C',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2020+opening+ceremony+take+over+official' },
+  { year: 2019, anthem: 'GIANTS', artist: 'True Damage', location: 'AccorHotels Arena, Paris, France',
+    winner: 'FunPlus Phoenix', color: '#00C4B4',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2019+opening+ceremony+giants+true+damage' },
+  { year: 2018, anthem: 'POP/STARS', artist: 'K/DA', location: 'Munhak Stadium, Incheon & Busan, South Korea',
+    winner: 'Invictus Gaming', color: '#FF4655',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2018+opening+ceremony+pop+stars+kda+official' },
+  { year: 2017, anthem: 'Legends Never Die', artist: 'Against The Current', location: 'National Stadium (Bird\'s Nest), Beijing, China',
+    winner: 'Samsung Galaxy', color: '#4A90D9',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2017+opening+ceremony+legends+never+die' },
+  { year: 2016, anthem: 'Ignite', artist: 'Zedd', location: 'Staples Center, Los Angeles & Madison Square Garden, NYC',
+    winner: 'SKT T1', color: '#FF8C00',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2016+opening+ceremony+ignite+zedd' },
+  { year: 2015, anthem: 'Warriors', artist: 'Imagine Dragons', location: 'Brussels / London Wembley Arena / Berlin Velodrom',
+    winner: 'SKT T1', color: '#6DC5F3',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2015+opening+ceremony+warriors+imagine+dragons' },
+  { year: 2014, anthem: 'Warriors (Live Debut)', artist: 'Imagine Dragons', location: 'Seoul World Cup Stadium, Seoul, South Korea',
+    winner: 'Samsung White', color: '#C8C8C8',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2014+opening+ceremony+imagine+dragons+warriors+live' },
+  { year: 2013, anthem: 'Worlds 2013 Theme', artist: 'Imagine Dragons (Live)', location: 'Staples Center, Los Angeles, USA',
+    winner: 'SKT T1', color: '#E85912',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+worlds+2013+opening+ceremony+staples+center' },
+  { year: 2012, anthem: 'Worlds 2012 Theme', artist: 'Various Artists', location: 'USC Galen Center, Los Angeles, USA',
+    winner: 'Taipei Assassins', color: '#FF5500',
+    watchUrl: 'https://www.youtube.com/results?search_query=league+of+legends+season+2+world+championship+2012+opening+ceremony' },
 ];
 
 export async function fetchEsportsNews(): Promise<any[]> {

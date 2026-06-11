@@ -1,6 +1,7 @@
-import React, { useState, useMemo, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Calendar, Globe, Headphones, Lock, MapPin, Clock, Mic2, GitBranch, Target, Play, Pause, Download, ChevronDown, ChevronUp, Check, Loader2, History, Users } from 'lucide-react';
+import { Trophy, Calendar, Globe, Headphones, Lock, MapPin, Clock, Mic2, GitBranch, Target, Play, Pause, Download, ChevronDown, ChevronUp, Check, Loader2, History, Users, Newspaper, ExternalLink, AlertCircle } from 'lucide-react';
+import { fetchNewsFromRSS } from '../services/rssService';
 import {
   WC26_TEAMS, WC26_MATCHES, WC26_GROUPS, WC26_PODCASTS,
   getTeam, getTeamsByGroup, getUpcomingMatches, getLiveMatches,
@@ -68,7 +69,7 @@ const WcHubAnthemBanner: React.FC = () => {
 // ── Feature flag — flip to true when prediction market is ready to ship ───────
 const PREDICTIONS_LIVE = false;
 
-type HubTab = 'groups' | 'schedule' | 'countries' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'predictions';
+type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'predictions';
 
 interface Props {
   currentUser: UserProfile | null;
@@ -372,11 +373,31 @@ const PodcastCard: React.FC<{ podcast: typeof WC26_PODCASTS[0] }> = ({ podcast }
 
 // ── Main hub ──────────────────────────────────────────────────────────────────
 const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
-  const [tab, setTab] = useState<HubTab>('groups');
+  const [tab, setTab] = useState<HubTab>('news');
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [wcNews, setWcNews] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(false);
 
   const upcoming = useMemo(() => getUpcomingMatches(12), []);
   const live = useMemo(() => getLiveMatches(), []);
+
+  useEffect(() => {
+    if (tab !== 'news') return;
+    if (wcNews.length > 0) return;
+    setNewsLoading(true);
+    setNewsError(false);
+    fetchNewsFromRSS('SPORTS_FIFA_WC')
+      .then(items => {
+        const wc = items.filter(a => {
+          const text = `${a.headline || a.title || ''} ${a.summary || ''}`.toLowerCase();
+          return text.includes('world cup') || text.includes('fifa') || text.includes('2026') || text.includes('soccer') || true;
+        });
+        setWcNews(wc.length > 0 ? wc : items);
+      })
+      .catch(() => setNewsError(true))
+      .finally(() => setNewsLoading(false));
+  }, [tab]);
 
   // Navigate to Live Hub pre-loaded with match context
   const openFanRoom = useCallback((_matchId: string) => {
@@ -394,6 +415,7 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
   const isLive = now >= tournamentStart && now <= tournamentEnd;
 
   const TABS: { id: HubTab; label: string; icon: React.ElementType; hidden?: boolean }[] = [
+    { id: 'news',        label: 'News',      icon: Newspaper },
     { id: 'groups',      label: 'Groups',    icon: Trophy },
     { id: 'schedule',    label: 'Schedule',  icon: Calendar },
     { id: 'countries',   label: 'Countries', icon: Globe },
@@ -522,6 +544,86 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25 }}
         >
+          {/* NEWS */}
+          {tab === 'news' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-tight">World Cup News & Headlines</h3>
+                  <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider mt-0.5">Live from ESPN, BBC Sport, The Guardian & Goal.com</p>
+                </div>
+                <button onClick={() => { setWcNews([]); setTab('news'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all">
+                  Refresh
+                </button>
+              </div>
+
+              {newsLoading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] animate-pulse">
+                      <div className="w-16 h-12 rounded-lg bg-white/5 shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-white/5 rounded-full" />
+                        <div className="h-3 bg-white/5 rounded-full w-3/4" />
+                        <div className="h-2 bg-white/5 rounded-full w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {newsError && !newsLoading && (
+                <div className="flex flex-col items-center gap-3 py-12">
+                  <AlertCircle size={24} className="text-white/20" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Could not load news. Check your connection.</p>
+                  <button onClick={() => { setWcNews([]); setNewsError(false); setTab('news'); }}
+                    className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {!newsLoading && !newsError && wcNews.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {wcNews.map((article: any, i: number) => {
+                    const href = article.links?.web?.href || article.url || article.link || '#';
+                    const title = article.headline || article.title || '';
+                    const img = article.images?.[0]?.url || article.imageUrl || '';
+                    const source = article.source || '';
+                    const date = article.published || article.pubDate || '';
+                    return (
+                      <a key={i} href={href} target="_blank" rel="noopener noreferrer"
+                        className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.06] hover:border-white/20 transition-all group">
+                        {img ? (
+                          <img src={img} alt="" loading="lazy"
+                            className="w-20 h-14 object-cover rounded-xl shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />
+                        ) : (
+                          <div className="w-20 h-14 rounded-xl shrink-0 bg-white/5 flex items-center justify-center text-2xl">⚽</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{title}</p>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            {source && <span className="text-[8px] font-black uppercase tracking-widest text-white/30">{source}</span>}
+                            {date && <span className="text-[8px] text-white/20 font-bold">{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            <ExternalLink size={8} className="text-white/20 group-hover:text-[#FF8C00] transition-colors ml-auto" />
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!newsLoading && !newsError && wcNews.length === 0 && (
+                <div className="flex flex-col items-center gap-3 py-12">
+                  <Newspaper size={24} className="text-white/20" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30">No articles loaded yet</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* GROUPS */}
           {tab === 'groups' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

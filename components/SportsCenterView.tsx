@@ -5,9 +5,9 @@ import {
   fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile, fetchPlayerCareer,
   fetchRacingSchedule, fetchRacingStandings, fetchRacingNews,
   fetchRacingDrivers, fetchRacingConstructors,
-  getRacingCfg, ESPORTS_ORGS, LEAGUE_CHAMPIONS,
+  getRacingCfg, ESPORTS_ORGS, LEAGUE_CHAMPIONS, ESPORTS_PLAYERS, ESPORTS_TOURNAMENT_WATCH, LOL_WORLDS_OPENS,
   getSpecialtySportCfg,
-  type SportsTeam, type EsportsOrg, type LeaderCategory,
+  type SportsTeam, type EsportsOrg, type LeaderCategory, type EsportsPlayer,
   type RaceEvent, type RacingStanding, type ChampionEntry,
   type RacingDriver, type RacingConstructor, type PlayerCareer,
 } from '../services/sportsService';
@@ -63,6 +63,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
+  const [selectedEsportsPlayer, setSelectedEsportsPlayer] = useState<EsportsPlayer | null>(null);
   const [esportsGame, setEsportsGame]     = useState<string>('ALL');
 
   const [selectedPlayer, setSelectedPlayer]   = useState<{ id: string; name: string } | null>(null);
@@ -421,6 +422,101 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     );
   }
 
+  // ─── ESPORTS PLAYER PROFILE ───────────────────────────────────────────────
+  if (selectedEsportsPlayer) {
+    const p = selectedEsportsPlayer;
+    const orgEntry = p.orgId ? ESPORTS_ORGS.find(o => o.id === p.orgId) : null;
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSelectedEsportsPlayer(null)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
+            <ChevronLeft size={12} /> Back to Esports
+          </button>
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/25">{p.game}</span>
+        </div>
+
+        {/* Hero */}
+        <div className="flex items-start gap-6 p-6 bg-white/[0.03] rounded-[2.5rem] border border-white/8">
+          <div className="w-24 h-24 rounded-[1.5rem] bg-white/10 shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: orgEntry ? orgEntry.color + '33' : '#ffffff15', border: `2px solid ${orgEntry?.color || '#ffffff20'}` }}>
+            <span className="text-3xl font-black text-white/60" style={{ color: orgEntry?.color || '#ffffff80' }}>
+              {p.ign.charAt(0)}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-lg">{p.flag}</span>
+              <h2 className="text-2xl font-black uppercase tracking-tight">{p.ign}</h2>
+            </div>
+            <p className="text-sm text-white/50 font-bold mt-0.5">{p.name}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="px-2.5 py-1 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/30 text-[8px] font-black uppercase text-[#FF8C00]">{p.role}</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{p.orgName}</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{p.nationality}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+              {p.stats.map(s => (
+                <div key={s.label} className="text-center p-2 bg-white/5 rounded-xl">
+                  <p className="text-[7px] font-black uppercase tracking-widest text-white/25">{s.label}</p>
+                  <p className="text-[10px] font-black text-white/80 mt-0.5">{s.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div className="p-5 bg-white/[0.03] rounded-[2rem] border border-white/8">
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">About</p>
+          <p className="text-sm text-white/70 leading-relaxed">{p.bio}</p>
+        </div>
+
+        {/* Achievements */}
+        <div className="space-y-3">
+          <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Trophy size={10} /> Career Achievements</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {p.achievements.map((ach, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-xl border border-white/8">
+                <Award size={12} className="text-[#FF8C00] shrink-0 mt-0.5" />
+                <p className="text-[10px] font-bold text-white/70 leading-snug">{ach}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Social Links */}
+        {p.socials && (p.socials.twitch || p.socials.twitter) && (
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Globe size={10} /> Follow</h4>
+            <div className="flex flex-wrap gap-3">
+              {p.socials.twitch && (
+                <a href={p.socials.twitch} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#9146FF]/10 border border-[#9146FF]/30 text-[9px] font-black uppercase tracking-widest text-[#9146FF] hover:bg-[#9146FF]/20 transition-all">
+                  <Radio size={11} /> Twitch
+                </a>
+              )}
+              {p.socials.twitter && (
+                <a href={p.socials.twitter} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                  <ExternalLink size={11} /> Twitter / X
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Ask Aria */}
+        <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', {
+            detail: { prompt: `Give me an in-depth esports player analysis of ${p.ign} (${p.name}), who plays ${p.game} for ${p.orgName}. Here are their stats: ${p.stats.map(s => `${s.label}: ${s.value}`).join(', ')}. Achievements: ${p.achievements.join('; ')}. Analyze their playing style, career trajectory, legacy in the scene, and how they compare to the all-time greats in ${p.game}.` }
+          }))}
+          className="flex items-center gap-2 px-5 py-3 rounded-full bg-[#FF8C00]/10 border border-[#FF8C00]/30 text-[9px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-all">
+          <Sparkles size={12} /> Ask Aria About {p.ign}
+        </button>
+      </motion.div>
+    );
+  }
+
   if (selectedOrg) {
     const org = selectedOrg;
     return (
@@ -636,6 +732,128 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               )}
             </div>
           </div>
+
+          {/* Top Pro Players */}
+          {(() => {
+            const gamePlayers = ESPORTS_PLAYERS.filter(p =>
+              esportsGame === 'ALL' || p.game === esportsGame || (esportsGame === 'League of Legends' && p.game === 'League of Legends')
+            ).slice(0, esportsGame === 'ALL' ? 12 : 20);
+            if (gamePlayers.length === 0) return null;
+            return (
+              <div className="space-y-3">
+                <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Users size={10} /> Top Pros{esportsGame !== 'ALL' ? ` · ${esportsGame}` : ''}</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {gamePlayers.map(player => {
+                    const orgEntry = player.orgId ? ESPORTS_ORGS.find(o => o.id === player.orgId) : null;
+                    return (
+                      <motion.button key={player.id} onClick={() => setSelectedEsportsPlayer(player)}
+                        className="text-left flex flex-col gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group"
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black shrink-0"
+                            style={{ backgroundColor: orgEntry ? orgEntry.color + '33' : '#ffffff10', border: `1.5px solid ${orgEntry?.color || '#ffffff15'}` }}>
+                            {player.flag}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black truncate group-hover:text-white transition-colors">{player.ign}</p>
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 truncate">{player.role}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-white/30 truncate">{player.orgName}</span>
+                          {player.stats[0] && (
+                            <span className="text-[8px] font-black text-[#FF8C00] shrink-0 ml-1">{player.stats[0].value}</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {player.achievements.slice(0, 1).map((a, i) => (
+                            <span key={i} className="text-[7px] font-bold text-white/30 leading-snug line-clamp-1">{a}</span>
+                          ))}
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Tournament Watch */}
+          {(() => {
+            const gameTourneys = ESPORTS_TOURNAMENT_WATCH.filter(t =>
+              esportsGame === 'ALL' || t.game === esportsGame
+            );
+            if (gameTourneys.length === 0) return null;
+            return (
+              <div className="space-y-3">
+                <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Activity size={10} /> Watch & Stream{esportsGame !== 'ALL' ? ` · ${esportsGame}` : ''}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {gameTourneys.map(t => (
+                    <div key={t.id} className="flex items-start gap-4 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem]">
+                      <div className="w-2 h-full min-h-[2.5rem] rounded-full shrink-0 mt-1" style={{ backgroundColor: t.color, minHeight: '2.5rem' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black">{t.name}</p>
+                        <p className="text-[9px] text-white/40 font-bold mt-0.5">{t.organizer} · {t.description}</p>
+                        <div className="flex gap-2 mt-2.5 flex-wrap">
+                          <a href={t.watchUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF0000]/10 border border-[#FF0000]/20 text-[8px] font-black uppercase tracking-wider text-[#FF0000] hover:bg-[#FF0000]/20 transition-all">
+                            <ExternalLink size={9} /> YouTube VODs
+                          </a>
+                          <a href={t.liveUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9146FF]/10 border border-[#9146FF]/20 text-[8px] font-black uppercase tracking-wider text-[#9146FF] hover:bg-[#9146FF]/20 transition-all">
+                            <Radio size={9} /> Watch Live
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* LoL Worlds Opening Ceremonies */}
+          {esportsGame === 'League of Legends' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                    <span className="text-2xl">🏆</span> Worlds Opening Ceremonies
+                  </h3>
+                  <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider mt-0.5">Every year · Every anthem · Every moment</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {LOL_WORLDS_OPENS.map(ceremony => (
+                  <motion.a key={ceremony.year} href={ceremony.watchUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex flex-col gap-3 p-5 rounded-[2rem] border transition-all group"
+                    style={{ backgroundColor: ceremony.color + '12', borderColor: ceremony.color + '33' }}
+                    whileHover={{ scale: 1.02, borderColor: ceremony.color + '80' }}
+                    whileTap={{ scale: 0.98 }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-3xl font-black" style={{ color: ceremony.color }}>{ceremony.year}</span>
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider"
+                        style={{ backgroundColor: ceremony.color + '20', color: ceremony.color }}>
+                        <ExternalLink size={8} /> YouTube
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black leading-tight group-hover:text-white transition-colors">"{ceremony.anthem}"</p>
+                      <p className="text-[10px] font-bold text-white/50 mt-0.5">{ceremony.artist}</p>
+                    </div>
+                    <div className="mt-auto pt-2 border-t border-white/5">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                        <Trophy size={8} /> {ceremony.winner}
+                      </p>
+                      <p className="text-[8px] text-white/20 font-bold mt-0.5 flex items-center gap-1">
+                        <MapPin size={7} /> {ceremony.location}
+                      </p>
+                    </div>
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Coverage Sources */}
           <div className="space-y-3">

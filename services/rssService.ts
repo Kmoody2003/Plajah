@@ -12,6 +12,12 @@ const RSS_FEEDS: Record<string, string[]> = {
 
   // Sports
   'SPORTS_ALL':    ['https://www.espn.com/espn/rss/news', 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml', 'https://www.theguardian.com/sport/rss'],
+  'SPORTS_FIFA_WC': [
+    'https://www.espn.com/espn/rss/soccer/news',
+    'https://feeds.bbci.co.uk/sport/football/rss.xml',
+    'https://www.theguardian.com/football/rss',
+    'https://www.goal.com/feeds/en/news',
+  ],
   'SPORTS_NBA':    ['https://www.espn.com/espn/rss/nba/news'],
   'SPORTS_NFL':    ['https://www.espn.com/espn/rss/nfl/news'],
   'SPORTS_NHL':    ['https://www.espn.com/espn/rss/nhl/news'],
