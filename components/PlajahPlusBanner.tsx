@@ -4,12 +4,50 @@ import { Zap, X } from 'lucide-react';
 import PlajahPlusLanding from './PlajahPlusLanding';
 
 interface PlajahPlusBannerProps {
-  variant?: 'FULL' | 'COMPACT';
+  variant?: 'FULL' | 'COMPACT' | 'PILL';
   className?: string;
 }
 
 const PlajahPlusBanner: React.FC<PlajahPlusBannerProps> = ({ variant = 'FULL', className = '' }) => {
   const [showLanding, setShowLanding] = useState(false);
+
+  // Inline pill — fits in a control row alongside buttons (unlike COMPACT,
+  // which is a full-width section banner).
+  if (variant === 'PILL') {
+    return (
+      <>
+        <motion.button
+          onClick={() => setShowLanding(true)}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-[#D40055]/20 hover:shadow-[#D40055]/40 transition-all whitespace-nowrap ${className}`}
+          title="Plajah+ — support creators & unlock benefits"
+        >
+          <Zap size={14} /> Plajah+
+        </motion.button>
+
+        <AnimatePresence>
+          {showLanding && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md"
+              onClick={e => { if (e.target === e.currentTarget) setShowLanding(false); }}
+            >
+              <button
+                onClick={() => setShowLanding(false)}
+                className="fixed top-4 right-4 z-[61] p-3 bg-white/10 border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={18} />
+              </button>
+              <PlajahPlusLanding onClose={() => setShowLanding(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
 
   if (variant === 'COMPACT') {
     return (

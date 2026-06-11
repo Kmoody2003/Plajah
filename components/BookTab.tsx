@@ -272,7 +272,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   return (
     <div className="flex-1 p-6 lg:p-12 max-w-7xl mx-auto w-full pb-32 lg:pb-40">
-      <header className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-700">
+      <header className="mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="space-y-4">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 bg-small-orange rounded-3xl flex items-center justify-center shadow-lg shadow-small-orange/20">
@@ -286,67 +286,66 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             {activeTab === 'CLASSICS' ? 'Classic Literature & Public Domain Works' : 'Community Uploaded Books & Originals'}
           </p>
         </div>
-        
-        <div className="flex flex-col gap-4 items-end">
-          <div className="flex items-center gap-2">
-            {/* Write a Script — opens Script Writing Studio */}
-            {onCreateScript && (
-              <button
-                onClick={onCreateScript}
-                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20"
-              >
-                <span>🎬</span> Write Script
-              </button>
-            )}
-            {/* Create a Book — launches the Book Authoring Studio */}
-            {onCreateBook && (
-              <button
-                onClick={onCreateBook}
-                className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
-              >
-                <BookOpen size={14} /> Create a Book
-              </button>
-            )}
-          </div>
-          <PlajahPlusBanner variant="COMPACT" className="w-72" />
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
-            <button
-              onClick={() => setActiveTab('CLASSICS')}
-              className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeTab === 'CLASSICS' ? 'bg-white text-black' : 'text-white/50 hover:text-white'
-              }`}
-            >
-              Classics
-            </button>
-            <button
-              onClick={() => setActiveTab('MARKETPLACE')}
-              className={`px-6 py-2 rounded-full text-[10px] flex items-center gap-2 font-black uppercase tracking-widest transition-all ${
-                activeTab === 'MARKETPLACE' ? 'bg-small-orange text-white' : 'text-white/50 hover:text-white'
-              }`}
-            >
-              <ShoppingCart size={14} /> Marketplace
-            </button>
-            <button
-              onClick={() => setActiveTab('GLOBAL')}
-              className={`px-6 py-2 rounded-full text-[10px] flex items-center gap-2 font-black uppercase tracking-widest transition-all ${
-                activeTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'
-              }`}
-            >
-              <Globe size={14} /> Global Search
-            </button>
-          </div>
-          <div className="relative group w-full lg:w-auto">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-small-orange transition-all" size={20} />
-            <input 
-              type="text" 
-              placeholder={`Search ${activeTab === 'CLASSICS' ? 'Archive' : activeTab === 'GLOBAL' ? 'Google Books' : 'Marketplace'}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full py-4 pl-16 pr-8 text-sm font-bold outline-none focus:border-small-orange/50 focus:ring-4 ring-small-orange/10 transition-all w-full lg:w-80 font-display"
-            />
-          </div>
-        </div>
       </header>
+
+      {/* Control bar — single centered row beneath the header, above the genre tabs */}
+      <div className="mb-10 flex flex-wrap items-center justify-center gap-3 animate-in fade-in duration-700">
+        {/* Write a Script — opens Script Writing Studio */}
+        {onCreateScript && (
+          <button
+            onClick={onCreateScript}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20"
+          >
+            <span>🎬</span> Write Script
+          </button>
+        )}
+        {/* Create a Book — launches the Book Authoring Studio */}
+        {onCreateBook && (
+          <button
+            onClick={onCreateBook}
+            className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+          >
+            <BookOpen size={14} /> Create a Book
+          </button>
+        )}
+        <PlajahPlusBanner variant="PILL" />
+        <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
+          <button
+            onClick={() => setActiveTab('CLASSICS')}
+            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'CLASSICS' ? 'bg-white text-black' : 'text-white/50 hover:text-white'
+            }`}
+          >
+            Classics
+          </button>
+          <button
+            onClick={() => setActiveTab('MARKETPLACE')}
+            className={`px-4 py-2 rounded-full text-[10px] flex items-center gap-1.5 font-black uppercase tracking-widest transition-all ${
+              activeTab === 'MARKETPLACE' ? 'bg-small-orange text-white' : 'text-white/50 hover:text-white'
+            }`}
+          >
+            <ShoppingCart size={14} /> Marketplace
+          </button>
+          <button
+            onClick={() => setActiveTab('GLOBAL')}
+            className={`px-4 py-2 rounded-full text-[10px] flex items-center gap-1.5 font-black uppercase tracking-widest transition-all ${
+              activeTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'
+            }`}
+          >
+            <Globe size={14} /> Global
+          </button>
+        </div>
+        <div className="relative group w-full sm:w-auto">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-small-orange transition-all" size={20} />
+          <input
+            type="text"
+            placeholder={`Search ${activeTab === 'CLASSICS' ? 'Archive' : activeTab === 'GLOBAL' ? 'Google Books' : 'Marketplace'}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-full py-3.5 pl-14 pr-6 text-sm font-bold outline-none focus:border-small-orange/50 focus:ring-4 ring-small-orange/10 transition-all w-full sm:w-56 font-display"
+          />
+        </div>
+      </div>
 
       {/* Genre Sidebar / Menu - Only in Classics */}
       {activeTab === 'CLASSICS' && (
