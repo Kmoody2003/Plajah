@@ -1782,6 +1782,145 @@ async function startServer() {
     return broadcastToDecentralizedWeb;
   };
 
+  // ── Manager Suite: publish due scheduled posts (cron) ───────────────────────
+  // Robust, browser-independent publisher. A scheduler (Cloud Scheduler, cron,
+  // or any uptime pinger) hits this every minute:
+  //   POST /api/cron/publish-due-posts?key=<ADMIN_SEED_KEY>
+  // It finds every users/*/scheduledPosts doc that is SCHEDULED and due, posts
+  // it to the owner's connected fediverse accounts, and records the outcome.
+  // (Plajah on-platform cross-post for scheduled items is handled client-side.)
+  const PUBLISH_PROJECT = 'gen-lang-client-0665118474';
+  const PUBLISH_DB = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const PUBLISH_FS = `https://firestore.googleapis.com/v1/projects/${PUBLISH_PROJECT}/databases/${PUBLISH_DB}/documents`;
+
+  // Decode a Firestore REST value map into plain JS.
+  const fsVal = (v: any): any => {
+    if (v == null) return undefined;
+    if ('stringValue' in v) return v.stringValue;
+    if ('integerValue' in v) return Number(v.integerValue);
+    if ('doubleValue' in v) return Number(v.doubleValue);
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('arrayValue' in v) return (v.arrayValue.values ?? []).map(fsVal);
+    if ('mapValue' in v) return fsFields(v.mapValue.fields ?? {});
+    if ('nullValue' in v) return null;
+    return undefined;
+  };
+  const fsFields = (fields: Record<string, any>): any => {
+    const out: any = {};
+    for (const k of Object.keys(fields)) out[k] = fsVal(fields[k]);
+    return out;
+  };
+
+  app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
+    const key = req.query.key || req.headers['x-cron-key'];
+    if (key !== process.env.ADMIN_SEED_KEY && key !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = await getGoogleAccessToken();
+    if (!token) return res.status(500).json({ error: 'GOOGLE_SERVICE_ACCOUNT_JSON not configured' });
+
+    const now = Date.now();
+    const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    try {
+      // 1) Find due posts across all users (collection-group query).
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: 'scheduledPosts', allDescendants: true }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'SCHEDULED' } } },
+                { fieldFilter: { field: { fieldPath: 'scheduledAt' }, op: 'LESS_THAN_OR_EQUAL', value: { doubleValue: now } } },
+              ],
+            },
+          },
+          limit: 50,
+        },
+      };
+      const qRes = await fetch(`${PUBLISH_FS}:runQuery`, { method: 'POST', headers: authHeaders, body: JSON.stringify(queryBody) });
+      if (!qRes.ok) throw new Error(`query failed: ${qRes.status} ${(await qRes.text()).slice(0, 200)}`);
+      const rows: any[] = await qRes.json();
+      const docs = rows.filter(r => r.document).map(r => r.document);
+
+      const auth = await getFediverseAuth();
+      const broadcast = await getBroadcast();
+      const summary: any[] = [];
+
+      for (const d of docs) {
+        const name: string = d.name; // projects/.../documents/users/{uid}/scheduledPosts/{id}
+        const m = name.match(/\/users\/([^/]+)\/scheduledPosts\/([^/]+)$/);
+        if (!m) continue;
+        const [, uid] = m;
+        const post = fsFields(d.fields ?? {});
+
+        const patch = async (fields: Record<string, any>) => {
+          const masks = Object.keys(fields).map(f => `updateMask.fieldPaths=${f}`).join('&');
+          await fetch(`https://firestore.googleapis.com/v1/${name}?${masks}`, {
+            method: 'PATCH', headers: authHeaders, body: JSON.stringify({ fields }),
+          });
+        };
+
+        // Claim it so a second cron tick won't double-send.
+        await patch({ status: { stringValue: 'PUBLISHING' }, claimedAt: { integerValue: String(now) } });
+
+        try {
+          const accounts = await auth.loadAccounts(uid, token);
+          const targetIds: string[] = Array.isArray(post.targetAccountIds) ? post.targetAccountIds : [];
+          const targeted = accounts.filter((a: any) => targetIds.includes(a.id));
+
+          if (!targeted.length) {
+            await patch({
+              status: { stringValue: 'FAILED' },
+              publishLog: { stringValue: 'No connected accounts matched the scheduled targets (reconnect needed?).' },
+              lastAttemptAt: { integerValue: String(now) }, updatedAt: { integerValue: String(now) },
+            });
+            summary.push({ uid, status: 'FAILED', reason: 'no matching accounts' });
+            continue;
+          }
+
+          const result = await broadcast(
+            targeted,
+            {
+              text: String(post.text ?? ''),
+              uri: post.linkUri || undefined,
+              title: post.linkTitle || undefined,
+              description: post.linkDescription || undefined,
+              thumbnail: Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : undefined,
+            },
+          );
+
+          const okCount = result.succeeded.length;
+          const failCount = result.failed.length;
+          const status = failCount === 0 ? 'PUBLISHED' : okCount === 0 ? 'FAILED' : 'PARTIAL';
+          const log = [
+            ...result.succeeded.map((s: any) => `✓ ${s.protocol}`),
+            ...result.failed.map((f: any) => `✗ ${f.protocol}: ${f.error}`),
+          ].join('  ');
+          await patch({
+            status: { stringValue: status },
+            publishLog: { stringValue: log.slice(0, 900) },
+            lastAttemptAt: { integerValue: String(now) }, updatedAt: { integerValue: String(now) },
+          });
+          summary.push({ uid, status, ok: okCount, failed: failCount });
+        } catch (err: any) {
+          await patch({
+            status: { stringValue: 'FAILED' },
+            publishLog: { stringValue: (err?.message ?? 'publish error').slice(0, 900) },
+            lastAttemptAt: { integerValue: String(now) }, updatedAt: { integerValue: String(now) },
+          });
+          summary.push({ uid, status: 'FAILED', reason: err?.message });
+        }
+      }
+
+      res.json({ ok: true, processed: docs.length, summary });
+    } catch (err: any) {
+      console.error('[Cron] publish-due-posts failed:', err?.message || err);
+      res.status(500).json({ error: err?.message ?? 'publish run failed' });
+    }
+  });
+
   // ── Mastodon OAuth2 — Step 1: Register app + return authorization URL ───────
   // The clientSecret is kept server-side; only the authUrl is sent to browser.
   app.post('/api/fediverse/mastodon/authorize', express.json(), authMiddleware, async (req: any, res) => {

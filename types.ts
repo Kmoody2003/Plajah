@@ -1801,7 +1801,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Health & Fitness hub
   | 'HEALTH_FITNESS'
   // Script Writing Studio — film, TV, stage
-  | 'SCRIPT_STUDIO';
+  | 'SCRIPT_STUDIO'
+  // Plajah Studio — Hootsuite/Buffer-class publishing & scheduling suite
+  | 'PLAJAH_STUDIO';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
