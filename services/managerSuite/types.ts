@@ -78,17 +78,22 @@ export interface SuiteLimits {
   maxScheduledPosts: number;
   /** Days of analytics history retained/visible. */
   analyticsHistoryDays: number;
-  /** AI caption/best-time assist available. */
-  aiAssist: boolean;
+  /** AI caption/best-time assists allowed per calendar month (0 = none).
+   *  This is the ONE real variable cost (Gemini/Anthropic calls), so it is
+   *  metered rather than a boolean — the cap is what guarantees no per-user loss. */
+  aiAssistPerMonth: number;
+  /** May connect paid/approval-gated networks (X, YouTube). Free tier is
+   *  limited to the zero-marginal-cost networks. */
+  premiumNetworks: boolean;
   /** Bulk CSV upload / bulk scheduling. */
   bulkScheduling: boolean;
 }
 
-// Free tier is intentionally generous; Pro (and the free year) goes beyond
-// what Plajah+ offers so the suite is a real reason to stay on platform.
+// Free tier is intentionally generous; Pro (free year, or via Plajah+) goes
+// beyond it. The AI cap is the only knob protecting per-user margin.
 export const SUITE_LIMITS: Record<SuitePlan, SuiteLimits> = {
-  FREE: { maxChannels: 3,  maxScheduledPosts: 10,  analyticsHistoryDays: 30,  aiAssist: false, bulkScheduling: false },
-  PRO:  { maxChannels: 25, maxScheduledPosts: 1000, analyticsHistoryDays: 730, aiAssist: true,  bulkScheduling: true  },
+  FREE: { maxChannels: 3,  maxScheduledPosts: 10,  analyticsHistoryDays: 30,  aiAssistPerMonth: 0,   premiumNetworks: false, bulkScheduling: false },
+  PRO:  { maxChannels: 25, maxScheduledPosts: 1000, analyticsHistoryDays: 730, aiAssistPerMonth: 300, premiumNetworks: true,  bulkScheduling: true  },
 };
 
 export const FREE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;

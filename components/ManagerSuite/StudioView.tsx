@@ -16,6 +16,7 @@ import { useFediverse } from '../../contexts/FediverseContext';
 import { createPost } from '../../services/backendService';
 import {
   activateAndGetEntitlement, effectivePlan, effectiveLimits, freeYearStatus,
+  currentUserHasPlajahPlus,
 } from '../../services/managerSuite/entitlementService';
 import {
   createScheduledPost, deleteScheduledPost, updateScheduledPost,
@@ -50,17 +51,21 @@ export default function StudioView() {
   const { accounts, broadcast } = useFediverse();
   const [tab, setTab] = useState<Tab>('COMPOSE');
   const [entitlement, setEntitlement] = useState<ManagerSuiteEntitlement | null>(null);
+  const [hasPlus, setHasPlus] = useState(false);
   const [queue, setQueue] = useState<ScheduledPost[]>([]);
   const publishing = useRef<Set<string>>(new Set());
 
   // Activate the suite on first open — this starts the 12-month free year.
   useEffect(() => { activateAndGetEntitlement().then(setEntitlement).catch(() => {}); }, []);
+  // Plajah+ subscribers get Pro for free (the suite is a headline Plajah+ benefit).
+  useEffect(() => { currentUserHasPlajahPlus().then(setHasPlus).catch(() => {}); }, []);
 
   // Live queue.
   useEffect(() => listenToQueue(setQueue), []);
 
-  const plan = effectivePlan(entitlement);
-  const limits = effectiveLimits(entitlement);
+  const planCtx = { hasPlajahPlus: hasPlus };
+  const plan = effectivePlan(entitlement, planCtx);
+  const limits = effectiveLimits(entitlement, planCtx);
   const freeYear = freeYearStatus(entitlement);
   const usedSlots = countQueueSlots(queue);
 
