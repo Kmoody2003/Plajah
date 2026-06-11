@@ -6,23 +6,25 @@ interface LyricItemProps {
   line: { time: number; text: string };
   isActive: boolean;
   isPast: boolean;
+  isResyncMode: boolean;
   onClick: () => void;
 }
 
 export const LyricItem = React.memo(React.forwardRef<HTMLParagraphElement, LyricItemProps>(
-  ({ line, isActive, isPast, onClick }, ref) => (
+  ({ line, isActive, isPast, isResyncMode, onClick }, ref) => (
     <motion.p
       ref={ref}
       animate={{
         opacity: isActive ? 1 : isPast ? 0.45 : 0.18,
         scale: isActive ? 1.05 : 1,
         x: isActive ? 10 : 0,
-        color: isActive ? '#FF8C00' : '#ffffff',
+        color: isResyncMode ? (isActive ? '#FF8C00' : '#ffffff') : isActive ? '#FF8C00' : '#ffffff',
       }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="text-2xl lg:text-3xl font-display font-black uppercase tracking-tight leading-tight cursor-pointer select-none"
+      className={`text-2xl lg:text-3xl font-display font-black uppercase tracking-tight leading-tight select-none ${isResyncMode ? 'cursor-crosshair hover:opacity-80' : 'cursor-pointer'}`}
       onClick={onClick}
     >
+      {isResyncMode && <span className="inline-block w-2 h-2 rounded-full bg-small-orange/40 mr-2 align-middle" />}
       {line.text}
     </motion.p>
   )
@@ -36,7 +38,10 @@ export const TimeCodedLyrics: React.FC<{
   seek: (time: number) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   paintMode?: boolean;
-}> = React.memo(({ tracks, currentTime, seek, paintMode }) => {
+  offset?: number;
+  isResyncMode?: boolean;
+  onResync?: (line: { time: number; text: string }) => void;
+}> = React.memo(({ tracks, currentTime, seek, paintMode, offset = 0, isResyncMode = false, onResync }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const lineRefs    = useRef<(HTMLParagraphElement | null)[]>([]);
   const translateYRef = useRef(0);
@@ -50,17 +55,16 @@ export const TimeCodedLyrics: React.FC<{
     [tracks]
   );
 
-  // ── Derive active index directly from currentTime prop ────────────────────
-  // Uses the authoritative currentTime from GlobalPlayerContext (driven by
-  // the real audio element's timeupdate event) — no DOM polling needed.
+  // Derive active index: find the last line whose adjusted timestamp has been reached.
+  // offset > 0 delays lyrics (they activate later); offset < 0 advances them.
   const activeIndex = useMemo(() => {
     for (let i = sortedTracks.length - 1; i >= 0; i--) {
-      if (currentTime >= sortedTracks[i].time) return i;
+      if (currentTime >= sortedTracks[i].time + offset) return i;
     }
     return -1;
-  }, [sortedTracks, currentTime]);
+  }, [sortedTracks, currentTime, offset]);
 
-  // ── Scroll active line to vertical center ─────────────────────────────────
+  // Scroll active line to vertical center
   useEffect(() => {
     const viewport = viewportRef.current;
     const inner    = innerRef.current;
@@ -90,6 +94,14 @@ export const TimeCodedLyrics: React.FC<{
     return () => clearTimeout(id);
   }, [activeIndex]);
 
+  const handleLineClick = (line: { time: number; text: string }) => {
+    if (isResyncMode && onResync) {
+      onResync(line);
+    } else {
+      seek(line.time);
+    }
+  };
+
   return (
     <div
       ref={viewportRef}
@@ -104,6 +116,15 @@ export const TimeCodedLyrics: React.FC<{
           className="absolute inset-x-0 z-0 pointer-events-none"
           style={{ top: 'calc(50% - 1px)', height: '1px', background: 'rgba(255,140,0,0.12)' }}
         />
+      )}
+
+      {/* Resync mode instruction banner */}
+      {isResyncMode && (
+        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-center pointer-events-none pt-2">
+          <span className="text-[9px] font-black uppercase tracking-widest text-small-orange bg-black/60 px-3 py-1 rounded-full animate-pulse">
+            Tap the lyric you're hearing now
+          </span>
+        </div>
       )}
 
       {/* Scrolling lyric list — CSS transition drives smooth scroll */}
@@ -127,8 +148,8 @@ export const TimeCodedLyrics: React.FC<{
                 color:   idx === activeIndex ? '#FF8C00' : '#ffffff',
               }}
               transition={{ duration: 0.40, ease: 'easeOut' }}
-              className="text-3xl lg:text-4xl xl:text-5xl font-display font-black uppercase leading-tight tracking-tight cursor-pointer select-none drop-shadow-[0_0_28px_rgba(255,140,0,0.35)]"
-              onClick={() => seek(line.time)}
+              className={`text-3xl lg:text-4xl xl:text-5xl font-display font-black uppercase leading-tight tracking-tight select-none drop-shadow-[0_0_28px_rgba(255,140,0,0.35)] ${isResyncMode ? 'cursor-crosshair' : 'cursor-pointer'}`}
+              onClick={() => handleLineClick(line)}
             >
               {line.text}
             </motion.p>
@@ -139,7 +160,8 @@ export const TimeCodedLyrics: React.FC<{
               line={line}
               isActive={idx === activeIndex}
               isPast={idx < activeIndex}
-              onClick={() => seek(line.time)}
+              isResyncMode={isResyncMode}
+              onClick={() => handleLineClick(line)}
             />
           )
         )}

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAI = () => {
@@ -7,19 +6,19 @@ const getAI = () => {
     console.warn("GEMINI_API_KEY is not set. Using fallback metadata.");
     return null;
   }
-  
+
   if (typeof GoogleGenAI !== 'function') {
     console.error("GoogleGenAI is not a function/constructor.");
     return null;
   }
-  
+
   return new GoogleGenAI({ apiKey });
 };
 
 export const callGemini = async (prompt: string, config: any = {}, model: string = "gemini-flash-latest") => {
   const ai = getAI();
   if (!ai) return null;
-  
+
   try {
     const response = await ai.models.generateContent({
       model: model,
@@ -36,7 +35,7 @@ export const callGemini = async (prompt: string, config: any = {}, model: string
 export const generateAlbumMetadata = async (albumTitle: string, trackNames: string[]) => {
   const ai = getAI();
   if (!ai) return { description: "A sonic journey through sound.", themeColor: "#ffffff" };
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
@@ -72,7 +71,7 @@ export const generateAlbumMetadata = async (albumTitle: string, trackNames: stri
 export const generateTrackLyrics = async (title: string, artist: string) => {
   const ai = getAI();
   if (!ai) return ["Music is the only language...", "Lost in the frequency.", "Deep within the soundscape."];
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
@@ -94,7 +93,7 @@ export const generateTrackLyrics = async (title: string, artist: string) => {
 export const generateTimeCodedCaptions = async (audioBase64: string, mimeType: string, title: string, artist: string) => {
   const ai = getAI();
   if (!ai) return [];
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
@@ -106,7 +105,16 @@ export const generateTimeCodedCaptions = async (audioBase64: string, mimeType: s
           }
         },
         {
-          text: `Listen to this song titled "${title}" by "${artist}". Generate a set of time-coded captions (lyrics or descriptive audio captions) for the entire duration. Return as a JSON array of objects, where each object has a "time" (number in seconds) and "text" (string). Ensure the times are accurate to the audio provided.`
+          text: `You are a precise audio transcription engine. Listen to every second of this audio titled "${title}" by "${artist}" and generate time-coded captions covering the ENTIRE duration from first word to last.
+
+Rules:
+- Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
+- Cover every section: intro, verses, pre-chorus, chorus, bridge, outro, and any spoken parts.
+- For purely instrumental gaps longer than 3 seconds with no vocals, add an "(instrumental)" entry with the correct start time.
+- Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
+- Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
+- Sort all entries by ascending time.
+- The last entry must be close to the actual end of the audio — do not stop early.`
         }
       ],
       config: {
@@ -134,7 +142,7 @@ export const generateTimeCodedCaptions = async (audioBase64: string, mimeType: s
 export const analyzeThemeBackground = async (imageBase64: string, theme: string) => {
   const ai = getAI();
   if (!ai) return [];
-  
+
   const prompts: { [key: string]: string } = {
     'SCRAPBOOK': 'Identify areas for photos (PHOTO) and handwritten notes (TEXT).',
     'PHOTO_ALBUM': 'Identify areas for photos (PHOTO).',
@@ -154,10 +162,10 @@ export const analyzeThemeBackground = async (imageBase64: string, theme: string)
           }
         },
         {
-          text: `Analyze this background image for a social media post theme: ${theme}. 
+          text: `Analyze this background image for a social media post theme: ${theme}.
           ${prompts[theme] || 'Identify areas for media (PHOTO) and text (TEXT).'}
-          
-          Return a JSON array of objects representing "Interactive Zones". 
+
+          Return a JSON array of objects representing "Interactive Zones".
           Each object must have:
           - id: unique string
           - type: one of "PHOTO", "TEXT", "VINYL", "GAME_SCREEN"
@@ -200,7 +208,7 @@ export const analyzeThemeBackground = async (imageBase64: string, theme: string)
 export const generateLinerNotes = async (title: string, artist: string, trackNames: string[]) => {
   const ai = getAI();
   if (!ai) return "Technical credits and recording details were not generated.";
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
@@ -215,7 +223,7 @@ export const generateLinerNotes = async (title: string, artist: string, trackNam
 export const generatePlanetInsight = async (planetName: string) => {
   const ai = getAI();
   if (!ai) return { summary: "A mysterious world in our solar system.", fact: "Selected for further study." };
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
@@ -241,14 +249,14 @@ export const generatePlanetInsight = async (planetName: string) => {
 export const generatePlantInsight = async (topic: string) => {
   const ai = getAI();
   if (!ai) return { summary: "Plants are the lungs of our planet.", fact: "Photosynthesis is the key to life on Earth." };
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
-      contents: `Persona: You are Nano Banana 2, a highly advanced botanical AI. 
+      contents: `Persona: You are Nano Banana 2, a highly advanced botanical AI.
       Topic: "${topic}".
-      Task: Provide a scientifically rigorous, advanced insight (2-3 sentences) into this botanical subject. Use precise biological terminology (e.g., mention specific enzymes like RuBisCO, or structural components like thylakoid membranes). 
-      Also provide one "Micro-Genetic Fact" regarding the topic. 
+      Task: Provide a scientifically rigorous, advanced insight (2-3 sentences) into this botanical subject. Use precise biological terminology (e.g., mention specific enzymes like RuBisCO, or structural components like thylakoid membranes).
+      Also provide one "Micro-Genetic Fact" regarding the topic.
       Return as JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -271,11 +279,11 @@ export const generatePlantInsight = async (topic: string) => {
 export const generateDemoWorlds = async () => {
   const ai = getAI();
   if (!ai) return [];
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
-      contents: `Generate 3 distinct and diverse fictional world concepts. 
+      contents: `Generate 3 distinct and diverse fictional world concepts.
       One should be Sci-Fi (Cyberpunk or Space Opera), one High Fantasy, and one Surreal/Abstract.
       For each world, provide:
       - name: A unique title

@@ -17,7 +17,7 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward, ChevronRight, Waves
+  SkipBack, SkipForward, ChevronRight, Waves, RotateCcw
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -442,6 +442,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [showCaptions, setShowCaptions] = useState(true);
   const [isGeneratingCaptions, setIsGeneratingCaptions] = useState(false);
+  const [lyricsOffset, setLyricsOffset] = useState(0);
+  const [isResyncMode, setIsResyncMode] = useState(false);
   const [corsError, setCorsError] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   
@@ -600,6 +602,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     }
   }, [globalTrack, album.tracks]);
 
+  // Reset lyrics offset and resync mode when the track changes
+  useEffect(() => {
+    setLyricsOffset(0);
+    setIsResyncMode(false);
+  }, [currentTrackIndex]);
+
   useEffect(() => {
     setCorsError(false);
   }, [currentTrackIndex]);
@@ -663,6 +671,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     } finally {
       setIsGeneratingCaptions(false);
     }
+  };
+
+  // Called when user taps a lyric in resync mode: anchor that line to current audio time
+  const handleResync = (line: { time: number; text: string }) => {
+    setLyricsOffset(globalCurrentTime - line.time);
+    setIsResyncMode(false);
   };
 
   const getCurrentCaption = () => {
@@ -1209,18 +1223,38 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
           {activeHUD === 'LYRICS' && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-               <div className="flex items-center gap-3 mb-6">
-                 <Music2 size={16} className="text-small-orange" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Synchronized Lyrics</span>
+               <div className="flex items-center justify-between mb-6">
+                 <div className="flex items-center gap-3">
+                   <Music2 size={16} className="text-small-orange" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Synchronized Lyrics</span>
+                 </div>
+                 {currentTrack?.timeCodedLyrics && (
+                   <div className="flex items-center gap-1">
+                     {isResyncMode ? (
+                       <button onClick={() => setIsResyncMode(false)} className="text-[8px] font-black uppercase tracking-widest text-small-orange animate-pulse px-2 py-1 bg-small-orange/10 rounded">Cancel</button>
+                     ) : (
+                       <>
+                         <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
+                         <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
+                         <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
+                         {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
+                         <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>
+                       </>
+                     )}
+                   </div>
+                 )}
                </div>
-               
+
                <div className="space-y-6" ref={lyricsContainerRef}>
                  {currentTrack?.timeCodedLyrics ? (
-                   <TimeCodedLyrics 
+                   <TimeCodedLyrics
                      tracks={currentTrack.timeCodedLyrics}
                      currentTime={globalCurrentTime}
                      seek={seek}
                      containerRef={lyricsContainerRef}
+                     offset={lyricsOffset}
+                     isResyncMode={isResyncMode}
+                     onResync={handleResync}
                    />
                  ) : currentTrack?.lyrics ? (
                    <div className="space-y-6 opacity-60">
@@ -2159,14 +2193,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        <Zap size={12} /> Pin
                      </button>
                    )}
-                   {isOwner && !currentTrack.timeCodedLyrics && (
-                     <button 
+                   {isOwner && (
+                     <button
                        onClick={handleGenerateCaptions}
                        disabled={isGeneratingCaptions}
                        className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/40 uppercase transition-all disabled:opacity-50"
                      >
                        {isGeneratingCaptions ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                       {isGeneratingCaptions ? 'Analyzing...' : 'Auto-Caption'}
+                       {isGeneratingCaptions ? 'Analyzing...' : currentTrack.timeCodedLyrics ? 'Re-Sync AI' : 'Auto-Caption'}
                      </button>
                    )}
                 </div>
@@ -2232,17 +2266,35 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <Music2 size={16} className="text-small-orange" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Synchronized Lyrics</span>
                           </div>
+                          {album.tracks[currentTrackIndex]?.timeCodedLyrics && (
+                            <div className="flex items-center gap-1">
+                              {isResyncMode ? (
+                                <button onClick={() => setIsResyncMode(false)} className="text-[8px] font-black uppercase tracking-widest text-small-orange animate-pulse px-2 py-1 bg-small-orange/10 rounded">Cancel</button>
+                              ) : (
+                                <>
+                                  <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
+                                  <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
+                                  <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
+                                  {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
+                                  <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-6" ref={lyricsContainerRef}>
                           {(() => {
                             const track = album.tracks[currentTrackIndex];
                             if (track?.timeCodedLyrics && track.timeCodedLyrics.length > 0) {
                               return (
-                                <TimeCodedLyrics 
+                                <TimeCodedLyrics
                                   tracks={track.timeCodedLyrics}
                                   currentTime={globalCurrentTime}
                                   seek={seek}
                                   containerRef={lyricsContainerRef}
+                                  offset={lyricsOffset}
+                                  isResyncMode={isResyncMode}
+                                  onResync={handleResync}
                                 />
                               );
                             } else if (track?.lyrics) {
@@ -2766,6 +2818,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       currentTime={globalCurrentTime}
                       seek={seek}
                       paintMode
+                      offset={lyricsOffset}
+                      isResyncMode={isResyncMode}
+                      onResync={handleResync}
                     />
                   );
                 } else if (track?.lyrics) {
