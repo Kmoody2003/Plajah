@@ -636,6 +636,55 @@ export async function fetchEsportsNews(): Promise<any[]> {
   }
 }
 
+// ── World Cup News ───────────────────────────────────────────────────────────
+export async function fetchWorldCupNews(): Promise<any[]> {
+  const key = 'wc2026:news';
+  const c = fromCache(key, TTL.news);
+  if (c) return c;
+
+  // Try multiple ESPN soccer endpoints in parallel
+  const [wcData, soccerData, qualData] = await Promise.all([
+    safeFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news?limit=20`),
+    safeFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=30`),
+    safeFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldq/news?limit=10`),
+  ]);
+
+  const wcArticles: any[]     = wcData?.articles     ?? [];
+  const soccerArticles: any[] = soccerData?.articles ?? [];
+  const qualArticles: any[]   = qualData?.articles   ?? [];
+
+  // Merge, deduplicate by id
+  const seen = new Set<string>();
+  const all: any[] = [];
+  for (const art of [...wcArticles, ...qualArticles, ...soccerArticles]) {
+    const key = art.id || art.links?.web?.href || art.headline;
+    if (key && !seen.has(key)) { seen.add(key); all.push(art); }
+  }
+
+  if (all.length > 0) {
+    toCache(key, all);
+    return all;
+  }
+
+  // ESPN returned nothing — fall back to RSS soccer feeds (Guardian, BBC)
+  try {
+    const { fetchNewsFromRSS } = await import('./rssService');
+    const rssItems = await fetchNewsFromRSS('SPORTS_FIFA_WC');
+    const articles = rssItems.map((item: any) => ({
+      headline:  item.title,
+      published: item.pubDate || new Date().toISOString(),
+      links:     { web: { href: item.url || item.link || '#' } },
+      images:    item.imageUrl ? [{ url: item.imageUrl }] : [],
+      source:    item.source || 'Soccer News',
+      description: item.summary || item.content || '',
+    }));
+    if (articles.length > 0) toCache(key, articles);
+    return articles;
+  } catch {
+    return [];
+  }
+}
+
 // ── TheSportsDB soccer helpers (no key required, free tier) ─────────────────
 // These are defined before the TSDB const at line ~258 to keep them together
 // with the league functions; the TSDB const is declared later but hoisted as a const.

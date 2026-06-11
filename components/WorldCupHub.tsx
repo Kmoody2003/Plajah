@@ -1,7 +1,7 @@
 import React, { useState, useMemo, lazy, Suspense, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Calendar, Globe, Headphones, Lock, MapPin, Clock, Mic2, GitBranch, Target, Play, Pause, Download, ChevronDown, ChevronUp, Check, Loader2, History, Users, Newspaper, ExternalLink, AlertCircle } from 'lucide-react';
-import { fetchNewsFromRSS } from '../services/rssService';
+import { fetchWorldCupNews } from '../services/sportsService';
 import {
   WC26_TEAMS, WC26_MATCHES, WC26_GROUPS, WC26_PODCASTS,
   getTeam, getTeamsByGroup, getUpcomingMatches, getLiveMatches,
@@ -387,13 +387,10 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
     if (wcNews.length > 0) return;
     setNewsLoading(true);
     setNewsError(false);
-    fetchNewsFromRSS('SPORTS_FIFA_WC')
+    fetchWorldCupNews()
       .then(items => {
-        const wc = items.filter(a => {
-          const text = `${a.headline || a.title || ''} ${a.summary || ''}`.toLowerCase();
-          return text.includes('world cup') || text.includes('fifa') || text.includes('2026') || text.includes('soccer') || true;
-        });
-        setWcNews(wc.length > 0 ? wc : items);
+        if (items.length === 0) setNewsError(true);
+        else setWcNews(items);
       })
       .catch(() => setNewsError(true))
       .finally(() => setNewsLoading(false));
@@ -546,81 +543,193 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
         >
           {/* NEWS */}
           {tab === 'news' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-tight">World Cup News & Headlines</h3>
-                  <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider mt-0.5">Live from ESPN, BBC Sport, The Guardian & Goal.com</p>
-                </div>
-                <button onClick={() => { setWcNews([]); setTab('news'); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all">
-                  Refresh
-                </button>
-              </div>
+            <div className="space-y-6">
 
-              {newsLoading && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] animate-pulse">
-                      <div className="w-16 h-12 rounded-lg bg-white/5 shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-white/5 rounded-full" />
-                        <div className="h-3 bg-white/5 rounded-full w-3/4" />
-                        <div className="h-2 bg-white/5 rounded-full w-1/2" />
+              {/* ── WHERE TO WATCH ─────────────────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black uppercase tracking-tight">Where to Watch</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-[#FF8C00]/20 text-[#FF8C00] text-[7px] font-black uppercase tracking-widest">FIFA World Cup 2026</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[
+                    {
+                      region: '🇺🇸 United States',
+                      channels: [
+                        { name: 'Fox Sports / FS1', note: 'English — free with cable/satellite', href: 'https://www.foxsports.com' },
+                        { name: 'Telemundo / Universo', note: 'Spanish — free with cable/satellite', href: 'https://www.telemundo.com' },
+                        { name: 'Peacock', note: 'Stream — some matches', href: 'https://www.peacocktv.com' },
+                        { name: 'FuboTV', note: 'Streaming — includes Fox + Telemundo', href: 'https://www.fubo.tv' },
+                        { name: 'Sling TV', note: 'Streaming — Blue includes FS1', href: 'https://www.sling.com' },
+                      ],
+                      color: '#B22234',
+                    },
+                    {
+                      region: '🇬🇧 United Kingdom',
+                      channels: [
+                        { name: 'BBC One / BBC Two', note: 'Free — over the air', href: 'https://www.bbc.co.uk/sport/football' },
+                        { name: 'ITV / ITV4', note: 'Free — over the air', href: 'https://www.itv.com/sport' },
+                        { name: 'BBC iPlayer', note: 'Free — streaming', href: 'https://www.bbc.co.uk/iplayer' },
+                        { name: 'ITVX', note: 'Free — streaming', href: 'https://www.itv.com/itvx' },
+                      ],
+                      color: '#012169',
+                    },
+                    {
+                      region: '🇧🇷 Brazil',
+                      channels: [
+                        { name: 'TV Globo', note: 'Free — national TV', href: 'https://globoesporte.globo.com' },
+                        { name: 'SporTV', note: 'Cable — all matches', href: 'https://sportv.globo.com' },
+                        { name: 'Cazé TV', note: 'Free — YouTube/Twitch stream', href: 'https://www.youtube.com/@CazeTVOficial' },
+                        { name: 'Globoplay', note: 'Stream — Globo matches', href: 'https://globoplay.globo.com' },
+                      ],
+                      color: '#009B3A',
+                    },
+                    {
+                      region: '🇨🇦 Canada',
+                      channels: [
+                        { name: 'CTV / TSN', note: 'English — cable/satellite', href: 'https://www.tsn.ca' },
+                        { name: 'RDS', note: 'French — cable/satellite', href: 'https://www.rds.ca' },
+                        { name: 'OneSoccer', note: 'Stream — all matches', href: 'https://www.onesoccer.ca' },
+                        { name: 'Crave', note: 'Stream — select matches', href: 'https://www.crave.ca' },
+                      ],
+                      color: '#FF0000',
+                    },
+                    {
+                      region: '🌍 Middle East & Africa',
+                      channels: [
+                        { name: 'beIN Sports', note: 'MENA — cable/stream', href: 'https://www.bein.com' },
+                        { name: 'OSN Sports', note: 'MENA — cable/stream', href: 'https://www.osn.com' },
+                        { name: 'SuperSport', note: 'Sub-Saharan Africa', href: 'https://supersport.com' },
+                        { name: 'SABC', note: 'South Africa — free TV', href: 'https://www.sabc.co.za' },
+                      ],
+                      color: '#006400',
+                    },
+                    {
+                      region: '🌏 Asia Pacific',
+                      channels: [
+                        { name: 'SBS (Australia)', note: 'Free — TV + streaming', href: 'https://www.sbs.com.au/sport/football' },
+                        { name: 'Optus Sport', note: 'Australia — streaming', href: 'https://sport.optus.com.au' },
+                        { name: 'SPOTV', note: 'South Korea — cable', href: 'https://www.spotvnow.co.kr' },
+                        { name: 'CCTV / Migu', note: 'China — national + stream', href: 'https://www.cctv.com' },
+                      ],
+                      color: '#FF6600',
+                    },
+                    {
+                      region: '🌐 Global Streaming',
+                      channels: [
+                        { name: 'FIFA+ (FREE)', note: 'Official FIFA app & web — free', href: 'https://www.fifa.com/fifaplus' },
+                        { name: 'DAZN', note: 'Available in select markets', href: 'https://www.dazn.com' },
+                        { name: 'Paramount+', note: 'Some markets via CBS Sports', href: 'https://www.paramountplus.com' },
+                        { name: 'DirecTV Sports', note: 'Latin America', href: 'https://www.directvsports.com' },
+                      ],
+                      color: '#FF8C00',
+                    },
+                  ].map(region => (
+                    <div key={region.region} className="p-4 rounded-[1.5rem] border border-white/8 bg-white/[0.03] space-y-2.5"
+                      style={{ borderLeftColor: region.color, borderLeftWidth: 3 }}>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/60">{region.region}</p>
+                      <div className="space-y-1.5">
+                        {region.channels.map(ch => (
+                          <a key={ch.name} href={ch.href} target="_blank" rel="noopener noreferrer"
+                            className="flex items-start justify-between gap-2 group">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black group-hover:text-[#FF8C00] transition-colors truncate">{ch.name}</p>
+                              <p className="text-[8px] text-white/25 font-bold leading-tight">{ch.note}</p>
+                            </div>
+                            <ExternalLink size={8} className="text-white/15 group-hover:text-[#FF8C00] transition-colors shrink-0 mt-1" />
+                          </a>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
 
-              {newsError && !newsLoading && (
-                <div className="flex flex-col items-center gap-3 py-12">
-                  <AlertCircle size={24} className="text-white/20" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Could not load news. Check your connection.</p>
-                  <button onClick={() => { setWcNews([]); setNewsError(false); setTab('news'); }}
-                    className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
-                    Try Again
+              {/* ── DIVIDER ────────────────────────────────────────────── */}
+              <div className="border-t border-white/8" />
+
+              {/* ── NEWS HEADLINES ─────────────────────────────────────── */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-tight">Latest Headlines</h3>
+                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider mt-0.5">Live via ESPN Soccer</p>
+                  </div>
+                  <button onClick={() => { setWcNews([]); setNewsError(false); setNewsLoading(false); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all">
+                    Refresh
                   </button>
                 </div>
-              )}
 
-              {!newsLoading && !newsError && wcNews.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {wcNews.map((article: any, i: number) => {
-                    const href = article.links?.web?.href || article.url || article.link || '#';
-                    const title = article.headline || article.title || '';
-                    const img = article.images?.[0]?.url || article.imageUrl || '';
-                    const source = article.source || '';
-                    const date = article.published || article.pubDate || '';
-                    return (
-                      <a key={i} href={href} target="_blank" rel="noopener noreferrer"
-                        className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.06] hover:border-white/20 transition-all group">
-                        {img ? (
-                          <img src={img} alt="" loading="lazy"
-                            className="w-20 h-14 object-cover rounded-xl shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />
-                        ) : (
-                          <div className="w-20 h-14 rounded-xl shrink-0 bg-white/5 flex items-center justify-center text-2xl">⚽</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{title}</p>
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            {source && <span className="text-[8px] font-black uppercase tracking-widest text-white/30">{source}</span>}
-                            {date && <span className="text-[8px] text-white/20 font-bold">{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                            <ExternalLink size={8} className="text-white/20 group-hover:text-[#FF8C00] transition-colors ml-auto" />
-                          </div>
+                {newsLoading && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] animate-pulse">
+                        <div className="w-20 h-14 rounded-xl bg-white/5 shrink-0" />
+                        <div className="flex-1 space-y-2 py-1">
+                          <div className="h-3 bg-white/5 rounded-full" />
+                          <div className="h-3 bg-white/5 rounded-full w-3/4" />
+                          <div className="h-2 bg-white/5 rounded-full w-1/3" />
                         </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-              {!newsLoading && !newsError && wcNews.length === 0 && (
-                <div className="flex flex-col items-center gap-3 py-12">
-                  <Newspaper size={24} className="text-white/20" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30">No articles loaded yet</p>
-                </div>
-              )}
+                {newsError && !newsLoading && (
+                  <div className="flex flex-col items-center gap-3 py-10 bg-white/[0.02] rounded-[2rem] border border-white/8">
+                    <AlertCircle size={24} className="text-white/20" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Could not load headlines — check your connection</p>
+                    <button onClick={() => { setWcNews([]); setNewsError(false); setNewsLoading(false); }}
+                      className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {!newsLoading && !newsError && wcNews.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {wcNews.map((article: any, i: number) => {
+                      const href = article.links?.web?.href || article.url || article.link || '#';
+                      const title = article.headline || article.title || '';
+                      const img = article.images?.[0]?.url || article.images?.[0]?.href || article.imageUrl || '';
+                      const source = article.source || (article.categories?.find((c: any) => c.type === 'league')?.description) || 'ESPN Soccer';
+                      const date = article.published || article.pubDate || '';
+                      const desc = article.description || article.summary || '';
+                      return (
+                        <a key={i} href={href} target="_blank" rel="noopener noreferrer"
+                          className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.06] hover:border-white/20 transition-all group">
+                          {img ? (
+                            <img src={img} alt="" loading="lazy"
+                              className="w-20 h-14 object-cover rounded-xl shrink-0 opacity-80 group-hover:opacity-100 transition-opacity" />
+                          ) : (
+                            <div className="w-20 h-14 rounded-xl shrink-0 bg-white/5 flex items-center justify-center text-2xl">⚽</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{title}</p>
+                            {desc && <p className="text-[9px] text-white/35 leading-snug line-clamp-1 mt-0.5">{desc}</p>}
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              {source && <span className="text-[8px] font-black uppercase tracking-widest text-white/25">{source}</span>}
+                              {date && <span className="text-[8px] text-white/20 font-bold">{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                              <ExternalLink size={8} className="text-white/15 group-hover:text-[#FF8C00] transition-colors ml-auto shrink-0" />
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {!newsLoading && !newsError && wcNews.length === 0 && (
+                  <div className="flex flex-col items-center gap-4 py-10 bg-white/[0.02] rounded-[2rem] border border-white/8">
+                    <span className="text-4xl">⚽</span>
+                    <div className="text-center">
+                      <p className="text-sm font-black text-white/40">No articles yet</p>
+                      <p className="text-[9px] text-white/20 font-bold mt-1">Check back as the tournament approaches</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
