@@ -174,6 +174,7 @@ const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
+const Fabula = retryLazy(() => import('./components/Fabula/Fabula'));
 const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
 const EventProductionStudio = retryLazy(() => import('./components/EventProductionStudio'));
 const TicketDesigner = retryLazy(() => import('./components/TicketDesigner'));
@@ -1639,6 +1640,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         POSTMAN: { label: 'The Postman', icon: Mail },
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
+                        FABULA: { label: 'Fabula', icon: Film },
                         TV_STUDIO: { label: 'TV Studio', icon: Clapperboard },
                         SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
@@ -1780,11 +1782,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
-                      PLAJAH_STUDIO: { label: 'Studio', icon: Sparkles },
+                      PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
                     const handleNavClick = (id: string) => {
@@ -1806,7 +1808,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -1867,14 +1869,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
-                      PLAJAH_STUDIO: { label: 'Studio', icon: Sparkles },
+                      PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -2007,15 +2009,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   {/* ── Creator Tools Persistent Shortcut ── */}
                   {user && (
                     <button
-                      onClick={() => setView('CREATOR')}
+                      onClick={() => setView('PLAJAH_STUDIO')}
                       className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest rounded-xl px-3 py-2.5 transition-all mb-2 ${
-                        view === 'CREATOR'
+                        view === 'PLAJAH_STUDIO'
                           ? 'bg-[#FF8C00] text-black'
                           : 'bg-[#FF8C00]/10 border border-[#FF8C00]/20 text-[#FF8C00] hover:bg-[#FF8C00]/20'
                       } ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${view === 'CREATOR' ? 'bg-black/20' : 'bg-[#FF8C00]/15'}`}>
-                        <Clapperboard size={14} className={view === 'CREATOR' ? 'text-black' : 'text-[#FF8C00]'} />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${view === 'PLAJAH_STUDIO' ? 'bg-black/20' : 'bg-[#FF8C00]/15'}`}>
+                        <Clapperboard size={14} className={view === 'PLAJAH_STUDIO' ? 'text-black' : 'text-[#FF8C00]'} />
                       </div>
                       <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Creator Tools</span>
                     </button>
@@ -2559,6 +2561,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'PLAJAH_STUDIO' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <StudioView />
+              </Suspense>
+            )}
+
+            {view === 'FABULA' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <Fabula />
               </Suspense>
             )}
 

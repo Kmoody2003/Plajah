@@ -1,0 +1,3065 @@
+import { useState, useEffect, useRef, useMemo } from "react";
+import {
+  Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
+  Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
+  Palette, Box, Cpu, Lock, Unlock, Camera, Brush,
+} from "lucide-react";
+import * as THREE from "three";
+
+/* ════════════════════════════════════════════════════════════
+   FABULA — holistic storytelling studio. The whole story, then the telling.
+   PRODUCTIONS (knowledge layer) · SLATE (coverage intelligence)
+   · EDIT (timeline where script clips live before footage exists)
+   One shared data model. Persistent. Claude as the brain.
+   ════════════════════════════════════════════════════════════ */
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+const SERVICES = [
+  { id: "runway", label: "Runway Gen-4", hint: "Terse, motion-first phrasing. No audio cues." },
+  { id: "kling", label: "Kling", hint: "Rich motion + performance language. Lip-sync after." },
+  { id: "seedance", label: "Seedance", hint: "Natural-language shot description, supports multi-action beats." },
+  { id: "veo", label: "Veo 3", hint: "Supports native dialogue audio — include spoken lines in quotes." },
+];
+const STILL_TARGETS = [
+  { id: "mj_magnific", label: "Midjourney → Magnific" },
+  { id: "flux", label: "Flux / Krea" },
+  { id: "ideogram", label: "Ideogram" },
+];
+const ASPECTS = ["2.39:1", "2.35:1", "2:1", "1.85:1", "1.66:1", "16:9", "4:3", "1:1", "9:16"];
+
+/* project format presets — industry standard up to 4K/60; beyond = custom */
+const RES_PRESETS = [
+  { id: "sd-ntsc", label: "SD NTSC", w: 720, h: 480 },
+  { id: "sd-pal", label: "SD PAL", w: 720, h: 576 },
+  { id: "hd720", label: "HD 720p", w: 1280, h: 720 },
+  { id: "hd1080", label: "HD 1080p", w: 1920, h: 1080 },
+  { id: "2k-dci", label: "2K DCI", w: 2048, h: 1080 },
+  { id: "uhd4k", label: "UHD 4K", w: 3840, h: 2160 },
+  { id: "dci4k", label: "DCI 4K", w: 4096, h: 2160 },
+  { id: "custom", label: "CUSTOM", w: 0, h: 0 },
+];
+const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+const isDropCapable = (fps) => Math.abs(fps - 29.97) < 0.01 || Math.abs(fps - 59.94) < 0.01;
+
+/* world knowledge sub-categories */
+const WORLD_CATS = [
+  { id: "environments", label: "ENVIRONMENTS" },
+  { id: "props", label: "PROPS" },
+  { id: "logic", label: "WORLD LOGIC & RULES" },
+  { id: "lore", label: "LORE & HISTORY" },
+  { id: "places", label: "PLACES" },
+  { id: "sets", label: "SETS" },
+];
+const FOLDER_MAP = [
+  [/environment|biome|terrain|landscape|atmos/i, "environments"],
+  [/prop|object|item|weapon|artifact|vehicle/i, "props"],
+  [/logic|rule|system|magic|tech\b|physics|law/i, "logic"],
+  [/lore|history|backstory|timeline|canon|myth|legend/i, "lore"],
+  [/place|location|map|city|town|region|district|geograph/i, "places"],
+  [/\bset\b|sets\b|stage|interior|exterior|build/i, "sets"],
+  [/character|cast|people|hero|villain/i, "__cast"],
+];
+const EXT_TYPE = (name) => {
+  const e = (name.split(".").pop() || "").toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff"].includes(e)) return "image";
+  if (["svg", "ai", "eps", "psd"].includes(e)) return "graphic";
+  if (["mp4", "mov", "webm", "mkv", "avi", "m4v"].includes(e)) return "video";
+  if (["mp3", "wav", "m4a", "aac", "ogg", "flac", "aif", "aiff"].includes(e)) return "audio";
+  if (["glb", "gltf", "obj", "fbx", "stl", "usdz", "blend", "c4d"].includes(e)) return "model";
+  if (["txt", "md", "json", "csv", "rtf"].includes(e)) return "text";
+  return "graphic";
+};
+
+/* cinematic looks (3D-LUT gallery — preview approximated via CSS, full strength in prompts) */
+const LOOKS = [
+  { id: "k2383", name: "KODAK 2383 PRINT", sw: ["#1a2733", "#c9a36a", "#e8e3d5", "#5a3b2e"], filter: "contrast(1.12) saturate(1.08) sepia(.08)", prompt: "Kodak 2383 print film emulation: rich blacks with teal shadow lean, warm amber highlights, gentle highlight rolloff, subtle halation" },
+  { id: "eterna", name: "FUJI ETERNA", sw: ["#2e3a36", "#9fb3a5", "#e3e7df", "#7a6f5e"], filter: "contrast(.94) saturate(.82)", prompt: "Fuji Eterna look: soft low-contrast curve, muted greens, creamy desaturated skin tones, cinematic flat grade" },
+  { id: "noir", name: "TUNGSTEN NOIR", sw: ["#0a0a0d", "#3d2f1e", "#b07c3f", "#f0d9a8"], filter: "contrast(1.25) brightness(.92) saturate(.85) sepia(.12)", prompt: "tungsten noir: deep crushed shadows, warm practical key sources, hard low-key contrast, amber-on-black palette" },
+  { id: "tealorange", name: "TEAL & ORANGE", sw: ["#0e3a45", "#1a6d7a", "#e8843c", "#f5c89a"], filter: "contrast(1.1) saturate(1.25) hue-rotate(-6deg)", prompt: "modern blockbuster teal-and-orange grade: cool teal shadows and midtones against warm orange skin highlights, punchy saturation" },
+  { id: "bleach", name: "BLEACH BYPASS", sw: ["#22221f", "#6e6a60", "#b8b4a8", "#e8e6df"], filter: "contrast(1.35) saturate(.45)", prompt: "bleach bypass process: retained silver look, desaturated high-contrast image, gritty metallic texture, harsh detail" },
+  { id: "dfn", name: "DAY FOR NIGHT", sw: ["#0b1426", "#1d2f52", "#3e5a8a", "#8aa3c9"], filter: "brightness(.7) contrast(1.1) saturate(.7) hue-rotate(15deg)", prompt: "day-for-night grade: deep blue cast, underexposed two stops, suppressed highlights, moonlit cool palette" },
+  { id: "pastel", name: "ANDERSON PASTEL", sw: ["#f3d9c6", "#d98f7e", "#a8c5c0", "#f0e6b8"], filter: "contrast(.92) saturate(1.18) brightness(1.06)", prompt: "symmetrical pastel storybook grade: lifted blacks, candy-pastel palette, flat even lighting, high-key whimsy" },
+];
+
+/* local generation engine kinds — local-first, extensible */
+const ENGINE_KINDS = [
+  { id: "comfyui", label: "ComfyUI (local)", hint: "Universal local host — runs FLUX schnell/klein, Z-Image-Turbo, SDXL, SD3.5, LTX-2.3 video. Paste a workflow JSON with {{PROMPT}} placeholder.", testPath: "/system_stats" },
+  { id: "ltx", label: "LTX-2.3 server (local)", hint: "Lightricks LTX Desktop / API — local 4K50 video gen on consumer GPUs.", testPath: "/" },
+  { id: "rest", label: "Custom REST", hint: "POST {prompt} → expects JSON {url} back. Wrap anything: FastSD, your own service, a cloud relay.", testPath: "/" },
+];
+
+/* per-clip effects defaults — the compositing model */
+const FX_DEFAULTS = { op: 1, sc: 1, x: 0, y: 0, rot: 0, blur: 0, bri: 1, con: 1, sat: 1, blend: "normal", fadeIn: 0, fadeOut: 0, matte: { t: "none", x: 50, y: 50, w: 60, h: 60, f: 0 }, genNote: "" };
+const ensureFx = (c) => ({ ...FX_DEFAULTS, ...(c.fx || {}), matte: { ...FX_DEFAULTS.matte, ...(c.fx?.matte || {}) } });
+const BLENDS = ["normal", "multiply", "screen", "overlay", "soft-light", "hard-light", "lighten", "darken", "difference", "color-dodge"];
+
+const TRACKS = [
+  { id: "v2", name: "V2 · OVERLAY", type: "video" },
+  { id: "v1", name: "V1 · PICTURE", type: "video" },
+  { id: "a1", name: "A1 · DIALOGUE", type: "audio" },
+  { id: "a2", name: "A2 · MUSIC", type: "audio" },
+];
+
+const BLANK_SCENE = () => ({
+  id: uid(), title: "", slugline: "", mode: "dialogue", script: "",
+  tone: "", environment: "", styleNotes: "",
+  bible: null, shots: [], timeline: { clips: [] }, updatedAt: Date.now(),
+});
+
+/* ---------------- storage ---------------- */
+async function stGet(k) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } }
+async function stSet(k, v) { try { return !!(await window.storage.set(k, JSON.stringify(v))); } catch { return false; } }
+async function stDel(k) { try { await window.storage.delete(k); } catch {} }
+
+/* ---------------- Claude API + robust JSON ---------------- */
+async function callClaude(system, user, maxRetries = 2) {
+  for (let a = 0; a <= maxRetries; a++) {
+    try {
+      const res = await fetch("/api/ai/anthropic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514", max_tokens: 1000, system,
+          messages: [{ role: "user", content: user }],
+        }),
+      });
+      const data = await res.json();
+      const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
+      if (!text) throw new Error("Empty response");
+      return text;
+    } catch (e) { if (a === maxRetries) throw e; }
+  }
+}
+const stripTC = (s) => s.replace(/,\s*([}\]])/g, "$1");
+function balanceWalk(t) {
+  let out = "", inStr = false, esc = false; const stack = [];
+  for (const ch of t) {
+    if (inStr) {
+      if (esc) { out += ch; esc = false; continue; }
+      if (ch === "\\") { out += ch; esc = true; continue; }
+      if (ch === '"') { inStr = false; out += ch; continue; }
+      if (ch === "\n" || ch === "\r") { out += "\\n"; continue; }
+      if (ch === "\t") { out += "\\t"; continue; }
+      out += ch; continue;
+    }
+    if (ch === '"') { inStr = true; out += ch; continue; }
+    if (ch === "{" || ch === "[") { stack.push(ch); out += ch; continue; }
+    if (ch === "}" || ch === "]") { stack.pop(); out += ch; continue; }
+    out += ch;
+  }
+  if (inStr) out += '"';
+  out = out.replace(/,\s*$/, "").replace(/:\s*$/, ': ""');
+  while (stack.length) { const b = stack.pop(); out += b === "{" ? "}" : "]"; }
+  return stripTC(out);
+}
+function parseJsonRobust(text) {
+  let t = text.replace(/```json|```/gi, "").trim();
+  const s = t.indexOf("{"); if (s === -1) throw new Error("No JSON found");
+  t = t.slice(s);
+  const e = t.lastIndexOf("}");
+  if (e !== -1) { try { return JSON.parse(stripTC(t.slice(0, e + 1))); } catch {} }
+  try { return JSON.parse(balanceWalk(t)); } catch {}
+  let cut = t;
+  for (let i = 0; i < 6; i++) {
+    const lc = cut.lastIndexOf(","); if (lc <= 0) break;
+    cut = cut.slice(0, lc);
+    try { return JSON.parse(balanceWalk(cut)); } catch {}
+  }
+  throw new Error("Could not repair JSON");
+}
+async function callClaudeJson(system, user) {
+  let err;
+  for (let a = 0; a < 2; a++) {
+    const raw = await callClaude(system, user);
+    try { return parseJsonRobust(raw); } catch (e) { err = e; }
+  }
+  throw new Error("agent response unparseable — " + err.message);
+}
+
+/* ---------------- prompts ---------------- */
+const AGENT = `You are SLATE, a cinematic intelligence agent — a fusion of seasoned screenwriter, script supervisor, production designer, and Director of Photography (think Deakins-level craft). You read scenes for INTENT and SUBTEXT, not just surface action. You design coverage that serves the story: where the camera is, what lens, what light, and WHY. You think in eyelines, axis, escalation, and emotional geography. You are precise, technical, and never generic.`;
+
+const FORMAT_AGNOSTIC = `READING RULES — the material may arrive in ANY form: formatted screenplay, loose prose, a story, chat-style exchange, rough notes, or a one-paragraph concept. Do NOT require screenplay formatting. Read it as a storyteller:
+- Attribute every dialogue line to its speaker via any signal: NAME: line, quoted dialogue with tags, alternating rhythm, vocative clues, narrative logic.
+- Treat prose description and stage notes as action/direction cues.
+- If a speaker is ambiguous, make the most story-logical attribution rather than dropping the line.
+- Reported speech counts as a beat, not a line. Never invent dialogue; never lose dialogue.`;
+
+const JSON_RULES = `STRICT JSON OUTPUT RULES: respond with valid JSON only — no preamble, no fences. Escape double quotes inside strings. No raw line breaks inside string values. No trailing commas. Keep the ENTIRE response short enough that it never truncates.`;
+
+const bibleSystem = () => `${AGENT}\n\n${FORMAT_AGNOSTIC}\n\nTASK: Produce a SCENE BIBLE — the consistency backbone reused verbatim across every generated prompt. If PRODUCTION CONTEXT (world, themes, established cast looks) is provided, stay rigorously consistent with it.\n\n${JSON_RULES}\nSchema:\n{\n "intent": "1-2 sentences: what this scene is really about dramatically",\n "subtext_read": "1-2 sentences: what's underneath the lines",\n "suggestions": ["2-4 short concrete ways to sharpen the scene"],\n "characters": [{"name":"NAME","visual_lock":"one dense sentence: age, face, hair, build, wardrobe, defining detail — pasted verbatim into image prompts","voice_profile":"timbre, pitch, pace, accent, texture — usable as a TTS voice-design description","arc_in_scene":"short phrase: emotional start to end"}],\n "environment_lock": "one dense sentence: architecture, surfaces, dressing, era, condition — pasted verbatim into every prompt",\n "lighting_plan": "key source, quality, color temp, practicals, time of day, evolution across the scene",\n "palette": "3-5 colors and texture notes defining the grade"\n}\nHonor provided character references exactly — extend, never contradict. If a character has an established look from production context, REUSE IT VERBATIM (adapt wardrobe only if this scene requires).`;
+
+const detectSystem = () => `${AGENT}\n\n${FORMAT_AGNOSTIC}\n\nTASK: Extract every CHARACTER who appears, speaks, or acts — whatever the format. Infer what the text supports: explicit description plus careful inference from dialogue voice, actions, relationships, era, setting. Phrase inferences as inferences. Leave thin if the text is thin.\n\n${JSON_RULES}\nSchema:\n{"characters":[{"name":"name the story uses (or role, e.g. WAITRESS)","ref":"inferred visual: age range, build, wardrobe, physical details. Empty if nothing inferable.","voice":"inferred voice: register, pace, attitude, accent. Empty if nothing inferable.","evidence":"under 10 words: what supports this read"}]}\nInclude unnamed but present figures who act or speak. Exclude characters only mentioned.`;
+
+const shotListSystem = (mode) => {
+  const rules = mode === "action"
+    ? `MODE: ACTION SET PIECE. Break action into beats. Geography first, then escalating coverage — wides for choreography, mediums for impact, CUs and inserts for detail/pain/decision, kinetic moves for peaks. Vary rhythm: long-short-short-long. Every shot advances the set piece's mini-story (setup, complication, turn, cost).`
+    : `MODE: DIALOGUE SCENE. Every dialogue line gets a shot assignment. Grammar available: establishing, master, 50-50, OTS pairs, singles, inserts, reactions — BREAK grammar when subtext demands. Reactions often beat the speaker. Plan size progression tracking emotional escalation.`;
+  return `${AGENT}\n\n${FORMAT_AGNOSTIC}\n\nTASK: Design the shot list for maximum storytelling flow. ${rules}\n\n${JSON_RULES}\nSchema:\n{"shots":[{"slug":"1A","type":"shot size + setup, e.g. 'OTS MED — MAYA'","subject":"who/what the frame is about, 3-8 words","character":"speaking character name, empty if none","lines":"verbatim dialogue covered, or the action beat. Empty if silent.","camera":"lens mm, angle, movement — terse","purpose":"storytelling reason, under 12 words"}]}\nRules: 6-14 shots. Cover EVERY dialogue line. Terse fields — skeleton only. Order = edit order.`;
+};
+
+const shotPromptSystem = (service, stillTarget, aspect) => {
+  const svc = SERVICES.find((s) => s.id === service) || SERVICES[0];
+  const dlg = service === "veo"
+    ? "Video service supports native audio: include the spoken line in quotes with delivery direction inside the video prompt."
+    : "Video service does NOT generate dialogue audio: direct the PERFORMANCE of the line (mouth, breath, expression); audio added in post via TTS + lip-sync.";
+  return `${AGENT}\n\nTASK: Write production-ready generation prompts for ONE shot, given the Scene Bible (identity locks), shot spec, and neighbors.\n\nVIDEO TARGET: ${svc.label}. ${svc.hint} ${dlg}\nSTILL TARGET: ${stillTarget}. ASPECT: ${aspect}.\n\n${JSON_RULES}\nSchema:\n{\n "still": "full text-to-image prompt. Open with framing + lens, paste relevant character visual_lock(s) and environment_lock VERBATIM, then blocking/pose/expression, lighting adapted from lighting_plan, grade/palette, technical tail: 'shot on Alexa 65, [lens]mm at T[stop], filmic grain, photorealistic, cinematic still, ${aspect}'. One paragraph.",\n "video": "image-to-video prompt assuming chosen still is the start frame: camera move, performance beats, micro-actions, atmosphere motion, pacing, duration (e.g. 5s). ${svc.label} phrasing.",\n "voice": "if there's a line: 'LINE: <verbatim>' then delivery direction (emotion, pace, breath placement, volume) referencing voice_profile. Empty if no line.",\n "continuity": "1 short line: what must match adjacent shots (light direction, props, eyeline, state)"\n}\nLocks verbatim, every time. Technically specific, never vague.`;
+};
+
+/* ---------------- pacing engine ---------------- */
+function estimateShotSeconds(shot, mode) {
+  const words = (shot.lines || "").trim() ? shot.lines.trim().split(/\s+/).length : 0;
+  let d;
+  if (!words) d = /EST|WIDE|MASTER/i.test(shot.type || "") ? 4 : 2;
+  else if (mode === "action") d = Math.min(8, Math.max(2.5, words / 3 + 2));
+  else d = Math.min(12, Math.max(2, words / 2.3 + 1.1));
+  return Math.round(d * 10) / 10;
+}
+/* ---------------- professional SMPTE timecode (NDF + drop-frame) ---------------- */
+const fmtTc = (s, fmt) => {
+  const fps = fmt?.fps || 24;
+  const drop = !!fmt?.drop && isDropCapable(fps);
+  const base = drop ? (fps > 40 ? 60 : 30) : Math.round(fps);
+  let fn = Math.max(0, Math.round(s * (drop ? (base * 1000) / 1001 : fps)));
+  if (drop) {
+    // standard SMPTE drop-frame renumbering (drops 2 or 4 frame NUMBERS per minute except every 10th)
+    const dc = base === 60 ? 4 : 2;
+    const fp10 = base * 600 - dc * 9;
+    const fpm = base * 60 - dc;
+    const d = Math.floor(fn / fp10), m = fn % fp10;
+    fn += dc * 9 * d + (m > dc ? dc * Math.floor((m - dc) / fpm) : 0);
+  }
+  const fr = fn % base, sec = Math.floor(fn / base) % 60, min = Math.floor(fn / (base * 60)) % 60, hr = Math.floor(fn / (base * 3600));
+  const sep = drop ? ";" : ":";
+  return `${String(hr).padStart(2, "0")}:${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}${sep}${String(fr).padStart(2, "0")}`;
+};
+
+/* ---------------- asset intelligence: vision + text tagging ---------------- */
+const blobToB64 = (blob) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(String(r.result).split(",")[1]);
+  r.onerror = rej; r.readAsDataURL(blob);
+});
+async function imageUrlB64(url) {
+  const b = await (await fetch(url)).blob();
+  return { data: await blobToB64(b), media: b.type && b.type.startsWith("image") ? b.type : "image/png" };
+}
+function videoFrameB64(url) {
+  return new Promise((res, rej) => {
+    const v = document.createElement("video");
+    v.muted = true; v.preload = "auto"; v.src = url;
+    const bail = setTimeout(() => rej(new Error("frame grab timeout")), 9000);
+    v.onloadeddata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 2); };
+    v.onseeked = () => {
+      try {
+        const c = document.createElement("canvas");
+        c.width = v.videoWidth || 640; c.height = v.videoHeight || 360;
+        c.getContext("2d").drawImage(v, 0, 0);
+        clearTimeout(bail);
+        res({ data: c.toDataURL("image/jpeg", 0.82).split(",")[1], media: "image/jpeg" });
+      } catch (e) { clearTimeout(bail); rej(e); }
+    };
+    v.onerror = () => { clearTimeout(bail); rej(new Error("video load failed")); };
+  });
+}
+async function claudeVisionJson(images, prompt) {
+  // images: [{data, media}] — supports reference + candidate comparisons
+  const content = [...images.map((im) => ({ type: "image", source: { type: "base64", media_type: im.media, data: im.data } })), { type: "text", text: prompt }];
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content }] }),
+  });
+  const data = await res.json();
+  return parseJsonRobust((data.content || []).map((b) => b.text || "").join("\n"));
+}
+async function claudeTagMedia(b64, media, hint) {
+  return claudeVisionJson([{ data: b64, media }],
+    `You are a film production asset librarian. This asset belongs to: ${hint}. Respond ONLY with JSON, no fences: {"tags":["5-8 short lowercase production tags: subject, era, mood, materials, lighting"],"note":"one dense sentence of production context for this asset"}`);
+}
+async function claudeTagText(text, hint) {
+  return callClaudeJson(
+    `You are a film production librarian. Respond ONLY with JSON: {"tags":["5-8 short lowercase tags"],"note":"one dense sentence: what this document establishes for the story world"}`,
+    `Asset context: ${hint}\n\nDOCUMENT (excerpt):\n${text.slice(0, 2400)}`
+  );
+}
+const filenameTags = (name, folder) =>
+  Array.from(new Set((folder + " " + name.replace(/\.[^.]+$/, "")).toLowerCase().split(/[\s_\-./]+/).filter((w) => w.length > 2 && !/^\d+$/.test(w)))).slice(0, 6);
+
+/* ---------------- timeline import: EDL · FCP7/Premiere XML · FCPXML ---------------- */
+const tc2sec = (tc, fps) => {
+  const p = tc.replace(";", ":").split(":").map(Number);
+  if (p.length !== 4 || p.some(isNaN)) return null;
+  return p[0] * 3600 + p[1] * 60 + p[2] + p[3] / fps;
+};
+const parseRational = (v) => {
+  if (!v) return 0;
+  const m = String(v).match(/^(-?\d+)(?:\/(\d+))?s?$/);
+  if (!m) return 0;
+  return m[2] ? parseInt(m[1]) / parseInt(m[2]) : parseInt(m[1]);
+};
+const mapTrack = (kind, layer) => kind === "audio" ? (layer >= 2 ? "a2" : "a1") : (layer >= 2 ? "v2" : "v1");
+
+/** CMX3600 EDL → [{name, trackId, start, duration, srcIn}] */
+function parseEDL(text, fps) {
+  const events = [];
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const ev = line.match(/^\s*\d+\s+(\S+)\s+(V|A2|AA\/V|A\/V|AA|A|B)\s+\S+(?:\s+\S+)?\s+(\d{2}[:;]\d{2}[:;]\d{2}[:;]\d{2})\s+(\d{2}[:;]\d{2}[:;]\d{2}[:;]\d{2})\s+(\d{2}[:;]\d{2}[:;]\d{2}[:;]\d{2})\s+(\d{2}[:;]\d{2}[:;]\d{2}[:;]\d{2})\s*$/);
+    if (ev) {
+      const [, reel, ch, srcIn, , recIn, recOut] = ev;
+      events.push({ name: reel, channel: ch, srcIn: tc2sec(srcIn, fps), recIn: tc2sec(recIn, fps), recOut: tc2sec(recOut, fps) });
+      continue;
+    }
+    const nm = line.match(/^\s*\*\s*FROM CLIP NAME:\s*(.+?)\s*$/i);
+    if (nm && events.length) events[events.length - 1].name = nm[1];
+  }
+  const valid = events.filter((e) => e.recIn != null && e.recOut != null && e.recOut > e.recIn);
+  if (!valid.length) return [];
+  const offset = Math.min(...valid.map((e) => e.recIn)); // EDLs often start at 01:00:00:00
+  const out = [];
+  valid.forEach((e) => {
+    const base = { name: e.name, start: e.recIn - offset, duration: e.recOut - e.recIn, srcIn: e.srcIn || 0 };
+    const ch = e.channel.toUpperCase();
+    if (ch.includes("V") || ch === "B") out.push({ ...base, trackId: "v1" });
+    if (ch.includes("A")) out.push({ ...base, trackId: ch.includes("A2") ? "a2" : "a1" });
+  });
+  return out;
+}
+
+/** FCP7 / Premiere XML (xmeml) */
+function parseXMEML(doc) {
+  const out = [];
+  const seq = doc.querySelector("sequence");
+  if (!seq) return out;
+  const seqTb = parseFloat(seq.querySelector(":scope > rate > timebase, media rate timebase")?.textContent) || 24;
+  ["video", "audio"].forEach((kind) => {
+    const media = seq.querySelector(`media > ${kind}`);
+    if (!media) return;
+    const trackEls = Array.from(media.children).filter((el) => el.tagName.toLowerCase() === "track");
+    trackEls.forEach((trackEl, ti) => {
+      trackEl.querySelectorAll(":scope > clipitem").forEach((ci) => {
+        const tb = parseFloat(ci.querySelector("rate > timebase")?.textContent) || seqTb;
+        const start = parseFloat(ci.querySelector(":scope > start")?.textContent);
+        const end = parseFloat(ci.querySelector(":scope > end")?.textContent);
+        const inF = parseFloat(ci.querySelector(":scope > in")?.textContent) || 0;
+        if (isNaN(start) || isNaN(end) || start < 0 || end <= start) return; // skip transition stubs
+        out.push({
+          name: ci.querySelector(":scope > name")?.textContent || "clip",
+          trackId: mapTrack(kind, ti + 1),
+          start: start / tb, duration: (end - start) / tb, srcIn: inF / tb,
+        });
+      });
+    });
+  });
+  return out;
+}
+
+/** FCPXML (Final Cut Pro X / Resolve export) — walks the primary spine + lanes */
+function parseFCPXML(doc) {
+  const out = [];
+  const spines = doc.querySelectorAll("spine");
+  if (!spines.length) return out;
+  const spine = spines[0];
+  const walk = (el, parentStart) => {
+    Array.from(el.children).forEach((node) => {
+      const tag = node.tagName.toLowerCase();
+      if (!["asset-clip", "video", "clip", "mc-clip", "sync-clip", "title", "ref-clip", "gap"].includes(tag)) return;
+      const offset = parseRational(node.getAttribute("offset")) + parentStart;
+      const duration = parseRational(node.getAttribute("duration"));
+      const lane = parseInt(node.getAttribute("lane") || "0");
+      if (tag !== "gap" && duration > 0) {
+        const isAudio = tag === "asset-clip" && node.getAttribute("audioRole") && !node.getAttribute("format");
+        out.push({
+          name: node.getAttribute("name") || tag,
+          trackId: lane < 0 ? mapTrack("audio", -lane) : mapTrack(isAudio ? "audio" : "video", lane + 1),
+          start: offset, duration, srcIn: parseRational(node.getAttribute("start")),
+        });
+      }
+      // connected clips ride inside their parent
+      walk(node, offset);
+    });
+  };
+  walk(spine, 0);
+  // normalize to zero
+  if (out.length) {
+    const min = Math.min(...out.map((c) => c.start));
+    out.forEach((c) => { c.start -= min; });
+  }
+  return out;
+}
+
+function parseTimelineFile(filename, text, fps) {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".edl")) return { clips: parseEDL(text, fps), format: "CMX3600 EDL" };
+  const doc = new DOMParser().parseFromString(text, "text/xml");
+  if (doc.querySelector("parsererror")) throw new Error("XML didn't parse — is the file intact?");
+  if (doc.querySelector("fcpxml")) return { clips: parseFCPXML(doc), format: "FCPXML" };
+  if (doc.querySelector("xmeml")) return { clips: parseXMEML(doc), format: "FCP7/Premiere XML" };
+  throw new Error("Unrecognized format — expected EDL, FCPXML, or xmeml XML.");
+}
+
+/* ---------------- atoms ---------------- */
+function CopyBtn({ text, label = "COPY", small }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button className={`copybtn ${small ? "sm" : ""}`} onClick={async (e) => {
+      e.stopPropagation();
+      try { await navigator.clipboard.writeText(text); }
+      catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
+      setDone(true); setTimeout(() => setDone(false), 1300);
+    }}>{done ? "✓ COPIED" : label}</button>
+  );
+}
+
+/* ════════════════════════ APP ════════════════════════ */
+export default function Fabula() {
+  /* ----- splash ----- */
+  const [splash, setSplash] = useState(true);
+  const [splashOut, setSplashOut] = useState(false);
+  useEffect(() => {
+    if (!splash) return;
+    const t1 = setTimeout(() => setSplashOut(true), 4600);
+    const t2 = setTimeout(() => setSplash(false), 5350);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [splash]);
+  const skipSplash = () => { setSplashOut(true); setTimeout(() => setSplash(false), 400); };
+
+  const [page, setPage] = useState("productions"); // productions | slate | edit
+  const [index, setIndex] = useState([]);
+  const [prod, setProd] = useState(null);
+  const [sceneSel, setSceneSel] = useState(null); // {actId, sceneId}
+  const [prodTab, setProdTab] = useState("structure"); // structure | cast | world
+  const [storageReady, setStorageReady] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [busyMsg, setBusyMsg] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [slateStep, setSlateStep] = useState("setup");
+  const [newTitle, setNewTitle] = useState("");
+  const [newType, setNewType] = useState("film");
+
+  /* editor state */
+  const [clips, setClips] = useState([]);
+  const [editSel, setEditSel] = useState(null);     // standalone edit id (timelines independent of scenes)
+  const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|vfx|color|audio|deliver
+  const [binFilter, setBinFilter] = useState("all");
+  const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
+  const [srcPlaying, setSrcPlaying] = useState(false);
+  const [srcTc, setSrcTc] = useState(0);
+  const srcVideoRef = useRef(null);
+  const [playhead, setPlayhead] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [selClipId, setSelClipId] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const dragRef = useRef(null);
+  const saveTimer = useRef(null);
+  const cancelRef = useRef(false);
+  const fileRef = useRef(null);
+  const videoRef = useRef(null);
+  const pxPerSec = 46 * zoom;
+
+  const ping = (m) => { setNotice(m); setTimeout(() => setNotice(""), 2600); };
+
+  /* ----- boot ----- */
+  useEffect(() => { (async () => {
+    try { const idx = await stGet("studio:index"); setIndex(idx?.list || []); setStorageReady(true); }
+    catch { setStorageReady(false); }
+  })(); }, []);
+
+  /* ----- persistence (debounced full-production save) ----- */
+  useEffect(() => {
+    if (!prod) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      await stSet("studio:prod:" + prod.id, prod);
+      const sceneCount = prod.acts.reduce((n, a) => n + a.scenes.length, 0);
+      const entry = { id: prod.id, title: prod.title, type: prod.type, updated: Date.now(), sceneCount };
+      setIndex((cur) => {
+        const next = cur.some((x) => x.id === prod.id) ? cur.map((x) => (x.id === prod.id ? entry : x)) : [entry, ...cur];
+        stSet("studio:index", { list: next });
+        return next;
+      });
+    }, 700);
+    return () => clearTimeout(saveTimer.current);
+  }, [prod]);
+
+  /* ----- derived ----- */
+  const scene = useMemo(() => {
+    if (!prod || !sceneSel) return null;
+    const act = prod.acts.find((a) => a.id === sceneSel.actId);
+    return act?.scenes.find((s) => s.id === sceneSel.sceneId) || null;
+  }, [prod, sceneSel]);
+
+  const allScenes = useMemo(() => prod ? prod.acts.flatMap((a) => a.scenes.map((s) => ({ actId: a.id, act: a, scene: s }))) : [], [prod]);
+
+  /* ----- mutators ----- */
+  const updateProd = (mut) => setProd((p) => { if (!p) return p; const n = JSON.parse(JSON.stringify(p)); mut(n); n.updatedAt = Date.now(); return n; });
+  const updateScene = (mut) => updateProd((p) => {
+    const act = p.acts.find((a) => a.id === sceneSel?.actId);
+    const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId);
+    if (sc) { mut(sc, p); sc.updatedAt = Date.now(); }
+  });
+
+  /* sync editor local clips <-> scene */
+  useEffect(() => {
+    const tl = editSel ? prod?.edits?.find((e) => e.id === editSel)?.timeline : scene?.timeline;
+    setClips(tl?.clips ? JSON.parse(JSON.stringify(tl.clips)) : []);
+    setSelClipId(null); setPlayhead(0); setPlaying(false);
+  }, [sceneSel?.sceneId, editSel, prod?.id]);
+  const commitClips = (next) => {
+    const v = next || clips;
+    if (editSel) updateProd((p) => { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: v }; });
+    else updateScene((sc) => { sc.timeline = { ...(sc.timeline || {}), clips: v }; });
+  };
+
+  /* playback */
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => setPlayhead((p) => p + 0.033), 33);
+    return () => clearInterval(t);
+  }, [playing]);
+
+  /* ----- production CRUD ----- */
+  const migrate = (p) => {
+    p.mediaPool = p.mediaPool || []; p.cast = p.cast || [];
+    p.defaults = p.defaults || {};
+    p.defaults.aspect = p.defaults.aspect || "2.39:1"; p.defaults.service = p.defaults.service || "kling";
+    p.defaults.stillTarget = p.defaults.stillTarget || "mj_magnific"; p.defaults.style = p.defaults.style || "";
+    p.defaults.format = p.defaults.format || { preset: "hd1080", label: "HD 1080p", w: 1920, h: 1080, fps: 24, drop: false };
+    p.worldCats = p.worldCats || {};
+    WORLD_CATS.forEach((c) => { p.worldCats[c.id] = p.worldCats[c.id] || []; });
+    p.mediaPool.forEach((a) => { a.tags = a.tags || []; });
+    p.cast.forEach((c) => { c.media = c.media || []; c.wardrobe = c.wardrobe || []; });
+    p.design = p.design || {};
+    p.design.briefs = p.design.briefs || { props: [], staging: [], stunts: [], storyboards: [] };
+    p.design.lookId = p.design.lookId || null;
+    p.design.luts = p.design.luts || [];
+    p.design.palette = p.design.palette || [];
+    p.edits = p.edits || []; // standalone timelines — docs, music videos, any cut not bound to a scene
+    p.mediaPool.forEach((a) => { a.bin = a.bin || "imports"; });
+    return p;
+  };
+
+  const createProduction = async () => {
+    if (!newTitle.trim()) return;
+    const p = migrate({
+      id: uid(), title: newTitle.trim(), type: newType, description: "",
+      themes: "", world: "", cast: [], mediaPool: [],
+      defaults: { style: "", aspect: "2.39:1", service: "kling", stillTarget: "mj_magnific" },
+      acts: [1, 2, 3].map((n) => ({ id: uid(), number: n, title: "ACT " + ["I", "II", "III"][n - 1], scenes: [] })),
+      createdAt: Date.now(), updatedAt: Date.now(),
+    });
+    await stSet("studio:prod:" + p.id, p);
+    setProd(p); setNewTitle(""); setSceneSel(null); setProdTab("structure");
+  };
+  const openProduction = async (id) => {
+    const p = await stGet("studio:prod:" + id);
+    if (!p) { setError("Couldn't load that production."); return; }
+    setProd(migrate(p)); setSceneSel(null); setProdTab("structure");
+  };
+  const deleteProduction = async (id) => {
+    if (!window.confirm("Delete this production and everything inside it?")) return;
+    await stDel("studio:prod:" + id);
+    setIndex((cur) => { const n = cur.filter((x) => x.id !== id); stSet("studio:index", { list: n }); return n; });
+    if (prod?.id === id) { setProd(null); setSceneSel(null); }
+  };
+  const addScene = (actId) => updateProd((p) => {
+    const act = p.acts.find((a) => a.id === actId);
+    const sc = BLANK_SCENE();
+    sc.title = "SCENE " + (act.scenes.length + 1);
+    sc.styleNotes = p.defaults.style;
+    act.scenes.push(sc);
+  });
+  const deleteScene = (actId, sceneId) => {
+    if (!window.confirm("Delete this scene?")) return;
+    updateProd((p) => { const a = p.acts.find((x) => x.id === actId); a.scenes = a.scenes.filter((s) => s.id !== sceneId); });
+    if (sceneSel?.sceneId === sceneId) setSceneSel(null);
+  };
+  const gotoScene = (actId, sceneId, target) => {
+    setSceneSel({ actId, sceneId }); setEditSel(null); setPage(target);
+    if (target === "slate") setSlateStep("setup");
+  };
+
+  /* ----- context assembly ----- */
+  const productionContext = () => {
+    if (!prod) return "";
+    const cast = prod.cast.filter((c) => c.name?.trim());
+    const worldKnowledge = WORLD_CATS.map((c) => {
+      const items = (prod.worldCats?.[c.id] || []).filter((i) => i.name?.trim());
+      if (!items.length) return "";
+      return `${c.label}: ` + items.slice(0, 12).map((i) => `${i.name}${i.tags?.length ? " [" + i.tags.slice(0, 4).join(", ") + "]" : ""}${i.notes ? " — " + i.notes.slice(0, 110) : ""}`).join("; ");
+    }).filter(Boolean).join("\n");
+    return [
+      `PRODUCTION CONTEXT — "${prod.title}" (${prod.type})`,
+      prod.themes ? `THEMES: ${prod.themes}` : "",
+      prod.world ? `WORLD BIBLE (stay consistent): ${prod.world.slice(0, 700)}` : "",
+      worldKnowledge ? `WORLD KNOWLEDGE (established assets — reference and stay consistent):\n${worldKnowledge.slice(0, 1400)}` : "",
+      cast.length ? `ESTABLISHED CAST (reuse these looks verbatim):\n${cast.map((c) => `- ${c.name}: ${c.looks || "look not yet established"}${c.voice ? ` | voice: ${c.voice}` : ""}${c.personality ? ` | ${c.personality.slice(0, 90)}` : ""}`).join("\n")}` : "",
+    ].filter(Boolean).join("\n");
+  };
+  const sceneContext = () => [
+    `SCENE: ${scene.slugline || scene.title}`,
+    `MODE: ${scene.mode === "action" ? "ACTION SET PIECE" : "DIALOGUE SCENE"}`,
+    productionContext(),
+    scene.tone ? `EMOTIONAL TONE / SUBTEXT (from the filmmaker): ${scene.tone}` : "",
+    scene.environment ? `ENVIRONMENT NOTES: ${scene.environment}` : "",
+    scene.styleNotes ? `VISUAL STYLE / REFERENCES: ${scene.styleNotes}` : "",
+    `ASPECT RATIO: ${prod.defaults.aspect}`,
+    `\nSCRIPT / SCENE CONCEPT:\n${scene.script}`,
+  ].filter(Boolean).join("\n\n");
+  const bibleText = (b) => b ? [
+    `INTENT: ${b.intent}`, `SUBTEXT: ${b.subtext_read}`,
+    `CHARACTERS:\n${(b.characters || []).map((c) => `- ${c.name} | VISUAL_LOCK: ${c.visual_lock} | VOICE: ${c.voice_profile} | ARC: ${c.arc_in_scene}`).join("\n")}`,
+    `ENVIRONMENT_LOCK: ${b.environment_lock}`, `LIGHTING_PLAN: ${b.lighting_plan}`, `PALETTE: ${b.palette}`,
+  ].join("\n") : "";
+
+  /* ----- WORLD: folder import + asset intelligence ----- */
+  const [worldCat, setWorldCat] = useState("overview");
+  const folderRef = useRef(null);
+
+  const inferCategory = (relPath) => {
+    for (const [re, cat] of FOLDER_MAP) if (re.test(relPath)) return cat;
+    return null;
+  };
+
+  const tagWorldItem = async (catId, itemId) => {
+    const item = prod.worldCats[catId].find((i) => i.id === itemId);
+    const asset = item?.assetId ? prod.mediaPool.find((a) => a.id === item.assetId) : null;
+    if (!item) return;
+    setBusy(true); setBusyMsg(`Tagging "${item.name}"…`);
+    try {
+      const hint = `${WORLD_CATS.find((c) => c.id === catId)?.label} for the production "${prod.title}"${prod.themes ? " (themes: " + prod.themes + ")" : ""}`;
+      let r = null;
+      if (asset && (asset.type === "image" || asset.type === "graphic") && asset.url) {
+        const { data, media } = await imageUrlB64(asset.url);
+        r = await claudeTagMedia(data, media, hint);
+      } else if (asset && asset.type === "video" && asset.url) {
+        const { data, media } = await videoFrameB64(asset.url);
+        r = await claudeTagMedia(data, media, hint);
+      } else if ((asset && asset.type === "text") || item.notes) {
+        r = await claudeTagText(item.textContent || item.notes || item.name, hint);
+      } else {
+        // audio / 3D model / offline: heuristic from name + folder (transcription hooks up server-side later)
+        r = { tags: filenameTags(item.name, item.folder || ""), note: asset?.type === "audio" ? "Audio asset — tagged from filename; transcription needs a server-side service." : "Tagged from filename — no visual/text content readable in-browser." };
+      }
+      updateProd((p) => {
+        const it = p.worldCats[catId].find((i) => i.id === itemId);
+        if (it) {
+          it.tags = Array.from(new Set([...(it.tags || []), ...(r.tags || [])])).slice(0, 10);
+          if (r.note && !it.notes) it.notes = r.note;
+          const a = it.assetId ? p.mediaPool.find((x) => x.id === it.assetId) : null;
+          if (a) a.tags = it.tags;
+        }
+      });
+      ping(`Tagged "${item.name}"`);
+    } catch (e) { setError(`Tagging "${item.name}" failed — ${e.message}`); }
+    setBusy(false);
+  };
+
+  const importWorldFolder = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setBusy(true); setBusyMsg(`Reading folder — ${files.length} files…`);
+    setError("");
+    try {
+      const entries = files
+        .filter((f) => !f.name.startsWith("."))
+        .map((f) => ({ f, rel: f.webkitRelativePath || f.name, type: EXT_TYPE(f.name), cat: null }));
+      entries.forEach((e) => { e.cat = inferCategory(e.rel.split("/").slice(0, -1).join("/") + "/" + e.f.name); });
+
+      // unresolved paths → one batched AI classification
+      const unknown = entries.filter((e) => !e.cat);
+      if (unknown.length) {
+        setBusyMsg(`Classifying ${unknown.length} uncategorized files…`);
+        try {
+          const map = await callClaudeJson(
+            `You are a film production librarian. Classify each file path into exactly one category id from: ${WORLD_CATS.map((c) => c.id).join(", ")}, or "__cast" for character material. Respond ONLY with JSON: {"map":{"<index>":"<category_id>"}}`,
+            unknown.map((e, i) => `${i}: ${e.rel}`).join("\n")
+          );
+          unknown.forEach((e, i) => { const c = map.map?.[String(i)]; e.cat = WORLD_CATS.some((w) => w.id === c) || c === "__cast" ? c : "lore"; });
+        } catch { unknown.forEach((e) => { e.cat = "lore"; }); }
+      }
+
+      const castSnapshot = prod.cast.map((c) => ({ ...c }));
+      const findCastMatch = (str) => castSnapshot.find((c) => c.name.trim() && (str.toLowerCase().includes(c.name.trim().toLowerCase()) || c.name.trim().toLowerCase().includes(str.toLowerCase())));
+      const verifyQueue = [];
+      const newItems = [];
+      for (const e of entries) {
+        const folder = e.rel.split("/").slice(0, -1).join("/");
+        const baseName = e.f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+        let textContent = "";
+        if (e.type === "text") { try { textContent = (await e.f.text()).slice(0, 4000); } catch {} }
+
+        if (e.cat === "__cast") {
+          const folderSeg = folder.split("/").pop() || baseName;
+          const match = findCastMatch(folderSeg) || findCastMatch(baseName);
+          if (e.type === "text") {
+            updateProd((p) => {
+              let c = match ? p.cast.find((x) => x.id === match.id) : null;
+              if (!c && !p.cast.some((x) => x.name.toLowerCase() === baseName.toLowerCase())) {
+                c = { id: uid(), name: baseName.toUpperCase(), looks: "", voice: "", personality: "", dos: "", donts: "", media: [], wardrobe: [], evidence: "folder import" };
+                p.cast.push(c);
+              }
+              if (c && textContent) c.personality = (c.personality ? c.personality + " " : "") + textContent.slice(0, 400);
+            });
+            continue;
+          }
+          // media in a character folder: create asset + attach (verified against the matched member's identity)
+          const assetId = uid();
+          const url = URL.createObjectURL(e.f);
+          let memberId = match?.id;
+          updateProd((p) => {
+            p.mediaPool.push({ id: assetId, name: e.f.name, type: e.type, url, duration: e.type === "video" || e.type === "audio" ? 5 : 0, session: true, tags: [], worldCat: "__cast", bin: folder.split("/").pop() || "cast" });
+            let c = memberId ? p.cast.find((x) => x.id === memberId) : null;
+            if (!c) {
+              c = { id: uid(), name: (folderSeg || baseName).toUpperCase().replace(/[_-]+/g, " "), looks: "", voice: "", personality: "", dos: "", donts: "", media: [], wardrobe: [], evidence: "folder import" };
+              p.cast.push(c); memberId = c.id;
+            }
+            c.media.push({ assetId, role: e.type === "audio" ? "voice" : "reference", locked: false, note: "pending verification", verified: null });
+          });
+          if ((e.type === "image" || e.type === "video") && match) verifyQueue.push({ memberId, assetId, url, type: e.type, member: match });
+          continue;
+        }
+        // non-cast files whose NAME matches a cast member also get identity-checked
+        const nameMatch = (e.type === "image" || e.type === "video") ? findCastMatch(baseName) : null;
+
+        const assetId = uid(), itemId = uid();
+        const url = URL.createObjectURL(e.f);
+        const item = { id: itemId, name: baseName, notes: e.type === "text" ? textContent.slice(0, 800) : "", textContent, tags: [], assetId, folder };
+        updateProd((p) => {
+          p.mediaPool.push({ id: assetId, name: e.f.name, type: e.type, url, duration: e.type === "video" || e.type === "audio" ? 5 : 0, session: true, tags: [], worldCat: e.cat, bin: folder.split("/").pop() || e.cat });
+          p.worldCats[e.cat].push(item);
+          if (nameMatch) {
+            const c = p.cast.find((x) => x.id === nameMatch.id);
+            if (c) c.media.push({ assetId, role: "reference", locked: false, note: "name match — pending verification", verified: null });
+          }
+        });
+        if (nameMatch) verifyQueue.push({ memberId: nameMatch.id, assetId, url, type: e.type, member: nameMatch });
+        newItems.push({ cat: e.cat, itemId, name: baseName, type: e.type, url, textContent, folder });
+      }
+
+      // visual identity verification (face / identifying features) — capped per import
+      const toVerify = verifyQueue.slice(0, 4);
+      for (let i = 0; i < toVerify.length; i++) {
+        const q = toVerify[i];
+        setBusyMsg(`Verifying "${q.member.name}" identity ${i + 1}/${toVerify.length}…`);
+        try {
+          const im = q.type === "video" ? await videoFrameB64(q.url) : await imageUrlB64(q.url);
+          const r = await verifyCharacterAsset(q.member, im.data, im.media);
+          updateProd((p) => {
+            const c = p.cast.find((x) => x.id === q.memberId);
+            const m = c?.media.find((x) => x.assetId === q.assetId);
+            if (m) {
+              m.verified = !!r.match; m.confidence = r.confidence;
+              m.note = r.observed || "";
+              m.suggestedWardrobe = r.wardrobe || []; m.suggestedProps = r.props || [];
+              if (!r.match) m.note = "⚠ does not appear to be this character — " + (r.observed || "");
+            }
+          });
+        } catch {}
+      }
+
+      // auto-tag the first taggable assets from local records (state-safe); the rest tag on demand
+      const taggable = newItems.filter((n) => ["image", "graphic", "video", "text"].includes(n.type)).slice(0, 6);
+      for (let i = 0; i < taggable.length; i++) {
+        const n = taggable[i];
+        setBusyMsg(`Auto-tagging "${n.name}" (${i + 1}/${taggable.length})…`);
+        try {
+          const hint = `${WORLD_CATS.find((c) => c.id === n.cat)?.label} for the production "${prod.title}"`;
+          let r;
+          if (n.type === "video") { const { data, media } = await videoFrameB64(n.url); r = await claudeTagMedia(data, media, hint); }
+          else if (n.type === "text") { r = await claudeTagText(n.textContent || n.name, hint); }
+          else { const { data, media } = await imageUrlB64(n.url); r = await claudeTagMedia(data, media, hint); }
+          updateProd((p) => {
+            const it = p.worldCats[n.cat].find((i2) => i2.id === n.itemId);
+            if (it) {
+              it.tags = Array.from(new Set([...(it.tags || []), ...(r.tags || [])])).slice(0, 10);
+              if (r.note && !it.notes) it.notes = r.note;
+              const a = p.mediaPool.find((x) => x.id === it.assetId);
+              if (a) a.tags = it.tags;
+            }
+          });
+        } catch {}
+      }
+      const castN = entries.filter((e) => e.cat === "__cast").length;
+      ping(`Folder imported — ${entries.length - castN} world assets sorted${castN ? `, ${castN} routed to cast` : ""}, ${taggable.length} auto-tagged`);
+    } catch (e) { setError("Folder import failed: " + e.message); }
+    setBusy(false);
+  };
+
+  /* ----- CHARACTER intelligence: visual verification + extraction ----- */
+  const charRefImage = (member) => {
+    // first locked reference image asset, if any — used for face comparison
+    for (const m of member.media || []) {
+      if (m.locked && m.role === "reference") {
+        const a = prod.mediaPool.find((x) => x.id === m.assetId);
+        if (a && (a.type === "image" || a.type === "graphic") && a.url) return a;
+      }
+    }
+    return null;
+  };
+
+  const verifyCharacterAsset = async (member, candB64, candMedia) => {
+    const refAsset = charRefImage(member);
+    const images = [{ data: candB64, media: candMedia }];
+    let prompt;
+    if (refAsset) {
+      const ref = await imageUrlB64(refAsset.url);
+      images.unshift({ data: ref.data, media: ref.media });
+      prompt = `Image 1 is the LOCKED reference for the character "${member.name}". Image 2 is a candidate asset. Compare facial structure, hair, build, and identifying features. Respond ONLY with JSON: {"match":true|false,"confidence":0-100,"observed":"one sentence: identifying features seen","wardrobe":["visible wardrobe pieces"],"props":["objects the character holds/wears/uses"]}`;
+    } else {
+      prompt = `Character "${member.name}" is described as: ${member.looks || "no description yet"}. Does this image plausibly depict that character? Respond ONLY with JSON: {"match":true|false,"confidence":0-100,"observed":"one sentence: identifying features seen","wardrobe":["visible wardrobe pieces"],"props":["objects the character holds/wears/uses"]}`;
+    }
+    return claudeVisionJson(images, prompt);
+  };
+
+  const extractWardrobeProps = async (memberId, assetId) => {
+    const member = prod.cast.find((c) => c.id === memberId);
+    const asset = prod.mediaPool.find((a) => a.id === assetId);
+    if (!member || !asset?.url) return;
+    setBusy(true); setBusyMsg(`Reading wardrobe & props from "${asset.name}"…`);
+    try {
+      const im = asset.type === "video" ? await videoFrameB64(asset.url) : await imageUrlB64(asset.url);
+      const r = await claudeVisionJson([{ data: im.data, media: im.media }],
+        `This depicts the character "${member.name}" (${member.looks?.slice(0, 200) || ""}). Extract production design elements. Respond ONLY with JSON: {"wardrobe":["each distinct wardrobe piece, with color/material"],"props":["each distinct prop/object, with brief description"]}`);
+      updateProd((p) => {
+        const c = p.cast.find((x) => x.id === memberId);
+        if (c) c.wardrobe = Array.from(new Set([...(c.wardrobe || []), ...(r.wardrobe || [])])).slice(0, 16);
+        (r.props || []).forEach((pr) => {
+          if (!p.worldCats.props.some((i) => i.name.toLowerCase() === pr.toLowerCase().slice(0, 40))) {
+            p.worldCats.props.push({ id: uid(), name: pr.slice(0, 60), notes: `Extracted from ${member.name}'s asset "${asset.name}"`, tags: ["extracted", member.name.toLowerCase()], folder: "extracted" });
+          }
+        });
+      });
+      ping(`Extracted ${(r.wardrobe || []).length} wardrobe + ${(r.props || []).length} props → World/Props`);
+    } catch (e) { setError("Extraction failed — " + e.message); }
+    setBusy(false);
+  };
+
+  /* ----- PRODUCTION DESIGN agent ----- */
+  const [designTab, setDesignTab] = useState("briefs");
+  const buildDesignBriefs = async () => {
+    const scripts = allScenes.filter(({ scene: s }) => s.script?.trim())
+      .map(({ act, scene: s }) => `${act.title} / ${s.title} ${s.slugline}:\n${s.script.slice(0, 900)}`).join("\n\n");
+    if (!scripts) { setError("No scene scripts yet — write scenes first, then the design agent reads them."); return; }
+    setBusy(true); setBusyMsg("Design agent reading every scene — building briefs…");
+    try {
+      const r = await callClaudeJson(
+        `${AGENT}\nYou are now acting as PRODUCTION DESIGNER + STUNT COORDINATOR + STORYBOARD SUPERVISOR. Read the scenes and identify what must be DESIGNED.\n${JSON_RULES}\nSchema: {"props":[{"name":"prop","scene":"scene ref","needs":"design requirements, under 15 words"}],"staging":[{"scene":"ref","plan":"blocking/staging need, under 18 words"}],"stunts":[{"scene":"ref","beats":"stunt/choreo beats, under 18 words","safety":"key safety note"}],"storyboards":[{"scene":"ref","hint":"what the boards must solve, under 15 words"}]} Max 8 entries per list. Only what the script genuinely requires.`,
+        `${productionContext()}\n\nSCENES:\n${scripts.slice(0, 6000)}`
+      );
+      updateProd((p) => {
+        p.design.briefs = {
+          props: (r.props || []).map((b) => ({ ...b, id: uid(), doc: "" })),
+          staging: (r.staging || []).map((b) => ({ ...b, id: uid(), doc: "" })),
+          stunts: (r.stunts || []).map((b) => ({ ...b, id: uid(), doc: "" })),
+          storyboards: (r.storyboards || []).map((b) => ({ ...b, id: uid(), doc: "" })),
+        };
+      });
+      ping("Design briefs built from the script");
+    } catch (e) { setError("Brief generation failed — " + e.message); }
+    setBusy(false);
+  };
+  const developBrief = async (kind, id) => {
+    const brief = prod.design.briefs[kind].find((b) => b.id === id);
+    if (!brief) return;
+    setBusy(true); setBusyMsg(`Developing ${kind} design — "${brief.name || brief.scene}"…`);
+    const roles = { props: "prop designer: materials, era accuracy, hero vs background versions, practical needs, generation prompt", staging: "staging designer: geography, blocking diagram in text, sightlines, camera positions, practical light sources", stunts: "stunt coordinator: beat-by-beat choreography, rigging/safety plan, camera coverage for impact, doubles vs principals", storyboards: "storyboard supervisor: panel-by-panel board list with framing, motion arrows, and the storytelling job of each panel" };
+    try {
+      const doc = await callClaude(
+        `${AGENT}\nAct as ${roles[kind]}. Write a tight, production-usable design document. Plain text, short labeled sections, no markdown headers, under 350 words.`,
+        `${productionContext()}\n\nBRIEF: ${JSON.stringify(brief)}\n\nRelevant world assets: ${(prod.worldCats.props || []).slice(0, 10).map((i) => i.name).join(", ") || "none yet"}`
+      );
+      updateProd((p) => { const b = p.design.briefs[kind].find((x) => x.id === id); if (b) b.doc = doc.trim(); });
+    } catch (e) { setError("Development failed — " + e.message); }
+    setBusy(false);
+  };
+
+  /* ----- ENGINES (local-first generation) ----- */
+  const [engines, setEngines] = useState([]);
+  useEffect(() => { (async () => { const e = await stGet("studio:engines"); if (e?.list) setEngines(e.list); })(); }, []);
+  const saveEngines = (list) => { setEngines(list); stSet("studio:engines", { list }); };
+  const testEngine = async (eng) => {
+    setBusy(true); setBusyMsg(`Testing ${eng.name}…`);
+    try {
+      const kind = ENGINE_KINDS.find((k) => k.id === eng.kind);
+      const res = await fetch(eng.url.replace(/\/$/, "") + (kind?.testPath || "/"), { method: "GET" });
+      ping(res.ok ? `${eng.name} is reachable ✓` : `${eng.name} answered ${res.status}`);
+    } catch { setError(`${eng.name} unreachable — is it running, and is CORS enabled? (ComfyUI: --enable-cors-header)`); }
+    setBusy(false);
+  };
+  const generateViaEngine = async (shot, kind) => {
+    const eng = engines[0];
+    if (!eng) return;
+    const promptText = kind === "video" ? shot.video : shot.still;
+    setBusy(true); setBusyMsg(`Sending to ${eng.name}…`);
+    try {
+      if (eng.kind === "rest") {
+        const res = await fetch(eng.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: promptText }) });
+        const j = await res.json();
+        if (j.url) {
+          updateScene((sc) => { const t = sc.shots.find((s) => s.id === shot.id); if (t) t.frameUrl = j.url; });
+          ping("Engine returned a frame — attached to the shot");
+        } else ping("Engine accepted the prompt");
+      } else if (eng.kind === "comfyui") {
+        if (!eng.workflow?.includes("{{PROMPT}}")) { setError("Paste a ComfyUI workflow JSON containing {{PROMPT}} in the engine settings first."); setBusy(false); return; }
+        const wf = JSON.parse(eng.workflow.replaceAll("{{PROMPT}}", promptText.replace(/"/g, '\\"').slice(0, 1800)));
+        const res = await fetch(eng.url.replace(/\/$/, "") + "/prompt", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: wf }) });
+        ping(res.ok ? "Queued in ComfyUI — pull the result from its output folder and attach it" : "ComfyUI rejected the workflow");
+      } else {
+        const res = await fetch(eng.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: promptText }) });
+        ping(res.ok ? `Sent to ${eng.name}` : `${eng.name} answered ${res.status}`);
+      }
+    } catch (e) { setError(`Engine call failed — ${e.message}. Local engines need CORS enabled.`); }
+    setBusy(false);
+  };
+
+  /* ----- SLATE actions ----- */
+  const detectCharacters = async () => {
+    if (!scene?.script?.trim()) { setError("Write or paste the scene first."); return; }
+    setError(""); setBusy(true); setBusyMsg("Reading the story — detecting characters…");
+    try {
+      const parsed = await callClaudeJson(detectSystem(), `${productionContext()}\n\nSCRIPT / SCENE:\n${scene.script}`);
+      const det = (parsed.characters || []).filter((c) => c.name?.trim());
+      if (!det.length) { setError("No characters detected in the text."); setBusy(false); return; }
+      updateProd((p) => {
+        det.forEach((d) => {
+          const ex = p.cast.find((c) => c.name.trim().toLowerCase() === d.name.trim().toLowerCase());
+          if (ex) {
+            if (!ex.looks?.trim() && d.ref) ex.looks = d.ref;
+            if (!ex.voice?.trim() && d.voice) ex.voice = d.voice;
+          } else {
+            p.cast.push({ id: uid(), name: d.name, looks: d.ref || "", voice: d.voice || "", personality: "", dos: "", donts: "", evidence: d.evidence || "" });
+          }
+        });
+      });
+      ping(`${det.length} character${det.length > 1 ? "s" : ""} synced to the cast`);
+    } catch (e) { setError("Character detection failed — try again. (" + e.message + ")"); }
+    setBusy(false);
+  };
+
+  const generateBible = async () => {
+    if (!scene?.script?.trim()) { setError("Write or paste the scene first."); return; }
+    setError(""); setBusy(true); setBusyMsg("Reading the scene — intent, subtext, identity locks…");
+    try {
+      const b = await callClaudeJson(bibleSystem(), sceneContext());
+      updateProd((p) => {
+        const act = p.acts.find((a) => a.id === sceneSel.actId);
+        const sc = act.scenes.find((s) => s.id === sceneSel.sceneId);
+        sc.bible = b;
+        // feed locks back into the production cast (fill gaps only)
+        (b.characters || []).forEach((bc) => {
+          const ex = p.cast.find((c) => c.name.trim().toLowerCase() === bc.name.trim().toLowerCase());
+          if (ex) { if (!ex.looks?.trim()) ex.looks = bc.visual_lock; if (!ex.voice?.trim()) ex.voice = bc.voice_profile; }
+          else p.cast.push({ id: uid(), name: bc.name, looks: bc.visual_lock, voice: bc.voice_profile, personality: "", dos: "", donts: "" });
+        });
+      });
+      setSlateStep("bible");
+    } catch (e) { setError("Bible generation failed — try again. (" + e.message + ")"); }
+    setBusy(false);
+  };
+
+  const generateShotList = async () => {
+    setError(""); setBusy(true); setBusyMsg("Designing coverage — building the shot list…");
+    try {
+      const parsed = await callClaudeJson(shotListSystem(scene.mode), `SCENE BIBLE:\n${bibleText(scene.bible)}\n\n${sceneContext()}`);
+      const shots = (parsed.shots || []).map((s) => ({ ...s, id: uid(), still: "", video: "", voice: "", continuity: "", notes: "", status: "planned", frameUrl: "" }));
+      updateScene((sc) => { sc.shots = shots; });
+      setSlateStep("shots");
+    } catch (e) { setError("Shot list failed — try again. (" + e.message + ")"); }
+    setBusy(false);
+  };
+
+  const generateShotPrompts = async (shotId, notes = "") => {
+    const list = scene.shots; const idx = list.findIndex((s) => s.id === shotId);
+    const shot = list[idx], prev = list[idx - 1], next = list[idx + 1];
+    const look = LOOKS.find((l) => l.id === prod.design?.lookId);
+    const palette = (prod.design?.palette || []).filter((c) => c.meaning?.trim());
+    const user = [
+      `SCENE BIBLE:\n${bibleText(scene.bible)}`,
+      `FILMMAKER STYLE: ${scene.styleNotes || "—"} | TONE: ${scene.tone || "—"}`,
+      look ? `PRODUCTION LOOK (grade every prompt with this): ${look.name} — ${look.prompt}` : "",
+      palette.length ? `COLOR-AS-THEME (use deliberately in dressing/light/grade): ${palette.map((c) => `${c.hex} = ${c.meaning}`).join("; ")}` : "",
+      `THIS SHOT: ${shot.slug} | ${shot.type} | subject: ${shot.subject} | camera: ${shot.camera} | purpose: ${shot.purpose}`,
+      shot.lines ? `COVERS: "${shot.lines}"` : "COVERS: silent beat",
+      prev ? `PREVIOUS SHOT: ${prev.slug} ${prev.type} — ${prev.subject}` : "PREVIOUS SHOT: none (opener)",
+      next ? `NEXT SHOT: ${next.slug} ${next.type} — ${next.subject}` : "NEXT SHOT: none (scene out)",
+      notes ? `FILMMAKER CORRECTION NOTES (must obey): ${notes}` : "",
+    ].filter(Boolean).join("\n\n");
+    const p = await callClaudeJson(shotPromptSystem(prod.defaults.service, STILL_TARGETS.find((t) => t.id === prod.defaults.stillTarget)?.label, prod.defaults.aspect), user);
+    updateScene((sc) => {
+      const t = sc.shots.find((s) => s.id === shotId);
+      if (t) { t.still = p.still || ""; t.video = p.video || ""; t.voice = p.voice || ""; t.continuity = p.continuity || ""; t.status = "ready"; }
+    });
+  };
+
+  const generateAllPrompts = async () => {
+    setError(""); setBusy(true); cancelRef.current = false;
+    const ids = scene.shots.filter((s) => s.status !== "ready").map((s) => s.id);
+    for (let i = 0; i < ids.length; i++) {
+      if (cancelRef.current) break;
+      const slug = scene.shots.find((s) => s.id === ids[i])?.slug;
+      setBusyMsg(`Writing prompts — shot ${slug} (${i + 1}/${ids.length})…`);
+      try { await generateShotPrompts(ids[i]); } catch { setError(`Shot ${slug} failed — retry it individually.`); }
+    }
+    setBusy(false);
+  };
+
+  /* ----- EDIT actions ----- */
+  const buildEditFromBreakdown = () => {
+    if (!scene?.shots?.length) { setError("No shot list yet — run the SLATE breakdown first."); return; }
+    if (clips.length && !window.confirm("Rebuild the timeline from the breakdown? Current clips will be replaced.")) return;
+    let cursor = 0; const next = [];
+    scene.shots.forEach((shot) => {
+      const dur = estimateShotSeconds(shot, scene.mode);
+      next.push({ id: uid(), trackId: "v1", start: cursor, duration: dur, kind: "script", shotId: shot.id, label: `${shot.slug} · ${shot.type}` });
+      if ((shot.lines || "").trim() && scene.mode !== "action") {
+        next.push({ id: uid(), trackId: "a1", start: Math.round((cursor + 0.15) * 10) / 10, duration: Math.max(1, Math.round((dur - 0.3) * 10) / 10), kind: "voice", shotId: shot.id, label: shot.lines.slice(0, 40) });
+      }
+      cursor = Math.round((cursor + dur) * 10) / 10;
+    });
+    setClips(next); commitClips(next); setPlayhead(0); setSelClipId(null);
+    ping(`Edit pre-built — ${scene.shots.length} shots, ${fmtTc(cursor, prod.defaults.format)} runtime, pacing from the script`);
+  };
+
+  const addAssetToPool = (asset) => updateProd((p) => { p.mediaPool.push(asset); });
+  const handleUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((f) => {
+      const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+      addAssetToPool({ id: uid(), name: f.name, type, url: URL.createObjectURL(f), duration: 5, session: true, bin: "imports" });
+    });
+    if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""} (session-only URLs)`);
+    e.target.value = "";
+  };
+  const insertAssetClip = (asset) => {
+    const isMc = asset.type === "multicam";
+    const trackId = asset.type === "audio" ? "a2" : "v1";
+    const next = [...clips, {
+      id: uid(), trackId, start: playhead, duration: asset.duration || 5,
+      kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}),
+    }];
+    setClips(next); commitClips(next);
+  };
+
+  const [importFps, setImportFps] = useState(24);
+  const importRef = useRef(null);
+
+  const importTimeline = async (file) => {
+    try {
+      const text = await file.text();
+      const { clips: parsed, format } = parseTimelineFile(file.name, text, importFps);
+      if (!parsed.length) { setError(`Parsed ${format} but found no usable events — check the export settings.`); return; }
+      if (clips.length && !window.confirm(`Import ${parsed.length} clips from this ${format} and REPLACE the current timeline for "${scene.title}"?`)) return;
+      // build offline assets, dedup by clip name
+      const assetByName = {};
+      updateProd((p) => {
+        parsed.forEach((c) => {
+          const key = c.name.toLowerCase();
+          let ex = p.mediaPool.find((a) => a.name.toLowerCase() === key);
+          if (!ex) { ex = { id: uid(), name: c.name, type: c.trackId.startsWith("a") ? "audio" : "video", url: "", duration: c.duration, offline: true, imported: format }; p.mediaPool.push(ex); }
+          assetByName[key] = ex.id;
+        });
+      });
+      const next = parsed.map((c) => ({
+        id: uid(), trackId: c.trackId, start: Math.round(c.start * 20) / 20,
+        duration: Math.max(0.2, Math.round(c.duration * 20) / 20),
+        kind: "media", assetId: assetByName[c.name.toLowerCase()], label: c.name, srcIn: c.srcIn || 0,
+      }));
+      setClips(next);
+      updateScene((sc) => { sc.timeline = { clips: next }; });
+      setPlayhead(0); setSelClipId(null);
+      ping(`${format} imported — ${next.length} clips, media offline until relinked`);
+    } catch (e) { setError("Import failed: " + e.message); }
+  };
+
+  const relinkAsset = (assetId, url, name, type) => {
+    updateProd((p) => {
+      const a = p.mediaPool.find((x) => x.id === assetId);
+      if (a) { a.url = url; a.offline = false; a.session = url.startsWith("blob:"); if (type) a.type = type; }
+    });
+    ping("Media relinked");
+  };
+
+  /* ----- format / multicam / blade ----- */
+  const [formatOpen, setFormatOpen] = useState(false);
+  const [mcSel, setMcSel] = useState([]);
+  const [angleView, setAngleView] = useState(false);
+  const vfmt = prod?.defaults?.format || { fps: 24, drop: false, w: 1920, h: 1080, label: "HD 1080p" };
+
+  const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
+  const container = activeEdit || scene; // whichever timeline is open
+
+  const newEdit = (title) => {
+    const ed = { id: uid(), title: title || `EDIT ${(prod?.edits?.length || 0) + 1}`, timeline: { clips: [], trackSettings: {} }, updatedAt: Date.now() };
+    updateProd((p) => { p.edits.push(ed); });
+    setSceneSel(null); setEditSel(ed.id); setPage("edit"); setEditWs("edit");
+  };
+  const createQuickProject = async () => {
+    const p = migrate({
+      id: uid(), title: "UNTITLED PROJECT", type: "film", description: "",
+      themes: "", world: "", cast: [], mediaPool: [],
+      defaults: { style: "", aspect: "16:9", service: "kling", stillTarget: "mj_magnific" },
+      acts: [1, 2, 3].map((n) => ({ id: uid(), number: n, title: "ACT " + ["I", "II", "III"][n - 1], scenes: [] })),
+      createdAt: Date.now(), updatedAt: Date.now(),
+    });
+    const ed = { id: uid(), title: "EDIT 1", timeline: { clips: [], trackSettings: {} }, updatedAt: Date.now() };
+    p.edits.push(ed);
+    await stSet("studio:prod:" + p.id, p);
+    setProd(p); setSceneSel(null); setEditSel(ed.id); setEditWs("edit");
+    ping("Quick project ready — cut first, story layer whenever you want it");
+  };
+  const setTrackSetting = (tid, patch) => {
+    const apply = (tl) => { tl.trackSettings = tl.trackSettings || {}; tl.trackSettings[tid] = { vol: 1, mute: false, ...(tl.trackSettings[tid] || {}), ...patch }; };
+    if (editSel) updateProd((p) => { const ed = p.edits.find((e) => e.id === editSel); if (ed) { ed.timeline = ed.timeline || { clips: [] }; apply(ed.timeline); } });
+    else updateScene((sc) => { sc.timeline = sc.timeline || { clips: [] }; apply(sc.timeline); });
+  };
+  const exportEDL = () => {
+    const edlTc = (s) => fmtTc(s + 3600, { fps: vfmt.fps });
+    let n = 0;
+    const lines = [`TITLE: ${(container?.title || "FABULA SEQUENCE").toUpperCase()}`, `FCM: NON-DROP FRAME`, ``];
+    ["v1", "v2", "a1", "a2"].forEach((tid) => {
+      clips.filter((c) => c.trackId === tid).sort((a, b) => a.start - b.start).forEach((c) => {
+        n++;
+        const ch = tid.startsWith("v") ? "V" : tid === "a2" ? "A2" : "A";
+        const si = c.srcIn || 0;
+        lines.push(`${String(n).padStart(3, "0")}  AX       ${ch.padEnd(5)} C        ${edlTc(si)} ${edlTc(si + c.duration)} ${edlTc(c.start)} ${edlTc(c.start + c.duration)}`);
+        lines.push(`* FROM CLIP NAME: ${(c.label || "clip").replace(/\n/g, " ").slice(0, 60)}`);
+      });
+    });
+    const blob = new Blob([lines.join("\n") + "\n"], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (container?.title || "fabula").replace(/\s+/g, "_").toLowerCase() + ".edl";
+    a.click();
+    ping("EDL exported — conform it in Resolve / Premiere / Avid");
+  };
+  const exportAll = () => {
+    const head = `=== ${prod ? prod.title + " — " : ""}${container?.title || "UNTITLED"} ===\n` +
+      `Format: ${vfmt.label} ${vfmt.w}x${vfmt.h} @ ${vfmt.fps}${vfmt.drop ? " DF" : ""} | Aspect: ${prod?.defaults.aspect}\n` +
+      (scene?.bible ? `\n--- SCENE BIBLE ---\n${bibleText(scene.bible)}\n` : "");
+    const shotsTxt = (scene?.shots || []).map((s) =>
+      `\n========== SHOT ${s.slug} — ${s.type} ==========\nSUBJECT: ${s.subject}\nCAMERA: ${s.camera}\nPURPOSE: ${s.purpose}\n${s.lines ? `COVERS: "${s.lines}"\n` : ""}${s.continuity ? `CONTINUITY: ${s.continuity}\n` : ""}\n[STILL]\n${s.still || "(not generated)"}\n\n[VIDEO]\n${s.video || "(not generated)"}\n${s.voice ? `\n[VOICE]\n${s.voice}\n` : ""}`
+    ).join("\n");
+    const cut = clips.length ? `\n--- TIMELINE (${clips.length} clips) ---\n` + clips.sort((a, b) => a.start - b.start).map((c) => `${fmtTc(c.start, vfmt)}  [${c.trackId}] ${c.label} (${c.duration.toFixed(1)}s)`).join("\n") : "";
+    return head + shotsTxt + cut;
+  };
+
+  const setFormat = (patch) => updateProd((p) => {
+    p.defaults.format = { ...p.defaults.format, ...patch };
+    if (!isDropCapable(p.defaults.format.fps)) p.defaults.format.drop = false;
+  });
+
+  const createMulticam = () => {
+    const angles = mcSel.map((id) => ({ assetId: id, offset: 0, tc: "" }));
+    const srcAssets = mcSel.map((id) => prod.mediaPool.find((a) => a.id === id)).filter(Boolean);
+    if (srcAssets.length < 2) return;
+    const mc = {
+      id: uid(), name: "MC · " + (srcAssets[0].name.replace(/\.[^.]+$/, "")), type: "multicam",
+      angles, duration: Math.max(...srcAssets.map((a) => a.duration || 5)), tags: [],
+    };
+    updateProd((p) => { p.mediaPool.push(mc); });
+    setMcSel([]);
+    ping(`Multicam group created — ${angles.length} angles. Sync offsets in the inspector.`);
+  };
+
+  const bladeClip = (clipId, at) => {
+    const c = clips.find((x) => x.id === clipId);
+    if (!c || at <= c.start + 0.05 || at >= c.start + c.duration - 0.05) return null;
+    const rightId = uid();
+    const right = { ...c, id: rightId, start: at, duration: c.start + c.duration - at, srcIn: (c.srcIn || 0) + (at - c.start) };
+    const next = clips.flatMap((x) => (x.id === clipId ? [{ ...x, duration: at - x.start }, right] : [x]));
+    setClips(next); commitClips(next);
+    return rightId;
+  };
+
+  const switchAngle = (angleIdx) => {
+    const target = monitorClip || selClip;
+    if (!target || target.kind !== "multicam") return;
+    const inside = playhead > target.start + 0.05 && playhead < target.start + target.duration - 0.05;
+    if (inside) {
+      const rightId = bladeClip(target.id, playhead);
+      if (rightId) {
+        setClips((cur) => { const n = cur.map((c) => (c.id === rightId ? { ...c, angle: angleIdx } : c)); commitClips(n); return n; });
+        setSelClipId(rightId);
+        ping(`Cut to angle ${angleIdx + 1} at playhead`);
+        return;
+      }
+    }
+    const n = clips.map((c) => (c.id === target.id ? { ...c, angle: angleIdx } : c));
+    setClips(n); commitClips(n);
+    ping(`Angle ${angleIdx + 1}`);
+  };
+
+  const updateFx = (clipId, patch) => {
+    const n = clips.map((c) => (c.id === clipId ? { ...c, fx: { ...ensureFx(c), ...patch, matte: { ...ensureFx(c).matte, ...(patch.matte || {}) } } } : c));
+    setClips(n); commitClips(n);
+  };
+
+  const [intentText, setIntentText] = useState("");
+  const applyIntent = async (clip) => {
+    if (!intentText.trim()) return;
+    setBusy(true); setBusyMsg("Reading your intention…");
+    try {
+      const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
+      const r = await callClaudeJson(
+        `${AGENT}\nYou are the editor's effects brain. The filmmaker states an INTENTION; decide whether standard compositing parameters achieve it, or whether it needs GENERATIVE work.\nAvailable params (numbers): op 0-1, sc 0.1-4, x -100..100, y -100..100, rot -180..180, blur 0-30, bri 0-3, con 0-3, sat 0-3, fadeIn 0-5, fadeOut 0-5; blend one of ${BLENDS.join("|")}; matte {"t":"none|rect|ellipse","x":0-100,"y":0-100,"w":0-100,"h":0-100,"f":0-60}.\n${JSON_RULES}\nSchema: {"mode":"params"|"generative","params":{only the keys to change},"instruction":"if generative: precise instruction for a generative video/image model","why":"under 12 words"}`,
+        `CURRENT FX: ${JSON.stringify(ensureFx(clip))}\n${shot ? `SHOT CONTEXT: ${shot.slug} ${shot.type} — ${shot.purpose}${shot.lines ? ` | line: "${shot.lines}"` : ""}` : ""}\nSCENE TONE: ${scene?.tone || "—"}\n\nFILMMAKER INTENTION: ${intentText}`
+      );
+      if (r.mode === "params" && r.params) {
+        updateFx(clip.id, r.params);
+        ping(`Applied: ${r.why || "parameters set"}`);
+      } else {
+        updateFx(clip.id, { genNote: r.instruction || "" });
+        ping("Needs generative work — instruction saved on the clip");
+      }
+      setIntentText("");
+    } catch (e) { setError("Intent read failed — " + e.message); }
+    setBusy(false);
+  };
+
+  const attachMediaToClip = (clipId, url, name, type) => {
+    const asset = { id: uid(), name: name || "generated clip", type, url, duration: 5, session: url.startsWith("blob:"), generated: true };
+    updateProd((p) => { p.mediaPool.push(asset); });
+    const next = clips.map((c) => (c.id === clipId ? { ...c, kind: "media", assetId: asset.id } : c));
+    setClips(next);
+    // commit with the new asset already in prod (separate updates are fine — both persist)
+    updateScene((sc) => { sc.timeline = { clips: next }; });
+    ping("Generated media attached — script clip is now a picture clip");
+  };
+
+  /* drag interactions */
+  const onClipDown = (e, clipId, mode) => {
+    e.stopPropagation();
+    const c = clips.find((x) => x.id === clipId);
+    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration };
+    setSelClipId(clipId);
+  };
+  const onTimelineMove = (e) => {
+    const d = dragRef.current; if (!d) return;
+    const dt = (e.clientX - d.startX) / pxPerSec;
+    setClips((cur) => cur.map((c) => {
+      if (c.id !== d.clipId) return c;
+      if (d.mode === "move") {
+        let ns = Math.max(0, d.origStart + dt);
+        if (Math.abs(ns - playhead) < 0.18) ns = playhead;
+        return { ...c, start: Math.round(ns * 20) / 20 };
+      }
+      if (d.mode === "end") return { ...c, duration: Math.max(0.3, Math.round((d.origDur + dt) * 20) / 20) };
+      return c;
+    }));
+  };
+  const onTimelineUp = () => { if (dragRef.current) { dragRef.current = null; commitClips(); } };
+  const rulerSeek = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPlayhead(Math.max(0, (e.clientX - rect.left) / pxPerSec));
+  };
+
+  /* monitor source */
+  const monitorClip = useMemo(() => {
+    for (const tid of ["v2", "v1"]) {
+      const c = clips.find((c) => c.trackId === tid && playhead >= c.start && playhead < c.start + c.duration);
+      if (c) return c;
+    }
+    return null;
+  }, [clips, playhead]);
+  const monitorAssetRaw = monitorClip?.assetId ? prod?.mediaPool.find((a) => a.id === monitorClip.assetId) : null;
+  // multicam resolves to the active angle's underlying media (+ sync offset)
+  const mcAngle = monitorAssetRaw?.type === "multicam" ? monitorAssetRaw.angles[monitorClip.angle || 0] : null;
+  const monitorAsset = mcAngle ? prod?.mediaPool.find((a) => a.id === mcAngle.assetId) : monitorAssetRaw;
+  const monitorOffset = (mcAngle?.offset || 0) + (monitorClip?.srcIn || 0);
+  const monitorShot = monitorClip?.shotId ? scene?.shots.find((s) => s.id === monitorClip.shotId) : null;
+  const selClip = clips.find((c) => c.id === selClipId);
+  const selShot = selClip?.shotId ? scene?.shots.find((s) => s.id === selClip.shotId) : null;
+  const selMc = selClip?.kind === "multicam" ? prod?.mediaPool.find((a) => a.id === selClip.assetId) : null;
+  const seqEnd = clips.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+
+  // video element sync now lives inside MonitorLayer (per-layer, multicam-offset aware)
+
+  /* ----- edit-page block renderers (shared across resolve-style workspaces) ----- */
+  const renderSource = () => (
+                  <div className="viewer src">
+                    <div className="viewer-tag">SOURCE: {previewAsset ? previewAsset.name : "NO CLIP SELECTED"}</div>
+                    <div className="viewer-body">
+                      {previewAsset ? (
+                        <>
+                          {previewAsset.type === "video" && previewAsset.url && (
+                            <video ref={srcVideoRef} src={previewAsset.url} className="mvid framed" muted loop
+                              onTimeUpdate={(e) => setSrcTc(e.currentTarget.currentTime)} />
+                          )}
+                          {(previewAsset.type === "image" || previewAsset.type === "graphic") && previewAsset.url && (
+                            <img src={previewAsset.url} className="mvid framed" alt="" />
+                          )}
+                          {previewAsset.type === "audio" && (
+                            <div className="srcaudio"><Music size={56} /><span>AUDIO ASSET PREVIEW</span></div>
+                          )}
+                          {previewAsset.type === "multicam" && (
+                            <div className="srcaudio" style={{ color: "#a855f7" }}><Layers size={56} /><span>{previewAsset.angles.length}-ANGLE MULTICAM</span></div>
+                          )}
+                          {!previewAsset.url && previewAsset.type !== "multicam" && (
+                            <div className="srcaudio"><Film size={44} /><span>OFFLINE MEDIA</span></div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="src-empty"><Film size={40} /></div>
+                      )}
+                    </div>
+                    <div className="viewer-bar">
+                      <span className="tc sm">{fmtTc(srcTc, vfmt)}</span>
+                      <div className="tbtns">
+                        <button className="tbtn sm" onClick={() => { if (srcVideoRef.current) srcVideoRef.current.currentTime = 0; setSrcTc(0); }}><SkipBack size={12} /></button>
+                        <button className="tbtn sm" disabled={previewAsset?.type !== "video"} onClick={() => {
+                          const v = srcVideoRef.current; if (!v) return;
+                          if (v.paused) { v.play().catch(() => {}); setSrcPlaying(true); } else { v.pause(); setSrcPlaying(false); }
+                        }}>{srcPlaying ? <Pause size={13} /> : <Play size={13} />}</button>
+                      </div>
+                      <button className="minibtn" disabled={!previewAsset} onClick={() => previewAsset && insertAssetClip(previewAsset)} title="Insert at playhead">▼ INSERT</button>
+                    </div>
+                  </div>
+  );
+
+  const renderPool = () => (
+<aside className="pool glass-dark">
+                    <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL</div>
+                    <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
+                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*" style={{ display: "none" }} onChange={handleUpload} />
+                    <div className="btnrow" style={{ marginTop: 6, gap: 5 }}>
+                      <button className="minibtn blue grow" onClick={() => importRef.current?.click()} title="Import a timeline cut from Resolve, Premiere, or Final Cut"><ListVideo size={12} /> EDL / XML</button>
+                      <select className="sel fpssel" value={importFps} onChange={(e) => setImportFps(parseFloat(e.target.value))} title="Frame rate for EDL timecode math">
+                        {[23.976, 24, 25, 29.97, 30].map((f) => <option key={f} value={f}>{f} fps</option>)}
+                      </select>
+                    </div>
+                    <input ref={importRef} type="file" accept=".edl,.xml,.fcpxml" style={{ display: "none" }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimeline(f); e.target.value = ""; }} />
+                    <div className="poollist">
+                      {(prod.mediaPool || []).map((a) => (
+                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => insertAssetClip(a)} title="Click: load in source viewer · Double-click: insert at playhead">
+                          {(a.type === "video" || a.type === "audio") && (
+                            <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={() => setMcSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id])} />
+                          )}
+                          <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
+                          <span className="poolname">{a.name}</span>
+                          {a.offline && !a.url && <span className="chip red" style={{ fontSize: 7 }}>OFFLINE</span>}
+                          {a.generated && <Sparkles size={10} className="genstar" />}
+                        </div>
+                      ))}
+                      {mcSel.length >= 2 && (
+                        <button className="minibtn full" style={{ marginTop: 6 }} onClick={createMulticam}>
+                          <Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)
+                        </button>
+                      )}
+                      {!(prod.mediaPool || []).length && <div className="dim small" style={{ padding: 8 }}>Empty — the edit doesn't need media yet. Build from the breakdown and generate into the placeholders.</div>}
+                    </div>
+                    <div className="paneltitle" style={{ marginTop: 10 }}><Clapperboard size={12} /> STORY</div>
+                    <button className="cta full sm" onClick={buildEditFromBreakdown} disabled={!scene?.shots?.length}>
+                      <Wand2 size={13} /> BUILD EDIT FROM BREAKDOWN
+                    </button>
+                    <div className="dim small" style={{ padding: "8px 2px" }}>
+                      {scene?.shots?.length
+                        ? `${scene.shots.length} shots in the SLATE breakdown. Pacing computed from the script — dialogue at speech rate, beats by shot type.`
+                        : "No breakdown yet — run SLATE on this scene first."}
+                    </div>
+                  </aside>
+  );
+  const renderMonitor = () => (
+<section className="monitor">
+                    <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none" }}>
+                      {["v1", "v2"].map((tid) => {
+                        const lc = clips.find((c) => c.trackId === tid && playhead >= c.start && playhead < c.start + c.duration);
+                        if (!lc) return null;
+                        return <MonitorLayer key={tid} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={tid === "v2"} videoRef={tid === "v1" ? videoRef : undefined} />;
+                      })}
+                      {!monitorClip && <div className="noclip">NO CLIP AT PLAYHEAD</div>}
+                      {monitorShot && monitorAsset && <span className="overlay-slug">{monitorShot.slug}</span>}
+                      {angleView && monitorAssetRaw?.type === "multicam" && (
+                        <div className="anglegrid">
+                          {monitorAssetRaw.angles.map((ang, i) => {
+                            const aa = prod.mediaPool.find((x) => x.id === ang.assetId);
+                            const active = (monitorClip.angle || 0) === i;
+                            return (
+                              <button key={i} className={`angletile ${active ? "on" : ""}`} onClick={() => switchAngle(i)}>
+                                <span className="anglenum">{i + 1}</span>
+                                <span className="anglename">{aa?.name || "angle"}</span>
+                                {active && <span className="anglelive">● LIVE</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="transport">
+                      <span className="tc">{fmtTc(playhead, vfmt)}</span>
+                      <div className="tbtns">
+                        <button className="tbtn" onClick={() => { setPlayhead(0); setPlaying(false); }}><SkipBack size={14} /></button>
+                        <button className="tbtn play" onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
+                      </div>
+                      <span className="tc dim2">/ {fmtTc(seqEnd, vfmt)}</span>
+                      {monitorAssetRaw?.type === "multicam" && (
+                        <button className={`minibtn ${angleView ? "blue" : ""}`} onClick={() => setAngleView(!angleView)}><Layers size={11} /> ANGLES</button>
+                      )}
+                    </div>
+                  </section>
+  );
+  const renderInspector = () => (
+<aside className="inspector glass-dark">
+                    <div className="paneltitle">INSPECTOR</div>
+                    {!selClip && <div className="dim small" style={{ padding: 8 }}>Select a clip. Script clips carry the full story DNA — dialogue, prompts, character locks.</div>}
+                    {selClip && (
+                      <div className="insp-body">
+                        <div className="insp-row"><span className="lbl">CLIP</span><span className="insp-val">{selClip.label}</span></div>
+                        <div className="insp-row"><span className="lbl">KIND</span><span className={`chip ${selClip.kind === "script" ? "amb" : selClip.kind === "voice" ? "green" : "blue"}`}>{selClip.kind.toUpperCase()}</span></div>
+                        <div className="insp-row"><span className="lbl">IN / DUR</span><span className="insp-val mono">{fmtTc(selClip.start, vfmt)} · {selClip.duration.toFixed(1)}s</span></div>
+                        {selShot && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="insp-row"><span className="lbl">SHOT</span><span className="insp-val">{selShot.slug} — {selShot.type}</span></div>
+                            {selShot.character && <div className="insp-row"><span className="lbl">CHAR</span><span className="insp-val">{selShot.character}</span></div>}
+                            {selShot.lines && <div className="insp-dlg">"{selShot.lines}"</div>}
+                            <div className="dim small">{selShot.purpose}</div>
+                            {selShot.status !== "ready" ? (
+                              <button className="minibtn full" style={{ marginTop: 8 }} disabled={busy}
+                                onClick={async () => { setBusy(true); setBusyMsg(`Writing prompts — ${selShot.slug}…`); try { await generateShotPrompts(selShot.id); } catch (e) { setError("Prompt gen failed. " + e.message); } setBusy(false); }}>
+                                <Sparkles size={12} /> GENERATE PROMPTS</button>
+                            ) : (
+                              <>
+                                <div className="insp-div" />
+                                <div className="lbl">GENERATE THIS CLIP — paste into your service</div>
+                                {selShot.still && <div className="insp-copy"><span>STILL</span><CopyBtn text={selShot.still} small /></div>}
+                                {selShot.video && <div className="insp-copy"><span>VIDEO</span><CopyBtn text={selShot.video} small /></div>}
+                                {selShot.voice && <div className="insp-copy"><span>VOICE</span><CopyBtn text={selShot.voice} small /></div>}
+                                <div className="lbl" style={{ marginTop: 10 }}>STORYBOARD FRAME (chosen still URL)</div>
+                                <input className="in tiny" value={selShot.frameUrl || ""} placeholder="https://…  (shows in monitor + clip)"
+                                  onChange={(e) => updateScene((sc) => { const t = sc.shots.find((x) => x.id === selShot.id); if (t) t.frameUrl = e.target.value; })} />
+                                <div className="lbl" style={{ marginTop: 10 }}>ATTACH GENERATED RESULT</div>
+                                <AttachMedia onAttach={(url, name, type) => attachMediaToClip(selClip.id, url, name, type)} />
+                              </>
+                            )}
+                          </>
+                        )}
+                        {selMc && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">MULTICAM — {selMc.angles.length} ANGLES</div>
+                            {selMc.angles.map((ang, i) => {
+                              const aa = prod.mediaPool.find((x) => x.id === ang.assetId);
+                              return (
+                                <div className="mcrow" key={i}>
+                                  <button className={`mcangle ${(selClip.angle || 0) === i ? "on" : ""}`} onClick={() => switchAngle(i)}>{i + 1}</button>
+                                  <span className="poolname">{aa?.name || "angle"}</span>
+                                  <input className="in tiny mcoff" type="number" step="0.05" value={ang.offset}
+                                    title="Sync offset (seconds into this angle's source)"
+                                    onChange={(e) => updateProd((p) => { const m = p.mediaPool.find((x) => x.id === selMc.id); if (m) m.angles[i].offset = parseFloat(e.target.value) || 0; })} />
+                                  <input className="in tiny mctc" placeholder="src TC" value={ang.tc || ""}
+                                    title="Source start timecode (HH:MM:SS:FF) — APPLY syncs all angles"
+                                    onChange={(e) => updateProd((p) => { const m = p.mediaPool.find((x) => x.id === selMc.id); if (m) m.angles[i].tc = e.target.value; })} />
+                                </div>
+                              );
+                            })}
+                            <button className="minibtn full" onClick={() => {
+                              const secs = selMc.angles.map((a) => tc2sec(a.tc || "", vfmt.fps));
+                              if (secs.some((s) => s == null)) { setError("Enter a valid source TC (HH:MM:SS:FF) for every angle, then APPLY."); return; }
+                              const min = Math.min(...secs);
+                              updateProd((p) => { const m = p.mediaPool.find((x) => x.id === selMc.id); if (m) m.angles.forEach((a, i) => { a.offset = Math.round((secs[i] - min) * 100) / 100; }); });
+                              ping("Angles synced by source timecode");
+                            }}>⌖ SYNC ANGLES BY SOURCE TC</button>
+                            <div className="dim small">Click an angle mid-playback to cut to it at the playhead (classic multicam cutting). Audio-waveform sync needs server-side analysis — TC and manual offsets cover it here.</div>
+                          </>
+                        )}
+                        {selClip.kind === "media" && (() => {
+                          const a = prod.mediaPool.find((x) => x.id === selClip.assetId);
+                          return a && !a.url ? (
+                            <>
+                              <div className="insp-div" />
+                              <div className="lbl">RELINK OFFLINE MEDIA — "{a.name}"</div>
+                              <AttachMedia onAttach={(url, name, type) => relinkAsset(a.id, url, name, type)} />
+                            </>
+                          ) : null;
+                        })()}
+                        {selShot?.status === "ready" && engines.length > 0 && (
+                          <button className="minibtn blue full" style={{ marginTop: 6 }} disabled={busy} onClick={() => generateViaEngine(selShot, "still")}>
+                            <Cpu size={12} /> ⚡ GENERATE VIA {engines[0].name.toUpperCase()}
+                          </button>
+                        )}
+                        {selClip.kind !== "voice" && (() => {
+                          const fx = ensureFx(selClip);
+                          const slider = (lbl, key, min, max, step) => (
+                            <div className="fxrow" key={key}>
+                              <span className="fxlbl">{lbl}</span>
+                              <input type="range" min={min} max={max} step={step} value={fx[key]} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })} />
+                              <span className="fxval">{Number(fx[key]).toFixed(step < 0.1 ? 2 : 1)}</span>
+                            </div>
+                          );
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              <div className="lbl">EFFECTS & COMPOSITE</div>
+                              {slider("OPACITY", "op", 0, 1, 0.01)}
+                              {slider("SCALE", "sc", 0.1, 3, 0.01)}
+                              {slider("POS X", "x", -100, 100, 1)}
+                              {slider("POS Y", "y", -100, 100, 1)}
+                              {slider("ROTATE", "rot", -180, 180, 1)}
+                              {slider("BLUR", "blur", 0, 30, 0.5)}
+                              {slider("BRIGHT", "bri", 0, 2.5, 0.02)}
+                              {slider("CONTRAST", "con", 0, 2.5, 0.02)}
+                              {slider("SATURATE", "sat", 0, 2.5, 0.02)}
+                              {slider("FADE IN", "fadeIn", 0, 4, 0.1)}
+                              {slider("FADE OUT", "fadeOut", 0, 4, 0.1)}
+                              <div className="fxrow">
+                                <span className="fxlbl">BLEND</span>
+                                <select className="sel xs grow" value={fx.blend} onChange={(e) => updateFx(selClip.id, { blend: e.target.value })}>
+                                  {BLENDS.map((b) => <option key={b}>{b}</option>)}
+                                </select>
+                              </div>
+                              <div className="fxrow">
+                                <span className="fxlbl">MATTE</span>
+                                <select className="sel xs grow" value={fx.matte.t} onChange={(e) => updateFx(selClip.id, { matte: { t: e.target.value } })}>
+                                  {["none", "rect", "ellipse"].map((t) => <option key={t}>{t}</option>)}
+                                </select>
+                              </div>
+                              {fx.matte.t !== "none" && (
+                                <>
+                                  <div className="fxrow"><span className="fxlbl">M·X/Y</span>
+                                    <input type="range" min="0" max="100" value={fx.matte.x} onChange={(e) => updateFx(selClip.id, { matte: { x: parseFloat(e.target.value) } })} />
+                                    <input type="range" min="0" max="100" value={fx.matte.y} onChange={(e) => updateFx(selClip.id, { matte: { y: parseFloat(e.target.value) } })} /></div>
+                                  <div className="fxrow"><span className="fxlbl">M·W/H</span>
+                                    <input type="range" min="2" max="100" value={fx.matte.w} onChange={(e) => updateFx(selClip.id, { matte: { w: parseFloat(e.target.value) } })} />
+                                    <input type="range" min="2" max="100" value={fx.matte.h} onChange={(e) => updateFx(selClip.id, { matte: { h: parseFloat(e.target.value) } })} /></div>
+                                </>
+                              )}
+                              <div className="lbl" style={{ marginTop: 8 }}>INTENT — say what you're going for; it does it the normal way or flags it generative</div>
+                              <div className="btnrow" style={{ gap: 5 }}>
+                                <input className="in tiny grow" placeholder="'dreamlike flashback', 'punch in on the reaction', 'isolate her face'…"
+                                  value={intentText} onChange={(e) => setIntentText(e.target.value)}
+                                  onKeyDown={(e) => e.key === "Enter" && applyIntent(selClip)} />
+                                <button className="minibtn" disabled={busy || !intentText.trim()} onClick={() => applyIntent(selClip)}><Wand2 size={11} /></button>
+                              </div>
+                              {fx.genNote && (
+                                <div className="gennote">
+                                  <span className="lbl" style={{ color: "#a855f7" }}>GENERATIVE INSTRUCTION</span>
+                                  <div className="dim small">{fx.genNote}</div>
+                                  <CopyBtn text={fx.genNote} small />
+                                </div>
+                              )}
+                              <button className="ghost full" style={{ marginTop: 6 }} onClick={() => updateFx(selClip.id, { ...FX_DEFAULTS })}>RESET EFFECTS</button>
+                            </>
+                          );
+                        })()}
+                        <div className="insp-div" />
+                        <button className="ghost danger full" onClick={() => { const n = clips.filter((c) => c.id !== selClip.id); setClips(n); commitClips(n); setSelClipId(null); }}><Trash2 size={12} /> REMOVE CLIP</button>
+                      </div>
+                    )}
+                  </aside>
+  );
+  const renderTimeline = () => (
+<div className="tlwrap glass-dark">
+                  <div className="tl-tools">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span className="dim small">{container.title} {scene?.slugline ? "· " + scene.slugline : ""} · {clips.length} CLIPS</span>
+                      <button className="minibtn" disabled={!selClip} title="Cut selected clip at playhead"
+                        onClick={() => selClip && bladeClip(selClip.id, playhead)}>✂ CUT</button>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
+                      <button className="minibtn" onClick={() => setFormatOpen(!formatOpen)} title="Project format">
+                        {vfmt.label} · {vfmt.w}×{vfmt.h} · {vfmt.fps}{vfmt.drop ? " DF" : ""}
+                      </button>
+                      {formatOpen && (
+                        <div className="fmtpanel glass-dark">
+                          <div className="lbl">RESOLUTION — industry presets to 4K; beyond is custom</div>
+                          <div className="fmtgrid">
+                            {RES_PRESETS.map((r) => (
+                              <button key={r.id} className={`fmtbtn ${vfmt.preset === r.id ? "on" : ""}`}
+                                onClick={() => setFormat(r.id === "custom" ? { preset: "custom", label: "CUSTOM" } : { preset: r.id, label: r.label, w: r.w, h: r.h })}>
+                                <b>{r.label}</b><span>{r.id === "custom" ? "any size / rate" : `${r.w}×${r.h}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                          {vfmt.preset === "custom" && (
+                            <div className="row3" style={{ marginTop: 8 }}>
+                              <input className="in tiny" type="number" value={vfmt.w} onChange={(e) => setFormat({ w: parseInt(e.target.value) || 0 })} placeholder="width" />
+                              <input className="in tiny" type="number" value={vfmt.h} onChange={(e) => setFormat({ h: parseInt(e.target.value) || 0 })} placeholder="height" />
+                              <input className="in tiny" type="number" step="0.001" value={vfmt.fps} onChange={(e) => setFormat({ fps: parseFloat(e.target.value) || 24 })} placeholder="fps" />
+                            </div>
+                          )}
+                          <div className="lbl" style={{ marginTop: 10 }}>FRAME RATE</div>
+                          <div className="fmtfps">
+                            {FPS_OPTIONS.map((f) => (
+                              <button key={f} className={`fmtbtn sm ${Math.abs(vfmt.fps - f) < 0.001 && vfmt.preset !== "custom" ? "on" : ""}`}
+                                disabled={vfmt.preset === "custom"} onClick={() => setFormat({ fps: f })}>{f}</button>
+                            ))}
+                          </div>
+                          <label className={`dfrow ${isDropCapable(vfmt.fps) ? "" : "off"}`}>
+                            <input type="checkbox" disabled={!isDropCapable(vfmt.fps)} checked={!!vfmt.drop}
+                              onChange={(e) => setFormat({ drop: e.target.checked })} />
+                            DROP-FRAME TIMECODE (29.97 / 59.94 — broadcast standard, “;” separator)
+                          </label>
+                          <button className="minibtn full" style={{ marginTop: 8 }} onClick={() => setFormatOpen(false)}>DONE</button>
+                        </div>
+                      )}
+                      <div className="zoomer">
+                        <span className="dim small">ZOOM</span>
+                        <input type="range" min="0.4" max="2" step="0.1" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="tl-scroll">
+                    <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }}>
+                      {/* ruler */}
+                      <div className="ruler">
+                        <div className="trackhead rh"><span className="phdot" /></div>
+                        <div className="ruler-track" onMouseDown={rulerSeek}>
+                          {Array.from({ length: Math.ceil((seqEnd + 22)) }).map((_, i) => (
+                            <span key={i} className="tick" style={{ left: i * pxPerSec }}>{i % (zoom < 0.8 ? 5 : 2) === 0 ? "00:" + String(i).padStart(2, "0") : ""}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* playhead line */}
+                      <div className="phline" style={{ left: 128 + playhead * pxPerSec }} />
+                      {/* tracks */}
+                      {TRACKS.map((tr) => (
+                        <div className={`track ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
+                          <div className={`trackhead ${tr.type}`}>
+                            {tr.type === "video" ? <Film size={10} /> : <Music size={10} />} {tr.name}
+                          </div>
+                          <div className="trackbody">
+                            {clips.filter((c) => c.trackId === tr.id).map((c) => {
+                              const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
+                              const sel = selClipId === c.id;
+                              return (
+                                <div key={c.id}
+                                  className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
+                                  style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec) }}
+                                  onMouseDown={(e) => onClipDown(e, c.id, "move")}
+                                  onClick={(e) => { e.stopPropagation(); setSelClipId(c.id); }}>
+                                  {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
+                                  <div className="cliplabel">
+                                    {c.kind === "script" && <Clapperboard size={9} />}
+                                    {c.kind === "voice" && <Music size={9} />}
+                                    {c.kind === "media" && <Film size={9} />}
+                                    <span>{c.label}</span>
+                                  </div>
+                                  {c.kind === "voice" && <div className="wave">{Array.from({ length: 16 }).map((_, i) => <i key={i} style={{ height: (((i * 37) % 70) + 20) + "%" }} />)}</div>}
+                                  <div className="trimR" onMouseDown={(e) => onClipDown(e, c.id, "end")} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+  );
+
+  /* ════════════════ RENDER ════════════════ */
+  return (
+    <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
+      <style>{CSS}</style>
+
+      {/* ───── animated splash ───── */}
+      {splash && (
+        <div className={`splash ${splashOut ? "out" : ""}`} onClick={skipSplash} title="Click to skip">
+          <div className="sp-stage">
+            <svg viewBox="0 0 96 96" className="sp-mark" fill="none">
+              {/* the world draws itself */}
+              <path className="sp-circle" d="M 65 42 A 25 25 0 1 0 40 67"
+                pathLength="100" stroke="#f97316" strokeWidth="11" strokeLinecap="round" />
+              {/* the telling unspools as one continuous strip */}
+              <line className="sp-strip" x1="40" y1="67" x2="83" y2="67"
+                pathLength="100" stroke="#f97316" strokeWidth="11" strokeLinecap="round" />
+              {/* ...then the cut: the strip snaps into two clips */}
+              <line className="sp-clip1" x1="40" y1="67" x2="59" y2="67"
+                stroke="#f97316" strokeWidth="11" strokeLinecap="round" />
+              <line className="sp-clip2" x1="72" y1="67" x2="83" y2="67"
+                stroke="#f97316" strokeWidth="11" strokeLinecap="round" />
+            </svg>
+            <div className="sp-word">FABULA</div>
+            <div className="sp-tag">WORLD FIRST. CUT SECOND.</div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ambient blobs */}
+      <div className="blob b1" /><div className="blob b2" />
+
+      {/* ───── header ───── */}
+      <header className="hdr glass">
+        <div className="brand">
+          <svg viewBox="0 0 96 96" className="brandmark" fill="none" aria-label="Fabula mark">
+            <path d="M 65 42 A 25 25 0 1 0 40 67" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
+            <line x1="40" y1="67" x2="59" y2="67" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
+            <line x1="72" y1="67" x2="83" y2="67" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
+          </svg>
+          <span className="brand-main">FABULA</span>
+          <span className="brand-tag">THE WHOLE STORY, THEN THE TELLING</span>
+        </div>
+        {prod && (
+          <div className="hdr-mid">
+            <button className="hdr-prod" onClick={() => { setPage("productions"); }}>{prod.title}</button>
+            {(page === "slate" || page === "edit") && (
+              <select className="scene-pick"
+                value={editSel ? "edit|" + editSel : sceneSel ? "scene|" + sceneSel.actId + "|" + sceneSel.sceneId : ""}
+                onChange={(e) => {
+                  const parts = e.target.value.split("|");
+                  if (parts[0] === "scene") { setSceneSel({ actId: parts[1], sceneId: parts[2] }); setEditSel(null); }
+                  else if (parts[0] === "edit") { setEditSel(parts[1]); setSceneSel(null); }
+                }}>
+                <option value="">— select scene or edit —</option>
+                {allScenes.length > 0 && <optgroup label="SCENES">
+                  {allScenes.map(({ actId, act, scene: s }) => (
+                    <option key={s.id} value={"scene|" + actId + "|" + s.id}>{act.title} / {s.title}{s.slugline ? " — " + s.slugline : ""}</option>
+                  ))}
+                </optgroup>}
+                {(prod.edits || []).length > 0 && <optgroup label="EDITS (standalone)">
+                  {prod.edits.map((ed) => <option key={ed.id} value={"edit|" + ed.id}>{ed.title}</option>)}
+                </optgroup>}
+              </select>
+            )}
+            {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
+          </div>
+        )}
+        <div className="hdr-right">
+          {storageReady === false && <span className="warn-dot">SESSION ONLY</span>}
+          <span className="ver">CTX-LINKED · α</span>
+        </div>
+      </header>
+
+      {/* ───── main ───── */}
+      <main className="main">
+        {error && <div className="err" onClick={() => setError("")}>⚠ {error} <span className="dismiss">✕</span></div>}
+
+        {/* ════════ PRODUCTIONS PAGE ════════ */}
+        {page === "productions" && !prod && (
+          <div className="scroll pad">
+            <h1 className="mega">PRODUCTIONS</h1>
+            <p className="lede">The knowledge layer. Everything SLATE breaks down and everything the editor cuts is informed by what lives here — cast, world, themes.</p>
+            <div className="glass-card newprod">
+              <div className="lbl">NEW PRODUCTION</div>
+              <div className="np-row">
+                <input className="in big" placeholder="THE LONG WAY HOME" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createProduction()} />
+                <div className="seg">
+                  {["film", "tv-series"].map((t) => (
+                    <button key={t} className={`seg-btn ${newType === t ? "on" : ""}`} onClick={() => setNewType(t)}>{t === "film" ? "FILM" : "TV SERIES"}</button>
+                  ))}
+                </div>
+                <button className="cta" onClick={createProduction} disabled={!newTitle.trim()}><Plus size={14} /> CREATE</button>
+              </div>
+            </div>
+            {storageReady === null && <div className="dim">LOADING…</div>}
+            {index.map((p) => (
+              <div className="glass-card prodrow" key={p.id} onClick={() => openProduction(p.id)}>
+                <div className="prodicon">{p.type === "film" ? <Film size={18} /> : <Layers size={18} />}</div>
+                <div className="prodmain">
+                  <div className="prodtitle">{p.title}</div>
+                  <div className="prodmeta">{p.type === "film" ? "FILM" : "TV SERIES"} · {p.sceneCount || 0} SCENES · {new Date(p.updated).toLocaleDateString()}</div>
+                </div>
+                <button className="ghost danger" onClick={(e) => { e.stopPropagation(); deleteProduction(p.id); }}><Trash2 size={13} /></button>
+              </div>
+            ))}
+            {storageReady && !index.length && <div className="dim center">No productions yet — everything starts here.</div>}
+          </div>
+        )}
+
+        {page === "productions" && prod && (
+          <div className="scroll pad">
+            <button className="backlink" onClick={() => { setProd(null); setSceneSel(null); }}><ChevronLeft size={13} /> ALL PRODUCTIONS</button>
+            <h1 className="mega">{prod.title}</h1>
+            <input className="in desc" placeholder="One-line description of this production…" value={prod.description} onChange={(e) => updateProd((p) => { p.description = e.target.value; })} />
+            <div className="ptabs">
+              {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush]].map(([id, lab, Ic]) => (
+                <button key={id} className={`ptab ${prodTab === id ? "on" : ""}`} onClick={() => setProdTab(id)}><Ic size={13} /> {lab}</button>
+              ))}
+            </div>
+
+            {prodTab === "structure" && (prod.edits || []).length > 0 && (
+              <div className="glass-card actcard">
+                <div className="acthead">EDITS — standalone timelines (docs, music videos, assemblies)</div>
+                {prod.edits.map((ed) => (
+                  <div className="scenerow" key={ed.id} onClick={() => { setEditSel(ed.id); setSceneSel(null); setPage("edit"); }}>
+                    <input className="scenetitle" value={ed.title} onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => updateProd((p) => { const x = p.edits.find((y) => y.id === ed.id); if (x) x.title = e.target.value; })} />
+                    <span className="chip dimchip">{ed.timeline?.clips?.length || 0} CLIPS</span>
+                    <button className="minibtn blue" onClick={(e) => { e.stopPropagation(); setEditSel(ed.id); setSceneSel(null); setPage("edit"); }}><Film size={12} /> OPEN</button>
+                    <button className="ghost danger" onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this edit?")) { updateProd((p) => { p.edits = p.edits.filter((y) => y.id !== ed.id); }); if (editSel === ed.id) setEditSel(null); } }}><Trash2 size={12} /></button>
+                  </div>
+                ))}
+                <button className="ghost addscene" onClick={() => newEdit()}><Plus size={12} /> NEW EDIT</button>
+              </div>
+            )}
+            {prodTab === "structure" && prod.acts.map((act) => (
+              <div className="glass-card actcard" key={act.id}>
+                <div className="acthead">{act.title}</div>
+                {act.scenes.map((s) => {
+                  const ready = (s.shots || []).filter((x) => x.status === "ready").length;
+                  return (
+                    <div className="scenerow" key={s.id}>
+                      <input className="scenetitle" value={s.title} onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateProd((p) => { const a = p.acts.find((x) => x.id === act.id); const sc = a.scenes.find((x) => x.id === s.id); sc.title = e.target.value; })} />
+                      <span className="dim small">{s.slugline}</span>
+                      <span className={`chip ${s.mode === "action" ? "red" : "amb"}`}>{s.mode === "action" ? "ACTION" : "DIALOGUE"}</span>
+                      <span className="chip dimchip">{s.shots?.length ? `${ready}/${s.shots.length} SHOTS` : s.bible ? "BIBLE ✓" : "DRAFT"}</span>
+                      <span className="chip dimchip">{s.timeline?.clips?.length ? `${s.timeline.clips.length} CLIPS` : "NO CUT"}</span>
+                      <button className="minibtn" onClick={() => gotoScene(act.id, s.id, "slate")}><Clapperboard size={12} /> SLATE</button>
+                      <button className="minibtn blue" onClick={() => gotoScene(act.id, s.id, "edit")}><Film size={12} /> EDIT</button>
+                      <button className="ghost danger" onClick={() => deleteScene(act.id, s.id)}><Trash2 size={12} /></button>
+                    </div>
+                  );
+                })}
+                <button className="ghost addscene" onClick={() => addScene(act.id)}><Plus size={12} /> ADD SCENE</button>
+              </div>
+            ))}
+
+            {prodTab === "cast" && (
+              <>
+                <div className="dim" style={{ marginBottom: 14 }}>The shared identity layer. SLATE reads these as locks and writes back what it learns from scripts. The editor shows them on dialogue clips.</div>
+                {prod.cast.map((c) => (
+                  <div className="glass-card castcard" key={c.id}>
+                    <div className="castrow1">
+                      <input className="castname" value={c.name} placeholder="NAME" onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).name = e.target.value; })} />
+                      {c.evidence && <span className="evid">⌕ {c.evidence}</span>}
+                      <button className="ghost danger" onClick={() => updateProd((p) => { p.cast = p.cast.filter((x) => x.id !== c.id); })}><Trash2 size={12} /></button>
+                    </div>
+                    <div className="lbl">LOOKS — identity lock for image prompts</div>
+                    <textarea className="ta" rows={2} value={c.looks} onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).looks = e.target.value; })} />
+                    <div className="grid2">
+                      <div><div className="lbl">VOICE — TTS design description</div>
+                        <textarea className="ta" rows={2} value={c.voice} onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).voice = e.target.value; })} /></div>
+                      <div><div className="lbl">PERSONALITY / TEMPERANCE</div>
+                        <textarea className="ta" rows={2} value={c.personality} onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).personality = e.target.value; })} /></div>
+                    </div>
+                    <div className="grid2">
+                      <div><div className="lbl">DO'S</div>
+                        <textarea className="ta" rows={1} value={c.dos} onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).dos = e.target.value; })} /></div>
+                      <div><div className="lbl">DON'TS</div>
+                        <textarea className="ta" rows={1} value={c.donts} onChange={(e) => updateProd((p) => { p.cast.find((x) => x.id === c.id).donts = e.target.value; })} /></div>
+                    </div>
+                    {(c.wardrobe || []).length > 0 && (
+                      <>
+                        <div className="lbl" style={{ marginTop: 8 }}>WARDROBE — extracted + curated</div>
+                        <div className="wtags">{c.wardrobe.map((w, wi) => (
+                          <span className="wtag" key={wi} onClick={() => updateProd((p) => { const cc = p.cast.find((x) => x.id === c.id); cc.wardrobe = cc.wardrobe.filter((x) => x !== w); })} title="Click to remove">{w}</span>
+                        ))}</div>
+                      </>
+                    )}
+                    <div className="lbl" style={{ marginTop: 10 }}>MEDIA — images · video · voice. Lock what's canon; FRAME = in-movie, CONCEPT = production art.</div>
+                    <div className="cmedia">
+                      {(c.media || []).map((m) => {
+                        const a = prod.mediaPool.find((x) => x.id === m.assetId);
+                        if (!a) return null;
+                        return (
+                          <div className={`cmcard ${m.locked ? "locked" : ""} ${m.verified === false ? "rejected" : ""}`} key={m.assetId}>
+                            <div className="cmthumb">
+                              {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
+                              {a.url && a.type === "video" && <video src={a.url} muted />}
+                              {a.type === "audio" && <span className="wext">♪ VOICE</span>}
+                              {m.verified === true && <span className="vbadge ok">✓ {m.confidence || ""}%</span>}
+                              {m.verified === false && <span className="vbadge bad">✕ NOT THEM?</span>}
+                            </div>
+                            <select className="sel xs" value={m.role} onChange={(e) => updateProd((p) => { const mm = p.cast.find((x) => x.id === c.id)?.media.find((y) => y.assetId === m.assetId); if (mm) mm.role = e.target.value; })}>
+                              {["reference", "frame", "concept", "voice"].map((r) => <option key={r} value={r}>{r.toUpperCase()}</option>)}
+                            </select>
+                            <input className="in tiny" placeholder="description…" value={m.note || ""} onChange={(e) => updateProd((p) => { const mm = p.cast.find((x) => x.id === c.id)?.media.find((y) => y.assetId === m.assetId); if (mm) mm.note = e.target.value; })} />
+                            <div className="btnrow" style={{ marginTop: 4, gap: 4 }}>
+                              <button className={`minibtn ${m.locked ? "blue" : ""}`} onClick={() => updateProd((p) => { const mm = p.cast.find((x) => x.id === c.id)?.media.find((y) => y.assetId === m.assetId); if (mm) mm.locked = !mm.locked; })}>
+                                {m.locked ? <Lock size={10} /> : <Unlock size={10} />} {m.locked ? "LOCKED" : "LOCK"}
+                              </button>
+                              {(a.type === "image" || a.type === "video") && a.url && (
+                                <button className="minibtn" disabled={busy} onClick={() => extractWardrobeProps(c.id, a.id)} title="Extract wardrobe + props from this image into the character & World/Props"><Brush size={10} /> EXTRACT</button>
+                              )}
+                              <button className="ghost danger" onClick={() => updateProd((p) => { const cc = p.cast.find((x) => x.id === c.id); cc.media = cc.media.filter((y) => y.assetId !== m.assetId); })}><Trash2 size={10} /></button>
+                            </div>
+                            {(m.suggestedWardrobe || []).length > 0 && !m.locked && (
+                              <button className="ghost full" style={{ marginTop: 4 }} onClick={() => updateProd((p) => { const cc = p.cast.find((x) => x.id === c.id); cc.wardrobe = Array.from(new Set([...(cc.wardrobe || []), ...m.suggestedWardrobe])); })}>+ {m.suggestedWardrobe.length} WARDROBE SEEN</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <select className="sel cmadd" value="" onChange={(e) => {
+                        const aid = e.target.value; if (!aid) return;
+                        updateProd((p) => { const cc = p.cast.find((x) => x.id === c.id); if (!cc.media.some((m) => m.assetId === aid)) cc.media.push({ assetId: aid, role: prod.mediaPool.find((a) => a.id === aid)?.type === "audio" ? "voice" : "reference", locked: false, note: "", verified: null }); });
+                      }}>
+                        <option value="">+ ASSIGN FROM POOL…</option>
+                        {prod.mediaPool.filter((a) => ["image", "video", "audio", "graphic"].includes(a.type)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+                <button className="ghost addscene" onClick={() => updateProd((p) => p.cast.push({ id: uid(), name: "", looks: "", voice: "", personality: "", dos: "", donts: "" }))}><Plus size={12} /> ADD CHARACTER</button>
+              </>
+            )}
+
+            {prodTab === "world" && (
+              <>
+                <div className="wcats">
+                  <button className={`ptab ${worldCat === "overview" ? "on" : ""}`} onClick={() => setWorldCat("overview")}>OVERVIEW</button>
+                  {WORLD_CATS.map((c) => (
+                    <button key={c.id} className={`ptab ${worldCat === c.id ? "on" : ""}`} onClick={() => setWorldCat(c.id)}>
+                      {c.label} <span className="catcount">{prod.worldCats?.[c.id]?.length || 0}</span>
+                    </button>
+                  ))}
+                  <button className="minibtn blue" style={{ marginLeft: "auto" }} disabled={busy} onClick={() => folderRef.current?.click()} title="Point at a folder — subfolder names route assets into categories; uncategorized paths get AI-classified">
+                    <Upload size={12} /> IMPORT FOLDER
+                  </button>
+                  <input ref={folderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
+                    onChange={(e) => { importWorldFolder(e.target.files); e.target.value = ""; }} />
+                </div>
+
+                {worldCat === "overview" && (
+                  <div className="glass-card">
+                    <div className="lbl">THEMES & SYMBOLS</div>
+                    <input className="in" value={prod.themes} placeholder="grief as weather, water imagery, the cost of silence…" onChange={(e) => updateProd((p) => { p.themes = e.target.value; })} />
+                    <div className="lbl" style={{ marginTop: 14 }}>WORLD BIBLE — era, rules, geography, texture. SLATE reads this on every breakdown.</div>
+                    <textarea className="ta" rows={10} value={prod.world} onChange={(e) => updateProd((p) => { p.world = e.target.value; })} />
+                    <div className="grid2" style={{ marginTop: 14 }}>
+                      <div><div className="lbl">DEFAULT VISUAL STYLE</div>
+                        <input className="in" value={prod.defaults.style} placeholder="Deakins low-key tungsten, Kodak 500T halation…" onChange={(e) => updateProd((p) => { p.defaults.style = e.target.value; })} /></div>
+                      <div><div className="lbl">ASPECT / VIDEO / STILLS</div>
+                        <div className="row3">
+                          <select className="sel" value={prod.defaults.aspect} onChange={(e) => updateProd((p) => { p.defaults.aspect = e.target.value; })}>{ASPECTS.map((a) => <option key={a}>{a}</option>)}</select>
+                          <select className="sel" value={prod.defaults.service} onChange={(e) => updateProd((p) => { p.defaults.service = e.target.value; })}>{SERVICES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+                          <select className="sel" value={prod.defaults.stillTarget} onChange={(e) => updateProd((p) => { p.defaults.stillTarget = e.target.value; })}>{STILL_TARGETS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+                        </div></div>
+                    </div>
+                  </div>
+                )}
+
+                {worldCat !== "overview" && (
+                  <>
+                    <div className="dim small" style={{ marginBottom: 12 }}>
+                      Knowledge in this category feeds SLATE breakdowns and prompt generation. Drop a folder above — subfolders named like "props", "lore", "sets" route automatically; everything else gets AI-classified. Visual and text assets auto-tag on import (first six), the rest tag on demand.
+                    </div>
+                    {(prod.worldCats?.[worldCat] || []).map((item) => {
+                      const asset = item.assetId ? prod.mediaPool.find((a) => a.id === item.assetId) : null;
+                      return (
+                        <div className="glass-card witem" key={item.id}>
+                          <div className="wthumb">
+                            {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} alt="" />}
+                            {asset?.url && asset.type === "video" && <video src={asset.url} muted />}
+                            {asset && !["image", "graphic", "video"].includes(asset.type) && <span className="wext">{asset.type === "model" ? "3D" : asset.type === "audio" ? "♪" : asset.type === "text" ? "TXT" : "FILE"}</span>}
+                            {!asset && <span className="wext">✎</span>}
+                          </div>
+                          <div className="wbody">
+                            <div className="wrow1">
+                              <input className="wname" value={item.name} onChange={(e) => updateProd((p) => { const it = p.worldCats[worldCat].find((x) => x.id === item.id); if (it) it.name = e.target.value; })} />
+                              {item.folder && <span className="dim small mono">{item.folder}</span>}
+                              {asset && ["image", "video", "graphic"].includes(asset.type) && (
+                                <button className={`chip ${asset.designation === "frame" ? "blue" : "dimchip"}`} style={{ cursor: "pointer", border: "none" }}
+                                  title="FRAME = part of a scene (in the movie). CONCEPT = production design asset (not in the movie)."
+                                  onClick={() => updateProd((p) => { const a = p.mediaPool.find((x) => x.id === item.assetId); if (a) a.designation = a.designation === "frame" ? "concept" : "frame"; })}>
+                                  {asset.designation === "frame" ? "🎞 FRAME" : "✎ CONCEPT"}
+                                </button>
+                              )}
+                              {asset && <button className="minibtn" disabled={busy} onClick={() => tagWorldItem(worldCat, item.id)}><Sparkles size={11} /> TAG</button>}
+                              <button className="ghost danger" onClick={() => updateProd((p) => { p.worldCats[worldCat] = p.worldCats[worldCat].filter((x) => x.id !== item.id); })}><Trash2 size={11} /></button>
+                            </div>
+                            <div className="wtags">
+                              {(item.tags || []).map((t, ti) => (
+                                <span className="wtag" key={ti} onClick={() => updateProd((p) => { const it = p.worldCats[worldCat].find((x) => x.id === item.id); if (it) it.tags = it.tags.filter((x) => x !== t); })} title="Click to remove">{t}</span>
+                              ))}
+                              <input className="wtag-in" placeholder="+tag" onKeyDown={(e) => {
+                                if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                  const v = e.currentTarget.value.trim().toLowerCase(); e.currentTarget.value = "";
+                                  updateProd((p) => { const it = p.worldCats[worldCat].find((x) => x.id === item.id); if (it && !it.tags.includes(v)) it.tags.push(v); });
+                                }
+                              }} />
+                            </div>
+                            <textarea className="ta" rows={2} value={item.notes} placeholder="contextual notes — what this establishes for the story world…"
+                              onChange={(e) => updateProd((p) => { const it = p.worldCats[worldCat].find((x) => x.id === item.id); if (it) it.notes = e.target.value; })} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <button className="ghost addscene" onClick={() => updateProd((p) => { p.worldCats[worldCat].push({ id: uid(), name: "", notes: "", tags: [], folder: "" }); })}><Plus size={12} /> ADD ENTRY</button>
+                  </>
+                )}
+              </>
+            )}
+
+            {prodTab === "design" && (
+              <>
+                <div className="wcats">
+                  {[["briefs", "DESIGN BRIEFS"], ["look", "LOOK · LUT · COLOR"], ["stage", "3D STAGE"], ["engines", "ENGINES"]].map(([id, lab]) => (
+                    <button key={id} className={`ptab ${designTab === id ? "on" : ""}`} onClick={() => setDesignTab(id)}>{lab}</button>
+                  ))}
+                </div>
+
+                {designTab === "briefs" && (
+                  <>
+                    <div className="btnrow" style={{ marginBottom: 14 }}>
+                      <button className="cta" disabled={busy} onClick={buildDesignBriefs}><Wand2 size={13} /> BUILD BRIEFS FROM SCRIPT</button>
+                      <span className="dim small">The design agent reads every scene and identifies what must be designed — props, staging, stunts & choreography, storyboards. DEVELOP any brief into a working design doc.</span>
+                    </div>
+                    {[["props", "PROP DESIGN"], ["staging", "SCENE STAGING"], ["stunts", "CHOREOGRAPHY & STUNTS"], ["storyboards", "STORYBOARDS"]].map(([kind, lab]) => (
+                      <div className="glass-card" key={kind}>
+                        <div className="lbl">{lab} <span className="catcount">{(prod.design.briefs[kind] || []).length}</span></div>
+                        {(prod.design.briefs[kind] || []).length === 0 && <div className="dim small">Nothing identified yet.</div>}
+                        {(prod.design.briefs[kind] || []).map((b) => (
+                          <div className="briefrow" key={b.id}>
+                            <div className="briefhead">
+                              <strong>{b.name || b.scene}</strong>
+                              <span className="dim small">{b.scene}{b.needs ? " — " + b.needs : ""}{b.plan ? " — " + b.plan : ""}{b.beats ? " — " + b.beats : ""}{b.hint ? " — " + b.hint : ""}</span>
+                              <button className="minibtn" disabled={busy} onClick={() => developBrief(kind, b.id)}>{b.doc ? "↻ REDEVELOP" : "▸ DEVELOP"}</button>
+                              {b.doc && <CopyBtn text={b.doc} small />}
+                            </div>
+                            {b.safety && <div className="safety">⚠ SAFETY: {b.safety}</div>}
+                            {b.doc && <pre className="briefdoc">{b.doc}</pre>}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {designTab === "look" && (
+                  <>
+                    <div className="glass-card">
+                      <div className="lbl">CINEMATIC LOOK — 3D LUT GALLERY. Selected look grades the monitor preview and writes its language into every generated prompt.</div>
+                      <div className="lookgrid">
+                        {LOOKS.map((lk) => (
+                          <button key={lk.id} className={`lookcard ${prod.design.lookId === lk.id ? "on" : ""}`}
+                            onClick={() => updateProd((p) => { p.design.lookId = p.design.lookId === lk.id ? null : lk.id; })}>
+                            <div className="lookswatch">{lk.sw.map((s, si) => <i key={si} style={{ background: s }} />)}</div>
+                            <b>{lk.name}</b>
+                            <span>{lk.prompt.slice(0, 64)}…</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="btnrow" style={{ marginTop: 10 }}>
+                        <label className="minibtn" style={{ cursor: "pointer" }}>
+                          <Upload size={11} /> IMPORT .CUBE LUT
+                          <input type="file" accept=".cube,.3dl" style={{ display: "none" }} onChange={(e) => {
+                            const f = e.target.files?.[0]; if (!f) return;
+                            updateProd((p) => { p.design.luts.push({ id: uid(), name: f.name }); });
+                            ping(`"${f.name}" cataloged — named in prompts; full LUT application lands in the render pipeline`);
+                            e.target.value = "";
+                          }} />
+                        </label>
+                        {(prod.design.luts || []).map((l) => <span className="libchip" key={l.id}>{l.name}</span>)}
+                      </div>
+                    </div>
+                    <div className="glass-card">
+                      <div className="lbl">COLOR AS THEME — palette with meaning. Lives here and in the scene Bible; the agent grades and dresses with it.</div>
+                      {(prod.design.palette || []).map((pc, pi) => (
+                        <div className="palrow" key={pi}>
+                          <input type="color" value={pc.hex} className="palpick" onChange={(e) => updateProd((p) => { p.design.palette[pi].hex = e.target.value; })} />
+                          <input className="in tiny grow" placeholder="what this color means in the story — e.g. 'red = Maya's guilt'" value={pc.meaning}
+                            onChange={(e) => updateProd((p) => { p.design.palette[pi].meaning = e.target.value; })} />
+                          <button className="ghost danger" onClick={() => updateProd((p) => { p.design.palette.splice(pi, 1); })}><Trash2 size={11} /></button>
+                        </div>
+                      ))}
+                      <button className="ghost addscene" onClick={() => updateProd((p) => { p.design.palette.push({ hex: "#f97316", meaning: "" }); })}><Plus size={12} /> ADD COLOR</button>
+                    </div>
+                  </>
+                )}
+
+                {designTab === "stage" && <Stage3D prod={prod} ping={ping} />}
+
+                {designTab === "engines" && (
+                  <div className="glass-card">
+                    <div className="lbl">LOCAL-FIRST GENERATION ENGINES — extensible registry. ComfyUI hosts FLUX schnell / FLUX.2 klein / Z-Image-Turbo / SDXL for stills and LTX-2.3 for local video; custom REST wraps anything else.</div>
+                    {engines.map((eng, ei) => (
+                      <div className="engrow" key={eng.id}>
+                        <input className="in tiny" style={{ width: 130 }} value={eng.name} onChange={(e) => { const n = [...engines]; n[ei] = { ...eng, name: e.target.value }; saveEngines(n); }} />
+                        <select className="sel xs" value={eng.kind} onChange={(e) => { const n = [...engines]; n[ei] = { ...eng, kind: e.target.value }; saveEngines(n); }}>
+                          {ENGINE_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                        </select>
+                        <input className="in tiny grow" placeholder="http://localhost:8188" value={eng.url} onChange={(e) => { const n = [...engines]; n[ei] = { ...eng, url: e.target.value }; saveEngines(n); }} />
+                        <button className="minibtn" disabled={busy || !eng.url} onClick={() => testEngine(eng)}>TEST</button>
+                        <button className="ghost danger" onClick={() => saveEngines(engines.filter((x) => x.id !== eng.id))}><Trash2 size={11} /></button>
+                        {eng.kind === "comfyui" && (
+                          <textarea className="ta mono" rows={2} style={{ width: "100%", marginTop: 4 }} placeholder='ComfyUI workflow JSON (API format) with "{{PROMPT}}" where the prompt text goes…'
+                            value={eng.workflow || ""} onChange={(e) => { const n = [...engines]; n[ei] = { ...eng, workflow: e.target.value }; saveEngines(n); }} />
+                        )}
+                        <div className="dim small" style={{ width: "100%" }}>{ENGINE_KINDS.find((k) => k.id === eng.kind)?.hint}</div>
+                      </div>
+                    ))}
+                    <button className="ghost addscene" onClick={() => saveEngines([...engines, { id: uid(), name: "Local ComfyUI", kind: "comfyui", url: "http://localhost:8188", workflow: "" }])}><Plus size={12} /> ADD ENGINE</button>
+                    <div className="dim small" style={{ marginTop: 10 }}>
+                      Local engines run on YOUR machine — start ComfyUI with CORS enabled (`--enable-cors-header`). The first engine in the list is the default; the ⚡ ENGINE button on any shot routes prompts to it. Recommended on-device stack: FLUX.1 schnell (Apache 2.0) or Z-Image-Turbo for stills on 8–16GB VRAM; LTX-2.3 distilled FP8 for video on 16–24GB.
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ════════ SLATE PAGE ════════ */}
+        {page === "slate" && (
+          <div className="scroll pad">
+            {!prod && <div className="dim center big-empty">Open a production first — SLATE needs the knowledge layer.<br /><button className="cta" style={{ marginTop: 16 }} onClick={() => setPage("productions")}>GO TO PRODUCTIONS</button></div>}
+            {prod && !scene && <div className="dim center big-empty">Select a scene in the header — or create one on the Productions page.</div>}
+            {prod && scene && (
+              <>
+                <div className="slate-head">
+                  <h1 className="mega sm">SLATE<span className="slash">▮</span> COVERAGE</h1>
+                  <div className="stepper">
+                    {[["setup", "1 · SETUP"], ["bible", "2 · BIBLE"], ["shots", "3 · SHOTS"]].map(([id, lab]) => (
+                      <button key={id} className={`stepchip ${slateStep === id ? "on" : ""}`}
+                        disabled={(id === "bible" && !scene.bible) || (id === "shots" && !scene.shots?.length)}
+                        onClick={() => setSlateStep(id)}>{lab}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {slateStep === "setup" && (
+                  <>
+                    <div className="glass-card">
+                      <div className="lbl">SLUGLINE</div>
+                      <input className="in" value={scene.slugline} placeholder="INT. DINER — NIGHT" onChange={(e) => updateScene((sc) => { sc.slugline = e.target.value; })} />
+                      <div className="lbl" style={{ marginTop: 12 }}>SCRIPT OR SCENE CONCEPT — any format: screenplay, prose, notes</div>
+                      <textarea className="ta mono" rows={10} value={scene.script} onChange={(e) => updateScene((sc) => { sc.script = e.target.value; })}
+                        placeholder={"MAYA\nYou said you'd be there.\n\nDANIEL\nI was. You just didn't see me.\n\n— or describe an action set piece in prose…"} />
+                      <div className="btnrow">
+                        <button className="minibtn" disabled={busy} onClick={detectCharacters}>⌕ DETECT CHARACTERS → CAST</button>
+                        <span className="dim small">Detected characters sync into the production Cast, never overwriting what you wrote.</span>
+                      </div>
+                      <div className="lbl" style={{ marginTop: 12 }}>MODE</div>
+                      <div className="seg wide">
+                        <button className={`seg-btn ${scene.mode === "dialogue" ? "on" : ""}`} onClick={() => updateScene((sc) => { sc.mode = "dialogue"; })}>DIALOGUE — a shot per line</button>
+                        <button className={`seg-btn red ${scene.mode === "action" ? "on" : ""}`} onClick={() => updateScene((sc) => { sc.mode = "action"; })}>ACTION — beat-by-beat coverage</button>
+                      </div>
+                      <div className="grid2" style={{ marginTop: 12 }}>
+                        <div><div className="lbl">TONE & SUBTEXT</div>
+                          <textarea className="ta" rows={2} value={scene.tone} placeholder="A breakup disguised as small talk…" onChange={(e) => updateScene((sc) => { sc.tone = e.target.value; })} /></div>
+                        <div><div className="lbl">ENVIRONMENT NOTES</div>
+                          <textarea className="ta" rows={2} value={scene.environment} placeholder="1970s roadside diner, dead hour, rain on glass…" onChange={(e) => updateScene((sc) => { sc.environment = e.target.value; })} /></div>
+                      </div>
+                      <div className="lbl" style={{ marginTop: 12 }}>SCENE-SPECIFIC STYLE (inherits production default)</div>
+                      <input className="in" value={scene.styleNotes} onChange={(e) => updateScene((sc) => { sc.styleNotes = e.target.value; })} />
+                    </div>
+                    <button className={`cta full ${scene.mode === "action" ? "red" : ""}`} disabled={busy} onClick={generateBible}>▸ BREAK DOWN THE SCENE</button>
+                  </>
+                )}
+
+                {slateStep === "bible" && scene.bible && (
+                  <>
+                    <div className="glass-card">
+                      <div className="lbl">DIRECTOR'S READ — INTENT</div>
+                      <div className="readtxt">{scene.bible.intent}</div>
+                      <div className="lbl">SUBTEXT</div>
+                      <div className="readtxt ital">{scene.bible.subtext_read}</div>
+                      {(scene.bible.suggestions || []).map((s, i) => <div className="suggest" key={i}>◆ {s}</div>)}
+                    </div>
+                    <div className="glass-card">
+                      <div className="lbl">IDENTITY LOCKS — pasted verbatim into every prompt. Edit until exactly right.</div>
+                      {(scene.bible.characters || []).map((c, i) => (
+                        <div className="lockrow" key={i}>
+                          <div className="lockname">{c.name} <span className="dim small">{c.arc_in_scene}</span></div>
+                          <textarea className="ta mono" rows={2} value={c.visual_lock}
+                            onChange={(e) => updateScene((sc) => { sc.bible.characters[i].visual_lock = e.target.value; })} />
+                          <textarea className="ta mono" rows={1} value={c.voice_profile}
+                            onChange={(e) => updateScene((sc) => { sc.bible.characters[i].voice_profile = e.target.value; })} />
+                        </div>
+                      ))}
+                      <div className="lbl">ENVIRONMENT LOCK</div>
+                      <textarea className="ta mono" rows={2} value={scene.bible.environment_lock} onChange={(e) => updateScene((sc) => { sc.bible.environment_lock = e.target.value; })} />
+                      <div className="grid2">
+                        <div><div className="lbl">LIGHTING PLAN</div>
+                          <textarea className="ta mono" rows={2} value={scene.bible.lighting_plan} onChange={(e) => updateScene((sc) => { sc.bible.lighting_plan = e.target.value; })} /></div>
+                        <div><div className="lbl">PALETTE / GRADE</div>
+                          <textarea className="ta mono" rows={2} value={scene.bible.palette} onChange={(e) => updateScene((sc) => { sc.bible.palette = e.target.value; })} /></div>
+                      </div>
+                    </div>
+                    <button className={`cta full ${scene.mode === "action" ? "red" : ""}`} disabled={busy} onClick={generateShotList}>▸ APPROVE BIBLE — DESIGN THE SHOT LIST</button>
+                  </>
+                )}
+
+                {slateStep === "shots" && (
+                  <>
+                    <div className="btnrow" style={{ marginBottom: 14 }}>
+                      <button className="cta" disabled={busy} onClick={generateAllPrompts}><Sparkles size={13} /> GENERATE ALL PROMPTS</button>
+                      <button className="minibtn blue" onClick={() => { buildEditFromBreakdown(); setPage("edit"); }}><Film size={12} /> BUILD EDIT → TIMELINE</button>
+                      {busy && <button className="minibtn" onClick={() => { cancelRef.current = true; }}>■ STOP</button>}
+                      <span className="dim small" style={{ marginLeft: "auto" }}>{scene.shots.filter((s) => s.status === "ready").length}/{scene.shots.length} READY</span>
+                    </div>
+                    {scene.shots.map((s, idx) => (
+                      <div className="glass-card shotcard" key={s.id}>
+                        <div className="shothead">
+                          <span className="shotslug">{s.slug}</span>
+                          <input className="shottype" value={s.type} onChange={(e) => updateScene((sc) => { sc.shots[idx].type = e.target.value; })} />
+                          <span className={`chip ${s.status === "ready" ? "green" : "dimchip"}`}>{s.status === "ready" ? "READY" : "PLANNED"}</span>
+                          <button className="ghost danger" onClick={() => updateScene((sc) => { sc.shots.splice(idx, 1); })}><Trash2 size={12} /></button>
+                        </div>
+                        <textarea className="ta mono dlg" rows={Math.max(1, Math.ceil((s.lines || "").length / 80))} value={s.lines}
+                          placeholder="(silent beat)" onChange={(e) => updateScene((sc) => { sc.shots[idx].lines = e.target.value; })} />
+                        <div className="grid2">
+                          <input className="in tiny" value={s.camera} placeholder="camera" onChange={(e) => updateScene((sc) => { sc.shots[idx].camera = e.target.value; })} />
+                          <input className="in tiny" value={s.purpose} placeholder="storytelling purpose" onChange={(e) => updateScene((sc) => { sc.shots[idx].purpose = e.target.value; })} />
+                        </div>
+                        {s.status !== "ready" ? (
+                          <button className="minibtn" style={{ marginTop: 8 }} disabled={busy}
+                            onClick={async () => { setBusy(true); setBusyMsg(`Writing prompts — shot ${s.slug}…`); try { await generateShotPrompts(s.id); } catch (e) { setError(`Shot ${s.slug} failed. (${e.message})`); } setBusy(false); }}>
+                            ▸ GENERATE PROMPTS</button>
+                        ) : (
+                          <>
+                            {[["STILL — GENERATE FIRST", "still"], ["VIDEO — FROM CHOSEN STILL", "video"], ["VOICE / DELIVERY", "voice"]].map(([tag, key]) => s[key] ? (
+                              <div className="pblock" key={key}>
+                                <div className="pbhead"><span className="ptag">{tag}</span><CopyBtn text={s[key]} small /></div>
+                                <textarea className="ta mono" rows={Math.min(8, Math.max(2, Math.ceil(s[key].length / 100)))} value={s[key]}
+                                  onChange={(e) => updateScene((sc) => { sc.shots[idx][key] = e.target.value; })} />
+                              </div>
+                            ) : null)}
+                            <div className="btnrow" style={{ marginTop: 8 }}>
+                              <input className="in tiny grow" placeholder="correction notes — 'go wider, key from the window'…" value={s.notes}
+                                onChange={(e) => updateScene((sc) => { sc.shots[idx].notes = e.target.value; })} />
+                              <button className="minibtn" disabled={busy} onClick={async () => { setBusy(true); setBusyMsg(`Reworking ${s.slug}…`); try { await generateShotPrompts(s.id, s.notes); } catch (e) { setError(`Rework failed. (${e.message})`); } setBusy(false); }}>↻ REWORK</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ════════ EDIT PAGE — resolve-style workspaces ════════ */}
+        {page === "edit" && (
+          <div className="editwrap">
+            {!prod && (
+              <div className="dim center big-empty" style={{ margin: "auto" }}>
+                Cut first, ask questions later.
+                <div className="btnrow" style={{ justifyContent: "center", marginTop: 16 }}>
+                  <button className="cta" onClick={createQuickProject}><Plus size={14} /> NEW QUICK PROJECT</button>
+                  <button className="minibtn" onClick={() => setPage("productions")}>OPEN A PRODUCTION</button>
+                </div>
+                <div className="dim small" style={{ marginTop: 12 }}>Quick projects are full editors — documentaries, music videos, anything. The story layer is there when you want it.</div>
+              </div>
+            )}
+            {prod && !container && (
+              <div className="dim center big-empty" style={{ margin: "auto" }}>
+                Pick a scene or an edit in the header — or start a fresh timeline.
+                <div className="btnrow" style={{ justifyContent: "center", marginTop: 16 }}>
+                  <button className="cta" onClick={() => newEdit()}><Plus size={14} /> NEW EDIT (STANDALONE TIMELINE)</button>
+                </div>
+              </div>
+            )}
+            {prod && container && (
+              <>
+                {editWs === "media" && (
+                  <div className="mediaws glass-dark">
+                    <div className="mwside">
+                      <div className="paneltitle"><MonitorPlay size={12} /> BINS</div>
+                      {["all", ...Array.from(new Set((prod.mediaPool || []).map((a) => a.bin || "imports")))].map((b) => (
+                        <button key={b} className={`binbtn ${binFilter === b ? "on" : ""}`} onClick={() => setBinFilter(b)}>
+                          {b.toUpperCase()} <span className="catcount">{b === "all" ? prod.mediaPool.length : prod.mediaPool.filter((a) => (a.bin || "imports") === b).length}</span>
+                        </button>
+                      ))}
+                      <div className="insp-div" />
+                      <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
+                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => folderRef.current?.click()} title="Folder import runs the full intelligence: bins route to world categories, character folders verify into the Cast"><Upload size={12} /> IMPORT FOLDER</button>
+                      <div className="dim small" style={{ marginTop: 8 }}>Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
+                    </div>
+                    <div className="mwgrid">
+                      {(prod.mediaPool || []).filter((a) => binFilter === "all" || (a.bin || "imports") === binFilter).map((a) => (
+                        <div className={`mwcard ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => insertAssetClip(a)} title="Click: source viewer · Double-click: insert at playhead">
+                          <div className="mwthumb">
+                            {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
+                            {a.url && a.type === "video" && <video src={a.url} muted />}
+                            {(!a.url || !["image", "graphic", "video"].includes(a.type)) && <span className="wext">{{ audio: "♪", model: "3D", text: "TXT", multicam: "MC" }[a.type] || "FILE"}</span>}
+                            {(a.type === "video" || a.type === "audio") && (
+                              <input type="checkbox" className="mcchk mwchk" checked={mcSel.includes(a.id)} onClick={(e) => e.stopPropagation()}
+                                onChange={() => setMcSel((s) => s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id])} />
+                            )}
+                          </div>
+                          <span className="poolname">{a.name}</span>
+                          <div className="btnrow" style={{ gap: 4, marginTop: 3 }}>
+                            <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", multicam: "MC", model: "3D", graphic: "GFX", text: "TXT" }[a.type] || "FILE"}</span>
+                            {["image", "video", "graphic"].includes(a.type) && (
+                              <button className={`chip ${a.designation === "frame" ? "blue" : "dimchip"}`} style={{ border: "none", cursor: "pointer" }}
+                                onClick={() => updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x) x.designation = x.designation === "frame" ? "concept" : "frame"; })}>
+                                {a.designation === "frame" ? "🎞" : "✎"}
+                              </button>
+                            )}
+                            {a.offline && !a.url && <span className="chip red" style={{ fontSize: 7 }}>OFFLINE</span>}
+                          </div>
+                        </div>
+                      ))}
+                      {mcSel.length >= 2 && (
+                        <button className="minibtn full" style={{ gridColumn: "1 / -1" }} onClick={createMulticam}><Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {editWs === "edit" && (
+                  <>
+                    <div className="edit-upper">
+                      {renderPool()}
+                      <div className="dualview">
+                        {renderSource()}
+                        {renderMonitor()}
+                      </div>
+                      {renderInspector()}
+                    </div>
+                    {renderTimeline()}
+                  </>
+                )}
+
+                {editWs === "vfx" && (
+                  <div className="edit-upper">
+                    {renderMonitor()}
+                    {renderInspector()}
+                  </div>
+                )}
+
+                {editWs === "color" && (
+                  <div className="edit-upper">
+                    {renderMonitor()}
+                    <aside className="inspector glass-dark">
+                      <div className="paneltitle"><Palette size={12} /> COLOR</div>
+                      <div className="lbl">PRODUCTION LOOK</div>
+                      <div className="colorlooks">
+                        {LOOKS.map((lk) => (
+                          <button key={lk.id} className={`lookcard mini ${prod.design.lookId === lk.id ? "on" : ""}`}
+                            onClick={() => updateProd((p) => { p.design.lookId = p.design.lookId === lk.id ? null : lk.id; })}>
+                            <div className="lookswatch">{lk.sw.map((s, si) => <i key={si} style={{ background: s }} />)}</div>
+                            <b>{lk.name}</b>
+                          </button>
+                        ))}
+                      </div>
+                      {selClip && selClip.kind !== "voice" ? (() => {
+                        const fx = ensureFx(selClip);
+                        const slider = (lbl, key, min, max, step) => (
+                          <div className="fxrow" key={key}>
+                            <span className="fxlbl">{lbl}</span>
+                            <input type="range" min={min} max={max} step={step} value={fx[key]} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })} />
+                            <span className="fxval">{Number(fx[key]).toFixed(2)}</span>
+                          </div>
+                        );
+                        return (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">CLIP GRADE — {selClip.label}</div>
+                            {slider("BRIGHT", "bri", 0, 2.5, 0.02)}
+                            {slider("CONTRAST", "con", 0, 2.5, 0.02)}
+                            {slider("SATURATE", "sat", 0, 2.5, 0.02)}
+                            {slider("BLUR", "blur", 0, 30, 0.5)}
+                          </>
+                        );
+                      })() : <div className="dim small" style={{ marginTop: 10 }}>Select a clip in the EDIT room to grade it individually.</div>}
+                    </aside>
+                  </div>
+                )}
+
+                {editWs === "audio" && (
+                  <div className="scroll" style={{ padding: 16 }}>
+                    <div className="glass-card">
+                      <div className="lbl">MIXER — track levels stored on this timeline, applied at render/export</div>
+                      {TRACKS.filter((tr) => tr.type === "audio").map((tr) => {
+                        const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
+                        return (
+                          <div className="fxrow" key={tr.id} style={{ marginBottom: 8 }}>
+                            <span className="fxlbl" style={{ width: 100, color: "var(--green)" }}>{tr.name}</span>
+                            <input type="range" min="0" max="1.5" step="0.01" value={ts.vol} onChange={(e) => setTrackSetting(tr.id, { vol: parseFloat(e.target.value) })} />
+                            <span className="fxval">{(ts.vol * 100).toFixed(0)}%</span>
+                            <button className={`minibtn ${ts.mute ? "blue" : ""}`} onClick={() => setTrackSetting(tr.id, { mute: !ts.mute })}>{ts.mute ? "MUTED" : "MUTE"}</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="glass-card">
+                      <div className="lbl">DIALOGUE & AUDIO CLIPS ON THIS TIMELINE</div>
+                      {clips.filter((c) => c.trackId.startsWith("a")).sort((a, b) => a.start - b.start).map((c) => {
+                        const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
+                        return (
+                          <div className="briefrow" key={c.id}>
+                            <div className="briefhead">
+                              <span className="tc" style={{ fontSize: 11 }}>{fmtTc(c.start, vfmt)}</span>
+                              <strong>{c.label}</strong>
+                              {shot?.voice && <CopyBtn text={shot.voice} label="VOICE DIRECTION" small />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {!clips.some((c) => c.trackId.startsWith("a")) && <div className="dim small">No audio clips yet.</div>}
+                    </div>
+                  </div>
+                )}
+
+                {editWs === "deliver" && (
+                  <div className="scroll" style={{ padding: 16 }}>
+                    <div className="glass-card">
+                      <div className="lbl">DELIVER — "{container.title}"</div>
+                      <div className="readtxt">{vfmt.label} · {vfmt.w}×{vfmt.h} · {vfmt.fps}{vfmt.drop ? " DF" : " NDF"} fps · {prod.defaults.aspect} · {clips.length} clips · {fmtTc(seqEnd, vfmt)} runtime</div>
+                      <div className="btnrow" style={{ marginTop: 10 }}>
+                        <button className="cta" onClick={exportEDL}><ListVideo size={13} /> EXPORT EDL (CMX3600)</button>
+                        <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
+                      </div>
+                      <div className="dim small" style={{ marginTop: 10 }}>
+                        The EDL round-trips this cut into Resolve, Premiere, or Avid for finishing. In-app media rendering (writing actual video files) belongs in the codebase render pipeline — the timeline data here is its exact input.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* busy bar */}
+      {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}
+      {notice && <div className="toast">{notice}</div>}
+
+      {/* ───── footer: resolve-style page rail ───── */}
+      <footer className="ftr glass">
+        <div className="ftr-left">
+          <span className="ready">● READY</span>
+          <span>{prod ? `${prod.defaults.format?.w || 1920}×${prod.defaults.format?.h || 1080} · ${prod.defaults.format?.fps || 24}${prod.defaults.format?.drop ? " DF" : ""} FPS · ${prod.defaults.aspect}` : "—"}</span>
+        </div>
+        <div className="rail">
+          {[["productions", "PRODUCTIONS", Layers], ["slate", "SLATE", Clapperboard], ["edit", "EDIT", Film]].map(([id, lab, Ic]) => (
+            <button key={id} className={`raildot ${page === id ? "on" : ""}`} onClick={() => setPage(id)} title={lab}>
+              <Ic size={15} /><span className="raillab">{lab}</span>
+            </button>
+          ))}
+          {page === "edit" && prod && container && (
+            <>
+              <span className="raildiv" />
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
+                <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
+                  <Ic size={13} />
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+        <div className="ftr-right">
+          <span>{storageReady ? "PERSISTED" : storageReady === false ? "SESSION ONLY" : "…"}</span>
+          <span className="ver mono">FABULA α-0.3</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+/* ---------- compositing layer: one active clip on one video track ---------- */
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, videoRef }) {
+  const localRef = useRef(null);
+  const fx = ensureFx(clip);
+  // resolve media (multicam → active angle)
+  let asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
+  let offset = clip.srcIn || 0;
+  if (asset?.type === "multicam") {
+    const ang = asset.angles[clip.angle || 0];
+    offset += ang?.offset || 0;
+    asset = ang ? prod.mediaPool.find((a) => a.id === ang.assetId) : null;
+  }
+  const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
+  const vRef = videoRef || localRef;
+
+  useEffect(() => {
+    const v = vRef.current;
+    if (v && asset?.type === "video") {
+      const t = playhead - clip.start + offset;
+      if (!playing || Math.abs(v.currentTime - t) > 0.25) v.currentTime = Math.max(0, t);
+      if (playing && v.paused) v.play().catch(() => {});
+      if (!playing && !v.paused) v.pause();
+    }
+  }, [playhead, playing, asset?.url, clip.start, offset]);
+
+  // fades
+  const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
+  let fade = 1;
+  if (fx.fadeIn > 0 && tIn < fx.fadeIn) fade = Math.max(0, tIn / fx.fadeIn);
+  if (fx.fadeOut > 0 && tOut < fx.fadeOut) fade = Math.min(fade, Math.max(0, tOut / fx.fadeOut));
+
+  const m = fx.matte;
+  const clipPath = m.t === "rect"
+    ? `inset(${Math.max(0, m.y - m.h / 2)}% ${Math.max(0, 100 - m.x - m.w / 2)}% ${Math.max(0, 100 - m.y - m.h / 2)}% ${Math.max(0, m.x - m.w / 2)}% round ${m.f}px)`
+    : m.t === "ellipse" ? `ellipse(${m.w / 2}% ${m.h / 2}% at ${m.x}% ${m.y}%)` : "none";
+
+  const style = {
+    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+    opacity: fx.op * fade,
+    transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
+    filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})`,
+    mixBlendMode: top ? fx.blend : "normal",
+    clipPath, zIndex: top ? 2 : 1, pointerEvents: "none",
+  };
+
+  return (
+    <div style={style}>
+      {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted />}
+      {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
+      {asset && !asset.url && (
+        <div className="sboard">
+          <div className="sb-stripe gray" />
+          <div className="sb-head"><span className="sb-type">{asset.name}</span><span className="sb-status">OFFLINE — IMPORTED FROM {asset.imported || "NLE"} · RELINK IN INSPECTOR</span></div>
+          <div className="sb-body"><div className="noclip">MEDIA OFFLINE</div></div>
+        </div>
+      )}
+      {!asset && shot && (
+        <div className="sboard">
+          <div className="sb-stripe" />
+          <div className="sb-head">
+            <span className="sb-slug">{shot.slug}</span><span className="sb-type">{shot.type}</span>
+            <span className="sb-status">{shot.status === "ready" ? "PROMPTS READY — AWAITING GENERATION" : "PLANNED"}</span>
+          </div>
+          {shot.frameUrl ? <img src={shot.frameUrl} className="sb-frame" alt="" /> : (
+            <div className="sb-body">
+              <div className="sb-cam">{shot.camera}</div>
+              {shot.lines && <div className="sb-line">"{shot.lines}"</div>}
+              <div className="sb-purpose">{shot.purpose}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- 3D STAGE: flat image → depth-displaced set geometry ---------- */
+function Stage3D({ prod, ping }) {
+  const mountRef = useRef(null);
+  const threeRef = useRef({});
+  const [imgAssetId, setImgAssetId] = useState("");
+  const [depthUrl, setDepthUrl] = useState("");
+  const [depthScale, setDepthScale] = useState(1.6);
+  const [cam, setCam] = useState({ az: 0, el: 8, dist: 11 });
+  const depthFileRef = useRef(null);
+  const imgAsset = prod.mediaPool.find((a) => a.id === imgAssetId);
+  const candidates = prod.mediaPool.filter((a) => (a.type === "image" || a.type === "graphic") && a.url);
+
+  useEffect(() => {
+    if (!mountRef.current || !imgAsset?.url) return;
+    const W = mountRef.current.clientWidth, H = 380;
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(W, H); renderer.setClearColor(0x050505);
+    mountRef.current.appendChild(renderer.domElement);
+    const sceneT = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+    sceneT.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.5); dl.position.set(3, 5, 6); sceneT.add(dl);
+    const loader = new THREE.TextureLoader();
+    const geo = new THREE.PlaneGeometry(16, 9, 160, 90);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const mesh = new THREE.Mesh(geo, mat); sceneT.add(mesh);
+    loader.load(imgAsset.url, (tx) => { mat.map = tx; mat.needsUpdate = true; });
+    // depth map drives displacement; without one, the image's own luminance gives a rough relief
+    loader.load(depthUrl || imgAsset.url, (dx) => { mat.displacementMap = dx; mat.displacementScale = depthScale; mat.needsUpdate = true; });
+    const st = { renderer, camera, mat, drag: null, az: cam.az, el: cam.el, dist: cam.dist, alive: true };
+    threeRef.current = st;
+    const place = () => {
+      const a = (st.az * Math.PI) / 180, e = (st.el * Math.PI) / 180;
+      camera.position.set(st.dist * Math.sin(a) * Math.cos(e), st.dist * Math.sin(e), st.dist * Math.cos(a) * Math.cos(e));
+      camera.lookAt(0, 0, 0);
+    };
+    const loop = () => { if (!st.alive) return; place(); renderer.render(sceneT, camera); requestAnimationFrame(loop); };
+    loop();
+    const el = renderer.domElement;
+    const down = (e) => { st.drag = { x: e.clientX, y: e.clientY, az: st.az, el: st.el }; };
+    const move = (e) => {
+      if (!st.drag) return;
+      st.az = st.drag.az - (e.clientX - st.drag.x) * 0.3;
+      st.el = Math.max(-60, Math.min(75, st.drag.el + (e.clientY - st.drag.y) * 0.25));
+      setCam({ az: Math.round(st.az), el: Math.round(st.el), dist: Math.round(st.dist * 10) / 10 });
+    };
+    const up = () => { st.drag = null; };
+    const wheel = (e) => { e.preventDefault(); st.dist = Math.max(3, Math.min(30, st.dist + e.deltaY * 0.01)); setCam((c) => ({ ...c, dist: Math.round(st.dist * 10) / 10 })); };
+    el.addEventListener("pointerdown", down); window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => {
+      st.alive = false;
+      el.removeEventListener("pointerdown", down); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      el.removeEventListener("wheel", wheel);
+      renderer.dispose(); geo.dispose(); mat.dispose();
+      if (mountRef.current?.contains(el)) mountRef.current.removeChild(el);
+    };
+  }, [imgAsset?.url, depthUrl]);
+
+  useEffect(() => { const st = threeRef.current; if (st.mat) { st.mat.displacementScale = depthScale; st.mat.needsUpdate = true; } }, [depthScale]);
+
+  const camNote = `STAGED CAMERA — set: "${imgAsset?.name || "—"}" | azimuth ${cam.az}deg ${cam.az < 0 ? "(camera left of plate)" : cam.az > 0 ? "(camera right of plate)" : "(plate-centered)"} | elevation ${cam.el}deg ${cam.el > 15 ? "(high angle)" : cam.el < -10 ? "(low angle)" : "(near eye-level)"} | distance ${cam.dist} units ${cam.dist < 7 ? "(close, wide-feeling)" : cam.dist > 16 ? "(long lens feel)" : "(normal)"} | depth relief ${depthScale.toFixed(1)}. Use this spatial relationship when generating the shot.`;
+
+  return (
+    <div className="glass-card">
+      <div className="lbl">3D STAGE — flat set image → orbitable depth geometry. Stage the camera, copy the spatial note into your shot prompts so video/omni models understand the space.</div>
+      <div className="btnrow" style={{ marginBottom: 8 }}>
+        <select className="sel" style={{ maxWidth: 280 }} value={imgAssetId} onChange={(e) => setImgAssetId(e.target.value)}>
+          <option value="">— pick a set / place / environment image —</option>
+          {candidates.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        <button className="minibtn" onClick={() => depthFileRef.current?.click()}><Upload size={11} /> DEPTH MAP</button>
+        <input ref={depthFileRef} type="file" accept="image/*" style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) { setDepthUrl(URL.createObjectURL(f)); ping("Depth map loaded — true geometry"); } e.target.value = ""; }} />
+        <span className="dim small">No depth map? Luminance relief is used. Gaussian-splat reconstruction is the codebase path — this stage exports the same camera language.</span>
+      </div>
+      {imgAsset ? <div ref={mountRef} className="stage3d" /> : <div className="dim center" style={{ padding: 50 }}>Pick an image to raise the set.</div>}
+      <div className="btnrow" style={{ marginTop: 8 }}>
+        <span className="dim small">DEPTH</span>
+        <input type="range" min="0" max="4" step="0.1" value={depthScale} onChange={(e) => setDepthScale(parseFloat(e.target.value))} />
+        <span className="tc" style={{ fontSize: 11 }}>AZ {cam.az}° · EL {cam.el}° · D {cam.dist}</span>
+        <CopyBtn text={camNote} label="⤓ COPY CAMERA NOTE" small />
+      </div>
+    </div>
+  );
+}
+
+/* ---------- attach-media mini component ---------- */
+function AttachMedia({ onAttach }) {
+  const [url, setUrl] = useState("");
+  const ref = useRef(null);
+  return (
+    <div>
+      <div className="btnrow">
+        <input className="in tiny grow" placeholder="paste video/image URL from your service…" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <button className="minibtn" disabled={!url.trim()} onClick={() => { const type = /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) ? "image" : "video"; onAttach(url.trim(), "generated", type); setUrl(""); }}>ATTACH</button>
+      </div>
+      <button className="ghost full" style={{ marginTop: 6 }} onClick={() => ref.current?.click()}><Upload size={11} /> OR UPLOAD FILE (session-only)</button>
+      <input ref={ref} type="file" accept="video/*,image/*" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; const type = f.type.startsWith("video") ? "video" : "image"; onAttach(URL.createObjectURL(f), f.name, type); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+/* ════════════════════════ CSS ════════════════════════ */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
+:root{
+  --org:#f97316; --org-dim:rgba(249,115,22,.14); --blue:#00A3FF; --green:#22c55e; --red:#ef4444;
+  --bg:#050505; --w04:rgba(255,255,255,.04); --w08:rgba(255,255,255,.08); --w40:rgba(255,255,255,.4);
+}
+*{box-sizing:border-box} 
+.studio{height:100vh;display:flex;flex-direction:column;background:var(--bg);color:#e5e5e5;
+  font-family:'Inter',system-ui,sans-serif;overflow:hidden;position:relative}
+.mono{font-family:'JetBrains Mono',monospace}
+.blob{position:absolute;width:42%;height:42%;border-radius:50%;filter:blur(130px);opacity:.13;pointer-events:none;z-index:0}
+.b1{top:-12%;left:-10%;background:var(--org)}
+.b2{bottom:-12%;right:-10%;background:var(--blue)}
+.glass{backdrop-filter:blur(24px);background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.glass-dark{backdrop-filter:blur(28px);background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.07)}
+.glass-card{backdrop-filter:blur(20px);background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;padding:18px;margin-bottom:14px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0a0a0a}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+
+/* header */
+.hdr{height:46px;border-bottom:1px solid;display:flex;align-items:center;gap:18px;padding:0 16px;z-index:30;position:relative}
+.brand{display:flex;align-items:center;gap:9px}
+.brandmark{width:24px;height:24px;flex:none}
+.brand-main{font-weight:900;font-style:italic;letter-spacing:-.045em;font-size:17px;color:#fff;text-transform:uppercase}
+.brand-tag{font-size:8.5px;letter-spacing:.3em;color:var(--w40);font-weight:700;margin-left:8px}
+.hdr-mid{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.hdr-prod{background:var(--org-dim);border:1px solid rgba(249,115,22,.3);color:var(--org);font-weight:800;
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:6px;cursor:pointer}
+.scene-pick{background:rgba(255,255,255,.05);border:1px solid var(--w08);color:#ddd;font-size:11px;padding:5px 8px;border-radius:6px;max-width:340px}
+.hdr-right{display:flex;align-items:center;gap:12px;font-size:9px;letter-spacing:.2em;color:var(--w40);font-weight:700}
+.warn-dot{color:var(--red)}
+
+/* main + scroll */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;z-index:1;position:relative}
+.scroll{overflow-y:auto;height:100%}
+.pad{padding:26px clamp(16px,4vw,46px);max-width:1100px;margin:0 auto;width:100%}
+.mega{font-size:clamp(28px,4.5vw,44px);font-weight:900;font-style:italic;text-transform:uppercase;
+  letter-spacing:-.045em;color:var(--org);margin:0 0 6px}
+.mega.sm{font-size:24px}
+.slash{color:#fff}
+.lede{color:var(--w40);font-weight:500;margin:0 0 22px;max-width:640px;line-height:1.5;font-size:14px}
+.lbl{font-size:9.5px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;color:rgba(249,115,22,.65);margin:0 0 6px}
+.dim{color:var(--w40)} .dim2{color:rgba(255,255,255,.25)} .small{font-size:11px} .center{text-align:center}
+.big-empty{padding:80px 20px;font-size:14px;letter-spacing:.04em}
+.ital{font-style:italic}
+
+/* inputs */
+.in,.ta,.sel{width:100%;background:rgba(0,0,0,.45);border:1px solid var(--w08);color:#eee;border-radius:8px;
+  padding:9px 11px;font-size:13.5px;font-family:inherit}
+.in.big{font-size:16px;font-weight:700}
+.in.tiny{padding:6px 9px;font-size:12px}
+.in.desc{background:transparent;border:none;border-bottom:1px solid var(--w08);border-radius:0;color:var(--w40);padding-left:0;margin-bottom:16px}
+.ta{resize:vertical;line-height:1.5}
+.ta.mono{font-family:'JetBrains Mono',monospace;font-size:12.5px}
+.ta.dlg{border-left:3px solid var(--org);margin:8px 0}
+.in:focus,.ta:focus,.sel:focus{outline:none;border-color:rgba(249,115,22,.55)}
+.grow{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+
+/* buttons */
+.cta{display:inline-flex;align-items:center;gap:7px;background:var(--org);color:#000;font-weight:900;
+  letter-spacing:.1em;text-transform:uppercase;font-size:12px;border:none;border-radius:8px;padding:11px 18px;cursor:pointer}
+.cta.red{background:var(--red);color:#fff}
+.cta.full{width:100%;justify-content:center;padding:14px}
+.cta.sm{padding:9px 12px;font-size:10.5px}
+.cta:disabled{opacity:.4;cursor:default}
+.cta:hover:not(:disabled){filter:brightness(1.1)}
+.minibtn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:1px solid var(--w08);
+  color:#ddd;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:7px 11px;border-radius:6px;cursor:pointer}
+.minibtn:hover{background:rgba(255,255,255,.12)}
+.minibtn.blue{border-color:rgba(0,163,255,.4);color:var(--blue)}
+.minibtn.full{width:100%;justify-content:center}
+.minibtn:disabled{opacity:.4;cursor:default}
+.ghost{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--w08);color:var(--w40);
+  font-size:10px;font-weight:700;letter-spacing:.1em;padding:6px 10px;border-radius:6px;cursor:pointer;text-transform:uppercase}
+.ghost:hover{color:#fff;border-color:rgba(255,255,255,.25)}
+.ghost.danger:hover{color:var(--red);border-color:rgba(239,68,68,.5)}
+.ghost.full{width:100%;justify-content:center}
+.btnrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.seg{display:flex;gap:4px;background:rgba(0,0,0,.5);border:1px solid var(--w08);border-radius:8px;padding:3px}
+.seg.wide{width:100%}
+.seg-btn{flex:1;background:none;border:none;color:var(--w40);font-weight:800;font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;padding:9px 14px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.seg-btn.on{background:var(--org);color:#000}
+.seg-btn.red.on{background:var(--red);color:#fff}
+.chip{font-size:8.5px;font-weight:900;letter-spacing:.16em;padding:3px 8px;border-radius:4px;text-transform:uppercase;white-space:nowrap}
+.chip.amb{background:var(--org-dim);color:var(--org)}
+.chip.red{background:rgba(239,68,68,.15);color:var(--red)}
+.chip.green{background:rgba(34,197,94,.15);color:var(--green)}
+.chip.blue{background:rgba(0,163,255,.15);color:var(--blue)}
+.chip.dimchip{background:var(--w04);color:var(--w40)}
+.err{background:rgba(239,68,68,.92);color:#fff;padding:10px 16px;font-size:12.5px;letter-spacing:.03em;cursor:pointer;
+  display:flex;justify-content:space-between;z-index:40}
+.dismiss{opacity:.7}
+
+/* productions */
+.newprod{margin-bottom:22px}
+.np-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.np-row .in{flex:2;min-width:200px}
+.prodrow{display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .2s}
+.prodrow:hover{border-color:rgba(249,115,22,.45)}
+.prodicon{width:42px;height:42px;border-radius:10px;background:var(--org-dim);color:var(--org);display:flex;align-items:center;justify-content:center}
+.prodmain{flex:1}
+.prodtitle{font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:-.02em;font-size:17px}
+.prodmeta{font-size:9.5px;letter-spacing:.18em;color:var(--w40);font-weight:700;margin-top:2px}
+.backlink{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--w40);
+  font-size:10px;font-weight:800;letter-spacing:.18em;cursor:pointer;margin-bottom:8px;text-transform:uppercase}
+.backlink:hover{color:var(--org)}
+.ptabs{display:flex;gap:6px;margin-bottom:18px}
+.ptab{display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--w08);color:var(--w40);
+  font-size:10px;font-weight:900;letter-spacing:.16em;padding:8px 16px;border-radius:8px;cursor:pointer;text-transform:uppercase}
+.ptab.on{background:var(--org);color:#000;border-color:var(--org)}
+.actcard{padding:14px}
+.acthead{font-weight:900;font-style:italic;letter-spacing:.04em;color:#fff;font-size:13px;margin-bottom:8px;text-transform:uppercase}
+.scenerow{display:flex;align-items:center;gap:10px;padding:8px 6px;border-top:1px solid var(--w04);flex-wrap:wrap}
+.scenetitle{background:transparent;border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;
+  font-size:12.5px;width:150px}
+.scenetitle:focus{outline:1px solid rgba(249,115,22,.4);border-radius:4px}
+.addscene{margin-top:8px}
+.castcard{padding:16px}
+.castrow1{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.castname{flex:1;background:transparent;border:none;color:var(--org);font-weight:900;font-style:italic;
+  text-transform:uppercase;font-size:16px;letter-spacing:-.02em}
+.castname:focus{outline:none;border-bottom:1px solid var(--org)}
+.evid{font-size:9px;letter-spacing:.12em;color:var(--green);font-weight:800}
+
+/* slate */
+.slate-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.stepper{display:flex;gap:4px}
+.stepchip{background:none;border:1px solid var(--w08);color:var(--w40);font-size:10px;font-weight:900;
+  letter-spacing:.14em;padding:7px 14px;cursor:pointer;border-radius:6px}
+.stepchip.on{background:#fff;color:#000;border-color:#fff}
+.stepchip:disabled{opacity:.35;cursor:default}
+.readtxt{font-size:14.5px;line-height:1.55;margin-bottom:12px}
+.suggest{border-left:3px solid var(--green);background:var(--w04);padding:8px 12px;margin:6px 0;font-size:13px;border-radius:0 6px 6px 0}
+.lockrow{border:1px dashed var(--w08);border-radius:8px;padding:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.lockname{font-weight:900;letter-spacing:.06em;color:#fff;text-transform:uppercase;font-size:12px;display:flex;justify-content:space-between}
+.shotcard{padding:14px;position:relative}
+.shothead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.shotslug{font-family:'JetBrains Mono',monospace;font-weight:700;background:#000;border:1px solid var(--w08);
+  color:var(--org);padding:4px 10px;border-radius:6px;font-size:13px}
+.shottype{flex:1;background:transparent;border:none;color:#fff;font-weight:800;letter-spacing:.06em;font-size:13px;text-transform:uppercase}
+.shottype:focus{outline:none}
+.pblock{margin-top:10px}
+.pbhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ptag{font-size:8.5px;font-weight:900;letter-spacing:.2em;color:#000;background:var(--org);padding:3px 9px;border-radius:4px}
+.copybtn{background:#000;color:#fff;border:1px solid var(--w08);padding:5px 12px;font-size:9px;font-weight:800;
+  letter-spacing:.14em;cursor:pointer;border-radius:5px}
+.copybtn:hover{border-color:var(--org);color:var(--org)}
+.copybtn.sm{padding:4px 9px}
+
+/* edit page */
+.editwrap{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px;gap:10px}
+.edit-upper{flex:1;display:flex;gap:10px;min-height:0}
+.pool{width:230px;border-radius:12px;padding:10px;display:flex;flex-direction:column;overflow:hidden}
+.paneltitle{font-size:9px;font-weight:900;letter-spacing:.22em;color:var(--w40);display:flex;align-items:center;gap:6px;
+  text-transform:uppercase;margin-bottom:8px}
+.poollist{flex:1;overflow-y:auto;margin-top:8px}
+.poolitem{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.poolitem:hover{background:var(--w04);border-color:var(--w08)}
+.pooltype{font-size:7.5px;font-weight:900;letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:var(--w08);color:var(--w40)}
+.pooltype.video{color:var(--blue)} .pooltype.audio{color:var(--green)} .pooltype.image{color:var(--org)}
+.poolname{flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.genstar{color:var(--org)}
+.monitor{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:0;position:relative;border:1px solid var(--w08);border-radius:10px;background:rgba(0,0,0,.35);backdrop-filter:blur(12px);padding:30px 10px 10px}
+.screen{width:min(100%,760px);max-height:100%;background:#000;border:1px solid var(--w08);border-radius:10px;
+  position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.mvid{width:100%;height:100%;object-fit:contain}
+.noclip{font-size:10px;letter-spacing:.35em;color:rgba(255,255,255,.18);font-weight:800}
+.overlay-slug{position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;
+  background:rgba(0,0,0,.6);border:1px solid var(--w08);color:var(--org);padding:2px 8px;border-radius:4px}
+.sboard{position:absolute;inset:0;display:flex;flex-direction:column;background:linear-gradient(160deg,#0c0c0c,#161616)}
+.sb-stripe{height:9px;background:repeating-linear-gradient(135deg,var(--org) 0 14px,#000 14px 28px);opacity:.9}
+.sb-stripe.gray{background:repeating-linear-gradient(135deg,#555 0 14px,#000 14px 28px)}
+.fpssel{width:84px;padding:6px 6px;font-size:10px}
+.sb-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--w08)}
+.sb-slug{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--org);font-size:15px}
+.sb-type{font-weight:800;letter-spacing:.08em;font-size:11px;text-transform:uppercase;color:#fff}
+.sb-status{margin-left:auto;font-size:8px;letter-spacing:.18em;color:var(--w40);font-weight:800}
+.sb-frame{flex:1;object-fit:contain;min-height:0}
+.sb-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:18px 26px;gap:8px}
+.sb-cam{font-size:10px;letter-spacing:.16em;color:var(--blue);font-weight:800;text-transform:uppercase}
+.sb-line{font-family:'JetBrains Mono',monospace;font-size:clamp(12px,1.8vw,17px);line-height:1.5;color:#fff;
+  border-left:3px solid var(--org);padding-left:14px}
+.sb-purpose{font-size:11px;color:var(--w40);font-style:italic}
+.transport{display:flex;align-items:center;gap:14px}
+.tc{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--org)}
+.tbtns{display:flex;gap:6px}
+.tbtn{width:34px;height:34px;border-radius:50%;background:var(--w04);border:1px solid var(--w08);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tbtn.play{background:var(--org);color:#000;border-color:var(--org)}
+.tbtn:hover{filter:brightness(1.2)}
+.inspector{width:262px;border-radius:12px;padding:10px;overflow-y:auto}
+.insp-body{display:flex;flex-direction:column;gap:7px}
+.insp-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.insp-row .lbl{margin:0}
+.insp-val{font-size:11.5px;font-weight:700;text-align:right}
+.insp-div{height:1px;background:var(--w08);margin:6px 0}
+.insp-dlg{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.5;border-left:3px solid var(--org);
+  padding:6px 10px;background:var(--w04);border-radius:0 6px 6px 0}
+.insp-copy{display:flex;align-items:center;justify-content:space-between;background:var(--w04);border:1px solid var(--w08);
+  border-radius:6px;padding:6px 9px;margin-top:5px;font-size:9.5px;font-weight:900;letter-spacing:.18em;color:var(--w40)}
+
+/* timeline */
+.tlwrap{height:252px;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.tl-tools{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--w08)}
+.zoomer{display:flex;align-items:center;gap:8px}
+.zoomer input{width:110px;accent-color:#f97316}
+.tl-scroll{flex:1;overflow:auto;position:relative}
+.tl-inner{position:relative;min-height:100%}
+.ruler{display:flex;height:22px;border-bottom:1px solid var(--w08);position:sticky;top:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:6}
+.trackhead{width:128px;min-width:128px;border-right:1px solid var(--w08);display:flex;align-items:center;gap:6px;
+  padding:0 10px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;position:sticky;left:0;
+  background:rgba(8,8,8,.92);z-index:5}
+.trackhead.video{color:var(--blue)} .trackhead.audio{color:var(--green)}
+.rh{justify-content:center}
+.phdot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bl 1.2s infinite}
+.ruler-track{flex:1;position:relative;cursor:crosshair}
+.tick{position:absolute;bottom:1px;font-family:'JetBrains Mono',monospace;font-size:7.5px;color:rgba(255,255,255,.25);
+  border-left:1px solid rgba(255,255,255,.1);padding-left:3px;height:9px;line-height:9px}
+.phline{position:absolute;top:0;bottom:0;width:1px;background:var(--red);box-shadow:0 0 8px rgba(239,68,68,.6);z-index:7;pointer-events:none}
+.track{display:flex;height:50px;border-bottom:1px solid rgba(255,255,255,.05)}
+.track.primary .trackbody{background:rgba(255,255,255,.025)}
+.trackbody{flex:1;position:relative;background-image:linear-gradient(to right,rgba(255,255,255,.03) 1px,transparent 1px);background-size:46px 100%}
+.clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;
+  display:flex;flex-direction:column;justify-content:center;padding:0 8px;border:1px solid}
+.clip.script{background:rgba(249,115,22,.13);border-color:rgba(249,115,22,.45);border-style:dashed}
+.clip.script.rdy{background:rgba(249,115,22,.22);border-style:solid}
+.clip.media{background:rgba(0,163,255,.16);border-color:rgba(0,163,255,.45)}
+.clip.voice{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)}
+.clip.sel{box-shadow:0 0 0 1.5px #fff, 0 0 14px rgba(249,115,22,.4);z-index:4}
+.cliplabel{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;position:relative;z-index:2}
+.clipframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:1}
+.wave{display:flex;align-items:flex-end;gap:1px;height:12px;margin-top:2px;opacity:.5}
+.wave i{flex:1;background:var(--green);border-radius:1px}
+.trimR{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
+.trimR:hover{background:rgba(255,255,255,.4)}
+
+/* busy / toast / footer */
+.busybar{position:fixed;bottom:44px;left:0;right:0;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);
+  border-top:2px solid var(--org);padding:9px 18px;font-size:11px;letter-spacing:.12em;font-weight:800;
+  text-transform:uppercase;display:flex;align-items:center;gap:10px;z-index:60}
+.blink{width:9px;height:9px;border-radius:50%;background:var(--red);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.2}}
+.toast{position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:var(--org);color:#000;
+  font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding:9px 18px;border-radius:7px;z-index:70;
+  box-shadow:0 10px 40px rgba(249,115,22,.35)}
+/* ───── splash: the mark performs the philosophy ───── */
+.splash{position:fixed;inset:0;background:#050505;z-index:200;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:opacity .7s ease}
+.splash.out{opacity:0;pointer-events:none}
+.splash::before{content:'';position:absolute;width:46%;height:46%;border-radius:50%;background:var(--org);
+  filter:blur(160px);opacity:0;animation:sp-glow 1.6s ease 2.6s forwards}
+@keyframes sp-glow{to{opacity:.10}}
+.sp-stage{display:flex;flex-direction:column;align-items:center;position:relative;z-index:1}
+.sp-mark{width:clamp(120px,22vw,190px);height:auto;overflow:visible}
+/* 1 — the world draws itself */
+.sp-circle{stroke-dasharray:100;stroke-dashoffset:100;animation:sp-draw 1.1s cubic-bezier(.6,0,.2,1) .25s forwards}
+/* 2 — the telling unspools as one strip */
+.sp-strip{stroke-dasharray:100;stroke-dashoffset:100;
+  animation:sp-draw .55s cubic-bezier(.4,0,.2,1) 1.45s forwards, sp-vanish .01s linear 2.35s forwards}
+@keyframes sp-draw{to{stroke-dashoffset:0}}
+@keyframes sp-vanish{to{opacity:0}}
+/* 3 — the cut: clips snap apart */
+.sp-clip1{opacity:0;animation:sp-appear .01s linear 2.35s forwards}
+.sp-clip2{opacity:0;transform:translateX(-9px);
+  animation:sp-appear .01s linear 2.35s forwards, sp-snap .42s cubic-bezier(.2,1.4,.4,1) 2.35s forwards}
+@keyframes sp-appear{to{opacity:1}}
+@keyframes sp-snap{to{transform:translateX(0)}}
+/* 4 — wordmark, then the launch line fades in */
+.sp-word{font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:-.045em;color:#fff;
+  font-size:clamp(34px,6vw,56px);margin-top:18px;opacity:0;transform:translateY(10px);
+  animation:sp-rise .7s cubic-bezier(.2,.8,.2,1) 2.9s forwards}
+.sp-tag{font-size:clamp(10px,1.4vw,13px);font-weight:800;letter-spacing:.42em;color:var(--org);
+  margin-top:14px;opacity:0;animation:sp-fadein 1s ease 3.6s forwards}
+@keyframes sp-rise{to{opacity:1;transform:translateY(0)}}
+@keyframes sp-fadein{to{opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .sp-circle,.sp-strip{animation-duration:.01s;animation-delay:0s}
+  .sp-clip1,.sp-clip2,.sp-word,.sp-tag{animation-duration:.01s;animation-delay:.1s}
+}
+
+/* world categories */
+.wcats{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.catcount{opacity:.55;font-weight:700;margin-left:4px}
+.witem{display:flex;gap:14px;padding:14px}
+.wthumb{width:86px;height:86px;flex:none;border-radius:9px;overflow:hidden;background:rgba(0,0,0,.5);
+  border:1px solid var(--w08);display:flex;align-items:center;justify-content:center}
+.wthumb img,.wthumb video{width:100%;height:100%;object-fit:cover}
+.wext{font-size:13px;font-weight:900;letter-spacing:.1em;color:var(--w40)}
+.wbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.wrow1{display:flex;align-items:center;gap:10px}
+.wname{flex:1;background:transparent;border:none;color:#fff;font-weight:800;font-size:14px;letter-spacing:.02em;min-width:80px}
+.wname:focus{outline:none;border-bottom:1px solid var(--org)}
+.wtags{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.wtag{font-size:9.5px;font-weight:800;letter-spacing:.06em;background:var(--org-dim);color:var(--org);
+  padding:3px 9px;border-radius:99px;cursor:pointer}
+.wtag:hover{background:rgba(239,68,68,.18);color:var(--red)}
+.wtag-in{background:transparent;border:1px dashed var(--w08);border-radius:99px;color:#ccc;font-size:9.5px;
+  padding:3px 9px;width:58px}
+.wtag-in:focus{outline:none;border-color:var(--org)}
+
+/* format panel */
+.fmtpanel{position:absolute;top:30px;right:0;width:330px;border-radius:12px;padding:14px;z-index:50;box-shadow:0 24px 70px rgba(0,0,0,.7)}
+.fmtgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.fmtbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:rgba(255,255,255,.05);
+  border:1px solid var(--w08);border-radius:7px;padding:7px 9px;cursor:pointer;color:#ddd}
+.fmtbtn b{font-size:10px;font-weight:900;letter-spacing:.08em}
+.fmtbtn span{font-size:8.5px;color:var(--w40)}
+.fmtbtn.on{background:var(--org);color:#000;border-color:var(--org)}
+.fmtbtn.on span{color:rgba(0,0,0,.6)}
+.fmtbtn.sm{padding:5px 8px;align-items:center}
+.fmtbtn:disabled{opacity:.4;cursor:default}
+.fmtfps{display:flex;gap:4px;flex-wrap:wrap}
+.dfrow{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:800;letter-spacing:.1em;color:#ccc;margin-top:10px;cursor:pointer}
+.dfrow.off{opacity:.4}
+.dfrow input{accent-color:#f97316}
+
+/* multicam */
+.mcchk{accent-color:#a855f7;width:12px;height:12px;flex:none}
+.pooltype.multicam{color:#a855f7}
+.clip.multicam{background:rgba(168,85,247,.16);border-color:rgba(168,85,247,.5)}
+.anglegrid{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:14px;z-index:10}
+.angletile{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:3px;
+  background:rgba(255,255,255,.06);border:1px solid var(--w08);border-radius:9px;padding:12px;cursor:pointer;color:#eee;min-height:84px}
+.angletile.on{border-color:#a855f7;box-shadow:0 0 16px rgba(168,85,247,.4)}
+.anglenum{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:#a855f7}
+.anglename{font-size:10px;font-weight:700;letter-spacing:.04em;text-align:left;word-break:break-all}
+.anglelive{font-size:8px;letter-spacing:.2em;color:var(--red);font-weight:900}
+.mcrow{display:flex;align-items:center;gap:6px}
+.mcangle{width:24px;height:24px;flex:none;border-radius:6px;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.4);
+  color:#a855f7;font-weight:900;font-size:11px;cursor:pointer}
+.mcangle.on{background:#a855f7;color:#000}
+.mcoff{width:58px;flex:none}
+.mctc{width:86px;flex:none;font-family:'JetBrains Mono',monospace;font-size:10px}
+
+/* character media */
+.cmedia{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px}
+.cmcard{background:rgba(0,0,0,.4);border:1px solid var(--w08);border-radius:9px;padding:7px}
+.cmcard.locked{border-color:rgba(0,163,255,.5)}
+.cmcard.rejected{border-color:rgba(239,68,68,.5);opacity:.75}
+.cmthumb{position:relative;height:92px;border-radius:6px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;margin-bottom:5px}
+.cmthumb img,.cmthumb video{width:100%;height:100%;object-fit:cover}
+.vbadge{position:absolute;top:4px;right:4px;font-size:7.5px;font-weight:900;letter-spacing:.08em;padding:2px 6px;border-radius:4px}
+.vbadge.ok{background:var(--green);color:#000}
+.vbadge.bad{background:var(--red);color:#fff}
+.sel.xs{padding:4px 6px;font-size:9.5px}
+.cmadd{align-self:start;height:38px}
+
+/* design briefs */
+.briefrow{border-top:1px solid var(--w04);padding:9px 0}
+.briefhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.briefhead strong{font-size:12.5px;letter-spacing:.04em}
+.safety{font-size:10px;font-weight:800;color:var(--red);letter-spacing:.08em;margin-top:4px}
+.briefdoc{font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.55;white-space:pre-wrap;
+  background:rgba(0,0,0,.4);border-left:3px solid var(--org);padding:10px 12px;border-radius:0 7px 7px 0;margin:8px 0 0;color:#ddd}
+
+/* look gallery + palette */
+.lookgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.lookcard{display:flex;flex-direction:column;align-items:flex-start;gap:5px;background:rgba(0,0,0,.4);
+  border:1px solid var(--w08);border-radius:10px;padding:10px;cursor:pointer;color:#ddd;text-align:left}
+.lookcard.on{border-color:var(--org);box-shadow:0 0 16px rgba(249,115,22,.35)}
+.lookcard b{font-size:10px;font-weight:900;letter-spacing:.12em}
+.lookcard span{font-size:9px;color:var(--w40);line-height:1.4}
+.lookswatch{display:flex;width:100%;height:22px;border-radius:5px;overflow:hidden}
+.lookswatch i{flex:1}
+.palrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.palpick{width:38px;height:30px;border:none;background:none;cursor:pointer;padding:0}
+
+/* 3D stage */
+.stage3d{width:100%;height:380px;border-radius:10px;overflow:hidden;border:1px solid var(--w08);cursor:grab}
+.stage3d:active{cursor:grabbing}
+
+/* fx panel */
+.fxrow{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.fxlbl{font-size:8px;font-weight:900;letter-spacing:.12em;color:var(--w40);width:52px;flex:none}
+.fxrow input[type=range]{flex:1;accent-color:#f97316;min-width:0}
+.fxval{font-family:'JetBrains Mono',monospace;font-size:9px;color:#ccc;width:32px;text-align:right}
+.gennote{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+
+/* dual canvas — source + program viewers */
+.dualview{flex:1;display:grid;grid-template-columns:1fr 1.2fr;gap:8px;min-width:0;min-height:0}
+.viewer{display:flex;flex-direction:column;border:1px solid var(--w08);border-radius:10px;overflow:hidden;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(12px);position:relative;min-height:0}
+.viewer-tag{position:absolute;top:8px;left:8px;z-index:8;font-family:'JetBrains Mono',monospace;font-size:9px;
+  letter-spacing:.04em;background:rgba(0,0,0,.65);border:1px solid var(--w08);color:var(--w40);
+  padding:3px 8px;border-radius:5px;text-transform:uppercase;max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewer-tag.prog{color:var(--org);border-color:rgba(249,115,22,.3)}
+.viewer-body{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;
+  background:radial-gradient(circle at center,#161616,#000)}
+.mvid.framed{max-width:92%;max-height:88%;width:auto;height:auto;border:1px solid var(--w08);box-shadow:0 14px 50px rgba(0,0,0,.7)}
+.srcaudio{display:flex;flex-direction:column;align-items:center;gap:12px;color:rgba(34,197,94,.5)}
+.srcaudio span{font-size:9px;font-weight:900;letter-spacing:.3em}
+.src-empty{width:70%;aspect-ratio:16/9;background:rgba(0,0,0,.4);border:1px solid var(--w08);
+  display:flex;align-items:center;justify-content:center;color:#222;box-shadow:0 14px 50px rgba(0,0,0,.6)}
+.viewer-bar{height:38px;background:rgba(0,0,0,.55);border-top:1px solid var(--w08);display:flex;
+  align-items:center;justify-content:space-between;padding:0 10px;gap:8px}
+.tc.sm{font-size:11px}
+.tbtn.sm{width:27px;height:27px}
+.poolitem.previewing,.mwcard.previewing{background:var(--org-dim);border-color:rgba(249,115,22,.4)}
+.monitor .viewer-tag.prog{position:absolute}
+.overlay-slug{left:auto;right:8px}
+
+/* media workspace */
+.mediaws{flex:1;display:flex;border-radius:12px;overflow:hidden;min-height:0}
+.mwside{width:210px;border-right:1px solid var(--w08);padding:12px;display:flex;flex-direction:column;overflow-y:auto}
+.binbtn{display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:var(--w40);
+  font-size:10px;font-weight:900;letter-spacing:.12em;padding:7px 9px;border-radius:6px;cursor:pointer;text-align:left}
+.binbtn:hover{color:#fff;background:var(--w04)}
+.binbtn.on{background:var(--org);color:#000}
+.mwgrid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:14px;
+  overflow-y:auto;align-content:start}
+.mwcard{background:rgba(0,0,0,.4);border:1px solid var(--w08);border-radius:9px;padding:7px;cursor:pointer}
+.mwcard:hover{border-color:rgba(249,115,22,.5)}
+.mwthumb{position:relative;height:80px;border-radius:6px;overflow:hidden;background:#000;display:flex;
+  align-items:center;justify-content:center;margin-bottom:5px}
+.mwthumb img,.mwthumb video{width:100%;height:100%;object-fit:cover}
+.mwchk{position:absolute;top:5px;left:5px}
+.lookcard.mini{padding:6px;gap:3px}
+.lookcard.mini b{font-size:8px}
+.colorlooks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.raildiv{width:1px;height:20px;background:var(--w08);margin:0 6px;align-self:center}
+.raildot.ws{padding:6px 8px}
+
+/* engines */
+.engrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid var(--w04);padding:9px 0}
+
+.ftr{height:42px;border-top:1px solid;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:30;position:relative}
+.ftr-left,.ftr-right{display:flex;gap:14px;font-size:9px;letter-spacing:.16em;color:var(--w40);font-weight:800;align-items:center}
+.ready{color:var(--org)}
+.rail{display:flex;gap:4px}
+.raildot{display:flex;align-items:center;gap:7px;background:none;border:none;color:rgba(255,255,255,.35);
+  padding:6px 13px;border-radius:7px;cursor:pointer;transition:all .25s}
+.raildot:hover{color:#fff}
+.raildot.on{background:var(--org);color:#000;box-shadow:0 0 18px rgba(249,115,22,.45)}
+.raillab{font-size:9px;font-weight:900;letter-spacing:.18em}
+@media(max-width:900px){.raillab{display:none}.pool{width:170px}.inspector{width:210px}}
+`;

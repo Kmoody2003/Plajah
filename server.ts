@@ -1782,6 +1782,39 @@ async function startServer() {
     return broadcastToDecentralizedWeb;
   };
 
+  // ── Anthropic (Claude) proxy for FABULA ─────────────────────────────────────
+  // FABULA is Claude-powered; this keeps the API key server-side. Accepts the
+  // standard Messages-API body and forwards it. Logged-in + rate-limited.
+  app.post('/api/ai/anthropic', apiLimiter, authMiddleware, express.json({ limit: '4mb' }), async (req: any, res) => {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    const { model, max_tokens, system, messages } = req.body as {
+      model?: string; max_tokens?: number; system?: string; messages?: unknown;
+    };
+    if (!Array.isArray(messages) || !messages.length) {
+      return res.status(400).json({ error: 'messages[] required' });
+    }
+    // Constrain to Claude models and a sane token ceiling to prevent abuse.
+    const safeModel = typeof model === 'string' && /^claude-/.test(model) ? model : 'claude-sonnet-4-20250514';
+    const safeMax = Math.min(Math.max(Number(max_tokens) || 1000, 1), 4096);
+    try {
+      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({ model: safeModel, max_tokens: safeMax, ...(system ? { system } : {}), messages }),
+      });
+      const data = await upstream.json();
+      res.status(upstream.status).json(data);
+    } catch (err: any) {
+      console.error('[AI] Anthropic proxy failed:', err?.message || err);
+      res.status(502).json({ error: 'Anthropic request failed' });
+    }
+  });
+
   // ── Manager Suite: publish due scheduled posts (cron) ───────────────────────
   // Robust, browser-independent publisher. A scheduler (Cloud Scheduler, cron,
   // or any uptime pinger) hits this every minute:

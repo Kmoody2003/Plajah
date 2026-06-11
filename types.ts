@@ -1803,7 +1803,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Script Writing Studio — film, TV, stage
   | 'SCRIPT_STUDIO'
   // Plajah Studio — Hootsuite/Buffer-class publishing & scheduling suite
-  | 'PLAJAH_STUDIO';
+  | 'PLAJAH_STUDIO'
+  // FABULA — story-aware video editor (Productions / Slate / Edit)
+  | 'FABULA';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 
