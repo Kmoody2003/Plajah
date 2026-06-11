@@ -113,9 +113,16 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [currentChapterIndex, setCurrentChapterIndex] = useState(savedPos.chapter);
   const [showOpeningScene, setShowOpeningScene] = useState(true);
 
-  // Unmount guard — prevents setState after the component is torn down
+  // Unmount guard — prevents setState after the component is torn down.
+  // IMPORTANT: the effect body must re-set the flag to true. React 18
+  // StrictMode mounts → runs cleanup (flag=false) → re-runs effects; without
+  // the re-set the flag stays false forever, which froze the opening scene
+  // and silently skipped all content loading in dev.
   const mountedRef = useRef(true);
-  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const getThemeStyles = () => {
     switch (theme) {

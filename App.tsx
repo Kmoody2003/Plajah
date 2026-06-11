@@ -2670,13 +2670,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'BOOK_READER' && selectedBook && (
-              <BookReader
-                book={selectedBook}
-                onBack={() => { setSelectedBook(null); setView('BOOKS'); }}
-                currentUser={user}
-                onVisitUser={handleVisitUser}
-                onOpenAudioStudio={() => setView('AUDIO_BOOK_STUDIO')}
-              />
+              // ErrorBoundary + Suspense: if the reader chunk or its deps fail
+              // to load (network hiccup, disk-full dev server, stale SW), the
+              // user gets a visible fallback/retry instead of a blank screen.
+              <ErrorBoundary>
+                <Suspense fallback={
+                  <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center gap-4">
+                    <div className="w-10 h-10 border-2 border-[--small-orange]/20 border-t-[--small-orange] rounded-full animate-spin" />
+                    <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">Opening your book…</p>
+                  </div>
+                }>
+                  <BookReader
+                    book={selectedBook}
+                    onBack={() => { setSelectedBook(null); setView('BOOKS'); }}
+                    currentUser={user}
+                    onVisitUser={handleVisitUser}
+                    onOpenAudioStudio={() => setView('AUDIO_BOOK_STUDIO')}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}

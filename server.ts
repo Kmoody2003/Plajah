@@ -300,7 +300,11 @@ function checkUrlBasics(parsed: URL): URL {
 
 function validateProxyUrl(rawUrl: string): URL {
   let parsed: URL;
-  try { parsed = new URL(decodeURIComponent(rawUrl)); } catch { throw new Error('Invalid URL'); }
+  // Do NOT decodeURIComponent here: Express already decoded the query param.
+  // Decoding again corrupts URLs that legitimately contain encoded characters —
+  // e.g. Firebase Storage object paths (`books%2Fclassics%2F…`) turned into
+  // literal slashes, which made Storage return 400 for every proxied book.
+  try { parsed = new URL(rawUrl); } catch { throw new Error('Invalid URL'); }
   return checkUrlBasics(parsed);
 }
 
@@ -645,9 +649,15 @@ async function startServer() {
     ? ['https://plajah.com', 'https://www.plajah.com']
     : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
+  // In dev, accept any localhost port — ES module scripts always send an
+  // Origin header, so a dev server on a non-allowlisted port (preview tools,
+  // PORT overrides) would otherwise 500 on every module request.
+  const isDevLocalOrigin = (origin: string) =>
+    !isProd && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin || allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) return callback(null, true);
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
