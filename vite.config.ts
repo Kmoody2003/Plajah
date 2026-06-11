@@ -89,7 +89,24 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
-        }
-      }
+        },
+        // Force a single @firebase/app instance. Without this, Vite can
+        // pre-bundle firebase/app-check into a separate chunk carrying its own
+        // @firebase/app copy, so App Check registers into a different component
+        // container than initializeApp() used → "Component app-check has not
+        // been registered yet".
+        dedupe: ['firebase', '@firebase/app', '@firebase/app-check'],
+      },
+      optimizeDeps: {
+        // Pre-bundle App Check alongside the other firebase modules so they
+        // share one optimized firebase/app dependency.
+        include: [
+          'firebase/app',
+          'firebase/app-check',
+          'firebase/auth',
+          'firebase/firestore',
+          'firebase/storage',
+        ],
+      },
     };
 });
