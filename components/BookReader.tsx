@@ -76,6 +76,41 @@ const formatReadableText = (value: string) => {
     .join('\n\n');
 };
 
+interface ParsedChapter { title: string; pages: string[][] }
+
+// Split a formatted TXT book into chapters and paginate each one.
+// Falls back to a single chapter when no headings are found.
+const parseChaptersFromText = (fullText: string): ParsedChapter[] => {
+  const PAGE_PARAS = 45;
+  const CHAPTER_RE = /^((?:CHAPTER|Chapter|PART|Part|BOOK|Book|VOLUME|Volume|ACT|Act|SECTION|Section)\s+(?:\d+|[IVXLCDM]+)(?:[.:—\s][^\n]*)?)\s*$/mg;
+
+  const parts = fullText.split(CHAPTER_RE);
+  // parts = [preamble, heading, body, heading, body, ...]
+
+  const raw: Array<{ title: string; body: string }> = [];
+
+  if (parts[0].trim().length > 300) {
+    raw.push({ title: 'Preface', body: parts[0].trim() });
+  }
+
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    raw.push({ title: parts[i].replace(/\s+/g, ' ').trim(), body: (parts[i + 1] || '').trim() });
+  }
+
+  if (raw.length === 0) {
+    raw.push({ title: 'Complete Work', body: fullText });
+  }
+
+  return raw.map(ch => {
+    const paras = ch.body.split('\n\n').filter(p => p.trim().length > 5);
+    const pages: string[][] = [];
+    for (let i = 0; i < Math.max(1, paras.length); i += PAGE_PARAS) {
+      pages.push(paras.slice(i, i + PAGE_PARAS));
+    }
+    return { title: ch.title, pages };
+  });
+};
+
 interface BookmarkEntry {
   id: string;
   chapterIndex: number;
@@ -227,6 +262,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [viewMode, setViewMode] = useState<'SINGLE' | 'DOUBLE'>('SINGLE');
+  // Parsed chapters/pages for TXT books — populated after loadFullText completes
+  const [parsedChapters, setParsedChapters] = useState<ParsedChapter[]>([]);
+  const [activeParsedChapter, setActiveParsedChapter] = useState(0);
+  const [activeParsedPage, setActiveParsedPage] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
@@ -352,8 +391,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setReaderError(null);
     setNumPdfPages(undefined);
     setPdfPageNumber(1);
+    setParsedChapters([]);
+    setActiveParsedChapter(0);
+    setActiveParsedPage(0);
     if (currentChapter?.content) {
-      setChapterContent(formatReadableText(currentChapter.content));
+      const formatted = formatReadableText(currentChapter.content);
+      setChapterContent(formatted);
+      setParsedChapters(parseChaptersFromText(formatted));
     } else if (isTxt && currentChapter?.url) {
       loadFullText(currentChapter.url, currentChapter.fallbackUrl);
     } else {
@@ -398,7 +442,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         }
       }
       if (!mountedRef.current) return;
-      setChapterContent(formatReadableText(text));
+      const formatted = formatReadableText(text);
+      setChapterContent(formatted);
+      setParsedChapters(parseChaptersFromText(formatted));
     } catch (error: any) {
       if (!mountedRef.current || error?.name === 'AbortError') return;
       console.error('Error loading full text:', error);
@@ -431,6 +477,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       parentId: parentId || undefined
     });
   };
+
+  // Proactively destroy the epub rendition on unmount so ReactReader's own
+  // componentWillUnmount finds nothing to destroy — epub.js book.destroy() can
+  // throw when called while a fetch is still in-flight, crashing the tree.
+  useEffect(() => {
+    return () => {
+      if (epubRendition) {
+        try { epubRendition.destroy(); } catch (_) { /* suppress cleanup errors */ }
+      }
+    };
+  }, [epubRendition]);
 
   // Apply EPUB Styles
   useEffect(() => {
@@ -471,11 +528,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const nextPage = useCallback(() => {
     if (isEpub && epubRendition) {
       try {
-        if ((epubRendition as any).manager) {
-          epubRendition.next();
-        }
-      } catch (e) {
-        console.warn('EPUB next page error', e);
+        if ((epubRendition as any).manager) epubRendition.next();
+      } catch (e) { console.warn('EPUB next page error', e); }
+    } else if (parsedChapters.length > 0) {
+      const ch = parsedChapters[activeParsedChapter];
+      if (activeParsedPage < ch.pages.length - 1) {
+        setActiveParsedPage(p => p + 1);
+      } else if (activeParsedChapter < parsedChapters.length - 1) {
+        setActiveParsedChapter(c => c + 1);
+        setActiveParsedPage(0);
       }
     } else if (currentPageIndex < pages.length - 1) {
       setCurrentPageIndex(currentPageIndex + 1);
@@ -483,16 +544,20 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       setCurrentChapterIndex(currentChapterIndex + 1);
       setCurrentPageIndex(0);
     }
-  }, [isEpub, epubRendition, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
+  }, [isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
 
   const prevPage = useCallback(() => {
     if (isEpub && epubRendition) {
       try {
-        if ((epubRendition as any).manager) {
-          epubRendition.prev();
-        }
-      } catch (e) {
-        console.warn('EPUB prev page error', e);
+        if ((epubRendition as any).manager) epubRendition.prev();
+      } catch (e) { console.warn('EPUB prev page error', e); }
+    } else if (parsedChapters.length > 0) {
+      if (activeParsedPage > 0) {
+        setActiveParsedPage(p => p - 1);
+      } else if (activeParsedChapter > 0) {
+        const prevCh = parsedChapters[activeParsedChapter - 1];
+        setActiveParsedChapter(c => c - 1);
+        setActiveParsedPage(Math.max(0, prevCh.pages.length - 1));
       }
     } else if (currentPageIndex > 0) {
       setCurrentPageIndex(currentPageIndex - 1);
@@ -501,7 +566,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const prevChapterPages = book.bookChapters?.[currentChapterIndex - 1].pages || [];
       setCurrentPageIndex(Math.max(0, prevChapterPages.length - 1));
     }
-  }, [isEpub, epubRendition, currentPageIndex, currentChapterIndex, book.bookChapters]);
+  }, [isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -748,8 +813,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               <div>
                 <h2 className="text-sm font-black uppercase tracking-widest truncate max-w-[200px]">{book.title}</h2>
                 <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
-                  {isEpub ? `Reading: ${epubProgress}%` : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)}
-                  {!isEpub && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
+                  {isEpub
+                    ? `Reading: ${epubProgress}%`
+                    : parsedChapters.length > 0
+                      ? parsedChapters[activeParsedChapter]?.title || `Chapter ${activeParsedChapter + 1}`
+                      : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)}
+                  {!isEpub && parsedChapters.length > 0
+                    ? ` • Page ${activeParsedPage + 1} of ${parsedChapters[activeParsedChapter]?.pages.length || 1}`
+                    : !isEpub && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
                 </p>
               </div>
               {book.ownerId && (
@@ -1085,29 +1156,44 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <Loader2 className="animate-spin text-small-orange" size={48} />
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Decrypting neural transcript...</p>
               </div>
-            ) : chapterContent ? (
-              <div className={`max-w-3xl w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
-                {book.coverImage && (
-                  <div className="relative h-40 overflow-hidden rounded-t-3xl">
-                    <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter:'blur(24px) brightness(0.5) saturate(1.3)' }} />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-                    <div className="absolute inset-0 flex items-end p-8">
-                      <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{currentChapter?.title}</h3>
+            ) : parsedChapters.length > 0 ? (() => {
+              const activeCh = parsedChapters[activeParsedChapter] || parsedChapters[0];
+              const activePg = activeCh.pages[activeParsedPage] || activeCh.pages[0] || [];
+              const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
+              return (
+                <div className={`max-w-3xl w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
+                  {book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0 && (
+                    <div className="relative h-40 overflow-hidden rounded-t-3xl">
+                      <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
+                      <div className="absolute inset-0 flex items-end p-8">
+                        <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{chTitle}</h3>
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div className="p-10 lg:p-16">
-                  {!book.coverImage && (
-                    <h3 className={`text-2xl font-black uppercase tracking-tight mb-10 text-center ${txtHdColor}`}>{currentChapter?.title}</h3>
                   )}
-                  <div className={`${txtFontFamily} text-lg leading-[1.9] ${txtColor} space-y-0`} style={{ fontSize: `${fontSize}%` }}>
-                    {chapterContent.split('\n').filter(p => p.trim()).map((para, i) => (
-                      <p key={i} className="mb-5">{para}</p>
-                    ))}
+                  <div className="p-10 lg:p-16">
+                    {!(book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0) && (
+                      <h3 className={`text-2xl font-black uppercase tracking-tight mb-10 text-center ${txtHdColor}`}>{chTitle}</h3>
+                    )}
+                    <div className={`${txtFontFamily} text-lg leading-[1.9] ${txtColor} space-y-0`} style={{ fontSize: `${fontSize}%` }}>
+                      {activePg.map((para, i) => (
+                        <p key={i} className="mb-5">{para}</p>
+                      ))}
+                    </div>
+                    {/* Page turn hint at bottom */}
+                    {(activeParsedPage < activeCh.pages.length - 1 || activeParsedChapter < parsedChapters.length - 1) && (
+                      <div className="mt-12 pt-8 border-t border-white/5 text-center">
+                        <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.3em] ${s.subtext} hover:text-small-orange transition-colors`}>
+                          {activeParsedPage < activeCh.pages.length - 1
+                            ? `Continue — Page ${activeParsedPage + 2} →`
+                            : `Next: ${parsedChapters[activeParsedChapter + 1]?.title} →`}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <div className={`max-w-2xl w-full aspect-[2/3] ${s.card} rounded-3xl flex items-center justify-center`}>
                 <div className="text-center p-12">
                   <BookOpenIcon size={64} className={`mx-auto mb-8 ${theme === 'LIGHT' ? 'text-black/10' : 'text-white/10'}`} />
@@ -1151,7 +1237,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 {isEpub ? (
                   <div className="space-y-1">
                     {toc.map((item, i) => (
-                      <button 
+                      <button
                         key={i}
                         onClick={() => jumpToEpubCfi(item.href)}
                         className={`w-full text-left p-4 rounded-xl group transition-all ${epubLocation === item.href ? 'bg-small-orange text-white' : 'hover:bg-white/5'}`}
@@ -1162,10 +1248,30 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       </button>
                     ))}
                   </div>
+                ) : parsedChapters.length > 1 ? (
+                  <div className="space-y-2">
+                    {parsedChapters.map((chap, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setActiveParsedChapter(i); setActiveParsedPage(0); setShowTOC(false); }}
+                        className={`w-full flex items-center gap-4 p-4 rounded-2xl group transition-all ${activeParsedChapter === i ? 'bg-small-orange shadow-xl' : 'hover:bg-white/5'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black ${activeParsedChapter === i ? 'bg-white text-small-orange' : 'bg-white/10'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="text-left overflow-hidden">
+                          <p className={`text-xs font-bold truncate ${activeParsedChapter === i ? 'text-white' : 'text-white/80'}`}>{chap.title}</p>
+                          <p className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${activeParsedChapter === i ? 'text-white/60' : ''}`}>
+                            {chap.pages.length} {chap.pages.length === 1 ? 'page' : 'pages'}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {book.bookChapters?.map((chap, i) => (
-                      <button 
+                      <button
                         key={chap.id}
                         onClick={() => jumpToChapter(chap.id)}
                         className={`w-full flex items-center gap-4 p-4 rounded-2xl group transition-all ${currentChapterIndex === i ? 'bg-small-orange shadow-xl' : 'hover:bg-white/5'}`}
@@ -1659,16 +1765,27 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           >
             <div className="flex-1 flex items-center gap-8">
               <div className={`flex-1 h-1.5 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}>
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-blue-500 to-small-orange"
-                  style={{ width: isEpub ? `${epubProgress}%` : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%` }}
+                  style={{ width: isEpub
+                    ? `${epubProgress}%`
+                    : parsedChapters.length > 0
+                      ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`
+                      : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%`
+                  }}
                 />
               </div>
               <div className="flex items-center gap-4 shrink-0">
                 <button onClick={prevPage} className={`p-3 transition-all ${s.btnHover}`}><ChevronLeft size={24} /></button>
                 <div className={`px-6 py-2 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} border border-black/10 rounded-full`}>
                   <span className={`text-[10px] font-black uppercase tracking-widest ${s.text} whitespace-nowrap`}>
-                    {isEpub ? `${epubProgress}%` : (isGraphicNovel ? `ISSUE ${currentChapterIndex + 1} • P.${currentPageIndex + 1}` : `CH.${currentChapterIndex + 1} • P.${currentPageIndex + 1}`)}
+                    {isEpub
+                      ? `${epubProgress}%`
+                      : parsedChapters.length > 0
+                        ? `CH.${activeParsedChapter + 1} • P.${activeParsedPage + 1}`
+                        : isGraphicNovel
+                          ? `ISSUE ${currentChapterIndex + 1} • P.${currentPageIndex + 1}`
+                          : `CH.${currentChapterIndex + 1} • P.${currentPageIndex + 1}`}
                   </span>
                 </div>
                 <button onClick={nextPage} className={`p-3 transition-all ${s.btnHover}`}><ChevronRight size={24} /></button>

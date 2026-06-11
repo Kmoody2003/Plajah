@@ -3,6 +3,7 @@ import { ShieldAlert, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
+  onReset?: () => void;
 }
 
 interface State {
@@ -28,19 +29,19 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    if (this.props.onReset) {
+      this.props.onReset();
+      return;
+    }
     // Prevent infinite reload loop
     const lastErrorTime = sessionStorage.getItem('last_error_time');
     const now = Date.now();
-    
     if (lastErrorTime && now - parseInt(lastErrorTime) < 5000) {
       console.error('Multiple errors detected in short sequence. Stopping auto-reload.');
-      this.setState({ hasError: true }); // Keep showing error state instead of reloading
       return;
     }
-    
     sessionStorage.setItem('last_error_time', now.toString());
-    this.setState({ hasError: false, error: null });
-    // Soft reload (navigation reset) instead of hard window.location.reload()
     window.dispatchEvent(new CustomEvent('app-reset'));
   };
 
@@ -67,12 +68,12 @@ class ErrorBoundary extends React.Component<Props, State> {
           <p className="text-white/40 text-sm max-w-md mb-10 font-medium leading-relaxed">
             {errorMessage}
           </p>
-          <button 
+          <button
             onClick={this.handleReset}
             className="flex items-center gap-3 px-8 py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.05] transition-all shadow-2xl"
           >
             <RefreshCw size={16} />
-            Reboot Instance
+            {this.props.onReset ? 'Go Back' : 'Reboot Instance'}
           </button>
         </div>
       );

@@ -2670,10 +2670,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'BOOK_READER' && selectedBook && (
-              // ErrorBoundary + Suspense: if the reader chunk or its deps fail
-              // to load (network hiccup, disk-full dev server, stale SW), the
-              // user gets a visible fallback/retry instead of a blank screen.
-              <ErrorBoundary>
+              <ErrorBoundary onReset={() => { setSelectedBook(null); setView('BOOKS'); }}>
                 <Suspense fallback={
                   <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center gap-4">
                     <div className="w-10 h-10 border-2 border-[--small-orange]/20 border-t-[--small-orange] rounded-full animate-spin" />
