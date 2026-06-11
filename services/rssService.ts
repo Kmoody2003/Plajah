@@ -33,6 +33,12 @@ const RSS_FEEDS: Record<string, string[]> = {
   'SPORTS_F1':     ['https://www.espn.com/espn/rss/rpm/news', 'https://www.motorsport.com/rss/f1/news/'],
   'SPORTS_NASCAR': ['https://www.motorsport.com/rss/nascar-cup/news/', 'https://www.espn.com/espn/rss/rpm/news'],
   'SPORTS_INDYCAR':['https://www.motorsport.com/rss/indycar/news/', 'https://www.espn.com/espn/rss/rpm/news'],
+  'SPORTS_ESPORTS':[
+    'https://dotesports.com/feed',
+    'https://www.dexerto.com/feed/',
+    'https://www.oneesports.gg/feed/',
+    'https://www.ign.com/rss/articles/esports',
+  ],
 
   // Other
   'SCIENCE': ['https://rss.nytimes.com/services/xml/rss/nyt/Science.xml', 'https://www.wired.com/feed/category/science/latest/rss'],

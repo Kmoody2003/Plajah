@@ -63,6 +63,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   const [selectedTeam, setSelectedTeam]   = useState<SportsTeam | null>(null);
   const [selectedOrg, setSelectedOrg]     = useState<EsportsOrg | null>(null);
+  const [esportsGame, setEsportsGame]     = useState<string>('ALL');
 
   const [selectedPlayer, setSelectedPlayer]   = useState<{ id: string; name: string } | null>(null);
   const [playerProfile, setPlayerProfile]     = useState<any>(null);
@@ -565,28 +566,96 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Newspaper size={10} /> Esports Headlines</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {news.slice(0, 8).map((article: any, i: number) => (
-                  <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
+                  <a key={i} href={article.links?.web?.href || article.url || '#'} target="_blank" rel="noopener noreferrer"
                     className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
-                    {article.images?.[0]?.url && <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
+                    {(article.images?.[0]?.url || article.imageUrl) && <img src={article.images?.[0]?.url || article.imageUrl} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">{article.published ? new Date(article.published).toLocaleDateString() : ''}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">{article.source || ''}{(article.source && (article.published || article.pubDate)) ? ' · ' : ''}{article.published ? new Date(article.published).toLocaleDateString() : article.pubDate ? new Date(article.pubDate).toLocaleDateString() : ''}</p>
                     </div>
                   </a>
                 ))}
               </div>
             </div>
           )}
+          {/* Active Tournaments */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Gamepad2 size={10} /> Esports Organizations{teamSearch && ` Â· ${filteredOrgs.length} results`}</h4>
-              {!teamSearch && <span className="text-[7px] text-white/20 font-bold uppercase">Tap to view Â· Pin to track</span>}
+            <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Trophy size={10} /> Active Tournaments</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { name: 'CS2 Majors', sub: 'Liquipedia', href: 'https://liquipedia.net/counterstrike/Majors', color: '#FFC72C' },
+                { name: 'Valorant Champions', sub: 'Liquipedia', href: 'https://liquipedia.net/valorant/Valorant_Champions_Tour', color: '#FF4655' },
+                { name: 'LoL Worlds', sub: 'Liquipedia', href: 'https://liquipedia.net/leagueoflegends/World_Championship', color: '#C69B3A' },
+                { name: 'Dota 2 TI', sub: 'Liquipedia', href: 'https://liquipedia.net/dota2/The_International', color: '#A970FF' },
+                { name: 'HLTV Rankings', sub: 'hltv.org', href: 'https://www.hltv.org/ranking/teams', color: '#FF8C00' },
+                { name: 'VCT Rankings', sub: 'vlr.gg', href: 'https://www.vlr.gg/rankings', color: '#00C4B4' },
+              ].map(t => (
+                <a key={t.name} href={t.href} target="_blank" rel="noopener noreferrer"
+                  className="flex flex-col gap-1.5 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
+                  <p className="text-xs font-black leading-snug group-hover:text-white transition-colors">{t.name}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">{t.sub}</p>
+                </a>
+              ))}
             </div>
+          </div>
+
+          {/* Game Filter + Organizations */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2">
+                <Gamepad2 size={10} /> Esports Organizations
+                {teamSearch && ` · ${filteredOrgs.filter(o => esportsGame === 'ALL' || (o as any).games?.includes(esportsGame)).length} results`}
+              </h4>
+              {!teamSearch && <span className="text-[7px] text-white/20 font-bold uppercase">Tap to view · Pin to track</span>}
+            </div>
+            {!teamSearch && (
+              <div className="flex flex-wrap gap-2">
+                {['ALL', 'CS2', 'Valorant', 'League of Legends', 'Dota 2', 'Apex Legends', 'Rocket League', 'Fortnite'].map(game => (
+                  <button key={game} onClick={() => setEsportsGame(game)}
+                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                      esportsGame === game
+                        ? 'bg-[#FF8C00] text-black'
+                        : 'bg-white/5 border border-white/10 text-white/50 hover:text-white hover:border-white/20'
+                    }`}>
+                    {game === 'League of Legends' ? 'LoL' : game}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {filteredOrgs.map(org => <OrgCard key={org.id} org={org} isPinned={pinnedIds.includes(org.id)} pinnedIds={pinnedIds} onSelect={setSelectedOrg} onTogglePin={togglePin} />)}
-              {filteredOrgs.length === 0 && teamSearch && (
-                <div className="col-span-full py-10 text-center"><p className="text-[9px] font-black uppercase text-white/20 tracking-widest">No orgs match "{teamSearch}"</p></div>
+              {filteredOrgs
+                .filter(org => esportsGame === 'ALL' || (org as any).games?.includes(esportsGame))
+                .map(org => <OrgCard key={org.id} org={org} isPinned={pinnedIds.includes(org.id)} pinnedIds={pinnedIds} onSelect={setSelectedOrg} onTogglePin={togglePin} />)}
+              {filteredOrgs.filter(org => esportsGame === 'ALL' || (org as any).games?.includes(esportsGame)).length === 0 && (
+                <div className="col-span-full py-10 text-center">
+                  <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">
+                    {teamSearch ? `No orgs match "${teamSearch}"` : `No orgs tagged with ${esportsGame}`}
+                  </p>
+                </div>
               )}
+            </div>
+          </div>
+
+          {/* Coverage Sources */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Newspaper size={10} /> Coverage Sources</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { name: 'Dot Esports', sub: 'dotesports.com', href: 'https://dotesports.com', color: '#00C4B4' },
+                { name: 'Dexerto', sub: 'dexerto.com', href: 'https://www.dexerto.com/esports/', color: '#FF4655' },
+                { name: 'ONE Esports', sub: 'oneesports.gg', href: 'https://www.oneesports.gg', color: '#C69B3A' },
+                { name: 'IGN Esports', sub: 'ign.com', href: 'https://www.ign.com/esports', color: '#FF8C00' },
+              ].map(src => (
+                <a key={src.name} href={src.href} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: src.color }} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-black group-hover:text-white transition-colors truncate">{src.name}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 truncate">{src.sub}</p>
+                  </div>
+                </a>
+              ))}
             </div>
           </div>
         </>

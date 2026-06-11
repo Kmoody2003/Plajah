@@ -292,11 +292,34 @@ export async function fetchEsportsNews(): Promise<any[]> {
   const cached = fromCache(key, TTL.news);
   if (cached) return cached;
 
-  // Try ESPN esports news
+  // Try ESPN esports news first
   const espnEsports = await safeFetch('https://site.api.espn.com/apis/site/v2/sports/esports/news?limit=20');
-  const articles = espnEsports?.articles ?? [];
-  toCache(key, articles);
-  return articles;
+  const espnArticles: any[] = espnEsports?.articles ?? [];
+
+  if (espnArticles.length > 0) {
+    toCache(key, espnArticles);
+    return espnArticles;
+  }
+
+  // ESPN esports endpoint is unreliable — fall back to dedicated esports RSS feeds
+  try {
+    const { fetchNewsFromRSS } = await import('./rssService');
+    const rssItems = await fetchNewsFromRSS('SPORTS_ESPORTS');
+    // Normalize to ESPN article shape so existing renderer works
+    const articles = rssItems.map((item: any) => ({
+      headline: item.title,
+      title:    item.title,
+      published: item.timestamp || new Date().toISOString(),
+      links: { web: { href: item.url || item.link || '#' } },
+      images: item.imageUrl ? [{ url: item.imageUrl }] : [],
+      source: item.source,
+      description: item.content || item.description || '',
+    }));
+    toCache(key, articles);
+    return articles;
+  } catch {
+    return [];
+  }
 }
 
 // ── TheSportsDB soccer helpers (no key required, free tier) ─────────────────

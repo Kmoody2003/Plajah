@@ -2187,7 +2187,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'POSTMAN' && <PostmanView />}
 
             {view === 'ARTICLES' && (
-              <NewstandView 
+              <NewstandView
                 onVisitUser={handleVisitUser}
                 onSelectArticle={(article) => {
                   setSelectedArticle(article);
@@ -2195,6 +2195,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onNewArticle={() => setView('ARTICLE_EDITOR')}
                 currentUser={userProfile}
+                onNavigate={(v) => setView(v as any)}
               />
             )}
 

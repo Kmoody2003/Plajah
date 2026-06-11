@@ -75,6 +75,7 @@ interface NewstandViewProps {
   onSelectArticle: (article: Article) => void;
   onNewArticle: () => void;
   currentUser: UserProfile | null;
+  onNavigate?: (view: string) => void;
 }
 
 interface SavedTeam {
@@ -84,7 +85,7 @@ interface SavedTeam {
   league: string;
 }
 
-export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser }) => {
+export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelectArticle, onNewArticle, currentUser, onNavigate }) => {
   const [activeCategory, setActiveCategory] = useState('COMMUNITY_ARTICLES');
   const [newsSubcat, setNewsSubcat] = useState('GENERAL_WORLD');
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -302,7 +303,13 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
           return (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                if (cat.id === 'SPORTS_ALL') {
+                  onNavigate?.('PLAJAH_SPORTS');
+                } else {
+                  setActiveCategory(cat.id);
+                }
+              }}
               className={`flex items-center gap-3 px-8 py-4 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
                 activeCategory === cat.id ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'
               }`}
