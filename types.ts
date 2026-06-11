@@ -562,6 +562,11 @@ export interface WorldBackgroundConfig {
   blur?: boolean;
 }
 
+// Which Plajah tool a world entry originated from. Worlds is the shared hub:
+// Lorea (books + scripts), FABULA, and the Worlds editor all read/write entries
+// tagged with their source so data flows freely between them.
+export type WorldSourceApp = 'WORLD' | 'LOREA_BOOK' | 'LOREA_SCRIPT' | 'FABULA';
+
 export interface IPWorld {
   id: string;
   creatorId: string;
@@ -640,10 +645,17 @@ export interface Character {
   tags: string[];
   appearanceAt: { projectId: string; timestamp: number }[];
   isPublished?: boolean;
-  // FABULA bridge: links this entry back to the production/item it was synced
-  // from, so re-syncing updates in place instead of duplicating.
-  fabulaProductionId?: string;
-  fabulaRefId?: string;
+  // World Hub: which tool created/synced this entry and an idempotency ref, so
+  // Lorea (book/script), FABULA, and Worlds can share entries without
+  // duplicating. Re-syncing matches on (sourceApp, sourceRefId).
+  sourceApp?: WorldSourceApp;
+  sourceProjectId?: string;
+  sourceRefId?: string;
+  // Non-destructive dedup: an entry is never deleted — when a duplicate is
+  // merged/superseded it is flagged discarded and moved to the Discarded folder.
+  discarded?: boolean;
+  discardedAt?: number;
+  discardedReason?: string;       // e.g. "merged_into:<id>"
   themeAlbumId?: string;
   themeTrackId?: string;
   actorName?: string;
@@ -676,10 +688,14 @@ export interface LoreEntry {
   type: 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY' | 'EVENT' | 'FACTION' | 'CREATURE';
   conflictsDetected: string[];
   isPublished?: boolean;
-  // FABULA bridge: links this lore entry back to the production world-item it
-  // was synced from, for idempotent re-sync.
-  fabulaProductionId?: string;
-  fabulaRefId?: string;
+  // World Hub: shared-source tagging + idempotency ref (see Character).
+  sourceApp?: WorldSourceApp;
+  sourceProjectId?: string;
+  sourceRefId?: string;
+  // Non-destructive dedup — never deleted; discarded entries move to the folder.
+  discarded?: boolean;
+  discardedAt?: number;
+  discardedReason?: string;
   // Enhanced fields
   gallery?: string[];          // Images for this lore entry
   clips?: string[];            // Video clips
