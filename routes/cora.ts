@@ -34,7 +34,7 @@ export const coraRouter = Router();
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const FIRESTORE_PROJECT = 'gen-lang-client-0665118474';
-const FIRESTORE_DB      = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+const FIRESTORE_DB      = 'plajah-prod';
 const FIRESTORE_BASE    = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/${FIRESTORE_DB}`;
 
 function parseFirestoreValue(v: any): any {

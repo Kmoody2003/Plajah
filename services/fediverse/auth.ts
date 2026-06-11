@@ -65,7 +65,7 @@ export function decryptCreds(raw: string | object): FediverseCredentials {
 // Uses the Firebase ID token supplied by the client for all reads/writes.
 // Firestore security rules govern access — the server never bypasses them.
 
-const FS_BASE = 'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents';
+const FS_BASE = 'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents';
 
 async function fsReq(
   method: string,

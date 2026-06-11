@@ -1,7 +1,7 @@
 {
   "firestore": [
     {
-      "database": "ai-studio-5564c944-b75c-4461-bcd3-afa92800323b",
+      "database": "plajah-prod",
       "rules": "firestore.rules",
       "indexes": "firestore.indexes.json"
     }

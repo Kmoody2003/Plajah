@@ -81,7 +81,7 @@ async function firestoreAuthHeaders(): Promise<Record<string, string>> {
 // Simple REST fetch for Firebase DB without needing admin SDK initialized
 const fetchFirebaseDoc = async (collection: string, id: string) => {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const dbId = 'plajah-prod';
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
   try {
     const res = await fetch(url, { headers: await firestoreAuthHeaders() });
@@ -218,7 +218,7 @@ async function authMiddleware(req: any, res: any, next: any) {
 // Firestore REST helper (reuses existing fetchFirebaseDoc pattern)
 async function firestoreWrite(collection: string, id: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const dbId = 'plajah-prod';
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
   // Build Firestore field map
   const fields: any = {};
@@ -240,7 +240,7 @@ async function firestoreWrite(collection: string, id: string, data: object) {
 
 async function firestoreCreate(collection: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const dbId = 'plajah-prod';
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}`;
   const fields: any = {};
   for (const [k, v] of Object.entries(data)) {
@@ -613,7 +613,7 @@ async function startServer() {
 
         case 'customer.subscription.updated': {
           const sub = event.data.object;
-          const snap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/plajahPlusSubscriptions?pageSize=5`);
+          const snap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/plajahPlusSubscriptions?pageSize=5`);
           // Update status in Firestore based on stripeSubscriptionId
           // (full query not available via REST easily — rely on client-side sync)
           break;
@@ -857,7 +857,7 @@ async function startServer() {
 
     try {
       const projectId = 'gen-lang-client-0665118474';
-      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId = 'plajah-prod';
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const body = {
         structuredQuery: {
@@ -987,7 +987,7 @@ async function startServer() {
   app.get('/api/events/list', async (req, res) => {
     try {
       const projectId = 'gen-lang-client-0665118474';
-      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId = 'plajah-prod';
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const body = { structuredQuery: { from: [{ collectionId: 'plajahEvents' }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'IN', value: { arrayValue: { values: [{ stringValue: 'ON_SALE' }, { stringValue: 'PUBLISHED' }] } } } }, orderBy: [{ field: { fieldPath: 'startDate' }, direction: 'ASCENDING' }], limit: 50 } };
       const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1004,7 +1004,7 @@ async function startServer() {
     if (req.uid !== req.params.uid) return res.status(403).json({ error: 'Forbidden' });
     try {
       const projectId = 'gen-lang-client-0665118474';
-      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId = 'plajah-prod';
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const body = { structuredQuery: { from: [{ collectionId: 'plajahEvents' }], where: { fieldFilter: { field: { fieldPath: 'creatorUid' }, op: 'EQUAL', value: { stringValue: req.params.uid } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 50 } };
       const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1082,7 +1082,7 @@ async function startServer() {
     const uid: string = req.uid;
     try {
       const projectId = 'gen-lang-client-0665118474';
-      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId = 'plajah-prod';
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const body = { structuredQuery: { from: [{ collectionId: 'eventTickets' }], where: { fieldFilter: { field: { fieldPath: 'holderUid' }, op: 'EQUAL', value: { stringValue: uid } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 50 } };
       const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1112,7 +1112,7 @@ async function startServer() {
       const eventDoc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
       if (eventDoc?.fields?.creatorUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
       const projectId = 'gen-lang-client-0665118474';
-      const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId = 'plajah-prod';
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const body = { structuredQuery: { from: [{ collectionId: 'eventTickets' }], where: { fieldFilter: { field: { fieldPath: 'eventId' }, op: 'EQUAL', value: { stringValue: req.params.eventId } } }, orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 500 } };
       const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1211,7 +1211,7 @@ async function startServer() {
       const { returnUrl } = req.body;
 
       // Look up customer ID from Firestore
-      const subSnap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/plajahPlusSubscriptions?pageSize=1`);
+      const subSnap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/plajahPlusSubscriptions?pageSize=1`);
       // We'll use the customer ID stored in metadata — but we need to find it.
       // For now, search Stripe for the customer by metadata.uid
       const customers = await stripe.customers.search({ query: `metadata['uid']:'${uid}'`, limit: 1 });
@@ -1658,7 +1658,7 @@ async function startServer() {
       }
 
       const projectId = 'gen-lang-client-0665118474';
-      const dbId      = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+      const dbId      = 'plajah-prod';
       const baseUrl   = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents`;
 
       // Fetch all videos from Firestore (paginate if needed — 300 per page)
@@ -1790,7 +1790,7 @@ async function startServer() {
   // it to the owner's connected fediverse accounts, and records the outcome.
   // (Plajah on-platform cross-post for scheduled items is handled client-side.)
   const PUBLISH_PROJECT = 'gen-lang-client-0665118474';
-  const PUBLISH_DB = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+  const PUBLISH_DB = 'plajah-prod';
   const PUBLISH_FS = `https://firestore.googleapis.com/v1/projects/${PUBLISH_PROJECT}/databases/${PUBLISH_DB}/documents`;
 
   // Decode a Firestore REST value map into plain JS.
@@ -2870,7 +2870,7 @@ async function startServer() {
     const { artist, album } = req.query;
     // Search Firestore for matching album/artist
     const projectId = 'gen-lang-client-0665118474';
-    const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+    const dbId = 'plajah-prod';
     try {
       const searchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
       const field = album ? 'title' : 'artist';
@@ -3612,7 +3612,7 @@ async function startServer() {
 
         if (fulfillmentSource === 'printful' && addr) {
           const projectId = 'gen-lang-client-0665118474';
-          const dbId = 'ai-studio-5564c944-b75c-4461-bcd3-afa92800323b';
+          const dbId = 'plajah-prod';
           const orderDoc = await fetchFirebaseDoc('merch_orders', orderId);
           const items = JSON.parse(orderDoc?.fields?.itemsJson?.stringValue ?? '[]');
 
@@ -3786,7 +3786,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       const todayKey = new Date().toISOString().slice(0, 10);
 
       // Read daily usage from Firestore REST
-      const usageUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/users/${uid}/muse_usage/${todayKey}`;
+      const usageUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/users/${uid}/muse_usage/${todayKey}`;
       let dailyMessages = 0;
       let dailySearches = 0;
       try {
@@ -3841,7 +3841,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       const MAI_MODEL = messageWordCount < 10 ? MAI_FAST_MODEL : MAI_THINKING_MODEL;
 
       // Fetch recent message history (last 16 turns)
-      const histUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents/users/${uid}/muse_sessions/${sessionId}/messages?pageSize=16&orderBy=timestamp%20desc`;
+      const histUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/users/${uid}/muse_sessions/${sessionId}/messages?pageSize=16&orderBy=timestamp%20desc`;
       let chatHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
         { role: 'system', content: ARIA_SYSTEM_PROMPT },
       ];
@@ -4011,7 +4011,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
       // ── Persist message to Firestore ──
       const now = Date.now();
-      const baseUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/ai-studio-5564c944-b75c-4461-bcd3-afa92800323b/documents`;
+      const baseUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents`;
       const msgBase = `users/${uid}/muse_sessions/${sessionId}/messages`;
 
       const persistMsg = async (role: string, content: string, extra: any = {}) => {
