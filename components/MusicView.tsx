@@ -19,6 +19,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
 import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { PodcastsView } from './PodcastsView';
 import { fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts, ArchiveTrack } from '../services/archiveContentService';
 import {
@@ -656,7 +657,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               style={track.source === 'AUDIUS' ? { borderColor: 'rgba(168,85,247,0.15)' } : undefined}
             >
               <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
-                <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
+                <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center text-black"
                     style={{ background: track.source === 'AUDIUS' ? '#a855f7' : 'var(--color-small-orange,#ff8c00)' }}>
@@ -788,7 +789,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {artistTracks.map(track => (
               <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                 <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/5 bg-black">
-                  <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                  <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                 </div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h4>
                 <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Public Domain</p>
@@ -845,7 +846,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <AnimatePresence mode="sync">
             <motion.img
               key={bgAlbums[bgIndex]?.id}
-              src={bgAlbums[bgIndex]?.coverImage}
+              src={thumb(bgAlbums[bgIndex]?.coverImage, THUMB.large)}
               initial={{ opacity: 0, scale: 1.06 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
@@ -982,7 +983,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           onClick={() => onSelectAlbum(album)}
                           className="flex-shrink-0 w-44 cursor-pointer group">
                           <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
-                            <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                            <img src={thumb(album.coverImage, THUMB.card)} onError={onThumbError(album.coverImage)} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                             <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
                             <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
                               style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
@@ -1010,7 +1011,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {albums.slice(0, 8).map((album) => (
                       <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                         <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-2xl relative">
-                          <ThreeDImage src={album.coverImage} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <PlayCircle size={48} className="text-small-orange" />
                           </div>
@@ -1052,7 +1053,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}
                           onClick={() => handlePlayVaultTrack(track)}>
                           <div className="aspect-square rounded-xl overflow-hidden mb-3 relative">
-                            <img src={track.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                            <img src={thumb(track.thumbnailUrl, THUMB.small)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
                             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
                               <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={14} fill="currentColor" className="text-purple-100 ml-0.5" /></div>
                             </div>
@@ -1113,7 +1114,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         <div key={track.id} onClick={() => handlePlayVaultTrack(track)}
                           className="flex items-center gap-4 p-3 rounded-xl cursor-pointer group transition-all hover:bg-purple-900/20">
                           <span className="text-lg font-black w-6 text-center shrink-0" style={{ color: 'rgba(168,85,247,0.4)' }}>#{idx + 1}</span>
-                          <img src={track.thumbnailUrl} className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" />
+                          <img src={thumb(track.thumbnailUrl, THUMB.small)} className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" />
                           <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-purple-400 transition-colors">{track.title}</p>
                             <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist} {track.genre ? `· ${track.genre}` : ''}</p>
@@ -1155,7 +1156,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         >
                            <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform">
                               {pl.coverImage ? (
-                                  <img src={pl.coverImage || undefined} className="w-full h-full object-cover rounded-xl pointer-events-none" loading="lazy" decoding="async" />
+                                  <img src={thumb(pl.coverImage, THUMB.card) || undefined} className="w-full h-full object-cover rounded-xl pointer-events-none" loading="lazy" decoding="async" />
                               ) : (
                                   <ListMusic size={32} className="text-white/10 group-hover:text-small-orange transition-colors" />
                               )}
@@ -1381,7 +1382,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                          onClick={() => onSelectAlbum(album)}
                          className="flex-shrink-0 w-44 cursor-pointer group">
                          <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
-                           <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                           <img src={thumb(album.coverImage, THUMB.card)} onError={onThumbError(album.coverImage)} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
                            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
                              style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
@@ -1405,7 +1406,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                    {albums.filter(a => userProfile.following?.includes(a.ownerId || '')).map((album) => (
                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                         <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
-                          <ThreeDImage src={album.coverImage} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                         </div>
                         <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</h4>
                         <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
@@ -1734,7 +1735,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                               onClick={() => onSelectAlbum(album)}
                               className="flex-shrink-0 w-44 cursor-pointer group">
                               <div className="relative aspect-square rounded-[1.5rem] overflow-hidden mb-3 border border-white/5 shadow-2xl">
-                                <img src={album.coverImage} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                                <img src={thumb(album.coverImage, THUMB.card)} onError={onThumbError(album.coverImage)} className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.88) 100%)' }} />
                                 <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest"
                                   style={{ background: 'rgba(255,140,0,0.92)', color: '#000' }}>
@@ -1785,7 +1786,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {getSortedAlbums().map(album => (
                           <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                             <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
-                              <ThreeDImage src={album.coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                               <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-lg">
                                 <HeadphonesIcon size={9} className="text-white/70" />
                                 <span className="text-[9px] font-black text-white/70">{fmtPlays(album.playCount ?? 0)}</span>
@@ -1877,7 +1878,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                 {vaultGenre.map(track => (
                                   <div key={track.id} className="min-w-[150px] group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl opacity-60">
-                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                                      <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
                                     <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Vault</p>
@@ -1887,7 +1888,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                 {audiusEnabled && audiusCuration && (audiusCuration.genreCharts[genre] ?? []).map(track => (
                                   <div key={track.id} className="min-w-[150px] group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 shadow-xl relative" style={{ border: '1px solid rgba(168,85,247,0.3)' }}>
-                                      <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                                      <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                                       <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
@@ -1920,7 +1921,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                       {vaultTracks.filter(t => t.genre === 'Audiobook').map(track => (
                         <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                           <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
-                            <img src={track.thumbnailUrl || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" decoding="async" />
+                            <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" decoding="async" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                               <PlayCircle size={48} className="text-small-orange" />
                             </div>
