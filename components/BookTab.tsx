@@ -283,7 +283,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
              </PageHeader>
           </div>
           <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] ml-16">
-            {activeTab === 'CLASSICS' ? 'Classic Literature & Public Domain Works' : 'Community Uploaded Books & Originals'}
+            {activeTab === 'CLASSICS' ? 'The Best Place for Independent Authors & Writers' : 'Community Uploaded Books & Originals'}
           </p>
         </div>
       </header>
