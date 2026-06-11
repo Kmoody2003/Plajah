@@ -43,7 +43,7 @@ async function mintToken(sa) {
     b64({ alg: 'RS256', typ: 'JWT' }) + '.' +
     b64({
       iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/devstorage.read_write',
+      scope: 'https://www.googleapis.com/auth/devstorage.read_write https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
       iat: now, exp: now + 3600,
     });
@@ -82,9 +82,24 @@ async function main() {
       });
       if (!g.ok) throw new Error(`Gutenberg ${g.status}`);
       const text = await g.text();
+      // Upload via the standard Cloud Storage JSON API (purely IAM-gated). The
+      // Firebase endpoint (firebasestorage.googleapis.com/v0) rejects OAuth
+      // service-account tokens; storage.googleapis.com honors the SA's
+      // storage.objects.create permission. A firebaseStorageDownloadTokens
+      // metadata value makes the object fetchable through the Firebase
+      // download URL the reader uses.
+      const dlToken = crypto.randomUUID();
       const up = await fetch(
-        `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?uploadType=media&name=${enc}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain; charset=utf-8' }, body: text },
+        `https://storage.googleapis.com/upload/storage/v1/b/${BUCKET}/o?uploadType=media&name=${enc}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'x-goog-meta-firebaseStorageDownloadTokens': dlToken,
+          },
+          body: text,
+        },
       );
       if (!up.ok) throw new Error(`upload ${up.status}: ${(await up.text()).slice(0, 120)}`);
       console.log(`  ok     ${id} (${(text.length / 1024).toFixed(0)} KB)`);
