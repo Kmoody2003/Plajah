@@ -243,7 +243,7 @@ const HomeView: React.FC<{
         <div className="absolute inset-0 bg-gradient-to-r from-[#131314]/85 via-[#131314]/30 to-transparent" />
 
         {/* Hero copy */}
-        <div className="absolute inset-0 flex flex-col justify-end pb-14 px-6 md:px-12 max-w-3xl">
+        <div className="absolute inset-0 flex flex-col justify-end pb-14 px-4 sm:px-6 md:px-12 max-w-3xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={`hero-content-${heroIdx}`}
@@ -327,7 +327,7 @@ const HomeView: React.FC<{
       {tabNav}
 
       {/* ── CONTENT SECTIONS ─────────────────────────────────────────────── */}
-      <div className="px-5 md:px-10 space-y-16 pb-40">
+      <div className="px-4 sm:px-5 md:px-10 space-y-12 sm:space-y-16 pb-40">
 
         {/* Plajah+ Banner */}
         <div className="pt-10">
@@ -433,7 +433,7 @@ const HomeView: React.FC<{
                     <div className="w-full h-full bg-gradient-to-br from-[#2A2040] via-[#1A1530] to-[#131314]" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-r from-[#131314]/95 via-[#131314]/60 to-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-12 max-w-xl">
+                  <div className="absolute inset-0 flex flex-col justify-center px-5 sm:px-8 md:px-12 max-w-xl">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-2">IP Universe</p>
                     <h3 className="text-3xl md:text-5xl font-black uppercase text-white tracking-tight leading-tight">
                       {currentWorld.name}
@@ -730,8 +730,8 @@ const HiveView: React.FC<{
 }> = ({ universes, setCurrentSubView, setActiveAllyUrl }) => {
   const partnerUniverses = universes.filter(u => u.type === 'ALLY');
   return (
-    <main className="pt-8 pb-40 px-6 md:px-12 container mx-auto">
-      <div className="mb-12">
+    <main className="pt-8 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
+      <div className="mb-6 sm:mb-12">
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Streaming Partners</p>
         <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
           Discovery Partner<br />
@@ -748,7 +748,7 @@ const HiveView: React.FC<{
             <motion.div
               key={u.id}
               whileHover={{ scale: 1.02, y: -4 }}
-              className="group cursor-pointer bg-white/4 border border-white/8 hover:border-[#D0BCFF]/30 rounded-2xl p-8 flex items-center gap-6 transition-all duration-400"
+              className="group cursor-pointer bg-white/4 border border-white/8 hover:border-[#D0BCFF]/30 rounded-2xl p-4 sm:p-8 flex items-center gap-4 sm:gap-6 transition-all duration-400"
               onClick={() => { setActiveAllyUrl(u.url || null); setCurrentSubView('ALLY_VIEW'); }}
             >
               <div className="w-14 h-14 rounded-2xl bg-[#D0BCFF]/10 flex items-center justify-center shrink-0 group-hover:bg-[#D0BCFF]/20 transition-all">
@@ -779,7 +779,7 @@ const LibraryView: React.FC<{
   onSelectArchiveItem: (item: ArchiveVideo) => void;
   onSelectMovie: (item: any) => void;
 }> = ({ movies, localContent, onSelectArchiveItem, onSelectMovie }) => (
-  <div className="pt-4 pb-40 px-6 md:px-12 container mx-auto">
+  <div className="pt-4 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
     <div className="mb-10 pt-8">
       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Your Collection</p>
       <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
@@ -979,7 +979,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         {/* Hero skeleton */}
         <div className="h-[80vh] bg-gradient-to-br from-[#1C1B2E] to-[#131314] animate-pulse" />
         {/* Section skeletons */}
-        <div className="px-6 md:px-12 py-10 space-y-10">
+        <div className="px-4 sm:px-6 md:px-12 py-10 space-y-10">
           {[1, 2, 3].map(i => (
             <div key={i} className="space-y-4">
               <div className="h-3 w-40 bg-white/5 rounded-full animate-pulse" />
@@ -1068,7 +1068,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 <p className="text-sm font-black uppercase tracking-widest text-white/20">No results for "{searchQuery}"</p>
               </div>
             ) : (
-              <div className="px-6 md:px-12 pt-8">
+              <div className="px-4 sm:px-6 md:px-12 pt-8">
                 <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-6">
                   {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
                 </p>
@@ -1148,7 +1148,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 onNavigate={onNavigate}
               />
               {archiveLoading && (
-                <div className="px-6 md:px-12 py-8 space-y-8">
+                <div className="px-4 sm:px-6 md:px-12 py-8 space-y-8">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="space-y-3">
                       <div className="h-2.5 w-32 bg-white/5 rounded-full animate-pulse" />

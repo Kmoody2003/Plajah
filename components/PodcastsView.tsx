@@ -276,7 +276,7 @@ export const PodcastsView: React.FC = () => {
                     <ChevronLeft size={16} /> Back to Directory
                 </button>
                 
-                <div className="flex flex-col md:flex-row gap-8 bg-white/5 backdrop-blur-xl p-8 lg:p-12 rounded-[3.5rem] border border-white/10 items-center md:items-start text-center md:text-left">
+                <div className="flex flex-col md:flex-row gap-6 sm:gap-8 bg-white/5 backdrop-blur-xl p-6 sm:p-8 lg:p-12 rounded-[3.5rem] border border-white/10 items-center md:items-start text-center md:text-left">
                     <img
                         src={selectedPodcast.coverImage || undefined}
                         className="w-48 md:w-64 aspect-square rounded-[3rem] shadow-2xl border border-white/10"
@@ -331,9 +331,9 @@ export const PodcastsView: React.FC = () => {
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: idx * 0.05 }}
-                                    className="p-6 bg-white/5 hover:bg-white/[0.08] border border-white/5 rounded-[2rem] transition-all group relative overflow-hidden"
+                                    className="p-4 sm:p-6 bg-white/5 hover:bg-white/[0.08] border border-white/5 rounded-[2rem] transition-all group relative overflow-hidden"
                                 >
-                                    <div className="flex gap-8 items-center relative z-10">
+                                    <div className="flex gap-4 sm:gap-8 items-center relative z-10">
                                         <button 
                                             onClick={() => handlePlayEpisode(ep)}
                                             className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center shrink-0 hover:scale-110 active:scale-90 transition-all shadow-2xl"
@@ -367,8 +367,8 @@ export const PodcastsView: React.FC = () => {
     return (
         <div className="flex flex-col xl:flex-row h-full relative overflow-hidden bg-transparent">
             {/* Main Content Area - Independent Scroll */}
-            <div className={`flex-1 h-full overflow-y-auto ${theme === 'LIGHT' ? 'scrollbar-light' : 'no-scrollbar'} scroll-smooth relative`}>
-                <div className="space-y-24 pb-32 min-w-0">
+            <div className={`flex-1 min-h-0 xl:h-full overflow-y-auto ${theme === 'LIGHT' ? 'scrollbar-light' : 'no-scrollbar'} scroll-smooth relative`}>
+                <div className="space-y-12 sm:space-y-24 pb-32 min-w-0">
                     {/* Sticky Search Header */}
                     <header className="sticky top-0 z-[60] p-4 lg:p-8 bg-transparent pointer-events-none">
                         <div className="max-w-4xl mx-auto pointer-events-auto">
@@ -399,7 +399,7 @@ export const PodcastsView: React.FC = () => {
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="relative p-8 lg:p-20 rounded-[4rem] overflow-hidden border border-white/5 shadow-3xl bg-black/20 backdrop-blur-3xl m-4 -mt-20"
+                        className="relative p-6 sm:p-8 lg:p-20 rounded-[4rem] overflow-hidden border border-white/5 shadow-3xl bg-black/20 backdrop-blur-3xl m-4 -mt-20"
                     >
                         <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-small-orange/10 blur-[150px] rounded-full -mr-20 -mt-20 pointer-events-none" />
                         <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full -ml-20 -mb-20 pointer-events-none" />
@@ -416,7 +416,7 @@ export const PodcastsView: React.FC = () => {
                         </div>
                     </motion.section>
 
-                    <div className="px-8 lg:px-12 space-y-32">
+                    <div className="px-4 sm:px-8 lg:px-12 space-y-16 sm:space-y-32">
                         {/* Podcast Categories */}
                         <section className="space-y-8">
                             <div className="flex items-center justify-between">
@@ -502,7 +502,7 @@ export const PodcastsView: React.FC = () => {
                         )}
 
                         {/* Category Discovery Categories List */}
-                        <div className="space-y-32">
+                        <div className="space-y-16 sm:space-y-32">
                             {Object.entries(categoryPodcasts).map(([catName, pods]) => (
                                 <PodcastGrid key={catName} title={catName} podcasts={pods} icon={Grid} onOpen={openPodcast} />
                             ))}
@@ -512,7 +512,7 @@ export const PodcastsView: React.FC = () => {
             </div>
 
             {/* Independent Sidebar Scroll */}
-            <aside className={`w-full xl:w-[280px] h-full overflow-y-auto no-scrollbar xl:border-l lg:border-t xl:border-t-0 border-white/5 flex flex-col shrink-0 ${theme === 'LIGHT' ? 'bg-white' : 'bg-transparent'}`}>
+            <aside className={`w-full xl:w-[280px] xl:h-full overflow-y-auto no-scrollbar xl:border-l border-t xl:border-t-0 border-white/5 flex flex-col shrink-0 ${theme === 'LIGHT' ? 'bg-white' : 'bg-transparent'}`}>
                 <div className="p-6 lg:p-8 space-y-12 pb-40">
                     {/* Your Archive Section shifted to Sidebar */}
                     <section className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] relative overflow-hidden group hover:border-small-orange/30 transition-colors shadow-lg">
@@ -567,7 +567,7 @@ export const PodcastsView: React.FC = () => {
                     </section>
 
                     {/* Signal Status */}
-                    <section className="p-8 border border-white/5 rounded-[3rem] bg-black/40 shadow-2xl relative overflow-hidden">
+                    <section className="p-6 sm:p-8 border border-white/5 rounded-[3rem] bg-black/40 shadow-2xl relative overflow-hidden">
                         <div className="absolute inset-0 bg-small-orange/5 blur-3xl rounded-full" />
                         <div className="relative z-10">
                             <div className="flex items-center gap-3 mb-6">

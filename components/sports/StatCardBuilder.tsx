@@ -703,7 +703,7 @@ export const StatCardBuilder: React.FC<StatCardBuilderProps> = ({ onClose, curre
         </div>
 
         {/* Right panel — card preview */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 bg-[#0a0a0a]/50">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 gap-6 bg-[#0a0a0a]/50 overflow-x-auto">
           <div className="flex items-center gap-3 mb-2">
             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/25">Card Preview</p>
           </div>

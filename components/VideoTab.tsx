@@ -253,7 +253,7 @@ const VideoWorldAssignModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#111] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#111] border border-white/10 rounded-3xl p-5 sm:p-8 w-full max-w-md space-y-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
             <Globe size={16} className="text-small-orange" /> Assign to World
@@ -768,7 +768,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   return (
     <div className="flex-1 min-h-0">
       {/* â"€â"€ Top Bar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
-      <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-6 lg:px-12 py-4">
+      <div className="sticky top-0 z-40 glass-nav border-b border-white/5 px-4 sm:px-6 lg:px-12 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-black uppercase tracking-widest shrink-0 hidden lg:block">
             {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
@@ -827,7 +827,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       </div>
 
       {/* Plajah+ Banner */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 pt-4 pb-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pt-4 pb-2">
         <PlajahPlusBanner variant="COMPACT" />
       </div>
 
@@ -853,7 +853,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         </div>
 
         {/* Main */}
-        <div className="flex-1 min-w-0 p-6 lg:p-8 lg:pl-0 space-y-2">
+        <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:pl-0 space-y-2">
 
           {/* Mobile view tabs */}
           <div className="flex gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar">
@@ -931,7 +931,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 const genre = heroItem.genre || heroItem.subType?.replace('_', ' ') || 'Video';
                 return (
                   <div
-                    className="relative rounded-[2rem] overflow-hidden mb-12 cursor-pointer group shadow-2xl"
+                    className="relative rounded-[2rem] overflow-hidden mb-6 sm:mb-12 cursor-pointer group shadow-2xl"
                     style={{ height: 480 }}
                     onClick={() => handlePlay(heroItem)}
                   >
@@ -954,8 +954,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <Play fill="white" size={32} className="ml-1" />
                       </div>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-8">
-                      <div className="flex items-end justify-between gap-6">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8">
+                      <div className="flex items-end justify-between gap-4 sm:gap-6">
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-2">{creator}</p>
                           <h2 className="text-3xl lg:text-5xl font-black uppercase tracking-tight leading-tight text-white mb-1 drop-shadow-lg line-clamp-2">
@@ -1060,9 +1060,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
                   {/* Movie / TV detail panel */}
                   {selectedMovie && (
-                    <div className="mt-6 p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-8 animate-in fade-in duration-300">
+                    <div className="mt-6 p-4 sm:p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-8 animate-in fade-in duration-300">
                       {/* Header */}
-                      <div className="flex items-start gap-6">
+                      <div className="flex items-start gap-4 sm:gap-6">
                         <div className="w-28 h-40 rounded-2xl overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/10">
                           <img loading="lazy" decoding="async" src={selectedMovie.coverImage} alt={selectedMovie.title} className="w-full h-full object-cover" />
                         </div>
@@ -1152,8 +1152,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {/* Global latest */}
               {interestVideos[0] && mode === 'VIDEOS' && (
                 <section className="mb-10">
-                  <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-8 lg:p-12">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                  <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-4 sm:p-8 lg:p-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 items-center">
                       <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl group cursor-pointer" onClick={() => handlePlay(interestVideos[0])}>
                         <img src={interestVideos[0].thumbnailUrl || `https://picsum.photos/seed/${interestVideos[0].id}/1280/720`} className="w-full h-full object-cover" alt="" loading="lazy" />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex items-center justify-center">
@@ -1219,7 +1219,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 <h2 className="text-lg font-black uppercase tracking-widest">Live Studio</h2>
                 <button onClick={() => setShowGoLiveModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white/10 transition-all"><Settings2 size={14} /> Broadcast Studio</button>
               </div>
-              <div className={`p-8 rounded-3xl border flex items-center gap-6 ${isLiveStreamActive ? 'bg-green-500/10 border-green-500/30' : 'bg-white/[0.02] border-white/5 border-dashed'}`}>
+              <div className={`p-4 sm:p-8 rounded-3xl border flex items-center gap-4 sm:gap-6 ${isLiveStreamActive ? 'bg-green-500/10 border-green-500/30' : 'bg-white/[0.02] border-white/5 border-dashed'}`}>
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isLiveStreamActive ? 'bg-green-500' : 'bg-white/5'}`}>
                   <Radio size={22} className={isLiveStreamActive ? 'text-white' : 'text-white/20'} />
                 </div>
@@ -1385,7 +1385,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               className="max-w-4xl w-full max-h-[92vh] bg-[#0a0a0a]/98 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.06)] flex flex-col"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-white/5 shrink-0">
+              <div className="flex items-center justify-between px-4 sm:px-8 pt-6 sm:pt-8 pb-5 border-b border-white/5 shrink-0">
                 <div>
                   <h2 className="text-2xl font-display font-black tracking-tight uppercase">Upload Video</h2>
                   <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mt-1">Step {uploadStep} of 3</p>
@@ -1396,7 +1396,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               </div>
 
               {/* Step indicator */}
-              <div className="flex px-8 py-4 gap-3 shrink-0">
+              <div className="flex px-4 sm:px-8 py-4 gap-3 shrink-0">
                 {[
                   { n: 1, label: 'Select' },
                   { n: 2, label: 'Details' },
@@ -1423,7 +1423,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="p-8 space-y-8"
+                      className="p-4 sm:p-8 space-y-8"
                     >
                       {/* Video type */}
                       <div>
@@ -1486,7 +1486,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                               </button>
                             </div>
                           ) : (
-                            <div className="flex flex-col items-center gap-4 p-12">
+                            <div className="flex flex-col items-center gap-4 p-6 sm:p-12">
                               <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
                                 <Upload size={28} className="text-white/30" />
                               </div>
@@ -1540,9 +1540,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="p-8"
+                      className="p-4 sm:p-8"
                     >
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                         {/* Left: text fields */}
                         <div className="space-y-6">
                           <div>
@@ -1735,7 +1735,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="p-8 space-y-6"
+                      className="p-4 sm:p-8 space-y-6"
                     >
                       {/* Summary card */}
                       <div className="flex gap-5 p-5 bg-white/[0.04] rounded-2xl border border-white/5">
@@ -1802,7 +1802,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
               {/* Footer nav */}
               {!uploading && (
-                <div className="flex items-center justify-between px-8 pb-8 pt-5 border-t border-white/5 shrink-0">
+                <div className="flex items-center justify-between px-4 sm:px-8 pb-6 sm:pb-8 pt-5 border-t border-white/5 shrink-0">
                   <button
                     type="button"
                     onClick={() => uploadStep === 1 ? (setShowUpload(false), setUploadStep(1)) : setUploadStep(s => s - 1)}
@@ -1871,7 +1871,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 20 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-8 w-full max-w-md space-y-5 shadow-2xl"
+              className="bg-[#0E0E1A] border border-white/10 rounded-3xl p-5 sm:p-8 w-full max-w-md space-y-5 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">

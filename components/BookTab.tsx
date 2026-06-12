@@ -271,7 +271,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   };
 
   return (
-    <div className="flex-1 p-6 lg:p-12 max-w-7xl mx-auto w-full pb-32 lg:pb-40">
+    <div className="flex-1 p-4 sm:p-6 lg:p-12 max-w-7xl mx-auto w-full pb-32 lg:pb-40">
       <header className="mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="space-y-4">
           <div className="flex items-center gap-4">
@@ -349,7 +349,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
       {/* Genre Sidebar / Menu - Only in Classics */}
       {activeTab === 'CLASSICS' && (
-        <div className="flex gap-4 mb-16 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+        <div className="flex gap-4 mb-8 sm:mb-16 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
           {GENRES.map(g => (
             <button 
               key={g.id}
@@ -368,7 +368,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           <p className="text-[10px] font-black uppercase tracking-[0.6em] opacity-20">Accessing neural nodes...</p>
         </div>
       ) : activeTab === 'CLASSICS' ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
           {filteredArchive.map((book, idx) => (
             <motion.div 
               layout
@@ -391,7 +391,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                     img.src = "https://images.unsplash.com/photo-1543005124-8198f5ab5572?auto=format&fit=crop&q=80";
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8 gap-4 backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4 sm:p-8 gap-2 sm:gap-4 backdrop-blur-[2px]">
                    <div className="flex items-center gap-2 mb-2">
                       <Star className="text-small-orange fill-small-orange" size={14} />
                       <span className="text-[10px] font-black uppercase tracking-widest text-white">{Math.floor(book.download_count / 100).toLocaleString()}+ Readers</span>
@@ -414,7 +414,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
       ) : activeTab === 'GLOBAL' ? (
         <div className="space-y-16">
           {searchTerm ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
               {googleBooks.map((googleBook, idx) => (
                 <motion.div 
                   layout
@@ -444,7 +444,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         img.src = "https://images.unsplash.com/photo-1543005124-8198f5ab5572?auto=format&fit=crop&q=80";
                       }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8 gap-4 backdrop-blur-[2px]">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4 sm:p-8 gap-2 sm:gap-4 backdrop-blur-[2px]">
                        <button className="w-full py-4 bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-tightest shadow-2xl hover:scale-105 active:scale-95 transition-all">
                           {googleBook.buyLink ? 'View on Google Play' : 'Preview'}
                        </button>
@@ -633,7 +633,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
           {filteredMarketplace.map((book, idx) => (
             <motion.div 
               layout
@@ -664,7 +664,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                     img.src = "https://images.unsplash.com/photo-1543005124-8198f5ab5572?auto=format&fit=crop&q=80";
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8 gap-4 backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4 sm:p-8 gap-2 sm:gap-4 backdrop-blur-[2px]">
                    <button className="w-full py-4 bg-small-orange text-white rounded-2xl font-black text-xs uppercase tracking-tightest shadow-2xl hover:scale-105 active:scale-95 transition-all">
                       {book.price ? 'View in Store' : 'Read Now'}
                    </button>

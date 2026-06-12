@@ -164,7 +164,7 @@ const SportsHero: React.FC<{
       </AnimatePresence>
 
       {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 max-w-3xl z-10">
+      <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-12 max-w-3xl z-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={`content-${idx}`}
@@ -223,7 +223,7 @@ const SportsHero: React.FC<{
 const HeadlineCard: React.FC<{ article: Article; featured?: boolean }> = ({ article, featured }) => (
   <a
     href={article.url || '#'} target="_blank" rel="noreferrer"
-    className={`group flex gap-4 p-5 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all ${featured ? 'flex-col' : ''}`}
+    className={`group flex gap-4 p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all ${featured ? 'flex-col' : ''}`}
   >
     {article.imageUrl && (
       <div className={`shrink-0 rounded-xl overflow-hidden ${featured ? 'w-full aspect-video' : 'w-20 h-16'}`}>
@@ -488,7 +488,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-transparent text-white">
       {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/5 px-5 lg:px-10 py-3">
+      <div className="sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/5 px-4 sm:px-5 lg:px-10 py-3">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center border border-[#FF8C00]/30">
@@ -519,7 +519,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-5 lg:px-10 py-6 space-y-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-5 lg:px-10 py-6 space-y-6 sm:space-y-8">
 
         {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
         <SportsIntelligenceSection
@@ -639,10 +639,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
         </div>
 
         {/* ── MAIN CONTENT GRID ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 lg:gap-8">
 
           {/* Left: Sports center or league picker */}
-          <div className="space-y-8 min-w-0">
+          <div className="space-y-6 lg:space-y-8 min-w-0">
             {/* World Cup Hub */}
             {activeTab === 'WORLD_CUP' && (
               <WorldCupHub currentUser={currentUser ?? null} />
@@ -670,7 +670,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
                     <Gauge size={11} className="text-[#FF8C00]" />
                     <h3 className="text-[9px] font-black uppercase tracking-[0.35em] text-white/60">Motorsport</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
                       { id: 'F1',      label: 'Formula 1',  color: '#E10600', img: LEAGUE_LOGOS.F1,      desc: 'Race calendar, standings & replay' },
                       { id: 'NASCAR',  label: 'NASCAR',      color: '#FFB514', img: LEAGUE_LOGOS.NASCAR,  desc: 'Cup Series, picks & history' },
@@ -681,7 +681,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setActiveTab(m.id)}
-                        className="relative flex flex-col items-center gap-3 p-5 rounded-[1.5rem] border border-white/8 overflow-hidden text-center group"
+                        className="relative flex flex-col items-center gap-3 p-4 sm:p-5 rounded-[1.5rem] border border-white/8 overflow-hidden text-center group"
                         style={{ background: `${m.color}10` }}
                       >
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `${m.color}18` }} />
@@ -705,7 +705,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setActiveTab(lg)}
-                        className="flex flex-col items-center gap-3 p-5 bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/40 rounded-[1.5rem] transition-all group"
+                        className="flex flex-col items-center gap-3 p-4 sm:p-5 bg-white/[0.03] border border-white/8 hover:border-[#FF8C00]/40 rounded-[1.5rem] transition-all group"
                       >
                         <img src={logo} alt={lg} className="w-12 h-12 object-contain drop-shadow group-hover:scale-110 transition-transform" loading="lazy" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-[#FF8C00] transition-colors">{lg}</span>
