@@ -3120,7 +3120,15 @@ async function startServer() {
       }
       next();
     });
-    app.use(vite.middlewares);
+    // Vite's SPA middleware serves index.html for any unmatched GET — but some
+    // API routes (/api/fetch-rss, /api/cora, the MUSE agent) are registered
+    // AFTER this point, so /api/* must skip Vite and fall through to them.
+    // Without this, those endpoints return the HTML shell (e.g. RSS news
+    // parsed to 0 items → "No articles found").
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
+      return (vite.middlewares as any)(req, res, next);
+    });
   } else {
     // Service worker files must never be HTTP-cached — the browser manages their own cache.
     // Stale sw.js means users keep running old code even after a deploy.
@@ -3136,7 +3144,10 @@ async function startServer() {
 
     app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
-    app.get('*all', async (req, res) => {
+    app.get('*all', async (req, res, next) => {
+      // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
+      // MUSE agent) must not be served the SPA shell — let them resolve.
+      if (req.path.startsWith('/api/')) return next();
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
