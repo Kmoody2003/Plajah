@@ -114,7 +114,7 @@ const SocialEmbedCard: React.FC<Props> = ({ embed }) => {
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
           allowFullScreen
           className="border-0"
-          style={{ width: 325, height: 560 }}
+          style={{ width: 'min(325px, 100%)', height: 560 }}
           title="TikTok video"
           loading="lazy"
         />

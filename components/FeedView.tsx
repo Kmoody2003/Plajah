@@ -923,13 +923,13 @@ const FeedItemComponent: React.FC<{
   return (
     <div ref={el => { (inViewRef as any).current = el; (dwellRef as any).current = el; (vsRef as any).current = el; }} className="w-full flex flex-col items-center my-12 md:my-20">
       <motion.div
-        className="w-full backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[3rem] md:rounded-[4rem] p-8 md:p-16 xl:p-20 2xl:p-24 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
+        className="w-full backdrop-blur-[100px] bg-white/5 border border-white/20 rounded-[2rem] md:rounded-[4rem] p-5 sm:p-8 md:p-16 xl:p-20 2xl:p-24 shadow-[0_40px_100px_rgba(0,0,0,0.6)] z-10 transition-all hover:bg-white/10 group/item"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         whileInView={{ opacity: 1, y: 0, scale: 1 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="flex flex-col md:flex-row items-start gap-12 md:gap-20 xl:gap-24">
+        <div className="flex flex-col md:flex-row items-start gap-6 md:gap-20 xl:gap-24">
           <div
             className="w-24 h-24 md:w-32 md:h-32 xl:w-44 xl:h-44 2xl:w-52 2xl:h-52 rounded-[2.5rem] overflow-hidden bg-white/10 ring-8 ring-white/5 cursor-pointer hover:ring-small-orange transition-all flex-shrink-0 relative group/avatar shadow-[0_30px_60px_rgba(0,0,0,0.4)]"
             onClick={() => item.authorId !== 'system' && onVisitUser(item.authorId)}
@@ -965,7 +965,7 @@ const FeedItemComponent: React.FC<{
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                    <h3
-                    className="font-display font-black text-4xl md:text-7xl uppercase tracking-tighter text-white cursor-pointer hover:text-small-orange transition-all leading-none italic"
+                    className="font-display font-black text-3xl sm:text-4xl md:text-7xl uppercase tracking-tighter text-white cursor-pointer hover:text-small-orange transition-all leading-none italic break-words min-w-0"
                     onClick={() => item.authorId !== 'system' && onVisitUser(item.authorId)}
                   >
                     {item.authorName}
@@ -994,7 +994,7 @@ const FeedItemComponent: React.FC<{
               </div>
             </div>
 
-            <p className="text-2xl md:text-5xl font-black text-white leading-[1.1] mb-14 whitespace-pre-wrap tracking-tighter selection:bg-small-orange selection:text-black italic">
+            <p className="text-xl sm:text-2xl md:text-5xl font-black text-white leading-[1.1] mb-8 md:mb-14 whitespace-pre-wrap break-words tracking-tighter selection:bg-small-orange selection:text-black italic">
                <RenderTextWithMentions text={item.content} onVisitUser={onVisitUser} />
             </p>
 
@@ -1969,7 +1969,7 @@ const toggleFavoriteTeam = async (team: string) => {
   return (
     <>
     <div className={`flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'} bg-transparent`}>
-      <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-4 md:p-8 max-w-full mx-auto w-full`}>
+      <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
         {/* BOLDER HEADER */}
         <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-20'} space-y-12`}>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b-8 border-white/5 pb-12">
@@ -2107,7 +2107,7 @@ const toggleFavoriteTeam = async (team: string) => {
           />
         </div>
       ) : activeTab === 'LIVETALK' ? (
-        <div className="pt-4 lg:pt-12 px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
+        <div className="pt-4 lg:pt-12 px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
            <LiveTalkDiscovery
              currentUser={currentUser}
              onJoin={(id) => {
@@ -2117,7 +2117,7 @@ const toggleFavoriteTeam = async (team: string) => {
            />
         </div>
       ) : activeTab === 'NEWS' ? (
-        <div className="px-6 lg:px-20 max-w-[1600px] mx-auto w-full space-y-12 pb-20">
+        <div className="px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full space-y-12 pb-20">
            {/* SPORTS & SCIENCE & FINANCE SUB NAVIGATION */}
            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-6 sticky top-0 bg-transparent z-40 backdrop-blur-sm">
              {['HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR', 'SCIENCE', 'FINANCE'].map((tab) => (
@@ -2410,7 +2410,7 @@ const toggleFavoriteTeam = async (team: string) => {
                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 italic">Live Scores Across Leagues</h4>
                 </div>
-                <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 -mx-6 px-6">
+                <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 -mx-1 px-1 sm:-mx-6 sm:px-6">
                    {sportsScores.map((event: any) => (
                      <div key={event.id} className="min-w-[280px] bg-white/5 border border-white/10 rounded-[2.5rem] p-6 flex flex-col gap-4 hover:bg-white/10 transition-all cursor-pointer group">
                         <div className="flex items-center justify-between">
@@ -2450,7 +2450,7 @@ const toggleFavoriteTeam = async (team: string) => {
              ) : (
                feedItems.map((item) => (
                  <RolodexCard key={item.id}>
-                    <div className="bg-white/5 border border-white/10 rounded-[3.5rem] p-12 hover:border-white/20 transition-all group overflow-hidden relative">
+                    <div className="bg-white/5 border border-white/10 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 hover:border-white/20 transition-all group overflow-hidden relative">
                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                           <Newspaper size={120} className="stroke-[1]" />
                        </div>
@@ -2508,7 +2508,7 @@ const toggleFavoriteTeam = async (team: string) => {
            </div>
         </div>
       ) : (
-        <div className={`${activeTab === 'GLOBAL' ? 'flex-1 overflow-hidden' : 'pt-4 pb-20'} max-w-[1700px] mx-auto w-full px-4 lg:px-8 flex flex-col xl:flex-row gap-8 lg:gap-16`}>
+        <div className={`${activeTab === 'GLOBAL' ? 'flex-1 overflow-hidden' : 'pt-4 pb-20'} max-w-[1700px] mx-auto w-full px-0 sm:px-4 lg:px-8 flex flex-col xl:flex-row gap-8 lg:gap-16`}>
           <div className={`flex-1 min-w-0 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : ''}`}>
           {userProfile?.isFan && suggestedArtist && (
         <div className="mb-12 p-8 bg-gradient-to-br from-[#6B0099]/20 to-[#FF8C00]/20 border border-white/10 rounded-[3rem] shadow-2xl">
@@ -2635,7 +2635,7 @@ const toggleFavoriteTeam = async (team: string) => {
                   <p className="text-xs text-white/20">Follow people on Mastodon or Bluesky to see posts here.</p>
                 </div>
               ) : (
-                <div className="max-w-2xl mx-auto space-y-3">
+                <div className="w-full min-w-0 max-w-2xl mx-auto space-y-3 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
                   {fediverseFeed.map(post => (
                     <FediversePostCard
                       key={`${post.protocol}-${post.id}`}
@@ -2664,7 +2664,7 @@ const toggleFavoriteTeam = async (team: string) => {
         </div>
       ) : activeTab === 'GLOBAL' ? (
         /* ── Plajah Social Canvas ───────────────────────────── */
-        <div className="w-full max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
+        <div className="w-full min-w-0 max-w-full md:max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
 
           {/* ── Go Live button ── */}
           {currentUser && (
@@ -2805,7 +2805,7 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>{/* end pinned composer */}
 
           {/* ── Posts: independently scrollable ── */}
-          <div ref={feedScrollRef} className="flex-1 overflow-y-auto custom-scrollbar">
+          <div ref={feedScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <div className="pb-8">
 
           {/* Panel mode toggle */}
@@ -2826,8 +2826,8 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* DUAL panel layout */}
           {feedPanelMode === 'DUAL' ? (
-            <div className="grid grid-cols-2 gap-4 h-[calc(100vh-200px)] px-4">
-              <div className="overflow-y-auto pr-2 scrollbar-hide space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-200px)] px-3 md:px-4">
+              <div className="overflow-y-auto overflow-x-hidden pr-2 scrollbar-hide space-y-4 min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Posts</p>
                 {displayedPosts.map((post) => (
                   <PostCard key={post.id} post={post} onVisitUser={onVisitUser} />
@@ -2871,7 +2871,7 @@ const toggleFavoriteTeam = async (team: string) => {
           )}
 
           {/* Post feed */}
-          <div className="space-y-3">
+          <div className="space-y-3 w-full min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
           <AnimatePresence mode="popLayout" initial={false}>
             {displayedPosts.length === 0 ? (
               <motion.div
@@ -2919,7 +2919,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-12 w-full min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
           {isLoadingNews ? (
             <div className="py-20 text-center">
               <Zap className="mx-auto mb-6 text-small-orange" size={48} />
