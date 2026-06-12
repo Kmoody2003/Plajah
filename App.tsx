@@ -169,6 +169,8 @@ const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 const DebateView     = retryLazy(() => import('./components/DebateView'));
 import { ChallengeVsController } from './components/ChallengeVsScreen';
 import { TrackBreakdownController } from './components/TrackBreakdownModal';
+import { LoreaScoresController } from './components/LoreaScoresModal';
+import { initLoreaScoreListener } from './services/loreaScoreService';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
@@ -419,6 +421,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     setGlobalView(view);
   }, [view, setGlobalView]);
+
+  // Persist transcribed scores exported from the Breakdown into Lorea.
+  useEffect(() => initLoreaScoreListener(), []);
 
   useEffect(() => {
     if (user) {
@@ -3167,6 +3172,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       {/* The Breakdown — fires on OPEN_BREAKDOWN custom event */}
       <TrackBreakdownController onOpenTheoryStudio={() => setView('MUSIC_THEORY')} />
+
+      {/* Lorea Scores — saves transcribed notation; opens on OPEN_LOREA_SCORES */}
+      <LoreaScoresController />
 
       {/* Onboarding Tour */}
       {showOnboarding && user && (

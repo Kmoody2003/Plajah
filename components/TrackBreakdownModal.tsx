@@ -20,6 +20,9 @@ import {
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
+import { transcribeTrack, type Transcription } from '../services/audioTranscription';
+import { buildNotation, notationToMusicXML, type Notation } from '../services/musicNotation';
+import SheetMusic from './SheetMusic';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
@@ -1123,7 +1126,44 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   const { theory, isReal, analyzing } = useRealAudioAnalysis(track, hashTheory);
   const progress = duration > 0 ? currentTime / duration : 0;
 
-  const factoids = useMemo(() => generateAriaFactoids(theory), [theory.key, theory.scale, theory.tempo, theory.chordQuality]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Real note transcription (YIN) → engraved notation ──────────────────────
+  const [transcription, setTranscription] = useState<Transcription | null>(null);
+  const [notation, setNotation] = useState<Notation | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transProgress, setTransProgress] = useState(0);
+  useEffect(() => {
+    setTranscription(null); setNotation(null); setTransProgress(0);
+    if (!track.url) return;
+    const ac = new AbortController();
+    setTranscribing(true);
+    transcribeTrack(track.url, { signal: ac.signal, onProgress: (_s, p) => setTransProgress(p) })
+      .then(t => {
+        if (ac.signal.aborted) return;
+        setTranscription(t);
+        setNotation(buildNotation(t));
+      })
+      .catch(() => { /* CORS / decode / format — keep the live-estimate fallback */ })
+      .finally(() => { if (!ac.signal.aborted) setTranscribing(false); });
+    return () => ac.abort();
+  }, [track.id, track.url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real key/tempo/time-signature take over the headline + theory cards when ready.
+  const displayTheory: TrackTheory = transcription
+    ? {
+        ...theory,
+        key: transcription.key,
+        scale: `${transcription.key} ${transcription.mode === 'minor' ? 'Minor' : 'Major'}`,
+        tempo: Math.round(transcription.bpm),
+        timeSignature: `${transcription.beatsPerMeasure}/${transcription.beatUnit}`,
+      }
+    : theory;
+
+  // Live beat position for the notation playhead.
+  const currentBeat = transcription
+    ? (currentTime - transcription.firstBeatSec) / (60 / (transcription.bpm || 120))
+    : 0;
+
+  const factoids = useMemo(() => generateAriaFactoids(displayTheory), [displayTheory.key, displayTheory.scale, displayTheory.tempo, displayTheory.chordQuality]); // eslint-disable-line react-hooks/exhaustive-deps
   const { getFFT, getMetadata } = useMultiStemData();
 
   // Which stems are expanded (show both canvas + score)
@@ -1151,25 +1191,45 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
     if (exportingLorea || exportDone) return;
     setExportingLorea(true);
     try {
-      if (staffRef.current) {
-        const canvas = await html2canvas(staffRef.current, { backgroundColor: '#080808', scale: 2 });
-        canvas.toBlob(async blob => {
-          if (!blob) return;
-          window.dispatchEvent(new CustomEvent('LOREA_SAVE_SCORE', {
-            detail: { title: `${track.title} — Score`, artist: track.artist, imageBlob: blob, theory },
-          }));
-          setExportDone(true); setExportingLorea(false);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = `${track.title.replace(/[^a-z0-9]/gi, '_')}_score.png`; a.click();
-          URL.revokeObjectURL(url);
-        }, 'image/png');
-      }
-    } catch { setExportingLorea(false); }
-  }, [exportingLorea, exportDone, track, theory]);
+      // Real, openable notation — the heart of the export.
+      const musicXml = notation ? notationToMusicXML(notation, track.title, track.artist) : null;
 
-  const mode = detectMode(theory);
-  const cof  = circleOfFifthsPos(theory.key);
+      // Optional bitmap snapshot of the on-screen score (nice preview thumbnail).
+      let imageBlob: Blob | null = null;
+      if (staffRef.current) {
+        try {
+          const canvas = await html2canvas(staffRef.current, { backgroundColor: '#080808', scale: 2 });
+          imageBlob = await new Promise<Blob | null>(res => canvas.toBlob(b => res(b), 'image/png'));
+        } catch { /* snapshot is optional */ }
+      }
+
+      // Hand the score to Lorea (real MusicXML + notation model + metadata).
+      window.dispatchEvent(new CustomEvent('LOREA_SAVE_SCORE', {
+        detail: {
+          title: `${track.title} — Score`,
+          artist: track.artist,
+          trackId: track.id,
+          theory: displayTheory,
+          musicXml,
+          notation,
+          imageBlob,
+          backend: transcription?.backend ?? null,
+        },
+      }));
+
+      // Also download the MusicXML so it opens straight away in MuseScore/Finale.
+      if (musicXml) {
+        const url = URL.createObjectURL(new Blob([musicXml], { type: 'application/vnd.recordare.musicxml+xml' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = `${track.title.replace(/[^a-z0-9]/gi, '_')}.musicxml`; a.click();
+        URL.revokeObjectURL(url);
+      }
+      setExportDone(true); setExportingLorea(false);
+    } catch { setExportingLorea(false); }
+  }, [exportingLorea, exportDone, track, displayTheory, notation, transcription]);
+
+  const mode = detectMode(displayTheory);
+  const cof  = circleOfFifthsPos(displayTheory.key);
 
   return (
     <AnimatePresence>
@@ -1188,7 +1248,14 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
             <div className="flex items-center gap-2 mb-0.5">
               <Waves size={10} className="text-orange-400 shrink-0" />
               <p className="text-[8px] font-black uppercase tracking-[0.25em] text-orange-400/70">The Breakdown</p>
-              {analyzing ? (
+              {transcribing ? (
+                <span className="text-[7px] font-bold text-orange-300/70 animate-pulse ml-1">Transcribing… {Math.round(transProgress * 100)}%</span>
+              ) : transcription ? (
+                <span className="flex items-center gap-1 ml-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 4px #34d399' }} />
+                  <span className="text-[7px] font-bold text-emerald-400/80">Transcribed score</span>
+                </span>
+              ) : analyzing ? (
                 <span className="text-[7px] font-bold text-orange-300/70 animate-pulse ml-1">Analyzing live…</span>
               ) : isReal ? (
                 <span className="flex items-center gap-1 ml-1">
@@ -1204,13 +1271,13 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
           </div>
           <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
             <div className="flex items-center gap-1.5 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-1.5">
-              <span className="text-xs font-black text-orange-400">{theory.key}</span>
+              <span className="text-xs font-black text-orange-400">{displayTheory.key}</span>
               <span className="text-[9px] text-white/30">·</span>
-              <span className="text-[10px] font-black text-white/60">{theory.tempo} BPM</span>
+              <span className="text-[10px] font-black text-white/60">{displayTheory.tempo} BPM</span>
               <span className="text-[9px] text-white/30">·</span>
-              <span className="text-[10px] font-black text-white/40">{theory.timeSignature}</span>
+              <span className="text-[10px] font-black text-white/40">{displayTheory.timeSignature}</span>
             </div>
-            <span className="text-[8px] text-white/20 font-mono">{theory.chordQuality}</span>
+            <span className="text-[8px] text-white/20 font-mono">{displayTheory.chordQuality}</span>
           </div>
           <button onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/12 flex items-center justify-center transition-colors shrink-0">
@@ -1245,7 +1312,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                     <span className="text-[7px] font-bold text-white/20">Genre estimate</span>
                   )}
                 </div>
-                <p className="text-xs font-black text-white mt-0.5">{theory.scale} · {theory.timeSignature}</p>
+                <p className="text-xs font-black text-white mt-0.5">{displayTheory.scale} · {displayTheory.timeSignature}</p>
               </div>
               <div className="flex items-center gap-3">
                 {(Object.entries(ROLE_COLOR) as [NoteRole, string][]).map(([role, color]) => (
@@ -1265,6 +1332,51 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
               {' / '}
               {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
             </p>
+          </motion.div>
+
+          {/* ── Engraved notation (real YIN transcription) ── */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-[#0d0d0d] border border-white/[0.06] rounded-3xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">Sheet Music</p>
+                  {transcribing ? (
+                    <span className="text-[7px] font-bold text-orange-400/80 animate-pulse">Transcribing… {Math.round(transProgress * 100)}%</span>
+                  ) : transcription ? (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 4px #34d399' }} />
+                      <span className="text-[7px] font-bold text-emerald-400/80">Note-accurate · grid-synced</span>
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-white/20">Awaiting audio…</span>
+                  )}
+                </div>
+                <p className="text-xs font-black text-white mt-0.5">
+                  {displayTheory.scale} · {displayTheory.timeSignature} · {displayTheory.tempo} BPM
+                </p>
+              </div>
+              <p className="text-[7px] text-white/20 font-mono text-right leading-tight">melody (treble)<br />bass (bass clef)</p>
+            </div>
+
+            {notation ? (
+              <div className="bg-[#060606] rounded-2xl p-3 overflow-x-auto custom-scrollbar">
+                <SheetMusic notation={notation} currentBeat={currentBeat} color="#d4d4d8" />
+              </div>
+            ) : (
+              <div className="h-24 rounded-2xl bg-white/[0.015] border border-white/[0.04] flex items-center justify-center">
+                {transcribing ? (
+                  <div className="w-2/3 max-w-xs">
+                    <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${transProgress * 100}%` }} />
+                    </div>
+                    <p className="text-[8px] text-white/30 text-center mt-2">Reading the waveform — pitch tracking melody &amp; bass…</p>
+                  </div>
+                ) : (
+                  <p className="text-[9px] text-white/25 italic">Play the track to transcribe its notation.</p>
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* ── Per-stem score + canvas lanes ── */}
@@ -1348,13 +1460,13 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.44 }}>
             <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25 mb-3 px-1">Theory Analysis</p>
             <div className="grid grid-cols-2 gap-2.5">
-              <TheoryCard label="Key"           value={theory.key}             icon={<Hash size={13} />}      delay={0.46} />
-              <TheoryCard label="Scale"         value={theory.scale}           icon={<Music2 size={13} />}    delay={0.48} />
-              <TheoryCard label="Mode"          value={mode}                   icon={<Waves size={13} />}     delay={0.50} accent="#a855f7" />
-              <TheoryCard label="Tempo"         value={`${theory.tempo} BPM`}  icon={<Zap size={13} />}       delay={0.52} />
-              <TheoryCard label="Chord Type"    value={theory.chordQuality}    icon={<BarChart2 size={13} />} delay={0.54} accent="#10b981" />
-              <TheoryCard label="Circle of 5ths" value={cof}                   icon={<Disc size={13} />}      delay={0.56} accent="#6366f1"
-                sub={`${theory.key} ${detectMode(theory).includes('Minor') || detectMode(theory).includes('Blues') ? 'Minor' : 'Major'}`} />
+              <TheoryCard label="Key"           value={displayTheory.key}             icon={<Hash size={13} />}      delay={0.46} />
+              <TheoryCard label="Scale"         value={displayTheory.scale}           icon={<Music2 size={13} />}    delay={0.48} />
+              <TheoryCard label="Mode"          value={mode}                          icon={<Waves size={13} />}     delay={0.50} accent="#a855f7" />
+              <TheoryCard label="Tempo"         value={`${displayTheory.tempo} BPM`}  icon={<Zap size={13} />}       delay={0.52} />
+              <TheoryCard label="Chord Type"    value={displayTheory.chordQuality}    icon={<BarChart2 size={13} />} delay={0.54} accent="#10b981" />
+              <TheoryCard label="Circle of 5ths" value={cof}                          icon={<Disc size={13} />}      delay={0.56} accent="#6366f1"
+                sub={`${displayTheory.key} ${detectMode(displayTheory).includes('Minor') || detectMode(displayTheory).includes('Blues') ? 'Minor' : 'Major'}`} />
             </div>
           </motion.div>
 
@@ -1383,12 +1495,28 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-black text-white">
-                    {exportDone ? 'Saved to Lorea ✓' : exportingLorea ? 'Exporting…' : 'Export to Lorea'}
+                    {exportDone ? 'Saved to Lorea ✓' : exportingLorea ? 'Exporting…' : 'Export notation to Lorea'}
                   </p>
-                  <p className="text-[9px] text-white/30 mt-0.5">Save score snapshot to your Plajah library</p>
+                  <p className="text-[9px] text-white/30 mt-0.5">
+                    {notation ? 'Saves real MusicXML (opens in MuseScore/Finale) to your Lorea library' : 'Play the track first to transcribe its notation'}
+                  </p>
                 </div>
               </div>
               {!exportDone && <Download size={14} className="text-white/20 group-hover:text-white/50 transition-colors" />}
+            </button>
+
+            <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LOREA_SCORES', { detail: { trackId: track.id } }))}
+              className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-purple-500/25 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/12 flex items-center justify-center">
+                  <BookOpen size={14} className="text-purple-400" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-black text-white">Open Lorea Scores</p>
+                  <p className="text-[9px] text-white/30 mt-0.5">Browse &amp; download every score you've transcribed</p>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-white/20 group-hover:text-white/50 transition-colors" />
             </button>
           </motion.div>
         </div>

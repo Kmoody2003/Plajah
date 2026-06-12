@@ -30,7 +30,7 @@ const MAX_BPM = 200;
 
 /** Fetch + decode an audio URL to a mono Float32 PCM buffer. Cross-origin URLs
  *  go through Plajah's /api/proxy so decodeAudioData isn't blocked by CORS. */
-async function decodeMono(url: string, signal?: AbortSignal): Promise<{ data: Float32Array; sampleRate: number; duration: number }> {
+export async function decodeMono(url: string, signal?: AbortSignal): Promise<{ data: Float32Array; sampleRate: number; duration: number }> {
   const sameOrigin = url.startsWith('/') || url.startsWith(location.origin);
   const fetchUrl = sameOrigin || !/^https?:\/\//i.test(url) ? url : `/api/proxy?url=${encodeURIComponent(url)}`;
   const res = await fetch(fetchUrl, { signal });
@@ -103,6 +103,12 @@ function scoreBpm(onsetSec: number[], bpm: number): number {
 
 export async function detectBeats(url: string, signal?: AbortSignal): Promise<BeatAnalysis> {
   const { data, sampleRate, duration } = await decodeMono(url, signal);
+  return detectBeatsFromBuffer(data, sampleRate, duration);
+}
+
+/** Same as detectBeats but on already-decoded PCM — lets a caller (e.g. the
+ *  transcription engine) decode the audio once and share it across analyses. */
+export function detectBeatsFromBuffer(data: Float32Array, sampleRate: number, duration: number): BeatAnalysis {
   const filtered = lowPass(data, sampleRate);
   const onsets = pickOnsets(filtered, sampleRate);
   const onsetSec = onsets.map(i => i / sampleRate);
