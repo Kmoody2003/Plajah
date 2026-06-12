@@ -1229,7 +1229,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 </div>
                 <button onClick={() => setShowGoLiveModal(true)} className={`px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${isLiveStreamActive ? 'bg-red-600 text-white' : 'bg-white text-black hover:bg-small-orange hover:text-white'}`}>{isLiveStreamActive ? 'End Broadcast' : 'Go Live'}</button>
               </div>
-              <VideoRow title="Past Broadcasts" icon={Radio} videos={userVideos.filter(v => v.genre === 'Live')} onSelect={handlePlay} emptyMessage="No past broadcasts." />
+              <VideoRow title="Past Live Streams" icon={Radio} videos={userVideos.filter(v => v.isLiveRecording || v.genre === 'Live')} onSelect={handlePlay} emptyMessage="No past live streams yet — saved replays land here when you end a stream." />
             </div>
           )}
 

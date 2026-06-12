@@ -187,6 +187,19 @@ const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] =
     createdBy: 'SYSTEM',
     isActive: true,
   },
+  {
+    title: 'On Air',
+    description: 'Went live for the first time on Plajah',
+    category: 'ARTIST',
+    triggerType: 'FIRST_LIVE_STREAM',
+    icon: 'Radio',
+    backgroundColor: '#EF4444',
+    pointsValue: 100,
+    requirements: { type: 'ACTION', actionTrigger: 'FIRST_LIVE_STREAM' },
+    rewards: { pointsBonus: 100 },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
 ];
 
 // ── FETCH FUNCTIONS ──────────────────────────────────────────────────────────
@@ -311,6 +324,31 @@ export async function unlockAchievement(
     return { ...progress, id: docRef.id };
   } catch (error) {
     console.error('Error unlocking achievement:', error);
+    return null;
+  }
+}
+
+/**
+ * Unlock by trigger type (e.g. 'FIRST_LIVE_STREAM'). Looks the achievement up
+ * in Firestore; if it has never been seeded there, seeds it from
+ * BASE_ACHIEVEMENTS first so the unlock can never silently no-op.
+ */
+export async function unlockAchievementByTrigger(
+  userId: string,
+  trigger: Achievement['triggerType']
+): Promise<UserAchievementProgress | null> {
+  try {
+    const all = await fetchAllAchievements();
+    let target = all.find(a => a.triggerType === trigger);
+    if (!target) {
+      const base = BASE_ACHIEVEMENTS.find(a => a.triggerType === trigger);
+      if (!base) return null;
+      target = (await createAchievement(base)) ?? undefined;
+    }
+    if (!target?.id) return null;
+    return unlockAchievement(userId, target.id);
+  } catch (error) {
+    console.error('Error unlocking achievement by trigger:', error);
     return null;
   }
 }

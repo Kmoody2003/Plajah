@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, ChevronLeft, ChevronRight, Radio, Camera, Monitor, Wifi,
   Mic, MicOff, Video, VideoOff, Check, AlertCircle, Trash2,
-  Clock, Type, MessageSquare, Ban, Layers, Copy, Tv2, RefreshCw
+  Clock, Type, MessageSquare, Ban, Layers, Copy, Tv2, RefreshCw, Settings
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { publishLiveFeed, deleteLiveFeed, createMuxLiveStream, endMuxLiveStream, getMuxLiveStreamStatus, saveStreamArchive } from '../services/backendService';
@@ -13,6 +13,7 @@ import { onSnapshot } from '../services/safeSnapshot';
 import PlajahLivePlayer from './PlajahLivePlayer';
 import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 import SportsProducerPanel from './SportsProducerPanel';
+import MobileLiveStreamer from './MobileLiveStreamer';
 
 interface GoLiveWizardProps {
   onClose: () => void;
@@ -93,6 +94,9 @@ function LiveTimer({ startTime }: { startTime: number }) {
 
 const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => {
   const [step, setStep] = useState<WizardStep>('TYPE');
+  // Quick Stream skips the wizard entirely — one tap into the phone streamer
+  // (auto-post + notifications + achievements + save/delete live there).
+  const [quickLaunch, setQuickLaunch] = useState(false);
   const [streamType, setStreamType] = useState<StreamType>('QUICK');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -447,28 +451,55 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
 
               {step === 'TYPE' && (
                 <div className="space-y-4">
-                  <h2 className="text-white font-black text-xl uppercase tracking-tight mb-6">Choose your stream type</h2>
+                  <h2 className="text-white font-black text-xl uppercase tracking-tight mb-6">How do you want to go live?</h2>
+                  {/* Two primary choices only — advanced modes live inside TV Studio. */}
                   {([
-                    { id: 'QUICK' as StreamType, icon: Camera, label: 'Quick Mobile', desc: 'Camera or phone stream. Simple, fast, no setup.' },
-                    { id: 'STUDIO' as StreamType, icon: Monitor, label: 'Studio Broadcast', desc: 'High quality with audio/video controls. Webcam or capture card.' },
-                    { id: 'SPORTS' as StreamType, icon: Radio, label: 'Sports Broadcast', desc: 'Live game with real-time scorebug, clock, replay controls, and AI commentary.' },
-                    { id: 'MUX' as StreamType, icon: Tv2, label: 'Mux Pro Stream', desc: 'Professional broadcast via OBS, Streamlabs, or any RTMP software. Powered by Mux.' },
-                    { id: 'EXTERNAL' as StreamType, icon: Wifi, label: 'External Stream', desc: 'Paste an existing stream URL from YouTube, Twitch, or any source.' },
-                  ]).map(({ id, icon: Icon, label, desc }) => (
-                    <button key={id} onClick={() => setStreamType(id)}
-                      className={`w-full flex items-center gap-5 p-6 rounded-2xl border text-left transition-all ${streamType === id ? 'border-red-500/50 bg-red-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${streamType === id ? 'bg-red-500' : 'bg-white/10'}`}>
-                        <Icon size={22} className="text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-black uppercase tracking-tight">{label}</p>
-                        <p className="text-white/40 text-sm mt-0.5">{desc}</p>
-                      </div>
-                      {streamType === id && <Check size={20} className="text-red-400 shrink-0" />}
-                    </button>
-                  ))}
+                    { id: 'QUICK' as StreamType, icon: Camera, label: 'Quick Stream', desc: 'Phone camera, one tap. Auto-posts to your timeline, notifies followers, save the replay when you end.' },
+                    { id: 'STUDIO' as StreamType, icon: Monitor, label: 'TV Studio', desc: 'Full production broadcast — cameras, audio controls, overlays. Advanced modes inside.' },
+                  ]).map(({ id, icon: Icon, label, desc }) => {
+                    const selected = id === 'QUICK' ? streamType === 'QUICK' : streamType !== 'QUICK';
+                    return (
+                      <button key={id} onClick={() => setStreamType(id)}
+                        className={`w-full flex items-center gap-4 sm:gap-5 p-4 sm:p-6 rounded-2xl border text-left transition-all ${selected ? 'border-red-500/50 bg-red-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${selected ? 'bg-red-500' : 'bg-white/10'}`}>
+                          <Icon size={22} className="text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-black uppercase tracking-tight">{label}</p>
+                          <p className="text-white/40 text-xs sm:text-sm mt-0.5">{desc}</p>
+                        </div>
+                        {selected && <Check size={20} className="text-red-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+
+                  {/* TV Studio preferences — the former top-level advanced options */}
+                  {streamType !== 'QUICK' && (
+                    <div className="mt-2 p-4 bg-white/[0.04] rounded-2xl border border-white/10 space-y-2">
+                      <p className="text-white/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                        <Settings size={11} /> Studio broadcast mode
+                      </p>
+                      {([
+                        { id: 'STUDIO' as StreamType, icon: Monitor, label: 'Studio Camera', desc: 'Webcam or capture card with audio/video controls.' },
+                        { id: 'SPORTS' as StreamType, icon: Radio, label: 'Sports Broadcast', desc: 'Scorebug, clock, replays, AI commentary.' },
+                        { id: 'MUX' as StreamType, icon: Tv2, label: 'Pro (OBS / RTMP)', desc: 'Stream from OBS, Streamlabs or any encoder.' },
+                        { id: 'EXTERNAL' as StreamType, icon: Wifi, label: 'External URL', desc: 'Relay an existing YouTube/Twitch stream.' },
+                      ]).map(({ id, icon: Icon, label, desc }) => (
+                        <button key={id} onClick={() => setStreamType(id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${streamType === id ? 'border-red-500/40 bg-red-500/10' : 'border-white/5 bg-white/[0.03] hover:border-white/15'}`}>
+                          <Icon size={15} className={streamType === id ? 'text-red-400' : 'text-white/40'} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-black uppercase tracking-tight ${streamType === id ? 'text-white' : 'text-white/60'}`}>{label}</p>
+                            <p className="text-white/30 text-[10px] truncate">{desc}</p>
+                          </div>
+                          {streamType === id && <Check size={14} className="text-red-400 shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {streamType === 'EXTERNAL' && (
-                    <div className="mt-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                    <div className="mt-2 p-4 bg-white/5 rounded-2xl border border-white/10">
                       <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">External Stream URL</p>
                       <p className="text-white/40 text-xs mb-3 leading-relaxed">Paste your live embed URL from YouTube, Twitch, or any source.</p>
                       <input type="url" value={externalUrl} onChange={e => setExternalUrl(e.target.value)} placeholder="https://..."
@@ -751,7 +782,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
             <ChevronLeft size={16} /> Back
           </button>
           {step !== 'GOLIVE' ? (
-            <button onClick={() => setStep(steps[stepIndex + 1])}
+            <button onClick={() => { if (step === 'TYPE' && streamType === 'QUICK') { setQuickLaunch(true); } else { setStep(steps[stepIndex + 1]); } }}
               disabled={(step === 'DETAILS' && !title.trim()) || (step === 'TYPE' && streamType === 'EXTERNAL' && !externalUrl.trim())}
               className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/90 disabled:opacity-30 disabled:pointer-events-none transition-all">
               Continue <ChevronRight size={16} />
@@ -764,6 +795,9 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
           )}
         </div>
       </motion.div>
+
+      {/* Quick Stream — the phone-first streamer takes over the whole screen */}
+      {quickLaunch && <MobileLiveStreamer mode="streamer" onClose={onClose} />}
     </div>
   );
 };

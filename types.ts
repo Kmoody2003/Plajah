@@ -796,6 +796,8 @@ export interface Video {
   muxPlaybackId?: string; // Mux streaming support
   muxAssetId?: string;
   podcastMetadata?: PodcastMetadata;
+  /** Saved recording of a finished live stream — shown in Reello's "Past Live Streams". */
+  isLiveRecording?: boolean;
   category?: 'MUSIC_VIDEO' | 'MOVIE' | 'TV_EPISODE' | 'TRAILER' | 'SHORT_FILM' | 'DOCUMENTARY';
   subType?: 'MOVIE' | 'TV_SERIES'; // Added subType to Video
   episodeNumber?: number; // Added for TV Series episodes
@@ -1376,6 +1378,9 @@ export interface Post {
   targetUserName?: string;
   tags?: string[];
   theme?: string;
+  /** Auto-created when the author goes live; cleared to a replay when it ends. */
+  liveStreamId?: string;
+  isLiveNow?: boolean;
 }
 
 export interface FeedPage {
@@ -2479,6 +2484,7 @@ export type AchievementTriggerType =
   | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION'
   | 'FIRST_ENGAGEMENT' | 'FIRST_UPLOAD' | 'FIRST_LISTENER' | 'FIRST_FAN'
   | 'FIRST_SIGN_IN' | 'FIRST_FOLLOW' | 'WATCH_LIVE' | 'POST_COMMENT'
+  | 'FIRST_LIVE_STREAM'
   | 'HNS_DISCOVER_FIRST' | 'HNS_BOTH_SLOTS' | 'HNS_ARTIST_10' | 'HNS_ARTIST_50'
   | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
   | 'CUSTOM' | 'MANUAL';

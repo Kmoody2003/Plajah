@@ -616,6 +616,11 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   /* Utility classes */
   .pb-safe-bottom   { padding-bottom: env(safe-area-inset-bottom); }
   .pb-android-nav   { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+  /* Full-screen overlays (live streamer etc.) — keep controls clear of the
+     notch / status bar and the gesture / nav bar. Referenced by
+     MobileLiveStreamer; without these the docks render off-screen. */
+  .pt-safe          { padding-top: max(env(safe-area-inset-top), 12px); }
+  .pb-safe          { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
   .h-real-screen    { height: calc(var(--real-vh, 1dvh) * 100); }
   .min-h-real-screen{ min-height: calc(var(--real-vh, 1dvh) * 100); }
 

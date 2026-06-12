@@ -5715,6 +5715,9 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     // Store the Mux direct-upload ID so we can resume polling if the tab is
     // refreshed before Mux finishes transcoding a large file.
     ...(muxUploadId ? { muxUploadId } : {}),
+    // Saved live-stream replays surface in Reello's "Past Live Streams".
+    ...(video.isLiveRecording ? { isLiveRecording: true } : {}),
+    ...(typeof video.duration === 'number' ? { duration: video.duration } : {}),
   } as any;
   
   // Save to Firestore immediately so the creator can see the video right away.
