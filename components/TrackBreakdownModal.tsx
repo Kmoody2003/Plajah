@@ -313,12 +313,42 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
   return { theory: realTheory ?? fallback, isReal: realTheory !== null, analyzing: isCurrentTrack && analyzing };
 }
 
+/** Map real transcription notes → the breakdown's ScoreNote shape, assigning a
+ *  role by voice + register so each stem shows its real notes. `beat` carries the
+ *  real musical beat, consumed by the staves' real-beat windowed (scrolling) mode. */
+function transcriptionToScoreNotes(t: Transcription): ScoreNote[] {
+  return t.notes
+    .map(n => {
+      let role: NoteRole;
+      if (n.voice === 'bass' || n.midi < 52) role = 'BASS';
+      else if (n.midi >= 72) role = 'MELODY';
+      else role = 'HARMONY';
+      return { midi: n.midi, role, beat: n.startBeat };
+    })
+    .sort((a, b) => a.beat - b.beat);
+}
+
 // ─── Animated staff (full score — all instruments) ────────────────────────────
 
-interface AnimatedStaffProps { notes: ScoreNote[]; progress: number }
+interface AnimatedStaffProps {
+  notes: ScoreNote[];
+  progress: number;
+  /** When set, `note.beat` is treated as a real musical beat and the staff
+   *  scrolls as a window around this live beat (true transcription mode). */
+  currentBeatReal?: number;
+  windowBeats?: number;
+}
 
-const AnimatedStaff: React.FC<AnimatedStaffProps> = ({ notes, progress }) => {
-  const currentBeat = progress * notes.length;
+const AnimatedStaff: React.FC<AnimatedStaffProps> = ({ notes, progress, currentBeatReal, windowBeats = 8 }) => {
+  const real = currentBeatReal != null;
+  const win = windowBeats;
+  const viewStart = real ? (currentBeatReal as number) - win * 0.35 : 0;
+  const xForBeat = (b: number) => 30 + ((b - viewStart) / win) * 510;
+  const indexBeat = progress * notes.length;
+  const playheadX = real ? xForBeat(currentBeatReal as number) : 120 + indexBeat * 22;
+  // Barlines every 4 beats within the window (real mode only).
+  const barlines: number[] = [];
+  if (real) for (let b = Math.ceil(viewStart); b <= viewStart + win; b++) if (b % 4 === 0) barlines.push(b);
   return (
     <svg width="100%" viewBox="0 0 560 130" className="w-full">
       <rect width="560" height="130" fill="transparent" />
@@ -331,20 +361,24 @@ const AnimatedStaff: React.FC<AnimatedStaffProps> = ({ notes, progress }) => {
       <text x="36" y="88" fontSize="72" fill="rgba(255,255,255,0.3)" fontFamily="serif">𝄞</text>
       <text x="90" y="52" fontSize="14" fill="rgba(255,255,255,0.25)" fontFamily="sans-serif" fontWeight="bold">4</text>
       <text x="90" y="70" fontSize="14" fill="rgba(255,255,255,0.25)" fontFamily="sans-serif" fontWeight="bold">4</text>
+      {real && barlines.map(b => (
+        <line key={`bar${b}`} x1={xForBeat(b)} y1={28} x2={xForBeat(b)} y2={76} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+      ))}
       {notes.map((note, i) => {
-        const x = 120 + i * 22;
+        const x = real ? xForBeat(note.beat) : 120 + i * 22;
+        if (real && (x < 24 || x > 546)) return null;          // cull offscreen
         const y = noteY(note.midi);
-        const isActive = Math.abs(i - currentBeat) < 0.9;
-        const isPast   = i < currentBeat - 0.5;
-        const isFuture = i > currentBeat + 0.5;
+        const isActive = real ? Math.abs(note.beat - (currentBeatReal as number)) < 0.4 : Math.abs(i - indexBeat) < 0.9;
+        const isPast   = real ? note.beat < (currentBeatReal as number) - 0.4 : i < indexBeat - 0.5;
+        const isFuture = real ? note.beat > (currentBeatReal as number) + 0.4 : i > indexBeat + 0.5;
         const color    = ROLE_COLOR[note.role];
         const opacity  = isFuture ? 0.18 : isPast ? 0.55 : 1;
         return (
-          <g key={i}>
+          <g key={real ? `${note.beat}-${note.midi}-${i}` : i}>
             {isActive && (
               <ellipse cx={x} cy={y} rx={12} ry={9} fill={color} opacity={0.22} style={{ filter: 'blur(6px)' }} />
             )}
-            {i > 0 && i % 4 === 0 && (
+            {!real && i > 0 && i % 4 === 0 && (
               <line x1={x - 11} y1={28} x2={x - 11} y2={76} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
             )}
             <ellipse cx={x} cy={y} rx={7} ry={5}
@@ -368,8 +402,8 @@ const AnimatedStaff: React.FC<AnimatedStaffProps> = ({ notes, progress }) => {
           </g>
         );
       })}
-      {progress > 0 && progress < 1 && (
-        <line x1={120 + currentBeat * 22} y1={20} x2={120 + currentBeat * 22} y2={120}
+      {(real || (progress > 0 && progress < 1)) && (
+        <line x1={playheadX} y1={20} x2={playheadX} y2={120}
           stroke="#f97316" strokeWidth="1.5" strokeDasharray="4 3" opacity={0.65} />
       )}
     </svg>
@@ -473,8 +507,17 @@ const StemScoreNotes: React.FC<{
   progress: number;
   lyrics?: SyncedLyric[];
   duration?: number;
-}> = ({ stem, notes, progress, lyrics, duration = 0 }) => {
+  /** When set, `note.beat` is a real musical beat and the staff scrolls as a
+   *  window around this live beat (true transcription mode). */
+  currentBeatReal?: number;
+  windowBeats?: number;
+}> = ({ stem, notes, progress, lyrics, duration = 0, currentBeatReal, windowBeats = 8 }) => {
   const currentBeat = progress * notes.length;
+  const real = currentBeatReal != null;
+  const cbr = currentBeatReal as number;
+  const win = windowBeats;
+  const viewStart = real ? cbr - win * 0.35 : 0;
+  const xForBeat = (b: number) => 100 + ((b - viewStart) / win) * 430;
 
   if (stem.isDrum) {
     // Percussion staff: 3 labeled lines — kick, snare, hihat
@@ -495,29 +538,55 @@ const StemScoreNotes: React.FC<{
         ))}
         <text x="90" y="38" fontSize="28" fill="rgba(255,255,255,0.18)" fontFamily="serif">𝄥</text>
 
-        {notes.map((_, i) => {
-          const x = 120 + i * 22;
-          const isActive = Math.abs(i - currentBeat) < 0.9;
-          const isPast   = i < currentBeat - 0.5;
-          const type = i % 4 === 0 ? 1 : i % 4 === 2 ? 2 : 3;
-          const y = drumY[type as 1|2|3];
-          const col = isActive ? drumColor[type as 1|2|3] : 'rgba(255,255,255,' + (isPast ? '0.22' : '0.1') + ')';
-          const sz = isActive ? 5 : 4;
-          return (
-            <g key={i}>
-              {i > 0 && i % 4 === 0 && (
-                <line x1={x - 11} y1={6} x2={x - 11} y2={58} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-              )}
-              {isActive && (
-                <circle cx={x} cy={y} r={9} fill={stem.color} opacity={0.18} style={{ filter: 'blur(5px)' }} />
-              )}
-              <line x1={x - sz} y1={y - sz} x2={x + sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
-              <line x1={x + sz} y1={y - sz} x2={x - sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
-            </g>
-          );
-        })}
-        {progress > 0 && progress < 1 && (
-          <line x1={120 + currentBeat * 22} y1={4} x2={120 + currentBeat * 22} y2={60}
+        {real
+          ? (() => {
+              // No drum transcription — show a tempo-synced beat guide in the window.
+              const hits: { pos: number; type: 1 | 2 | 3 }[] = [];
+              for (let b = Math.floor(viewStart); b <= viewStart + win + 1; b += 0.5) {
+                if (b < 0) continue;
+                hits.push({ pos: b, type: 3 });                                   // hi-hat on eighths
+                if (Number.isInteger(b)) hits.push({ pos: b, type: (b % 2 === 0 ? 1 : 2) }); // kick/snare
+              }
+              return hits.map(h => {
+                const x = xForBeat(h.pos);
+                if (x < 24 || x > 546) return null;
+                const isActive = Math.abs(h.pos - cbr) < 0.2;
+                const isPast = h.pos < cbr;
+                const y = drumY[h.type];
+                const col = isActive ? drumColor[h.type] : 'rgba(255,255,255,' + (isPast ? '0.22' : '0.1') + ')';
+                const sz = isActive ? 5 : 4;
+                return (
+                  <g key={`${h.pos}-${h.type}`}>
+                    {isActive && <circle cx={x} cy={y} r={9} fill={stem.color} opacity={0.18} style={{ filter: 'blur(5px)' }} />}
+                    <line x1={x - sz} y1={y - sz} x2={x + sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
+                    <line x1={x + sz} y1={y - sz} x2={x - sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
+                  </g>
+                );
+              });
+            })()
+          : notes.map((_, i) => {
+              const x = 120 + i * 22;
+              const isActive = Math.abs(i - currentBeat) < 0.9;
+              const isPast   = i < currentBeat - 0.5;
+              const type = i % 4 === 0 ? 1 : i % 4 === 2 ? 2 : 3;
+              const y = drumY[type as 1|2|3];
+              const col = isActive ? drumColor[type as 1|2|3] : 'rgba(255,255,255,' + (isPast ? '0.22' : '0.1') + ')';
+              const sz = isActive ? 5 : 4;
+              return (
+                <g key={i}>
+                  {i > 0 && i % 4 === 0 && (
+                    <line x1={x - 11} y1={6} x2={x - 11} y2={58} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                  )}
+                  {isActive && (
+                    <circle cx={x} cy={y} r={9} fill={stem.color} opacity={0.18} style={{ filter: 'blur(5px)' }} />
+                  )}
+                  <line x1={x - sz} y1={y - sz} x2={x + sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
+                  <line x1={x + sz} y1={y - sz} x2={x - sz} y2={y + sz} stroke={col} strokeWidth={isActive ? 2 : 1.5} />
+                </g>
+              );
+            })}
+        {(real || (progress > 0 && progress < 1)) && (
+          <line x1={real ? xForBeat(cbr) : 120 + currentBeat * 22} y1={4} x2={real ? xForBeat(cbr) : 120 + currentBeat * 22} y2={60}
             stroke={stem.color} strokeWidth="1.5" strokeDasharray="3 2" opacity={0.55} />
         )}
       </svg>
@@ -562,17 +631,18 @@ const StemScoreNotes: React.FC<{
       <text x="34" y={staffLines[4] + 16} fontSize="56" fill="rgba(255,255,255,0.2)" fontFamily="serif">𝄞</text>
 
       {stemNotes.map((note, si) => {
-        const x = 110 + (note.beat / (notes.length - 1 || 1)) * 420;
+        const x = real ? xForBeat(note.beat) : 110 + (note.beat / (notes.length - 1 || 1)) * 420;
+        if (real && (x < 24 || x > 546)) return null;            // cull offscreen
         // Map noteY output (16-112 for 130-height coords) into our staff coordinate space
         const rawY = noteY(note.midi);
         const y = staffTop + ((rawY - 16) / 100) * (staffLines[4] - staffTop + 12);
-        const isActive = Math.abs(note.beat - currentBeat) < 1.2;
-        const isPast   = note.beat < currentBeat - 0.8;
+        const isActive = real ? Math.abs(note.beat - cbr) < 0.4 : Math.abs(note.beat - currentBeat) < 1.2;
+        const isPast   = real ? note.beat < cbr - 0.4 : note.beat < currentBeat - 0.8;
         const opacity  = isPast ? 0.52 : isActive ? 1 : 0.18;
         const syllable = syllables[si];
 
         return (
-          <g key={si}>
+          <g key={real ? `${note.beat}-${note.midi}-${si}` : si}>
             {isActive && (
               <ellipse cx={x} cy={y} rx={11} ry={8} fill={stem.color} opacity={0.2} style={{ filter: 'blur(5px)' }} />
             )}
@@ -636,9 +706,10 @@ const StemScoreNotes: React.FC<{
         );
       })}
 
-      {progress > 0 && progress < 1 && (
+      {(real || (progress > 0 && progress < 1)) && (
         <line
-          x1={110 + progress * 420} y1={12} x2={110 + progress * 420} y2={isVocals ? viewH - 8 : 88}
+          x1={real ? xForBeat(cbr) : 110 + progress * 420} y1={12}
+          x2={real ? xForBeat(cbr) : 110 + progress * 420} y2={isVocals ? viewH - 8 : 88}
           stroke={stem.color} strokeWidth="1.5" strokeDasharray="4 3" opacity={0.55}
         />
       )}
@@ -1176,6 +1247,15 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
     ? (currentTime - transcription.firstBeatSec) / (60 / (transcription.bpm || 120))
     : 0;
 
+  // Real transcribed notes for the animated staff + per-stem scores (replaces the
+  // old synthetic theory.notes once transcription is ready).
+  const realScoreNotes = useMemo(
+    () => (transcription ? transcriptionToScoreNotes(transcription) : null),
+    [transcription],
+  );
+  const staffNotes = realScoreNotes ?? theory.notes;
+  const staffCurrentBeat = realScoreNotes ? currentBeat : undefined;
+
   const factoids = useMemo(() => generateAriaFactoids(displayTheory), [displayTheory.key, displayTheory.scale, displayTheory.tempo, displayTheory.chordQuality]); // eslint-disable-line react-hooks/exhaustive-deps
   const { getFFT, getMetadata } = useMultiStemData();
 
@@ -1336,7 +1416,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                 ))}
               </div>
             </div>
-            <AnimatedStaff notes={theory.notes} progress={progress} />
+            <AnimatedStaff notes={staffNotes} progress={progress} currentBeatReal={staffCurrentBeat} />
             <div className="mt-3 h-0.5 bg-white/8 rounded-full overflow-hidden">
               <motion.div className="h-full bg-orange-500" style={{ width: `${progress * 100}%` }} transition={{ type: 'tween', duration: 0.1 }} />
             </div>
@@ -1472,8 +1552,9 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                         <p className="text-[7px] font-black uppercase tracking-[0.15em] text-white/20 mb-1.5">Score</p>
                         <StemScoreNotes
                           stem={stem}
-                          notes={theory.notes}
+                          notes={staffNotes}
                           progress={progress}
+                          currentBeatReal={staffCurrentBeat}
                           lyrics={track.timeCodedLyrics}
                           duration={duration}
                         />
