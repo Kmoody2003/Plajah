@@ -19,7 +19,10 @@ export default defineConfig(({ mode }) => {
         react(), 
         tailwindcss(),
         VitePWA({
-          registerType: 'prompt',
+          // autoUpdate so a new deploy applies on the next load instead of
+          // sitting in a "waiting" service worker until the user accepts a
+          // prompt (which made fresh deploys look like they never shipped).
+          registerType: 'autoUpdate',
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
             name: "Plajah",
