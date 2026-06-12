@@ -47,7 +47,24 @@ export default defineConfig(({ mode }) => {
             maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
             cleanupOutdatedCaches: true,
             navigateFallback: null,
+            // Keep the optional Basic Pitch model + TensorFlow.js OUT of the install
+            // precache so they only download when a user actually taps "Enhance with
+            // AI". They're cached on first real fetch by the runtime rules below.
+            globIgnores: [
+              '**/register_all_kernels-*.js',
+              '**/basicPitchBackend-*.js',
+              'models/basic-pitch/**',
+              '**/models/basic-pitch/**',
+            ],
             runtimeCaching: [
+              {
+                // Lazy ML assets (tfjs chunks + Basic Pitch model): cache on first use.
+                urlPattern: ({ url }: { url: URL }) =>
+                  url.pathname.startsWith('/models/') ||
+                  /register_all_kernels-|basicPitchBackend-/.test(url.pathname),
+                handler: 'CacheFirst' as const,
+                options: { cacheName: 'plajah-ml', expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+              },
               {
                 // HTML documents: always hit network first. Falls back to cache only when offline.
                 // Combined with no-cache HTTP headers this guarantees users see new deploys.
