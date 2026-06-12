@@ -31,13 +31,10 @@ const LEFT = 8;
 const HEADER_W = 56;           // clef + key + time signature width
 const MEASURE_W = 132;
 
-function diatonic(el: NElement): number {
-  return (el.octave ?? 4) * 7 + (STEP_NUM[el.step ?? 'B'] ?? 6);
-}
-
-/** y of a notehead relative to the staff's top line. */
-function noteY(el: NElement, clef: 'treble' | 'bass'): number {
-  const stepsAboveBottom = diatonic(el) - BOTTOM_LINE[clef];
+/** y of a pitch (relative to the staff's top line). */
+function pitchY(step: string, octave: number, clef: 'treble' | 'bass'): number {
+  const di = octave * 7 + (STEP_NUM[step] ?? 6);
+  const stepsAboveBottom = di - BOTTOM_LINE[clef];
   // top line y = 0; bottom line y = STAFF_H. note y = bottom - steps*HALF.
   return STAFF_H - stepsAboveBottom * HALF;
 }
@@ -118,29 +115,30 @@ const SheetMusic: React.FC<Props> = ({
           items.push(<text key={`r${mi}-${ei}`} x={nx} y={topY + STAFF_H / 2 + 4} fontSize={14} fill="currentColor" fillOpacity={0.4} fontFamily="serif">𝄽</text>);
           return;
         }
-        const y = topY + noteY(el, clef);
         const open = el.type === 'whole' || el.type === 'half';
         const short = el.type === 'eighth' || el.type === '16th';
-        // Ledger lines
-        const ledgers: React.ReactNode[] = [];
-        if (y < topY) for (let ly = topY - LINE_GAP; ly >= y - 1; ly -= LINE_GAP) ledgers.push(<line key={`u${ly}`} x1={nx - 6} y1={ly} x2={nx + 6} y2={ly} stroke="currentColor" strokeOpacity={0.3} strokeWidth={1} />);
-        if (y > topY + STAFF_H) for (let ly = topY + STAFF_H + LINE_GAP; ly <= y + 1; ly += LINE_GAP) ledgers.push(<line key={`d${ly}`} x1={nx - 6} y1={ly} x2={nx + 6} y2={ly} stroke="currentColor" strokeOpacity={0.3} strokeWidth={1} />);
-        const stemUp = y > topY + STAFF_H / 2;
+        // Each chord pitch → a notehead (+ its own accidental / ledger lines).
+        const ys = el.pitches.map(p => topY + pitchY(p.step, p.octave, clef));
+        const yTop = Math.min(...ys), yBot = Math.max(...ys);
+        const stemUp = (yTop + yBot) / 2 > topY + STAFF_H / 2;
+        const heads: React.ReactNode[] = [];
+        el.pitches.forEach((p, pi) => {
+          const y = ys[pi];
+          if (y < topY) for (let ly = topY - LINE_GAP; ly >= y - 1; ly -= LINE_GAP) heads.push(<line key={`u${pi}-${ly}`} x1={nx - 6} y1={ly} x2={nx + 6} y2={ly} stroke="currentColor" strokeOpacity={0.3} strokeWidth={1} />);
+          if (y > topY + STAFF_H) for (let ly = topY + STAFF_H + LINE_GAP; ly <= y + 1; ly += LINE_GAP) heads.push(<line key={`d${pi}-${ly}`} x1={nx - 6} y1={ly} x2={nx + 6} y2={ly} stroke="currentColor" strokeOpacity={0.3} strokeWidth={1} />);
+          if (p.alter) heads.push(<text key={`a${pi}`} x={nx - 11} y={y + 4} fontSize={11} fill={color} fontFamily="serif">{accGlyph(p.alter)}</text>);
+          heads.push(<ellipse key={`h${pi}`} cx={nx} cy={y} rx={4.2} ry={3.1} transform={`rotate(-18 ${nx} ${y})`} fill={open ? 'none' : color} stroke={color} strokeWidth={open ? 1.3 : 0} />);
+          el.dots && heads.push(...Array.from({ length: el.dots }, (_, di) => <circle key={`dt${pi}-${di}`} cx={nx + 7 + di * 3} cy={y} r={1} fill={color} />));
+        });
+        // One stem spanning the chord; flag on the stem end for eighth/16th.
+        const stemX = stemUp ? nx + 4 : nx - 4;
+        const stemFrom = stemUp ? yBot : yTop;
+        const stemTo = (stemUp ? yTop : yBot) + (stemUp ? -16 : 16);
         items.push(
           <g key={`n${mi}-${ei}`}>
-            {ledgers}
-            {el.alter ? <text x={nx - 11} y={y + 4} fontSize={11} fill={color} fontFamily="serif">{accGlyph(el.alter)}</text> : null}
-            <ellipse cx={nx} cy={y} rx={4.2} ry={3.1} transform={`rotate(-18 ${nx} ${y})`}
-              fill={open ? 'none' : color} stroke={color} strokeWidth={open ? 1.3 : 0} />
-            {el.type !== 'whole' && (
-              <line x1={stemUp ? nx + 4 : nx - 4} y1={y} x2={stemUp ? nx + 4 : nx - 4} y2={y + (stemUp ? -16 : 16)} stroke={color} strokeWidth={1.1} />
-            )}
-            {short && (
-              <line x1={stemUp ? nx + 4 : nx - 4} y1={y + (stemUp ? -16 : 16)} x2={stemUp ? nx + 9 : nx + 1} y2={y + (stemUp ? -10 : 10)} stroke={color} strokeWidth={1.1} />
-            )}
-            {Array.from({ length: el.dots }).map((_, di) => (
-              <circle key={di} cx={nx + 7 + di * 3} cy={y} r={1} fill={color} />
-            ))}
+            {heads}
+            {el.type !== 'whole' && <line x1={stemX} y1={stemFrom} x2={stemX} y2={stemTo} stroke={color} strokeWidth={1.1} />}
+            {short && <line x1={stemX} y1={stemTo} x2={stemUp ? stemX + 5 : stemX + 5} y2={stemTo + (stemUp ? 6 : -6)} stroke={color} strokeWidth={1.1} />}
           </g>,
         );
       });

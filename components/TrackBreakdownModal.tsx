@@ -1136,7 +1136,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
     if (!track.url) return;
     const ac = new AbortController();
     setTranscribing(true);
-    transcribeTrack(track.url, { signal: ac.signal, onProgress: (_s, p) => setTransProgress(p) })
+    transcribeTrack(track.url, { signal: ac.signal, polyphonic: true, onProgress: (_s, p) => setTransProgress(p) })
       .then(t => {
         if (ac.signal.aborted) return;
         setTranscription(t);
@@ -1346,7 +1346,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                   ) : transcription ? (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 4px #34d399' }} />
-                      <span className="text-[7px] font-bold text-emerald-400/80">Note-accurate · grid-synced</span>
+                      <span className="text-[7px] font-bold text-emerald-400/80">Polyphonic · chords resolved · grid-synced</span>
                     </span>
                   ) : (
                     <span className="text-[7px] font-bold text-white/20">Awaiting audio…</span>
@@ -1356,7 +1356,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                   {displayTheory.scale} · {displayTheory.timeSignature} · {displayTheory.tempo} BPM
                 </p>
               </div>
-              <p className="text-[7px] text-white/20 font-mono text-right leading-tight">melody (treble)<br />bass (bass clef)</p>
+              <p className="text-[7px] text-white/20 font-mono text-right leading-tight">treble + bass<br />multi-voice</p>
             </div>
 
             {notation ? (

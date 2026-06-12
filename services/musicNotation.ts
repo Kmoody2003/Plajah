@@ -31,12 +31,11 @@ const DUR_TABLE: { div: number; type: string; dots: number }[] = [
   { div: 1, type: '16th', dots: 0 },
 ];
 
+export interface NPitch { midi: number; step: string; alter: number; octave: number }
 export interface NElement {
   rest: boolean;
-  midi?: number;
-  step?: string;
-  alter?: number;
-  octave?: number;
+  /** One pitch = single note; many = chord; empty = rest. */
+  pitches: NPitch[];
   divisions: number;
   type: string;
   dots: number;
@@ -77,34 +76,44 @@ function splitDuration(divisions: number): { div: number; type: string; dots: nu
   return out;
 }
 
-/** Build one staff's measures from a single voice's quantized notes. */
+const MAX_CHORD = 5;
+
+/** Build one staff's measures from a voice's quantized notes, grouping
+ *  simultaneous notes into chords (homophonic reduction by onset). */
 function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name: string, fifths: number, measureLen: number): NStaff {
-  // Enforce monophony: sort, then truncate any note that overruns the next onset.
-  const seq = notes
+  const voiced = notes
     .filter(n => n.voice === voice)
-    .map(n => ({ start: Math.round(n.startBeat * DIV), dur: Math.max(1, Math.round(n.durBeats * DIV)), midi: n.midi }))
-    .sort((a, b) => a.start - b.start || b.dur - a.dur);
+    .map(n => ({ start: Math.round(n.startBeat * DIV), dur: Math.max(1, Math.round(n.durBeats * DIV)), midi: n.midi }));
 
-  // De-overlap (keep the first, clip to next start; drop zero-length).
-  const mono: { start: number; dur: number; midi: number }[] = [];
-  for (const n of seq) {
-    const prev = mono[mono.length - 1];
-    if (prev && n.start < prev.start + prev.dur) {
-      if (n.start <= prev.start) continue;          // fully shadowed
-      prev.dur = n.start - prev.start;
-    }
-    if (n.dur > 0) mono.push({ ...n });
+  // Group notes that share a quantized onset into a chord.
+  const byStart = new Map<number, { start: number; midis: number[]; maxEnd: number }>();
+  for (const n of voiced) {
+    let g = byStart.get(n.start);
+    if (!g) { g = { start: n.start, midis: [], maxEnd: 0 }; byStart.set(n.start, g); }
+    if (!g.midis.includes(n.midi)) g.midis.push(n.midi);
+    g.maxEnd = Math.max(g.maxEnd, n.start + n.dur);
   }
+  const groups = [...byStart.values()].sort((a, b) => a.start - b.start);
 
-  const totalDiv = mono.length ? Math.min(mono[mono.length - 1].start + mono[mono.length - 1].dur, MAX_MEASURES * measureLen) : measureLen;
+  // Each chord lasts until the next onset (block-chord rhythm), clamped to its
+  // own longest note so trailing silence becomes a rest.
+  const events = groups.map((g, i) => {
+    const nextStart = i + 1 < groups.length ? groups[i + 1].start : g.maxEnd;
+    const dur = Math.max(1, Math.min(g.maxEnd - g.start, nextStart - g.start) || (g.maxEnd - g.start));
+    const midis = [...g.midis].sort((a, b) => a - b).slice(0, MAX_CHORD);
+    return { start: g.start, dur, midis };
+  });
+
+  const lastEnd = events.length ? events[events.length - 1].start + events[events.length - 1].dur : measureLen;
+  const totalDiv = Math.min(lastEnd, MAX_MEASURES * measureLen);
   const measureCount = Math.max(1, Math.ceil(totalDiv / measureLen));
   const measures: NMeasure[] = Array.from({ length: measureCount }, (_, i) => ({ number: i + 1, elements: [] }));
 
-  // Emit a span [pos, pos+dur) as either a rest or a pitched note, split across
-  // barlines (ties) and into representable durations.
-  const emit = (pos: number, dur: number, midi: number | null) => {
+  // Emit a span [pos, pos+dur) as a rest (midis null) or a (possibly chord) note,
+  // split across barlines (ties) and into representable durations.
+  const emit = (pos: number, dur: number, midis: number[] | null) => {
     let p = pos, remaining = dur;
-    const isNote = midi !== null;
+    const isNote = midis !== null && midis.length > 0;
     let first = true;
     while (remaining > 0) {
       const mIndex = Math.floor(p / measureLen);
@@ -117,13 +126,12 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
         const lastUnitOfNote = first && u === units.length - 1 && chunk === remaining;
         const el: NElement = {
           rest: !isNote,
+          pitches: isNote ? (midis as number[]).map(m => ({ midi: m, ...spell(m, fifths) })) : [],
           divisions: unit.div,
           type: unit.type,
           dots: unit.dots,
         };
         if (isNote) {
-          const sp = spell(midi as number, fifths);
-          el.midi = midi as number; el.step = sp.step; el.alter = sp.alter; el.octave = sp.octave;
           el.tieStop = !first || u > 0;
           el.tieStart = !lastUnitOfNote;
         }
@@ -134,12 +142,12 @@ function buildStaff(notes: TNote[], voice: Voice, clef: 'treble' | 'bass', name:
   };
 
   let cursor = 0;
-  for (const n of mono) {
-    if (n.start > cursor) emit(cursor, n.start - cursor, null);   // gap → rest
-    emit(n.start, n.dur, n.midi);
-    cursor = n.start + n.dur;
+  for (const ev of events) {
+    if (ev.start > cursor) emit(cursor, ev.start - cursor, null);   // gap → rest
+    if (ev.start < cursor) continue;                                // overlap guard
+    emit(ev.start, ev.dur, ev.midis);
+    cursor = ev.start + ev.dur;
   }
-  // Pad the final measure to full length with a rest.
   const fill = measureCount * measureLen - cursor;
   if (fill > 0) emit(cursor, fill, null);
 
@@ -167,33 +175,44 @@ export function buildNotation(t: Transcription): Notation {
 
 const ACCIDENTAL: Record<number, string> = { 1: 'sharp', 2: 'double-sharp', [-1]: 'flat', [-2]: 'flat-flat' };
 
-function noteXml(el: NElement, fifths: number): string {
-  const lines: string[] = ['      <note>'];
-  if (el.rest) {
-    lines.push('        <rest/>');
-  } else {
+function noteXml(el: NElement, _fifths: number): string {
+  // Rest → a single <note><rest/>.
+  if (el.rest || el.pitches.length === 0) {
+    return [
+      '      <note>',
+      '        <rest/>',
+      `        <duration>${el.divisions}</duration>`,
+      '        <voice>1</voice>',
+      `        <type>${el.type}</type>`,
+      ...Array.from({ length: el.dots }, () => '        <dot/>'),
+      '      </note>',
+    ].join('\n');
+  }
+  // One <note> per chord pitch; chord members carry <chord/> before <pitch>.
+  return el.pitches.map((p, idx) => {
+    const lines: string[] = ['      <note>'];
+    if (idx > 0) lines.push('        <chord/>');
     lines.push('        <pitch>');
-    lines.push(`          <step>${el.step}</step>`);
-    if (el.alter) lines.push(`          <alter>${el.alter}</alter>`);
-    lines.push(`          <octave>${el.octave}</octave>`);
+    lines.push(`          <step>${p.step}</step>`);
+    if (p.alter) lines.push(`          <alter>${p.alter}</alter>`);
+    lines.push(`          <octave>${p.octave}</octave>`);
     lines.push('        </pitch>');
-  }
-  lines.push(`        <duration>${el.divisions}</duration>`);
-  if (!el.rest && el.tieStop) lines.push('        <tie type="stop"/>');
-  if (!el.rest && el.tieStart) lines.push('        <tie type="start"/>');
-  lines.push('        <voice>1</voice>');
-  lines.push(`        <type>${el.type}</type>`);
-  for (let d = 0; d < el.dots; d++) lines.push('        <dot/>');
-  if (!el.rest && el.alter && ACCIDENTAL[el.alter]) lines.push(`        <accidental>${ACCIDENTAL[el.alter]}</accidental>`);
-  // Tie *notation* (slur-like) mirrors the sounding tie above.
-  if (!el.rest && (el.tieStart || el.tieStop)) {
-    lines.push('        <notations>');
-    if (el.tieStop) lines.push('          <tied type="stop"/>');
-    if (el.tieStart) lines.push('          <tied type="start"/>');
-    lines.push('        </notations>');
-  }
-  lines.push('      </note>');
-  return lines.join('\n');
+    lines.push(`        <duration>${el.divisions}</duration>`);
+    if (el.tieStop) lines.push('        <tie type="stop"/>');
+    if (el.tieStart) lines.push('        <tie type="start"/>');
+    lines.push('        <voice>1</voice>');
+    lines.push(`        <type>${el.type}</type>`);
+    for (let d = 0; d < el.dots; d++) lines.push('        <dot/>');
+    if (p.alter && ACCIDENTAL[p.alter]) lines.push(`        <accidental>${ACCIDENTAL[p.alter]}</accidental>`);
+    if (el.tieStart || el.tieStop) {
+      lines.push('        <notations>');
+      if (el.tieStop) lines.push('          <tied type="stop"/>');
+      if (el.tieStart) lines.push('          <tied type="start"/>');
+      lines.push('        </notations>');
+    }
+    lines.push('      </note>');
+    return lines.join('\n');
+  }).join('\n');
 }
 
 function partXml(staff: NStaff, n: Notation, partId: string): string {

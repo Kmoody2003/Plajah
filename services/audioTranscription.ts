@@ -17,6 +17,7 @@
 // (Basic Pitch). The TranscriptionBackend type leaves room to drop one in later.
 
 import { decodeMono, detectBeatsFromBuffer } from './audioBeatDetection';
+import { magnitudeSpectrum } from './fft';
 
 export type Voice = 'melody' | 'bass';
 
@@ -45,7 +46,8 @@ export interface Transcription {
   firstBeatSec: number;
   durationSec: number;
   confidence: number;                // grid-fit confidence (0–1)
-  backend: 'yin-dsp';
+  backend: 'yin-dsp' | 'poly-dsp';
+  polyphonic: boolean;
 }
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -233,11 +235,136 @@ function detectKey(notes: TNote[]): { key: string; mode: 'major' | 'minor'; keyF
   return { key: NOTE_NAMES[root], mode: isMinor ? 'minor' : 'major', keyFifths: MAJOR_FIFTHS[fifthsPc] ?? 0 };
 }
 
+// ─── Polyphonic multi-F0 (iterative harmonic salience) ────────────────────────
+// Per frame: build a salience for every candidate pitch (sum of its harmonic
+// magnitudes), pick the strongest, subtract its harmonics, and repeat — so a
+// chord yields several simultaneous pitches instead of one. Then cluster pitch
+// presence across frames into (overlapping) notes. This is real polyphony with no
+// model dependency; accuracy on dense mixes is below a learned model but it
+// resolves block chords, dyads and arpeggios well.
+
+const POLY_FFT = 4096;          // ~5.4 Hz bins at 22.05 kHz
+const POLY_RATE = 22050;
+const POLY_MIN_MIDI = 33;       // A1
+const POLY_MAX_MIDI = 96;       // C7
+const POLY_HARMONICS = 8;
+const POLY_MAX_VOICES = 6;
+
+function hann(n: number): Float32Array {
+  const w = new Float32Array(n);
+  for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1));
+  return w;
+}
+
+/** Interpolated magnitude at an arbitrary frequency (max over ±1 bin). */
+function magAt(mag: Float32Array, freq: number, binHz: number): number {
+  const b = freq / binHz;
+  const lo = Math.floor(b);
+  if (lo < 1 || lo + 1 >= mag.length) return 0;
+  return Math.max(mag[lo], mag[lo + 1]);
+}
+
+function multiF0Frame(mag: Float32Array, binHz: number, candFreq: Float32Array): number[] {
+  const work = mag.slice();
+  const nCand = candFreq.length;
+  const picked: number[] = [];
+  let firstSal = 0;
+  for (let iter = 0; iter < POLY_MAX_VOICES; iter++) {
+    let bestSal = 0, bestIdx = -1;
+    for (let c = 0; c < nCand; c++) {
+      const f0 = candFreq[c];
+      let sal = 0;
+      for (let h = 1; h <= POLY_HARMONICS; h++) sal += magAt(work, f0 * h, binHz) / h;
+      if (sal > bestSal) { bestSal = sal; bestIdx = c; }
+    }
+    if (bestIdx < 0) break;
+    if (iter === 0) firstSal = bestSal;
+    // Stop once remaining peaks are weak relative to the strongest.
+    if (bestSal < firstSal * 0.18 || bestSal <= 0) break;
+    picked.push(POLY_MIN_MIDI + bestIdx);
+    // Subtract this pitch's harmonics so its octaves aren't re-picked.
+    const f0 = candFreq[bestIdx];
+    for (let h = 1; h <= POLY_HARMONICS; h++) {
+      const b = Math.round((f0 * h) / binHz);
+      for (let d = -1; d <= 1; d++) { const bb = b + d; if (bb >= 0 && bb < work.length) work[bb] *= 0.15; }
+    }
+  }
+  return picked;
+}
+
+function trackPolyphonic(
+  signal: Float32Array,
+  rate: number,
+  opts: { onProgress?: (s: string, p: number) => void },
+): { startSec: number; durSec: number; midi: number; velocity: number }[] {
+  const win = hann(POLY_FFT);
+  const hop = Math.floor(POLY_FFT / 4);                // 75% overlap
+  const binHz = rate / POLY_FFT;
+  const candFreq = new Float32Array(POLY_MAX_MIDI - POLY_MIN_MIDI + 1);
+  for (let m = POLY_MIN_MIDI; m <= POLY_MAX_MIDI; m++) candFreq[m - POLY_MIN_MIDI] = 440 * Math.pow(2, (m - 69) / 12);
+
+  // Per-frame active pitch sets + a salience proxy (frame RMS) for velocity.
+  const frameMidis: number[][] = [];
+  const frameTime: number[] = [];
+  const buf = new Float32Array(POLY_FFT);
+  const totalFrames = Math.max(1, Math.floor((signal.length - POLY_FFT) / hop));
+  let fi = 0;
+  for (let start = 0; start + POLY_FFT <= signal.length; start += hop, fi++) {
+    let energy = 0;
+    for (let i = 0; i < POLY_FFT; i++) { const s = signal[start + i] * win[i]; buf[i] = s; energy += s * s; }
+    const rms = Math.sqrt(energy / POLY_FFT);
+    const t = start / rate;
+    if (rms < 0.004) { frameMidis.push([]); frameTime.push(t); continue; }
+    const mag = magnitudeSpectrum(buf);
+    frameMidis.push(multiF0Frame(mag, binHz, candFreq));
+    frameTime.push(t);
+    if ((fi & 255) === 0) opts.onProgress?.('polyphony', 0.4 + 0.5 * (fi / totalFrames));
+  }
+
+  // Cluster presence per MIDI across frames → notes (gap tolerance + min length).
+  const hopSec = hop / rate;
+  const presence = new Map<number, boolean[]>();
+  for (let f = 0; f < frameMidis.length; f++) {
+    for (const m of frameMidis[f]) {
+      let arr = presence.get(m);
+      if (!arr) { arr = new Array(frameMidis.length).fill(false); presence.set(m, arr); }
+      arr[f] = true;
+    }
+  }
+  const notes: { startSec: number; durSec: number; midi: number; velocity: number }[] = [];
+  const minDurSec = 0.09;
+  const gapTol = 2;
+  for (const [midi, arr] of presence) {
+    let f = 0;
+    while (f < arr.length) {
+      if (!arr[f]) { f++; continue; }
+      let g = f, gap = 0, on = 0;
+      while (g < arr.length) {
+        if (arr[g]) { on++; gap = 0; g++; }
+        else if (gap < gapTol) { gap++; g++; }
+        else break;
+      }
+      const startSec = frameTime[f];
+      const endF = Math.min(g, frameTime.length - 1);
+      const durSec = frameTime[endF] + hopSec - startSec;
+      // Require the note to be present in a reasonable fraction of its span.
+      const span = g - f;
+      if (durSec >= minDurSec && on / Math.max(1, span) > 0.4) {
+        notes.push({ startSec, durSec, midi, velocity: Math.min(1, 0.5 + on / 40) });
+      }
+      f = g;
+    }
+  }
+  return notes;
+}
+
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export interface TranscribeOptions {
   signal?: AbortSignal;
   onProgress?: (stage: string, pct: number) => void;
+  /** Resolve simultaneous pitches (chords) instead of single melody+bass lines. */
+  polyphonic?: boolean;
 }
 
 export async function transcribeTrack(url: string, opts: TranscribeOptions = {}): Promise<Transcription> {
@@ -256,34 +383,42 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
   const period = 60 / bpm;
   const firstBeatSec = beat.firstBeatSec || 0;
 
-  // Melody: high-passed, decimated to ~11 kHz.
-  opts.onProgress?.('melody', 0.4);
-  const melodySrc = highPass(data, sampleRate, 140);
-  const mel = decimate(melodySrc, sampleRate, 11025);
-  const melodyRaw = trackVoice(mel.data, mel.rate, 'melody', {
-    fmin: 110, fmax: 1320, minMidi: 55, maxMidi: 88, voiceThresh: 0.55, rms: 0.012,
-  });
-
-  // Bass: low-passed, decimated to ~5.5 kHz.
-  opts.onProgress?.('bass', 0.7);
-  const bassSrc = lowPass(data, sampleRate, 320);
-  const bas = decimate(bassSrc, sampleRate, 5512);
-  const bassRaw = trackVoice(bas.data, bas.rate, 'bass', {
-    fmin: 41, fmax: 330, minMidi: 28, maxMidi: 55, voiceThresh: 0.5, rms: 0.02,
-  });
-
-  opts.onProgress?.('quantize', 0.9);
   const subdiv = 4;                                   // sixteenth-note grid
-  const quantize = (raw: { startSec: number; durSec: number; midi: number; velocity: number }[], voice: Voice): TNote[] =>
+  const quantize = (raw: { startSec: number; durSec: number; midi: number; velocity: number }[], voice?: Voice): TNote[] =>
     raw.map(n => {
       const startBeat = Math.max(0, Math.round(((n.startSec - firstBeatSec) / period) * subdiv) / subdiv);
       const durBeats = Math.min(8, Math.max(0.25, Math.round((n.durSec / period) * subdiv) / subdiv));
-      return { ...n, startBeat, durBeats, voice };
+      // In polyphonic mode the voice is assigned by register; else it's given.
+      const v: Voice = voice ?? (n.midi < 55 ? 'bass' : 'melody');
+      return { ...n, startBeat, durBeats, voice: v };
     });
 
-  const notes = [...quantize(melodyRaw, 'melody'), ...quantize(bassRaw, 'bass')]
-    .sort((a, b) => a.startBeat - b.startBeat);
+  let notes: TNote[];
+  if (opts.polyphonic) {
+    // Full-band, decimated to 22.05 kHz for the FFT-based multi-pitch pass.
+    const poly = decimate(data, sampleRate, POLY_RATE);
+    const polyRaw = trackPolyphonic(poly.data, poly.rate, { onProgress: opts.onProgress });
+    notes = quantize(polyRaw).sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+  } else {
+    // Melody: high-passed, decimated to ~11 kHz.
+    opts.onProgress?.('melody', 0.4);
+    const melodySrc = highPass(data, sampleRate, 140);
+    const mel = decimate(melodySrc, sampleRate, 11025);
+    const melodyRaw = trackVoice(mel.data, mel.rate, 'melody', {
+      fmin: 110, fmax: 1320, minMidi: 55, maxMidi: 88, voiceThresh: 0.55, rms: 0.012,
+    });
+    // Bass: low-passed, decimated to ~5.5 kHz.
+    opts.onProgress?.('bass', 0.7);
+    const bassSrc = lowPass(data, sampleRate, 320);
+    const bas = decimate(bassSrc, sampleRate, 5512);
+    const bassRaw = trackVoice(bas.data, bas.rate, 'bass', {
+      fmin: 41, fmax: 330, minMidi: 28, maxMidi: 55, voiceThresh: 0.5, rms: 0.02,
+    });
+    notes = [...quantize(melodyRaw, 'melody'), ...quantize(bassRaw, 'bass')]
+      .sort((a, b) => a.startBeat - b.startBeat);
+  }
 
+  opts.onProgress?.('quantize', 0.95);
   const { key, mode, keyFifths } = detectKey(notes);
 
   opts.onProgress?.('done', 1);
@@ -298,7 +433,8 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
     firstBeatSec,
     durationSec: duration,
     confidence: beat.confidence,
-    backend: 'yin-dsp',
+    backend: opts.polyphonic ? 'poly-dsp' : 'yin-dsp',
+    polyphonic: !!opts.polyphonic,
   };
 }
 

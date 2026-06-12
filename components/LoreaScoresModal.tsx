@@ -111,7 +111,7 @@ const LoreaScoresModal: React.FC<{ onClose: () => void; initialTrackId?: string 
                 )}
 
                 <p className="text-[8px] text-white/20 mt-3">
-                  Notation transcribed from the recording (melody + bass). Inner harmony is approximate — open the MusicXML in a notation editor to refine.
+                  Polyphonic transcription — chords resolved from the recording. Dense mixes are approximate; open the MusicXML in a notation editor to refine.
                 </p>
               </div>
             ) : (
