@@ -6,10 +6,13 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci
+# Include dev deps: the server runs TypeScript directly via `tsx` (a devDependency),
+# and NODE_ENV=production would otherwise make npm omit it.
+RUN npm ci --include=dev
 
-# Copy everything — CI has already built dist/ before docker build runs
+# Copy everything — CI has already built dist/ before the source is uploaded.
 COPY . .
 
+# Cloud Run injects $PORT (defaults to 8080); server.ts binds it.
 EXPOSE 8080
 CMD ["npx", "tsx", "server.ts"]
