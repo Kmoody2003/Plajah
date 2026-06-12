@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Track, Album } from '../types';
 import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { detectBeats, type BeatAnalysis } from '../services/audioBeatDetection';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
@@ -198,6 +199,20 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   const isCurrentTrack = currentTrack?.id === track.id;
 
+  // Accurate, sample-based tempo/beat grid from the decoded waveform — replaces
+  // the synthetic genre/hash BPM and the hardcoded fallback so the beat grid
+  // (and therefore note placement + sync) lines up with the real music.
+  const beatRef = useRef<BeatAnalysis | null>(null);
+  useEffect(() => {
+    beatRef.current = null;
+    if (!track.url) return;
+    const ac = new AbortController();
+    detectBeats(track.url, ac.signal)
+      .then(a => { if (a.bpm && a.confidence > 0.12) beatRef.current = a; })
+      .catch(() => { /* CORS/format/decoding — fall back to live estimate */ });
+    return () => ac.abort();
+  }, [track.id, track.url]);
+
   useEffect(() => {
     if (!isCurrentTrack) { setRealTheory(null); setAnalyzing(false); return; }
     const pitchHistogram = new Array(12).fill(0);
@@ -228,9 +243,14 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
       const pc = detectPitchClass(freqData, binHz);
       if (pc !== null) {
         pitchHistogram[pc]++;
-        const beatPos = Math.round(t * fallback.tempo / 60) % 20;
-        const arr = beatPitchMap.get(beatPos) ?? [];
-        arr.push(pc); beatPitchMap.set(beatPos, arr);
+        // Place pitches on the real beat grid: prefer the sample-accurate
+        // analysis (phase-aligned beats), else the measured tempo.
+        const accurate = beatRef.current;
+        const gridTempo = accurate?.bpm ?? fallback.tempo;
+        const phase0 = accurate?.firstBeatSec ?? 0;
+        const beatPos = Math.round((t - phase0) * gridTempo / 60) % 20;
+        const arr = beatPitchMap.get(((beatPos % 20) + 20) % 20) ?? [];
+        arr.push(pc); beatPitchMap.set(((beatPos % 20) + 20) % 20, arr);
       }
       sampleCount++;
       const elapsed = t - (startTime ?? t);
@@ -239,8 +259,10 @@ function useRealAudioAnalysis(track: Track, fallback: TrackTheory): {
         const keyName = NOTE_NAMES[root];
         const intervals = isMinor ? MINOR_SCALE : MAJOR_SCALE;
         const scaleName = `${keyName} ${isMinor ? 'Minor' : 'Major'}`;
-        let tempo = fallback.tempo;
-        if (onsetTimes.length >= 4) {
+        // Prefer the sample-accurate offline BPM; fall back to the live median
+        // only if offline decode failed (CORS/format).
+        let tempo = beatRef.current?.bpm ?? fallback.tempo;
+        if (!beatRef.current && onsetTimes.length >= 4) {
           const iois = onsetTimes.slice(1).map((t2, i) => t2 - onsetTimes[i]);
           const sorted = [...iois].sort((a, b) => a - b);
           let bpm = Math.round(60 / sorted[Math.floor(sorted.length / 2)]);
