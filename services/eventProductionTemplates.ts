@@ -460,7 +460,7 @@ Keep it under 200 words. Do not use placeholder brackets in the final letter —
 }
 
 export function buildMuseEventContextPrompt(project: any): string {
-  return `You are Muse, Plajah's AI assistant, helping a creator plan and manage their live event.
+  return `You are Aria, Plajah's AI assistant, helping a creator plan and manage their live event.
 
 CURRENT EVENT:
 - Title: ${project.title}

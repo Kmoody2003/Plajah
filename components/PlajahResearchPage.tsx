@@ -6,20 +6,20 @@ import { ArrowLeft, ChevronRight } from 'lucide-react';
 
 const SUPERPOWERS = [
   { num: '01', color: '#3DFFC0', icon: '🎬', title: 'Science as Living Media', subtitle: 'not static papers',
-    body: 'On ResearchGate you upload a PDF and wait for citations. On Plajah, your research is media: it has a feed presence, a comment thread that updates in real time, a Muse translation for non-specialists, a replication scoreboard, and it can go viral in the broader culture — all while being fully citable and versioned.',
+    body: 'On ResearchGate you upload a PDF and wait for citations. On Plajah, your research is media: it has a feed presence, a comment thread that updates in real time, a Aria translation for non-specialists, a replication scoreboard, and it can go viral in the broader culture — all while being fully citable and versioned.',
     why: 'Only possible on Plajah: A media platform\'s reach + a scientific platform\'s trust infrastructure, fused. ResearchGate has no culture. Twitter has no rigor. Plajah has both.' },
   { num: '02', color: '#E8B84B', icon: '🌐', title: 'Public Replication', subtitle: 'crowdsourced verification in real time',
     body: 'Publish a finding. Anyone on the platform — anywhere on Earth, any institution — can attempt a replication and submit structured results. You watch your reproducibility score update live. Failed replications open investigation threads. Successful ones build your career score.',
     why: 'Only possible on Plajah: Replication needs a community. A community needs a platform. The platform needs to be built for it from the schema up.' },
   { num: '03', color: '#FF4D6A', icon: '🔗', title: 'Cross-Discipline Discovery', subtitle: 'serendipity at scale',
-    body: 'A materials scientist posts about silicate grain boundary behavior. A civil engineer building in a seismic zone is working on the same problem. A geologist has field data that\'s directly relevant. On every other platform, these people never find each other. On Plajah, Muse surfaces the connection.',
+    body: 'A materials scientist posts about silicate grain boundary behavior. A civil engineer building in a seismic zone is working on the same problem. A geologist has field data that\'s directly relevant. On every other platform, these people never find each other. On Plajah, Aria surfaces the connection.',
     why: 'Only possible on Plajah: Requires a unified platform where all 13 disciplines exist together, with a graph that reads across all of them, and an AI agent with full platform context.' },
   { num: '04', color: '#4DB8FF', icon: '📡', title: 'Instrument-to-Post Pipeline', subtitle: 'field data as social content',
     body: 'A geologist in the field opens the Plajah PWA. GPS locks. They take a photo of an outcrop. The app auto-queries Macrostrat for the formation, attaches USGS seismic history for that location, pulls the local weather from Open-Meteo, and creates a structured post — all before they have cell signal.',
     why: 'Only possible on Plajah: Requires offline PWA + GPS + free API enrichment layer + structured post schema + social distribution — all integrated.' },
-  { num: '05', color: '#A78BFA', icon: 'μ', title: 'Muse: AI That Bridges Science and Culture', subtitle: 'universally',
-    body: 'When a climate scientist posts technical findings, Muse auto-generates a plain-language translation — accurate, not dumbed down — that any curious person can read. The scientific community gains public reach without sacrificing rigor. The public gains accurate science without needing a PhD.',
-    why: 'Only possible on Plajah: Muse has context across both scientific and general feeds, user discipline profiles, live data, and the full post history.' },
+  { num: '05', color: '#A78BFA', icon: 'α', title: 'Aria: AI That Bridges Science and Culture', subtitle: 'universally',
+    body: 'When a climate scientist posts technical findings, Aria auto-generates a plain-language translation — accurate, not dumbed down — that any curious person can read. The scientific community gains public reach without sacrificing rigor. The public gains accurate science without needing a PhD.',
+    why: 'Only possible on Plajah: Aria has context across both scientific and general feeds, user discipline profiles, live data, and the full post history.' },
   { num: '06', color: '#FF8C42', icon: '📜', title: 'The Grey Literature Revolution', subtitle: 'invisible knowledge made visible',
     body: 'Most scientific knowledge never gets published: failed experiments, field logs, site reports, unpublished datasets. On Plajah, these are first-class posts with DOI-like permanent links, structured metadata, and full community engagement. 80% of science that currently disappears — doesn\'t.',
     why: 'Only possible on Plajah: Requires a platform where informal scientific content is treated with the same data structure as formal papers — with claim tags, confidence levels, and permanent citable links.' },
@@ -33,11 +33,11 @@ const SUPERPOWERS = [
     body: 'An ecologist starts a phenology monitoring thread in 2026. Every spring, they and others add new observations. By 2031, the thread is a 5-year longitudinal dataset — searchable, citable, graphable. The platform itself becomes a scientific instrument.',
     why: 'Only possible on Plajah: Requires permanent API snapshots baked into every post, thread-linked longitudinal tagging, and a social platform that makes contributing observations feel natural.' },
   { num: '10', color: '#FF4D6A', icon: '🔬', title: 'Lab Notebook to Viral Post', subtitle: 'one continuous workflow',
-    body: 'Plajah\'s writing tools create a seamless continuum: private lab notebook → shared team workspace → pre-print post → peer-reviewed paper → public feed post → Muse-translated viral science moment. Every step happens on the same platform with the same identity.',
+    body: 'Plajah\'s writing tools create a seamless continuum: private lab notebook → shared team workspace → pre-print post → peer-reviewed paper → public feed post → Aria-translated viral science moment. Every step happens on the same platform with the same identity.',
     why: 'Only possible on Plajah: The notebook → paper → post → feed pipeline requires all four to be natively integrated in one platform. Currently these live in 4 separate applications.' },
   { num: '11', color: '#4DB8FF', icon: '⚡', title: 'Real-Time Science Events', subtitle: 'living participation',
-    body: 'A major earthquake hits. Plajah\'s USGS integration instantly alerts geologists. A Nowcast thread opens. Meteorologists post model updates. Geologists post field observations. Muse synthesizes a public-facing summary as it evolves. After the event, the thread automatically becomes a structured case study — citable by future students.',
-    why: 'Only possible on Plajah: Requires live API monitoring + Muse alerting + discipline-specific communities + real-time collaborative threads + public media reach — all in one platform simultaneously.' },
+    body: 'A major earthquake hits. Plajah\'s USGS integration instantly alerts geologists. A Nowcast thread opens. Meteorologists post model updates. Geologists post field observations. Aria synthesizes a public-facing summary as it evolves. After the event, the thread automatically becomes a structured case study — citable by future students.',
+    why: 'Only possible on Plajah: Requires live API monitoring + Aria alerting + discipline-specific communities + real-time collaborative threads + public media reach — all in one platform simultaneously.' },
   { num: '12', color: '#A78BFA', icon: '🤝', title: 'Taxonomy-Deep Collaboration Matching', subtitle: 'beyond shared interests',
     body: 'LinkedIn connects people who work in "chemistry." Plajah connects people who work on "palladium-catalyzed cross-coupling reactions in flow chemistry systems for continuous manufacturing." The taxonomy goes 5 levels deep. A researcher with a specific open problem gets matched to the exact person on the platform.',
     why: 'Only possible on Plajah: Requires a technical taxonomy tree built into the platform from the data model up, plus an expertise graph built from actual posts — not self-reported skills.' },
@@ -45,16 +45,16 @@ const SUPERPOWERS = [
 
 const SCENARIOS = [
   { num: '01', tag: 'Ecology · Field Science', tagColor: '#3DFFC0', title: 'The Phenology Discovery That Goes Mainstream',
-    body: 'Dr. Vasquez is doing spring phenology monitoring in Michigan. She opens Plajah Field Mode. Her GPS locks, she photographs a blooming cherry tree, types "18 days early vs 30yr mean." The app auto-fetches February temperature anomaly from Open-Meteo (+2.1°C) and attaches it. She hits post. Two other ecologists in Wisconsin and Ontario post similar observations within the hour — Muse detects the cluster and surfaces it as a "Pattern Alert." By afternoon, a science journalist sees the Muse-translated version: "Cherry blossoms blooming nearly 3 weeks early across Great Lakes — scientists tracking it live on Plajah." It reaches 80,000 people. Dr. Vasquez gains 400 followers, 12 replication requests, and a DM from a climatologist who has exactly the long-term temperature data she needs to publish.',
-    unique: 'The field observation → auto-enrichment → cluster detection → Muse translation → viral public moment → researcher connection — as a single unbroken workflow on one platform, credited at every step.' },
+    body: 'Dr. Vasquez is doing spring phenology monitoring in Michigan. She opens Plajah Field Mode. Her GPS locks, she photographs a blooming cherry tree, types "18 days early vs 30yr mean." The app auto-fetches February temperature anomaly from Open-Meteo (+2.1°C) and attaches it. She hits post. Two other ecologists in Wisconsin and Ontario post similar observations within the hour — Aria detects the cluster and surfaces it as a "Pattern Alert." By afternoon, a science journalist sees the Aria-translated version: "Cherry blossoms blooming nearly 3 weeks early across Great Lakes — scientists tracking it live on Plajah." It reaches 80,000 people. Dr. Vasquez gains 400 followers, 12 replication requests, and a DM from a climatologist who has exactly the long-term temperature data she needs to publish.',
+    unique: 'The field observation → auto-enrichment → cluster detection → Aria translation → viral public moment → researcher connection — as a single unbroken workflow on one platform, credited at every step.' },
   { num: '02', tag: 'Materials Science × Civil Engineering', tagColor: '#A78BFA', title: 'The Cross-Discipline Collision That Saves a Bridge',
-    body: 'Dr. Osei posts her superconductor XRD findings. Muse reads her post and cross-references the expertise graph — it finds Dr. Kim, a civil engineer, posted an open question about concrete aggregate degradation under thermal cycling. The grain boundary behavior in Dr. Osei\'s ceramic data is mechanistically identical to Dr. Kim\'s concrete problem, just at a different scale. Muse sends both researchers a "Cross-Discipline Connection" notification. They meet in a Plajah DM, start a collaborative workspace, and within two months have a co-authored paper that directly informs a bridge maintenance protocol in Seoul.',
+    body: 'Dr. Osei posts her superconductor XRD findings. Aria reads her post and cross-references the expertise graph — it finds Dr. Kim, a civil engineer, posted an open question about concrete aggregate degradation under thermal cycling. The grain boundary behavior in Dr. Osei\'s ceramic data is mechanistically identical to Dr. Kim\'s concrete problem, just at a different scale. Aria sends both researchers a "Cross-Discipline Connection" notification. They meet in a Plajah DM, start a collaborative workspace, and within two months have a co-authored paper that directly informs a bridge maintenance protocol in Seoul.',
     unique: 'Mechanical matching across disciplines requires all 13 fields in one platform with a unified expertise graph and an AI that reads across all of them. No siloed tool can make this connection.' },
   { num: '03', tag: 'Archaeology · History', tagColor: '#FF4D6A', title: 'The Grey Literature That Changes the Textbook',
-    body: 'An archaeologist in Turkey uploads a 1974 site report from an excavation that was never formally published — the team ran out of funding. Three other archaeologists recognize the pottery typology — it predates what\'s currently in the literature by 400 years. A historian of the Byzantine period sees Muse\'s plain-language summary and realizes it changes the prevailing understanding of trade routes. Within a week, the 50-year-old report has 34 citations, the original excavator (now 82, still alive) has been contacted and adds a commentary post.',
-    unique: 'Grey literature with permanent citable links, community peer engagement, Muse translation for cross-discipline reach, and credit to the original contributor — all in one system.' },
+    body: 'An archaeologist in Turkey uploads a 1974 site report from an excavation that was never formally published — the team ran out of funding. Three other archaeologists recognize the pottery typology — it predates what\'s currently in the literature by 400 years. A historian of the Byzantine period sees Aria\'s plain-language summary and realizes it changes the prevailing understanding of trade routes. Within a week, the 50-year-old report has 34 citations, the original excavator (now 82, still alive) has been contacted and adds a commentary post.',
+    unique: 'Grey literature with permanent citable links, community peer engagement, Aria translation for cross-discipline reach, and credit to the original contributor — all in one system.' },
   { num: '04', tag: 'Meteorology · Real-Time Event', tagColor: '#4DB8FF', title: 'The Storm That Gets Scientifically Documented Live',
-    body: 'A derecho is developing over Iowa. Plajah\'s NOAA integration detects the 992mb mesoscale convective system and Muse sends alerts to 340 meteorologists. A Nowcast Thread opens. Forecasters post model comparisons (GFS vs EURO vs NAM). Storm chasers post GPS-tagged field observations. Civil engineers post real-time infrastructure stress data. Muse synthesizes all contributions into a public-facing event post that 200,000 Plajah users read as the storm unfolds. After the event, the thread automatically becomes a structured case study — citable by future meteorology students as a real-time primary source.',
+    body: 'A derecho is developing over Iowa. Plajah\'s NOAA integration detects the 992mb mesoscale convective system and Aria sends alerts to 340 meteorologists. A Nowcast Thread opens. Forecasters post model comparisons (GFS vs EURO vs NAM). Storm chasers post GPS-tagged field observations. Civil engineers post real-time infrastructure stress data. Aria synthesizes all contributions into a public-facing event post that 200,000 Plajah users read as the storm unfolds. After the event, the thread automatically becomes a structured case study — citable by future meteorology students as a real-time primary source.',
     unique: 'Live multi-discipline real-time event documentation that is simultaneously a scientific instrument, a social event, and a public media moment — then automatically becomes a permanent, citable scientific record.' },
   { num: '05', tag: 'Mathematics · Open Problem', tagColor: '#E8B84B', title: 'The Conjecture That Gets Solved in Public',
     body: 'A mathematician posts a conjecture to the Plajah Math Labs Open Questions board. Within 48 hours, a grad student in Singapore has posted a partial proof attempt with claim tags on each logical step. A second mathematician from Brazil spots a flaw in step 4 and posts a structured review comment. Over 3 weeks, 7 mathematicians across 5 countries iterate on the proof in a version-controlled thread. When the proof is complete, the thread is automatically exportable as a co-authored paper in LaTeX.',
@@ -64,16 +64,16 @@ const SCENARIOS = [
 const HOOKS = [
   { title: 'Post Schema Extension', system: 'Data Layer · Existing Post Model',
     code: `Post {\n  // existing fields...\n  science_meta: {\n    claim_type: ClaimType?,\n    confidence: Float?,\n    discipline: Discipline[],\n    repro_score: Float?,\n    api_snapshot: JSONBlob?,\n    dependencies: Post[]\n  }\n}`,
-    desc: 'Add science_meta as an optional field on Plajah\'s existing post model. Posts without it behave identically to today. Posts with it gain the full science layer — feed ranking, Muse analysis, replication tracking — all opt-in.' },
+    desc: 'Add science_meta as an optional field on Plajah\'s existing post model. Posts without it behave identically to today. Posts with it gain the full science layer — feed ranking, Aria analysis, replication tracking — all opt-in.' },
   { title: 'Comment Type Extension', system: 'Comment System · Universal Thread Layer',
     code: `enum CommentType {\n  REPLY,        // existing\n  REACTION,     // existing\n  REPLICATION,  // new ✦\n  PEER_REVIEW,  // new ✦\n  EXTENSION,    // new ✦\n  ARIA_SUMMARY  // new ✦ (auto-generated)\n}`,
     desc: 'New comment types extend Plajah\'s existing universal comment system without breaking it. All render in existing threads. Replication and PeerReview types feed the reproducibility engine automatically when submitted.' },
   { title: 'Renderer Plugin System', system: 'Rich Writing Tools · Existing Editor',
     code: `registerRenderer({\n  detect: (input) => isSmiles(input),\n  render: (input) => MoleculeViewer3D,\n  contexts: ['post', 'comment', 'message']\n})\n// Same pattern for LaTeX, CIF, FASTA, coords`,
     desc: 'The science renderers (LaTeX, SMILES, crystal structures, sequences, geo overlays) plug into Plajah\'s existing rich writing tool as a renderer plugin system.' },
-  { title: 'Muse Hook into Messaging', system: 'Messaging Layer · Existing DM & Group Chat',
-    code: `onMention('@Muse', async (ctx) => {\n  const context = await buildContext({\n    thread: ctx.thread,\n    linkedPosts: ctx.linkedPosts,\n    disciplines: ctx.participants.disciplines,\n    liveData: await fetchRelevantFeeds(ctx)\n  })\n  return Muse.respond(ctx.query, context)\n})`,
-    desc: 'Muse drops into Plajah\'s existing messaging system via a @mention hook. It has full context: the message thread, linked posts, participant discipline profiles, and relevant live data feeds.' },
+  { title: 'Aria Hook into Messaging', system: 'Messaging Layer · Existing DM & Group Chat',
+    code: `onMention('@Aria', async (ctx) => {\n  const context = await buildContext({\n    thread: ctx.thread,\n    linkedPosts: ctx.linkedPosts,\n    disciplines: ctx.participants.disciplines,\n    liveData: await fetchRelevantFeeds(ctx)\n  })\n  return Aria.respond(ctx.query, context)\n})`,
+    desc: 'Aria drops into Plajah\'s existing messaging system via a @mention hook. It has full context: the message thread, linked posts, participant discipline profiles, and relevant live data feeds.' },
   { title: 'API Enrichment Middleware', system: 'Post Creation Pipeline · Background Worker',
     code: `postCreationPipeline\n  .use(validateContent)     // existing\n  .use(processMedia)        // existing\n  .use(scienceEnricher)     // new ✦\n  .use(distributeToFeeds)   // existing\n\nasync scienceEnricher(post) {\n  if (!post.science_meta) return post\n  post.api_snapshot = await enrichAll(post)\n}`,
     desc: 'The API enrichment layer inserts as middleware in Plajah\'s existing post creation pipeline. It only fires when science_meta is present — zero performance impact on regular posts.' },
@@ -242,7 +242,7 @@ const PlajahResearchPage: React.FC<PlajahResearchPageProps> = ({ onBack }) => {
                     'Expertise is inferred from actual contributions — not claimed',
                     'Collaboration has a formal scaffold: workspace, notebook, paper, match',
                     'Events accumulate into longitudinal records — the platform remembers',
-                    'Knowledge and culture are one feed — with Muse bridging them'
+                    'Knowledge and culture are one feed — with Aria bridging them'
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3 py-2.5 border-b border-white/5 last:border-0">
                       <span className="text-[#3DFFC0] shrink-0 mt-0.5">✦</span>
@@ -294,7 +294,7 @@ const PlajahResearchPage: React.FC<PlajahResearchPageProps> = ({ onBack }) => {
                       <span className="px-2 py-0.5 bg-[#4DB8FF]/8 text-[#4DB8FF] text-[9px] rounded">Repro score: 0.82</span>
                     </div>
                     <div className="bg-[#E8B84B]/6 border border-[#E8B84B]/12 rounded-lg px-3 py-2">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[#E8B84B] mb-1">μ Muse · For everyone</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[#E8B84B] mb-1">μ Aria · For everyone</p>
                       <p className="text-[10px] text-white/40">This team found a superconducting material that works reliably regardless of how its crystals are structured — a significant step toward room-temp superconductors.</p>
                     </div>
                   </div>
@@ -302,7 +302,7 @@ const PlajahResearchPage: React.FC<PlajahResearchPageProps> = ({ onBack }) => {
                     <p className="text-[9px] text-white/25 mb-2">@user · 4h · Plajah Meteo Labs</p>
                     <p className="text-[12px] text-white/70 mb-2">NOAA GFS showing 988mb low developing over Lake Superior — tracking toward Detroit by Thursday.</p>
                     <div className="bg-[#E8B84B]/6 border border-[#E8B84B]/12 rounded-lg px-3 py-2">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[#E8B84B] mb-1">μ Muse · Plain language</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[#E8B84B] mb-1">μ Aria · Plain language</p>
                       <p className="text-[10px] text-white/40">A strengthening storm system is forming over the Great Lakes. Detroit-area residents should watch for significant wind and rain Thursday.</p>
                     </div>
                   </div>

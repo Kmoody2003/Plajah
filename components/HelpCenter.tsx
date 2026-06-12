@@ -462,8 +462,8 @@ const helpSections: HelpSection[] = [
         description: 'Each discipline has dedicated data sources: Physics and Mathematics get Wolfram Alpha computation. Meteorology gets NOAA Climate Data Online historical station data. Earth Science gets USGS earthquake and volcano alerts. Biology and Medicine get NCBI PubMed papers, Gene data, and Taxonomy. Architecture gets OpenStreetMap building data, Getty Art & Architecture Thesaurus terms, and Wikidata heritage site information. History gets Wikipedia summaries, Library of Congress records, and Europeana cultural collections. Materials Science gets crystal structure and band gap data from the Materials Project.'
       },
       {
-        name: 'Muse AI — Plain-Language Translation',
-        description: 'Muse is the platform\'s AI science assistant, powered by Claude. Every science post has a "Muse Summary" panel that translates the post into plain English for non-specialist readers — key finding, why it matters, and what disciplines it connects to. You can also @mention Muse in any comment thread to ask a specific question about the post. Muse responds with contextual answers grounded in the post\'s data and claims.'
+        name: 'Aria AI — Plain-Language Translation',
+        description: 'Aria is the platform\'s AI science assistant, powered by Claude. Every science post has a "Aria Summary" panel that translates the post into plain English for non-specialist readers — key finding, why it matters, and what disciplines it connects to. You can also @mention Aria in any comment thread to ask a specific question about the post. Aria responds with contextual answers grounded in the post\'s data and claims.'
       },
       {
         name: 'Peer Review & Replication',

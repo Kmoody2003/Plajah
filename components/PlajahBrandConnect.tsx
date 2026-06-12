@@ -128,7 +128,7 @@ Keep it under 300 words. Professional, modern, no fluff. Use markdown headers.`;
         className="bg-[#0d0d0d] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
           <div>
-            <h3 className="text-base font-black text-white flex items-center gap-2"><Brain size={15} className="text-[#c084fc]" /> Muse AI Media Kit</h3>
+            <h3 className="text-base font-black text-white flex items-center gap-2"><Brain size={15} className="text-[#c084fc]" /> Aria AI Media Kit</h3>
             <p className="text-[9px] text-white/30">Auto-generated from your Plajah analytics</p>
           </div>
           <div className="flex gap-2">
@@ -145,7 +145,7 @@ Keep it under 300 words. Professional, modern, no fluff. Use markdown headers.`;
           {loading ? (
             <div className="flex items-center gap-3 py-12 justify-center">
               <RefreshCw size={18} className="text-[#c084fc] animate-spin" />
-              <p className="text-sm text-white/40">Muse is writing your media kit…</p>
+              <p className="text-sm text-white/40">Aria is writing your media kit…</p>
             </div>
           ) : (
             <pre className="text-sm text-white/80 whitespace-pre-wrap font-mono leading-relaxed">{kit}</pre>
@@ -478,7 +478,7 @@ const PlajahBrandConnect: React.FC<{ currentUser: UserProfile }> = ({ currentUse
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
               { icon: Shield, title: '8% Platform Fee', desc: 'vs. 20-30% on competitor marketplaces' },
-              { icon: Brain, title: 'Muse AI Media Kit', desc: 'Auto-generated from your real Plajah analytics' },
+              { icon: Brain, title: 'Aria AI Media Kit', desc: 'Auto-generated from your real Plajah analytics' },
               { icon: Zap, title: 'Stripe Payments', desc: 'Contract + deposit + final payment in one flow' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex items-start gap-3 p-4 bg-white/[0.03] border border-white/6 rounded-2xl">
@@ -501,7 +501,7 @@ const PlajahBrandConnect: React.FC<{ currentUser: UserProfile }> = ({ currentUse
             <button onClick={() => setShowKit(true)} className="p-4 bg-white/[0.04] border border-white/8 rounded-2xl text-left hover:border-white/20 transition-all group">
               <Brain size={18} className="text-[#c084fc] mb-2" />
               <p className="text-sm font-black text-white">Generate Media Kit</p>
-              <p className="text-[9px] text-white/30 mt-0.5">Muse AI writes it from your data</p>
+              <p className="text-[9px] text-white/30 mt-0.5">Aria AI writes it from your data</p>
             </button>
           </div>
         </div>
@@ -598,7 +598,7 @@ const PlajahBrandConnect: React.FC<{ currentUser: UserProfile }> = ({ currentUse
               </div>
               <div className="flex-1">
                 <p className="text-base font-black text-white mb-1">AI Media Kit Generator</p>
-                <p className="text-[10px] text-white/40 leading-relaxed mb-4">Muse AI reads your Plajah analytics — follower count, content type, account bio — and writes a professional media kit you can send to any brand in seconds.</p>
+                <p className="text-[10px] text-white/40 leading-relaxed mb-4">Aria AI reads your Plajah analytics — follower count, content type, account bio — and writes a professional media kit you can send to any brand in seconds.</p>
                 <button onClick={() => setShowKit(true)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-xl text-xs font-black uppercase hover:brightness-110 transition-all">
                   <Brain size={12} /> Generate My Media Kit
                 </button>

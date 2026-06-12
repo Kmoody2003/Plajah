@@ -3086,7 +3086,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             userInterests: userProfile?.publicInterests ?? [],
           }}
           onApplyBuild={(build) => {
-            console.log('[Muse] Build applied:', build);
+            console.log('[Aria] Build applied:', build);
           }}
         />
         {showDeleteConfirm && (

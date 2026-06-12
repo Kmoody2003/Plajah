@@ -3,7 +3,7 @@
 **Problem this solves:** production is Firebase Hosting (static `dist/`), which has
 **no `/api` backend** — so every `/api/*` call returned the SPA `index.html`. That
 silently broke everything that needs the server (Mux live streaming, Stripe
-payments, the AI agent/Muse, push, events/tickets, merch, Cora analysis, the
+payments, the AI agent/Aria, push, events/tickets, merch, Cora analysis, the
 `/api/proxy` + `/api/fetch-rss` proxies, etc.).
 
 **Fix:** `server.ts` (Express — already serves the SPA + every `/api` route, binds

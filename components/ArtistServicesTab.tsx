@@ -194,7 +194,7 @@ Headline (max 7 words), description (max 25 words), CTA button text (max 3 words
               <div className="flex items-center justify-between">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Ad Creative</label>
                 <button onClick={generateAdCopy} disabled={aiLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6B0099]/15 border border-[#6B0099]/30 rounded-xl text-[10px] font-black text-[#c084fc] hover:brightness-125 transition-all">
-                  {aiLoading ? <RefreshCw size={10} className="animate-spin" /> : <Brain size={10} />} Muse: Write My Ad
+                  {aiLoading ? <RefreshCw size={10} className="animate-spin" /> : <Brain size={10} />} Aria: Write My Ad
                 </button>
               </div>
               {[
@@ -506,9 +506,9 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#c084fc]">Artist Services</p>
               </div>
               <h2 className="text-2xl font-black text-white mb-2 leading-tight">Grow your audience.<br /><span className="text-[#c084fc]">We handle the tech.</span></h2>
-              <p className="text-xs text-white/50 mb-5 max-w-md">Run ads on Plajah, Google, Meta, TikTok, and Bing from one dashboard. Build ads in minutes with Muse AI. The platform manages the accounts — you manage the creative and budget.</p>
+              <p className="text-xs text-white/50 mb-5 max-w-md">Run ads on Plajah, Google, Meta, TikTok, and Bing from one dashboard. Build ads in minutes with Aria AI. The platform manages the accounts — you manage the creative and budget.</p>
               <div className="flex flex-wrap gap-2">
-                {['Plajah Boost', 'Google Ads', 'Meta Ads', 'TikTok Ads', 'Bing Ads', 'Muse AI Copywriting', 'Event Promotion', 'Analytics Dashboard'].map(f => (
+                {['Plajah Boost', 'Google Ads', 'Meta Ads', 'TikTok Ads', 'Bing Ads', 'Aria AI Copywriting', 'Event Promotion', 'Analytics Dashboard'].map(f => (
                   <span key={f} className="px-2.5 py-1 bg-[#6B0099]/20 border border-[#6B0099]/30 rounded-full text-[9px] font-black text-[#c084fc]">{f}</span>
                 ))}
               </div>
@@ -541,7 +541,7 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
                   <p className="text-3xl font-black text-white mb-1">$29.99</p>
                   <p className="text-xs text-white/40 mb-4">One event · all platforms</p>
                   <ul className="space-y-1.5 mb-5">
-                    {['Full ad dashboard access', 'All 5 ad platforms', 'Muse AI copywriting', 'Event-specific campaigns', 'Analytics for 30 days'].map(f => (
+                    {['Full ad dashboard access', 'All 5 ad platforms', 'Aria AI copywriting', 'Event-specific campaigns', 'Analytics for 30 days'].map(f => (
                       <li key={f} className="flex items-center gap-2 text-[10px] text-white/60"><Check size={11} className="text-[#34d399]" />{f}</li>
                     ))}
                   </ul>
@@ -555,7 +555,7 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
                   <p className="text-3xl font-black text-white mb-1">$4.99<span className="text-base">/mo</span></p>
                   <p className="text-xs text-white/40 mb-4">Unlimited events · ongoing management</p>
                   <ul className="space-y-1.5 mb-5">
-                    {['Everything in Per Event', 'Unlimited event campaigns', 'Ongoing ad management', 'Monthly analytics reports', 'Ad budget roll-over', 'Priority Muse AI access'].map(f => (
+                    {['Everything in Per Event', 'Unlimited event campaigns', 'Ongoing ad management', 'Monthly analytics reports', 'Ad budget roll-over', 'Priority Aria AI access'].map(f => (
                       <li key={f} className="flex items-center gap-2 text-[10px] text-white/60"><Check size={11} className="text-[#34d399]" />{f}</li>
                     ))}
                   </ul>
@@ -583,7 +583,7 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
             <button onClick={() => setShowBuilder(true)} className="p-4 bg-white/[0.04] border border-white/8 rounded-2xl text-left hover:border-white/20 transition-all">
               <Megaphone size={18} className="text-[#c084fc] mb-2" />
               <p className="text-sm font-black text-white">Create Campaign</p>
-              <p className="text-[9px] text-white/30 mt-0.5">Build an ad with Muse AI</p>
+              <p className="text-[9px] text-white/30 mt-0.5">Build an ad with Aria AI</p>
             </button>
             <button onClick={() => setServiceTab('analytics')} className="p-4 bg-white/[0.04] border border-white/8 rounded-2xl text-left hover:border-white/20 transition-all">
               <BarChart3 size={18} className="text-[#60a5fa] mb-2" />

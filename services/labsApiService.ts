@@ -650,7 +650,7 @@ export async function fetchDisciplineData(disciplineId: LabsDisciplineId): Promi
   };
 }
 
-// ── Muse AI summary helper ────────────────────────────────────────────────────
+// ── Aria AI summary helper ────────────────────────────────────────────────────
 
 export async function museExplainPaper(title: string, abstract: string): Promise<string> {
   try {
@@ -658,7 +658,7 @@ export async function museExplainPaper(title: string, abstract: string): Promise
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        context: 'You are Muse, Plajah\'s science translator. Explain research to a curious non-specialist in 2-3 clear sentences. No jargon. No bullet points. Just warm, precise prose.',
+        context: 'You are Aria, Plajah\'s science translator. Explain research to a curious non-specialist in 2-3 clear sentences. No jargon. No bullet points. Just warm, precise prose.',
         question: `Explain this research paper in plain language:\n\nTitle: ${title}\n\nAbstract: ${abstract?.slice(0, 600)}`,
         history: [],
       }),

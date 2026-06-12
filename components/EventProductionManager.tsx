@@ -40,7 +40,7 @@ const NewProjectPicker: React.FC<{ onCreate: (type: EventProductionType, title: 
   return (
     <div className="max-w-2xl mx-auto py-12 px-4">
       <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2">New Event Project</h2>
-      <p className="text-sm text-white/40 mb-8">Choose your event type and we'll build a full production checklist, vendor list, and budget template — with Muse AI to guide you every step of the way.</p>
+      <p className="text-sm text-white/40 mb-8">Choose your event type and we'll build a full production checklist, vendor list, and budget template — with Aria AI to guide you every step of the way.</p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {(Object.keys(EVENT_TYPE_META) as EventProductionType[]).map(t => {
@@ -82,7 +82,7 @@ const NewProjectPicker: React.FC<{ onCreate: (type: EventProductionType, title: 
   );
 };
 
-// ── Muse AI Chat Panel ────────────────────────────────────────────────────────
+// ── Aria AI Chat Panel ────────────────────────────────────────────────────────
 
 const MusePanel: React.FC<{ project: EventProductionProject; onUpdateHistory: (history: any[]) => void }> = ({ project, onUpdateHistory }) => {
   const [input, setInput] = useState('');
@@ -126,7 +126,7 @@ const MusePanel: React.FC<{ project: EventProductionProject; onUpdateHistory: (h
           <Brain size={13} className="text-white" />
         </div>
         <div>
-          <p className="text-xs font-black text-white">Muse AI</p>
+          <p className="text-xs font-black text-white">Aria AI</p>
           <p className="text-[8px] text-white/30 uppercase tracking-widest">Event planning assistant</p>
         </div>
       </div>
@@ -134,7 +134,7 @@ const MusePanel: React.FC<{ project: EventProductionProject; onUpdateHistory: (h
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {history.length === 0 && (
           <div className="space-y-2 mt-2">
-            <p className="text-[10px] text-white/30 text-center">Ask Muse anything about your event</p>
+            <p className="text-[10px] text-white/30 text-center">Ask Aria anything about your event</p>
             {QUICK_PROMPTS.map(p => (
               <button key={p} onClick={() => { setInput(p); }} className="w-full text-left px-3 py-2 bg-white/[0.04] border border-white/8 rounded-xl text-[10px] text-white/50 hover:text-white hover:border-white/20 transition-all">{p}</button>
             ))}
@@ -247,7 +247,7 @@ const EventProductionManager: React.FC<Props> = ({ currentUser, onBack }) => {
     setIntroLoading(vendor.id);
     try {
       const prompt = buildIntroLetterPrompt(activeProject.title, activeProject.eventDate ? new Date(activeProject.eventDate).toLocaleDateString() : 'TBD', activeProject.venue || 'TBD', vendor.type, currentUser.displayName);
-      const res = await fetch('/api/muse/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: 'You are Muse, Plajah\'s AI writing assistant.', question: prompt, history: [] }) });
+      const res = await fetch('/api/muse/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: 'You are Aria, Plajah\'s AI writing assistant.', question: prompt, history: [] }) });
       const data = await res.json();
       const updated = { ...vendor, introLetterDraft: data.answer || '' };
       saveVendor(updated);
@@ -337,7 +337,7 @@ const EventProductionManager: React.FC<Props> = ({ currentUser, onBack }) => {
           <p className="text-[9px] text-white/30 uppercase tracking-widest">{meta.label} · {p.tasks.filter(t => t.status === 'DONE').length}/{p.tasks.length} tasks done</p>
         </div>
         <button onClick={() => setShowMuse(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase transition-all ${showMuse ? 'bg-[#6B0099]/20 border-[#6B0099]/40 text-[#c084fc]' : 'bg-white/5 border-white/10 text-white/40'}`}>
-          <Brain size={12} /> Muse
+          <Brain size={12} /> Aria
         </button>
       </div>
 
@@ -350,7 +350,7 @@ const EventProductionManager: React.FC<Props> = ({ currentUser, onBack }) => {
         );})}
       </div>
 
-      {/* Body: content + Muse panel */}
+      {/* Body: content + Aria panel */}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-y-auto">
 
@@ -454,7 +454,7 @@ const EventProductionManager: React.FC<Props> = ({ currentUser, onBack }) => {
                         </div>
                         {vendor.introLetterDraft && (
                           <div className="mt-3 p-3 bg-[#6B0099]/8 border border-[#6B0099]/20 rounded-xl">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-[#c084fc] mb-2">Muse Draft Introduction Letter</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-[#c084fc] mb-2">Aria Draft Introduction Letter</p>
                             <p className="text-[10px] text-white/60 whitespace-pre-line">{vendor.introLetterDraft}</p>
                             <button onClick={() => navigator.clipboard.writeText(vendor.introLetterDraft!)} className="mt-2 flex items-center gap-1 text-[9px] text-[#c084fc]/60 hover:text-[#c084fc]"><Copy size={10} />Copy letter</button>
                           </div>
@@ -603,7 +603,7 @@ const EventProductionManager: React.FC<Props> = ({ currentUser, onBack }) => {
 
         </div>
 
-        {/* Muse panel */}
+        {/* Aria panel */}
         <AnimatePresence>
           {showMuse && (
             <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 300, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="shrink-0 overflow-hidden" style={{ width: 300 }}>

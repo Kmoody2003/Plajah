@@ -1545,7 +1545,7 @@ The defining economic fact: **idle operating cost is low-hundreds/month, and the
 | Cloud Run (server.ts) | $0–$45 | ~$0 if min-instances=0 (scale-to-zero) |
 | Firebase Hosting / CDN | $0–$10 | |
 | Basic Pitch model + wsrv.nl image CDN | $0 | Static 917KB file; image CDN is free tier |
-| Anthropic API (FABULA/Muse) | ~$0 idle | Usage-based |
+| Anthropic API (FABULA/Aria) | ~$0 idle | Usage-based |
 | Domain + misc | ~$5 | |
 | **Total idle** | **~$50–$160/mo** | The platform is cheap to keep alive while hunting for users |
 

@@ -75,7 +75,7 @@ const SourceBadge: React.FC<{ source: string; className?: string }> = ({ source,
   );
 };
 
-// ── Muse Explain Button + Popover ─────────────────────────────────────────────
+// ── Aria Explain Button + Popover ─────────────────────────────────────────────
 
 const MuseExplain: React.FC<{ title: string; abstract: string; color: string }> = ({ title, abstract, color }) => {
   const [open, setOpen] = useState(false);
@@ -87,7 +87,7 @@ const MuseExplain: React.FC<{ title: string; abstract: string; color: string }> 
     setOpen(true);
     setLoading(true);
     const result = await museExplainPaper(title, abstract);
-    setText(result || 'Muse couldn\'t reach the server right now. Try again.');
+    setText(result || 'Aria couldn\'t reach the server right now. Try again.');
     setLoading(false);
   };
 
@@ -99,7 +99,7 @@ const MuseExplain: React.FC<{ title: string; abstract: string; color: string }> 
           ? { background: `${color}18`, borderColor: `${color}40`, color }
           : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
         {loading ? <RefreshCw size={10} className="animate-spin" /> : <Brain size={10} />}
-        Muse
+        Aria
       </button>
       <AnimatePresence>
         {open && (
@@ -114,7 +114,7 @@ const MuseExplain: React.FC<{ title: string; abstract: string; color: string }> 
               <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0">
                 <Brain size={9} className="text-white" />
               </div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/40">Muse explains</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40">Aria explains</p>
             </div>
             {loading
               ? <div className="flex items-center gap-2"><RefreshCw size={12} className="text-white/30 animate-spin" /><p className="text-xs text-white/30">Thinking…</p></div>
