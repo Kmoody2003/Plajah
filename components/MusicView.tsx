@@ -758,17 +758,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-12"
+        className="space-y-6 md:space-y-12"
       >
-        <button 
+        <button
           onClick={() => setSelectedArchiveArtist(null)}
           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
         >
           <ChevronLeft size={14} /> Back to Vault
         </button>
 
-        <div className="flex flex-col md:flex-row gap-12 items-center md:items-end p-12 bg-white/[0.03] rounded-[3rem] border border-white/5">
-          <div className="w-64 h-64 rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl shrink-0 bg-black">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-end p-5 sm:p-8 md:p-12 bg-white/[0.03] rounded-3xl md:rounded-[3rem] border border-white/5">
+          <div className="w-40 h-40 sm:w-52 sm:h-52 md:w-64 md:h-64 rounded-3xl md:rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl shrink-0 bg-black">
             <img src={artistTracks[0]?.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-50" loading="lazy" decoding="async" />
           </div>
           <div className="text-center md:text-left">
@@ -859,7 +859,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       )}
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
-          <div className="px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
+          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 relative z-10" style={{ opacity: 0.82 }}>
             <PageHeader>Plajah Chora</PageHeader>
             <div className="mt-4">
               <PlajahPlusBanner variant="COMPACT" />
@@ -867,7 +867,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             {/* ── World Cup Anthems Banner ─────────────────────────────────── */}
             <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />
           </div>
-          <nav className={`px-4 lg:px-12 mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
+          <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Row 1: swipeable tabs — always full-width */}
             <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-2">
               {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
@@ -907,7 +907,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
           {/* History Moments + Music Theory Studio — below tab bar, always visible */}
           {onNavigate && (
-            <div className="flex gap-4 px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
+            <div className="flex gap-4 px-4 sm:px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
               {/* History Moments */}
               <button
                 onClick={() => onNavigate('CHORA_HISTORY')}
@@ -964,8 +964,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           )}
 
           {activeTab === 'NEW' && !selectedArchiveArtist && (
-            <div className="px-6 lg:px-12 pt-8 mb-6">
-              <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">New</h1>
+            <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6">
+              <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">New</h1>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-12">
 
@@ -1365,8 +1365,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           )}
 
           {activeTab === 'FOR_YOU' && !selectedArchiveArtist && userProfile && (
-             <div className="px-6 lg:px-12 pt-8 mb-6 space-y-12 animate-in fade-in">
-               <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">For You</h1>
+             <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6 space-y-12 animate-in fade-in">
+               <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">For You</h1>
 
                {/* ── Coming Soon ── */}
                {upcomingAlbums.length > 0 && (
@@ -1432,7 +1432,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
              </div>
           )}
 
-          <div className="px-6 lg:px-12 space-y-16">
+          <div className="px-4 sm:px-6 lg:px-12 space-y-16">
             {selectedArchiveArtist ? renderArchiveArtistInfo() : (
               <>
                 {activeTab === 'PODCASTS' && <PodcastsView />}
@@ -1603,7 +1603,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <Sparkles size={14} className="text-small-orange" />
                           <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Staff Picks</h2>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
                           {curatedPlaylists.map(pl => (
                             <div
                               key={pl.id}
@@ -1661,7 +1661,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {/* Full grid */}
                     <div>
                       <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Artists</h2>
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-6 lg:gap-8">
                         {getSortedArtists().map(artist => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
@@ -1684,7 +1684,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><User size={10} className="text-purple-200" /></div>
                           <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Featured Artists</h2>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-6 lg:gap-8">
                           {audiusCuration.artists.map(artist => (
                             <div key={artist.id}
                               onClick={() => handleOpenAudiusArtist(artist)}
@@ -1782,7 +1782,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {/* All albums grid */}
                     <div>
                       <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Albums</h2>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
                         {getSortedAlbums().map(album => (
                           <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                             <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
@@ -1807,7 +1807,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Playlists</h2>
                           <span className="text-[8px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(126,34,206,0.2)', color: '#c084fc' }}>Decentralized</span>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
                           {audiusCuration.playlists.map(pl => (
                             <motion.div key={pl.id} whileHover={{ scale: 1.02 }}
                               onClick={() => handlePlayAudiusPlaylist(pl)}
@@ -1837,7 +1837,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'GENRES' && (
                   <section className="animate-in fade-in duration-500">
-                    <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Genres</h1>
+                    <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">Genres</h1>
                     <div className="space-y-16">
                       {genres.map(genre => {
                         const genreAlbums = albums
@@ -1912,12 +1912,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 {activeTab === 'AUDIO_BOOKS' && (
                   <section className="animate-in fade-in duration-500">
                     <div className="flex items-center justify-between mb-12">
-                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-12">Audiobooks</h1>
+                      <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[12rem] break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">Audiobooks</h1>
                       <div className="p-2 px-4 bg-white/5 rounded-xl border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40">
                         Historical Archive
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
                       {vaultTracks.filter(t => t.genre === 'Audiobook').map(track => (
                         <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
                           <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
