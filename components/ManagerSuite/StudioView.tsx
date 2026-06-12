@@ -111,13 +111,16 @@ export default function StudioView() {
       };
     });
 
+    // Networks with built adapters (services/socialNetworks/*) are connectable —
+    // they show the suite's full capability with a "link your account" path.
+    // Pinterest/Snapchat have no adapter yet, so stay genuinely "coming soon".
     const externalPlatforms: PlatformDef[] = [
-      { id: 'twitter',   label: 'X (Twitter)',  color: '#000000', charLimit: 280,   abbr: 'X',  status: 'coming_soon' },
-      { id: 'instagram', label: 'Instagram',    color: '#E1306C', charLimit: 2200,  abbr: 'IG', status: 'coming_soon' },
-      { id: 'facebook',  label: 'Facebook',     color: '#1877F2', charLimit: 63206, abbr: 'FB', status: 'coming_soon' },
-      { id: 'linkedin',  label: 'LinkedIn',     color: '#0A66C2', charLimit: 3000,  abbr: 'LI', status: 'coming_soon' },
-      { id: 'tiktok',    label: 'TikTok',       color: '#010101', charLimit: 2200,  abbr: 'TK', status: 'coming_soon' },
-      { id: 'youtube',   label: 'YouTube',      color: '#FF0000', charLimit: 5000,  abbr: 'YT', status: 'coming_soon' },
+      { id: 'twitter',   label: 'X (Twitter)',  color: '#000000', charLimit: 280,   abbr: 'X',  status: 'connect' },
+      { id: 'instagram', label: 'Instagram',    color: '#E1306C', charLimit: 2200,  abbr: 'IG', status: 'connect' },
+      { id: 'facebook',  label: 'Facebook',     color: '#1877F2', charLimit: 63206, abbr: 'FB', status: 'connect' },
+      { id: 'linkedin',  label: 'LinkedIn',     color: '#0A66C2', charLimit: 3000,  abbr: 'LI', status: 'connect' },
+      { id: 'tiktok',    label: 'TikTok',       color: '#010101', charLimit: 2200,  abbr: 'TK', status: 'connect' },
+      { id: 'youtube',   label: 'YouTube',      color: '#FF0000', charLimit: 5000,  abbr: 'YT', status: 'connect' },
       { id: 'pinterest', label: 'Pinterest',    color: '#E60023', charLimit: 500,   abbr: 'PI', status: 'coming_soon' },
       { id: 'snapchat',  label: 'Snapchat',     color: '#FFFC00', charLimit: 250,   abbr: 'SC', status: 'coming_soon' },
     ];
@@ -290,12 +293,19 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
   const selectedChannels = channels.filter(c => selected.has(c.id));
   const queueFull = usedSlots >= limits.maxScheduledPosts;
 
+  const flash = (ok: boolean, msg: string) => { setToast({ ok, msg }); setTimeout(() => setToast(null), 3500); };
+
   const toggle = (id: string, status: PlatformStatus) => {
-    if (status !== 'connected') return;
+    if (status === 'coming_soon') return;
+    if (status === 'connect') {
+      // Built adapter, account not linked yet — guide to the connect flow.
+      const label = platforms.find(p => p.id === id)?.label ?? 'this network';
+      window.dispatchEvent(new CustomEvent('OPEN_NETWORK_CONNECT', { detail: { network: id } }));
+      flash(true, `Link your ${label} account in Settings → Networks to publish here.`);
+      return;
+    }
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
-
-  const flash = (ok: boolean, msg: string) => { setToast({ ok, msg }); setTimeout(() => setToast(null), 3500); };
 
   const handlePost = async (data: ComposerPostData) => {
     if (busy) return;
@@ -355,12 +365,14 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
                 <button
                   key={p.id}
                   onClick={() => toggle(p.id, p.status)}
-                  disabled={!isConnected}
-                  title={isComingSoon ? `${p.label} — Coming Soon` : p.status === 'connect' ? `Connect ${p.label} in Fediverse Settings` : ''}
+                  disabled={isComingSoon}
+                  title={isComingSoon ? `${p.label} — Coming Soon` : p.status === 'connect' ? `Connect ${p.label} — link your account to publish` : ''}
                   className={`relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all text-center ${
                     isConnected
                       ? on ? 'border-white/30 bg-white/10' : 'border-white/10 hover:border-white/20 hover:bg-white/5 cursor-pointer'
-                      : 'border-white/5 opacity-35 cursor-not-allowed'
+                      : isComingSoon
+                        ? 'border-white/5 opacity-40 cursor-not-allowed'
+                        : 'border-orange-500/25 opacity-90 hover:border-orange-500/50 hover:bg-orange-500/5 cursor-pointer'
                   }`}
                 >
                   {isComingSoon && (
@@ -377,7 +389,7 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
                     </span>
                   )}
                   <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black"
-                    style={{ background: `${p.color}18`, color: isConnected ? p.color : '#555', border: `1.5px solid ${p.color}${isConnected ? '44' : '15'}` }}>
+                    style={{ background: `${p.color}18`, color: (isConnected || p.status === 'connect') ? p.color : '#555', border: `1.5px solid ${p.color}${(isConnected || p.status === 'connect') ? '44' : '15'}` }}>
                     {p.abbr}
                   </span>
                   <span className="text-[7px] font-bold text-white/45 leading-tight truncate w-full">{p.label.split(' ')[0]}</span>
@@ -443,27 +455,31 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow }: {
 
       {/* Right sidebar: account status */}
       <div className="lg:w-56 xl:w-64 border-t lg:border-t-0 lg:border-l border-white/8 px-4 py-5 shrink-0">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Accounts</p>
+        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Networks</p>
         <div className="space-y-1.5">
-          {platforms.filter(p => ['plajah', 'bluesky', 'mastodon', 'threads'].includes(p.id)).map(p => (
-            <div key={p.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${
-              p.status === 'connected' ? 'border-white/10 bg-white/[0.04]' : 'border-white/5 opacity-50'
-            }`}>
-              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0"
-                style={{ background: `${p.color}18`, color: p.color, border: `1px solid ${p.color}33` }}>
-                {p.abbr}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-white/60 truncate">{p.label}</p>
-                <p className={`text-[8px] ${p.status === 'connected' ? 'text-green-400' : 'text-orange-400'}`}>
-                  {p.status === 'connected' ? 'Connected' : 'Link account'}
-                </p>
-              </div>
-              {p.status === 'connected' ? <Check size={11} className="text-green-400 shrink-0" /> : (
-                p.status === 'connect' && <Plus size={11} className="text-orange-400 shrink-0" />
-              )}
-            </div>
-          ))}
+          {platforms.filter(p => p.status !== 'coming_soon').map(p => {
+            const linked = p.status === 'connected';
+            return (
+              <button key={p.id} onClick={() => { if (!linked) toggle(p.id, p.status); }} disabled={linked}
+                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-colors ${
+                  linked ? 'border-white/10 bg-white/[0.04]' : 'border-white/5 hover:border-orange-500/30 hover:bg-orange-500/5 cursor-pointer'
+                }`}>
+                <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0"
+                  style={{ background: `${p.color}18`, color: p.color, border: `1px solid ${p.color}33` }}>
+                  {p.abbr}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-white/60 truncate">{p.label}</p>
+                  <p className={`text-[8px] ${linked ? 'text-green-400' : 'text-orange-400'}`}>
+                    {linked ? 'Connected' : 'Link account'}
+                  </p>
+                </div>
+                {linked
+                  ? <Check size={11} className="text-green-400 shrink-0" />
+                  : <Plus size={11} className="text-orange-400 shrink-0" />}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-5 pt-4 border-t border-white/8">
@@ -678,7 +694,9 @@ function AnalyticsPanel({ platforms, queue }: { platforms: PlatformDef[]; queue:
                   {p.status === 'connect' ? (
                     <>
                       <p className="text-[10px] text-white/30 text-center">Link your {p.label} account to unlock analytics</p>
-                      <button className="px-3 py-1.5 rounded-lg bg-orange-500/15 text-orange-400 text-[10px] font-black hover:bg-orange-500/25 transition-colors">
+                      <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('OPEN_NETWORK_CONNECT', { detail: { network: p.id } }))}
+                        className="px-3 py-1.5 rounded-lg bg-orange-500/15 text-orange-400 text-[10px] font-black hover:bg-orange-500/25 transition-colors">
                         Connect
                       </button>
                     </>
