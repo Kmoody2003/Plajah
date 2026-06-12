@@ -1800,7 +1800,8 @@ async function startServer() {
       return res.status(400).json({ error: 'messages[] required' });
     }
     // Constrain to Claude models and a sane token ceiling to prevent abuse.
-    const safeModel = typeof model === 'string' && /^claude-/.test(model) ? model : 'claude-sonnet-4-20250514';
+    // (claude-sonnet-4-20250514 is deprecated, retires 2026-06-15 — use current Sonnet.)
+    const safeModel = typeof model === 'string' && /^claude-/.test(model) ? model : 'claude-sonnet-4-6';
     const safeMax = Math.min(Math.max(Number(max_tokens) || 1000, 1), 4096);
     try {
       const upstream = await fetch('https://api.anthropic.com/v1/messages', {

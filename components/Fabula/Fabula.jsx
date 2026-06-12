@@ -138,7 +138,7 @@ async function callClaude(system, user, maxRetries = 2) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000, system,
+          model: "claude-sonnet-4-6", max_tokens: 1000, system,
           messages: [{ role: "user", content: user }],
         }),
       });
@@ -286,7 +286,7 @@ async function claudeVisionJson(images, prompt) {
   const content = [...images.map((im) => ({ type: "image", source: { type: "base64", media_type: im.media, data: im.data } })), { type: "text", text: prompt }];
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content }] }),
   });
   const data = await res.json();
   return parseJsonRobust((data.content || []).map((b) => b.text || "").join("\n"));
