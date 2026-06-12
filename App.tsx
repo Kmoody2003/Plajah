@@ -1590,12 +1590,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'DISCUSSION', order: 17.5, isVisible: true },
                     { id: 'FEED', order: 0.1, isVisible: true },
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
+                    { id: 'FABULA', order: 19.05, isVisible: true },
                     { id: 'TV_STUDIO', order: 19.1, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
                     { id: 'HELP_CENTER', order: 21, isVisible: true },
                     { id: 'BROWSER', order: 22, isVisible: true },
                     ...(user ? [
+                      { id: 'PLAJAH_STUDIO', order: 9.4, isVisible: true },
                       { id: 'BUSINESS_DASHBOARD', order: 9.5, isVisible: true },
                       { id: 'AD_PACKAGES', order: 9.6, isVisible: true },
                       { id: 'ARTIST_MANAGER', order: 9.7, isVisible: true },
@@ -1654,7 +1656,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         BROWSER: { label: 'Partner Sites', icon: Monitor },
                         BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase },
                         AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
-                        ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 }
+                        ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                        PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       };
                       const item = items[config.id as keyof typeof items];
                       if (!item) return null;
