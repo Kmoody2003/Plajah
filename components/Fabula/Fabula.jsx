@@ -5,6 +5,7 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush,
 } from "lucide-react";
 import * as THREE from "three";
+import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -110,9 +111,24 @@ const BLANK_SCENE = () => ({
 });
 
 /* ---------------- storage ---------------- */
-async function stGet(k) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } }
-async function stSet(k, v) { try { return !!(await window.storage.set(k, JSON.stringify(v))); } catch { return false; } }
-async function stDel(k) { try { await window.storage.delete(k); } catch {} }
+// Persistence: IndexedDB via idb-keyval. (The original artifact used the Claude
+// artifact runtime's window.storage, which does not exist in a normal browser —
+// so projects silently never saved/loaded inside Plajah. IndexedDB also handles
+// large editing projects far better than localStorage's ~5MB cap.) Falls back to
+// the artifact's window.storage if it ever IS present.
+async function stGet(k) {
+  try {
+    const r = await idbGet(k);
+    if (r !== undefined && r !== null) return r;
+    if (typeof window !== "undefined" && window.storage?.get) {
+      const legacy = await window.storage.get(k);
+      return legacy ? JSON.parse(legacy.value) : null;
+    }
+    return null;
+  } catch { return null; }
+}
+async function stSet(k, v) { try { await idbSet(k, v); return true; } catch { return false; } }
+async function stDel(k) { try { await idbDel(k); } catch {} }
 
 /* ---------------- Claude API + robust JSON ---------------- */
 async function callClaude(system, user, maxRetries = 2) {
