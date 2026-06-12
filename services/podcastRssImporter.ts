@@ -1,9 +1,5 @@
 import type { ImportedRssEpisode } from '../types';
-
-// First-party proxy served from /api/fetch-rss. Falls back to allorigins on localhost dev.
-const CORS_PROXY = window.location.hostname === 'localhost'
-  ? 'https://api.allorigins.win/raw?url='
-  : '/api/fetch-rss?url=';
+import { fetchFeedXml } from './rssService';
 
 export interface ParsedPodcastFeed {
   title: string;
@@ -110,15 +106,15 @@ export function parseRssXml(xmlText: string): ParsedPodcastFeed {
 // ── Fetch + parse via CORS proxy ──────────────────────────────────────────────
 
 export async function fetchAndParseRss(url: string): Promise<ParsedPodcastFeed> {
-  const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-  let res: Response;
+  // Reuse the shared, production-safe proxy chain (corsproxy.io / codetabs /
+  // allorigins) — /api/fetch-rss returns the SPA index.html in production, so a
+  // direct dependency on it (or on the now-dead allorigins) silently failed.
+  let text: string;
   try {
-    res = await fetch(proxyUrl, { signal: AbortSignal.timeout(20_000) });
+    text = await fetchFeedXml(url);
   } catch (err: any) {
-    throw new Error(`Network error fetching feed: ${err.message ?? err}`);
+    throw new Error(`Network error fetching feed: ${err?.message ?? err}`);
   }
-  if (!res.ok) throw new Error(`Feed server returned ${res.status} — check the URL and try again`);
-  const text = await res.text();
   return parseRssXml(text);
 }
 

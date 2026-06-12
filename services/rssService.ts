@@ -87,27 +87,38 @@ function parseRSS(text: string): any[] {
   });
 }
 
-const fetchFeedXml = async (url: string): Promise<string> => {
-  // First choice: our own server proxy (no third-party SLA dependency)
+/** A real RSS/Atom/RDF feed, not (e.g.) the SPA index.html that static hosting
+ *  returns for /api/* — which also contains '<' and was being wrongly accepted. */
+const looksLikeFeed = (t: string) => /<rss[\s>]|<feed[\s>]|<\?xml|<rdf:RDF/i.test(t);
+
+export const fetchFeedXml = async (url: string): Promise<string> => {
+  // 1. Our own server proxy — accept ONLY when it returns an actual feed. In
+  //    production (static Firebase Hosting) /api/fetch-rss returns index.html;
+  //    the old `includes('<')` check accepted that HTML as "RSS", so news never
+  //    fell through to a working proxy. Gate strictly on feed shape.
   try {
     const r0 = await fetch(`/api/fetch-rss?url=${encodeURIComponent(url)}`);
     if (r0.ok) {
       const text = await r0.text();
-      if (text.includes('<')) return text;
+      if (looksLikeFeed(text)) return text;
     }
   } catch (_) {}
-  // Fallback: allorigins (returns JSON wrapper with raw content)
+  // 2. corsproxy.io — raw content; currently the reliable public CORS proxy.
+  try {
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+    if (r.ok) { const t = await r.text(); if (looksLikeFeed(t)) return t; }
+  } catch (_) {}
+  // 3. codetabs — raw content; independent backbone from corsproxy.
+  try {
+    const r = await fetch(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`);
+    if (r.ok) { const t = await r.text(); if (looksLikeFeed(t)) return t; }
+  } catch (_) {}
+  // 4. allorigins (JSON wrapper) — last resort; frequently rate-limited / down.
   try {
     const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    if (r.ok) {
-      const data = await r.json();
-      if (data.contents) return data.contents as string;
-    }
+    if (r.ok) { const data = await r.json(); if (data.contents && looksLikeFeed(data.contents)) return data.contents as string; }
   } catch (_) {}
-  // Fallback: corsproxy.io returns raw content directly
-  const r2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-  if (!r2.ok) throw new Error(`proxy failed: ${r2.status}`);
-  return r2.text();
+  throw new Error('all RSS proxies failed');
 };
 
 export const fetchNewsFromRSS = async (category: string): Promise<any[]> => {

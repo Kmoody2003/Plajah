@@ -29,21 +29,32 @@ function toCache(key: string, data: any) { _cache.set(key, { data, ts: Date.now(
 
 async function safeFetch(url: string, ttlKey?: string, ttl?: number): Promise<any> {
   if (ttlKey) { const c = fromCache(ttlKey, ttl!); if (c !== null) return c; }
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
-  try {
-    const isBrowser = typeof window !== 'undefined';
-    const requestUrl = isBrowser ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
-    const res = await fetch(requestUrl, { signal: ctrl.signal });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (ttlKey) toCache(ttlKey, data);
-    return data;
-  } catch {
-    clearTimeout(timer);
-    return null;
+
+  const fetchJson = async (u: string): Promise<any> => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(u, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) return undefined;
+      return await res.json();
+    } catch { clearTimeout(timer); return undefined; }
+  };
+
+  // 1. Direct. ESPN + TheSportsDB send permissive CORS headers, so this works in
+  //    production (where there is NO /api backend) and also avoids the dev
+  //    /api/proxy, which was truncating large JSON responses (e.g. scoreboards).
+  let data = await fetchJson(url);
+  // 2. Same-origin dev proxy — only helps a source that blocks CORS in local dev.
+  if (data === undefined && typeof window !== 'undefined') {
+    data = await fetchJson(`/api/proxy?url=${encodeURIComponent(url)}`);
   }
+  // 3. Public CORS proxy as the last resort.
+  if (data === undefined) data = await fetchJson(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+
+  if (data === undefined || data === null) return null;
+  if (ttlKey) toCache(ttlKey, data);
+  return data;
 }
 
 const ESPN_SOURCE_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
@@ -760,6 +771,26 @@ async function fetchSoccerStandingsFromTSDB(tab: string): Promise<any[]> {
   return groups;
 }
 
+/** FIFA tab — show the live World Cup from ESPN's fifa.world scoreboard while the
+ *  tournament is on (verified: returns the in-progress matches), and fall back to
+ *  the global top-flight soccer feed (TheSportsDB) off-tournament. ESPN events are
+ *  already in the shape the ScoreCard renderer expects. */
+async function fetchFifaWorldCupScores(): Promise<any[]> {
+  const key = 'espn:fifa.world:scores';
+  const c = fromCache(key, TTL.scores);
+  if (c !== null) return c;
+  const wc = await safeFetch(`${ESPN}/soccer/fifa.world/scoreboard`);
+  const wcEvents: any[] = wc?.events ?? [];
+  if (wcEvents.length) {
+    toCache(key, wcEvents);
+    writeSportsKnowledge('sports_league_scores', makeSportsDocId('FIFA', 'current'), wcEvents, [
+      sportsSource('ESPN', `${ESPN}/soccer/fifa.world/scoreboard`, 'FIFA World Cup live scoreboard'),
+    ], ['sports', 'FIFA', 'scores', 'live', 'worldcup'], 'HIGH').catch(() => {});
+    return wcEvents;
+  }
+  return fetchSoccerScoresFromTSDB('FIFA');
+}
+
 async function fetchSoccerScoresFromTSDB(tab: string): Promise<any[]> {
   const cfg = TSDB_SOCCER[tab];
   if (!cfg) return [];
@@ -906,7 +937,8 @@ export async function fetchLeagueNews(tab: string): Promise<any[]> {
 export async function fetchLeagueScores(tab: string): Promise<any[]> {
   if (getSpecialtySportCfg(tab)) return fetchSpecialtySportsScores(tab);
   const stored = await readSportsKnowledge<any[]>('sports_league_scores', makeSportsDocId(tab, 'current'), TTL.scores);
-  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerScoresFromTSDB(tab);
+  if (tab === 'FIFA') return fetchFifaWorldCupScores();
+  if (tab === 'MLS') return fetchSoccerScoresFromTSDB(tab);
 
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
