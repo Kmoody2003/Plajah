@@ -20,6 +20,12 @@ const StatCardBuilder = lazy(() => import('./StatCardBuilder').then(m => ({ defa
 
 type TeamTab = 'overview' | 'roster' | 'schedule' | 'legends' | 'news' | 'history' | 'discuss' | 'stats';
 
+/** ESPN returns a competitor `score` as a STRING on the scoreboard but as an
+ *  object `{ value, displayValue }` on the team schedule endpoint. Rendering that
+ *  object directly throws React error #31, so always coerce to a display string. */
+const scoreText = (s: any): string =>
+  s && typeof s === 'object' ? String(s.displayValue ?? s.value ?? '') : (s ?? '');
+
 interface Props {
   team: SportsTeam;
   tab: string;
@@ -329,7 +335,7 @@ export const TeamPageView: React.FC<Props> = ({
                                 <span className="text-[8px] font-bold text-white/35">{game.status?.type?.shortDetail || ''}</span>
                                 {done && (
                                   <>
-                                    <span className="text-[9px] font-black text-white">{away?.score} â€" {home?.score}</span>
+                                    <span className="text-[9px] font-black text-white">{scoreText(away?.score)} â€" {scoreText(home?.score)}</span>
                                     <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{won ? 'W' : 'L'}</span>
                                   </>
                                 )}
@@ -729,7 +735,7 @@ export const TeamPageView: React.FC<Props> = ({
                                     <span className="text-[9px] font-black uppercase truncate">{opp?.team?.displayName || opp?.team?.abbreviation}</span>
                                   </div>
                                   <div className="flex items-center gap-3 shrink-0">
-                                    {done && <span className="text-[9px] font-black">{mine?.score} â€" {opp?.score}</span>}
+                                    {done && <span className="text-[9px] font-black">{scoreText(mine?.score)} â€" {scoreText(opp?.score)}</span>}
                                     {state === 'in' && <span className="text-[7px] font-black text-red-400 animate-pulse">{comps?.status?.type?.shortDetail}</span>}
                                     {state === 'pre' && comps?.date && <span className="text-[8px] font-bold text-white/30">{new Date(comps.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                                   </div>
