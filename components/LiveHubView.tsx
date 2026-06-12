@@ -10,6 +10,7 @@ import { useAchievements } from '../contexts/AchievementContext';
 import TVView from './TVView';
 import PPVEventsView from './PPVEventsView';
 import GoLiveWizard from './GoLiveWizard';
+import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -74,6 +75,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [searchTerm, setSearchTerm] = useState('');
   const [fullScreenFeed, setFullScreenFeed] = useState<{ id: string, title: string, url: string, ownerName: string } | null>(null);
   const [showGoLiveWizard, setShowGoLiveWizard] = useState(false);
+  const [showMobileLive, setShowMobileLive] = useState(false);
 
   useEffect(() => {
     const unsubscribe = fetchAllLiveFeeds((items) => {
@@ -268,6 +270,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
               <Radio size={18} className="text-white" /> Go Live
             </button>
+            <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
             {onOpenTVStudio && (
               <button
                 onClick={onOpenTVStudio}
@@ -617,6 +620,12 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         <GoLiveWizard
           onClose={() => setShowGoLiveWizard(false)}
           currentUser={currentUser}
+        />
+      )}
+      {showMobileLive && (
+        <MobileLiveStreamer
+          mode="streamer"
+          onClose={() => setShowMobileLive(false)}
         />
       )}
 

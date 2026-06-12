@@ -1997,47 +1997,28 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
           </div>
 
-          <nav className="flex flex-wrap gap-4 px-4 overflow-x-auto no-scrollbar">
+          <nav className="flex gap-2 px-1 overflow-x-auto no-scrollbar pb-1">
             {[
-              { id: 'SOCIAL', label: 'Interstellar Social', description: 'Timelines across external networks', icon: Globe },
-              { id: 'GLOBAL', label: 'Plajah Social', description: 'On-platform aggregated experience', icon: Cloud },
-              { id: 'NEWS', label: 'Broadcast News', description: 'Real-time global events & sports', icon: Newspaper },
-              { id: 'LIVETALK', label: 'Live Talk', description: 'Live audio & video broadcasts', icon: Mic },
-              { id: 'NOW', label: 'Right Now', description: 'What your people are experiencing this moment', icon: Zap, isNew: true },
-              { id: 'PULSE', label: 'Platform Pulse', description: 'Live debates — your arena, following, and platform spotlight', icon: Swords },
+              { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
+              { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
+              { id: 'NEWS',     label: 'Broadcast',     icon: Newspaper },
+              { id: 'LIVETALK', label: 'Live Talk',     icon: Mic },
+              { id: 'NOW',      label: 'Right Now',     icon: Zap,    isNew: true },
+              { id: 'PULSE',    label: 'Pulse',         icon: Swords },
             ].map((tab: any) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as FeedTab)}
-                className={`group/tab relative overflow-hidden flex flex-col items-start gap-4 p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] transition-all min-w-[200px] md:min-w-[300px] flex-1 ${
-                  activeTab === tab.id 
-                    ? `bg-white text-black shadow-[0_30px_60px_rgba(0,0,0,0.5)]` 
-                    : `bg-white/5 border border-white/5 text-white/40 hover:bg-white/10 hover:border-white/10`
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all shrink-0 ${
+                  activeTab === tab.id
+                    ? 'bg-white text-black shadow-lg'
+                    : 'bg-white/5 border border-white/8 text-white/45 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <div className="relative z-10 flex flex-col gap-8 w-full">
-                  <div className="flex items-start justify-between">
-                    <tab.icon size={32} className={tab.id === 'NOW' ? 'text-green-400' : activeTab === tab.id ? 'text-small-orange' : 'text-white/20 group-hover/tab:text-white transition-colors'} />
-                    {tab.isNew && activeTab !== tab.id && (
-                      <span className="px-2 py-0.5 bg-green-500/20 border border-green-500/40 text-green-400 text-[7px] font-black uppercase tracking-widest rounded-full flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" /> New
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                     <span className={`text-[8px] font-black uppercase tracking-widest block mb-1 ${activeTab === tab.id ? 'text-black/40' : 'text-white/10'}`}>Frequency Node</span>
-                     <h4 className="text-xl md:text-3xl font-black uppercase tracking-tight italic leading-tight">{tab.label}</h4>
-                     <p className={`text-[10px] md:text-[12px] font-medium mt-2 max-w-[200px] leading-relaxed ${activeTab === tab.id ? 'text-black/60' : 'text-white/30'}`}>
-                       {tab.description}
-                     </p>
-                  </div>
-                </div>
-                
-                {activeTab === tab.id && (
-                  <motion.div 
-                    layoutId="tabUnderline"
-                    className="absolute bottom-0 left-0 right-0 h-2 bg-small-orange"
-                  />
+                <tab.icon size={13} className={tab.id === 'NOW' && activeTab !== tab.id ? 'text-green-400' : ''} />
+                {tab.label}
+                {tab.isNew && activeTab !== tab.id && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                 )}
               </button>
             ))}
