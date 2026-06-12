@@ -252,7 +252,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white font-sans overflow-hidden">
-      <header className="relative p-8 lg:p-12 border-b border-white/5 bg-black/80 backdrop-blur-3xl shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+      <header className="relative p-4 sm:p-8 lg:p-12 border-b border-white/5 bg-black/80 backdrop-blur-3xl shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
         {bgFeed && (
           <div className="absolute inset-0 z-0 pointer-events-none opacity-30">
             <iframe 
