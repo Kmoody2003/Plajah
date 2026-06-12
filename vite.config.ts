@@ -95,17 +95,30 @@ export default defineConfig(({ mode }) => {
         // @firebase/app copy, so App Check registers into a different component
         // container than initializeApp() used → "Component app-check has not
         // been registered yet".
-        dedupe: ['firebase', '@firebase/app', '@firebase/app-check'],
+        // Force a single @firebase/app instance (App Check) AND a single
+        // TensorFlow.js instance. Without the tfjs dedupe, Vite pre-bundles
+        // @tensorflow/tfjs and @spotify/basic-pitch's tfjs separately, so two
+        // copies register their WebGL kernels ("kernel already registered")
+        // and a GraphModel from one copy operates on tensors from the other →
+        // unstable / hanging inference.
+        dedupe: [
+          'firebase', '@firebase/app', '@firebase/app-check',
+          '@tensorflow/tfjs', '@tensorflow/tfjs-core',
+          '@tensorflow/tfjs-backend-webgl', '@tensorflow/tfjs-backend-cpu',
+        ],
       },
       optimizeDeps: {
         // Pre-bundle App Check alongside the other firebase modules so they
-        // share one optimized firebase/app dependency.
+        // share one optimized firebase/app dependency. Pre-bundle tfjs +
+        // basic-pitch together so they share ONE tfjs instance.
         include: [
           'firebase/app',
           'firebase/app-check',
           'firebase/auth',
           'firebase/firestore',
           'firebase/storage',
+          '@tensorflow/tfjs',
+          '@spotify/basic-pitch',
         ],
       },
     };

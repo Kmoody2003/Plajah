@@ -1126,25 +1126,38 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
   const { theory, isReal, analyzing } = useRealAudioAnalysis(track, hashTheory);
   const progress = duration > 0 ? currentTime / duration : 0;
 
-  // ── Real note transcription (YIN) → engraved notation ──────────────────────
+  // ── Real note transcription → engraved notation ───────────────────────────
+  // Default pass is the instant, dependency-free polyphonic DSP engine. Basic
+  // Pitch (Spotify CNN) is an opt-in "Enhance" pass that lazy-loads tfjs.
   const [transcription, setTranscription] = useState<Transcription | null>(null);
   const [notation, setNotation] = useState<Notation | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const [transProgress, setTransProgress] = useState(0);
-  useEffect(() => {
-    setTranscription(null); setNotation(null); setTransProgress(0);
+  const [enhanceState, setEnhanceState] = useState<'idle' | 'running' | 'fallback'>('idle');
+  const abortRef = useRef<AbortController | null>(null);
+
+  const runTranscription = useCallback((backend: 'poly-dsp' | 'basic-pitch') => {
     if (!track.url) return;
+    abortRef.current?.abort();
     const ac = new AbortController();
-    setTranscribing(true);
-    transcribeTrack(track.url, { signal: ac.signal, polyphonic: true, onProgress: (_s, p) => setTransProgress(p) })
+    abortRef.current = ac;
+    setTranscribing(true); setTransProgress(0);
+    if (backend === 'basic-pitch') setEnhanceState('running');
+    transcribeTrack(track.url, { signal: ac.signal, backend, onProgress: (_s, p) => setTransProgress(p) })
       .then(t => {
         if (ac.signal.aborted) return;
         setTranscription(t);
         setNotation(buildNotation(t));
+        if (backend === 'basic-pitch') setEnhanceState(t.backend === 'basic-pitch' ? 'idle' : 'fallback');
       })
-      .catch(() => { /* CORS / decode / format — keep the live-estimate fallback */ })
+      .catch(() => { if (backend === 'basic-pitch') setEnhanceState('fallback'); })
       .finally(() => { if (!ac.signal.aborted) setTranscribing(false); });
-    return () => ac.abort();
+  }, [track.url]);
+
+  useEffect(() => {
+    setTranscription(null); setNotation(null); setEnhanceState('idle');
+    runTranscription('poly-dsp');
+    return () => abortRef.current?.abort();
   }, [track.id, track.url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real key/tempo/time-signature take over the headline + theory cards when ready.
@@ -1346,7 +1359,11 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                   ) : transcription ? (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 4px #34d399' }} />
-                      <span className="text-[7px] font-bold text-emerald-400/80">Polyphonic · chords resolved · grid-synced</span>
+                      <span className="text-[7px] font-bold text-emerald-400/80">
+                        {transcription.backend === 'basic-pitch' ? 'Basic Pitch model · chords · grid-synced'
+                          : transcription.backend === 'poly-dsp' ? 'Polyphonic DSP · chords · grid-synced'
+                          : 'Melody + bass · grid-synced'}
+                      </span>
                     </span>
                   ) : (
                     <span className="text-[7px] font-bold text-white/20">Awaiting audio…</span>
@@ -1356,7 +1373,28 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
                   {displayTheory.scale} · {displayTheory.timeSignature} · {displayTheory.tempo} BPM
                 </p>
               </div>
-              <p className="text-[7px] text-white/20 font-mono text-right leading-tight">treble + bass<br />multi-voice</p>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {transcription?.backend === 'basic-pitch' ? (
+                  <span className="flex items-center gap-1 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/25 px-2 py-1">
+                    <Sparkles size={9} className="text-fuchsia-300" />
+                    <span className="text-[8px] font-black text-fuchsia-200">AI · Basic Pitch ✓</span>
+                  </span>
+                ) : enhanceState === 'running' ? (
+                  <span className="flex items-center gap-1 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-1">
+                    <Sparkles size={9} className="text-fuchsia-300 animate-pulse" />
+                    <span className="text-[8px] font-black text-fuchsia-200/90">Enhancing… {Math.round(transProgress * 100)}%</span>
+                  </span>
+                ) : notation ? (
+                  <button onClick={() => runTranscription('basic-pitch')}
+                    className="flex items-center gap-1 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/25 hover:bg-fuchsia-500/20 px-2 py-1 transition-colors">
+                    <Sparkles size={9} className="text-fuchsia-300" />
+                    <span className="text-[8px] font-black text-fuchsia-200">Enhance with AI</span>
+                  </button>
+                ) : null}
+                {enhanceState === 'fallback' && (
+                  <span className="text-[7px] text-white/30 text-right leading-tight">AI model unavailable —<br />kept DSP version</span>
+                )}
+              </div>
             </div>
 
             {notation ? (

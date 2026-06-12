@@ -46,7 +46,7 @@ export interface Transcription {
   firstBeatSec: number;
   durationSec: number;
   confidence: number;                // grid-fit confidence (0–1)
-  backend: 'yin-dsp' | 'poly-dsp';
+  backend: 'yin-dsp' | 'poly-dsp' | 'basic-pitch';
   polyphonic: boolean;
 }
 
@@ -63,6 +63,9 @@ const MAJOR_FIFTHS: Record<number, number> = {
 
 // Cap total analysed audio so a long track still returns quickly.
 const MAX_ANALYZE_SEC = 240;
+
+// Max wall-clock for the Basic Pitch attempt before falling back to poly-dsp.
+const BASIC_PITCH_TIMEOUT_MS = 60_000;
 
 // ─── Resampling / filtering helpers ───────────────────────────────────────────
 
@@ -365,6 +368,10 @@ export interface TranscribeOptions {
   onProgress?: (stage: string, pct: number) => void;
   /** Resolve simultaneous pitches (chords) instead of single melody+bass lines. */
   polyphonic?: boolean;
+  /** Which transcription engine to use. 'basic-pitch' = Spotify CNN (most
+   *  accurate, lazy-loads tfjs + model; falls back to poly-dsp on any failure).
+   *  'auto' prefers basic-pitch. Default: poly-dsp when polyphonic, else yin-dsp. */
+  backend?: 'auto' | 'basic-pitch' | 'poly-dsp' | 'yin-dsp';
 }
 
 export async function transcribeTrack(url: string, opts: TranscribeOptions = {}): Promise<Transcription> {
@@ -393,32 +400,57 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
       return { ...n, startBeat, durBeats, voice: v };
     });
 
-  let notes: TNote[];
-  if (opts.polyphonic) {
+  const runPolyDsp = (): TNote[] => {
     // Full-band, decimated to 22.05 kHz for the FFT-based multi-pitch pass.
     const poly = decimate(data, sampleRate, POLY_RATE);
     const polyRaw = trackPolyphonic(poly.data, poly.rate, { onProgress: opts.onProgress });
-    notes = quantize(polyRaw).sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
-  } else {
-    // Melody: high-passed, decimated to ~11 kHz.
+    return quantize(polyRaw).sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+  };
+  const runYin = (): TNote[] => {
     opts.onProgress?.('melody', 0.4);
-    const melodySrc = highPass(data, sampleRate, 140);
-    const mel = decimate(melodySrc, sampleRate, 11025);
+    const mel = decimate(highPass(data, sampleRate, 140), sampleRate, 11025);
     const melodyRaw = trackVoice(mel.data, mel.rate, 'melody', {
       fmin: 110, fmax: 1320, minMidi: 55, maxMidi: 88, voiceThresh: 0.55, rms: 0.012,
     });
-    // Bass: low-passed, decimated to ~5.5 kHz.
     opts.onProgress?.('bass', 0.7);
-    const bassSrc = lowPass(data, sampleRate, 320);
-    const bas = decimate(bassSrc, sampleRate, 5512);
+    const bas = decimate(lowPass(data, sampleRate, 320), sampleRate, 5512);
     const bassRaw = trackVoice(bas.data, bas.rate, 'bass', {
       fmin: 41, fmax: 330, minMidi: 28, maxMidi: 55, voiceThresh: 0.5, rms: 0.02,
     });
-    notes = [...quantize(melodyRaw, 'melody'), ...quantize(bassRaw, 'bass')]
-      .sort((a, b) => a.startBeat - b.startBeat);
+    return [...quantize(melodyRaw, 'melody'), ...quantize(bassRaw, 'bass')].sort((a, b) => a.startBeat - b.startBeat);
+  };
+
+  const desired = opts.backend ?? (opts.polyphonic ? 'poly-dsp' : 'yin-dsp');
+  let notes: TNote[];
+  let usedBackend: Transcription['backend'];
+
+  if (desired === 'basic-pitch' || desired === 'auto') {
+    try {
+      const { transcribeWithBasicPitch } = await import('./basicPitchBackend');
+      // Race against a timeout so a stalled GPU/inference can't hang the UI — a
+      // hang never throws, so try/catch alone wouldn't fall back.
+      const bp = await Promise.race([
+        transcribeWithBasicPitch(url, { signal: opts.signal, onProgress: opts.onProgress, pcm: { data, sampleRate } }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error('basic-pitch timed out')), BASIC_PITCH_TIMEOUT_MS)),
+      ]);
+      if (!bp.length) throw new Error('basic-pitch returned no notes');
+      notes = quantize(bp).sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+      usedBackend = 'basic-pitch';
+    } catch (e) {
+      // Graceful fallback to the dependency-free polyphonic engine.
+      console.warn('[transcription] basic-pitch unavailable, falling back to poly-dsp', e);
+      notes = runPolyDsp();
+      usedBackend = 'poly-dsp';
+    }
+  } else if (desired === 'yin-dsp') {
+    notes = runYin();
+    usedBackend = 'yin-dsp';
+  } else {
+    notes = runPolyDsp();
+    usedBackend = 'poly-dsp';
   }
 
-  opts.onProgress?.('quantize', 0.95);
+  opts.onProgress?.('quantize', 0.97);
   const { key, mode, keyFifths } = detectKey(notes);
 
   opts.onProgress?.('done', 1);
@@ -433,8 +465,8 @@ export async function transcribeTrack(url: string, opts: TranscribeOptions = {})
     firstBeatSec,
     durationSec: duration,
     confidence: beat.confidence,
-    backend: opts.polyphonic ? 'poly-dsp' : 'yin-dsp',
-    polyphonic: !!opts.polyphonic,
+    backend: usedBackend,
+    polyphonic: usedBackend !== 'yin-dsp',
   };
 }
 
