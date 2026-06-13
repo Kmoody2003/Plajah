@@ -1597,6 +1597,18 @@ service cloud.firestore {
       }
     }
 
+    // Unified real-time backbone (rtcCore): mesh calls, video rooms, talk rooms.
+    // Presence + per-edge WebRTC signaling (offer/answer/ICE). Any signed-in
+    // participant can read the session and write signaling within it.
+    match /rtc_sessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
     match /note_contributors/{uid} {
       allow read: if true;
       // Users enroll themselves; reputation fields are managed by admin tooling.
