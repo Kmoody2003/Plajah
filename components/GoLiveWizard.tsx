@@ -824,7 +824,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
             <ChevronLeft size={16} /> Back
           </button>
           {step !== 'GOLIVE' ? (
-            <button onClick={() => { if (step === 'TYPE' && streamType === 'QUICK') { setQuickLaunch(true); } else { setStep(steps[stepIndex + 1]); } }}
+            <button onClick={() => { if (step === 'TYPE' && (streamType === 'QUICK' || streamType === 'STUDIO')) { setQuickLaunch(true); } else { setStep(steps[stepIndex + 1]); } }}
               disabled={(step === 'DETAILS' && !title.trim()) || (step === 'TYPE' && streamType === 'EXTERNAL' && !externalUrl.trim())}
               className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/90 disabled:opacity-30 disabled:pointer-events-none transition-all">
               Continue <ChevronRight size={16} />
