@@ -33,7 +33,10 @@ import {
   serverTimestamp, getDocs,
 } from 'firebase/firestore';
 
-export type RtcTopology = 'mesh' | 'broadcast';
+export type RtcTopology =
+  | 'mesh'       // everyone publishes + subscribes (video rooms, group calls)
+  | 'broadcast'  // one host publishes, many viewers subscribe (live streaming)
+  | 'stage';     // speakers publish, listeners subscribe (Clubhouse / X Spaces)
 export type RtcRole = 'host' | 'viewer' | 'participant';
 
 export const DEFAULT_ICE: RTCIceServer[] = [
@@ -118,8 +121,8 @@ export class RtcSession {
 
   /** Acquire media (per role) and join the session. */
   async join(): Promise<void> {
-    // Viewers in a broadcast don't publish media; everyone else captures.
-    const publishes = !(this.cfg.topology === 'broadcast' && this.cfg.role === 'viewer');
+    // Subscribers (broadcast viewers / stage listeners) don't capture media.
+    const publishes = this.selfPublishes;
     if (publishes && (this.cfg.media?.audio || this.cfg.media?.video)) {
       try {
         this.local = await navigator.mediaDevices.getUserMedia({
@@ -159,18 +162,31 @@ export class RtcSession {
     });
   }
 
-  /** Topology rules: who do I hold a connection to? */
+  /** Does a given role publish media in this topology?
+   *   mesh → everyone; broadcast → only the host; stage → anyone but a viewer. */
+  private isPublisher(role: RtcRole): boolean {
+    if (this.cfg.topology === 'mesh') return true;
+    if (this.cfg.topology === 'broadcast') return role === 'host';
+    return role !== 'viewer'; // stage: host/participant = speaker, viewer = listener
+  }
+  private get selfPublishes(): boolean { return this.isPublisher(this.cfg.role); }
+
+  /** Topology rules (publisher/subscriber model unifies all three topologies):
+   *  a publisher connects to EVERYONE; a pure subscriber connects only to
+   *  publishers (two subscribers have nothing to exchange). */
   private shouldConnectTo(p: RtcParticipant): boolean {
-    if (this.cfg.topology === 'mesh') return true;            // everyone ↔ everyone
-    // broadcast: host connects to all viewers; viewers connect only to the host.
-    if (this.cfg.role === 'host') return p.role === 'viewer' || p.role === 'participant';
-    return p.role === 'host';
+    if (this.selfPublishes) return true;
+    return this.isPublisher(p.role);
   }
 
-  /** Who initiates? Host always initiates in broadcast. In mesh the lower id
-   *  initiates (deterministic) — perfect negotiation handles any glare anyway. */
+  /** Who sends the first offer (deterministic, avoids double-offer):
+   *  publisher→subscriber, the publisher initiates; between two publishers the
+   *  lower id initiates. Perfect negotiation handles any residual glare. */
   private shouldInitiateTo(p: RtcParticipant): boolean {
-    if (this.cfg.topology === 'broadcast') return this.cfg.role === 'host';
+    const iPub = this.selfPublishes;
+    const oPub = this.isPublisher(p.role);
+    if (iPub && !oPub) return true;
+    if (!iPub && oPub) return false;
     return this.selfId < p.id;
   }
 
@@ -181,8 +197,8 @@ export class RtcSession {
     const peer: Peer = { pc, makingOffer: false, polite: !initiate, ignoreOffer: false, unsubs: [] };
     this.peers.set(peerId, peer);
 
-    // Publish our tracks (everyone in mesh; only host in broadcast).
-    const publishes = this.cfg.topology === 'mesh' || this.cfg.role === 'host';
+    // Publish our tracks if we're a publisher in this topology; else recv-only.
+    const publishes = this.selfPublishes;
     if (publishes && this.local) {
       this.local.getTracks().forEach(t => pc.addTrack(t, this.local!));
     } else if (!publishes) {
