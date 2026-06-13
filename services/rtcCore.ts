@@ -69,12 +69,17 @@ export interface RtcParticipant {
   name?: string;
 }
 
+export interface RtcDataMessage { type: string; payload?: any }
+
 export interface RtcEvents {
   onLocalStream?: (stream: MediaStream | null) => void;
   onRemoteStream?: (peerId: string, stream: MediaStream) => void;
   onPeerLeft?: (peerId: string) => void;
   onParticipants?: (participants: RtcParticipant[]) => void;
   onPeerState?: (peerId: string, state: RTCPeerConnectionState) => void;
+  /** Low-latency data-channel message from a peer (reactions, polls, synced
+   *  playback, cursors, whiteboard strokes, game state, …). */
+  onData?: (peerId: string, msg: RtcDataMessage) => void;
   onError?: (err: Error) => void;
 }
 
@@ -85,6 +90,7 @@ interface Peer {
   makingOffer: boolean;
   polite: boolean;
   ignoreOffer: boolean;
+  dc: RTCDataChannel | null;
   unsubs: Array<() => void>;
 }
 
@@ -194,8 +200,21 @@ export class RtcSession {
   private createPeer(peerId: string, initiate: boolean) {
     const pc = new RTCPeerConnection({ iceServers: this.cfg.iceServers });
     // Polite peer yields on glare. Make the non-initiator polite.
-    const peer: Peer = { pc, makingOffer: false, polite: !initiate, ignoreOffer: false, unsubs: [] };
+    const peer: Peer = { pc, makingOffer: false, polite: !initiate, ignoreOffer: false, dc: null, unsubs: [] };
     this.peers.set(peerId, peer);
+
+    // Data channel for low-latency app messages (reactions, polls, sync, …).
+    // The initiator creates it; the other side receives it via ondatachannel.
+    const wireData = (dc: RTCDataChannel) => {
+      peer.dc = dc;
+      dc.onmessage = e => {
+        try { this.events.onData?.(peerId, JSON.parse(e.data)); } catch {}
+      };
+    };
+    if (initiate) {
+      try { wireData(pc.createDataChannel('plajah')); } catch {}
+    }
+    pc.ondatachannel = e => wireData(e.channel);
 
     // Publish our tracks if we're a publisher in this topology; else recv-only.
     const publishes = this.selfPublishes;
@@ -265,9 +284,20 @@ export class RtcSession {
     const peer = this.peers.get(peerId);
     if (!peer) return;
     peer.unsubs.forEach(u => u());
+    try { peer.dc?.close(); } catch {}
     peer.pc.close();
     this.peers.delete(peerId);
     this.events.onPeerLeft?.(peerId);
+  }
+
+  // ── Data channel ──────────────────────────────────────────────────────────────
+  /** Broadcast a low-latency message to all connected peers (reactions, polls,
+   *  synced playback, cursors, whiteboard, game state). Fire-and-forget. */
+  sendData(type: string, payload?: any): void {
+    const data = JSON.stringify({ type, payload });
+    this.peers.forEach(({ dc }) => {
+      if (dc && dc.readyState === 'open') { try { dc.send(data); } catch {} }
+    });
   }
 
   // ── Controls ────────────────────────────────────────────────────────────────

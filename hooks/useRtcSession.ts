@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  RtcSession, RtcSessionConfig, RtcParticipant,
+  RtcSession, RtcSessionConfig, RtcParticipant, RtcDataMessage,
 } from '../services/rtcCore';
 import { SessionRecorder, SessionRecorderOptions } from '../services/sessionRecorder';
 
@@ -33,6 +33,8 @@ export interface UseRtcSession {
   isRecording: boolean;
   startRecording: (opts?: SessionRecorderOptions) => boolean;
   stopRecording: () => Promise<Blob | null>;
+  /** Low-latency data channel: reactions, polls, synced playback, cursors, etc. */
+  sendData: (type: string, payload?: any) => void;
   switchCamera: (facing: 'user' | 'environment') => void;
   toggleScreenShare: () => void;
   leave: () => void;
@@ -40,8 +42,11 @@ export interface UseRtcSession {
 
 export function useRtcSession(
   config: RtcSessionConfig | null,
-  opts: { autoJoin?: boolean } = { autoJoin: true },
+  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void } = { autoJoin: true },
 ): UseRtcSession {
+  // Keep the latest onData without re-keying the session.
+  const onDataRef = useRef(opts.onData);
+  onDataRef.current = opts.onData;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [participants, setParticipants] = useState<RtcParticipant[]>([]);
@@ -79,6 +84,7 @@ export function useRtcSession(
         if (cancelled) return;
         setPeerStates(prev => { const n = new Map(prev); n.set(id, state); return n; });
       },
+      onData: (id, msg) => { if (!cancelled) onDataRef.current?.(id, msg); },
       onError: e => { if (!cancelled) setError(e.message); },
     });
     sessionRef.current = session;
@@ -138,6 +144,10 @@ export function useRtcSession(
     return blob;
   }, []);
 
+  const sendData = useCallback((type: string, payload?: any) => {
+    sessionRef.current?.sendData(type, payload);
+  }, []);
+
   const leave = useCallback(() => {
     recorderRef.current?.stop().catch(() => {});
     recorderRef.current = null;
@@ -148,6 +158,6 @@ export function useRtcSession(
     localStream, remoteStreams, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
-    isRecording, startRecording, stopRecording,
+    isRecording, startRecording, stopRecording, sendData,
   };
 }

@@ -11,6 +11,7 @@ import TVView from './TVView';
 import PPVEventsView from './PPVEventsView';
 import GoLiveWizard from './GoLiveWizard';
 import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
+import PresenceBadge from './PresenceBadge';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -271,6 +272,9 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <Radio size={18} className="text-white" /> Go Live
             </button>
             <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
+            {/* Ambient presence — who else is in the Live Hub right now */}
+            <PresenceBadge roomKey="livehub" verb="here now"
+              className="inline-flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-white/5 border border-white/10" />
             {onOpenTVStudio && (
               <button
                 onClick={onOpenTVStudio}

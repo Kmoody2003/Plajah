@@ -1609,6 +1609,13 @@ service cloud.firestore {
       }
     }
 
+    // Ambient presence ("who's here right now") for any surface — no media.
+    // Anyone can read the count; you may only write your own heartbeat.
+    match /presence/{key}/here/{uid} {
+      allow read: if true;
+      allow write: if isAuthenticated() && uid == request.auth.uid;
+    }
+
     match /note_contributors/{uid} {
       allow read: if true;
       // Users enroll themselves; reputation fields are managed by admin tooling.

@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Video, Mic, MicOff, VideoOff, PhoneOff,
   Settings, UserPlus, LayoutGrid, Monitor, Wifi, WifiOff,
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Circle } from 'lucide-react';
 import { ChatRoom } from '../types';
 import { auth } from '../services/backendService';
@@ -39,15 +39,30 @@ const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean
  * backbone (mesh topology), so the SAME component handles 1:1 AND group calls;
  * every extra participant is just another tile in the grid.
  */
+const REACTIONS = ['❤️', '😂', '👍', '🔥', '👏', '🎉'];
+
 const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
   const selfId = auth.currentUser?.uid;
+  const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([]);
+
+  const addFloat = useCallback((emoji: string) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setFloats(prev => [...prev, { id, emoji, x: 10 + Math.random() * 80 }]);
+    setTimeout(() => setFloats(prev => prev.filter(f => f.id !== id)), 2600);
+  }, []);
+
   const rtc = useRtcSession({
     sessionId: `call_${room.id}`,
     topology: 'mesh',
     role: 'participant',
     media: { audio: true, video: true },
     displayName: auth.currentUser?.displayName || 'You',
+  }, {
+    // Data-channel reactions — instant, peer-to-peer (no Firestore round-trip).
+    onData: (_peer, msg) => { if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji); },
   });
+
+  const react = (emoji: string) => { addFloat(emoji); rtc.sendData('reaction', { emoji }); };
 
   const localRef = useRef<HTMLVideoElement>(null);
   useEffect(() => { if (localRef.current) localRef.current.srcObject = rtc.localStream; }, [rtc.localStream]);
@@ -137,8 +152,33 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
         </div>
       </div>
 
+      {/* Floating reactions (data channel) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+        <AnimatePresence>
+          {floats.map(f => (
+            <motion.div key={f.id}
+              initial={{ y: 0, opacity: 1, scale: 0.6 }}
+              animate={{ y: -window.innerHeight * 0.5, opacity: 0, scale: 1.5 }}
+              exit={{}} transition={{ duration: 2.5, ease: 'easeOut' }}
+              className="absolute bottom-32 text-4xl" style={{ left: `${f.x}%` }}>
+              {f.emoji}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Reaction bar */}
+      <div className="flex items-center justify-center gap-2 pb-1">
+        {REACTIONS.map(e => (
+          <button key={e} onClick={() => react(e)}
+            className="text-2xl hover:scale-125 active:scale-95 transition-transform p-1.5 rounded-full hover:bg-white/10">
+            {e}
+          </button>
+        ))}
+      </div>
+
       {/* Controls */}
-      <div className="p-8 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-6">
+      <div className="p-8 pt-2 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-6">
         <button onClick={rtc.toggleAudio}
           className={`p-6 rounded-full transition-all hover:scale-110 ${!rtc.audioEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
           {!rtc.audioEnabled ? <MicOff size={24} /> : <Mic size={24} />}
