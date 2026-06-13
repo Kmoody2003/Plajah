@@ -147,6 +147,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   const [muxError, setMuxError] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [muxSignalStatus, setMuxSignalStatus] = useState<'idle' | 'waiting' | 'active' | 'error'>('idle');
+  const [goLiveError, setGoLiveError] = useState('');
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const steps: WizardStep[] = ['TYPE', 'DETAILS', 'SIGNAL', 'GRAPHICS', 'GOLIVE'];
@@ -242,7 +243,8 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   const unmuteUser = (uid: string) => setMutedUsers(s => { const n = new Set(s); n.delete(uid); return n; });
 
   const handleGoLive = async () => {
-    if (!currentUser) return;
+    if (!currentUser) { setGoLiveError('Sign in to go live.'); return; }
+    setGoLiveError('');
     try {
       let url = externalUrl;
       if (streamType === 'MUX' && muxStream?.playbackId) {
@@ -267,7 +269,10 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
       setLiveFeedId(feedRef?.id ?? null);
       setIsLive(true);
       setGoLiveStartTime(Date.now());
-    } catch (err) { console.error('Failed to go live:', err); }
+    } catch (err: any) {
+      console.error('Failed to go live:', err);
+      setGoLiveError(err?.message || 'Could not start the broadcast. Please try again.');
+    }
   };
 
   const handleEndStream = async () => {
@@ -808,6 +813,11 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
           </AnimatePresence>
         </div>
 
+        {goLiveError && (
+          <div className="mx-4 sm:mx-8 mb-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-bold">
+            {goLiveError}
+          </div>
+        )}
         <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-t border-white/5 shrink-0">
           <button onClick={() => setStep(steps[stepIndex - 1])} disabled={stepIndex === 0}
             className="flex items-center gap-2 px-5 py-3 bg-white/5 rounded-2xl text-white/60 text-xs font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all">

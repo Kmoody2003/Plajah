@@ -44,6 +44,8 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
   const [streamId, setStreamId] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [copyLabel, setCopyLabel] = useState('Copy Link');
+  const [goLiveError, setGoLiveError] = useState('');
+  const [starting, setStarting] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -75,8 +77,11 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
   const startBroadcast = async () => {
-    if (!title.trim()) { alert('Please enter a broadcast title.'); return; }
-    if (!auth.currentUser) { alert('Sign in to go live.'); return; }
+    if (!title.trim()) { setGoLiveError('Please enter a broadcast title.'); return; }
+    if (!auth.currentUser) { setGoLiveError('Sign in to go live.'); return; }
+    setGoLiveError('');
+    setStarting(true);
+    try {
 
     const id = uuidv4();
     setStreamId(id);
@@ -142,6 +147,12 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
     setStreamStartTime(Date.now());
     setIsLive(true);
     onStreamActive(true);
+    } catch (err: any) {
+      console.error('Failed to go live:', err);
+      setGoLiveError(err?.message || 'Could not start the broadcast. Please try again.');
+    } finally {
+      setStarting(false);
+    }
   };
 
   const handleNewViewer = async (sid: string, viewerId: string) => {
@@ -371,14 +382,19 @@ export const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ onClose, onStr
 
           {/* Go Live / End */}
           <div className="mt-auto">
+            {!isLive && goLiveError && (
+              <div className="mb-3 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-bold">
+                {goLiveError}
+              </div>
+            )}
             {!isLive ? (
               <button
                 onClick={startBroadcast}
-                disabled={!title.trim()}
+                disabled={!title.trim() || starting}
                 className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Radio size={18} /> Go Live Now
+                  <Radio size={18} /> {starting ? 'Starting…' : 'Go Live Now'}
                 </span>
               </button>
             ) : (
