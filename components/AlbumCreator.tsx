@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, fetchGlobalArchiveItems } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
-  Eye, EyeOff, Loader2, Lock,
+  Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
@@ -93,6 +93,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
   const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
+  // Fresh-on-Plajah strip shown while the upload deploys.
+  const [recentAdditions, setRecentAdditions] = useState<Album[]>([]);
   const [availableAlbums, setAvailableAlbums] = useState<Album[]>([]);
   const [movieMetadata, setMovieMetadata] = useState<MovieMetadata>(initialAlbum?.movieMetadata || {
     cast: [], crew: [], trailerUrl: '', releaseYear: new Date().getFullYear(), specialFeatures: []
@@ -166,6 +168,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     let t: ReturnType<typeof setTimeout>;
     const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
+    fetchGlobalArchiveItems().then(items => setRecentAdditions((items || []).filter(a => a.coverImage).slice(0, 12))).catch(() => {});
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
 
@@ -848,7 +851,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                       'bg-white/5 text-white/30 border-white/10'
                     }`}>{chapter.format}</span>
                   )}
-                  <input type="text" value={chapter.title} onChange={(e) => setBookChapters(bookChapters.map(c => c.id === chapter.id ? { ...c, title: e.target.value } : c))} className="bg-transparent border-none focus:outline-none text-xl font-display font-black uppercase tracking-tight truncate flex-1 text-white placeholder:text-white/10" placeholder="Chapter Title" />
+                  <div className="group/ct relative flex-1 min-w-0">
+                    <input type="text" value={chapter.title} onChange={(e) => setBookChapters(bookChapters.map(c => c.id === chapter.id ? { ...c, title: e.target.value } : c))} className="w-full min-w-0 bg-transparent text-xl font-display font-black uppercase tracking-tight text-white placeholder:text-white/25 rounded-lg pr-7 py-1 border-b border-dashed border-white/20 hover:border-white/40 focus:border-small-orange focus:outline-none transition-all" placeholder="Chapter title" />
+                    <Pencil size={12} className="absolute right-1 top-1/2 -translate-y-1/2 text-white/25 group-hover/ct:text-small-orange group-focus-within/ct:text-small-orange pointer-events-none transition-colors" />
+                  </div>
                 </div>
                 <button type="button" onClick={() => setBookChapters(bookChapters.filter(c => c.id !== chapter.id))} className="p-4 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"><X size={20} /></button>
               </div>
@@ -876,9 +882,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           {tracks.map((track, i) => (
             <div key={track.id} className="flex flex-col gap-5 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-5 overflow-hidden flex-1">
-                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10">{i + 1}</div>
-                  <input type="text" value={track.title} onChange={(e) => updateTrack(track.id, { title: e.target.value })} className="bg-transparent border-none focus:outline-none text-xl font-display font-black uppercase tracking-tight truncate flex-1 text-white placeholder:text-white/10" placeholder="Track Title" />
+                <div className="flex items-center gap-5 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
+                  <div className="group/tt relative flex-1 min-w-0">
+                    <input type="text" value={track.title} onChange={(e) => updateTrack(track.id, { title: e.target.value })} className="w-full min-w-0 bg-transparent text-xl font-display font-black uppercase tracking-tight text-white placeholder:text-white/25 rounded-lg pr-7 py-1 border-b border-dashed border-white/20 hover:border-white/40 focus:border-small-orange focus:outline-none transition-all" placeholder="Track title" />
+                    <Pencil size={12} className="absolute right-1 top-1/2 -translate-y-1/2 text-white/25 group-hover/tt:text-small-orange group-focus-within/tt:text-small-orange pointer-events-none transition-colors" />
+                  </div>
                 </div>
                 <button type="button" onClick={() => setTracks(tracks.filter(t => t.id !== track.id))} className="p-4 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"><Trash2 size={20} /></button>
               </div>
@@ -889,7 +898,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Options</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => updateTrack(track.id, { isPaywalled: !track.isPaywalled })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-lg' : 'bg-white/5 border-white/10 text-white/40'}`}>{track.isPaywalled ? 'Paywall' : 'Free'}</button>
                     <button type="button" onClick={() => updateTrack(track.id, { isRadioEligible: !track.isRadioEligible })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isRadioEligible ? 'bg-green-500 text-white border-green-500' : 'bg-white/5 border-white/10 text-white/40'}`}>Radio</button>
                     <button type="button" onClick={() => updateTrack(track.id, { isSlideshowEligible: !track.isSlideshowEligible })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isSlideshowEligible ? 'bg-blue-500 text-white border-blue-500' : 'bg-white/5 border-white/10 text-white/40'}`}>Slide</button>
@@ -1293,8 +1302,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">
-            {type === 'BOOK' ? 'Book Title' : type === 'PHOTO' ? 'Collection Name' : type === 'GAME' ? 'Game Title' : 'Project Title'}
+          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-70">
+            <Pencil size={10} /> {type === 'BOOK' ? 'Book Title' : type === 'PHOTO' ? 'Collection Name' : type === 'GAME' ? 'Game Title' : 'Project Title'} <span className="text-white/25">— tap to edit</span>
           </label>
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project Name" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" required />
         </div>
@@ -1472,15 +1481,19 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         {type === 'MUSIC' && (
           <div className="p-6 rounded-[2.5rem] space-y-3"
             style={{ background: publishToAudius ? 'rgba(126,34,206,0.12)' : 'rgba(255,255,255,0.03)', border: publishToAudius ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center border"
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0"
                   style={{ background: 'rgba(126,34,206,0.15)', borderColor: 'rgba(168,85,247,0.3)' }}>
                   <Music2 size={18} style={{ color: '#a855f7' }} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest">Publish to Audius</h4>
-                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.7)' }}>Decentralized · Artist earns on every stream</p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-black uppercase tracking-widest">Also share to Audius</h4>
+                    <span className="text-[7px] font-black uppercase tracking-[0.2em] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}>Optional</span>
+                    <span className="text-[7px] font-black uppercase tracking-[0.2em] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(168,85,247,0.12)', color: 'rgba(168,85,247,0.8)', border: '1px solid rgba(168,85,247,0.25)' }}>Third-party</span>
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mt-1" style={{ color: 'rgba(168,85,247,0.75)' }}>Reach a whole new audience — keeps your Plajah release exactly as-is</p>
                 </div>
               </div>
               <button type="button" onClick={() => setPublishToAudius(!publishToAudius)}
@@ -1488,6 +1501,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 style={{ background: publishToAudius ? '#7e22ce' : 'rgba(255,255,255,0.1)' }}>
                 <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${publishToAudius ? 'left-5' : 'left-0.5'}`} />
               </button>
+            </div>
+            {/* Always-visible "what is this" — encourages learning, off by default */}
+            <div className="flex items-start gap-2.5 px-1 pt-1">
+              <Info size={12} className="shrink-0 mt-0.5" style={{ color: 'rgba(168,85,247,0.7)' }} />
+              <p className="text-[9px] leading-relaxed flex-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Audius is a separate, independent music streaming network — not part of Plajah. Flipping this on
+                <span className="font-black text-white/70"> additionally </span>
+                pushes this release there for extra discovery and pays artists in $AUDIO tokens; your music stays
+                published on Plajah either way. It's entirely your call.
+                {' '}
+                <button type="button" onClick={() => window.open('https://audius.co/about', '_blank')}
+                  className="inline-flex items-center gap-1 font-black underline whitespace-nowrap" style={{ color: '#a855f7' }}>
+                  Learn about Audius <ExternalLink size={9} />
+                </button>
+              </p>
             </div>
             {publishToAudius && (
               <div className="space-y-3 pt-2 border-t border-purple-900/30">
@@ -1944,8 +1972,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
         {/* Deploy Overlay */}
         {isDeploying && (
-          <div className="absolute inset-0 z-[300] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center p-20 text-center animate-in fade-in duration-500">
-            <div className="w-40 h-40 relative mb-16">
+          <div className="absolute inset-0 z-[300] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center p-8 sm:p-16 text-center animate-in fade-in duration-500 overflow-y-auto custom-scrollbar">
+            <div className="w-28 h-28 sm:w-40 sm:h-40 relative mb-10 sm:mb-16 shrink-0">
               <div className="absolute inset-0 border-8 border-white/5 rounded-full" />
               <div className="absolute inset-0 border-8 border-white rounded-full border-t-transparent animate-spin" style={{ animationDuration: '2s' }} />
               <Sparkles className="absolute inset-0 m-auto text-white" size={48} />
@@ -1955,6 +1983,23 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <div className="h-full bg-green-500 transition-all duration-700 shadow-[0_0_30px_rgba(34,197,94,0.8)]" style={{ width: `${status.percent}%` }} />
             </div>
             <p className="text-xs font-black uppercase tracking-[0.5em] text-white/40">{status.percent}% SYNCHRONIZED WITH GLOBAL CLOUD</p>
+
+            {recentAdditions.length > 0 && (
+              <div className="mt-14 w-full max-w-2xl">
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-4">While you wait — fresh on Plajah</p>
+                <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 -mx-2 px-2">
+                  {recentAdditions.map(a => (
+                    <div key={a.id} className="shrink-0 w-28 text-left">
+                      <div className="w-28 h-28 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                        {a.coverImage && <img src={a.coverImage} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                      </div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/60 truncate mt-2">{a.title}</p>
+                      <p className="text-[8px] font-bold uppercase tracking-widest text-white/25 truncate">{a.artist}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1978,8 +2023,31 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </label>
           </div>
 
-          <h3 className="text-3xl font-display font-black mb-2 tracking-tighter truncate w-full px-6 uppercase">{title || "Untitled Project"}</h3>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 truncate w-full px-6 mb-8">{artist || "Artist Identity"}</p>
+          {/* Directly-editable project title — obvious affordance + callout */}
+          <div className="w-full flex items-center justify-center gap-1.5 mb-1.5 text-[8px] font-black uppercase tracking-[0.3em] text-small-orange/80">
+            <Pencil size={9} /> Edit title here
+          </div>
+          <div className="group/title relative w-full px-2 mb-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled Project"
+              aria-label="Project title"
+              className="w-full min-w-0 text-center text-2xl lg:text-3xl font-display font-black tracking-tighter uppercase bg-transparent text-white placeholder:text-white/25 rounded-2xl pl-8 pr-8 py-2 border border-dashed border-white/15 hover:border-white/30 focus:border-small-orange focus:bg-white/[0.05] outline-none transition-all"
+            />
+            <Pencil size={13} className="absolute right-5 top-1/2 -translate-y-1/2 text-white/25 group-hover/title:text-small-orange group-focus-within/title:text-small-orange pointer-events-none transition-colors" />
+          </div>
+          <div className="group/artist relative w-full px-2 mb-8">
+            <input
+              type="text"
+              value={artist}
+              onChange={(e) => setArtist(e.target.value)}
+              placeholder="Artist Identity"
+              aria-label="Artist / creator name"
+              className="w-full min-w-0 text-center text-[11px] font-black uppercase tracking-[0.3em] bg-transparent text-white/70 placeholder:text-white/25 rounded-xl px-4 py-1.5 border border-dashed border-white/10 hover:border-white/25 focus:border-small-orange focus:bg-white/[0.05] outline-none transition-all"
+            />
+          </div>
 
           {/* Step progress */}
           <div className="w-full px-4 mb-8">
