@@ -125,6 +125,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [copied, setCopied] = useState(false);
   const [permError, setPermError] = useState('');
+  const [goLiveError, setGoLiveError] = useState('');
   const [saving, setSaving] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -150,7 +151,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     let cancelled = false;
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing, width: { ideal: 1080 }, height: { ideal: 1920 } },
+      video: { facingMode: facing },
       audio: true,
     }).then(stream => {
       if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -293,19 +294,24 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
   const startRecording = useCallback(() => {
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = 720; canvas.height = 1280;
+      canvas.width = 720; canvas.height = 1280; // resized to the camera's real aspect on first frame
       canvasRef.current = canvas;
       const ctx = canvas.getContext('2d');
+      let sized = false;
       const draw = () => {
         const v = videoRef.current;
         if (ctx && v && v.videoWidth > 0) {
-          // cover-fit the camera frame into the portrait canvas
-          const scale = Math.max(canvas.width / v.videoWidth, canvas.height / v.videoHeight);
-          const w = v.videoWidth * scale, h = v.videoHeight * scale;
-          const x = (canvas.width - w) / 2, y = (canvas.height - h) / 2;
+          if (!sized) {
+            // Record at the camera's native aspect (capped at 1280) — no zoom-crop.
+            const cap = 1280 / Math.max(v.videoWidth, v.videoHeight);
+            const k = Math.min(1, cap);
+            canvas.width = Math.round(v.videoWidth * k);
+            canvas.height = Math.round(v.videoHeight * k);
+            sized = true;
+          }
           ctx.save();
-          if (facingRef.current === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(v, canvas.width - x - w, y, w, h); }
-          else ctx.drawImage(v, x, y, w, h);
+          if (facingRef.current === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
           ctx.restore();
         }
         rafRef.current = requestAnimationFrame(draw);
@@ -337,10 +343,13 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
 
   const goLive = async () => {
     const user = auth.currentUser;
+    if (!user) { setGoLiveError('Sign in to go live.'); return; }
+    setGoLiveError('');
     const finalTitle = title.trim() || 'Live Stream';
     if (!title.trim()) setTitle(finalTitle);
     const id = uid4();
     setStreamId(id);
+    try {
     await setDoc(doc(db, 'streams', id), {
       title: finalTitle,
       ownerName: user?.displayName || 'Creator',
@@ -351,6 +360,12 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
       startedAt: Date.now(),
       isLive: true,
     });
+    } catch (e: any) {
+      // Surface the real failure (e.g. permissions) instead of doing nothing.
+      setGoLiveError(e?.message || 'Could not start the stream. Try again.');
+      setStreamId('');
+      return;
+    }
     setStartTime(Date.now());
     setIsLive(true);
     setStep('live');
@@ -468,7 +483,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
         autoPlay
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-contain bg-black"
         style={{ transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
       />
 
@@ -519,6 +534,9 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
               Going live posts to your timeline and notifies your followers. When you end,
               you choose to save the replay to Reello or delete it.
             </p>
+            {goLiveError && (
+              <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">{goLiveError}</p>
+            )}
             <button
               onClick={goLive}
               className="w-full py-4 rounded-2xl bg-red-500 hover:bg-red-400 active:scale-95 transition-all font-black text-white text-base tracking-wide flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(239,68,68,0.5)]"

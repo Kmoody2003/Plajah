@@ -45,7 +45,7 @@ jobs:
 
       - name: Deploy Firestore rules
         continue-on-error: true
-        run: npx firebase-tools deploy --only firestore:rules --project gen-lang-client-0665118474 --force
+        run: npx firebase-tools deploy --only firestore --project gen-lang-client-0665118474 --force
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   # SEPARATE job: a failure here (e.g. missing IAM the first time) can NOT block

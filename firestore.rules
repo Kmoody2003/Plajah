@@ -1576,6 +1576,27 @@ service cloud.firestore {
       }
     }
 
+    // ── Live streams — WebRTC signaling, counters, chat ──────────────────────
+    // Without this block the default deny made EVERY live-stream operation fail
+    // silently (creating the stream doc, viewer signaling, chat, view counts).
+    match /streams/{streamId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid
+        // Non-owners (viewers) may only bump the public counters.
+        || request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['viewerCount', 'totalViews', 'likeCount', 'peakViewers'])
+      );
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+
+      // Signaling (viewers / ICE candidates) + live chat.
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
     match /note_contributors/{uid} {
       allow read: if true;
       // Users enroll themselves; reputation fields are managed by admin tooling.

@@ -424,11 +424,11 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
   }
 
   return (
-    <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4">
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+        className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-3xl sm:rounded-[2.5rem] overflow-hidden flex flex-col" style={{ maxHeight: '94dvh' }}>
 
-        <div className="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-8 pt-5 sm:pt-8 pb-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center"><Radio size={18} className="text-white" /></div>
             <div>
@@ -439,13 +439,13 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
           <button onClick={onClose} className="p-3 bg-white/5 rounded-full text-white/40 hover:bg-white/10 transition-all"><X size={20} /></button>
         </div>
 
-        <div className="flex items-center justify-center gap-2 px-8 pb-6 shrink-0">
+        <div className="flex items-center justify-center gap-2 px-4 sm:px-8 pb-4 sm:pb-6 shrink-0">
           {steps.map((s, i) => (
             <div key={s} className={`rounded-full transition-all ${i === stepIndex ? 'w-8 h-2 bg-red-500' : i < stepIndex ? 'w-2 h-2 bg-red-500/50' : 'w-2 h-2 bg-white/10'}`} />
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 pb-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }} transition={{ duration: 0.18 }}>
 
@@ -776,7 +776,7 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
           </AnimatePresence>
         </div>
 
-        <div className="flex items-center justify-between px-8 py-6 border-t border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-t border-white/5 shrink-0">
           <button onClick={() => setStep(steps[stepIndex - 1])} disabled={stepIndex === 0}
             className="flex items-center gap-2 px-5 py-3 bg-white/5 rounded-2xl text-white/60 text-xs font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all">
             <ChevronLeft size={16} /> Back
