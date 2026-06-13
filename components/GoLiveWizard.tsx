@@ -448,6 +448,13 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
     );
   }
 
+  // Quick Stream fully REPLACES the wizard — the phone streamer takes the whole
+  // screen. (Rendering it alongside the wizard left it stuck behind the wizard's
+  // z-[900] backdrop, so "Continue" looked like it did nothing.)
+  if (quickLaunch) {
+    return <MobileLiveStreamer mode="streamer" onClose={onClose} />;
+  }
+
   return (
     <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4">
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -821,8 +828,6 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
         </div>
       </motion.div>
 
-      {/* Quick Stream — the phone-first streamer takes over the whole screen */}
-      {quickLaunch && <MobileLiveStreamer mode="streamer" onClose={onClose} />}
     </div>
   );
 };
