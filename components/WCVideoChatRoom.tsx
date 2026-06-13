@@ -18,12 +18,23 @@ import { db, followUser } from '../services/backendService';
 import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import type { WC26Team } from '../data/worldCup2026';
+import { useRtcSession } from '../hooks/useRtcSession';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ROOM_DURATION_MS = 20 * 60 * 1000;
 const COOLDOWN_MS      = 2 * 60 * 60 * 1000;
-const MAX_PARTICIPANTS = 24;
+// Real peer video runs on the unified rtcCore mesh. Mesh is great for an
+// intimate "meet each other for real" circle but every extra person is an extra
+// uplink, so the cap is mesh-safe (was 24 when this was avatar-only presence).
+const MAX_PARTICIPANTS = 8;
+
+/** Renders a remote participant's live MediaStream. */
+const RemoteVideo: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => { if (ref.current) ref.current.srcObject = stream; }, [stream]);
+  return <video ref={ref} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />;
+};
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -140,6 +151,21 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   const inRoomRef       = useRef(false);   // tracks whether we're physically in the room
   const unsubsRef       = useRef<(() => void)[]>([]);
 
+  // ── Real peer video via the unified rtcCore backbone (mesh) ─────────────────
+  // Active only while in the room. Owns media + signaling; we mirror its local
+  // stream into localStreamRef so the existing self-view + mic/cam logic is
+  // untouched, and render its remote streams as the gallery tiles.
+  const rtc = useRtcSession(
+    phase === 'in-room' && uid
+      ? { sessionId: `wcroom_${clubId}`, topology: 'mesh', role: 'participant',
+          media: { audio: true, video: true }, displayName: currentUser?.displayName || 'Fan' }
+      : null,
+  );
+  useEffect(() => {
+    localStreamRef.current = rtc.localStream;
+    if (localVideoRef.current) localVideoRef.current.srcObject = rtc.localStream;
+  }, [rtc.localStream]);
+
   // ── Stable Firestore refs ────────────────────────────────────────────────────
 
   const presenceDocRef = useCallback(
@@ -222,9 +248,10 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
 
   const startMedia = async (): Promise<boolean> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStreamRef.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      // Permission probe only — fail fast before entering the room. The rtcCore
+      // session acquires and owns the real stream once we're 'in-room'.
+      const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      probe.getTracks().forEach(t => t.stop());
       return true;
     } catch (err: any) {
       if (!mountedRef.current) return false;
@@ -753,25 +780,29 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                       className="relative rounded-2xl overflow-hidden min-h-[120px] flex items-stretch"
                       style={{ background: `linear-gradient(135deg, ${primary}10, #111)` }}
                     >
-                      {/* Avatar */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        {p.photoURL ? (
-                          <img
-                            src={p.photoURL}
-                            className="w-14 h-14 rounded-2xl object-cover ring-2"
-                            style={{ '--tw-ring-color': `${primary}40` } as React.CSSProperties}
-                            alt={p.displayName}
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black"
-                            style={{ background: `${primary}28`, color: primary }}
-                          >
-                            {p.displayName[0]?.toUpperCase() ?? '?'}
-                          </div>
-                        )}
-                      </div>
+                      {/* Real peer video (rtcCore mesh) → avatar fallback until connected */}
+                      {rtc.remoteStreams.has(p.uid) ? (
+                        <RemoteVideo stream={rtc.remoteStreams.get(p.uid)!} />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                          {p.photoURL ? (
+                            <img
+                              src={p.photoURL}
+                              className="w-14 h-14 rounded-2xl object-cover ring-2"
+                              style={{ '--tw-ring-color': `${primary}40` } as React.CSSProperties}
+                              alt={p.displayName}
+                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div
+                              className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black"
+                              style={{ background: `${primary}28`, color: primary }}
+                            >
+                              {p.displayName[0]?.toUpperCase() ?? '?'}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Bottom: name + follow */}
                       <div className="absolute bottom-0 left-0 right-0 p-2 flex items-end justify-between">

@@ -25,6 +25,7 @@ import {
 import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, arrayUnion } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { useRtcSession } from '../hooks/useRtcSession';
 
 const rtcConfig = {
   iceServers: [
@@ -229,10 +230,9 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
   const animationFrameRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // WebRTC mesh state & refs
+  // Real-time audio now runs on the unified rtcCore backbone ('stage' topology:
+  // speakers publish, listeners subscribe — the Clubhouse/X-Spaces model).
   const [remoteStreams, setRemoteStreams] = useState<{ [speakerUid: string]: MediaStream }>({});
-  const peerConnectionsRef = useRef<{ [speakerUid: string]: RTCPeerConnection }>({});
-  const signalingListenersRef = useRef<{ [key: string]: () => void }>({});
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const [talkTab, setTalkTab] = useState<'CHAT' | 'ASSETS'>('CHAT');
@@ -318,240 +318,54 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
     };
   }, []);
 
-  // WebRTC mesh signaling synchronization loop
+  // ── Real-time audio via the unified rtcCore backbone ('stage' topology) ──────
+  // Speakers publish, listeners subscribe — the Clubhouse / X Spaces model.
+  // Replaces ~220 lines of bespoke liveTalks signaling; raise-hand, host
+  // controls, promotion and mute all stay app-level on the talk doc.
+  const myUid = auth.currentUser?.uid;
+  const amSpeaker = !!(myUid && activeTalk?.speakers?.some(sp => sp.uid === myUid));
+  const amHost = !!(myUid && activeTalk?.hostId === myUid);
+  const rtc = useRtcSession(
+    activeTalk && myUid
+      ? {
+          sessionId: `talk_${activeTalk.id}`,
+          topology: 'stage',
+          role: amSpeaker ? (amHost ? 'host' : 'participant') : 'viewer',
+          media: { audio: true, video: false },
+          displayName: auth.currentUser?.displayName || 'Guest',
+        }
+      : null,
+  );
+
+  // Mirror backbone streams into the existing render shapes.
   useEffect(() => {
-    if (!activeTalk || !auth.currentUser) {
-      cleanupAllConnections();
-      return;
+    const obj: { [uid: string]: MediaStream } = {};
+    rtc.remoteStreams.forEach((stream, id) => { obj[id] = stream; });
+    setRemoteStreams(obj);
+  }, [rtc.remoteStreams]);
+  useEffect(() => { localStreamRef.current = rtc.localStream; }, [rtc.localStream]);
+
+  // Promotion (listener → speaker) flips my role, which re-keys the session and
+  // makes me start publishing — no extra wiring needed. Doc-driven mute just
+  // toggles the live mic track.
+  useEffect(() => {
+    if (!myUid || !amSpeaker) return;
+    const rec = activeTalk?.speakers?.find(sp => sp.uid === myUid);
+    if (rec) rtc.setAudio(!rec.isMuted);
+  }, [activeTalk?.speakers, amSpeaker, myUid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If the mic can't be captured, auto-mute in the doc.
+  useEffect(() => {
+    if (rtc.error && amSpeaker && myUid) {
+      const rec = activeTalk?.speakers?.find(sp => sp.uid === myUid);
+      if (rec && !rec.isMuted) toggleMuteSpeaker(myUid);
     }
+  }, [rtc.error]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const talkId = activeTalk.id;
-    const myUid = auth.currentUser.uid;
-
-    // Check if current user is speaker & unmuted
-    const mySpeakerRecord = activeTalk.speakers.find(s => s.uid === myUid);
-    const isSelfSpeakerUnmuted = mySpeakerRecord ? !mySpeakerRecord.isMuted : false;
-
-    // A. Sync local mic stream & callee connection offers
-    const syncLocalBroadcast = async () => {
-      if (isSelfSpeakerUnmuted) {
-        // Capture stream if not already captured
-        if (!localStreamRef.current) {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-              audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
-            });
-            localStreamRef.current = stream;
-            // Small kick to trigger re-renders
-            setRemoteStreams(prev => ({ ...prev }));
-          } catch (e) {
-            console.error("Failed to capture local stream:", e);
-            // Re-mute automatically if capture fails
-            toggleMuteSpeaker(myUid);
-            return;
-          }
-        }
-
-        // Listen for incoming offers from listeners
-        if (!signalingListenersRef.current['callee_listener']) {
-          const q = query(
-            collection(db, 'liveTalks', talkId, 'signaling'),
-            where('calleeUid', '==', myUid)
-          );
-
-          const unsubSignal = onSnapshot(q, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-              const data = change.doc.data();
-              const callerUid = data.callerUid;
-
-              if (change.type === 'added' || change.type === 'modified') {
-                if (!peerConnectionsRef.current[callerUid] && data.offer && localStreamRef.current) {
-                  try {
-                    const pc = new RTCPeerConnection(rtcConfig);
-                    peerConnectionsRef.current[callerUid] = pc;
-
-                    localStreamRef.current.getTracks().forEach(track => {
-                      pc.addTrack(track, localStreamRef.current!);
-                    });
-
-                    pc.onicecandidate = (event) => {
-                      if (event.candidate) {
-                        const docRef = doc(db, 'liveTalks', talkId, 'signaling', change.doc.id);
-                        updateDoc(docRef, {
-                          calleeCandidates: arrayUnion(event.candidate.toJSON())
-                        }).catch(() => {});
-                      }
-                    };
-
-                    const desc = new RTCSessionDescription(data.offer);
-                    await pc.setRemoteDescription(desc);
-
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-
-                    const docRef = doc(db, 'liveTalks', talkId, 'signaling', change.doc.id);
-                    await updateDoc(docRef, {
-                      answer: { sdp: answer.sdp, type: answer.type }
-                    });
-
-                    const docUnsub = onSnapshot(docRef, (docSnap) => {
-                      if (!docSnap.exists()) return;
-                      const d = docSnap.data();
-                      if (d.callerCandidates) {
-                        d.callerCandidates.forEach((candidate: any) => {
-                          pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
-                        });
-                      }
-                    });
-
-                    signalingListenersRef.current[`speaker_${callerUid}`] = docUnsub;
-                  } catch (e) {
-                    console.error("Error creating speaker peer connection:", e);
-                  }
-                }
-              }
-            });
-          });
-
-          signalingListenersRef.current['callee_listener'] = unsubSignal;
-        }
-      } else {
-        // Speaker is muted. Tear down capture & callee connections
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(track => track.stop());
-          localStreamRef.current = null;
-        }
-
-        // Close peer connections where we are callee (acting as speaker broadcaster)
-        Object.keys(peerConnectionsRef.current).forEach(id => {
-          const isSpeaker = activeTalk.speakers.some(s => s.uid === id);
-          if (!isSpeaker) {
-            peerConnectionsRef.current[id].close();
-            delete peerConnectionsRef.current[id];
-
-            if (signalingListenersRef.current[`speaker_${id}`]) {
-              signalingListenersRef.current[`speaker_${id}`]();
-              delete signalingListenersRef.current[`speaker_${id}`];
-            }
-          }
-        });
-
-        if (signalingListenersRef.current['callee_listener']) {
-          signalingListenersRef.current['callee_listener']();
-          delete signalingListenersRef.current['callee_listener'];
-        }
-      }
-    };
-
-    syncLocalBroadcast();
-
-    // B. Sync listening to other speakers
-    const activeSpeakers = activeTalk.speakers.filter(s => s.uid !== myUid && !s.isMuted);
-    const activeSpeakerUids = new Set(activeSpeakers.map(s => s.uid));
-
-    // Close connections to muted or left speakers
-    Object.keys(peerConnectionsRef.current).forEach(uid => {
-      const isSpeaker = activeTalk.speakers.some(s => s.uid === uid);
-      if (isSpeaker && !activeSpeakerUids.has(uid)) {
-        peerConnectionsRef.current[uid].close();
-        delete peerConnectionsRef.current[uid];
-
-        if (signalingListenersRef.current[`listener_${uid}`]) {
-          signalingListenersRef.current[`listener_${uid}`]();
-          delete signalingListenersRef.current[`listener_${uid}`];
-        }
-
-        setRemoteStreams(prev => {
-          const next = { ...prev };
-          delete next[uid];
-          return next;
-        });
-
-        // Delete signaling document we created as caller
-        const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${uid}`);
-        deleteDoc(docRef).catch(() => {});
-      }
-    });
-
-    // Open connection to newly unmuted speakers
-    activeSpeakers.forEach(async (speaker) => {
-      const speakerUid = speaker.uid;
-      if (!peerConnectionsRef.current[speakerUid]) {
-        try {
-          const pc = new RTCPeerConnection(rtcConfig);
-          peerConnectionsRef.current[speakerUid] = pc;
-
-          pc.ontrack = (event) => {
-            if (event.streams && event.streams[0]) {
-              setRemoteStreams(prev => ({
-                ...prev,
-                [speakerUid]: event.streams[0]
-              }));
-            }
-          };
-
-          pc.onicecandidate = (event) => {
-            if (event.candidate) {
-              const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${speakerUid}`);
-              updateDoc(docRef, {
-                callerCandidates: arrayUnion(event.candidate.toJSON())
-              }).catch(() => {});
-            }
-          };
-
-          // Create offer
-          const offer = await pc.createOffer({ offerToReceiveAudio: true });
-          await pc.setLocalDescription(offer);
-
-          const docRef = doc(db, 'liveTalks', talkId, 'signaling', `${myUid}_${speakerUid}`);
-          await setDoc(docRef, {
-            id: `${myUid}_${speakerUid}`,
-            callerUid: myUid,
-            calleeUid: speakerUid,
-            offer: { sdp: offer.sdp, type: offer.type },
-            timestamp: Date.now()
-          }, { merge: true });
-
-          const unsub = onSnapshot(docRef, (docSnap) => {
-            if (!docSnap.exists()) return;
-            const data = docSnap.data();
-
-            if (data.answer && pc.signalingState !== 'stable') {
-              const desc = new RTCSessionDescription(data.answer);
-              pc.setRemoteDescription(desc).catch(e => console.error("Error setting answer:", e));
-            }
-
-            if (data.calleeCandidates) {
-              data.calleeCandidates.forEach((candidate: any) => {
-                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
-              });
-            }
-          });
-
-          signalingListenersRef.current[`listener_${speakerUid}`] = unsub;
-        } catch (e) {
-          console.error("Failed to connect to speaker:", e);
-        }
-      }
-    });
-
-  }, [activeTalk?.speakers, activeTalk?.id, selectedDeviceId]);
-
-  // Clean up all WebRTC structures
+  // The hook tears down media + peers when activeTalk clears or this view
+  // unmounts; kept as a thin shim for the existing call sites.
   const cleanupAllConnections = () => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
-    }
-
-    Object.values(signalingListenersRef.current).forEach(unsub => unsub());
-    signalingListenersRef.current = {};
-
-    Object.entries(peerConnectionsRef.current).forEach(([uid, pc]) => {
-      pc.close();
-    });
-    peerConnectionsRef.current = {};
-
+    rtc.leave();
     setRemoteStreams({});
   };
 

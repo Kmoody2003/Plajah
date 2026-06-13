@@ -25,6 +25,9 @@ export interface UseRtcSession {
   sharingScreen: boolean;
   toggleAudio: () => void;
   toggleVideo: () => void;
+  /** Explicit setters (e.g. doc-driven mute in Spaces/talk rooms). */
+  setAudio: (on: boolean) => void;
+  setVideo: (on: boolean) => void;
   switchCamera: (facing: 'user' | 'environment') => void;
   toggleScreenShare: () => void;
   leave: () => void;
@@ -100,11 +103,13 @@ export function useRtcSession(
       return true;
     });
   }, []);
+  const setAudio = useCallback((on: boolean) => { sessionRef.current?.setAudioEnabled(on); setAudioEnabled(on); }, []);
+  const setVideo = useCallback((on: boolean) => { sessionRef.current?.setVideoEnabled(on); setVideoEnabled(on); }, []);
   const leave = useCallback(() => { sessionRef.current?.leave(); }, []);
 
   return {
     localStream, remoteStreams, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
-    toggleAudio, toggleVideo, switchCamera, toggleScreenShare, leave,
+    toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
   };
 }
