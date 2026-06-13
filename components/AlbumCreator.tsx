@@ -1544,20 +1544,33 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
         )}
 
-        {type === 'VIDEO' && (
+        {(type === 'VIDEO' || (type === 'MUSIC' && musicVideos.length > 0)) && (
           <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20"><VideoIcon size={18} className="text-small-orange" /></div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest">Surface in Video Gallery</h4>
-                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Mirror videos to gallery</p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shrink-0"><VideoIcon size={18} className="text-small-orange" /></div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-black uppercase tracking-widest">{type === 'MUSIC' ? 'Also publish to Reello' : 'Surface in Video Gallery'}</h4>
+                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                    {type === 'MUSIC'
+                      ? `Your ${musicVideos.length} music video${musicVideos.length > 1 ? 's' : ''} also go to the Reello video feed for more reach`
+                      : 'Mirror videos to gallery'}
+                  </p>
                 </div>
               </div>
               <button type="button" onClick={() => setPublishVideosToGallery(!publishVideosToGallery)} className={`w-12 h-7 rounded-full transition-all relative shrink-0 ${publishVideosToGallery ? 'bg-small-orange' : 'bg-white/10'}`}>
                 <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${publishVideosToGallery ? 'left-5' : 'left-0.5'}`} />
               </button>
             </div>
+            {type === 'MUSIC' && publishVideosToGallery && (
+              <div className="flex items-start gap-2.5 px-1 pt-3 mt-3 border-t border-white/5">
+                <Info size={12} className="shrink-0 mt-0.5 text-small-orange/70" />
+                <p className="text-[9px] leading-relaxed text-white/45">
+                  Music videos attached to this album will be posted to Reello (the platform's video feed) so fans
+                  who browse video discover them too — your album stays exactly as-is on Chora. Turn off to keep them album-only.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
