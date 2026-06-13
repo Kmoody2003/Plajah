@@ -30,7 +30,8 @@ import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
 import { unlockAchievementByTrigger } from '../services/achievementService';
-import { publishLiveDiscovery, endLiveDiscovery } from '../services/liveStreamService';
+import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
+import { useRtcSession } from '../hooks/useRtcSession';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
   query, orderBy, limit,
@@ -179,7 +180,9 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [camOn, setCamOn] = useState(true);
   const [facing, setFacing] = useState<'user' | 'environment'>('user');
   const [isLive, setIsLive] = useState(false);
-  const [streamId, setStreamId] = useState('');
+  // Stable id from mount → the rtc session + preview start immediately; goLive
+  // just publishes the streams doc + flips it live.
+  const [streamId] = useState(() => uid4());
   const [postId, setPostId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -196,80 +199,45 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [saving, setSaving] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const peerConnsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const peerUnsubsRef = useRef<Array<() => void>>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMsgs = useLiveChat(streamId || null);
+  const recordedBlobRef = useRef<Blob | null>(null);
+  const didMountRef = useRef(false);
 
-  // ── Recording pipeline (canvas mix — survives camera flips) ────────────────
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const rafRef = useRef(0);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
-  const audioSrcRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const facingRef = useRef(facing);
-  useEffect(() => { facingRef.current = facing; }, [facing]);
+  // ── Media + peers now run on the unified rtcCore backbone (broadcast topology:
+  //    this host publishes, viewers subscribe). The session is live from mount so
+  //    the setup-screen preview works; viewers connect once they join. ──────────
+  const rtc = useRtcSession({
+    sessionId: streamId,
+    topology: 'broadcast',
+    role: 'host',
+    media: { audio: true, video: { facingMode: facing } },
+    displayName: auth.currentUser?.displayName || 'Creator',
+  });
 
-  // Camera preview — and while live, hot-swap the new tracks into every
-  // viewer's peer connection (replaceTrack) so flipping never drops the feed.
+  // Preview ← backbone local stream.
+  useEffect(() => { if (videoRef.current) videoRef.current.srcObject = rtc.localStream; }, [rtc.localStream]);
+  // Surface capture errors in the existing permission UI.
+  useEffect(() => { if (rtc.error) setPermError(rtc.error); }, [rtc.error]);
+  // Bridge the existing mic/cam/flip UI setters to the backbone.
+  useEffect(() => { rtc.setAudio(micOn); }, [micOn]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { rtc.setVideo(camOn); }, [camOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    let cancelled = false;
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing },
-      audio: true,
-    }).then(stream => {
-      if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
-      const prev = streamRef.current;
-      streamRef.current = stream;
-      stream.getAudioTracks().forEach(t => { t.enabled = micOn; });
-      stream.getVideoTracks().forEach(t => { t.enabled = camOn; });
-      if (videoRef.current) { videoRef.current.srcObject = stream; }
-      // Live camera switch: replace outgoing tracks on every viewer connection.
-      const newVideo = stream.getVideoTracks()[0];
-      const newAudio = stream.getAudioTracks()[0];
-      peerConnsRef.current.forEach(pc => {
-        pc.getSenders().forEach(sender => {
-          if (sender.track?.kind === 'video' && newVideo) sender.replaceTrack(newVideo).catch(() => {});
-          if (sender.track?.kind === 'audio' && newAudio) sender.replaceTrack(newAudio).catch(() => {});
-        });
-      });
-      // Re-route mic into the recording mix.
-      if (audioCtxRef.current && audioDestRef.current) {
-        try { audioSrcRef.current?.disconnect(); } catch {}
-        try {
-          audioSrcRef.current = audioCtxRef.current.createMediaStreamSource(stream);
-          audioSrcRef.current.connect(audioDestRef.current);
-        } catch {}
-      }
-      prev?.getTracks().forEach(t => t.stop());
-    }).catch(err => {
-      if (!cancelled) setPermError(err.message || 'Camera access denied');
-    });
-    return () => { cancelled = true; };
+    if (!didMountRef.current) { didMountRef.current = true; return; } // skip initial (already user-facing)
+    rtc.switchCamera(facing);
   }, [facing]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Release camera on unmount
-  useEffect(() => () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    peerConnsRef.current.forEach(pc => pc.close());
-    peerUnsubsRef.current.forEach(u => u());
-    cancelAnimationFrame(rafRef.current);
-    try { recorderRef.current?.state !== 'inactive' && recorderRef.current?.stop(); } catch {}
-    audioCtxRef.current?.close().catch(() => {});
-  }, []);
-
-  // Toggle audio track
+  // Live viewer count / peak ← backbone participants; mirrored to the streams doc
+  // so the viewer side can display it.
   useEffect(() => {
-    streamRef.current?.getAudioTracks().forEach(t => { t.enabled = micOn; });
-  }, [micOn]);
-
-  // Toggle video track
-  useEffect(() => {
-    streamRef.current?.getVideoTracks().forEach(t => { t.enabled = camOn; });
-  }, [camOn]);
+    if (!isLive) return;
+    const c = rtc.participants.length;
+    setViewerCount(c);
+    setPeakViewers(prev => {
+      const peak = Math.max(prev, c);
+      updateDoc(doc(db, 'streams', streamId), { viewerCount: c, peakViewers: peak }).catch(() => {});
+      return peak;
+    });
+  }, [rtc.participants, isLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live timer
   useEffect(() => {
@@ -278,137 +246,20 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     return () => clearInterval(id);
   }, [isLive, startTime]);
 
-  // Viewer count + peak + total views
+  // Lifetime view count ← streams doc (viewers increment it on join).
   useEffect(() => {
     if (!streamId) return;
     return onSnapshot(doc(db, 'streams', streamId), snap => {
-      const data = snap.data();
-      const count = data?.viewerCount ?? 0;
-      setViewerCount(count);
-      setTotalViews(data?.totalViews ?? 0);
-      setPeakViewers(prev => {
-        const peak = Math.max(prev, count);
-        if (peak > (data?.peakViewers ?? 0)) {
-          updateDoc(doc(db, 'streams', streamId), { peakViewers: peak }).catch(() => {});
-        }
-        return peak;
-      });
+      setTotalViews(snap.data()?.totalViews ?? 0);
     });
   }, [streamId]);
-
-  // ── Broadcaster signaling: answer every viewer that joins ───────────────────
-  // This is the piece that makes the stream *actually* watchable (and therefore
-  // verifiable as live): each viewer doc gets an offer, we consume answers + ICE.
-  useEffect(() => {
-    if (!isLive || !streamId) return;
-    const unsubViewers = onSnapshot(collection(db, 'streams', streamId, 'viewers'), snap => {
-      snap.docChanges().forEach(async change => {
-        try {
-        const viewerId = change.doc.id;
-        const data = change.doc.data();
-
-        if (change.type === 'removed') {
-          peerConnsRef.current.get(viewerId)?.close();
-          peerConnsRef.current.delete(viewerId);
-          return;
-        }
-
-        // New viewer (no offer sent yet) → build a connection and offer.
-        if (!peerConnsRef.current.has(viewerId) && !data.offer) {
-          const pc = new RTCPeerConnection(ICE);
-          peerConnsRef.current.set(viewerId, pc);
-          const ms = streamRef.current;
-          ms?.getTracks().forEach(t => pc.addTrack(t, ms));
-
-          pc.onicecandidate = e => {
-            if (e.candidate) {
-              addDoc(collection(db, 'streams', streamId, 'broadcasterCandidates', viewerId, 'candidates'), e.candidate.toJSON()).catch(() => {});
-            }
-          };
-
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await setDoc(doc(db, 'streams', streamId, 'viewers', viewerId),
-            { offer: { type: offer.type, sdp: offer.sdp } }, { merge: true });
-
-          // Viewer's ICE candidates
-          const unsubCand = onSnapshot(
-            collection(db, 'streams', streamId, 'viewerCandidates', viewerId, 'candidates'),
-            cs => cs.docChanges().forEach(c => {
-              if (c.type === 'added') pc.addIceCandidate(new RTCIceCandidate(c.doc.data() as RTCIceCandidateInit)).catch(() => {});
-            }),
-          );
-          peerUnsubsRef.current.push(unsubCand);
-        }
-
-        // Viewer answered → complete the handshake.
-        const pc = peerConnsRef.current.get(viewerId);
-        if (pc && data.answer && !pc.currentRemoteDescription) {
-          pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(() => {});
-        }
-        } catch (e) { console.warn('[Live] signaling for one viewer failed', e); }
-      });
-    });
-    peerUnsubsRef.current.push(unsubViewers);
-    return () => unsubViewers();
-  }, [isLive, streamId]);
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
   const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-  // ── Recording: draw the preview into a canvas and record THAT, so camera
-  //    flips / track swaps never invalidate the MediaRecorder stream. ─────────
-  const startRecording = useCallback(() => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 720; canvas.height = 1280; // resized to the camera's real aspect on first frame
-      canvasRef.current = canvas;
-      const ctx = canvas.getContext('2d');
-      let sized = false;
-      const draw = () => {
-        const v = videoRef.current;
-        if (ctx && v && v.videoWidth > 0) {
-          if (!sized) {
-            // Record at the camera's native aspect (capped at 1280) — no zoom-crop.
-            const cap = 1280 / Math.max(v.videoWidth, v.videoHeight);
-            const k = Math.min(1, cap);
-            canvas.width = Math.round(v.videoWidth * k);
-            canvas.height = Math.round(v.videoHeight * k);
-            sized = true;
-          }
-          ctx.save();
-          if (facingRef.current === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
-          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
-        }
-        rafRef.current = requestAnimationFrame(draw);
-      };
-      rafRef.current = requestAnimationFrame(draw);
-
-      const canvasStream = canvas.captureStream(30);
-      // Mix mic audio through an AudioContext so flips just re-route the source.
-      const actx = new AudioContext();
-      const dest = actx.createMediaStreamDestination();
-      audioCtxRef.current = actx; audioDestRef.current = dest;
-      if (streamRef.current) {
-        try {
-          audioSrcRef.current = actx.createMediaStreamSource(streamRef.current);
-          audioSrcRef.current.connect(dest);
-        } catch {}
-      }
-      const mixed = new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm';
-      const rec = new MediaRecorder(mixed, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
-      chunksRef.current = [];
-      rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      rec.start(2000);
-      recorderRef.current = rec;
-    } catch (e) {
-      console.warn('[Live] recording unavailable', e);
-    }
-  }, []);
+  // (Recording is handled by the rtcCore backbone — rtc.startRecording/stopRecording.)
 
   const goLive = async () => {
     const user = auth.currentUser;
@@ -416,8 +267,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     setGoLiveError('');
     const finalTitle = title.trim() || 'Live Stream';
     if (!title.trim()) setTitle(finalTitle);
-    const id = uid4();
-    setStreamId(id);
+    const id = streamId;
     try {
     await setDoc(doc(db, 'streams', id), {
       title: finalTitle,
@@ -433,13 +283,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     } catch (e: any) {
       // Surface the real failure (e.g. permissions) instead of doing nothing.
       setGoLiveError(e?.message || 'Could not start the stream. Try again.');
-      setStreamId('');
       return;
     }
     setStartTime(Date.now());
     setIsLive(true);
     setStep('live');
-    startRecording();
+    rtc.startRecording();
 
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
@@ -471,16 +320,14 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // ── End flow: stop everything, then prompt save vs delete ──────────────────
   const endStream = async () => {
-    try { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop(); } catch {}
-    cancelAnimationFrame(rafRef.current);
+    // Stop + keep the recording (the save/delete prompt uses it), then leave.
+    try { recordedBlobRef.current = await rtc.stopRecording(); } catch {}
     if (streamId) {
       await updateDoc(doc(db, 'streams', streamId), { isLive: false, endedAt: Date.now() }).catch(() => {});
     }
     // Drop the discovery mirror out of "what's live now".
     endLiveDiscovery(discoveryFeedIdRef.current);
-    peerConnsRef.current.forEach(pc => pc.close());
-    peerConnsRef.current.clear();
-    streamRef.current?.getTracks().forEach(t => t.stop());
+    rtc.leave();
     setIsLive(false);
     setStep('ended');
   };
@@ -488,18 +335,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const saveRecording = async () => {
     setSaving('saving');
     try {
-      // Give the recorder a beat to flush its final chunk.
-      await new Promise(r => setTimeout(r, 600));
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      if (blob.size < 1000) throw new Error('No recording captured');
+      // The backbone recorder may not have finished on end — make sure it has.
+      const blob = recordedBlobRef.current || await rtc.stopRecording();
+      if (!blob || blob.size < 1000) throw new Error('No recording captured');
       const finalTitle = title.trim() || 'Live Stream';
-      const file = new File([blob], `live-${Date.now()}.webm`, { type: 'video/webm' });
+      const file = new File([blob], `live-${Date.now()}.webm`, { type: blob.type || 'video/webm' });
       const video = await uploadVideo({
         file,
         title: `${finalTitle} (Live Replay)`,
         description: `Recorded live on ${new Date().toLocaleDateString()} · peak ${peakViewers} viewers · ${totalViews} views`,
         isLiveRecording: true,
-        isPrivate: false,
+        isPrivate: !!isPrivate,
         duration: elapsed,
         genre: 'Live',
       });
@@ -523,7 +369,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const discardRecording = async () => {
     // Stream not saved → the auto-post comes down too (no dead "live" posts).
     if (postId) await deletePost(postId).catch(() => {});
-    chunksRef.current = [];
+    recordedBlobRef.current = null;
     onClose();
   };
 
@@ -881,12 +727,20 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const [likeCount, setLikeCount] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMsgs = useLiveChat(streamId);
 
+  // Watch via the unified rtcCore backbone (broadcast viewer — subscribe only).
+  const rtc = useRtcSession({
+    sessionId: streamId,
+    topology: 'broadcast',
+    role: 'viewer',
+    media: { audio: false, video: false },
+  });
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
+  // Stream metadata (title / live / counts) still lives on the streams doc.
   useEffect(() => {
     return onSnapshot(doc(db, 'streams', streamId), snap => {
       const data = snap.data();
@@ -898,70 +752,26 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
     });
   }, [streamId]);
 
-  // Join stream via WebRTC signaling — the broadcaster answers with an offer.
+  // Count this view once (broadcaster mirrors live count from rtc participants).
   useEffect(() => {
-    const viewerId = uid4();
-    let cancelled = false;
+    updateDoc(doc(db, 'streams', streamId), { totalViews: increment(1) }).catch(() => {});
+  }, [streamId]);
 
-    const join = async () => {
-      setConnecting(true);
-      const pc = new RTCPeerConnection(ICE);
-      pcRef.current = pc;
+  // Attach the broadcaster's stream the moment it arrives.
+  useEffect(() => {
+    const first = rtc.remoteStreams.values().next().value as MediaStream | undefined;
+    if (videoRef.current && first) {
+      videoRef.current.srcObject = first;
+      setConnected(true);
+      setConnecting(false);
+    }
+  }, [rtc.remoteStreams]);
 
-      pc.ontrack = e => {
-        if (!cancelled && videoRef.current) {
-          videoRef.current.srcObject = e.streams[0];
-          setConnected(true);
-          setConnecting(false);
-        }
-      };
-
-      pc.onicecandidate = async e => {
-        if (e.candidate && !cancelled) {
-          await addDoc(collection(db, 'streams', streamId, 'viewerCandidates', viewerId, 'candidates'), e.candidate.toJSON()).catch(() => {});
-        }
-      };
-
-      // Live + lifetime view counters
-      await updateDoc(doc(db, 'streams', streamId), { viewerCount: increment(1), totalViews: increment(1) }).catch(() => {});
-
-      // Listen for offer
-      const unsubOffer = onSnapshot(doc(db, 'streams', streamId, 'viewers', viewerId), async snap => {
-        const data = snap.data();
-        if (data?.offer && !pc.remoteDescription && !cancelled) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await setDoc(doc(db, 'streams', streamId, 'viewers', viewerId), { answer: { type: answer.type, sdp: answer.sdp } }, { merge: true });
-        }
-      });
-
-      // Broadcaster's ICE candidates
-      const unsubBCand = onSnapshot(
-        collection(db, 'streams', streamId, 'broadcasterCandidates', viewerId, 'candidates'),
-        cs => cs.docChanges().forEach(c => {
-          if (c.type === 'added') pc.addIceCandidate(new RTCIceCandidate(c.doc.data() as RTCIceCandidateInit)).catch(() => {});
-        }),
-      );
-
-      // Register as viewer
-      await setDoc(doc(db, 'streams', streamId, 'viewers', viewerId), { joinedAt: Date.now() });
-
-      setTimeout(() => { if (!connected && !cancelled) setConnecting(false); }, 12000);
-
-      return () => {
-        cancelled = true;
-        unsubOffer();
-        unsubBCand();
-        pc.close();
-        updateDoc(doc(db, 'streams', streamId), { viewerCount: increment(-1) }).catch(() => {});
-        deleteDoc(doc(db, 'streams', streamId, 'viewers', viewerId)).catch(() => {});
-      };
-    };
-
-    const cleanup = join();
-    return () => { cleanup.then(fn => fn()); };
-  }, [streamId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Stop the spinner after a grace period even if nothing connects.
+  useEffect(() => {
+    const t = setTimeout(() => setConnecting(false), 12000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
