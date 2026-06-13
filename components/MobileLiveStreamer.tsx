@@ -89,15 +89,52 @@ async function sendChat(streamId: string, text: string) {
   });
 }
 
+// ─── Crash containment ────────────────────────────────────────────────────────
+// A failure inside the live UI must NEVER take down the whole platform. This
+// boundary contains it to the overlay, shows the real error (so it's
+// diagnosable, not a white screen), and lets the user close back to the app.
+
+class LiveErrorBoundary extends React.Component<
+  { onClose: () => void; children: React.ReactNode },
+  { error: string | null }
+> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(e: any) {
+    return { error: String(e?.message || e).slice(0, 300) };
+  }
+  componentDidCatch(e: any, info: any) {
+    console.error('[Live] UI crashed:', e, info?.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="fixed inset-0 z-[210] bg-black/95 flex flex-col items-center justify-center gap-4 px-8 text-center">
+          <Radio size={32} className="text-red-400" />
+          <p className="text-white font-black">The live screen hit an error</p>
+          <p className="text-white/45 text-xs leading-relaxed break-words max-w-sm">{this.state.error}</p>
+          <button onClick={this.props.onClose}
+            className="mt-2 px-8 py-3.5 bg-white/10 border border-white/15 rounded-2xl text-white font-bold text-sm">
+            Close
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
   mode, streamId: initStreamId, title: initTitle, ownerName, onClose,
 }) => {
-  if (mode === 'viewer' && initStreamId) {
-    return <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />;
-  }
-  return <MobileStreamer onClose={onClose} />;
+  return (
+    <LiveErrorBoundary onClose={onClose}>
+      {mode === 'viewer' && initStreamId
+        ? <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />
+        : <MobileStreamer onClose={onClose} />}
+    </LiveErrorBoundary>
+  );
 };
 
 export default MobileLiveStreamer;
@@ -626,7 +663,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
                 <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 min-h-0">
                   {chatMsgs.map(m => (
                     <div key={m.id} className="flex items-start gap-2">
-                      <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{m.user.split(' ')[0]}</span>
+                      <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
                       <span className="text-[11px] text-white/80 leading-relaxed">{m.text}</span>
                     </div>
                   ))}
@@ -1005,7 +1042,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 min-h-0">
               {chatMsgs.map(m => (
                 <div key={m.id} className="flex items-start gap-2">
-                  <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{m.user.split(' ')[0]}</span>
+                  <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
                   <span className="text-[11px] text-white/80 leading-relaxed">{m.text}</span>
                 </div>
               ))}

@@ -92,7 +92,31 @@ function LiveTimer({ startTime }: { startTime: number }) {
   return <span className="font-mono text-sm font-black text-white tabular-nums">{h}:{m}:{s}</span>;
 }
 
-const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => {
+// A crash anywhere in the broadcast UI must stay contained to this overlay —
+// never white-screen the platform. Shows the real error + a close path.
+class BroadcastErrorBoundary extends React.Component<
+  { onClose: () => void; children: React.ReactNode },
+  { error: string | null }
+> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(e: any) { return { error: String(e?.message || e).slice(0, 300) }; }
+  componentDidCatch(e: any, info: any) { console.error('[GoLive] UI crashed:', e, info?.componentStack); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="fixed inset-0 z-[910] bg-black/95 flex flex-col items-center justify-center gap-4 px-8 text-center">
+          <AlertCircle size={32} className="text-red-400" />
+          <p className="text-white font-black">The broadcast screen hit an error</p>
+          <p className="text-white/45 text-xs leading-relaxed break-words max-w-sm">{this.state.error}</p>
+          <button onClick={this.props.onClose} className="mt-2 px-8 py-3.5 bg-white/10 border border-white/15 rounded-2xl text-white font-bold text-sm">Close</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => {
   const [step, setStep] = useState<WizardStep>('TYPE');
   // Quick Stream skips the wizard entirely — one tap into the phone streamer
   // (auto-post + notifications + achievements + save/delete live there).
@@ -801,5 +825,11 @@ const GoLiveWizard: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }) => 
     </div>
   );
 };
+
+const GoLiveWizard: React.FC<GoLiveWizardProps> = (props) => (
+  <BroadcastErrorBoundary onClose={props.onClose}>
+    <GoLiveWizardInner {...props} />
+  </BroadcastErrorBoundary>
+);
 
 export default GoLiveWizard;
