@@ -124,6 +124,26 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-left: 4px solid var(--theme-color, #ffffff);
         }
+
+        /* ── Galaxy Z Fold cover (outer) screen scaling ──────────────────────
+           The outer screen is physically small + dense and overlaps normal
+           phones in CSS width, so the mobile layout renders too small. We
+           magnify the whole app subtree with `zoom` — the only thing that scales
+           this app's heavy arbitrary-px text (text-[9px] etc.; rem-only scaling
+           wouldn't touch it). Viewport-unit utilities are divided by the same
+           factor so the zoomed layout still fits exactly one screen (zoom scales
+           vh/vw against the unzoomed viewport, which would otherwise overflow).
+           Overlays are portaled to <body> (outside #root) so they're unaffected.
+           Detection (JS below) keys on window.screen — the physical aspect,
+           stable to the URL bar — not a fragile viewport media query.
+           Tune the magnitude by changing --cover-zoom. */
+        html.zfold-cover { --cover-zoom: 1.25; }
+        html.zfold-cover #root { zoom: var(--cover-zoom); }
+        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .h-screen     { height:     calc(100vh / var(--cover-zoom)); }
+        html.zfold-cover #root .w-screen     { width:      calc(100vw / var(--cover-zoom)); }
+        html.zfold-cover #root .h-dvh        { height:     calc(100dvh / var(--cover-zoom)); }
+        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoom)); }
     </style>
 
     <link rel="stylesheet" href="/index.css">
@@ -164,13 +184,42 @@
       })();
     </script>
     <script>
+      // Galaxy Z Fold cover (outer) screen detection. The outer screen is
+      // narrow + unusually tall (~21:9) and physically small/dense, so the
+      // mobile layout renders too small. We key on window.screen (the physical
+      // screen aspect) rather than the viewport — it's stable to the URL bar and
+      // distinguishes the cover (≈0.428 narrow/tall) from normal phones (≈0.45+)
+      // and the wide unfolded inner screen. Toggling on resize/orientation also
+      // handles fold↔unfold (which fire resize). CSS in <style> does the scaling.
+      (function() {
+        function isCover() {
+          try {
+            var w = screen.width, h = screen.height;
+            if (!w || !h) return false;
+            var mn = Math.min(w, h), mx = Math.max(w, h);
+            return mn <= 430 && (mn / mx) <= 0.44;
+          } catch (e) { return false; }
+        }
+        window.__isCoverScreen = isCover;
+        function apply() { document.documentElement.classList.toggle('zfold-cover', isCover()); }
+        apply();
+        window.addEventListener('resize', apply);
+        window.addEventListener('orientationchange', apply);
+      })();
+    </script>
+    <script>
       // Fix Android Chrome URL bar causing layout jumps.
       // Sets --real-vh so components can use calc(var(--real-vh) * 100)
-      // instead of 100dvh, which reflows on every scroll.
+      // instead of 100dvh, which reflows on every scroll. On the Z Fold cover
+      // screen, #root is zoomed, so --real-vh is divided by the zoom factor to
+      // keep --real-vh-based heights filling exactly one screen after zoom.
       (function() {
         function setVh() {
-          var vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.01;
-          document.documentElement.style.setProperty('--real-vh', vh + 'px');
+          var raw = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+          var z = (window.__isCoverScreen && window.__isCoverScreen())
+            ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cover-zoom')) || 1.25)
+            : 1;
+          document.documentElement.style.setProperty('--real-vh', (raw / z) * 0.01 + 'px');
         }
         setVh();
         if (window.visualViewport) {
@@ -178,6 +227,7 @@
         } else {
           window.addEventListener('resize', setVh);
         }
+        window.addEventListener('orientationchange', setVh);
       })();
     </script>
     <script type="module" src="/index.tsx"></script>
