@@ -30,6 +30,7 @@ import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo,
 } from '../services/backendService';
 import { unlockAchievementByTrigger } from '../services/achievementService';
+import { publishLiveDiscovery, endLiveDiscovery } from '../services/liveStreamService';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
   query, orderBy, limit,
@@ -58,6 +59,10 @@ export interface MobileLiveStreamerProps {
   /** Stream title set by broadcaster */
   title?: string;
   ownerName?: string;
+  /** Optional club scoping — when set the stream is tagged to the club. */
+  clubId?: string;
+  /** Private (club-only) stream: skips the public timeline post + follower ping. */
+  isPrivate?: boolean;
   onClose: () => void;
 }
 
@@ -127,7 +132,7 @@ class LiveErrorBoundary extends React.Component<
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
-  mode, streamId: initStreamId, title: initTitle, ownerName, onClose,
+  mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, onClose,
 }) => {
   // Portal to <body>: rendered in place, an ancestor with a CSS transform makes
   // position:fixed anchor to that ancestor (the overlay appears at the page TOP
@@ -136,7 +141,7 @@ const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
     <LiveErrorBoundary onClose={onClose}>
       {mode === 'viewer' && initStreamId
         ? <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />
-        : <MobileStreamer onClose={onClose} />}
+        : <MobileStreamer clubId={clubId} isPrivate={isPrivate} onClose={onClose} />}
     </LiveErrorBoundary>,
     document.body,
   );
@@ -144,11 +149,30 @@ const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
 
 export default MobileLiveStreamer;
 
+// ─── Unified public API ───────────────────────────────────────────────────────
+// The whole app goes live and watches through these two — one engine, one
+// `streams` collection, one signaling scheme. (Names read better than
+// "MobileLiveStreamer mode=…" at the call sites.)
+
+/** The single broadcaster. Surfaced by LiveHub, Reello, Feed, VideoTab, Clubs. */
+export const LiveStudio: React.FC<{
+  clubId?: string; isPrivate?: boolean; onClose: () => void;
+}> = ({ clubId, isPrivate, onClose }) => (
+  <MobileLiveStreamer mode="streamer" clubId={clubId} isPrivate={isPrivate} onClose={onClose} />
+);
+
+/** The single viewer. Drop-in for the old LiveStreamViewer (same props). */
+export const LiveViewer: React.FC<{
+  streamId: string; title?: string; ownerName?: string; onClose: () => void;
+}> = ({ streamId, title, ownerName, onClose }) => (
+  <MobileLiveStreamer mode="viewer" streamId={streamId} title={title} ownerName={ownerName} onClose={onClose} />
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  STREAMER SIDE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MobileStreamer({ onClose }: { onClose: () => void }) {
+function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; clubId?: string; isPrivate?: boolean }) {
   const [step, setStep] = useState<'setup' | 'live' | 'ended'>('setup');
   const [title, setTitle] = useState('');
   const [micOn, setMicOn] = useState(true);
@@ -168,6 +192,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [permError, setPermError] = useState('');
   const [goLiveError, setGoLiveError] = useState('');
+  const discoveryFeedIdRef = useRef<string | null>(null);
   const [saving, setSaving] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -403,6 +428,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
       peakViewers: 0,
       startedAt: Date.now(),
       isLive: true,
+      ...(clubId ? { clubId, isPrivate: !!isPrivate } : {}),
     });
     } catch (e: any) {
       // Surface the real failure (e.g. permissions) instead of doing nothing.
@@ -417,17 +443,28 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
 
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
-      // 1. Auto-post on the author's timeline
-      createPost({
-        text: `🔴 Live now: ${finalTitle}`,
-        isLiveNow: true,
-        liveStreamId: id,
-      }).then(pid => { if (pid) setPostId(pid); }).catch(() => {});
-      // 2. Dedicated "is live" notification to followers
-      notifyFollowers(user.uid, 'CONTENT', '🔴 Live Now',
-        `${user.displayName || 'A creator you follow'} is live: ${finalTitle}`,
-        'LIVE_HUB', id).catch(() => {});
-      // 3. First-stream achievement
+      // 0. Discovery mirror → live_feeds so every "what's live now" surface +
+      //    the unified viewer find THIS stream (the one source of truth).
+      publishLiveDiscovery({
+        streamId: id, title: finalTitle,
+        ownerName: user.displayName || 'Creator', ownerPhoto: user.photoURL || '',
+        clubId, isPublic: !isPrivate,
+      }).then(fid => { discoveryFeedIdRef.current = fid; }).catch(() => {});
+
+      // Public-only side effects — skipped for private/club streams.
+      if (!isPrivate) {
+        // 1. Auto-post on the author's timeline
+        createPost({
+          text: `🔴 Live now: ${finalTitle}`,
+          isLiveNow: true,
+          liveStreamId: id,
+        }).then(pid => { if (pid) setPostId(pid); }).catch(() => {});
+        // 2. Dedicated "is live" notification to followers
+        notifyFollowers(user.uid, 'CONTENT', '🔴 Live Now',
+          `${user.displayName || 'A creator you follow'} is live: ${finalTitle}`,
+          'LIVE_HUB', id).catch(() => {});
+      }
+      // 3. First-stream achievement (always)
       unlockAchievementByTrigger(user.uid, 'FIRST_LIVE_STREAM').catch(() => {});
     }
   };
@@ -439,6 +476,8 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
     if (streamId) {
       await updateDoc(doc(db, 'streams', streamId), { isLive: false, endedAt: Date.now() }).catch(() => {});
     }
+    // Drop the discovery mirror out of "what's live now".
+    endLiveDiscovery(discoveryFeedIdRef.current);
     peerConnsRef.current.forEach(pc => pc.close());
     peerConnsRef.current.clear();
     streamRef.current?.getTracks().forEach(t => t.stop());

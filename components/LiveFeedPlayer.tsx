@@ -4,7 +4,7 @@ import { X, ChevronDown, ChevronUp, MessageCircle, Send, Maximize2, Minimize2 } 
 import { LiveFeed } from '../types';
 import { auth } from '../services/backendService';
 import PlajahLivePlayer from './PlajahLivePlayer';
-import LiveStreamViewer from './LiveStreamViewer';
+import { LiveViewer } from './MobileLiveStreamer';
 
 interface LiveFeedPlayerProps {
   feed: LiveFeed | null;
@@ -54,15 +54,18 @@ const LiveFeedPlayer: React.FC<LiveFeedPlayerProps> = ({ feed, onClose, onExpand
   const hasMux = !!feed.muxPlaybackId;
   const feedUrl = feed.url || '';
   const isPlaceholder = feedUrl === 'live_stream_placeholder';
-  const isWebRTC = feedUrl.startsWith('livestream:');
-  const webRTCStreamId = isWebRTC ? feedUrl.replace('livestream:', '') : (feed as any)?.streamId || '';
+  // WebRTC (the unified `streams` engine) is identified by streamSource or a
+  // streamId on the discovery mirror, or the legacy `livestream:` url prefix.
+  const feedStreamId = (feed as any)?.streamId || (feedUrl.startsWith('livestream:') ? feedUrl.replace('livestream:', '') : '');
+  const isWebRTC = (feed as any)?.streamSource === 'webrtc' || feedUrl.startsWith('livestream:') || (!!feedStreamId && !hasMux);
+  const webRTCStreamId = feedStreamId;
   const isHlsSrc = !hasMux && !isWebRTC && isHls(feedUrl);
   const isEmbed = !hasMux && !isWebRTC && !isHlsSrc && isEmbeddable(feedUrl);
 
-  // WebRTC stream → open full LiveStreamViewer
+  // WebRTC stream → open the unified viewer (reads the `streams` collection)
   if (isWebRTC && webRTCStreamId) {
     return (
-      <LiveStreamViewer
+      <LiveViewer
         streamId={webRTCStreamId}
         title={feed?.title}
         ownerName={(feed as any)?.ownerName}

@@ -20,11 +20,10 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useUpload } from '../contexts/UploadContext';
 import ThreeDImage from './ThreeDImage';
 import YoutubeImportModal from './YoutubeImportModal';
-import { LiveStreamModal } from './LiveStreamModal';
+import { LiveStudio, LiveViewer } from './MobileLiveStreamer';
 import CommentSection from './CommentSection';
 import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
-import LiveStreamViewer from './LiveStreamViewer';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import WorldBadge from './WorldBadge';
 
@@ -1828,7 +1827,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       </AnimatePresence>
 
       {showYoutubeImport && <YoutubeImportModal onClose={() => setShowYoutubeImport(false)} onImported={() => { setShowYoutubeImport(false); loadData(); }} />}
-      {showGoLiveModal && <LiveStreamModal onClose={() => setShowGoLiveModal(false)} onStreamActive={setIsLiveStreamActive} />}
+      {showGoLiveModal && <LiveStudio onClose={() => { setShowGoLiveModal(false); setIsLiveStreamActive(false); }} />}
 
       {assigningVideo && (
         <VideoWorldAssignModal
@@ -1842,7 +1841,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       )}
 
       {activeLiveStream && (
-        <LiveStreamViewer
+        <LiveViewer
           streamId={activeLiveStream.streamId}
           title={activeLiveStream.title}
           ownerName={activeLiveStream.ownerName}

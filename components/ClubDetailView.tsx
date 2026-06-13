@@ -25,8 +25,7 @@ import {
   createClubEvent, fetchClubEvents, deleteClubEvent, rsvpClubEvent,
   fetchUserContent, fetchUserVideos, fetchArtistMerch,
 } from '../services/backendService';
-import { LiveStreamModal } from './LiveStreamModal';
-import LiveStreamViewer from './LiveStreamViewer';
+import { LiveStudio, LiveViewer } from './MobileLiveStreamer';
 import UniversalPostComposer from './UniversalPostComposer';
 import DualPanelTimeline from './DualPanelTimeline';
 import ArticleEditor from './ArticleEditor';
@@ -1657,28 +1656,23 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
         )}
       </AnimatePresence>
 
-      {/* Live Stream Modal */}
+      {/* Live broadcast — unified engine, scoped to this club */}
       {showLiveModal && (
-        <div className="fixed inset-0 z-[100]">
-          <LiveStreamModal
-            onClose={() => setShowLiveModal(false)}
-            onStreamActive={(active) => { if (!active) setShowLiveModal(false); }}
-            clubId={club.id}
-            isPrivate={livePrivate}
-          />
-        </div>
+        <LiveStudio
+          clubId={club.id}
+          isPrivate={livePrivate}
+          onClose={() => setShowLiveModal(false)}
+        />
       )}
 
-      {/* Live Stream Viewer */}
+      {/* Live viewer — unified */}
       {viewingStreamId && (
-        <div className="fixed inset-0 z-[100]">
-          <LiveStreamViewer
-            streamId={viewingStreamId}
-            title={viewingStreamTitle}
-            ownerName={viewingStreamOwner}
-            onClose={() => setViewingStreamId(null)}
-          />
-        </div>
+        <LiveViewer
+          streamId={viewingStreamId}
+          title={viewingStreamTitle}
+          ownerName={viewingStreamOwner}
+          onClose={() => setViewingStreamId(null)}
+        />
       )}
 
       {/* Gallery lightbox */}
