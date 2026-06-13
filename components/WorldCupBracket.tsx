@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { scoreText } from '../src/lib/scoreText';
 import { motion } from 'motion/react';
 import { WC26_MATCHES, WC26_TEAMS, getTeam, ROUND_LABELS, type WC26Round } from '../data/worldCup2026';
 
@@ -55,7 +56,7 @@ const BracketSlot: React.FC<{ match: BracketMatch; accent: string; compact?: boo
       </span>
       {hasScore && (
         <span className={`font-black ${compact ? 'text-xs' : 'text-sm'} ${slot.winner ? 'text-white' : 'text-white/40'}`}>
-          {slot.score}
+          {scoreText(slot.score)}
         </span>
       )}
     </div>

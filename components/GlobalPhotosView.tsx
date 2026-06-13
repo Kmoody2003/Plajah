@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import { Photo, UserProfile } from '../types';
 import PageHeader from './PageHeader';
 import { 
@@ -290,8 +291,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
         )}
       </main>
 
-      {/* Theme Detail Modal */}
-      <AnimatePresence>
+      {/* Theme Detail Modal — portaled so it opens in the current viewport */}
+      {createPortal(<AnimatePresence>
         {selectedTheme && (
            <motion.div 
              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -358,10 +359,10 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               </div>
            </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
-      {/* Photo Detail Modal */}
-      <AnimatePresence>
+      {/* Photo Detail Modal — portaled so it opens in the current viewport */}
+      {createPortal(<AnimatePresence>
         {selectedPhoto && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -462,7 +463,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
       {editingPhoto && (
         <PhotoEditPanel
           photo={editingPhoto}

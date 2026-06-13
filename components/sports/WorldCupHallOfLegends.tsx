@@ -17,6 +17,7 @@
  * camera; finalists from editions with squad data deep-link to their rosters.
  */
 
+import { scoreText } from '../../src/lib/scoreText';
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -877,7 +878,7 @@ export const WorldCupHallOfLegends: React.FC<HallProps> = ({ onOpenTeam }) => {
                     <span className="text-base font-black uppercase tracking-tight text-white">{f.winnerFlag} {f.winner}</span>
                   </div>
                 )}
-                <span className="text-sm font-black text-[#FF8C00] tabular-nums">{f.score}</span>
+                <span className="text-sm font-black text-[#FF8C00] tabular-nums">{scoreText(f.score)}</span>
                 {finalists ? (
                   <button
                     onClick={() => onOpenTeam!(finalists.runnerUp, f.year as WCYear)}

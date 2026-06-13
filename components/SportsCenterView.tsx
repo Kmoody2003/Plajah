@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
@@ -974,7 +975,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
                             </div>
                           </div>
                           <span className={`text-xs font-black ${team?.winner ? 'text-[#FF8C00]' : isPost ? 'text-white/40' : isPre ? 'text-white/15' : 'text-white/70'}`}>
-                            {team?.score ?? (isPre ? '' : 'â€"')}
+                            {scoreText(team?.score) || (isPre ? '' : 'â€"')}
                           </span>
                         </button>
                       ))}

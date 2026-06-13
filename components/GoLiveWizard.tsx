@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, ChevronLeft, ChevronRight, Radio, Camera, Monitor, Wifi,
@@ -826,10 +827,13 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   );
 };
 
-const GoLiveWizard: React.FC<GoLiveWizardProps> = (props) => (
+// Portal to <body>: any transformed ancestor re-anchors position:fixed, which
+// made the wizard open at the top of the page instead of the current viewport.
+const GoLiveWizard: React.FC<GoLiveWizardProps> = (props) => createPortal(
   <BroadcastErrorBoundary onClose={props.onClose}>
     <GoLiveWizardInner {...props} />
-  </BroadcastErrorBoundary>
+  </BroadcastErrorBoundary>,
+  document.body,
 );
 
 export default GoLiveWizard;

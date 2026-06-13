@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Play, Pause, Music, Plus, X, ChevronLeft, ChevronRight, Maximize2, Sparkles, Layout, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -213,8 +214,8 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
         )}
       </div>
 
-      {/* ── Full-Frame Lightbox (minimal, no chrome) ─────────────────────── */}
-      <AnimatePresence>
+      {/* ── Full-Frame Lightbox — portaled so it opens in the current viewport ── */}
+      {createPortal(<AnimatePresence>
         {lightboxPhoto && (
           <motion.div
             key="lightbox"
@@ -277,10 +278,10 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
             )}
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
-      {/* ── Slideshow Overlay ─────────────────────────────────────────────── */}
-      <AnimatePresence>
+      {/* ── Slideshow Overlay — portaled so it opens in the current viewport ── */}
+      {createPortal(<AnimatePresence>
         {isSlideshowActive && activePhotoIndex !== null && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -387,7 +388,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
       {selectedMusic && (
         <audio ref={audioRef} src={selectedMusic.url} loop autoPlay={isPlaying} />

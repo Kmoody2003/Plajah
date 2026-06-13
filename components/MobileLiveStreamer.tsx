@@ -18,6 +18,7 @@
  * utilities + dvh-based sheets so no control ever renders off-screen.
  */
 
+import { createPortal } from 'react-dom';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -128,12 +129,16 @@ class LiveErrorBoundary extends React.Component<
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
   mode, streamId: initStreamId, title: initTitle, ownerName, onClose,
 }) => {
-  return (
+  // Portal to <body>: rendered in place, an ancestor with a CSS transform makes
+  // position:fixed anchor to that ancestor (the overlay appears at the page TOP
+  // and the user has to scroll up). The portal pins it to the real viewport.
+  return createPortal(
     <LiveErrorBoundary onClose={onClose}>
       {mode === 'viewer' && initStreamId
         ? <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />
         : <MobileStreamer onClose={onClose} />}
-    </LiveErrorBoundary>
+    </LiveErrorBoundary>,
+    document.body,
   );
 };
 
@@ -273,6 +278,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
     if (!isLive || !streamId) return;
     const unsubViewers = onSnapshot(collection(db, 'streams', streamId, 'viewers'), snap => {
       snap.docChanges().forEach(async change => {
+        try {
         const viewerId = change.doc.id;
         const data = change.doc.data();
 
@@ -315,6 +321,7 @@ function MobileStreamer({ onClose }: { onClose: () => void }) {
         if (pc && data.answer && !pc.currentRemoteDescription) {
           pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(() => {});
         }
+        } catch (e) { console.warn('[Live] signaling for one viewer failed', e); }
       });
     });
     peerUnsubsRef.current.push(unsubViewers);

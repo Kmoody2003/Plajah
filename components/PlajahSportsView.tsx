@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
 import WorldCupHub from './WorldCupHub';
@@ -289,7 +290,7 @@ const ScoreChip: React.FC<{ event: any }> = ({ event }) => {
           <p className="text-[9px] font-black text-white/70 truncate">{away?.team?.abbreviation}</p>
         </div>
         <div className="text-[10px] font-black text-white">
-          {isPre ? 'vs' : `${away?.score ?? '—'} – ${home?.score ?? '—'}`}
+          {isPre ? 'vs' : `${scoreText(away?.score) || '—'} – ${scoreText(home?.score) || '—'}`}
         </div>
         <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
           <p className="text-[9px] font-black text-white/70 truncate">{home?.team?.abbreviation}</p>

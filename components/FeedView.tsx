@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { scoreText } from '../src/lib/scoreText';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
@@ -2424,7 +2425,7 @@ const toggleFavoriteTeam = async (team: string) => {
                                    <img loading="lazy" decoding="async" src={team.team?.logo || null} alt="" className="w-7 h-7 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
                                    <span className={`text-sm font-black uppercase tracking-tight ${team.winner ? 'text-white' : 'text-white/40'}`}>{team.team?.abbreviation}</span>
                                 </div>
-                                <span className={`text-xl font-black italic ${team.winner ? 'text-small-orange' : 'text-white'}`}>{team.score}</span>
+                                <span className={`text-xl font-black italic ${team.winner ? 'text-small-orange' : 'text-white'}`}>{scoreText(team.score)}</span>
                              </div>
                            ))}
                         </div>
@@ -3002,7 +3003,7 @@ const toggleFavoriteTeam = async (team: string) => {
                                              </span>
                                           </div>
                                           <span className={`text-base font-black italic ${team.winner ? 'text-small-orange' : 'text-white/80'}`}>
-                                             {team.score}
+                                             {scoreText(team.score)}
                                           </span>
                                        </div>
                                     ))}
