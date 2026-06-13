@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, fetchGlobalArchiveItems } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
@@ -168,7 +168,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     let t: ReturnType<typeof setTimeout>;
     const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
-    fetchGlobalArchiveItems().then(items => setRecentAdditions((items || []).filter(a => a.coverImage).slice(0, 12))).catch(() => {});
+    // Real recent uploads platform-wide (sorted newest-first), not the curated
+    // public-domain Global Archive — so the strip shows genuine fresh additions.
+    fetchAllPublicAlbums().then(items => setRecentAdditions((items || []).filter(a => a.coverImage).slice(0, 12))).catch(() => {});
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
 
