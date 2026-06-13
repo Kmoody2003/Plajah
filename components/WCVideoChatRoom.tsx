@@ -12,9 +12,10 @@ import React, { useState, useEffect, useRef, useCallback, Component } from 'reac
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Clock,
-  UserPlus, X, Timer, Sparkles, AlertCircle,
+  UserPlus, X, Timer, Sparkles, AlertCircle, Circle,
 } from 'lucide-react';
 import { db, followUser } from '../services/backendService';
+import { saveSessionRecording } from '../services/liveStreamService';
 import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import type { WC26Team } from '../data/worldCup2026';
@@ -854,6 +855,22 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                   title={camOn ? 'Stop camera' : 'Start camera'}
                 >
                   {camOn ? <Video size={16} className="text-white/65" /> : <VideoOff size={16} className="text-red-400" />}
+                </button>
+
+                {/* Record the room → saves to Reello */}
+                <button
+                  onClick={async () => {
+                    if (rtc.isRecording) {
+                      const blob = await rtc.stopRecording();
+                      if (blob) saveSessionRecording({ blob, title: `${team.name} Video Room — recording` });
+                    } else {
+                      rtc.startRecording();
+                    }
+                  }}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${rtc.isRecording ? 'bg-red-500/25 hover:bg-red-500/35 animate-pulse' : 'bg-white/[0.07] hover:bg-white/[0.12]'}`}
+                  title={rtc.isRecording ? 'Stop & save recording' : 'Record room'}
+                >
+                  <Circle size={15} className={rtc.isRecording ? 'text-red-400' : 'text-white/65'} fill={rtc.isRecording ? 'currentColor' : 'none'} />
                 </button>
 
                 <div className="w-px h-7 bg-white/10" />

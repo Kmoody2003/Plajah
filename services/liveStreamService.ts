@@ -15,7 +15,7 @@
  * live_feeds-WebRTC) that could not see each other.
  */
 
-import { auth, db } from './backendService';
+import { auth, db, uploadVideo } from './backendService';
 import {
   doc, collection, addDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
@@ -61,6 +61,43 @@ export async function publishLiveDiscovery(input: LiveDiscoveryInput): Promise<s
     return ref.id;
   } catch (e) {
     console.warn('[live] discovery publish failed (stream still works):', e);
+    return null;
+  }
+}
+
+export interface SaveRecordingInput {
+  blob: Blob;
+  title: string;
+  description?: string;
+  audioOnly?: boolean;
+  durationSec?: number;
+  isPrivate?: boolean;
+}
+
+/**
+ * The content flywheel: turn a SessionRecorder blob into a published artifact
+ * via the existing uploadVideo pipeline. Video sessions → Reello; audio-only
+ * sessions (talk rooms / Spaces) → a podcast-tagged upload. Returns the created
+ * media's id/url, or null on failure.
+ */
+export async function saveSessionRecording(input: SaveRecordingInput): Promise<{ id?: string; url?: string } | null> {
+  const { blob, title, audioOnly } = input;
+  if (!blob || blob.size < 1000) return null;
+  try {
+    const ext = audioOnly ? 'webm' : 'webm';
+    const file = new File([blob], `${audioOnly ? 'audio' : 'session'}-${Date.now()}.${ext}`, { type: blob.type });
+    const media = await uploadVideo({
+      file,
+      title,
+      description: input.description || `Recorded ${new Date().toLocaleDateString()}`,
+      isLiveRecording: true,
+      isPrivate: input.isPrivate ?? false,
+      duration: input.durationSec,
+      genre: audioOnly ? 'Podcast' : 'Live',
+    } as any);
+    return { id: (media as any)?.id, url: (media as any)?.url };
+  } catch (e) {
+    console.warn('[live] saveSessionRecording failed', e);
     return null;
   }
 }

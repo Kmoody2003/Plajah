@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   RtcSession, RtcSessionConfig, RtcParticipant,
 } from '../services/rtcCore';
+import { SessionRecorder, SessionRecorderOptions } from '../services/sessionRecorder';
 
 export interface UseRtcSession {
   localStream: MediaStream | null;
@@ -28,6 +29,10 @@ export interface UseRtcSession {
   /** Explicit setters (e.g. doc-driven mute in Spaces/talk rooms). */
   setAudio: (on: boolean) => void;
   setVideo: (on: boolean) => void;
+  /** Recording → content flywheel. stopRecording resolves the captured Blob. */
+  isRecording: boolean;
+  startRecording: (opts?: SessionRecorderOptions) => boolean;
+  stopRecording: () => Promise<Blob | null>;
   switchCamera: (facing: 'user' | 'environment') => void;
   toggleScreenShare: () => void;
   leave: () => void;
@@ -45,8 +50,13 @@ export function useRtcSession(
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [sharingScreen, setSharingScreen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const sessionRef = useRef<RtcSession | null>(null);
+  const recorderRef = useRef<SessionRecorder | null>(null);
+  // Latest streams, read by the recorder's provider each frame (so participants
+  // joining/leaving mid-recording are captured automatically).
+  const streamsRef = useRef<MediaStream[]>([]);
   // Stable key so we only rejoin when the actual session identity changes.
   const key = config ? `${config.collectionName || 'rtc_sessions'}/${config.sessionId}/${config.role}/${config.topology}` : null;
 
@@ -105,11 +115,39 @@ export function useRtcSession(
   }, []);
   const setAudio = useCallback((on: boolean) => { sessionRef.current?.setAudioEnabled(on); setAudioEnabled(on); }, []);
   const setVideo = useCallback((on: boolean) => { sessionRef.current?.setVideoEnabled(on); setVideoEnabled(on); }, []);
-  const leave = useCallback(() => { sessionRef.current?.leave(); }, []);
+
+  // Keep the recorder's stream source current.
+  useEffect(() => {
+    streamsRef.current = [localStream, ...remoteStreams.values()].filter(Boolean) as MediaStream[];
+  }, [localStream, remoteStreams]);
+
+  const startRecording = useCallback((opts?: SessionRecorderOptions) => {
+    if (recorderRef.current?.recording) return true;
+    const rec = new SessionRecorder(opts);
+    const ok = rec.start(() => streamsRef.current);
+    if (ok) { recorderRef.current = rec; setIsRecording(true); }
+    return ok;
+  }, []);
+
+  const stopRecording = useCallback(async () => {
+    const rec = recorderRef.current;
+    if (!rec) return null;
+    const blob = await rec.stop();
+    recorderRef.current = null;
+    setIsRecording(false);
+    return blob;
+  }, []);
+
+  const leave = useCallback(() => {
+    recorderRef.current?.stop().catch(() => {});
+    recorderRef.current = null;
+    sessionRef.current?.leave();
+  }, []);
 
   return {
     localStream, remoteStreams, participants, peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
+    isRecording, startRecording, stopRecording,
   };
 }

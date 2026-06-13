@@ -4,9 +4,11 @@ import {
   Settings, UserPlus, LayoutGrid, Monitor, Wifi, WifiOff,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Circle } from 'lucide-react';
 import { ChatRoom } from '../types';
 import { auth } from '../services/backendService';
 import { useRtcSession } from '../hooks/useRtcSession';
+import { saveSessionRecording } from '../services/liveStreamService';
 
 interface VideoChatProps {
   room: ChatRoom;
@@ -57,6 +59,15 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
   const cols = total <= 1 ? 'grid-cols-1' : total <= 2 ? 'grid-cols-2' : total <= 4 ? 'grid-cols-2' : 'grid-cols-3';
 
   const nameFor = (peerId: string) => rtc.participants.find(p => p.id === peerId)?.name || 'Participant';
+
+  const toggleRecord = async () => {
+    if (rtc.isRecording) {
+      const blob = await rtc.stopRecording();
+      if (blob) saveSessionRecording({ blob, title: `${room.name || 'Call'} — recording` });
+    } else {
+      rtc.startRecording();
+    }
+  };
 
   const end = () => { rtc.leave(); onClose(); };
 
@@ -139,6 +150,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
         <button onClick={rtc.toggleScreenShare}
           className={`p-6 rounded-full transition-all hover:scale-110 ${rtc.sharingScreen ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
           <Monitor size={24} />
+        </button>
+        <button onClick={toggleRecord} title={rtc.isRecording ? 'Stop recording' : 'Record'}
+          className={`p-6 rounded-full transition-all hover:scale-110 ${rtc.isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+          <Circle size={24} fill={rtc.isRecording ? 'currentColor' : 'none'} />
         </button>
         <button onClick={end}
           className="p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-[0_0_50px_rgba(220,38,38,0.4)]">

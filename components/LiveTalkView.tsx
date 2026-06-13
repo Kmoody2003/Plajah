@@ -26,6 +26,7 @@ import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, arrayUnion
 import { onSnapshot } from '../services/safeSnapshot';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useRtcSession } from '../hooks/useRtcSession';
+import { saveSessionRecording } from '../services/liveStreamService';
 
 const rtcConfig = {
   iceServers: [
@@ -745,8 +746,30 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
                    >
                       {isUserMuted ? 'Muted' : 'Unmuted'}
                    </button>
-                   
-                   <select 
+
+                   {/* Host: record the room → publishes as a podcast episode */}
+                   {isHost && (
+                     <button
+                       onClick={async () => {
+                         if (rtc.isRecording) {
+                           const blob = await rtc.stopRecording();
+                           if (blob) saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                         } else {
+                           rtc.startRecording({ audioOnly: true });
+                         }
+                       }}
+                       title={rtc.isRecording ? 'Stop & save as podcast' : 'Record room'}
+                       className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${
+                         rtc.isRecording
+                           ? 'bg-red-500/20 border-red-500/30 text-red-500 animate-pulse'
+                           : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                       }`}
+                     >
+                       {rtc.isRecording ? '● Rec' : 'Record'}
+                     </button>
+                   )}
+
+                   <select
                      value={selectedDeviceId} 
                      onChange={e => setSelectedDeviceId(e.target.value)} 
                      className="bg-black/80 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-[#00DAF3]/50 transition-all max-w-[120px]"
@@ -765,6 +788,11 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
                onClick={async () => {
                  if (isHost) {
                    if (window.confirm("End this Live Talk for everyone?")) {
+                     // Auto-save the room as a podcast episode if it was recording.
+                     if (rtc.isRecording) {
+                       const blob = await rtc.stopRecording();
+                       if (blob) saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                     }
                      cleanupAllConnections();
                      await endLiveTalk(activeTalk.id);
                    }
