@@ -1481,6 +1481,28 @@ service cloud.firestore {
         allow update: if isAuthenticated();
         allow delete: if isAuthenticated();
       }
+
+      // Watchers (spectators): signed-in OR guest (anonymous) viewers who follow
+      // the conversation without taking a camera seat. Each manages their own doc.
+      match /watchers/{watcherId} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == watcherId;
+        allow update: if isAuthenticated() && request.auth.uid == watcherId;
+        allow delete: if isAuthenticated() && request.auth.uid == watcherId;
+      }
+
+      // Room chat: everyone in the room reads; only *real* (non-anonymous)
+      // accounts may post — guests are read-only.
+      match /chat/{msgId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 500;
+        allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      }
     }
 
     // ===============================================================

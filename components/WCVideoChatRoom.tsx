@@ -13,10 +13,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Clock,
   UserPlus, X, Timer, Sparkles, AlertCircle, Circle,
+  Eye, MessageCircle, Send, LogIn,
 } from 'lucide-react';
-import { db, followUser } from '../services/backendService';
+import { db, followUser, ensureGuestAuth, auth } from '../services/backendService';
 import { saveSessionRecording } from '../services/liveStreamService';
-import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import type { WC26Team } from '../data/worldCup2026';
 import { useRtcSession } from '../hooks/useRtcSession';
@@ -29,6 +30,11 @@ const COOLDOWN_MS      = 2 * 60 * 60 * 1000;
 // intimate "meet each other for real" circle but every extra person is an extra
 // uplink, so the cap is mesh-safe (was 24 when this was avatar-only presence).
 const MAX_PARTICIPANTS = 8;
+// Watchers are recv-only on the mesh (each publisher uplinks to each watcher),
+// so the watch gallery is mesh-bounded too. This ceiling keeps publishers stable;
+// a true large-scale "watch party" would move watchers onto a broadcast/SFU path.
+const MAX_WATCHERS = 24;
+const CHAT_LIMIT = 60;
 
 /** Renders a remote participant's live MediaStream. */
 const RemoteVideo: React.FC<{ stream: MediaStream }> = ({ stream }) => {
@@ -44,6 +50,23 @@ interface Participant {
   displayName: string;
   photoURL: string | null;
   joinedAt: number;
+}
+
+interface Watcher {
+  uid: string;
+  displayName: string | null;
+  photoURL: string | null;
+  isGuest: boolean;
+  joinedAt: number;
+}
+
+interface ChatMessage {
+  id: string;
+  uid: string;
+  displayName: string;
+  photoURL: string | null;
+  text: string;
+  at: number;
 }
 
 interface RoomState {
@@ -62,7 +85,7 @@ interface WCVideoChatRoomProps {
   onClose: () => void;
 }
 
-type Phase = 'loading' | 'lobby' | 'in-room' | 'cooldown' | 'full' | 'ended';
+type Phase = 'loading' | 'lobby' | 'in-room' | 'watching' | 'cooldown' | 'full' | 'ended';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +168,22 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   const [error, setError]           = useState<string | null>(null);
   const [followedUids, setFollowedUids] = useState<Set<string>>(new Set());
 
+  // ── Watcher (spectator) state ──────────────────────────────────────────────
+  const [watchers, setWatchers]     = useState<Watcher[]>([]);
+  const [chat, setChat]             = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput]   = useState('');
+  const [showChat, setShowChat]     = useState(true);
+  const [watching, setWatching]     = useState(false);     // we are a spectator
+  const [guestId, setGuestId]       = useState<string | null>(null); // anon uid
+  const [enteringWatch, setEnteringWatch] = useState(false);
+  const watchingRef = useRef(false);
+  const chatEndRef  = useRef<HTMLDivElement>(null);
+
+  // A guest (anonymous auth) gets a uid too; effectiveUid is whoever we are.
+  const isGuest        = !uid && !!guestId;
+  const effectiveUid   = uid ?? guestId ?? undefined;
+  const watcherName    = currentUser?.displayName ?? 'Guest';
+
   const localStreamRef  = useRef<MediaStream | null>(null);
   const localVideoRef   = useRef<HTMLVideoElement>(null);
   const sessionEndRef   = useRef<number>(0);
@@ -156,10 +195,16 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   // Active only while in the room. Owns media + signaling; we mirror its local
   // stream into localStreamRef so the existing self-view + mic/cam logic is
   // untouched, and render its remote streams as the gallery tiles.
+  // In-room → publishing 'participant'. Watching → recv-only 'watcher' (no
+  // camera/mic), subscribed to the SAME session so it receives every
+  // participant's stream. Both join with our effective (real or guest) id.
   const rtc = useRtcSession(
-    phase === 'in-room' && uid
-      ? { sessionId: `wcroom_${clubId}`, topology: 'mesh', role: 'participant',
-          media: { audio: true, video: true }, displayName: currentUser?.displayName || 'Fan' }
+    (phase === 'in-room' || phase === 'watching') && effectiveUid
+      ? phase === 'watching'
+        ? { sessionId: `wcroom_${clubId}`, topology: 'mesh', role: 'watcher',
+            selfId: effectiveUid, displayName: watcherName }
+        : { sessionId: `wcroom_${clubId}`, topology: 'mesh', role: 'participant',
+            selfId: effectiveUid, media: { audio: true, video: true }, displayName: currentUser?.displayName || 'Fan' }
       : null,
   );
   useEffect(() => {
@@ -195,7 +240,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
         now < data.cooldownUntil &&
         !data.isActive;
 
-      if (inRoomRef.current) return; // Let in-room logic handle phase changes
+      if (inRoomRef.current || watchingRef.current) return; // in-room / watching own their phase
 
       if (inCooldown) {
         safeSetCooldown(data.cooldownUntil - now);
@@ -222,6 +267,35 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       unsubPresence();
     };
   }, [clubId, uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Watchers + chat subscriptions (live in every phase so the lobby can show
+  //    "N watching" and the room/watch views share one chat) ────────────────────
+  useEffect(() => {
+    const watchCol = collection(db, 'wcVideoRooms', clubId, 'watchers');
+    const unsubWatchers = onSnapshot(watchCol, snap => {
+      if (!mountedRef.current) return;
+      setWatchers(
+        snap.docs
+          .map(d => d.data() as Watcher)
+          .sort((a, b) => a.joinedAt - b.joinedAt),
+      );
+    }, () => {});
+
+    const chatQ = query(collection(db, 'wcVideoRooms', clubId, 'chat'), orderBy('at', 'asc'), limit(CHAT_LIMIT));
+    const unsubChat = onSnapshot(chatQ, snap => {
+      if (!mountedRef.current) return;
+      setChat(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ChatMessage[]);
+    }, () => {});
+
+    return () => { unsubWatchers(); unsubChat(); };
+  }, [clubId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep chat scrolled to the newest message.
+  useEffect(() => {
+    if (phase === 'watching' || phase === 'in-room') {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [chat, phase]);
 
   // ── Countdown ticker ─────────────────────────────────────────────────────────
 
@@ -351,6 +425,90 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
     }
   };
 
+  // ── Watch (spectate) ───────────────────────────────────────────────────────────
+  // Enter recv-only watch mode. Signed-in users keep their identity; guests get
+  // an anonymous Firebase session so WebRTC signaling (rules: auth != null) works.
+  // Watchers DON'T touch participantCount/participantUids — they take no seat.
+
+  const writeWatcherPresence = async (id: string, guest: boolean) => {
+    await setDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', id), {
+      uid: id,
+      displayName: guest ? null : (currentUser?.displayName ?? null),
+      photoURL: guest ? null : (currentUser?.photoURL ?? null),
+      isGuest: guest,
+      joinedAt: Date.now(),
+    });
+  };
+
+  const removeWatcherPresence = async (id: string) => {
+    try { await deleteDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', id)); } catch {}
+  };
+
+  const startWatching = async () => {
+    if (enteringWatch || watchingRef.current) return;
+    setEnteringWatch(true);
+    setError(null);
+    try {
+      let id = uid;
+      if (!id) {
+        const guest = await ensureGuestAuth();
+        if (!guest) {
+          if (mountedRef.current) setError('Could not start a guest session. Please try signing in.');
+          return;
+        }
+        id = guest.uid;
+        if (mountedRef.current) setGuestId(guest.uid);
+      }
+      if (watchers.filter(w => w.uid !== id).length >= MAX_WATCHERS) {
+        if (mountedRef.current) setError('The watch gallery is at capacity right now. Try again shortly.');
+        return;
+      }
+      await writeWatcherPresence(id, !uid);
+      watchingRef.current = true;
+      if (mountedRef.current) { setWatching(true); safeSetPhase('watching'); }
+    } catch (err) {
+      if (mountedRef.current) setError('Could not start watching. Please try again.');
+      console.error('[WCVideoChatRoom] watch error:', err);
+    } finally {
+      if (mountedRef.current) setEnteringWatch(false);
+    }
+  };
+
+  const stopWatching = useCallback(async () => {
+    watchingRef.current = false;
+    setWatching(false);
+    if (effectiveUid) await removeWatcherPresence(effectiveUid);
+    safeSetPhase('lobby');
+  }, [effectiveUid, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Watcher → participant: only real accounts, only when a seat is open & active.
+  const upgradeToParticipant = async () => {
+    if (!currentUser || isGuest) return;
+    watchingRef.current = false;
+    setWatching(false);
+    if (effectiveUid) await removeWatcherPresence(effectiveUid);
+    await joinRoom();
+  };
+
+  // ── Chat (signed-in, non-guest only) ───────────────────────────────────────────
+  const sendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || !uid || isGuest) return;
+    setChatInput('');
+    try {
+      await addDoc(collection(db, 'wcVideoRooms', clubId, 'chat'), {
+        uid,
+        displayName: currentUser?.displayName ?? 'Fan',
+        photoURL: currentUser?.photoURL ?? null,
+        text: text.slice(0, 500),
+        at: Date.now(),
+      });
+    } catch (err) {
+      console.error('[WCVideoChatRoom] chat send failed:', err);
+      if (mountedRef.current) setChatInput(text); // restore on failure
+    }
+  };
+
   // ── Leave ─────────────────────────────────────────────────────────────────────
 
   const leaveRoom = useCallback(async () => {
@@ -420,6 +578,13 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
           if (s.exists() && s.data().isActive) tx.update(roomRef, { participantCount: increment(-1) });
         }).catch(() => {});
       }
+
+      // If watching when unmounted, drop our watcher presence (no seat to free).
+      if (watchingRef.current) {
+        watchingRef.current = false;
+        const wid = auth.currentUser?.uid;
+        if (wid) deleteDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', wid)).catch(() => {});
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -441,8 +606,13 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
         } catch {} // best-effort
       }
     }
+    // Watching takes no seat — just drop our watcher doc.
+    if (watchingRef.current) {
+      watchingRef.current = false;
+      if (effectiveUid) await removeWatcherPresence(effectiveUid);
+    }
     onClose();
-  }, [uid, clubId, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [uid, clubId, onClose, effectiveUid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Controls ──────────────────────────────────────────────────────────────────
 
@@ -468,6 +638,83 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   const totalTiles  = (uid ? 1 : 0) + others.length;
   const gridCols    = totalTiles <= 1 ? 1 : totalTiles <= 4 ? 2 : totalTiles <= 9 ? 3 : 4;
   const firstOther  = others[0];
+
+  // Watcher-derived values
+  const signedInWatchers  = watchers.filter(w => !w.isGuest);
+  const guestWatcherCount = watchers.filter(w => w.isGuest).length;
+  const totalWatching     = watchers.length;
+  const watchCols         = participants.length <= 1 ? 1 : participants.length <= 4 ? 2 : 3;
+  const canChat           = !!uid && !isGuest;
+
+  // ── Live chat panel (shared by the watch view and the in-room view) ───────────
+  const renderChatPanel = (variant: 'watch' | 'room') => (
+    <div className="flex flex-col h-full bg-black/30 border-l border-white/[0.07] min-h-0">
+      {/* Watching summary header */}
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/[0.07] shrink-0">
+        <Eye size={12} style={{ color: primary }} />
+        <p className="text-[10px] font-black text-white/80 leading-none">
+          {totalWatching} watching
+        </p>
+        {guestWatcherCount > 0 && (
+          <span className="text-[8px] text-white/30">· {guestWatcherCount} guest{guestWatcherCount === 1 ? '' : 's'}</span>
+        )}
+        <span className="ml-auto flex items-center gap-1 text-[8px] text-white/30">
+          <MessageCircle size={9} /> Chat
+        </span>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-2 min-h-0">
+        {chat.length === 0 ? (
+          <p className="text-[9px] text-white/20 text-center py-6">No messages yet. Say hello 👋</p>
+        ) : chat.map(m => (
+          <div key={m.id} className="flex items-start gap-2">
+            {m.photoURL
+              ? <img src={m.photoURL} alt="" className="w-5 h-5 rounded-lg object-cover shrink-0 mt-0.5" onError={e => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+              : <div className="w-5 h-5 rounded-lg shrink-0 mt-0.5 flex items-center justify-center text-[8px] font-black" style={{ background: `${primary}28`, color: primary }}>{(m.displayName?.[0] ?? '?').toUpperCase()}</div>}
+            <div className="min-w-0">
+              <p className="text-[9px] font-black leading-tight" style={{ color: m.uid === uid ? primary : 'rgba(255,255,255,0.55)' }}>
+                {m.displayName?.split(' ')[0] ?? 'Fan'}
+              </p>
+              <p className="text-[10px] text-white/80 leading-snug break-words">{m.text}</p>
+            </div>
+          </div>
+        ))}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Composer */}
+      <div className="px-2.5 py-2.5 border-t border-white/[0.07] shrink-0">
+        {canChat ? (
+          <form
+            onSubmit={e => { e.preventDefault(); sendChat(); }}
+            className="flex items-center gap-1.5"
+          >
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              maxLength={500}
+              placeholder="Message the room…"
+              className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white placeholder-white/25 focus:outline-none focus:border-white/25"
+            />
+            <button
+              type="submit"
+              disabled={!chatInput.trim()}
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40 transition-opacity"
+              style={{ background: primary, color: primaryFg }}
+            >
+              <Send size={13} />
+            </button>
+          </form>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+            <LogIn size={11} className="text-white/30" />
+            <p className="text-[9px] text-white/35">{isGuest ? 'Sign in to join the chat' : 'Sign in to chat'}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -584,10 +831,27 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                     {joining ? 'Joining…' : 'Join Video Room'}
                   </motion.button>
                 ) : (
-                  <p className="text-center text-[10px] text-white/30">Sign in to join the video room</p>
+                  <p className="text-center text-[10px] text-white/30">Sign in to join the conversation — or just watch below</p>
                 )}
+
+                {/* Watch live — open to everyone, signed in or guest */}
+                <motion.button
+                  onClick={startWatching}
+                  disabled={enteringWatch}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  className="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.06] border border-white/10 text-white/70 hover:text-white hover:bg-white/[0.1] transition-colors disabled:opacity-50"
+                >
+                  {enteringWatch
+                    ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    : <Eye size={14} />}
+                  {enteringWatch ? 'Joining…' : 'Watch Live'}
+                  {totalWatching > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] tabular-nums">{totalWatching}</span>
+                  )}
+                </motion.button>
+
                 <p className="text-center text-[8px] text-white/20 leading-relaxed">
-                  Sessions last 20 minutes. Camera &amp; microphone required.
+                  Join to go on camera (20-min sessions, mic &amp; camera). Watching is camera-free — {currentUser ? 'chat with the room' : 'sign in to chat'}.
                 </p>
               </div>
             </motion.div>
@@ -607,7 +871,20 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                   You've been added to the waitlist. The current participants will have a 2-hour cooldown before they can rejoin a new session.
                 </p>
               </div>
-              <button onClick={() => setPhase('lobby')} className="text-[10px] text-white/30 hover:text-white/60 transition-colors mt-2">
+
+              {/* Spend the wait as a watcher */}
+              <motion.button
+                onClick={startWatching}
+                disabled={enteringWatch}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                className="px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ background: primary, color: primaryFg }}
+              >
+                <Eye size={14} />
+                {enteringWatch ? 'Joining…' : 'Watch while you wait'}
+              </motion.button>
+
+              <button onClick={() => setPhase('lobby')} className="text-[10px] text-white/30 hover:text-white/60 transition-colors mt-1">
                 Back to lobby
               </button>
             </motion.div>
@@ -727,8 +1004,9 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                 </div>
               </div>
 
-              {/* Gallery grid */}
-              <div className="flex-1 overflow-auto p-2.5">
+              {/* Gallery grid (+ optional chat side panel) */}
+              <div className="flex-1 flex overflow-hidden min-h-0">
+              <div className="flex-1 overflow-auto p-2.5 min-h-0">
                 <div
                   className="grid gap-2 auto-rows-fr"
                   style={{
@@ -839,6 +1117,14 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                 </div>
               </div>
 
+                {/* Chat side panel (desktop, toggled) — talk with watchers */}
+                {showChat && (
+                  <div className="w-[300px] shrink-0 hidden md:block">
+                    {renderChatPanel('room')}
+                  </div>
+                )}
+              </div>
+
               {/* Controls */}
               <div className="flex items-center justify-center gap-4 px-4 py-3.5 border-t border-white/[0.07] bg-black/20 shrink-0">
                 <button
@@ -882,6 +1168,23 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                   </span>
                 </div>
 
+                {/* Watchers badge */}
+                {totalWatching > 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.07]" title={`${signedInWatchers.length} signed in · ${guestWatcherCount} guests`}>
+                    <Eye size={11} style={{ color: primary }} />
+                    <span className="text-[9px] font-black text-white/45 tabular-nums">{totalWatching}</span>
+                  </div>
+                )}
+
+                {/* Chat toggle (desktop) */}
+                <button
+                  onClick={() => setShowChat(v => !v)}
+                  className={`hidden md:flex w-11 h-11 rounded-2xl items-center justify-center transition-all ${showChat ? 'bg-white/[0.14]' : 'bg-white/[0.07] hover:bg-white/[0.12]'}`}
+                  title={showChat ? 'Hide chat' : 'Show chat'}
+                >
+                  <MessageCircle size={15} className={showChat ? 'text-white' : 'text-white/65'} />
+                </button>
+
                 <div className="w-px h-7 bg-white/10" />
 
                 <button
@@ -890,6 +1193,132 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                   title="Leave room"
                 >
                   <PhoneOff size={16} className="text-red-400" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* WATCHING (spectator) */}
+          {phase === 'watching' && (
+            <motion.div key="watching" className="flex-1 flex flex-col overflow-hidden"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+
+              {/* Watch banner */}
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.07] shrink-0"
+                style={{ background: `${primary}08` }}>
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0"
+                  style={{ background: `${primary}20`, color: primary }}>
+                  <Eye size={11} />
+                  <span className="text-[9px] font-black uppercase tracking-wider">Watching</span>
+                </span>
+                <p className="text-[10px] text-white/45 truncate flex-1 min-w-0">
+                  {participants.length > 0
+                    ? `${participants.length} ${participants.length === 1 ? 'person is' : 'people are'} on camera`
+                    : 'Waiting for the conversation to start…'}
+                  {isGuest && <span className="text-white/25"> · guest</span>}
+                </p>
+
+                {/* Mobile Stage/Chat toggle */}
+                <div className="md:hidden flex items-center rounded-lg bg-white/[0.06] p-0.5 shrink-0">
+                  <button onClick={() => setShowChat(false)}
+                    className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-wider ${!showChat ? 'bg-white/15 text-white' : 'text-white/40'}`}>Stage</button>
+                  <button onClick={() => setShowChat(true)}
+                    className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-wider ${showChat ? 'bg-white/15 text-white' : 'text-white/40'}`}>Chat</button>
+                </div>
+              </div>
+
+              {/* Stage + chat */}
+              <div className="flex-1 flex overflow-hidden min-h-0">
+
+                {/* Gallery (read-only) */}
+                <div className={`flex-1 overflow-auto p-2.5 min-h-0 ${showChat ? 'hidden md:block' : 'block'}`}>
+                  {participants.length === 0 ? (
+                    <div className="h-full min-h-[180px] rounded-2xl border border-dashed border-white/8 flex flex-col items-center justify-center gap-2">
+                      <Users size={20} className="text-white/10" />
+                      <p className="text-[9px] text-white/25">No one is on camera yet</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 auto-rows-fr h-full"
+                      style={{ gridTemplateColumns: `repeat(${watchCols}, 1fr)` }}>
+                      {participants.map(p => (
+                        <motion.div
+                          key={p.uid}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                          className="relative rounded-2xl overflow-hidden min-h-[120px] flex items-stretch"
+                          style={{ background: `linear-gradient(135deg, ${primary}10, #111)` }}
+                        >
+                          {rtc.remoteStreams.has(p.uid) ? (
+                            <RemoteVideo stream={rtc.remoteStreams.get(p.uid)!} />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                              {p.photoURL ? (
+                                <img src={p.photoURL} className="w-14 h-14 rounded-2xl object-cover ring-2"
+                                  style={{ '--tw-ring-color': `${primary}40` } as React.CSSProperties}
+                                  alt={p.displayName}
+                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              ) : (
+                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black"
+                                  style={{ background: `${primary}28`, color: primary }}>
+                                  {p.displayName[0]?.toUpperCase() ?? '?'}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-lg px-2 py-1">
+                            <span className="text-[9px] font-black text-white leading-none">{p.displayName.split(' ')[0]}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat / watchers */}
+                <div className={`w-full md:w-[300px] shrink-0 ${showChat ? 'block' : 'hidden md:block'}`}>
+                  {renderChatPanel('watch')}
+                </div>
+              </div>
+
+              {/* Watch controls */}
+              <div className="flex items-center gap-3 px-4 py-3 border-t border-white/[0.07] bg-black/20 shrink-0">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.07] shrink-0">
+                  <Eye size={11} style={{ color: primary }} />
+                  <span className="text-[9px] font-black text-white/55 tabular-nums">{totalWatching}</span>
+                  {guestWatcherCount > 0 && <span className="text-[8px] text-white/25">({guestWatcherCount} guest)</span>}
+                </div>
+
+                {/* Seat-open → join the conversation */}
+                {room?.isActive && participants.length < MAX_PARTICIPANTS && Date.now() < (room?.sessionEnd ?? 0) ? (
+                  canChat ? (
+                    <motion.button
+                      onClick={upgradeToParticipant}
+                      disabled={joining}
+                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                      className="flex-1 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={{ background: primary, color: primaryFg }}
+                    >
+                      <Video size={13} /> Join the conversation
+                    </motion.button>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                      <LogIn size={11} className="text-white/30" />
+                      <span className="text-[9px] text-white/35">Sign in to go on camera</span>
+                    </div>
+                  )
+                ) : (
+                  <p className="flex-1 text-center text-[9px] text-white/25">
+                    {room?.isActive ? 'Room is full — you’ll get a seat when one opens' : 'Waiting for the next session to begin'}
+                  </p>
+                )}
+
+                <button
+                  onClick={stopWatching}
+                  className="px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] transition-colors shrink-0"
+                  title="Stop watching"
+                >
+                  <X size={13} className="text-white/55" />
+                  <span className="text-[9px] font-black text-white/55 uppercase tracking-wider hidden sm:inline">Leave</span>
                 </button>
               </div>
             </motion.div>

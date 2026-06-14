@@ -37,7 +37,7 @@ export type RtcTopology =
   | 'mesh'       // everyone publishes + subscribes (video rooms, group calls)
   | 'broadcast'  // one host publishes, many viewers subscribe (live streaming)
   | 'stage';     // speakers publish, listeners subscribe (Clubhouse / X Spaces)
-export type RtcRole = 'host' | 'viewer' | 'participant';
+export type RtcRole = 'host' | 'viewer' | 'participant' | 'watcher';
 
 export const DEFAULT_ICE: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -169,8 +169,12 @@ export class RtcSession {
   }
 
   /** Does a given role publish media in this topology?
-   *   mesh → everyone; broadcast → only the host; stage → anyone but a viewer. */
+   *   watcher → never (a pure spectator in every topology — no camera, recv-only,
+   *   used by the video-room "watch" mode where signed-in or guest viewers follow
+   *   the conversation without taking a seat);
+   *   mesh → everyone else; broadcast → only the host; stage → anyone but a viewer. */
   private isPublisher(role: RtcRole): boolean {
+    if (role === 'watcher') return false;
     if (this.cfg.topology === 'mesh') return true;
     if (this.cfg.topology === 'broadcast') return role === 'host';
     return role !== 'viewer'; // stage: host/participant = speaker, viewer = listener
