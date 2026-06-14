@@ -470,11 +470,14 @@ export const FanClubDetail: React.FC<{
   const secondary  = team.secondaryColor;
   const primaryFg  = contrastText(primary);
 
-  // Video room needs a user object with uid
-  const videoRoomUser = uid && currentUser ? {
+  // Video room needs a user object with a uid. Derive it from auth (always
+  // present when signed in) rather than the passed `currentUser` prop — that
+  // prop is null in some surfaces (e.g. the World Cup section on the sports
+  // page), which previously left the Video Room button dead there.
+  const videoRoomUser = uid ? {
     uid,
-    displayName: (currentUser as any).displayName ?? null,
-    photoURL: (currentUser as any).photoURL ?? null,
+    displayName: auth.currentUser?.displayName ?? (currentUser as any)?.displayName ?? null,
+    photoURL: auth.currentUser?.photoURL ?? (currentUser as any)?.photoURL ?? null,
   } : null;
 
   return (
