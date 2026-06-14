@@ -791,6 +791,39 @@ async function fetchFifaWorldCupScores(): Promise<any[]> {
   return fetchSoccerScoresFromTSDB('FIFA');
 }
 
+/** World Cup events across a window (recent results + live + upcoming) in one
+ *  call, via ESPN's date-range scoreboard. Falls back to today's board. */
+export async function fetchWorldCupWindow(daysBack = 3, daysFwd = 4): Promise<any[]> {
+  const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const start = new Date(); start.setDate(start.getDate() - daysBack);
+  const end = new Date(); end.setDate(end.getDate() + daysFwd);
+  const range = `${fmt(start)}-${fmt(end)}`;
+  const key = `espn:fifa.world:window:${range}`;
+  const c = fromCache(key, TTL.scores);
+  if (c !== null) return c;
+  const data = await safeFetch(`${ESPN}/soccer/fifa.world/scoreboard?dates=${range}`);
+  const events: any[] = data?.events ?? [];
+  if (events.length) { toCache(key, events); return events; }
+  // Fallback to today's board if the ranged call comes back empty.
+  return fetchFifaWorldCupScores();
+}
+
+/** Play-by-play / commentary for one soccer match (ESPN summary). Newest first. */
+export async function fetchSoccerSummary(eventId: string, league = 'fifa.world'): Promise<{ time: string; text: string }[]> {
+  if (!eventId) return [];
+  const key = `espn:soccer:summary:${eventId}`;
+  const c = fromCache(key, TTL.scores);
+  if (c !== null) return c;
+  const data = await safeFetch(`${ESPN_WEB}/site/v2/sports/soccer/${league}/summary?event=${eventId}`);
+  const commentary: any[] = data?.commentary ?? [];
+  const plays = commentary
+    .map((p: any) => ({ time: p?.time?.displayValue || p?.clock?.displayValue || '', text: p?.text || '' }))
+    .filter((p: any) => p.text)
+    .reverse(); // newest first
+  toCache(key, plays);
+  return plays;
+}
+
 async function fetchSoccerScoresFromTSDB(tab: string): Promise<any[]> {
   const cfg = TSDB_SOCCER[tab];
   if (!cfg) return [];
