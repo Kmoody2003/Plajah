@@ -1134,7 +1134,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             title={t.title}
                             artist={t.artist || album.artist}
                             text={`🎵 ${t.title} — ${t.artist || album.artist} on Plajah`}
-                            url={`${window.location.origin}/?type=album&id=${album.id}&track=${t.id}`}
+                            url={`${window.location.origin}/share?type=album&id=${album.id}&track=${t.id}`}
                             imageUrl={album.coverImage}
                             plajahLabel="Share to Plajah feed"
                             onPostToPlajah={async () => {
@@ -2258,7 +2258,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        title={currentTrack?.title || album.title}
                        artist={album.artist}
                        text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
-                       url={`${window.location.origin}/?type=album&id=${album.id}${currentTrack?.id ? `&track=${currentTrack.id}` : ''}`}
+                       url={`${window.location.origin}/share?type=album&id=${album.id}${currentTrack?.id ? `&track=${currentTrack.id}` : ''}`}
                        imageUrl={album.coverImage}
                        plajahLabel="Share to Plajah feed"
                        onPostToPlajah={async () => {

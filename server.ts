@@ -3100,6 +3100,30 @@ async function startServer() {
     `);
   });
 
+  // Share landing — serves the SPA shell with OG/twitter:player meta injected so
+  // a shared track link renders an inline player card on social. Crawlers read
+  // the meta; humans are bounced to the canonical app URL so the full app loads.
+  app.get('/share', async (req, res) => {
+    const host = req.get('host') || 'plajah.com';
+    let html = '';
+    try { html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); }
+    catch {
+      try { html = await fs.readFile(path.join(__dirname, 'index.html'), 'utf-8'); }
+      catch { html = '<!DOCTYPE html><html><head></head><body></body></html>'; }
+    }
+    try { html = await injectMetaTags(html, req.query, host); } catch {}
+
+    const { type, id, track } = req.query as any;
+    if (type && id) {
+      const canonical = `/?type=${encodeURIComponent(String(type))}&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`;
+      // Bounce real browsers to the canonical app URL; crawlers (no JS) keep the meta.
+      const redirect = `<script>try{if(!/(bot|crawl|spider|facebookexternalhit|twitterbot|slackbot|discordbot|whatsapp|telegrambot|embedly|linkedinbot|pinterest|redditbot|googlebot|bingbot|applebot|skypeuripreview|vkshare|w3c_validator)/i.test(navigator.userAgent)){location.replace(${JSON.stringify(canonical)});}}catch(e){}</script>`;
+      html = html.replace('</head>', `${redirect}\n</head>`);
+    }
+    res.set('Cache-Control', 'public, max-age=300');
+    res.send(html);
+  });
+
   // --- Vite Middleware ---
 
   if (process.env.NODE_ENV !== 'production') {
