@@ -19,10 +19,14 @@ export default defineConfig(({ mode }) => {
         react(), 
         tailwindcss(),
         VitePWA({
-          // autoUpdate so a new deploy applies on the next load instead of
-          // sitting in a "waiting" service worker until the user accepts a
-          // prompt (which made fresh deploys look like they never shipped).
-          registerType: 'autoUpdate',
+          // 'prompt' (NOT autoUpdate). autoUpdate force-reloads the whole page the
+          // instant any new deploy lands — interrupting video/audio/games/uploads
+          // mid-session, which reads as the platform "randomly reloading". It also
+          // bypassed the careful update logic in index.tsx. In 'prompt' mode the new
+          // version is fetched and WAITS; index.tsx applies it only on a clean load
+          // (page <6s old + nothing playing) or the next time the app is opened
+          // fresh — so updates are invisible and never reload an active session.
+          registerType: 'prompt',
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
             name: "Plajah",
