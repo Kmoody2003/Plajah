@@ -479,9 +479,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   // ── Step content renderers ───────────────────────────────────────────────────
   const renderStep0 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">What are you creating?</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">What are you creating?</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Choose a category to begin your workflow</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
@@ -490,7 +490,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             key={id}
             type="button"
             onClick={() => { setType(id); setSubType(undefined); setStep(hasSubtype(id) ? 1 : 2); }}
-            className={`flex flex-col items-start gap-5 p-8 rounded-[2.5rem] border transition-all text-left hover:scale-[1.02] active:scale-95 ${
+            className={`flex flex-col items-start gap-5 p-8 rounded-2xl border transition-all text-left hover:scale-[1.02] active:scale-95 ${
               type === id ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
             }`}
           >
@@ -506,9 +506,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep1 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">
           {type === 'MUSIC' ? 'What kind of music release?' : 'What kind of video?'}
         </h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Pick the format that fits your project</p>
@@ -519,7 +519,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             key={st}
             type="button"
             onClick={() => setSubType(subType === st ? undefined : st as any)}
-            className={`flex flex-col gap-4 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.02] active:scale-95 ${
+            className={`flex flex-col gap-4 p-8 rounded-2xl border text-left transition-all hover:scale-[1.02] active:scale-95 ${
               subType === st ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'
             }`}
           >
@@ -540,9 +540,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep2 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Upload Your Content</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Upload Your Content</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">
           {type === 'MUSIC' ? 'Add your audio tracks' :
            type === 'VIDEO' ? 'Upload your video content' :
@@ -554,7 +554,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       {/* Movie Upload */}
       {type === 'VIDEO' && subType === 'MOVIE' && (
-        <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-8">
+        <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-8">
           <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
             <Film className="text-small-orange" size={20} /> Movie File & Metadata
           </h3>
@@ -607,7 +607,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       {/* TV Series Upload */}
       {type === 'VIDEO' && subType === 'TV_SERIES' && (
-        <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-8">
+        <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3"><Tv className="text-small-orange" size={20} /> Seasons & Episodes</h3>
             <button type="button" onClick={() => setSeasons([...seasons, { id: Math.random().toString(36).substring(7), number: seasons.length + 1, episodes: [] }])} className="px-6 py-3 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Add Season</button>
@@ -651,7 +651,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {type === 'GAME' && (
         <div className="space-y-8">
           {/* Game URL */}
-          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
             <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
               <Globe size={20} className="text-small-orange" /> Game Link
             </h3>
@@ -669,7 +669,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
 
           {/* Game Video / Trailer */}
-          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
             <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
               <VideoIcon size={20} className="text-small-orange" /> Gameplay Video / Trailer
             </h3>
@@ -699,7 +699,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
 
           {/* Screenshots */}
-          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
                 <ImageIcon size={20} className="text-small-orange" /> Screenshots
@@ -736,7 +736,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
 
           {/* Feature Flags */}
-          <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
             <h3 className="text-base font-black uppercase tracking-widest flex items-center gap-3">
               <Settings size={20} className="text-small-orange" /> Game Features
             </h3>
@@ -769,8 +769,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <div className="space-y-4">
           <div className="relative group">
             <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-            <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-[3rem] flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
-              <div className="p-6 rounded-[1.5rem] bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
+            <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
+              <div className="p-6 rounded-2xl bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
                 <p className="text-lg font-black uppercase tracking-widest text-white/60 mb-2">
                   {type === 'BOOK' ? 'Upload Book Files' : type === 'PHOTO' ? 'Upload Photos' : type === 'VIDEO' ? 'Upload Video' : 'Upload Audio Tracks'}
@@ -797,7 +797,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       {/* Book chapters list */}
       {type === 'BOOK' && isPaywalled && (
-        <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+        <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
           <h4 className="text-xs font-black uppercase tracking-widest">Preview Configuration</h4>
           <div className="flex gap-4">
             <button type="button" onClick={() => setBookPreviewConfig({ ...bookPreviewConfig, type: 'PAGES' })} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${bookPreviewConfig.type === 'PAGES' ? 'bg-small-orange text-white border-small-orange' : 'bg-white/5 border-white/10 text-white/40'}`}>By Page Range</button>
@@ -839,7 +839,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {type === 'BOOK' && bookChapters.length > 0 && (
         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
           {bookChapters.map((chapter, i) => (
-            <div key={chapter.id} className="flex flex-col gap-5 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
+            <div key={chapter.id} className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 overflow-hidden flex-1">
                   <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
@@ -882,7 +882,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {type !== 'BOOK' && tracks.length > 0 && (
         <div className="space-y-5 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
           {tracks.map((track, i) => (
-            <div key={track.id} className="flex flex-col gap-5 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
+            <div key={track.id} className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5 flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
@@ -925,7 +925,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   </div>
                   <div className="space-y-3">
                     <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Artist Notes (one per line)</label>
-                    <textarea value={track.artistNotes?.join('\n') || ''} onChange={(e) => updateTrack(track.id, { artistNotes: e.target.value.split('\n').filter(n => n.trim() !== '') })} placeholder="Notes for your fans..." className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white text-xs font-medium focus:outline-none h-20 resize-none" />
+                    <textarea value={track.artistNotes?.join('\n') || ''} onChange={(e) => updateTrack(track.id, { artistNotes: e.target.value.split('\n').filter(n => n.trim() !== '') })} placeholder="Notes for your fans..." className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-medium focus:outline-none h-20 resize-none" />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Synced Lyrics (MM:SS text format)</label>
@@ -940,7 +940,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       {/* Track Order Arrangement */}
       {type !== 'BOOK' && tracks.length > 1 && (
-        <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+        <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
               <GripVertical size={20} className="text-small-orange" />
@@ -1011,23 +1011,28 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       )}
 
-      {/* Music Videos section */}
+      {/* Music Videos & BTS section */}
       {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && (
-        <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><VideoIcon size={20} className="text-blue-500" /></div>
-            <h4 className="text-xs font-black uppercase tracking-widest">Visual Media & Music Videos</h4>
+        <div className="p-5 sm:p-6 bg-white/[0.03] border border-white/10 rounded-3xl space-y-5">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0"><VideoIcon size={20} className="text-blue-500" /></div>
+            <div className="min-w-0">
+              <h4 className="text-xs font-black uppercase tracking-widest">Music Videos &amp; BTS Clips</h4>
+              <p className="text-[9px] font-bold text-white/40 tracking-wide mt-1 leading-relaxed normal-case">
+                Upload music videos <span className="text-white/60">and</span> behind-the-scenes clips for this album — the official visual, studio sessions, lyric videos, anything.{type === 'MUSIC' ? ' They can also post to Reello for more reach (toggle in the final step).' : ''}
+              </p>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-3">
               <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Video Title</label>
-              <input type="text" value={newVideoTitle} onChange={(e) => setNewVideoTitle(e.target.value)} placeholder="Cinematic Visual" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+              <input type="text" value={newVideoTitle} onChange={(e) => setNewVideoTitle(e.target.value)} placeholder="Cinematic Visual" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
             </div>
             <div className="space-y-3">
               <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Video Source</label>
               <div className="flex gap-3">
-                <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} placeholder="YouTube/Vimeo URL" className="flex-1 bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white font-bold focus:outline-none transition-all placeholder:text-white/10" />
-                <label className="p-4 bg-white/5 rounded-[1.5rem] cursor-pointer hover:bg-white/10 transition-all flex items-center justify-center">
+                <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} placeholder="YouTube/Vimeo URL" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none transition-all placeholder:text-white/10" />
+                <label className="p-4 bg-white/5 rounded-2xl cursor-pointer hover:bg-white/10 transition-all flex items-center justify-center">
                   <Upload size={20} className="text-white/40" />
                   <input type="file" className="hidden" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNewVideoFile(f); setNewVideoUrl(f.name); } }} />
                 </label>
@@ -1035,17 +1040,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center gap-4">
-            <label className="flex-1 w-full flex items-center gap-4 p-4 bg-white/5 border border-dashed border-white/10 rounded-[1.5rem] cursor-pointer hover:bg-white/10 transition-all">
+            <label className="flex-1 w-full flex items-center gap-4 p-4 bg-white/5 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all">
               <ImageIcon size={18} className="text-white/40 shrink-0" />
               <span className="text-[10px] font-black text-white/30 uppercase tracking-widest truncate">{newVideoThumb ? newVideoThumb.name : 'Thumbnail (Optional)'}</span>
               <input type="file" className="hidden" accept="image/*" onChange={(e) => setNewVideoThumb(e.target.files?.[0])} />
             </label>
-            <label className="flex-1 w-full flex items-center gap-4 p-4 bg-white/5 border border-dashed border-white/10 rounded-[1.5rem] cursor-pointer hover:bg-white/10 transition-all">
+            <label className="flex-1 w-full flex items-center gap-4 p-4 bg-white/5 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all">
               <ImageIcon size={18} className="text-white/40 shrink-0" />
               <span className="text-[10px] font-black text-white/30 uppercase tracking-widest truncate">{newVideoCover ? newVideoCover.name : 'Cover (Optional)'}</span>
               <input type="file" className="hidden" accept="image/*" onChange={(e) => setNewVideoCover(e.target.files?.[0])} />
             </label>
-            <button type="button" disabled={!newVideoFile || isCapturing} onClick={async () => { if (!newVideoFile) return; setIsCapturing(true); try { const blob = await captureVideoFrame(newVideoFile); const f = new File([blob], 'thumb.jpg', { type: 'image/jpeg' }); setNewVideoThumb(f); setNewVideoCover(f); } catch {} finally { setIsCapturing(false); } }} className="p-4 bg-white/5 rounded-[1.5rem] text-white/40 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30" title="Auto-capture from video"><Camera size={20} /></button>
+            <button type="button" disabled={!newVideoFile || isCapturing} onClick={async () => { if (!newVideoFile) return; setIsCapturing(true); try { const blob = await captureVideoFrame(newVideoFile); const f = new File([blob], 'thumb.jpg', { type: 'image/jpeg' }); setNewVideoThumb(f); setNewVideoCover(f); } catch {} finally { setIsCapturing(false); } }} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30" title="Auto-capture from video"><Camera size={20} /></button>
             <button type="button" onClick={async () => {
               if (!newVideoTitle || (!newVideoUrl && !newVideoFile)) return;
               let finalThumb = newVideoThumb, finalCover = newVideoCover;
@@ -1053,7 +1058,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               if (!finalCover && newVideoFile) { try { const blob = await captureVideoFrame(newVideoFile); finalCover = new File([blob], 'cover.jpg', { type: 'image/jpeg' }); } catch {} }
               setMusicVideos([...musicVideos, { id: Math.random().toString(36).substr(2, 9), ownerId: auth.currentUser?.uid || 'anonymous', title: newVideoTitle, url: newVideoUrl, file: newVideoFile, thumbnailFile: finalThumb, thumbnailUrl: finalThumb ? URL.createObjectURL(finalThumb) : undefined, coverImageFile: finalCover, coverImageUrl: finalCover ? URL.createObjectURL(finalCover) : undefined, timestamp: Date.now() }]);
               setNewVideoTitle(''); setNewVideoUrl(''); setNewVideoFile(undefined); setNewVideoThumb(undefined); setNewVideoCover(undefined);
-            }} className="px-8 py-4 bg-white text-black rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-2xl active:scale-95 whitespace-nowrap">Add Video</button>
+            }} className="px-8 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-2xl active:scale-95 whitespace-nowrap">Add Video</button>
           </div>
           {musicVideos.length > 0 && (
             <div className="space-y-3 mt-2">
@@ -1080,8 +1085,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Video Playlists</span>
             </div>
             <div className="flex gap-3">
-              <input type="text" value={newPlaylistTitle} onChange={(e) => setNewPlaylistTitle(e.target.value)} placeholder="Playlist Name (e.g. Live Sessions)" className="flex-1 bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
-              <button type="button" onClick={() => { if (newPlaylistTitle) { setVideoPlaylists([...videoPlaylists, { id: Math.random().toString(36).substr(2, 9), ownerId: auth.currentUser?.uid || 'anonymous', title: newPlaylistTitle, videoIds: [], isPublic: true, timestamp: Date.now() }]); setNewPlaylistTitle(''); } }} className="px-6 py-4 bg-white/10 rounded-[1.5rem] text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Create</button>
+              <input type="text" value={newPlaylistTitle} onChange={(e) => setNewPlaylistTitle(e.target.value)} placeholder="Playlist Name (e.g. Live Sessions)" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+              <button type="button" onClick={() => { if (newPlaylistTitle) { setVideoPlaylists([...videoPlaylists, { id: Math.random().toString(36).substr(2, 9), ownerId: auth.currentUser?.uid || 'anonymous', title: newPlaylistTitle, videoIds: [], isPublic: true, timestamp: Date.now() }]); setNewPlaylistTitle(''); } }} className="px-6 py-4 bg-white/10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Create</button>
             </div>
             {videoPlaylists.map((playlist) => (
               <div key={playlist.id} className="p-6 bg-white/[0.04] border border-white/5 rounded-[2rem] space-y-4">
@@ -1103,16 +1108,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep3 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Connect to a World</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Connect to a World</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Link this project to a world or universe — all optional</p>
       </div>
 
       {/* World assignment */}
       <div className="grid grid-cols-1 gap-4">
         <button type="button" onClick={() => { setWorldAssignment('STANDALONE'); setWorldId(undefined); }}
-          className={`flex items-start gap-6 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'STANDALONE' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          className={`flex items-start gap-6 p-8 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'STANDALONE' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
           <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'STANDALONE' ? 'bg-black/10' : 'bg-white/5'}`}><Globe size={26} /></div>
           <div>
             <p className="text-sm font-black uppercase tracking-widest mb-1">Standalone</p>
@@ -1122,7 +1127,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </button>
 
         <button type="button" onClick={() => setWorldAssignment('NEW')}
-          className={`flex flex-col gap-5 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'NEW' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          className={`flex flex-col gap-4 p-5 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'NEW' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
           <div className="flex items-start gap-6 w-full">
             <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'NEW' ? 'bg-black/10' : 'bg-white/5'}`}><Plus size={26} /></div>
             <div className="flex-1">
@@ -1139,7 +1144,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </button>
 
         <button type="button" onClick={() => setWorldAssignment('EXISTING')}
-          className={`flex flex-col gap-5 p-8 rounded-[2.5rem] border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'EXISTING' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+          className={`flex flex-col gap-4 p-5 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-95 ${worldAssignment === 'EXISTING' ? 'bg-white text-black border-white shadow-2xl' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
           <div className="flex items-start gap-6 w-full">
             <div className={`p-4 rounded-2xl shrink-0 ${worldAssignment === 'EXISTING' ? 'bg-black/10' : 'bg-white/5'}`}><Layers size={26} /></div>
             <div className="flex-1">
@@ -1167,7 +1172,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       </div>
 
       {/* Characters */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
         <div>
           <h3 className="text-base font-black uppercase tracking-widest">Characters</h3>
           <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Define characters that appear in this project — they'll be added to the world</p>
@@ -1202,14 +1207,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep4 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Cast & Production</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Cast & Production</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Add actors, link them to characters, and credit production talent</p>
       </div>
 
       {/* Cast */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><User size={18} className="text-blue-400" /></div>
           <div>
@@ -1254,7 +1259,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       </div>
 
       {/* Production Credits */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center"><Settings size={18} className="text-purple-400" /></div>
           <div>
@@ -1296,9 +1301,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep5 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Project Details</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Project Details</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Name your project and tell your story</p>
       </div>
 
@@ -1307,20 +1312,20 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-70">
             <Pencil size={10} /> {type === 'BOOK' ? 'Book Title' : type === 'PHOTO' ? 'Collection Name' : type === 'GAME' ? 'Game Title' : 'Project Title'} <span className="text-white/25">— tap to edit</span>
           </label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project Name" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" required />
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project Name" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" required />
         </div>
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">
             {type === 'BOOK' ? 'Author Name' : type === 'GAME' ? 'Developer / Studio' : 'Creator Identity'}
           </label>
-          <input type="text" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Creator Name" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+          <input type="text" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Creator Name" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Primary Genre</label>
-          <select value={genre} onChange={(e) => setGenre(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all appearance-none">
+          <select value={genre} onChange={(e) => setGenre(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all appearance-none">
             <option value="" className="bg-[#0a0a0a]">Select Genre</option>
             {genreOptions[type].map(g => <option key={g} value={g} className="bg-[#0a0a0a]">{g}</option>)}
             <option value="Other" className="bg-[#0a0a0a]">Other</option>
@@ -1329,8 +1334,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Project Tags</label>
           <div className="flex gap-3">
-            <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), tagInput.trim() && (setTags([...tags, tagInput.trim()]), setTagInput('')))} placeholder="Add a tag..." className="flex-1 bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
-            <button type="button" onClick={() => { if (tagInput.trim()) { setTags([...tags, tagInput.trim()]); setTagInput(''); } }} className="px-6 py-4 bg-white/5 rounded-[1.5rem] text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Add</button>
+            <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), tagInput.trim() && (setTags([...tags, tagInput.trim()]), setTagInput('')))} placeholder="Add a tag..." className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+            <button type="button" onClick={() => { if (tagInput.trim()) { setTags([...tags, tagInput.trim()]); setTagInput(''); } }} className="px-6 py-4 bg-white/5 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Add</button>
           </div>
           <div className="flex flex-wrap gap-2">
             {tags.map(tag => (
@@ -1349,7 +1354,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </label>
           <button type="button" onClick={handleGenerateAI} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-small-orange"><Sparkles size={12} /> Generate AI Notes</button>
         </div>
-        <textarea value={artistBio} onChange={(e) => setArtistBio(e.target.value)} placeholder="The story behind this project..." className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-32 resize-none placeholder:text-white/10" />
+        <textarea value={artistBio} onChange={(e) => setArtistBio(e.target.value)} placeholder="The story behind this project..." className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-32 resize-none placeholder:text-white/10" />
       </div>
 
       <div className="space-y-3">
@@ -1359,7 +1364,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </label>
           <button type="button" onClick={async () => { const trackNames = type === 'BOOK' ? bookChapters.map(c => c.title) : tracks.map(t => t.title); const notes = await (await import('../services/geminiService')).generateLinerNotes(title, artist, trackNames); setLinerNotes(notes); }} className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-small-orange hover:scale-105 transition-all"><Sparkles size={10} /> Generate AI Liner Notes</button>
         </div>
-        <textarea value={linerNotes} onChange={(e) => setLinerNotes(e.target.value)} placeholder="Deep technical details, recording credits, or full project notes..." className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-32 resize-none placeholder:text-white/10" />
+        <textarea value={linerNotes} onChange={(e) => setLinerNotes(e.target.value)} placeholder="Deep technical details, recording credits, or full project notes..." className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-32 resize-none placeholder:text-white/10" />
       </div>
 
       {type !== 'BOOK' && type !== 'PHOTO' && (
@@ -1372,7 +1377,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             value={trackListLabel}
             onChange={(e) => setTrackListLabel(e.target.value)}
             placeholder={type === 'MUSIC' ? 'e.g. Songs, Tracks, Episodes...' : 'e.g. Chapters, Scenes, Levels...'}
-            className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10"
+            className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10"
           />
         </div>
       )}
@@ -1396,14 +1401,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   );
 
   const renderStep6 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Settings & Publishing</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Settings & Publishing</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Configure pricing, visibility, and distribution</p>
       </div>
 
       {/* Project Gallery / Slideshow */}
-      <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-6">
+      <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-black uppercase tracking-widest">Project Gallery</h3>
@@ -1416,7 +1421,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {slideshow.map((url, i) => (
-            <div key={i} className="group relative aspect-square rounded-[1.5rem] overflow-hidden border border-white/10 bg-white/5">
+            <div key={i} className="group relative aspect-square rounded-2xl overflow-hidden border border-white/10 bg-white/5">
               <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                 <button type="button" onClick={() => { setSlideshow(slideshow.filter((_, idx) => idx !== i)); setSlideshowFiles(slideshowFiles.filter((_, idx) => idx !== i)); }} className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all"><Trash2 size={16} /></button>
@@ -1443,29 +1448,29 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Full Project Price ($)</label>
           <div className="flex items-center gap-3">
-            <input type="number" step="0.01" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} placeholder="0.00" className="flex-1 bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
-            <button type="button" onClick={() => setIsPaywalled(!isPaywalled)} className={`px-6 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border transition-all ${isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{isPaywalled ? 'Paywalled' : 'Free'}</button>
+            <input type="number" step="0.01" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} placeholder="0.00" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+            <button type="button" onClick={() => setIsPaywalled(!isPaywalled)} className={`px-6 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all ${isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{isPaywalled ? 'Paywalled' : 'Free'}</button>
           </div>
         </div>
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Gifts & Tips Goal ($)</label>
-          <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(parseFloat(e.target.value))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+          <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(parseFloat(e.target.value))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
         </div>
       </div>
 
       <div className="space-y-3">
         <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Gallery Experience URL (Optional)</label>
-        <input type="url" value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)} placeholder="https://your-custom-gallery.com" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+        <input type="url" value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)} placeholder="https://your-custom-gallery.com" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
       </div>
 
       <div className="space-y-3">
         <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Live Video Feed URL</label>
-        <input type="url" value={liveFeedUrl} onChange={(e) => setLiveFeedUrl(e.target.value)} placeholder="YouTube Live / Twitch Embed URL" className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-8 py-5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+        <input type="url" value={liveFeedUrl} onChange={(e) => setLiveFeedUrl(e.target.value)} placeholder="YouTube Live / Twitch Embed URL" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
       </div>
 
       {/* Toggles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] space-y-4">
+        <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><Globe size={18} className="text-blue-400" /></div>
@@ -1481,7 +1486,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
 
         {type === 'MUSIC' && (
-          <div className="p-6 rounded-[2.5rem] space-y-3"
+          <div className="p-6 rounded-2xl space-y-3"
             style={{ background: publishToAudius ? 'rgba(126,34,206,0.12)' : 'rgba(255,255,255,0.03)', border: publishToAudius ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0">
@@ -1545,7 +1550,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         )}
 
         {(type === 'VIDEO' || (type === 'MUSIC' && musicVideos.length > 0)) && (
-          <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem]">
+          <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shrink-0"><VideoIcon size={18} className="text-small-orange" /></div>
@@ -1574,7 +1579,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
         )}
 
-        <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] space-y-4">
+        <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20"><Settings size={18} className="text-purple-400" /></div>
@@ -1590,14 +1595,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           {isScheduled && (
             <div className="space-y-2">
               <label className="block text-[9px] font-black uppercase tracking-widest text-white/20">Release Date & Time</label>
-              <input type="datetime-local" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-[1.5rem] px-6 py-4 text-white text-xs font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all" />
+              <input type="datetime-local" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all" />
             </div>
           )}
         </div>
       </div>
 
       {/* Early Access & Review Codes */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-4">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-4">
         <div className="flex items-center gap-4 mb-2">
           <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
             <Lock size={18} className="text-amber-400" />
@@ -1628,7 +1633,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       </div>
 
       {/* Related Projects */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[3rem] space-y-6">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><Layers size={18} className="text-blue-400" /></div>
           <div>
@@ -1681,14 +1686,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const renderStep7 = () => (
-    <div className="space-y-10 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h2 className="text-4xl font-display font-black tracking-tight uppercase mb-2">Track Management</h2>
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight uppercase mb-2">Track Management</h2>
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Arrange, rename, and configure Hide &amp; Seek for each track</p>
       </div>
 
       {/* HnS Master Controls */}
-      <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[2.5rem] space-y-6">
+      <div className="p-5 bg-white/[0.03] border border-white/10 rounded-2xl space-y-6">
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${hnsEnabled ? 'bg-small-orange/20 border-small-orange/40' : 'bg-white/5 border-white/10'}`}>
             <Eye size={22} className={hnsEnabled ? 'text-small-orange' : 'text-white/20'} />
@@ -1819,7 +1824,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       {/* Track List — rename, reorder, HnS slots */}
       {tracks.length === 0 ? (
-        <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[2.5rem] opacity-30">
+        <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-30">
           <p className="text-[10px] font-black uppercase tracking-[0.3em]">No tracks yet — add them in the Content step</p>
         </div>
       ) : (
@@ -1983,7 +1988,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       )}
 
-      <div className="max-w-6xl w-full bg-[#0a0a0a] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col lg:flex-row shadow-3xl h-full lg:h-[90vh] max-h-[1000px] animate-in zoom-in-95 duration-300">
+      <div
+        className="max-w-7xl w-full border border-white/10 rounded-3xl sm:rounded-[2rem] overflow-hidden flex flex-col lg:flex-row shadow-3xl h-full lg:h-[88vh] max-h-[1000px] animate-in zoom-in-95 duration-300"
+        style={{ background: 'radial-gradient(ellipse 80% 55% at 8% -8%, rgba(107,0,153,0.22) 0%, transparent 56%), radial-gradient(ellipse 62% 50% at 94% 108%, rgba(212,0,85,0.16) 0%, transparent 55%), radial-gradient(ellipse 55% 42% at 62% 45%, rgba(255,140,0,0.09) 0%, transparent 62%), #09090d' }}
+      >
 
         {/* Deploy Overlay */}
         {isDeploying && (
@@ -2019,17 +2027,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         )}
 
         {/* Left Panel — Cover Art */}
-        <div className="lg:w-[35%] p-8 bg-white/[0.03] flex flex-col items-center justify-center text-center border-b lg:border-b-0 lg:border-r border-white/5 relative shrink-0">
+        <div className="lg:w-[32%] p-5 sm:p-7 lg:p-5 bg-white/[0.04] backdrop-blur-2xl flex flex-col items-center justify-center text-center border-b lg:border-b-0 lg:border-r border-white/10 relative shrink-0">
           <div className="absolute top-8 left-8 flex items-center gap-2">
-            <button type="button" onClick={onCancel} className="p-4 bg-white/5 rounded-[1.5rem] text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><X size={24} /></button>
-            {onMinimize && <button type="button" onClick={onMinimize} className="p-4 bg-white/5 rounded-[1.5rem] text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><Minimize2 size={24} /></button>}
+            <button type="button" onClick={onCancel} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><X size={24} /></button>
+            {onMinimize && <button type="button" onClick={onMinimize} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><Minimize2 size={24} /></button>}
           </div>
 
           <div className="relative group mb-8">
-            <div className="w-56 h-56 lg:w-72 lg:h-72 rounded-[3rem] overflow-hidden shadow-3xl ring-2 ring-white/10 transition-transform group-hover:scale-105 duration-500">
+            <div className="w-36 h-36 sm:w-44 sm:h-44 lg:w-56 lg:h-56 rounded-3xl overflow-hidden shadow-3xl ring-2 ring-white/10 transition-transform group-hover:scale-105 duration-500">
               <img src={coverImage || undefined} alt="Cover" className="w-full h-full object-cover" />
             </div>
-            <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer rounded-[3rem] backdrop-blur-md">
+            <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer rounded-3xl backdrop-blur-md">
               <div className="flex flex-col items-center gap-3">
                 <div className="p-4 bg-white text-black rounded-2xl shadow-2xl"><ImageIcon size={32} /></div>
                 <span className="text-[10px] font-black uppercase tracking-widest">Update Artwork</span>
@@ -2101,7 +2109,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
         {/* Right Panel — Step Content */}
         <form onSubmit={handleSubmit} className={`flex-1 flex flex-col overflow-hidden ${isMobile ? '' : ''}`}>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-16">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-8 lg:p-10">
             {stepContent[step]()}
           </div>
 
