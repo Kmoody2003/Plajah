@@ -1128,6 +1128,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           <Waves size={11} />
                           <span className="hidden sm:inline">Breakdown</span>
                         </button>
+                        {/* Share this individual track (Plajah feed + social) */}
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ShareButton
+                            title={t.title}
+                            artist={t.artist || album.artist}
+                            text={`🎵 ${t.title} — ${t.artist || album.artist} on Plajah`}
+                            url={`${window.location.origin}/?type=album&id=${album.id}&track=${t.id}`}
+                            imageUrl={album.coverImage}
+                            plajahLabel="Share to Plajah feed"
+                            onPostToPlajah={async () => {
+                              await createPost({
+                                text: `🎵 ${t.title} — ${t.artist || album.artist}`,
+                                media: [{ type: 'AUDIO', url: t.url || '', id: t.id, title: t.title, thumbnail: album.coverImage } as any],
+                                albumEmbed: album,
+                              });
+                            }}
+                            className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all"
+                          />
+                        </div>
                         {isOwner && (
                           <button
                             onClick={() => setExpandedTrackId(isExpanded ? null : t.id)}
@@ -2237,6 +2256,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                    <div className={currentTrack ? '' : 'ml-auto'}>
                      <ShareButton
                        title={currentTrack?.title || album.title}
+                       artist={album.artist}
                        text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
                        url={`${window.location.origin}/?type=album&id=${album.id}${currentTrack?.id ? `&track=${currentTrack.id}` : ''}`}
                        imageUrl={album.coverImage}

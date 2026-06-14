@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
-import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram, Sparkles, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram, Sparkles, Loader2, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import Portal from './Portal';
+import { generateShareCard } from '../src/lib/shareCard';
 
 interface ShareButtonProps {
   title: string;
   text: string;
   url: string;
   imageUrl?: string;
+  /** Artist/creator — drawn on the auto-generated share card. */
+  artist?: string;
   className?: string;
   /** When provided, the menu shows a "Post to Plajah feed" action that runs this
    *  (e.g. createPost). The button then always opens the menu so it's reachable. */
@@ -14,13 +18,30 @@ interface ShareButtonProps {
   plajahLabel?: string;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, className, onPostToPlajah, plajahLabel }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, onPostToPlajah, plajahLabel }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [card, setCard] = useState<{ dataUrl: string; blob: Blob | null } | null>(null);
 
   const shareUrl = url || window.location.href;
+
+  // Paint the gorgeous share card (cover + caption) when the menu opens.
+  useEffect(() => {
+    if (!isOpen || card) return;
+    let alive = true;
+    generateShareCard({ coverUrl: imageUrl, title, artist }).then(c => { if (alive) setCard(c); });
+    return () => { alive = false; };
+  }, [isOpen, imageUrl, title, artist]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const downloadCard = () => {
+    if (!card) return;
+    const a = document.createElement('a');
+    a.href = card.dataUrl;
+    a.download = `${(title || 'plajah').replace(/[^a-z0-9]+/gi, '_').toLowerCase()}_plajah.jpg`;
+    a.click();
+  };
 
   const postToPlajah = async () => {
     if (!onPostToPlajah || posting) return;
@@ -38,15 +59,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, c
     if (navigator.share) {
       try {
         const shareData: ShareData = { title, text, url: shareUrl };
-        if (imageUrl && navigator.canShare) {
+        // Prefer the gorgeous generated card; else the raw cover.
+        if (navigator.canShare) {
           try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const file = new File([blob], 'cover.jpg', { type: blob.type });
-            const withFile = { ...shareData, files: [file] };
-            if (navigator.canShare(withFile)) {
-              await navigator.share(withFile);
-              return;
+            const c = card || await generateShareCard({ coverUrl: imageUrl, title, artist });
+            let blob = c?.blob || null;
+            if (!blob && imageUrl) { blob = await (await fetch(imageUrl)).blob(); }
+            if (blob) {
+              const file = new File([blob], 'plajah-share.jpg', { type: blob.type || 'image/jpeg' });
+              const withFile = { ...shareData, files: [file] };
+              if (navigator.canShare(withFile)) { await navigator.share(withFile); return; }
             }
           } catch {
             // fall through to share without file
@@ -146,25 +168,42 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, c
         <Share2 size={18} />
       </button>
 
+      <Portal>
       <AnimatePresence>
         {isOpen && (
-          <>
-            <div className="fixed inset-0 z-[120]" onClick={() => setIsOpen(false)} />
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+            onClick={() => setIsOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              initial={{ opacity: 0, scale: 0.92, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 10 }}
-              className="absolute right-0 bottom-full mb-4 w-72 bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-[130] overflow-hidden p-6"
+              exit={{ opacity: 0, scale: 0.92, y: 14 }}
+              onClick={e => e.stopPropagation()}
+              className="relative w-full max-w-sm max-h-[88dvh] overflow-y-auto custom-scrollbar bg-[#0c0c0c] border border-white/10 rounded-3xl shadow-2xl p-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Share</h4>
                 <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white"><X size={14} /></button>
               </div>
 
-              {/* Cover art preview */}
-              {imageUrl && (
-                <div className="mb-4 rounded-2xl overflow-hidden aspect-square w-full max-h-32 object-cover">
-                  <img src={imageUrl} alt="" className="w-full h-full object-cover opacity-80" />
+              {/* Auto-generated share card — cover art + caption over the bottom */}
+              {(card?.dataUrl || imageUrl) && (
+                <div className="mb-4">
+                  <div className="relative rounded-2xl overflow-hidden w-full aspect-square max-w-[260px] mx-auto bg-white/5 ring-1 ring-white/10">
+                    <img src={card?.dataUrl || imageUrl} alt="" className="w-full h-full object-cover" />
+                    {!card && imageUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Loader2 size={18} className="animate-spin text-white/50" />
+                      </div>
+                    )}
+                  </div>
+                  {card && (
+                    <button onClick={downloadCard} className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest transition-all">
+                      <Download size={12} /> Save share card
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -213,9 +252,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, c
                 Link embeds with cover art on X, Facebook & WhatsApp
               </p>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
+      </Portal>
     </div>
   );
 };
