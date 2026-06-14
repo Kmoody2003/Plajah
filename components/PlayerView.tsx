@@ -8,6 +8,7 @@ import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost } from '../services/backendService';
 import ShareButton from './ShareButton';
+import PlaylistPickerModal from './PlaylistPickerModal';
 import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,7 +19,7 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward, ChevronRight, Waves, RotateCcw
+  SkipBack, SkipForward, ChevronRight, Waves, RotateCcw, ListPlus
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -436,6 +437,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const { currentTime: globalCurrentTime, duration: globalDuration, seek } = useGlobalPlayerProgress();
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
   const [activeHUD, setActiveHUD] = useState<'INFO' | 'COMMENTS' | 'TRACKS' | 'ABOUT' | 'MEDIA' | 'LYRICS'>('TRACKS');
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTracksCollapsed, setIsTracksCollapsed] = useState(false);
@@ -1111,6 +1113,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
                           : <Play size={14} className="text-white/20" fill="currentColor" />}
                         <button
+                          onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
+                          title="Add this song to a playlist"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                        >
+                          <ListPlus size={12} />
+                          <span className="hidden sm:inline">Add</span>
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                           title="The Breakdown — analyze key, tempo, chords & sheet music"
                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
@@ -1547,6 +1557,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         ) : (
                           <Play size={14} className={currentTrackIndex === i ? 'text-white' : 'text-white/20'} fill="currentColor" />
                         )}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
+                        title="Add this song to a playlist"
+                        className="shrink-0 p-2.5 mr-1 rounded-xl bg-white/5 hover:bg-white/15 text-white/40 hover:text-white transition-all"
+                      >
+                        <ListPlus size={15} />
                       </button>
                     </div>
                   ))}
@@ -2205,8 +2222,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
 
+                   {/* Add the current song to a playlist — obvious + always visible */}
+                   {currentTrack && (
+                     <button
+                       onClick={() => setPlaylistPickerTrack(currentTrack)}
+                       title="Add this song to a playlist"
+                       className="ml-auto flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all"
+                     >
+                       <ListPlus size={13} /> Add to Playlist
+                     </button>
+                   )}
+
                    {/* Share — to the Plajah feed or out to social sites */}
-                   <div className="ml-auto">
+                   <div className={currentTrack ? '' : 'ml-auto'}>
                      <ShareButton
                        title={currentTrack?.title || album.title}
                        text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
@@ -3027,6 +3055,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           />
         )}
       </AnimatePresence>
+
+      {/* Add-to-playlist picker — opened from the track header or any track row */}
+      {playlistPickerTrack && (
+        <PlaylistPickerModal track={playlistPickerTrack} onClose={() => setPlaylistPickerTrack(null)} />
+      )}
     </div>
   );
 };
