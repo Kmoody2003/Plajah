@@ -15,7 +15,7 @@ import {
   UserPlus, X, Timer, Sparkles, AlertCircle, Circle,
   Eye, MessageCircle, Send, LogIn,
 } from 'lucide-react';
-import { db, followUser, ensureGuestAuth, auth } from '../services/backendService';
+import { db, followUser, ensureGuestAuth, loginWithGoogle, auth } from '../services/backendService';
 import { saveSessionRecording } from '../services/liveStreamService';
 import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
@@ -174,14 +174,17 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   const [chatInput, setChatInput]   = useState('');
   const [showChat, setShowChat]     = useState(true);
   const [watching, setWatching]     = useState(false);     // we are a spectator
-  const [guestId, setGuestId]       = useState<string | null>(null); // anon uid
+  // Identity we're watching as: prop uid (signed in) or a minted id (guest).
+  const [watchAs, setWatchAs]       = useState<{ uid: string; isGuest: boolean } | null>(null);
+  // Set when anonymous (guest) auth isn't available → degrade to a sign-in CTA.
+  const [guestWatchBlocked, setGuestWatchBlocked] = useState(false);
   const [enteringWatch, setEnteringWatch] = useState(false);
   const watchingRef = useRef(false);
   const chatEndRef  = useRef<HTMLDivElement>(null);
 
   // A guest (anonymous auth) gets a uid too; effectiveUid is whoever we are.
-  const isGuest        = !uid && !!guestId;
-  const effectiveUid   = uid ?? guestId ?? undefined;
+  const isGuest        = !uid && !!watchAs?.isGuest;
+  const effectiveUid   = uid ?? watchAs?.uid;
   const watcherName    = currentUser?.displayName ?? 'Guest';
 
   const localStreamRef  = useRef<MediaStream | null>(null);
@@ -431,10 +434,11 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   // Watchers DON'T touch participantCount/participantUids — they take no seat.
 
   const writeWatcherPresence = async (id: string, guest: boolean) => {
+    const u = auth.currentUser;
     await setDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', id), {
       uid: id,
-      displayName: guest ? null : (currentUser?.displayName ?? null),
-      photoURL: guest ? null : (currentUser?.photoURL ?? null),
+      displayName: guest ? null : (u?.displayName ?? currentUser?.displayName ?? null),
+      photoURL: guest ? null : (u?.photoURL ?? currentUser?.photoURL ?? null),
       isGuest: guest,
       joinedAt: Date.now(),
     });
@@ -449,26 +453,47 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
     setEnteringWatch(true);
     setError(null);
     try {
-      let id = uid;
-      if (!id) {
-        const guest = await ensureGuestAuth();
-        if (!guest) {
-          if (mountedRef.current) setError('Could not start a guest session. Please try signing in.');
+      // Identity source of truth is auth.currentUser (the prop may lag a just-
+      // completed sign-in). If signed out, mint a guest (anonymous) session.
+      let user = auth.currentUser;
+      if (!user) {
+        user = await ensureGuestAuth();
+        if (!user) {
+          // Anonymous auth is disabled / unavailable → graceful degrade: offer
+          // sign-in instead of a dead-end error.
+          if (mountedRef.current) setGuestWatchBlocked(true);
           return;
         }
-        id = guest.uid;
-        if (mountedRef.current) setGuestId(guest.uid);
       }
+      const id = user.uid;
+      const guest = !!user.isAnonymous;
+      if (mountedRef.current) setWatchAs({ uid: id, isGuest: guest });
       if (watchers.filter(w => w.uid !== id).length >= MAX_WATCHERS) {
         if (mountedRef.current) setError('The watch gallery is at capacity right now. Try again shortly.');
         return;
       }
-      await writeWatcherPresence(id, !uid);
+      await writeWatcherPresence(id, guest);
       watchingRef.current = true;
-      if (mountedRef.current) { setWatching(true); safeSetPhase('watching'); }
+      if (mountedRef.current) { setWatching(true); setGuestWatchBlocked(false); safeSetPhase('watching'); }
     } catch (err) {
       if (mountedRef.current) setError('Could not start watching. Please try again.');
       console.error('[WCVideoChatRoom] watch error:', err);
+    } finally {
+      if (mountedRef.current) setEnteringWatch(false);
+    }
+  };
+
+  // Guest fallback when anonymous auth is off: sign in with Google, then
+  // seamlessly continue into watch as the now-real account.
+  const handleGuestSignIn = async () => {
+    if (enteringWatch) return;
+    setEnteringWatch(true);
+    try {
+      const user = await loginWithGoogle(); // handles its own error alerts
+      if (user && mountedRef.current) {
+        setGuestWatchBlocked(false);
+      }
+      if (user) { await startWatching(); }
     } finally {
       if (mountedRef.current) setEnteringWatch(false);
     }
@@ -834,24 +859,42 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                   <p className="text-center text-[10px] text-white/30">Sign in to join the conversation — or just watch below</p>
                 )}
 
-                {/* Watch live — open to everyone, signed in or guest */}
-                <motion.button
-                  onClick={startWatching}
-                  disabled={enteringWatch}
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  className="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.06] border border-white/10 text-white/70 hover:text-white hover:bg-white/[0.1] transition-colors disabled:opacity-50"
-                >
-                  {enteringWatch
-                    ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    : <Eye size={14} />}
-                  {enteringWatch ? 'Joining…' : 'Watch Live'}
-                  {totalWatching > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] tabular-nums">{totalWatching}</span>
-                  )}
-                </motion.button>
+                {/* Watch live — open to everyone, signed in or guest. If guest
+                    (anonymous) auth is unavailable, degrade to a sign-in CTA. */}
+                {guestWatchBlocked && !uid ? (
+                  <motion.button
+                    onClick={handleGuestSignIn}
+                    disabled={enteringWatch}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    className="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{ background: primary, color: primaryFg }}
+                  >
+                    {enteringWatch
+                      ? <div className="w-4 h-4 rounded-full border-2 border-current/40 border-t-current animate-spin" />
+                      : <LogIn size={14} />}
+                    Sign in to Watch
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={startWatching}
+                    disabled={enteringWatch}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    className="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.06] border border-white/10 text-white/70 hover:text-white hover:bg-white/[0.1] transition-colors disabled:opacity-50"
+                  >
+                    {enteringWatch
+                      ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      : <Eye size={14} />}
+                    {enteringWatch ? 'Joining…' : 'Watch Live'}
+                    {totalWatching > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] tabular-nums">{totalWatching}</span>
+                    )}
+                  </motion.button>
+                )}
 
                 <p className="text-center text-[8px] text-white/20 leading-relaxed">
-                  Join to go on camera (20-min sessions, mic &amp; camera). Watching is camera-free — {currentUser ? 'chat with the room' : 'sign in to chat'}.
+                  {guestWatchBlocked && !uid
+                    ? 'Guest watching isn’t available here — sign in to watch and join the chat.'
+                    : <>Join to go on camera (20-min sessions, mic &amp; camera). Watching is camera-free — {currentUser ? 'chat with the room' : 'sign in to chat'}.</>}
                 </p>
               </div>
             </motion.div>
@@ -872,16 +915,16 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
                 </p>
               </div>
 
-              {/* Spend the wait as a watcher */}
+              {/* Spend the wait as a watcher (degrade to sign-in if guest auth off) */}
               <motion.button
-                onClick={startWatching}
+                onClick={guestWatchBlocked && !uid ? handleGuestSignIn : startWatching}
                 disabled={enteringWatch}
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                 className="px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: primary, color: primaryFg }}
               >
-                <Eye size={14} />
-                {enteringWatch ? 'Joining…' : 'Watch while you wait'}
+                {guestWatchBlocked && !uid ? <LogIn size={14} /> : <Eye size={14} />}
+                {enteringWatch ? 'Joining…' : guestWatchBlocked && !uid ? 'Sign in to watch' : 'Watch while you wait'}
               </motion.button>
 
               <button onClick={() => setPhase('lobby')} className="text-[10px] text-white/30 hover:text-white/60 transition-colors mt-1">
