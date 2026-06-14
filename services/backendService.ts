@@ -3380,27 +3380,34 @@ export const updateAlbum = async (albumId: string, data: Partial<Album>): Promis
 export const subscribeToComments = (parentId: string, trackId: string | null, videoId: string | null = null, callback: (comments: Comment[]) => void, parentCollection: string = 'albums') => {
   const path = `${parentCollection}/${parentId}/comments`;
   let q;
+  // IMPORTANT: an equality filter (where) combined with orderBy on a *different*
+  // field requires a composite index. We don't ship one for the per-item
+  // `comments` subcollection, so that query would fail `failed-precondition`,
+  // the snapshot would never deliver, and a just-posted comment would vanish.
+  // Equality-only queries use the auto single-field index — so we filter on the
+  // server and sort newest-first on the client. No composite index needed.
   if (videoId) {
     q = query(
       collection(db, parentCollection, parentId, "comments"),
-      where("videoId", "==", videoId),
-      orderBy("timestamp", "desc")
+      where("videoId", "==", videoId)
     );
   } else if (trackId || parentCollection === 'albums') {
     q = query(
       collection(db, parentCollection, parentId, "comments"),
-      where("trackId", "==", trackId || "album"),
-      orderBy("timestamp", "desc")
+      where("trackId", "==", trackId || "album")
     );
   } else {
-    // For posts and feed, we just get all comments on the item
+    // For posts and feed, we just get all comments on the item (orderBy alone is
+    // covered by the auto single-field index).
     q = query(
       collection(db, parentCollection, parentId, "comments"),
       orderBy("timestamp", "desc")
     );
   }
   return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Comment)));
+    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
+    list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)); // newest-first
+    callback(list);
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
@@ -3409,11 +3416,18 @@ export const subscribeToComments = (parentId: string, trackId: string | null, vi
 export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>, parentCollection: string = 'albums') => {
   const path = `${parentCollection}/${parentId}/comments`;
   try {
-    const commentWithUid = {
+    const commentWithUid: Record<string, any> = {
       ...comment,
       uid: auth.currentUser?.uid || null,
       parentId: comment.parentId || null
     };
+    // Firestore is initialized without `ignoreUndefinedProperties`, so writing an
+    // `undefined` value (e.g. videoId on a track comment, or trackId on a video
+    // comment) THROWS "Unsupported field value: undefined" — the comment never
+    // persists and appears to "vanish" after posting. Strip undefined fields so
+    // the write always succeeds and satisfies isValidComment (which also forbids
+    // a `videoId`/`trackId` key that isn't a string).
+    Object.keys(commentWithUid).forEach(k => { if (commentWithUid[k] === undefined) delete commentWithUid[k]; });
     await addDoc(collection(db, parentCollection, parentId, "comments"), commentWithUid);
     
     // Notify parent owner (content owner gets COMMENT notification)
