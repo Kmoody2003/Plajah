@@ -18,7 +18,7 @@ import { collection, query, where, orderBy, limit, getDocs } from 'firebase/fire
 import { db } from '../services/firebase';
 import { fetchNewsFromRSS } from '../services/rssService';
 import { Article, UserProfile, Post } from '../types';
-import { fetchLeagueNews, fetchLeagueScores } from '../services/sportsService';
+import { fetchLeagueNews, fetchLeagueScores, fetchWorldCupWindow } from '../services/sportsService';
 import { SPORTS_INTELLIGENCE_DOMAINS, seedSportsSourceRegistry } from '../services/sportsKnowledgeService';
 import { getLeagueStaticTeams } from '../data/leagueTeams';
 import { StatCardBuilder } from './sports/StatCardBuilder';
@@ -122,6 +122,20 @@ const SportsHero: React.FC<{
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [items.length]);
 
+  // Live World Cup score bug overlaid on the cover banner (desktop + mobile).
+  const [wcEvents, setWcEvents] = useState<any[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetchWorldCupWindow().then(ev => { if (alive) setWcEvents(ev || []); }).catch(() => {});
+    load();
+    const id = setInterval(load, 30_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  const wcLive = wcEvents.filter(e => e?.status?.type?.state === 'in');
+  const wcRecent = wcEvents.filter(e => e?.status?.type?.state === 'post')
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 6);
+  const wcRibbon = [...wcLive, ...wcRecent];
+
   const handleItemClick = (item: any) => {
     if (!onNavigate) return;
     if (item.leagueId) onNavigate(item.leagueId);
@@ -164,6 +178,39 @@ const SportsHero: React.FC<{
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
         </motion.div>
       </AnimatePresence>
+
+      {/* ── Live World Cup score bug — right in the cover banner (all screens) ── */}
+      {wcRibbon.length > 0 && (
+        <div
+          onClick={e => { e.stopPropagation(); onNavigate?.('WORLD_CUP'); }}
+          className="absolute top-0 left-0 right-0 z-20 flex items-center gap-2 px-3 sm:px-4 py-2 bg-black/45 backdrop-blur-md border-b border-white/10 cursor-pointer"
+        >
+          <div className="flex items-center gap-1.5 shrink-0 pr-2 border-r border-white/15">
+            <Trophy size={12} className="text-[#FF8C00]" />
+            <span className="hidden sm:inline text-[8px] font-black uppercase tracking-[0.25em] text-white/70">World Cup</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
+            {wcRibbon.map((ev: any) => {
+              const c = ev?.competitions?.[0];
+              const a = c?.competitors?.find((x: any) => x.homeAway === 'away');
+              const h = c?.competitors?.find((x: any) => x.homeAway === 'home');
+              const isLive = ev?.status?.type?.state === 'in';
+              return (
+                <div key={ev.id} className={`shrink-0 flex items-center gap-2 px-2.5 py-1 rounded-lg ${isLive ? 'bg-red-500/20 border border-red-500/30' : 'bg-white/[0.06]'}`}>
+                  {isLive
+                    ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    : <span className="text-[6px] font-black uppercase tracking-widest text-white/35 shrink-0">FT</span>}
+                  {a?.team?.logo && <img src={a.team.logo} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />}
+                  <span className="text-[10px] font-black tabular-nums text-white whitespace-nowrap">
+                    {scoreText(a?.score) || '0'}<span className="text-white/30 mx-1">–</span>{scoreText(h?.score) || '0'}
+                  </span>
+                  {h?.team?.logo && <img src={h.team.logo} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-12 max-w-3xl z-10">
