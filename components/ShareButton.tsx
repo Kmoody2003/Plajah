@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram } from 'lucide-react';
+import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ShareButtonProps {
@@ -8,15 +8,33 @@ interface ShareButtonProps {
   url: string;
   imageUrl?: string;
   className?: string;
+  /** When provided, the menu shows a "Post to Plajah feed" action that runs this
+   *  (e.g. createPost). The button then always opens the menu so it's reachable. */
+  onPostToPlajah?: () => void | Promise<void>;
+  plajahLabel?: string;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, className }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, className, onPostToPlajah, plajahLabel }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState(false);
 
   const shareUrl = url || window.location.href;
 
-  const handleNativeShare = async () => {
+  const postToPlajah = async () => {
+    if (!onPostToPlajah || posting) return;
+    setPosting(true);
+    try { await onPostToPlajah(); setPosted(true); setTimeout(() => { setPosted(false); setIsOpen(false); }, 1400); }
+    catch { /* keep menu open on failure */ }
+    finally { setPosting(false); }
+  };
+
+  // With a Plajah action present, open the menu directly (so it's never skipped
+  // by the native share sheet); otherwise prefer the OS share sheet.
+  const handleButtonClick = () => { if (onPostToPlajah) setIsOpen(true); else handleNativeShare(); };
+
+  async function handleNativeShare() {
     if (navigator.share) {
       try {
         const shareData: ShareData = { title, text, url: shareUrl };
@@ -122,7 +140,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, c
   return (
     <div className="relative">
       <button
-        onClick={handleNativeShare}
+        onClick={handleButtonClick}
         className={className || 'p-2 text-white/40 hover:text-white transition-all'}
       >
         <Share2 size={18} />
@@ -148,6 +166,26 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, c
                 <div className="mb-4 rounded-2xl overflow-hidden aspect-square w-full max-h-32 object-cover">
                   <img src={imageUrl} alt="" className="w-full h-full object-cover opacity-80" />
                 </div>
+              )}
+
+              {/* Post to Plajah's own feed */}
+              {onPostToPlajah && (
+                <>
+                  <button
+                    onClick={postToPlajah}
+                    disabled={posting || posted}
+                    className={`w-full mb-3 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${posted ? 'bg-green-500 text-white' : 'bg-small-orange text-black hover:brightness-110'}`}
+                  >
+                    {posted ? <><Check size={14} /> Shared to Plajah</>
+                      : posting ? <><Loader2 size={14} className="animate-spin" /> Posting…</>
+                      : <><Sparkles size={14} /> {plajahLabel || 'Post to Plajah feed'}</>}
+                  </button>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex-1 h-px bg-white/10" />
+                    <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25">Or share to</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                  </div>
+                </>
               )}
 
               {/* URL preview chip */}

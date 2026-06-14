@@ -6,7 +6,8 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost } from '../services/backendService';
+import ShareButton from './ShareButton';
 import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -2203,6 +2204,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        {isGeneratingCaptions ? 'Analyzing...' : currentTrack.timeCodedLyrics ? 'Re-Sync AI' : 'Auto-Caption'}
                      </button>
                    )}
+
+                   {/* Share — to the Plajah feed or out to social sites */}
+                   <div className="ml-auto">
+                     <ShareButton
+                       title={currentTrack?.title || album.title}
+                       text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
+                       url={`${window.location.origin}/?type=album&id=${album.id}${currentTrack?.id ? `&track=${currentTrack.id}` : ''}`}
+                       imageUrl={album.coverImage}
+                       plajahLabel="Share to Plajah feed"
+                       onPostToPlajah={async () => {
+                         await createPost({
+                           text: `🎵 ${currentTrack?.title || album.title} — ${album.artist}`,
+                           media: [{ type: 'AUDIO', url: currentTrack?.url || '', id: currentTrack?.id, title: currentTrack?.title || album.title, thumbnail: album.coverImage } as any],
+                           albumEmbed: album,
+                         });
+                       }}
+                       className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all"
+                     />
+                   </div>
                 </div>
                 <h1 className={`font-display font-black tracking-tightest leading-[0.9] ${isVisualizerLayout ? 'text-xl lg:text-2xl' : 'text-4xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
                 {!isVisualizerLayout && <p className="text-xl lg:text-2xl font-medium text-primary/40 italic">{album.artist}</p>}
