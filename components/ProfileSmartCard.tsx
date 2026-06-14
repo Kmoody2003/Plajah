@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell } from 'lucide-react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
-import { db } from '../services/backendService';
+import { db, auth } from '../services/backendService';
 import { FeedItem, Album, AppNotification } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -102,6 +102,12 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const [missedNotifs, setMissedNotifs] = useState<AppNotification[]>([]);
   const [missedPosts, setMissedPosts] = useState<FeedItem[]>([]);
   const [lastVisit, setLastVisit] = useState<number>(0);
+  // Whose profile is this? The personal pulse (notifications) is private — it
+  // only renders on your OWN profile. On someone else's, we show their public
+  // recent posts (not replies) + any debate challenges instead.
+  const isOwnProfile = !profileUid || profileUid === auth.currentUser?.uid;
+  const [ownerPosts, setOwnerPosts] = useState<FeedItem[]>([]);
+  const [ownerChallenges, setOwnerChallenges] = useState<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,29 +164,53 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
 
     const load = async () => {
       try {
-        // Fetch notifications since last visit
-        const nSnap = await getDocs(
-          query(collection(db, 'notifications'), where('userId', '==', profileUid), orderBy('timestamp', 'desc'), limit(50))
-        );
-        const notifs: AppNotification[] = nSnap.docs.map(d => ({
-          id: d.id,
-          ...d.data(),
-          timestamp: typeof d.data().timestamp?.toMillis === 'function' ? d.data().timestamp.toMillis() : (d.data().timestamp || 0),
-        } as AppNotification));
-        setMissedNotifs(notifs.filter(n => n.timestamp > last));
-
-        // Fetch new posts from followed users since last visit
-        if (followedIds.length > 0) {
-          const pSnap = await getDocs(
-            query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(60))
+        if (isOwnProfile) {
+          // ── Own profile: personal "While You Were Gone" pulse ──
+          const myUid = auth.currentUser?.uid;
+          if (myUid) {
+            const nSnap = await getDocs(
+              query(collection(db, 'notifications'), where('userId', '==', myUid), orderBy('timestamp', 'desc'), limit(50))
+            );
+            const notifs: AppNotification[] = nSnap.docs.map(d => ({
+              id: d.id,
+              ...d.data(),
+              timestamp: typeof d.data().timestamp?.toMillis === 'function' ? d.data().timestamp.toMillis() : (d.data().timestamp || 0),
+            } as AppNotification));
+            setMissedNotifs(notifs.filter(n => n.timestamp > last));
+          }
+          if (followedIds.length > 0) {
+            const pSnap = await getDocs(query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(60)));
+            const allPosts: FeedItem[] = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as FeedItem));
+            setMissedPosts(allPosts.filter(p => followedIds.includes(p.authorId) && (p.timestamp || 0) > last));
+          }
+        } else {
+          // ── Someone else's profile: their public posts (NOT replies) + challenges ──
+          setMissedNotifs([]); setMissedPosts([]);
+          // Single-field equality query (no composite index needed); sort client-side.
+          const opSnap = await getDocs(
+            query(collection(db, 'posts'), where('authorId', '==', profileUid), limit(30))
           );
-          const allPosts: FeedItem[] = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as FeedItem));
-          setMissedPosts(allPosts.filter(p => followedIds.includes(p.authorId) && (p.timestamp || 0) > last));
+          const theirs = opSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
+            .filter(p => !p.parentId) // exclude replies — top-level posts only
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+            .slice(0, 4);
+          setOwnerPosts(theirs);
+          // Debates where this user was challenged (they're the defender).
+          try {
+            const dSnap = await getDocs(
+              query(collection(db, 'debates'), where('defenderId', '==', profileUid), limit(10))
+            );
+            setOwnerChallenges(
+              dSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
+                .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+                .slice(0, 3)
+            );
+          } catch { setOwnerChallenges([]); }
         }
       } catch {}
     };
     load();
-  }, [profileUid, followedIds.join(',')]);
+  }, [profileUid, isOwnProfile, followedIds.join(',')]);
 
   // Update last visit timestamp when user views the WYWG section
   const handleViewWYWG = () => {
@@ -190,11 +220,11 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
 
   // Auto-select the most relevant default tab
   useEffect(() => {
-    const hasWYWG = missedNotifs.length > 0 || missedPosts.length > 0;
-    if (hasWYWG) setSection('wywg');
+    const count = isOwnProfile ? (missedNotifs.length + missedPosts.length) : (ownerPosts.length + ownerChallenges.length);
+    if (count > 0) setSection('wywg');
     else if (upcomingAlbums.length > 0) setSection('coming_soon');
     else setSection('following');
-  }, [upcomingAlbums.length, missedNotifs.length, missedPosts.length]);
+  }, [upcomingAlbums.length, isOwnProfile, missedNotifs.length, missedPosts.length, ownerPosts.length, ownerChallenges.length]);
 
   if (weatherLoading && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
   if (!weather && feedItems.length === 0 && upcomingAlbums.length === 0) return null;
@@ -209,10 +239,10 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
     a => a.ownerId === profileUid || followedIds.includes(a.ownerId || '')
   );
 
-  const wywgCount = missedNotifs.length + missedPosts.length;
+  const wywgCount = isOwnProfile ? (missedNotifs.length + missedPosts.length) : (ownerPosts.length + ownerChallenges.length);
 
   const tabs: { id: Section; label: string; count?: number }[] = [
-    ...(wywgCount > 0 ? [{ id: 'wywg' as Section, label: 'Missed', count: wywgCount }] : []),
+    ...(wywgCount > 0 ? [{ id: 'wywg' as Section, label: isOwnProfile ? 'Missed' : 'Activity', count: wywgCount }] : []),
     ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
     { id: 'following', label: 'Following' },
     { id: 'discover', label: 'Discover' },
@@ -309,7 +339,38 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                 transition={{ duration: 0.25 }}
                 className="space-y-3"
               >
-                {wywgCount === 0 ? (
+                {!isOwnProfile ? (
+                  /* ── Another user's profile: their recent posts (no replies) + challenges ── */
+                  (ownerPosts.length === 0 && ownerChallenges.length === 0) ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
+                      <MessageSquare size={24} />
+                      <p className="text-[9px] font-black uppercase tracking-widest text-center">No recent posts</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {ownerChallenges.length > 0 && (
+                        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3">
+                          <Zap size={14} className="text-emerald-400 shrink-0" />
+                          <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">
+                            Challenged to {ownerChallenges.length} debate{ownerChallenges.length > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      )}
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Recent posts</p>
+                      {ownerPosts.map((p: any) => (
+                        <div key={p.id} className="flex items-start gap-3 bg-black/20 rounded-xl p-3">
+                          <div className={`mt-0.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[7px] font-black uppercase tracking-widest shrink-0 ${typeColor(p.type)}`}>
+                            {typeIcon(p.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-white/80 line-clamp-2 leading-relaxed">{p.title || p.content || 'New activity'}</p>
+                            <p className="text-[8px] text-white/25 mt-0.5">{p.timestamp ? formatDistanceToNow(p.timestamp) + ' ago' : ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : wywgCount === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-2 opacity-30">
                     <Bell size={24} />
                     <p className="text-[9px] font-black uppercase tracking-widest text-center">
