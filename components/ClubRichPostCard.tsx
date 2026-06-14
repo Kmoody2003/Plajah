@@ -6,6 +6,7 @@ import {
   Share2, Check, Copy, X as XIcon,
 } from 'lucide-react';
 import ThreeDImage from './ThreeDImage';
+import Portal from './Portal';
 import { ClubPost, ClubRole } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import CommentSection from './CommentSection';
@@ -154,6 +155,7 @@ const MediaBlock: React.FC<{
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 
 const Lightbox: React.FC<{ src: string; onClose: () => void }> = ({ src, onClose }) => (
+  <Portal>
   <motion.div
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     className="fixed inset-0 z-[500] bg-black/95 flex items-center justify-center"
@@ -162,6 +164,7 @@ const Lightbox: React.FC<{ src: string; onClose: () => void }> = ({ src, onClose
     <img src={src} className="max-w-full max-h-[90vh] rounded-2xl object-contain" alt="" onClick={e => e.stopPropagation()} />
     <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">✕</button>
   </motion.div>
+  </Portal>
 );
 
 // ─── Main component ───────────────────────────────────────────────────────────

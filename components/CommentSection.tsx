@@ -860,8 +860,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     return unsub;
   }, [postId, isLegacy]);
 
+  // In legacy mode the real comment arrives via externalComments (the parent's
+  // subscription). Dedupe the optimistic against it by author+text so we never
+  // show a duplicate AND never blink the comment out before the real one lands.
   const comments = isLegacy
-    ? [...(externalComments || []).map(mapLegacyComment), ...pendingLegacy]
+    ? (() => {
+        const ext = (externalComments || []).map(mapLegacyComment);
+        const seen = new Set(ext.map(c => `${c.authorName} ${c.text}`));
+        const stillPending = pendingLegacy.filter(p => !seen.has(`${p.authorName} ${p.text}`));
+        return [...ext, ...stillPending].sort((a, b) => a.timestamp - b.timestamp);
+      })()
     : internalComments;
 
   // Auto-scroll to bottom when new comment lands
@@ -874,12 +882,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const handleCommentPosted = useCallback((optimistic: PostComment) => {
     if (isLegacy) {
       setPendingLegacy(prev => [...prev, optimistic]);
-      setTimeout(() => setPendingLegacy(prev => prev.filter(c => c.id !== optimistic.id)), 8000);
+      // Safety net only — the render dedupe + prune effect remove it once the
+      // real comment arrives; this just clears a truly-stuck optimistic.
+      setTimeout(() => setPendingLegacy(prev => prev.filter(c => c.id !== optimistic.id)), 60000);
     } else {
       setInternalComments(prev => [...prev, optimistic]);
     }
     setPendingIds(prev => new Set([...prev, optimistic.id]));
   }, [isLegacy]);
+
+  // Once the parent's subscription delivers the real comment, drop the optimistic.
+  useEffect(() => {
+    if (!isLegacy) return;
+    const seen = new Set((externalComments || []).map((c: any) => `${c.author || c.authorName} ${c.text}`));
+    setPendingLegacy(prev => prev.filter(p => !seen.has(`${p.authorName} ${p.text}`)));
+  }, [externalComments, isLegacy]);
 
   const handleDelete = useCallback(async (commentId: string) => {
     if (isLegacy) return;

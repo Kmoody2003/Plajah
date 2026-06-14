@@ -35,6 +35,7 @@ import { lazy, Suspense } from 'react';
 import PostDebateModal from './PostDebateModal';
 import DebateView from './DebateView';
 import DebatePulseFeed from './DebatePulseFeed';
+import Portal from './Portal';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -3085,8 +3086,9 @@ const toggleFavoriteTeam = async (team: string) => {
        </Suspense>
      </div>
    )}
-   {/* Feed image lightbox */}
+   {/* Feed image lightbox — portaled so it opens centered, not at the page top */}
    {feedLightboxUrl && (
+     <Portal>
      <div
        className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
        onClick={() => setFeedLightboxUrl(null)}
@@ -3120,6 +3122,7 @@ const toggleFavoriteTeam = async (team: string) => {
          </div>
        </div>
      </div>
+     </Portal>
    )}
    </>
   );

@@ -5,6 +5,7 @@ const PollCard = lazy(() => import('./PollCard'));
 const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
 import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords } from 'lucide-react';
 import PostDebateModal from './PostDebateModal';
+import Portal from './Portal';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
@@ -949,7 +950,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
       />
     )}
 
-    {/* Image lightbox — uncropped pop-up with fullscreen option */}
+    {/* Image lightbox — uncropped pop-up with fullscreen option (portaled so it
+        opens centered in the viewport, not at the top of a transformed page) */}
+    <Portal>
     <AnimatePresence>
       {lightboxUrl && (
         <motion.div
@@ -995,6 +998,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
         </motion.div>
       )}
     </AnimatePresence>
+    </Portal>
     </>
   );
 };
