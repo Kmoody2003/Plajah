@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
@@ -226,7 +227,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const totalDisplaySteps = labels.length;
   const displayStep = toDisplay(step);
 
+  // Paging direction for the mobile slide transition (1 = forward, -1 = back).
+  const [pageDir, setPageDir] = useState(1);
   const goNext = () => {
+    setPageDir(1);
     if (step === 0) {
       setStep(skipStep1 ? 2 : 1);
     } else {
@@ -236,6 +240,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   };
   const goBack = () => {
     if (step === 0) return;
+    setPageDir(-1);
     if (step === 2 && skipStep1) {
       setStep(0);
     } else if (step === 5 && skipStep4) {
@@ -2042,7 +2047,46 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
         )}
 
-        {/* Left Panel — Cover Art */}
+        {/* ── Mobile: compact header (each step is its own paged screen below) ── */}
+        {isMobile && (
+          <div className="shrink-0 px-4 pt-4 pb-3 bg-white/[0.05] backdrop-blur-2xl border-b border-white/10 space-y-3">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={onCancel} className="p-2.5 bg-white/5 rounded-xl text-white/50 active:scale-90 shrink-0"><X size={18} /></button>
+              <label className="relative w-10 h-10 rounded-xl overflow-hidden border border-white/15 shrink-0 cursor-pointer">
+                <img src={coverImage || undefined} alt="Cover" className="w-full h-full object-cover" />
+                <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCoverImage(URL.createObjectURL(f)); setCoverFile(f); } }} />
+              </label>
+              <div className="relative flex-1 min-w-0">
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Untitled Project" aria-label="Project title"
+                  className="w-full min-w-0 text-sm font-display font-black uppercase tracking-tight bg-transparent text-white placeholder:text-white/25 rounded-lg pr-6 py-1 border-b border-dashed border-white/20 focus:border-small-orange outline-none" />
+                <Pencil size={11} className="absolute right-1 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+              </div>
+              {onMinimize && <button type="button" onClick={onMinimize} className="p-2.5 bg-white/5 rounded-xl text-white/50 active:scale-90 shrink-0"><Minimize2 size={18} /></button>}
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.25em] text-white/40">
+                <span>Step {displayStep + 1} of {totalDisplaySteps}</span>
+                <span className="text-small-orange/80 truncate ml-2">{labels[displayStep]}</span>
+              </div>
+              <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${(displayStep / Math.max(1, totalDisplaySteps - 1)) * 100}%` }} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full cursor-pointer border border-white/8 text-[8px] font-black uppercase tracking-widest text-small-orange active:scale-95">
+                <ImageIcon size={10} /> Slideshow ({slideshow.length})
+                <input type="file" multiple className="hidden" accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []) as File[]; setSlideshowFiles(files); setSlideshow(files.map(f => URL.createObjectURL(f))); }} />
+              </label>
+              <label className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full cursor-pointer border border-white/8 text-[8px] font-black uppercase tracking-widest text-small-orange active:scale-95">
+                <User size={10} /> Profile Pix
+                <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setArtistImage(URL.createObjectURL(f)); setArtistFile(f); } }} />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Left Panel — Cover Art (desktop only) */}
+        {!isMobile && (
         <div className="lg:w-[32%] p-5 sm:p-7 lg:p-5 bg-white/[0.04] backdrop-blur-2xl flex flex-col items-center justify-center text-center border-b lg:border-b-0 lg:border-r border-white/10 relative shrink-0">
           <div className="absolute top-8 left-8 flex items-center gap-2">
             <button type="button" onClick={onCancel} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90"><X size={24} /></button>
@@ -2122,11 +2166,35 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </label>
           </div>
         </div>
+        )}
 
         {/* Right Panel — Step Content */}
         <form onSubmit={handleSubmit} className={`flex-1 flex flex-col overflow-hidden ${isMobile ? '' : ''}`}>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-8 lg:p-10">
-            {stepContent[step]()}
+          {/* Each step is its own page. mode="wait" => the old step fully leaves
+              before the next arrives, so nothing ever overlaps. On mobile pages
+              slide left↔right (and can be swiped); desktop cross-fades. */}
+          <div className="flex-1 relative overflow-hidden">
+            <AnimatePresence mode="wait" initial={false} custom={pageDir}>
+              <motion.div
+                key={step}
+                custom={pageDir}
+                initial={{ x: isMobile ? `${pageDir * 55}%` : 0, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: isMobile ? `${pageDir * -55}%` : 0, opacity: 0 }}
+                transition={{ type: 'tween', duration: 0.26, ease: 'easeInOut' }}
+                drag={isMobile ? 'x' : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.18}
+                onDragEnd={(_e, info) => {
+                  if (!isMobile) return;
+                  if (info.offset.x < -80 && step < 7) goNext();
+                  else if (info.offset.x > 80 && step > 0) goBack();
+                }}
+                className="absolute inset-0 overflow-y-auto custom-scrollbar p-5 sm:p-8 lg:p-10"
+              >
+                {stepContent[step]()}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Navigation Footer */}
