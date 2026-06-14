@@ -135,6 +135,8 @@ interface UserProfileViewProps {
   onSelectApp?: (app: WebApp) => void;
   onNavigate?: (view: AppView) => void;
   onOpenCreator?: (type?: string) => void;
+  /** Navigate a Platform Pulse notification to its post/asset/activity. */
+  onNotificationNavigate?: (n: any) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
@@ -224,6 +226,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   onSelectApp,
   onNavigate,
   onOpenCreator,
+  onNotificationNavigate,
   initialTab
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -1197,6 +1200,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             profileUid={uid}
             upcomingAlbums={profileUpcomingAlbums}
             onSelectAlbum={onSelectAlbum}
+            onNotificationNavigate={onNotificationNavigate}
+            onVisitUser={onVisitUser}
           />
         </div>
 

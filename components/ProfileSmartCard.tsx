@@ -76,6 +76,10 @@ interface ProfileSmartCardProps {
   upcomingAlbums?: Album[];
   onSelectAlbum?: (album: Album) => void;
   onNavigateHistory?: (view: 'CHORA_HISTORY' | 'TALEO_HISTORY') => void;
+  /** Navigate a Platform Pulse notification to its post/asset/activity. */
+  onNotificationNavigate?: (n: any) => void;
+  /** Open a user's profile (used for missed-post pulse items). */
+  onVisitUser?: (uid: string) => void;
 }
 
 type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg';
@@ -88,6 +92,8 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   upcomingAlbums = [],
   onSelectAlbum,
   onNavigateHistory,
+  onNotificationNavigate,
+  onVisitUser,
 }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
@@ -338,14 +344,18 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                       </div>
                     )}
 
-                    {/* Individual notification items */}
-                    {[...missedNotifs].slice(0, 4).map((n, i) => (
+                    {/* Individual notification items — click → the post/asset/profile */}
+                    {[...missedNotifs].slice(0, 4).map((n, i) => {
+                      const navigable = !!(onNotificationNavigate && ((n as any).link || (n as any).targetId || n.senderId));
+                      return (
                       <motion.div
                         key={n.id}
                         initial={{ opacity: 0, x: 12 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.04 }}
-                        className="flex items-center gap-3 bg-black/20 rounded-xl p-3"
+                        onClick={navigable ? () => onNotificationNavigate!(n) : undefined}
+                        role={navigable ? 'button' : undefined}
+                        className={`flex items-center gap-3 bg-black/20 rounded-xl p-3 transition-all ${navigable ? 'cursor-pointer hover:bg-black/40 active:scale-[0.98]' : ''}`}
                       >
                         <div className="relative shrink-0">
                           <img
@@ -363,16 +373,21 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         </div>
                         <span className="text-[8px] text-white/25 shrink-0">{formatDistanceToNow(n.timestamp)} ago</span>
                       </motion.div>
-                    ))}
+                      );
+                    })}
 
-                    {/* Missed posts from following */}
-                    {missedPosts.slice(0, 2).map((p, i) => (
+                    {/* Missed posts from following — click → the author's profile/activity */}
+                    {missedPosts.slice(0, 2).map((p, i) => {
+                      const navigable = !!(onVisitUser && p.authorId);
+                      return (
                       <motion.div
                         key={p.id}
                         initial={{ opacity: 0, x: 12 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: (missedNotifs.length + i) * 0.04 }}
-                        className="flex items-center gap-3 bg-black/20 rounded-xl p-3"
+                        onClick={navigable ? () => onVisitUser!(p.authorId) : undefined}
+                        role={navigable ? 'button' : undefined}
+                        className={`flex items-center gap-3 bg-black/20 rounded-xl p-3 transition-all ${navigable ? 'cursor-pointer hover:bg-black/40 active:scale-[0.98]' : ''}`}
                       >
                         <img
                           src={p.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.authorId}`}
@@ -390,7 +405,8 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         </div>
                         <span className="text-[8px] text-white/25 shrink-0">{p.timestamp ? formatDistanceToNow(p.timestamp) + ' ago' : ''}</span>
                       </motion.div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
               </motion.div>

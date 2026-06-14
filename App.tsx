@@ -2809,6 +2809,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
                   initialTab={initialProfileTab as any}
                   onNavigate={setView}
+                  onNotificationNavigate={handleNotificationNavigate}
                   onOpenCreator={(type) => {
                     setCreatorInitialType(type);
                     setEditingAlbum(null);
