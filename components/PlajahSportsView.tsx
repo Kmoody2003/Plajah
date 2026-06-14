@@ -91,13 +91,73 @@ const HERO_FALLBACKS = [
   { id: 'h6', title: 'World Cup 2026',      subtitle: '48 nations · FIFA USA · June–July 2026', imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80', leagueId: 'WORLD_CUP' },
 ];
 
+// ── Crisp imagery ───────────────────────────────────────────────────────────
+// Article art often arrives as a small thumbnail and gets stretched into a big
+// banner → blurry. We (1) pick the highest-resolution source available, then
+// (2) request a banner-sized render. ESPN serves most art through its "combiner"
+// CDN (takes &w=/&h=); plain espncdn photos can be routed through it; Unsplash
+// takes ?w=. Anything else is returned untouched.
+const HERO_W = 1600, HERO_H = 900;
+const upscaleSportsImage = (url: string, w = HERO_W, h = HERO_H): string => {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    if (url.includes('espncdn.com/combiner')) {
+      let u = url.replace(/([?&])w=\d+/i, `$1w=${w}`).replace(/([?&])h=\d+/i, `$1h=${h}`);
+      if (!/[?&]w=/i.test(u)) u += `${u.includes('?') ? '&' : '?'}w=${w}&h=${h}`;
+      return u;
+    }
+    // Plain ESPN photo/media URL → route through the combiner at high res.
+    if (/^https?:\/\/[^/]*espncdn\.com\/(photo|media)\//i.test(url)) {
+      const path = url.replace(/^https?:\/\/[^/]+/i, '');
+      return `https://a.espncdn.com/combiner/i?img=${encodeURIComponent(path)}&w=${w}&h=${h}&scale=crop&cquality=90&format=jpg`;
+    }
+    if (url.includes('images.unsplash.com')) {
+      let u = /[?&]w=\d+/i.test(url) ? url.replace(/([?&])w=\d+/i, `$1w=${w}`) : `${url}${url.includes('?') ? '&' : '?'}w=${w}`;
+      u = /[?&]q=\d+/i.test(u) ? u.replace(/([?&])q=\d+/i, '$1q=85') : `${u}&q=85`;
+      return u;
+    }
+    return url;
+  } catch { return url; }
+};
+
+// Choose the sharpest image an article offers (largest by width), then upscale.
+const bestSportsImage = (item: any): string => {
+  if (!item) return '';
+  let best = '', bestW = 0;
+  const imgs: any[] = Array.isArray(item.images) ? item.images : [];
+  for (const im of imgs) {
+    const u = im?.url || im?.href;
+    if (!u) continue;
+    const w = Number(im?.width) || 0;
+    if (!best || w > bestW) { best = u; bestW = w; }
+  }
+  const chosen = item.imageUrl || best || imgs[0]?.url || imgs[0]?.href || '';
+  return upscaleSportsImage(chosen);
+};
+
+// "Live & Today" must mean exactly that. ESPN's no-date /scoreboard returns the
+// nearest games even in the offseason (e.g. NFL in June), so we only keep events
+// that are live right now OR fall on the local calendar day. No demo/stale data.
+const isLiveOrTodayEvent = (ev: any): boolean => {
+  const state = ev?.status?.type?.state;
+  if (state === 'in') return true;                       // in progress = live
+  const raw = ev?.date || ev?.competitions?.[0]?.date;
+  if (!raw) return false;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return false;
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+      && d.getMonth() === now.getMonth()
+      && d.getDate() === now.getDate();
+};
+
 const normalizeSportsArticle = (item: any, fallbackSource = 'Sports'): Article => ({
   id: String(item.id || item.guid || item.url || item.links?.web?.href || item.headline || item.title || Math.random()),
   title: item.title || item.headline || 'Sports update',
   content: item.content || item.summary || item.description || item.descriptionText || '',
   source: item.source || item.byline || fallbackSource,
   url: item.url || item.links?.web?.href || '#',
-  imageUrl: item.imageUrl || item.images?.[0]?.url || item.images?.[0]?.href || '',
+  imageUrl: bestSportsImage(item),
   timestamp: item.timestamp || (item.published ? new Date(item.published).getTime() : Date.now()),
 } as Article);
 
@@ -170,7 +230,12 @@ const SportsHero: React.FC<{
           className="absolute inset-0"
         >
           {item.imageUrl ? (
-            <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-700" />
+            <img
+              src={item.imageUrl}
+              alt={item.title}
+              className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-700"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a]" />
           )}
@@ -276,7 +341,7 @@ const HeadlineCard: React.FC<{ article: Article; featured?: boolean }> = ({ arti
   >
     {article.imageUrl && (
       <div className={`shrink-0 rounded-xl overflow-hidden ${featured ? 'w-full aspect-video' : 'w-20 h-16'}`}>
-        <img src={article.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+        <img src={article.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
       </div>
     )}
     <div className="flex-1 min-w-0">
@@ -457,7 +522,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
       const scoreArr = scores.status === 'fulfilled' ? scores.value ?? [] : [];
 
       setHeadlines(newsArr.slice(0, 16));
-      setLiveScores(scoreArr.slice(0, 12));
+      // Only genuinely live or today's games — keeps out-of-season/stale fixtures
+      // (e.g. NFL in the offseason) out of "Live & Today".
+      const liveOrToday = scoreArr.filter(isLiveOrTodayEvent);
+      setLiveScores(liveOrToday.slice(0, 12));
 
       // Build hero from news with images — attach leagueId so clicking navigates
       const heroItems = newsArr
