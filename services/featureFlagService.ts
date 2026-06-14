@@ -35,6 +35,7 @@ export type Web3FlagName =
   | 'WEB3_DEFI_ADVANCES'          // Phase 5: Creator advances against royalties
   | 'WEB3_PLAJ_TOKEN'             // Phase 5: PLAJ utility token
   | 'WEB3_DECENTRALIZED_NODES'    // Phase 5: User IPFS nodes
+  | 'CONTENT_LICENSING'           // Creator-chosen licenses (Creative Commons) + on-chain provenance
   | 'WEB3_ADMIN_DASHBOARD';       // Always admin-only: the control panel itself
 
 export type FeaturePhase = 0 | 1 | 2 | 3 | 4 | 5;
@@ -225,6 +226,19 @@ export const DEFAULT_FLAGS: Record<Web3FlagName, FeatureFlag> = {
     vertical: 'ALL',
     label: 'Decentralized Node Network',
     description: 'User IPFS nodes for content delivery. Earn PLAJ for bandwidth/storage.',
+  },
+  // Built but OFF — slow-walk. Lets creators optionally attach a Creative
+  // Commons license to a work; the platform gatekeeps license↔paywall↔exclusivity
+  // compatibility and (when Web3 is on) stamps on-chain license provenance.
+  CONTENT_LICENSING: {
+    name: 'CONTENT_LICENSING',
+    enabled: false,
+    adminOnly: true,
+    rolloutPercentage: 0,
+    phase: 2,
+    vertical: 'ALL',
+    label: 'Content Licensing (Creative Commons)',
+    description: 'Optional creator-chosen licenses (All Rights Reserved default, Creative Commons opt-in) with intelligent paywall/exclusivity gating and on-chain provenance.',
   },
 };
 

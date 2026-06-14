@@ -88,6 +88,7 @@ export interface Track {
   timeCodedLyrics?: { time: number; text: string }[];
   price?: number; // Price for individual purchase, 0 or undefined means free
   isPaywalled?: boolean; // If true, requires purchase to play/view
+  license?: string; // Content license id (licensingService); defaults to All Rights Reserved
   genre?: string;
   isRadioEligible?: boolean; // Artist can opt-in
   isSlideshowEligible?: boolean; // Artist can opt-in
@@ -374,6 +375,9 @@ export interface Album {
   genre?: string;
   price?: number; // Price for full album
   isPaywalled?: boolean;
+  /** Content license id (see services/licensingService ContentLicenseId).
+   *  Defaults to All Rights Reserved when unset. Gated behind CONTENT_LICENSING. */
+  license?: string;
   type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' | 'GAME';
   subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST';
   donationGoal?: number;
@@ -775,8 +779,9 @@ export interface Video {
   description?: string;
   duration?: number;
   playsCount?: number;
-  price?: number; 
+  price?: number;
   isPaywalled?: boolean;
+  license?: string; // Content license id (licensingService); defaults to All Rights Reserved
   genre?: string;
   artist?: string; 
   isPrivate?: boolean;

@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
+import LicensePicker from './LicensePicker';
+import { isFeatureEnabled } from '../services/featureFlagService';
+import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album) => void;
@@ -48,6 +51,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
+  // Content licensing (built but OFF — gated behind CONTENT_LICENSING flag).
+  const [license, setLicense] = useState<string>(initialAlbum?.license || DEFAULT_LICENSE);
+  const licensingEnabled = isFeatureEnabled('CONTENT_LICENSING', auth.currentUser?.uid || '', auth.currentUser?.email === 'kmoody2003@gmail.com');
   const [artistBio, setArtistBio] = useState(initialAlbum?.artistBio || '');
   const [linerNotes, setLinerNotes] = useState(initialAlbum?.linerNotes || '');
   const [trackListLabel, setTrackListLabel] = useState(initialAlbum?.trackListLabel || '');
@@ -442,6 +448,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         gameScreenshots: type === 'GAME' ? gameScreenshots : undefined,
         gameFeatures: type === 'GAME' ? gameFeatures : undefined,
         createdAt: initialAlbum?.createdAt || Date.now(),
+        license,
         isPublic: !isPrivate && !isDraft,
         isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
         publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
@@ -1577,6 +1584,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </div>
             )}
           </div>
+        )}
+
+        {/* Content licensing — optional, background; gated behind CONTENT_LICENSING */}
+        {licensingEnabled && (
+          <LicensePicker
+            value={license}
+            onChange={(id: ContentLicenseId) => setLicense(id)}
+            context={{ isPaywalled: isPaywalled || price > 0 || tracks.some(t => t.isPaywalled) }}
+          />
         )}
 
         <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl space-y-4">
