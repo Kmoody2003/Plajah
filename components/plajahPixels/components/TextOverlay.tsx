@@ -6,6 +6,7 @@ interface TextOverlayProps {
     config: VisualizationConfig;
     analyser: AnalyserNode | null;
     isPlaying: boolean;
+    id?: string;
 }
 
 interface TextShard {

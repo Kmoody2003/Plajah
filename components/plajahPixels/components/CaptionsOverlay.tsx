@@ -7,6 +7,7 @@ interface CaptionsOverlayProps {
     analyser: AnalyserNode | null;
     isPlaying: boolean;
     audioRef: React.RefObject<HTMLAudioElement | null>; // Access to raw audio time
+    id?: string;
 }
 
 interface LRCParsedLine {

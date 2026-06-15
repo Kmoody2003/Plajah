@@ -8,6 +8,7 @@ interface BackgroundLayerProps {
     config: VisualizationConfig;
     analyser: AnalyserNode | null;
     isPlaying: boolean;
+    id?: string;
 }
 
 const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList2, config, analyser, isPlaying }) => {

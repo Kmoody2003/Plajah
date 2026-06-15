@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
+import { getActiveCaption } from '../src/lib/captions';
 import WorldBadge from './WorldBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
@@ -682,23 +683,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setIsResyncMode(false);
   };
 
-  const getCurrentCaption = () => {
-    if (!currentTrack) return "...";
-    if (currentTrack.timeCodedLyrics && currentTrack.timeCodedLyrics.length > 0) {
-      // Find the caption that matches the current time
-      const activeCaption = [...currentTrack.timeCodedLyrics]
-        .reverse()
-        .find(c => c.time <= globalCurrentTime);
-      return activeCaption ? activeCaption.text : "...";
-    }
-    
-    if (currentTrack.lyrics) {
-      const lines = currentTrack.lyrics.split('\n');
-      return lines[Math.floor((globalCurrentTime / (globalDuration || 1)) * lines.length)] || "...";
-    }
-    
-    return "...";
-  };
+  // Shared with Plajah Pixels via src/lib/captions — one caption source of truth.
+  const getCurrentCaption = () => getActiveCaption(currentTrack, globalCurrentTime, globalDuration);
 
   const isCurrentTrackGlobal = globalTrack?.id === currentTrack?.id;
   const activeVideo = album.musicVideos?.find(v => v.id === activeVideoId);

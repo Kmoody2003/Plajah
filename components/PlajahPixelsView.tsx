@@ -11,6 +11,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import type { Album, Track } from '../types';
+import { getActiveCaption, trackHasCaptions } from '../src/lib/captions';
 import PlajahPixelsStudio, { PlajahPixelsPlatformBridge } from './plajahPixels/PlajahPixelsStudio';
 
 export interface PlajahPixelsPayload {
@@ -74,6 +75,8 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
       if (t) gp.playTrack(t, album, 'LIBRARY');
     },
     mediaImages,
+    currentCaption: getActiveCaption(gp.currentTrack, gp.currentTime, gp.duration),
+    hasCaptions: trackHasCaptions(gp.currentTrack),
     title: album?.title ?? track?.title ?? 'Plajah Pixels',
     onClose,
   }), [gp, album, track, mediaImages, onClose]);

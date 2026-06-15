@@ -6,6 +6,7 @@ interface GlobalLightingProps {
     config: VisualizationConfig;
     analyser: AnalyserNode | null;
     isPlaying: boolean;
+    id?: string;
 }
 
 const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPlaying }) => {

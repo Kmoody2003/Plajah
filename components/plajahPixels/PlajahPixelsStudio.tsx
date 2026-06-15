@@ -112,6 +112,8 @@ export interface PlajahPixelsPlatformBridge {
     currentTrackId: string | null;
     onSelectTrack: (id: string) => void;
     mediaImages: string[];   // album art + slideshow + current-track images
+    currentCaption: string;  // active lyric line from the platform's caption system
+    hasCaptions: boolean;    // whether the current track has lyrics/time-coded captions
     title?: string;          // album / playlist title
     onClose: () => void;
 }
@@ -260,6 +262,24 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [platform?.tracklist.length]);
 
+    // ─── Shared captions ───────────────────────────────────────────────────────
+    // Drive the captions overlay from the platform's existing caption system (the
+    // same lyrics the album view shows) — NOT the on-device/Gemini live-caption
+    // path. In platform mode Gemini can't connect anyway (we own no audio source
+    // node), so feeding the platform's active line into captionsText + the live
+    // display mode is purely the platform's captions flowing through the overlay.
+    useEffect(() => {
+        if (!platform) return;
+        setConfig(prev => (prev.captionsText === platform.currentCaption ? prev : { ...prev, captionsText: platform.currentCaption }));
+    }, [platform?.currentCaption]);
+
+    // Turn the overlay on/off with the track's caption availability (only on track
+    // change, so it doesn't fight a manual toggle).
+    useEffect(() => {
+        if (!platform) return;
+        setConfig(prev => ({ ...prev, enableCaptions: platform.hasCaptions, enableLiveCaptions: platform.hasCaptions }));
+    }, [platform?.hasCaptions]);
+
     // Effective transport: slave to the platform when bridged, else self-driven.
     const effTogglePlay = () => (platform ? platform.togglePlay() : handleTogglePlay());
     const effVolumeChange = (v: number) => { if (platform) platform.setVolume(v); else handleVolumeChange(v); };
@@ -315,8 +335,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             const url = URL.createObjectURL(file);
-            const type = file.type.startsWith('video/') ? 'video' : 'image';
-            const newMedia = { url, type, id: Date.now().toString() };
+            const type: 'image' | 'video' = file.type.startsWith('video/') ? 'video' : 'image';
+            const newMedia: BackgroundMedia = { url, type, id: Date.now().toString() };
             if (layerNum === 1) {
                 setBgMedia1(prev => [newMedia, ...prev]);
             } else {
@@ -600,10 +620,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         onPrev={platform ? platform.prev : undefined}
                         onNext={platform ? platform.next : undefined}
                     />
-                    <ThemeGenerator 
-                        onThemeGenerated={c => setConfig(prev => ({ ...prev, ...c }))} 
-                        currentConfigName={config.name} 
-                    />
+                    {/* Gemini theme generator disabled in the UI for now (code retained
+                        in ./components/ThemeGenerator and the import below). To re-enable,
+                        restore: <ThemeGenerator onThemeGenerated={c => setConfig(prev => ({ ...prev, ...c }))} currentConfigName={config.name} /> */}
                 </div>
             </div>
 

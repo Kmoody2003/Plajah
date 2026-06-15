@@ -8,6 +8,7 @@ interface AudioVisualizerProps {
   isPlaying: boolean;
   hasBackground: boolean;
   backgroundMediaRef?: React.RefObject<HTMLDivElement | null>;
+  id?: string;
 }
 
 // Shard Type for Mosaic
