@@ -1,3 +1,8 @@
+# Local AI-generated media scratch folders (not part of the app build)
+Club Cover Images/
+Loera animation/
+.claude/launch.json
+
 # Logs
 logs
 *.log
