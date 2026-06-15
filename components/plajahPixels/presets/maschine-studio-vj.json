@@ -1,0 +1,107 @@
+{
+  "_comment": "Plajah Pixels — Maschine Studio VJ Preset v1.0.0",
+  "_comment2": "Load this in the MIDI tab to restore the full pad + knob layout.",
+
+  "name": "Plajah VJ — Maschine Studio",
+  "device": "Native Instruments Maschine Studio",
+  "version": "1.0.0",
+  "created": "2026-06-15",
+  "author": "Plajah Pixels Auto-Map",
+
+  "description": "Performance-optimised 4×4 pad + 8-knob layout for live AV sets. Bottom row = safe core scenes you return to constantly. Top row = macro FX toggles. Knobs ordered by live-performance priority — K1 (Sensitivity) is your #1 dial.",
+
+  "midi_mode_instructions": [
+    "1. Press SHIFT + CONTROL on Maschine Studio to enter MIDI mode.",
+    "2. In MIDI mode pads send Note On/Off on MIDI channel 10 (notes 60–75).",
+    "3. The 8 top rotary encoders send CC 14–21 (Group A).",
+    "4. Open Plajah Pixels → Settings → MIDI tab — device auto-detects.",
+    "5. Pads light up in the UI as you hit them; knob rings animate live."
+  ],
+
+  "pads": {
+    "_layout": "4×4 grid. row=1 is the BOTTOM row (closest to you). col=1 is LEFT.",
+
+    "row_1_bottom_core_scenes": [
+      { "pad": 1,  "note": 60, "label": "SPECTR",  "color": "#8b5cf6", "action": "mode:SPECTRUM",     "description": "Classic frequency spectrum bars — safe fallback, always looks good" },
+      { "pad": 2,  "note": 61, "label": "WAVE",    "color": "#6366f1", "action": "mode:WAVEFORM",     "description": "Waveform oscilloscope line — clean and minimal" },
+      { "pad": 3,  "note": 62, "label": "PARTICL", "color": "#0ea5e9", "action": "mode:PARTICLES",    "description": "Particle emitter shower — crowd-pleasing default" },
+      { "pad": 4,  "note": 63, "label": "NEBULA",  "color": "#ec4899", "action": "mode:NEBULA",       "description": "Cosmic nebula cloud — rich and layered" }
+    ],
+
+    "row_2_dynamic_scenes": [
+      { "pad": 5,  "note": 64, "label": "STORM",   "color": "#f59e0b", "action": "mode:STORM",        "description": "Electric storm — high energy, great for drops" },
+      { "pad": 6,  "note": 65, "label": "KALEID",  "color": "#10b981", "action": "mode:KALEIDOSCOPE", "description": "Kaleidoscope / mandala — hypnotic pattern builder" },
+      { "pad": 7,  "note": 66, "label": "VORTEX",  "color": "#f43f5e", "action": "mode:VORTEX",       "description": "Tunnel vortex — pull-the-viewer-in effect" },
+      { "pad": 8,  "note": 67, "label": "LIQUID",  "color": "#06b6d4", "action": "mode:LIQUID",       "description": "Liquid chrome — fluid metallic sheen" }
+    ],
+
+    "row_3_studio_engine_webgl": [
+      { "pad": 9,  "note": 68, "label": "AURORA",  "color": "#a78bfa", "action": "scene:aurora",      "description": "Aurora Drift — WebGL aurora borealis curtain" },
+      { "pad": 10, "note": 69, "label": "PLASMA",  "color": "#f97316", "action": "scene:plasma",      "description": "Plasma Fluid — reactive plasma field" },
+      { "pad": 11, "note": 70, "label": "GRAVTY",  "color": "#84cc16", "action": "scene:gravity",     "description": "Gravity Wells — orbiting attractors bending light" },
+      { "pad": 12, "note": 71, "label": "KINTC",   "color": "#e879f9", "action": "scene:kinetic",     "description": "Kinetic Mirror — symmetrical motion sculpture" }
+    ],
+
+    "row_4_top_macro_toggles": [
+      { "pad": 13, "note": 72, "label": "BASS↑",   "color": "#ef4444", "action": "toggle:enableBassShake",   "description": "Toggle bass camera shake — punch on every kick" },
+      { "pad": 14, "note": 73, "label": "MILKDRP", "color": "#c084fc", "action": "milkdrop_toggle",          "description": "Toggle Butterchurn / Milkdrop engine (WinAmp presets)" },
+      { "pad": 15, "note": 74, "label": "GLITCH",  "color": "#22d3ee", "action": "toggle:enableGlitch",      "description": "Toggle VGA jitter glitch — digital corruption effect" },
+      { "pad": 16, "note": 75, "label": "PALET",   "color": "#fbbf24", "action": "palette_rotate",           "description": "Rotate active color palette — instant mood shift" }
+    ]
+  },
+
+  "knobs": {
+    "_layout": "8 rotary encoders, left to right. CC 14–21 in Group A. In MIDI mode these are endless encoders sending relative or absolute values depending on firmware.",
+    "_priority": "Ordered by live-performance criticality — K1 is the dial you reach for first.",
+
+    "assignments": [
+      { "knob": 1, "cc": 14, "parameter": "sensitivity",             "label": "Sensitivity",   "min": 0.1, "max": 3.0,  "color": "#8b5cf6", "tip": "Primary reactivity dial — crank on drops, ease back for breakdowns" },
+      { "knob": 2, "cc": 15, "parameter": "glowIntensity",           "label": "Glow",          "min": 0,   "max": 30,   "color": "#ec4899", "tip": "Visual bloom/halo level — push high for ethereal feel" },
+      { "knob": 3, "cc": 16, "parameter": "speed",                   "label": "Speed",         "min": 0.1, "max": 3.0,  "color": "#06b6d4", "tip": "Animation velocity — slow for ambient, fast for high energy" },
+      { "knob": 4, "cc": 17, "parameter": "backgroundPulseIntensity","label": "Beat Pulse",    "min": 0,   "max": 1.0,  "color": "#f59e0b", "tip": "How hard the background pulses with the kick — sync to the room" },
+      { "knob": 5, "cc": 18, "parameter": "layer2Opacity",           "label": "Layer Blend",   "min": 0,   "max": 1.0,  "color": "#10b981", "tip": "Crossfade the second media overlay in/out" },
+      { "knob": 6, "cc": 19, "parameter": "lightingIntensity",       "label": "Lighting",      "min": 0,   "max": 2.0,  "color": "#f97316", "tip": "Stage beam/spotlight intensity — strobe-like at max" },
+      { "knob": 7, "cc": 20, "parameter": "blurStrength",            "label": "Blur",          "min": 0.1, "max": 2.0,  "color": "#64748b", "tip": "Soft focus / motion-blur strength — dreamy at high values" },
+      { "knob": 8, "cc": 21, "parameter": "particleCount",           "label": "Particles",     "min": 10,  "max": 300,  "color": "#a78bfa", "tip": "Particle emitter density — dense for 'stars everywhere' look", "isInt": true }
+    ]
+  },
+
+  "extra_cc_group_b": {
+    "_note": "CC 22–31 are available for additional hardware (second controller, faders, extra knobs).",
+    "assignments": [
+      { "cc": 22,  "parameter": "mosaicIntensity",    "label": "Mosaic",          "min": 0,   "max": 1.0  },
+      { "cc": 23,  "parameter": "sliceCount",         "label": "Slice Count",     "min": 2,   "max": 24,  "isInt": true },
+      { "cc": 24,  "parameter": "sliceRotation",      "label": "Slice Rotation",  "min": 0,   "max": 360, "isInt": true },
+      { "cc": 25,  "parameter": "bassShakeIntensity", "label": "Bass Shock",      "min": 0.1, "max": 3.0  },
+      { "cc": 26,  "parameter": "lumBassBrightness",  "label": "Bass Lum Bright", "min": 0.1, "max": 3.0  },
+      { "cc": 27,  "parameter": "lumMidColorCycle",   "label": "Mid Color Cycle", "min": 0,   "max": 1.0  },
+      { "cc": 28,  "parameter": "particleTurbulence", "label": "Particle Turb.",  "min": 0,   "max": 1.0  },
+      { "cc": 29,  "parameter": "particleLifespan",   "label": "Lifespan",        "min": 0.5, "max": 5.0  },
+      { "cc": 30,  "parameter": "particleGlow",       "label": "Particle Glow",   "min": 0,   "max": 30   },
+      { "cc": 31,  "parameter": "luminanceThreshold", "label": "Lum Threshold",   "min": 0,   "max": 1.0  }
+    ]
+  },
+
+  "standard_cc": [
+    { "cc": 7,  "parameter": "volume", "label": "Master Volume", "min": 0, "max": 1.0, "note": "Standard MIDI volume — always active" },
+    { "cc": 1,  "label": "Mod Wheel",  "note": "Touch strip / mod — routes to CC 1 on most devices, future: smoothing time" }
+  ],
+
+  "transport_notes": {
+    "play":  { "note": 21, "description": "Play" },
+    "pause": { "note": 20, "description": "Pause" }
+  },
+
+  "visual_pad_layout": [
+    "┌──────────────────────────────────────────┐",
+    "│  [P13 BASS↑] [P14 MILKDRP] [P15 GLITCH] [P16 PALET]  │  ← ROW 4 TOP (macro toggles)",
+    "│  [P9  AURORA] [P10 PLASMA] [P11 GRAVTY] [P12 KINTC ]  │  ← ROW 3     (WebGL studio)",
+    "│  [P5  STORM ] [P6  KALEID] [P7  VORTEX] [P8  LIQUID]  │  ← ROW 2     (dynamic modes)",
+    "│  [P1  SPECTR] [P2  WAVE  ] [P3  PARTICL][P4  NEBULA]  │  ← ROW 1 BOT (core scenes)",
+    "└──────────────────────────────────────────┘",
+    "",
+    "  K1       K2      K3       K4         K5         K6       K7     K8",
+    "  Sensitv  Glow    Speed    Beat Pulse Layer Bld  Lighting Blur   Particles",
+    "  CC 14    CC 15   CC 16    CC 17      CC 18      CC 19    CC 20  CC 21"
+  ]
+}

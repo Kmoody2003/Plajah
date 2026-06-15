@@ -22,6 +22,7 @@
     "@giphy/js-fetch-api": "^5.8.0",
     "@giphy/react-components": "^10.1.2",
     "@google/genai": "1.41.0",
+    "@lottiefiles/dotlottie-web": "^0.55.0",
     "@lumaai/luma-web": "^0.2.2",
     "@mux/mux-node": "^14.0.1",
     "@mux/mux-player-react": "^3.13.0",

@@ -4,7 +4,7 @@ import {
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square, 
     Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
-    Save, FolderOpen, CheckCircle, Grid3x3
+    Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity
 } from 'lucide-react';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -13,6 +13,8 @@ import ClipGrid from './components/ClipGrid';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import ShaderPanel from './components/ShaderPanel';
+import MidiNotesScene from './components/MidiNotesScene';
+import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
 import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
@@ -162,6 +164,34 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [shaderStart, setShaderStart] = useState(0);
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
+    // Synthesia-style MIDI falling-notes scene (driven by live MIDI input).
+    const [midiNotes, setMidiNotes] = useState(false);
+    // Overlay layers (Lottie + HTML/URL) + perf HUD / mode.
+    const [overlay, setOverlay] = useState({
+        lottieUrl: '', lottieOn: false, lottieOpacity: 0.9,
+        htmlUrl: '', htmlOn: false, htmlOpacity: 0.9, htmlInteractive: false,
+    });
+    const [showLayersPanel, setShowLayersPanel] = useState(false);
+    const [showFps, setShowFps] = useState(false);
+    const [perfMode, setPerfMode] = useState(false);
+    const perfPrevRef = useRef<Partial<VisualizationConfig> | null>(null);
+    const overlayState: OverlayState = { ...overlay, set: (patch) => setOverlay(o => ({ ...o, ...patch })) };
+
+    // Performance mode — trade visual richness for framerate under heavy load.
+    const togglePerfMode = () => setPerfMode(on => {
+        const next = !on;
+        if (next) {
+            perfPrevRef.current = {
+                enableBlur: config.enableBlur, enableMosaic: config.enableMosaic, enableLayer2: config.enableLayer2,
+                enableBassShake: config.enableBassShake, particleCount: config.particleCount, glowIntensity: config.glowIntensity,
+            };
+            setConfig(prev => ({ ...prev, enableBlur: false, enableMosaic: false, enableLayer2: false, enableBassShake: false, particleCount: Math.min(prev.particleCount, 30), glowIntensity: Math.min(prev.glowIntensity, 8) }));
+        } else if (perfPrevRef.current) {
+            const restore = perfPrevRef.current; perfPrevRef.current = null;
+            setConfig(prev => ({ ...prev, ...restore }));
+        }
+        return next;
+    });
     const matteEngineRef = useRef<MatteEngine | null>(null);
     if (!matteEngineRef.current) matteEngineRef.current = new MatteEngine();
     const [matteSettings, setMatteSettings] = useState<MatteSettings>({ mode: 'none', thresh: 0.30, scale: 1.0, react: true });
@@ -196,6 +226,18 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             window.removeEventListener('plajah-midi-play-pause', handleMidiPlayPause);
             window.removeEventListener('plajah-volume-change', handleVolumeChangeStatus);
             window.removeEventListener('plajah-music-pause', handleMusicPause);
+        };
+    }, []);
+
+    // MIDI pad P13 (Note 73) → toggle / advance Milkdrop engine from the controller
+    useEffect(() => {
+        const handleToggle = () => setMilkdrop(v => !v);
+        const handleNext   = () => setMilkdropIdx(i => i + 1);
+        window.addEventListener('plajah-milkdrop-toggle', handleToggle);
+        window.addEventListener('plajah-milkdrop-next',   handleNext);
+        return () => {
+            window.removeEventListener('plajah-milkdrop-toggle', handleToggle);
+            window.removeEventListener('plajah-milkdrop-next',   handleNext);
         };
     }, []);
     const [aiVideoPrompt, setAiVideoPrompt] = useState("");
@@ -511,7 +553,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             enabled: milkdrop,
                             name: milkdropMeta.name,
                             count: milkdropMeta.count,
-                            onToggle: () => setMilkdrop(v => !v),
+                            onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); } return n; }),
                             onPrev: () => setMilkdropIdx(i => i - 1),
                             onNext: () => setMilkdropIdx(i => i + 1),
                             onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
@@ -532,9 +574,22 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     <ShaderPanel
                         active={!!shaderSrc}
                         error={shaderError}
-                        onApply={(src) => { setMilkdrop(false); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
+                        onApply={(src) => { setMilkdrop(false); setMidiNotes(false); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
                         onOff={() => { setShaderSrc(null); setShaderError(null); }}
                     />
+                </DraggablePanel>
+            )}
+
+            {/* ─── Overlay layers panel (Lottie + HTML) — draggable, pinnable ─── */}
+            {showLayersPanel && (
+                <DraggablePanel
+                    id="layerspanel"
+                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 332, y: 96 }}
+                    zIndex={38}
+                    label="Layers"
+                    onClose={() => setShowLayersPanel(false)}
+                >
+                    <LayersPanel state={overlayState} />
                 </DraggablePanel>
             )}
 
@@ -565,6 +620,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         presetIndex={milkdropIdx}
                         onMeta={setMilkdropMeta}
                     />
+                ) : midiNotes ? (
+                    <MidiNotesScene palette={config.colorPalette} />
                 ) : isStudioMode(config.mode) ? (
                     <StudioStage
                         id="core-visualizer"
@@ -595,6 +652,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             <GlobalLighting id="global-lighting" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
             <TextOverlay id="text-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
             <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={audioElRef} />
+
+            {/* User-loadable overlay layers (composite on top of the core visual) */}
+            {overlay.htmlOn && overlay.htmlUrl && <HtmlLayer src={overlay.htmlUrl} opacity={overlay.htmlOpacity} interactive={overlay.htmlInteractive} />}
+            {overlay.lottieOn && overlay.lottieUrl && <LottieLayer src={overlay.lottieUrl} opacity={overlay.lottieOpacity} />}
+
+            {/* Performance HUD */}
+            {showFps && <FpsMeter />}
 
             {/* MIDI Status Floating HUD */}
             <MidiStatusHud config={config} />
@@ -643,6 +707,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <button onClick={() => setShowShaderPanel(v => !v)} title="Custom GLSL shader (Shadertoy-style)"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showShaderPanel || shaderSrc ? 'bg-cyan-600/40 border-cyan-500/50' : 'bg-black/40 border-white/10 hover:bg-cyan-600/30'}`}>
                     <Cpu className="w-4 h-4 text-white/80" />
+                </button>
+                {/* Studio: Synthesia-style MIDI falling-notes scene */}
+                <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    <Piano className="w-4 h-4 text-white/80" />
+                </button>
+                {/* Studio: overlay layers (Lottie + HTML/URL) */}
+                <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
+                    <Layers2 className="w-4 h-4 text-white/80" />
+                </button>
+                {/* Studio: performance mode + FPS */}
+                <button onClick={togglePerfMode} title="Performance mode (more FPS under load)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${perfMode ? 'bg-green-600/40 border-green-500/50' : 'bg-black/40 border-white/10 hover:bg-green-600/30'}`}>
+                    <Gauge className="w-4 h-4 text-white/80" />
+                </button>
+                <button onClick={() => setShowFps(v => !v)} title="Toggle FPS meter"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showFps ? 'bg-white/20 border-white/30' : 'bg-black/40 border-white/10 hover:bg-white/10'}`}>
+                    <Activity className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: scene rail toggle */}
                 <button onClick={() => setShowRail(v => !v)} title="Toggle scene rail"
