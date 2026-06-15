@@ -1888,10 +1888,12 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const canvas = canvasRef.current;
     if (!canvas || !analyser) return;
 
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true } as CanvasRenderingContext2DSettings);
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    // Cap DPR at 2 — rendering this heavy 2D path at 3×/4× backing resolution on
+    // hi-DPI screens quadruples fill cost for no visible gain. Caps fill rate.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
     const desiredWidth = rect.width * dpr;
     const desiredHeight = rect.height * dpr;

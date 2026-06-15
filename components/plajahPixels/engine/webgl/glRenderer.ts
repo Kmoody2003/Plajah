@@ -65,10 +65,24 @@ export class GLRenderer {
   programs: Record<string, WebGLProgram | null> = {};
   ok = false;
   private canvas: HTMLCanvasElement;
+  // Per-program uniform-location cache — getUniformLocation is a synchronous GL
+  // round-trip; looking these up every frame (×13 uniforms × 60–120fps) is pure
+  // waste. Cache once per program for a real hot-path win.
+  private uCache = new Map<WebGLProgram, Record<string, WebGLUniformLocation | null>>();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+    // powerPreference:'high-performance' asks the browser to pick the DISCRETE
+    // GPU (the NVIDIA dGPU on laptops/desktops with switchable graphics) instead
+    // of integrated — the single biggest "optimize for NVIDIA" lever available
+    // to a web app. desynchronized lowers present latency for smoother frames.
+    const gl = canvas.getContext('webgl2', {
+      antialias: false,
+      alpha: false,
+      powerPreference: 'high-performance',
+      desynchronized: true,
+      preserveDrawingBuffer: false,
+    } as WebGLContextAttributes);
     if (!gl) { console.warn('WebGL2 unavailable'); return; }
     this.gl = gl;
     const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
@@ -94,7 +108,16 @@ export class GLRenderer {
   draw(key: string, tMs: number, A: AudioBands, P: VizParams, pal: string[]) {
     if (!this.ok) return; const gl = this.gl!, prog = this.programs[key]; if (!prog) return;
     gl.useProgram(prog);
-    const u = (n: string) => gl.getUniformLocation(prog, n);
+    // Cached uniform locations (looked up once per program, not per frame).
+    let locs = this.uCache.get(prog);
+    if (!locs) {
+      locs = {};
+      for (const n of ['uRes','uT','uBass','uMid','uTreble','uLevel','uBeat','uSpeed','uGlow','uC0','uC1','uC2','uC3']) {
+        locs[n] = gl.getUniformLocation(prog, n);
+      }
+      this.uCache.set(prog, locs);
+    }
+    const u = (n: string) => locs![n];
     gl.uniform2f(u('uRes'), this.canvas.width, this.canvas.height);
     gl.uniform1f(u('uT'), tMs * 0.001);
     gl.uniform1f(u('uBass'), A.bass); gl.uniform1f(u('uMid'), A.mid); gl.uniform1f(u('uTreble'), A.treble);

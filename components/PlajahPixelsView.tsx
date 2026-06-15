@@ -77,6 +77,7 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
     mediaImages,
     currentCaption: getActiveCaption(gp.currentTrack, gp.currentTime, gp.duration),
     hasCaptions: trackHasCaptions(gp.currentTrack),
+    currentTrackTitle: gp.currentTrack?.title ?? '',
     title: album?.title ?? track?.title ?? 'Plajah Pixels',
     onClose,
   }), [gp, album, track, mediaImages, onClose]);

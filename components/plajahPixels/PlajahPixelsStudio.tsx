@@ -15,6 +15,7 @@ import MattePanel from './components/MattePanel';
 import { MatteEngine } from './engine/matting/matteEngine';
 import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
+import DraggablePanel from './components/DraggablePanel';
 import ThemeGenerator from './components/ThemeGenerator';
 import BackgroundLayer from './components/BackgroundLayer';
 import GlobalLighting from './components/GlobalLighting';
@@ -111,10 +112,11 @@ export interface PlajahPixelsPlatformBridge {
     tracklist: { id: string; title: string; artist?: string }[];
     currentTrackId: string | null;
     onSelectTrack: (id: string) => void;
-    mediaImages: string[];   // album art + slideshow + current-track images
-    currentCaption: string;  // active lyric line from the platform's caption system
-    hasCaptions: boolean;    // whether the current track has lyrics/time-coded captions
-    title?: string;          // album / playlist title
+    mediaImages: string[];     // album art + slideshow + current-track images
+    currentCaption: string;    // active lyric line from the platform's caption system
+    hasCaptions: boolean;      // whether the current track has lyrics/time-coded captions
+    currentTrackTitle: string; // current track name → auto-fills the text overlay
+    title?: string;            // album / playlist title
     onClose: () => void;
 }
 
@@ -139,7 +141,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         { url: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=1200", type: "image", id: "default-misty-overlay" }
     ]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'core' | 'colors' | 'ambient' | 'stage' | 'text' | 'ai' | 'midi'>('core');
+    const [activeTab, setActiveTab] = useState<'core' | 'colors' | 'ambient' | 'stage' | 'text' | 'ai' | 'midi' | 'tracks'>('core');
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
     // ─── Studio engine UI ───
@@ -280,6 +282,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         setConfig(prev => ({ ...prev, enableCaptions: platform.hasCaptions, enableLiveCaptions: platform.hasCaptions }));
     }, [platform?.hasCaptions]);
 
+    // Auto-fill the text overlay with the current track name (so the headline
+    // text tracks whatever is playing). Lyrics flow separately via captions above.
+    useEffect(() => {
+        if (!platform || !platform.currentTrackTitle) return;
+        setConfig(prev => (prev.textContent === platform.currentTrackTitle ? prev : { ...prev, textContent: platform.currentTrackTitle }));
+    }, [platform?.currentTrackTitle]);
+
     // Effective transport: slave to the platform when bridged, else self-driven.
     const effTogglePlay = () => (platform ? platform.togglePlay() : handleTogglePlay());
     const effVolumeChange = (v: number) => { if (platform) platform.setVolume(v); else handleVolumeChange(v); };
@@ -412,6 +421,27 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         e.target.value = '';
     };
 
+    // Shared tracklist rows — reused by the floating panel AND the flyout tab.
+    const tracklistRows = platform ? platform.tracklist.map((t, i) => {
+        const active = t.id === platform.currentTrackId;
+        return (
+            <button
+                key={t.id}
+                onClick={() => platform.onSelectTrack(t.id)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all ${active ? 'bg-purple-600/40 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white'}`}
+            >
+                <span className="text-[9px] font-black w-4 shrink-0 opacity-50">{i + 1}</span>
+                {active && audioState.isPlaying
+                    ? <Pause className="w-3 h-3 shrink-0 fill-current" />
+                    : <Play className="w-3 h-3 shrink-0 fill-current" />}
+                <span className="min-w-0">
+                    <span className="block text-[11px] font-bold truncate">{t.title}</span>
+                    {t.artist && <span className="block text-[9px] text-white/35 truncate">{t.artist}</span>}
+                </span>
+            </button>
+        );
+    }) : null;
+
     return (
         <div id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans">
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle ─── */}
@@ -442,38 +472,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </div>
             )}
 
-            {/* ─── Tracklist (album / playlist loaded from the platform) ─── */}
-            <AnimatePresence>
-                {platform && showTracklist && platform.tracklist.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, x: -16 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -16 }}
-                        className="absolute top-24 left-6 z-40 w-64 max-h-[62vh] overflow-y-auto bg-black/70 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl scrollbar-none"
-                    >
-                        <p className="px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-white/30">Tracklist</p>
-                        {platform.tracklist.map((t, i) => {
-                            const active = t.id === platform.currentTrackId;
-                            return (
-                                <button
-                                    key={t.id}
-                                    onClick={() => platform.onSelectTrack(t.id)}
-                                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all ${active ? 'bg-purple-600/40 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white'}`}
-                                >
-                                    <span className="text-[9px] font-black w-4 shrink-0 opacity-50">{i + 1}</span>
-                                    {active && audioState.isPlaying
-                                        ? <Pause className="w-3 h-3 shrink-0 fill-current" />
-                                        : <Play className="w-3 h-3 shrink-0 fill-current" />}
-                                    <span className="min-w-0">
-                                        <span className="block text-[11px] font-bold truncate">{t.title}</span>
-                                        {t.artist && <span className="block text-[9px] text-white/35 truncate">{t.artist}</span>}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* ─── Tracklist — draggable, pinnable, collapsible (hide via handle ×) ─── */}
+            {platform && showTracklist && platform.tracklist.length > 0 && (
+                <DraggablePanel id="tracklist" defaultPos={{ x: 24, y: 96 }} zIndex={40} label="Tracklist" onClose={() => setShowTracklist(false)}>
+                    <div className="w-64 max-h-[58vh] overflow-y-auto bg-black/70 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl p-2 shadow-2xl scrollbar-none">
+                        {tracklistRows}
+                    </div>
+                </DraggablePanel>
+            )}
 
             {/* Background Compositing Layer */}
             <BackgroundLayer 
@@ -604,9 +610,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 {isSettingsOpen ? <X className="w-5 h-5 text-purple-400" /> : <Sliders className="w-5 h-5" />}
             </button>
 
-            {/* Floating Control Center Dock at the Bottom */}
-            <div id="controls-dock" className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 w-full max-w-4xl px-4 transition-all">
-                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-2xl relative">
+            {/* Floating Control Center Dock — draggable + pinnable + persisted */}
+            <DraggablePanel
+                id="controls-dock"
+                defaultPos={{
+                    x: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 1280) / 2 - 360),
+                    y: (typeof window !== 'undefined' ? window.innerHeight : 720) - 128,
+                }}
+                zIndex={30}
+                label="Transport"
+            >
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl p-4 flex items-center justify-between gap-4 shadow-2xl w-[720px] max-w-[92vw]">
                     <Controls
                         audioState={audioState}
                         onTogglePlay={effTogglePlay}
@@ -624,7 +638,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         in ./components/ThemeGenerator and the import below). To re-enable,
                         restore: <ThemeGenerator onThemeGenerated={c => setConfig(prev => ({ ...prev, ...c }))} currentConfigName={config.name} /> */}
                 </div>
-            </div>
+            </DraggablePanel>
 
             {/* Sliding Tabbed Configuration Drawer (Glassmorphism) */}
             <AnimatePresence>
@@ -696,10 +710,34 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 <Radio className="w-3.5 h-3.5" />
                                 <span>MIDI</span>
                             </button>
+                            {/* Tracks tab — only when an album/playlist is loaded from the platform */}
+                            {platform && platform.tracklist.length > 0 && (
+                                <button
+                                    onClick={() => setActiveTab('tracks')}
+                                    className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                >
+                                    <Music className="w-3.5 h-3.5" />
+                                    <span>Tracks</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Scrollable Settings Panel Content */}
                         <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
+                            {activeTab === 'tracks' && platform && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-white/50">{platform.title || 'Tracklist'} · {platform.tracklist.length} tracks</p>
+                                        <button
+                                            onClick={() => setShowTracklist(v => !v)}
+                                            className="text-[10px] font-black uppercase tracking-widest text-purple-300 hover:text-white transition-colors"
+                                        >
+                                            {showTracklist ? 'Hide floating' : 'Show floating'}
+                                        </button>
+                                    </div>
+                                    <div className="space-y-1">{tracklistRows}</div>
+                                </div>
+                            )}
                             {activeTab === 'core' && (
                                 <div className="space-y-4">
                                     {/* Mode Selector */}
