@@ -4,11 +4,12 @@ import {
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square, 
     Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
-    Save, FolderOpen, CheckCircle
+    Save, FolderOpen, CheckCircle, Grid3x3
 } from 'lucide-react';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
+import ClipGrid from './components/ClipGrid';
 import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
@@ -148,6 +149,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showRail, setShowRail] = useState(true);
     const [showTimeline, setShowTimeline] = useState(true);
     const [showMatte, setShowMatte] = useState(false);
+    const [showClipGrid, setShowClipGrid] = useState(false);
     const matteEngineRef = useRef<MatteEngine | null>(null);
     if (!matteEngineRef.current) matteEngineRef.current = new MatteEngine();
     const [matteSettings, setMatteSettings] = useState<MatteSettings>({ mode: 'none', thresh: 0.30, scale: 1.0, react: true });
@@ -481,6 +483,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </DraggablePanel>
             )}
 
+            {/* ─── Clip launcher grid — draggable, pinnable (Resolume-style cells) ─── */}
+            {showClipGrid && (
+                <DraggablePanel
+                    id="clipgrid"
+                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 312, y: 96 }}
+                    zIndex={36}
+                    label="Clips"
+                    onClose={() => setShowClipGrid(false)}
+                >
+                    <ClipGrid config={config} onApply={(patch) => setConfig(prev => ({ ...prev, ...patch }))} />
+                </DraggablePanel>
+            )}
+
             {/* Background Compositing Layer */}
             <BackgroundLayer 
                 mediaList1={bgMedia1} 
@@ -564,6 +579,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
             <div className="absolute top-6 right-20 z-30 flex items-center gap-2">
+                {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}
+                <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    <Grid3x3 className="w-4 h-4 text-white/80" />
+                </button>
                 {/* Studio: scene rail toggle */}
                 <button onClick={() => setShowRail(v => !v)} title="Toggle scene rail"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showRail ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
