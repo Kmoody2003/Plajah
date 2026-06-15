@@ -11,7 +11,7 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
-export type Three3DScene = 'water';
+export type Three3DScene = 'water' | 'forest';
 export type Three3DVariant = 'day' | 'night' | 'park';
 export type Three3DCamera = 'orbit-slow' | 'orbit-fast' | 'dolly' | 'static';
 
@@ -230,6 +230,125 @@ const AmusementPark: React.FC<{ accent: THREE.Color; bands: React.MutableRefObje
   );
 };
 
+// ── Wind material: MeshStandard patched with GPU vertex sway (no per-instance JS) ──
+function makeWindMaterial(opts: { color: number; emissive?: number; vocal?: number }) {
+  const uniforms = { uTime: { value: 0 }, uWind: { value: 0.2 }, uVocal: { value: opts.vocal ?? 0 } };
+  const mat = new THREE.MeshStandardMaterial({ color: opts.color, emissive: opts.emissive ?? 0x000000, roughness: 0.85, metalness: 0 });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uWind = uniforms.uWind;
+    shader.uniforms.uVocal = uniforms.uVocal;
+    shader.vertexShader = 'uniform float uTime; uniform float uWind; uniform float uVocal;\n' + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+       #ifdef USE_INSTANCING
+         vec4 _wp = instanceMatrix * vec4(position, 1.0);
+       #else
+         vec4 _wp = vec4(position, 1.0);
+       #endif
+       float _h = max(transformed.y, 0.0);
+       float _sway = (uWind + uVocal * 0.6) * smoothstep(0.0, 2.5, _h);
+       transformed.x += sin(uTime * 1.3 + _wp.z * 0.12) * _sway;
+       transformed.z += cos(uTime * 1.05 + _wp.x * 0.12) * _sway * 0.7;
+       transformed.y += sin(uTime * 2.0 + _wp.x * 0.3 + _wp.z * 0.3) * uVocal * 0.15 * _h;`
+    );
+  };
+  return { mat, uniforms };
+}
+
+// ── Forest scene ─────────────────────────────────────────────────────────────
+const ForestScene: React.FC<{ bands: React.MutableRefObject<Bands>; palette: string[] }> = ({ bands, palette }) => {
+  const { scene } = useThree();
+  const trunkRef = useRef<THREE.InstancedMesh>(null);
+  const foliageRef = useRef<THREE.InstancedMesh>(null);
+  const grassRef = useRef<THREE.InstancedMesh>(null);
+  const flowerRef = useRef<THREE.InstancedMesh>(null);
+  const dustRef = useRef<THREE.Points>(null);
+  const groundMat = useRef<THREE.MeshStandardMaterial>(null);
+
+  const TREES = 110, GRASS = 2600, FLOWERS = 220, DUST = 400;
+  const baseLeaf = useMemo(() => new THREE.Color(palette[2] || palette[0] || '#3a7d2c'), [palette]);
+
+  // Geometry + wind materials (built once).
+  const foliage = useMemo(() => makeWindMaterial({ color: baseLeaf.getHex(), emissive: 0x0a1e08 }), [baseLeaf]);
+  const grassMat = useMemo(() => makeWindMaterial({ color: 0x4a7a2a, vocal: 1 }), []);
+  const trunkGeo = useMemo(() => new THREE.CylinderGeometry(0.5, 0.9, 1, 6), []);
+  const foliageGeo = useMemo(() => new THREE.IcosahedronGeometry(1, 1), []);
+  const grassGeo = useMemo(() => { const g = new THREE.ConeGeometry(0.18, 1, 4); g.translate(0, 0.5, 0); return g; }, []);
+  const flowerGeo = useMemo(() => new THREE.ConeGeometry(0.4, 0.9, 6), []);
+
+  // Random layout (once).
+  const trees = useMemo(() => Array.from({ length: TREES }, () => { const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 150; return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 10 + Math.random() * 18, w: 0.7 + Math.random() * 0.8, fr: 4 + Math.random() * 4 }; }), []);
+  const grasses = useMemo(() => Array.from({ length: GRASS }, () => { const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 150; return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 1.2 + Math.random() * 1.8, rot: Math.random() * Math.PI }; }), []);
+  const flowers = useMemo(() => Array.from({ length: FLOWERS }, () => { const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 140; return { x: Math.cos(a) * r, z: Math.sin(a) * r, hue: Math.random() }; }), []);
+  const dust = useMemo(() => { const arr = new Float32Array(DUST * 3); for (let i = 0; i < DUST; i++) { const a = Math.random() * Math.PI * 2, r = Math.random() * 140; arr[i * 3] = Math.cos(a) * r; arr[i * 3 + 1] = Math.random() * 12; arr[i * 3 + 2] = Math.sin(a) * r; } return arr; }, []);
+
+  useEffect(() => {
+    const d = new THREE.Object3D();
+    trees.forEach((t, i) => {
+      d.position.set(t.x, t.h / 2, t.z); d.scale.set(t.w, t.h, t.w); d.rotation.set(0, 0, 0); d.updateMatrix();
+      trunkRef.current?.setMatrixAt(i, d.matrix);
+      d.position.set(t.x, t.h + t.fr * 0.4, t.z); d.scale.set(t.fr, t.fr, t.fr); d.updateMatrix();
+      foliageRef.current?.setMatrixAt(i, d.matrix);
+    });
+    grasses.forEach((g, i) => { d.position.set(g.x, 0, g.z); d.scale.set(1, g.h, 1); d.rotation.set(0, g.rot, 0); d.updateMatrix(); grassRef.current?.setMatrixAt(i, d.matrix); });
+    const col = new THREE.Color();
+    flowers.forEach((f, i) => { d.position.set(f.x, 0.6, f.z); d.scale.setScalar(1); d.rotation.set(Math.PI, 0, 0); d.updateMatrix(); flowerRef.current?.setMatrixAt(i, d.matrix); flowerRef.current?.setColorAt(i, col.setHSL(f.hue, 0.8, 0.6)); });
+    [trunkRef, foliageRef, grassRef, flowerRef].forEach(r => { if (r.current) r.current.instanceMatrix.needsUpdate = true; });
+    if (flowerRef.current?.instanceColor) flowerRef.current.instanceColor.needsUpdate = true;
+    scene.background = new THREE.Color(0x0a1410);
+    scene.fog = new THREE.FogExp2(0x0a1814, 0.0035);
+    return () => { scene.fog = null; };
+  }, [trees, grasses, flowers, scene]);
+
+  useFrame((_, dt) => {
+    const b = bands.current;
+    const wind = 0.15 + b.level * 1.4 + b.beatPulse * 0.4;     // wind tracks song intensity
+    const vocal = b.mid * 0.7 + b.treble * 0.5;                // "vocals" → grass waveform
+    foliage.uniforms.uTime.value += dt; foliage.uniforms.uWind.value = wind;
+    grassMat.uniforms.uTime.value += dt * 1.4; grassMat.uniforms.uWind.value = wind * 0.6; grassMat.uniforms.uVocal.value = vocal;
+    // Treble shifts leaf color
+    foliage.mat.color.copy(baseLeaf).offsetHSL(b.treble * 0.12, 0, b.treble * 0.1);
+    // Ground pulses to the beat (emissive), dust kicks up on beats
+    if (groundMat.current) groundMat.current.emissiveIntensity = 0.08 + b.beatPulse * 0.7;
+    if (dustRef.current) {
+      (dustRef.current.material as THREE.PointsMaterial).opacity = 0.05 + b.beatPulse * 0.55;
+      const pos = (dustRef.current.geometry.getAttribute('position') as THREE.BufferAttribute);
+      const a = pos.array as Float32Array;
+      for (let i = 0; i < a.length; i += 3) { a[i + 1] += dt * (1 + b.beatPulse * 8); if (a[i + 1] > 14) a[i + 1] = 0; }
+      pos.needsUpdate = true;
+    }
+  });
+
+  return (
+    <>
+      <ambientLight intensity={0.45} color={0x8fae8f} />
+      <hemisphereLight args={[0x9fc0ff, 0x2a1f10, 0.7]} />
+      <directionalLight position={[60, 90, 30]} intensity={0.9} color={0xfff0d0} />
+      {/* ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <circleGeometry args={[200, 48]} />
+        <meshStandardMaterial ref={groundMat} color={0x2a1d12} emissive={baseLeaf} emissiveIntensity={0.1} roughness={1} />
+      </mesh>
+      <instancedMesh ref={trunkRef} args={[trunkGeo, undefined as any, TREES]}>
+        <meshStandardMaterial attach="material" color={0x3b2a1a} roughness={1} />
+      </instancedMesh>
+      <instancedMesh ref={foliageRef} args={[foliageGeo, foliage.mat, TREES]} />
+      <instancedMesh ref={grassRef} args={[grassGeo, grassMat.mat, GRASS]} />
+      <instancedMesh ref={flowerRef} args={[flowerGeo, undefined as any, FLOWERS]}>
+        <meshStandardMaterial attach="material" roughness={0.8} vertexColors />
+      </instancedMesh>
+      <points ref={dustRef}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[dust, 3]} />
+        </bufferGeometry>
+        <pointsMaterial size={0.6} color={0xc9b48a} transparent opacity={0.1} depthWrite={false} sizeAttenuation />
+      </points>
+    </>
+  );
+};
+
 // ── Public component ─────────────────────────────────────────────────────────
 const ThreeScene: React.FC<{ analyser: AnalyserNode | null; config: Three3DConfig; albumUrl?: string; palette: string[] }>
   = ({ analyser, config, albumUrl, palette }) => {
@@ -251,6 +370,7 @@ const ThreeScene: React.FC<{ analyser: AnalyserNode | null; config: Three3DConfi
         <AudioDriver analyser={analyser} bands={bands} />
         <CameraRig preset={config.camera} bands={bands} />
         {config.scene === 'water' && <WaterScene variant={config.variant} bands={bands} albumTex={albumTex} palette={palette} />}
+        {config.scene === 'forest' && <ForestScene bands={bands} palette={palette} />}
         <OrbitControls enablePan={false} enableZoom enableRotate target={[0, 4, 0]} maxPolarAngle={Math.PI * 0.495} />
       </Canvas>
     </div>

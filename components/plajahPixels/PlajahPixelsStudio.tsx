@@ -10,6 +10,7 @@ import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
+import ClipLauncher from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import ShaderPanel from './components/ShaderPanel';
@@ -551,7 +552,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 30, stiffness: 240 }}
                         className="fixed bottom-0 left-0 right-0 flex flex-col"
-                        style={{ height: 220, zIndex: 200, background: 'rgba(6,6,16,0.95)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)' }}
+                        style={{ height: 420, zIndex: 200, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -12px 60px rgba(0,0,0,0.8)' }}
                     >
                         {/* Close handle */}
                         <button
@@ -561,11 +562,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             <X className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* ClipGrid fills the strip */}
-                        <ClipGrid
-                            bottomLayout
+                        {/* Resolume-style clip launcher */}
+                        <ClipLauncher
                             config={config}
-                            onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); } setConfig(prev => ({ ...prev, ...patch })); }}
+                            onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); } setConfig(prev => ({ ...prev, ...patch })); }}
                             onSetBgMedia={(media) => {
                                 if (media) setBgMedia1([media]);
                                 else setBgMedia1([]);
@@ -574,10 +574,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 enabled: milkdrop,
                                 name: milkdropMeta.name,
                                 count: milkdropMeta.count,
-                                onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); setThree3d(null); } return n; }),
-                                onPrev: () => setMilkdropIdx(i => i - 1),
-                                onNext: () => setMilkdropIdx(i => i + 1),
+                                idx: milkdropIdx,
+                                onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); } return n; }),
+                                onPrev:   () => setMilkdropIdx(i => i - 1),
+                                onNext:   () => setMilkdropIdx(i => i + 1),
                                 onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
+                                onSetIdx: (i) => setMilkdropIdx(i),
                             }}
                         />
                     </motion.div>
@@ -625,16 +627,29 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         {three3d && (
                             <>
                                 <div>
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Scene · Reflective Water</p>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                        {(['day', 'night', 'park'] as Three3DVariant[]).map(v => (
-                                            <button key={v} onClick={() => setThree3d(c => c && { ...c, variant: v })}
-                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.variant === v ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
-                                                {v === 'park' ? 'Park' : v}
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Scene</p>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {([['water', 'Water'], ['forest', 'Forest']] as ['water' | 'forest', string][]).map(([s, label]) => (
+                                            <button key={s} onClick={() => setThree3d(c => c && { ...c, scene: s })}
+                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.scene === s ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                                                {label}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
+                                {three3d.scene === 'water' && (
+                                    <div>
+                                        <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Water · Time of day</p>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            {(['day', 'night', 'park'] as Three3DVariant[]).map(v => (
+                                                <button key={v} onClick={() => setThree3d(c => c && { ...c, variant: v })}
+                                                    className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.variant === v ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                                                    {v === 'park' ? 'Park' : v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
                                     <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Camera</p>
                                     <div className="grid grid-cols-2 gap-1.5">
@@ -646,7 +661,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         ))}
                                     </div>
                                 </div>
-                                <p className="text-[7px] text-white/25 leading-relaxed">Drag to orbit manually · scroll to zoom. Album art floats on the water and reflects; waves & splashes react to the audio. Forest scene coming next.</p>
+                                <p className="text-[7px] text-white/25 leading-relaxed">
+                                    {three3d.scene === 'water'
+                                        ? 'Drag to orbit · scroll to zoom. Album art floats on the water and reflects; waves & splashes react to the audio.'
+                                        : 'Drag to orbit · scroll to zoom. Trees sway with the song; ground pulses & kicks up dust on the beat; grass waves to the vocals; highs shift leaf color.'}
+                                </p>
                             </>
                         )}
                     </div>
