@@ -154,6 +154,7 @@ const CloseFriendsView = retryLazy(() => import('./components/CloseFriendsView')
 const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchive'));
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
+const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -371,6 +372,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [kioskEventId, setKioskEventId] = useState<string | null>(null);
   const [scannerEventId, setScannerEventId] = useState<string | null>(null);
@@ -475,12 +477,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('PLAY_LIVE_FEED', handlePlayLive);
 
+    // Open the Plajah Pixels visualizer. detail: { album?, track? }. Empty detail
+    // (from the Apps page) opens the standalone studio. The wrapper handles any
+    // seamless playback start via the global player.
+    const handleOpenPixels = (e: any) => {
+      setPixelsPayload(e?.detail || {});
+      setView('PLAJAH_PIXELS');
+    };
+    window.addEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
       window.removeEventListener('OPEN_DEBATE', handleOpenDebate);
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
+      window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
     };
   }, [user]);
 
@@ -2777,6 +2789,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
+            {view === 'PLAJAH_PIXELS' && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" />}
             {view === 'ART_GALLERY' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="GALLERY" />}

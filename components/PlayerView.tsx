@@ -1128,6 +1128,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           <Waves size={11} />
                           <span className="hidden sm:inline">Breakdown</span>
                         </button>
+                        {/* Send this song into Plajah Pixels (visualizer) */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
+                          title="Plajah Pixels — send this song into the visualizer"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                        >
+                          <Sparkles size={11} />
+                          <span>PP</span>
+                        </button>
                         {/* Share this individual track (Plajah feed + social) */}
                         <div onClick={(e) => e.stopPropagation()}>
                           <ShareButton
@@ -2100,6 +2109,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                <Zap size={18} /> Lights
              </button>
 
+             {/* Load this whole album/playlist into Plajah Pixels */}
+             <button
+               onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } }))}
+               title="Plajah Pixels — load this album into the visualizer"
+               className="flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl border bg-white/10 text-white border-white/10 hover:bg-purple-500/20 hover:border-purple-400/40 hover:text-purple-200"
+             >
+               <Sparkles size={18} /> Plajah Pixels
+             </button>
+
              {!isOwner && !isPreview && (
                <>
                  <button 
@@ -2455,6 +2473,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       >
                                         <Waves size={11} />
                                         <span className="hidden lg:inline">Breakdown</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
+                                        title="Plajah Pixels — send this song into the visualizer"
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                                      >
+                                        <Sparkles size={11} />
+                                        <span>PP</span>
                                       </button>
                                       {isOwner && (
                                         <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
