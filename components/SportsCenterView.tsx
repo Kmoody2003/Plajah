@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
+import RacerProfileView from './sports/RacerProfileView';
 import {
   fetchLeagueTeams, fetchLeagueNews, fetchLeagueStandings, fetchLeagueScores,
   fetchEsportsNews, fetchLeagueLeaders, fetchPlayerProfile, fetchPlayerCareer,
@@ -1430,12 +1431,13 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
   const [loading,       setLoading]       = useState(true);
   const [showRaceHistory, setShowRaceHistory] = useState(false);
   const [showRaceReplay,  setShowRaceReplay]  = useState(false);
+  const [selectedDriver,  setSelectedDriver]  = useState<RacingDriver | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setSchedule([]); setStandings([]); setNews([]);
     setDrivers([]); setConstructors([]); setF1Drivers([]);
-    setActiveSection('DRIVERS');
+    setActiveSection('DRIVERS'); setSelectedDriver(null);
 
     const tasks: Promise<any>[] = [
       fetchRacingSchedule(tab),
@@ -1575,7 +1577,18 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
         <AnimatePresence mode="wait">
 
           {/* DRIVERS TAB */}
-          {activeSection === 'DRIVERS' && (
+          {activeSection === 'DRIVERS' && selectedDriver && (
+            <RacerProfileView
+              driver={selectedDriver}
+              tab={tab}
+              seriesColor={SERIES_COLOR}
+              standings={standings}
+              schedule={schedule}
+              news={news}
+              onClose={() => setSelectedDriver(null)}
+            />
+          )}
+          {activeSection === 'DRIVERS' && !selectedDriver && (
             <motion.div key="drivers" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
 
               {/* F1: OpenF1 driver grid */}
@@ -1585,7 +1598,8 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                     const tc = f1TeamColor(d.team_colour);
                     return (
                       <div key={d.driver_number} style={{ borderColor: `${tc}25` }}
-                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] transition-all">
+                        onClick={() => setSelectedDriver({ id: String(d.driver_number), name: d.full_name || d.broadcast_name, number: String(d.driver_number ?? ''), teamName: d.team_name || '', manufacturer: '', nationality: '', headshot: d.headshot_url || '', teamColor: tc, teamLogo: '' })}
+                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] hover:-translate-y-0.5 transition-all cursor-pointer">
                         <div style={{ background: tc }} className="h-1 w-full" />
                         <div className="p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -1631,7 +1645,8 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                     const mfrColor = MFR_COLOR[d.manufacturer] ?? '#888';
                     return (
                       <div key={d.id} style={{ borderColor: `${d.teamColor}25` }}
-                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] transition-all">
+                        onClick={() => setSelectedDriver(d)}
+                        className="relative bg-white/[0.03] border rounded-[1.5rem] overflow-hidden hover:bg-white/[0.07] hover:-translate-y-0.5 transition-all cursor-pointer">
                         <div style={{ background: d.teamColor }} className="h-1 w-full" />
                         {d.number && (
                           <div style={{ color: d.teamColor }}

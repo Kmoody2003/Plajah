@@ -1434,6 +1434,66 @@ export interface RacingConstructor {
   rank: number;
 }
 
+// ── Racing driver photos · TheSportsDB ───────────────────────────────────────
+// ESPN has NO usable headshots for NASCAR/IndyCar (athlete endpoints 404, the
+// headshot CDN 404s for racing ids). TheSportsDB DOES carry accurate driver
+// cutouts, matched by name. We cache resolutions permanently in localStorage
+// (a driver's photo doesn't change) so it's a one-time lookup. (TSDB base URL
+// is declared once above.)
+const RACE_PHOTO_KEY = 'plajah_racing_photos_v1';
+function loadRacePhotoCache(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(RACE_PHOTO_KEY) || '{}'); } catch { return {}; }
+}
+function saveRacePhotoCache(c: Record<string, string>) {
+  try { localStorage.setItem(RACE_PHOTO_KEY, JSON.stringify(c)); } catch { /* */ }
+}
+
+/** Full TheSportsDB record for a motorsport driver (photo, nationality, dob, bio). */
+export async function fetchRacingDriverDetail(name: string): Promise<any | null> {
+  if (!name) return null;
+  const key = `racing:driverdetail:${name.toLowerCase()}`;
+  const cached = fromCache(key, TTL.teams);
+  if (cached !== null && cached !== undefined) return cached;
+  try {
+    const data = await safeFetch(`${TSDB}/searchplayers.php?p=${encodeURIComponent(name)}`);
+    const players: any[] = data?.player ?? [];
+    const p = players.find((x: any) => (x.strSport || '').toLowerCase() === 'motorsport') ?? players[0] ?? null;
+    toCache(key, p);
+    return p;
+  } catch { return null; }
+}
+
+/** Accurate driver headshot (TheSportsDB cutout), localStorage-cached. */
+export async function resolveDriverPhoto(name: string): Promise<string> {
+  if (!name) return '';
+  const cache = loadRacePhotoCache();
+  const k = name.toLowerCase();
+  if (k in cache) return cache[k];
+  const p = await fetchRacingDriverDetail(name);
+  const url = p?.strCutout || p?.strThumb || '';
+  cache[k] = url; saveRacePhotoCache(cache);
+  return url;
+}
+
+// NASCAR team → manufacturer (the badge the cards show). ESPN standings give the
+// team name; this maps the current charter teams to their make.
+function nascarManufacturer(team: string): string {
+  const t = (team || '').toLowerCase();
+  if (/hendrick|trackhouse|kaulig|spire|childress|\brcr\b/.test(t)) return 'Chevrolet';
+  if (/gibbs|23xi|legacy/.test(t)) return 'Toyota';
+  if (/penske|\brfk\b|front row|wood brothers|stewart|haas|rick ware|\brwr\b/.test(t)) return 'Ford';
+  return '';
+}
+
+async function mapWithConcurrency<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const idx = i++; try { out[idx] = await fn(items[idx]); } catch { /* */ } }
+  }));
+  return out;
+}
+
 export async function fetchRacingDrivers(tab: string): Promise<RacingDriver[]> {
   const cfg = getRacingCfg(tab);
   if (!cfg) return [];
@@ -1441,24 +1501,29 @@ export async function fetchRacingDrivers(tab: string): Promise<RacingDriver[]> {
   const c = fromCache(key, TTL.teams);
   if (c) return c;
 
-  const data = await safeFetch(`${ESPN}/${cfg.sport}/${cfg.league}/athletes?limit=80&active=true`);
-  const items: any[] = data?.items ?? data?.athletes ?? [];
-  if (!items.length) { toCache(key, []); return []; }
+  // Roster + team + championship rank from ESPN standings (accurate for both
+  // NASCAR & IndyCar — the /athletes endpoint is dead for racing).
+  const standings = await fetchRacingStandings(tab);
+  const base: RacingDriver[] = standings
+    .filter(s => s.driverName && !/^driver\s/i.test(s.driverName))
+    .map((s, i) => ({
+      id: `${tab}-${i}-${s.driverName.replace(/\s+/g, '_')}`,
+      name: s.driverName,
+      number: '',
+      teamName: s.teamName,
+      manufacturer: tab === 'NASCAR' ? nascarManufacturer(s.teamName) : '',
+      nationality: '',
+      headshot: '',
+      teamColor: '#FF8C00',
+      teamLogo: '',
+    }));
 
-  const drivers: RacingDriver[] = items.slice(0, 60).map((a: any) => ({
-    id: a.id ?? '',
-    name: a.displayName ?? a.fullName ?? '',
-    number: a.jersey ?? '',
-    teamName: a.team?.displayName ?? a.team?.shortDisplayName ?? '',
-    manufacturer: a.team?.manufacturer?.displayName ?? '',
-    nationality: a.citizenship ?? a.birthPlace?.country ?? '',
-    headshot: a.headshot?.href ?? '',
-    teamColor: a.team?.color ? `#${a.team.color}` : '#FF8C00',
-    teamLogo: a.team?.logos?.[0]?.href ?? '',
-  }));
+  // Accurate photos from TheSportsDB (cached, concurrency-limited).
+  const photos = await mapWithConcurrency(base, 6, d => resolveDriverPhoto(d.name));
+  base.forEach((d, i) => { d.headshot = photos[i] || ''; });
 
-  toCache(key, drivers);
-  return drivers;
+  toCache(key, base);
+  return base;
 }
 
 export async function fetchRacingConstructors(tab: string): Promise<RacingConstructor[]> {

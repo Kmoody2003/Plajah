@@ -639,47 +639,22 @@ const CrowdFlashes: React.FC = () => (
   </group>
 );
 
-// Rack-focus controller — behaves like a real camera operator pulling focus.
-// Each frame, find the trophy closest to the center of the frame (weighted
-// toward nearer subjects, like autofocus), then ease the depth-of-field
-// focal plane onto it. Everything nearer/farther than the focal plane blurs
-// progressively with distance.
-const FocusRack: React.FC<{ dofRef: React.MutableRefObject<any> }> = ({ dofRef }) => {
-  const focus = useRef(new THREE.Vector3(0, 3.2, 0));
-  const tmpDir = useMemo(() => new THREE.Vector3(), []);
-  const tmpFwd = useMemo(() => new THREE.Vector3(), []);
-  const bestVec = useMemo(() => new THREE.Vector3(), []);
+// Rack-focus controller — locks the focal plane onto the selected trophy so
+// it is always tack-sharp. The focus point sits at pedestal-mid height (y=1.4)
+// rather than trophy-center so the focus band covers the full trophy from base
+// to globe AND everything between the camera and that point stays sharp.
+// Only geometry BEHIND that depth (stands, crowd, far trophies) blurs.
+const FocusRack: React.FC<{ dofRef: React.MutableRefObject<any>; targetX: number }> = ({ dofRef, targetX }) => {
+  const focus = useRef(new THREE.Vector3(targetX, 1.4, 0));
+  const dest  = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(({ camera }) => {
-    camera.getWorldDirection(tmpFwd);
-    let bestScore = Infinity;
-    let found = false;
-
-    for (let i = 0; i < COUNT; i++) {
-      if (WC_FINALS[i].cancelled) continue;
-      tmpDir.set(xFor(i) - camera.position.x, 3.2 - camera.position.y, -camera.position.z);
-      const dist = tmpDir.length();
-      tmpDir.normalize();
-      const cos = tmpDir.dot(tmpFwd);
-      if (cos < 0.55) continue;                     // outside the lens cone
-      const angle = Math.acos(Math.min(1, cos));
-      // centered in frame matters most; among similar framing, prefer the nearer trophy
-      const score = angle * 60 + dist * 0.12;
-      if (score < bestScore) {
-        bestScore = score;
-        bestVec.set(xFor(i), 3.2, 0);
-        found = true;
-      }
-    }
-
-    // No trophy in frame — focus mid-distance along the view ray so the
-    // scene still has a believable focal plane instead of snapping.
-    if (!found) {
-      bestVec.copy(camera.position).addScaledVector(tmpFwd, Math.max(14, focus.current.distanceTo(camera.position)));
-    }
-
-    // Smooth focus pull (a hard cut between focal planes reads as a glitch)
-    focus.current.lerp(bestVec, 0.08);
+  useFrame(() => {
+    // y=1.4 — pedestal mid-point. The focus band at this depth extends forward
+    // toward the camera (nothing blurs there — it's open air) and back through
+    // the full trophy height to the globe at y~5.5. Stands and crowd at
+    // 2-3× the trophy distance fall outside the band and receive bokeh.
+    dest.set(targetX, 1.4, 0);
+    focus.current.lerp(dest, 0.18);
 
     const effect = dofRef.current;
     if (!effect) return;
@@ -799,16 +774,20 @@ export const WorldCupHallOfLegends: React.FC<HallProps> = ({ onOpenTeam }) => {
 
             <OrbitControls ref={controlsRef} maxPolarAngle={Math.PI / 2.08} minDistance={5} maxDistance={420} />
             <CameraRig targetIndex={selected} flyToken={flyToken} controlsRef={controlsRef} />
-            {cinematic && <FocusRack dofRef={dofRef} />}
+            {/* Always track the selected trophy — keeps it tack-sharp regardless
+                of camera position or which other trophies are in frame */}
+            {cinematic && <FocusRack dofRef={dofRef} targetX={xFor(selected)} />}
 
             {/* cinematic post pipeline */}
             {cinematic && (
               <EffectComposer multisampling={0}>
                 <N8AO aoRadius={2.2} intensity={2.4} distanceFalloff={1.2} halfRes />
                 <Bloom intensity={0.75} luminanceThreshold={0.78} luminanceSmoothing={0.2} mipmapBlur />
-                {/* shallow focal band: the framed trophy is tack-sharp, each row
-                    behind it melts further into bokeh — focus driven by FocusRack */}
-                <DepthOfField ref={dofRef} target={[xFor(defaultIndex), 3.2, 0]} focalLength={0.018} bokehScale={4.2} height={600} />
+                {/* FocusRack drives the target; focalLength 0.018 gives a wide-enough
+                    band that the full trophy + foreground air stays sharp. bokehScale 5
+                    is moderate — stands/crowd at 2-3× trophy distance blur softly while
+                    the near side (camera → trophy) stays crisp. */}
+                <DepthOfField ref={dofRef} target={[xFor(defaultIndex), 1.4, 0]} focalLength={0.018} bokehScale={5} height={600} />
                 <ChromaticAberration offset={[0.00055, 0.0004]} />
                 <Noise opacity={0.045} />
                 <Vignette eskil={false} offset={0.18} darkness={0.78} />
