@@ -10,6 +10,7 @@ import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
+import ButterchurnLayer from './components/ButterchurnLayer';
 import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
@@ -150,6 +151,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showTimeline, setShowTimeline] = useState(true);
     const [showMatte, setShowMatte] = useState(false);
     const [showClipGrid, setShowClipGrid] = useState(false);
+    // Milkdrop (butterchurn) — open-source preset engine as a selectable core viz.
+    const [milkdrop, setMilkdrop] = useState(false);
+    const [milkdropIdx, setMilkdropIdx] = useState(0);
+    const [milkdropMeta, setMilkdropMeta] = useState<{ count: number; name: string }>({ count: 0, name: '' });
     const matteEngineRef = useRef<MatteEngine | null>(null);
     if (!matteEngineRef.current) matteEngineRef.current = new MatteEngine();
     const [matteSettings, setMatteSettings] = useState<MatteSettings>({ mode: 'none', thresh: 0.30, scale: 1.0, react: true });
@@ -492,7 +497,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     label="Clips"
                     onClose={() => setShowClipGrid(false)}
                 >
-                    <ClipGrid config={config} onApply={(patch) => setConfig(prev => ({ ...prev, ...patch }))} />
+                    <ClipGrid
+                        config={config}
+                        onApply={(patch) => { if (patch.mode !== undefined) setMilkdrop(false); setConfig(prev => ({ ...prev, ...patch })); }}
+                        milkdrop={{
+                            enabled: milkdrop,
+                            name: milkdropMeta.name,
+                            count: milkdropMeta.count,
+                            onToggle: () => setMilkdrop(v => !v),
+                            onPrev: () => setMilkdropIdx(i => i - 1),
+                            onNext: () => setMilkdropIdx(i => i + 1),
+                            onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
+                        }}
+                    />
                 </DraggablePanel>
             )}
 
@@ -506,11 +523,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 id="bg-layer"
             />
 
-            {/* Core Visualiser — studio engine scenes (Canvas2D + WebGL) or the
-                classic high-fidelity AudioVisualizer, both sharing one analyser
-                and compositing over the dual-layer background via blend mode. */}
+            {/* Core Visualiser — Milkdrop (butterchurn) when enabled, else a studio
+                engine scene (Canvas2D + WebGL) or the classic high-fidelity
+                AudioVisualizer. All share the one analyser. */}
             {analyserRef.current && (
-                isStudioMode(config.mode) ? (
+                milkdrop ? (
+                    <ButterchurnLayer
+                        analyser={analyserRef.current}
+                        presetIndex={milkdropIdx}
+                        onMeta={setMilkdropMeta}
+                    />
+                ) : isStudioMode(config.mode) ? (
                     <StudioStage
                         id="core-visualizer"
                         analyser={analyserRef.current}
@@ -518,12 +541,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         isPlaying={audioState.isPlaying}
                     />
                 ) : (
-                    <AudioVisualizer 
+                    <AudioVisualizer
                         id="core-visualizer"
-                        analyser={analyserRef.current} 
-                        config={config} 
-                        isPlaying={audioState.isPlaying} 
-                        hasBackground={bgMedia1.length > 0 || bgMedia2.length > 0} 
+                        analyser={analyserRef.current}
+                        config={config}
+                        isPlaying={audioState.isPlaying}
+                        hasBackground={bgMedia1.length > 0 || bgMedia2.length > 0}
                     />
                 )
             )}

@@ -4,9 +4,19 @@
 // later). Captured looks persist to localStorage so a user's set stays put.
 
 import React, { useState } from 'react';
-import { Camera, Trash2, Grid3x3, Palette, Sparkle } from 'lucide-react';
+import { Camera, Trash2, Grid3x3, Palette, Sparkle, Wind, SkipBack, SkipForward, Shuffle } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode } from '../types';
 import { SCENE_CATALOG } from '../engine/sceneCatalog';
+
+export interface MilkdropControls {
+  enabled: boolean;
+  name: string;
+  count: number;
+  onToggle: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onRandom: () => void;
+}
 
 const CLIPS_KEY = 'plajah-pixels-clips-v1';
 
@@ -31,6 +41,7 @@ function saveClips(c: UserClip[]) {
 interface Props {
   config: VisualizationConfig;
   onApply: (patch: Partial<VisualizationConfig>) => void;
+  milkdrop?: MilkdropControls;
 }
 
 const Cell: React.FC<{ active?: boolean; onClick: () => void; children: React.ReactNode; accent?: string; onDelete?: () => void }>
@@ -56,8 +67,8 @@ const Cell: React.FC<{ active?: boolean; onClick: () => void; children: React.Re
   </div>
 );
 
-const ClipGrid: React.FC<Props> = ({ config, onApply }) => {
-  const [tab, setTab] = useState<'scenes' | 'palettes' | 'clips'>('scenes');
+const ClipGrid: React.FC<Props> = ({ config, onApply, milkdrop }) => {
+  const [tab, setTab] = useState<'scenes' | 'palettes' | 'clips' | 'milkdrop'>('scenes');
   const [clips, setClips] = useState<UserClip[]>(() => loadClips());
 
   const captureLook = () => {
@@ -75,13 +86,13 @@ const ClipGrid: React.FC<Props> = ({ config, onApply }) => {
     <div className="w-[280px] max-h-[60vh] flex flex-col bg-black/70 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl shadow-2xl overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b border-white/10 text-[9px] font-black uppercase tracking-widest">
-        {([['scenes', Grid3x3], ['palettes', Palette], ['clips', Sparkle]] as const).map(([t, Icon]) => (
+        {([['scenes', Grid3x3], ['palettes', Palette], ['clips', Sparkle], ...(milkdrop ? [['milkdrop', Wind] as const] : [])] as const).map(([t, Icon]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-2 flex items-center justify-center gap-1 border-b-2 transition-colors ${tab === t ? 'border-purple-500 text-purple-300 bg-white/5' : 'border-transparent text-white/40 hover:text-white'}`}
           >
-            <Icon className="w-3 h-3" /> {t}
+            <Icon className="w-3 h-3" /> {t === 'milkdrop' ? 'MILK' : t}
           </button>
         ))}
       </div>
@@ -109,6 +120,34 @@ const ClipGrid: React.FC<Props> = ({ config, onApply }) => {
                 <span className="relative text-[10px] font-black text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{p.name}</span>
               </Cell>
             ))}
+          </div>
+        )}
+
+        {tab === 'milkdrop' && milkdrop && (
+          <div className="space-y-3">
+            <button
+              onClick={milkdrop.onToggle}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${milkdrop.enabled ? 'bg-purple-600/50 border-purple-400/50 text-white' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}
+            >
+              <Wind className="w-3.5 h-3.5" /> {milkdrop.enabled ? 'Milkdrop ON' : 'Enable Milkdrop'}
+            </button>
+            <p className="text-[8px] text-white/30 leading-relaxed text-center">
+              Open-source Butterchurn engine — {milkdrop.count > 0 ? `${milkdrop.count} presets` : 'thousands of free presets'}, audio-reactive to this track.
+            </p>
+            {milkdrop.enabled && (
+              <>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={milkdrop.onPrev} title="Previous preset" className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><SkipBack className="w-3.5 h-3.5" /></button>
+                  <button onClick={milkdrop.onRandom} title="Random preset" className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><Shuffle className="w-3.5 h-3.5" /></button>
+                  <button onClick={milkdrop.onNext} title="Next preset" className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><SkipForward className="w-3.5 h-3.5" /></button>
+                </div>
+                {milkdrop.name && (
+                  <p className="text-[9px] text-white/50 text-center break-words px-1 leading-snug" title={milkdrop.name}>
+                    {milkdrop.name.length > 48 ? milkdrop.name.slice(0, 48) + '…' : milkdrop.name}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
 
