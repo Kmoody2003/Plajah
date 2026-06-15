@@ -11,6 +11,8 @@ import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
 import ButterchurnLayer from './components/ButterchurnLayer';
+import ShaderLayer from './components/ShaderLayer';
+import ShaderPanel from './components/ShaderPanel';
 import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
 import MattePanel from './components/MattePanel';
@@ -155,6 +157,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
     const [milkdropMeta, setMilkdropMeta] = useState<{ count: number; name: string }>({ count: 0, name: '' });
+    // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
+    const [shaderSrc, setShaderSrc] = useState<string | null>(null);
+    const [shaderStart, setShaderStart] = useState(0);
+    const [shaderError, setShaderError] = useState<string | null>(null);
+    const [showShaderPanel, setShowShaderPanel] = useState(false);
     const matteEngineRef = useRef<MatteEngine | null>(null);
     if (!matteEngineRef.current) matteEngineRef.current = new MatteEngine();
     const [matteSettings, setMatteSettings] = useState<MatteSettings>({ mode: 'none', thresh: 0.30, scale: 1.0, react: true });
@@ -499,7 +506,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 >
                     <ClipGrid
                         config={config}
-                        onApply={(patch) => { if (patch.mode !== undefined) setMilkdrop(false); setConfig(prev => ({ ...prev, ...patch })); }}
+                        onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); } setConfig(prev => ({ ...prev, ...patch })); }}
                         milkdrop={{
                             enabled: milkdrop,
                             name: milkdropMeta.name,
@@ -509,6 +516,24 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             onNext: () => setMilkdropIdx(i => i + 1),
                             onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
                         }}
+                    />
+                </DraggablePanel>
+            )}
+
+            {/* ─── Custom GLSL shader editor — draggable, pinnable ─── */}
+            {showShaderPanel && (
+                <DraggablePanel
+                    id="shaderpanel"
+                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 372, y: 96 }}
+                    zIndex={37}
+                    label="Shader"
+                    onClose={() => setShowShaderPanel(false)}
+                >
+                    <ShaderPanel
+                        active={!!shaderSrc}
+                        error={shaderError}
+                        onApply={(src) => { setMilkdrop(false); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
+                        onOff={() => { setShaderSrc(null); setShaderError(null); }}
                     />
                 </DraggablePanel>
             )}
@@ -527,7 +552,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 engine scene (Canvas2D + WebGL) or the classic high-fidelity
                 AudioVisualizer. All share the one analyser. */}
             {analyserRef.current && (
-                milkdrop ? (
+                shaderSrc ? (
+                    <ShaderLayer
+                        analyser={analyserRef.current}
+                        source={shaderSrc}
+                        startTimeMs={shaderStart}
+                        onError={setShaderError}
+                    />
+                ) : milkdrop ? (
                     <ButterchurnLayer
                         analyser={analyserRef.current}
                         presetIndex={milkdropIdx}
@@ -606,6 +638,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
                     <Grid3x3 className="w-4 h-4 text-white/80" />
+                </button>
+                {/* Studio: custom GLSL shader editor toggle */}
+                <button onClick={() => setShowShaderPanel(v => !v)} title="Custom GLSL shader (Shadertoy-style)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showShaderPanel || shaderSrc ? 'bg-cyan-600/40 border-cyan-500/50' : 'bg-black/40 border-white/10 hover:bg-cyan-600/30'}`}>
+                    <Cpu className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: scene rail toggle */}
                 <button onClick={() => setShowRail(v => !v)} title="Toggle scene rail"
