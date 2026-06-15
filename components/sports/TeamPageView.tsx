@@ -888,7 +888,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function NewsCard({ article }: { article: any }) {
   return (
-    <a href={article.links?.web?.href || article.url || '#'} target="_blank" rel="noopener noreferrer"
+    <a href={article.links?.web?.href || article.url || undefined} target="_blank" rel="noopener noreferrer"
       className="flex gap-4 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
       {article.images?.[0]?.url && (
         <img src={article.images[0].url} alt="" className="w-20 h-14 object-cover rounded-xl shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" loading="lazy" />

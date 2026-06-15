@@ -663,7 +663,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><Newspaper size={10} /> Esports Headlines</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {news.slice(0, 8).map((article: any, i: number) => (
-                  <a key={i} href={article.links?.web?.href || article.url || '#'} target="_blank" rel="noopener noreferrer"
+                  <a key={i} href={article.links?.web?.href || article.url || undefined} target="_blank" rel="noopener noreferrer"
                     className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
                     {(article.images?.[0]?.url || article.imageUrl) && <img src={article.images?.[0]?.url || article.imageUrl} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
                     <div className="flex-1 min-w-0">
@@ -1162,7 +1162,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {news.slice(0, 8).map((article: any, i: number) => (
-                    <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
+                    <a key={i} href={article.links?.web?.href || article.url || undefined} target="_blank" rel="noopener noreferrer"
                       className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
                       {article.images?.[0]?.url && <img src={article.images[0].url} alt="" className="w-14 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity" loading="lazy" />}
                       <div className="flex-1 min-w-0">
@@ -1977,7 +1977,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
               {news.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {news.slice(0, 10).map((article: any, i: number) => (
-                    <a key={i} href={article.links?.web?.href || '#'} target="_blank" rel="noopener noreferrer"
+                    <a key={i} href={article.links?.web?.href || article.url || undefined} target="_blank" rel="noopener noreferrer"
                       className="flex gap-3 p-4 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all group">
                       {article.images?.[0]?.url && (
                         <img src={article.images[0].url} alt=""

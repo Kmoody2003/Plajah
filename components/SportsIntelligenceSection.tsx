@@ -13,7 +13,7 @@ const normalize = (item: any, league: string): Article => ({
   title: item.title || item.headline || 'Sports update',
   content: item.content || item.summary || item.description || item.descriptionText || '',
   source: item.source || item.byline || league,
-  url: item.url || item.links?.web?.href || '#',
+  url: item.url || item.links?.web?.href || item.links?.mobile?.href || '',
   imageUrl: item.imageUrl || item.images?.[0]?.url || item.images?.[0]?.href || '',
   timestamp: item.timestamp || (item.published ? new Date(item.published).getTime() : Date.now()),
 } as Article);

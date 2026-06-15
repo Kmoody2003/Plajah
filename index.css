@@ -783,6 +783,24 @@ body.has-custom-background::after {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.track-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.track-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+
+.track-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+}
+
+.track-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
 .glass-morphism {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(12px);

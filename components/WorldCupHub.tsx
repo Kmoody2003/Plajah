@@ -690,7 +690,7 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
                 {!newsLoading && !newsError && wcNews.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {wcNews.map((article: any, i: number) => {
-                      const href = article.links?.web?.href || article.url || article.link || '#';
+                      const href = article.links?.web?.href || article.url || article.link || undefined;
                       const title = article.headline || article.title || '';
                       const img = article.images?.[0]?.url || article.images?.[0]?.href || article.imageUrl || '';
                       const source = article.source || (article.categories?.find((c: any) => c.type === 'league')?.description) || 'ESPN Soccer';

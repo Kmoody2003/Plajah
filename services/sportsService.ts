@@ -635,7 +635,7 @@ export async function fetchEsportsNews(): Promise<any[]> {
       headline: item.title,
       title:    item.title,
       published: item.timestamp || new Date().toISOString(),
-      links: { web: { href: item.url || item.link || '#' } },
+      links: { web: { href: item.url || item.link || '' } },
       images: item.imageUrl ? [{ url: item.imageUrl }] : [],
       source: item.source,
       description: item.content || item.description || '',
@@ -684,7 +684,7 @@ export async function fetchWorldCupNews(): Promise<any[]> {
     const articles = rssItems.map((item: any) => ({
       headline:  item.title,
       published: item.pubDate || new Date().toISOString(),
-      links:     { web: { href: item.url || item.link || '#' } },
+      links:     { web: { href: item.url || item.link || '' } },
       images:    item.imageUrl ? [{ url: item.imageUrl }] : [],
       source:    item.source || 'Soccer News',
       description: item.summary || item.content || '',

@@ -5,7 +5,7 @@ import {
     Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
-    Monitor, Maximize2, EyeOff, Eye, Circle
+    Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight
 } from 'lucide-react';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -245,6 +245,51 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         } catch { /* permission denied / unsupported → fall through */ }
         enterFullscreen();
     }, [enterFullscreen]);
+
+    // ── Preview / Program (A/B) ──────────────────────────────────────────────────
+    // Program = the live full-screen output (driven by `config` + the mode flags),
+    // never disturbed while you audition. Preview = a small second pipeline that
+    // renders a STAGED 2D/scene or GLSL look. Take promotes Preview → Program.
+    const [previewOn, setPreviewOn] = useState(false);
+    const [editTarget, setEditTarget] = useState<'program' | 'preview'>('program');
+    const [previewConfig, setPreviewConfig] = useState<VisualizationConfig>(DEFAULT_CONFIG);
+    const [previewKind, setPreviewKind] = useState<'scene' | 'shader'>('scene');
+    const [previewShader, setPreviewShader] = useState<string | null>(null);
+    const previewShaderStartRef = useRef(0);
+
+    // Route a config patch to whichever side is being edited.
+    const applyLook = useCallback((patch: Partial<VisualizationConfig>) => {
+        if (editTarget === 'preview') {
+            if (patch.mode !== undefined) setPreviewKind('scene');
+            setPreviewConfig(prev => ({ ...prev, ...patch }));
+        } else {
+            if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); }
+            setConfig(prev => ({ ...prev, ...patch }));
+        }
+    }, [editTarget]);
+
+    const applyShaderLook = useCallback((src: string) => {
+        if (editTarget === 'preview') {
+            setPreviewKind('shader'); previewShaderStartRef.current = performance.now(); setPreviewShader(src);
+        } else {
+            setMilkdrop(false); setMidiNotes(false); setThree3d(null);
+            setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src);
+        }
+    }, [editTarget]);
+
+    // Take the staged Preview look to the live Program output.
+    const takeToProgram = useCallback(() => {
+        setMilkdrop(false); setThree3d(null); setMidiNotes(false);
+        if (previewKind === 'shader' && previewShader) {
+            setShaderError(null); setShaderStart(performance.now()); setShaderSrc(previewShader);
+        } else {
+            setShaderSrc(null); setConfig(prev => ({ ...prev, ...previewConfig }));
+        }
+    }, [previewKind, previewShader, previewConfig]);
+
+    const openPreview = useCallback(() => {
+        setPreviewOn(v => { const n = !v; setEditTarget(n ? 'preview' : 'program'); return n; });
+    }, []);
     // Overlay layers (Lottie + HTML/URL) + perf HUD / mode.
     const [overlay, setOverlay] = useState({
         lottieUrl: '', lottieOn: false, lottieOpacity: 0.9,
@@ -645,17 +690,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                         {/* Scenes — horizontal row across the top of the deck */}
                         <SceneRail
-                            config={config}
+                            config={editTarget === 'preview' ? previewConfig : config}
                             visible={showRail}
                             embedded
-                            onPick={(mode) => { setMilkdrop(false); setShaderSrc(null); setThree3d(null); setConfig(prev => ({ ...prev, mode })); }}
+                            onPick={(mode) => applyLook({ mode })}
                         />
 
                         {/* Resolume-style clip launcher (fills the middle) */}
                         <div className="flex-1 min-h-0 overflow-hidden">
                             <ClipLauncher
-                                config={config}
-                                onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); } setConfig(prev => ({ ...prev, ...patch })); }}
+                                config={editTarget === 'preview' ? previewConfig : config}
+                                onApply={applyLook}
                                 onSetBgMedia={(media) => {
                                     if (media) setBgMedia1([media]);
                                     else setBgMedia1([]);
@@ -698,7 +743,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     <ShaderPanel
                         active={!!shaderSrc}
                         error={shaderError}
-                        onApply={(src) => { setMilkdrop(false); setMidiNotes(false); setThree3d(null); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
+                        onApply={applyShaderLook}
                         onOff={() => { setShaderSrc(null); setShaderError(null); }}
                     />
                 </DraggablePanel>
@@ -906,6 +951,37 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* MIDI Status Floating HUD */}
             {!uiHidden && <MidiStatusHud config={config} />}
 
+            {/* ─── Preview / Program (A/B) inset — audition a 2D/GLSL look ─── */}
+            {previewOn && !uiHidden && (
+                <div className="fixed z-[210] w-[340px] max-w-[80vw] rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl"
+                    style={{ top: 64, right: 16, background: 'rgba(6,6,14,0.95)', backdropFilter: 'blur(20px)' }}>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/10">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5"><Tv className="w-3 h-3" /> Preview</span>
+                        <div className="flex items-center gap-1.5">
+                            <div className="flex items-center rounded-md bg-white/[0.06] p-0.5" title="Send panel edits to the Preview or the live Program">
+                                <button onClick={() => setEditTarget('preview')} className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${editTarget === 'preview' ? 'bg-amber-500/40 text-white' : 'text-white/40'}`}>Stage</button>
+                                <button onClick={() => setEditTarget('program')} className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${editTarget === 'program' ? 'bg-white/15 text-white' : 'text-white/40'}`}>Live</button>
+                            </div>
+                            <button onClick={() => { setPreviewOn(false); setEditTarget('program'); }} className="w-5 h-5 flex items-center justify-center rounded text-white/40 hover:text-white transition-colors"><X className="w-3 h-3" /></button>
+                        </div>
+                    </div>
+                    <div className="relative w-full bg-black" style={{ height: 180 }}>
+                        {analyserRef.current ? (
+                            previewKind === 'shader' && previewShader
+                                ? <ShaderLayer analyser={analyserRef.current} source={previewShader} startTimeMs={previewShaderStartRef.current} onError={() => { }} />
+                                : isStudioMode(previewConfig.mode)
+                                    ? <StudioStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
+                                    : <AudioVisualizer analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} hasBackground={false} />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[9px] text-white/30">Play audio to preview</div>
+                        )}
+                    </div>
+                    <button onClick={takeToProgram} className="w-full flex items-center justify-center gap-2 py-2 bg-amber-500/30 hover:bg-amber-500/50 text-[10px] font-black uppercase tracking-widest text-white transition-all">
+                        Take to Program <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
+
             {/* Scenes rail + NL timeline now live inside the bottom deck (above
                 and below the clip launcher). Only the matte panel floats here. */}
             <MattePanel
@@ -947,6 +1023,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <button onClick={() => setUiHidden(true)} title="Dismiss UI (full-screen visual)"
                     className="w-9 h-9 bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
                     <EyeOff className="w-4 h-4 text-white/80" />
+                </button>
+                <button onClick={openPreview} title="Preview / Program (A/B) — audition a look before going live"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${previewOn ? 'bg-amber-500/40 border-amber-500/60' : 'bg-black/40 border-white/10 hover:bg-amber-500/30'}`}>
+                    <Tv className="w-4 h-4 text-white/80" />
                 </button>
                 <div className="w-px h-5 bg-white/10 mx-0.5" />
                 {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}

@@ -97,6 +97,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     window.innerWidth < 1024;
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
+  const [contentTab, setContentTab] = useState<'tracks' | 'videos'>('tracks');
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
   const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
@@ -564,6 +565,26 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </p>
       </div>
 
+      {/* Tab bar — only for types that support BTS videos */}
+      {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && (
+        <div className="flex gap-1 p-1 bg-white/5 rounded-2xl self-start">
+          <button
+            type="button"
+            onClick={() => setContentTab('tracks')}
+            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${contentTab === 'tracks' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+          >
+            {type === 'MUSIC' ? 'Audio Tracks' : 'Video Upload'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setContentTab('videos')}
+            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${contentTab === 'videos' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
+          >
+            Videos &amp; BTS
+          </button>
+        </div>
+      )}
+
       {/* Movie Upload */}
       {type === 'VIDEO' && subType === 'MOVIE' && (
         <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-8">
@@ -777,7 +798,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       )}
 
       {/* Audio/General Upload Drop Zone (non-GAME) */}
-      {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && (
+      {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && contentTab === 'tracks' && (
         <div className="space-y-4">
           <div className="relative group">
             <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -890,9 +911,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       )}
 
-      {/* Track list (non-book) */}
-      {type !== 'BOOK' && tracks.length > 0 && (
-        <div className="space-y-5 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+      {/* Track list + Order — unified scroll container */}
+      {type !== 'BOOK' && tracks.length > 0 && contentTab === 'tracks' && (
+        <div className="max-h-[62vh] overflow-y-auto track-scrollbar space-y-5 -mr-3 pr-3">
           {tracks.map((track, i) => (
             <div key={track.id} className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
               <div className="flex items-center justify-between">
@@ -947,84 +968,84 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               )}
             </div>
           ))}
-        </div>
-      )}
 
-      {/* Track Order Arrangement */}
-      {type !== 'BOOK' && tracks.length > 1 && (
-        <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-              <GripVertical size={20} className="text-small-orange" />
-            </div>
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-widest">Arrange Track Order</h4>
-              <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Drag or use arrows to reorder tracks</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {tracks.map((track, i) => (
-              <div
-                key={track.id}
-                draggable
-                onDragStart={() => { dragIndexRef.current = i; }}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
-                onDragLeave={() => setDragOverIndex(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const from = dragIndexRef.current;
-                  setDragOverIndex(null);
-                  if (from === null || from === i) return;
-                  const reordered = [...tracks];
-                  const [moved] = reordered.splice(from, 1);
-                  reordered.splice(i, 0, moved);
-                  setTracks(reordered);
-                  dragIndexRef.current = null;
-                }}
-                onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
-                className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-grab active:cursor-grabbing select-none ${
-                  dragOverIndex === i
-                    ? 'bg-small-orange/10 border-small-orange/40 scale-[1.01]'
-                    : 'bg-white/[0.04] border-white/5 hover:bg-white/[0.07]'
-                }`}
-              >
-                <GripVertical size={16} className="text-white/20 shrink-0" />
-                <span className="w-8 text-center text-[10px] font-black text-small-orange shrink-0">{i + 1}</span>
-                <span className="flex-1 text-sm font-black uppercase tracking-wide text-white truncate">{track.title || 'Untitled'}</span>
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    disabled={i === 0}
-                    onClick={() => {
-                      const reordered = [...tracks];
-                      [reordered[i - 1], reordered[i]] = [reordered[i], reordered[i - 1]];
-                      setTracks(reordered);
-                    }}
-                    className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={i === tracks.length - 1}
-                    onClick={() => {
-                      const reordered = [...tracks];
-                      [reordered[i + 1], reordered[i]] = [reordered[i], reordered[i + 1]];
-                      setTracks(reordered);
-                    }}
-                    className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
+          {/* Track Order Arrangement */}
+          {tracks.length > 1 && (
+            <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                  <GripVertical size={20} className="text-small-orange" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest">Arrange Track Order</h4>
+                  <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Drag or use arrows to reorder tracks</p>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="space-y-2">
+                {tracks.map((track, i) => (
+                  <div
+                    key={track.id}
+                    draggable
+                    onDragStart={() => { dragIndexRef.current = i; }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
+                    onDragLeave={() => setDragOverIndex(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const from = dragIndexRef.current;
+                      setDragOverIndex(null);
+                      if (from === null || from === i) return;
+                      const reordered = [...tracks];
+                      const [moved] = reordered.splice(from, 1);
+                      reordered.splice(i, 0, moved);
+                      setTracks(reordered);
+                      dragIndexRef.current = null;
+                    }}
+                    onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-grab active:cursor-grabbing select-none ${
+                      dragOverIndex === i
+                        ? 'bg-small-orange/10 border-small-orange/40 scale-[1.01]'
+                        : 'bg-white/[0.04] border-white/5 hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    <GripVertical size={16} className="text-white/20 shrink-0" />
+                    <span className="w-8 text-center text-[10px] font-black text-small-orange shrink-0">{i + 1}</span>
+                    <span className="flex-1 text-sm font-black uppercase tracking-wide text-white truncate">{track.title || 'Untitled'}</span>
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        disabled={i === 0}
+                        onClick={() => {
+                          const reordered = [...tracks];
+                          [reordered[i - 1], reordered[i]] = [reordered[i], reordered[i - 1]];
+                          setTracks(reordered);
+                        }}
+                        className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={i === tracks.length - 1}
+                        onClick={() => {
+                          const reordered = [...tracks];
+                          [reordered[i + 1], reordered[i]] = [reordered[i], reordered[i + 1]];
+                          setTracks(reordered);
+                        }}
+                        className="p-1.5 text-white/30 hover:text-white disabled:opacity-20 transition-colors rounded-lg hover:bg-white/10"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Music Videos & BTS section */}
-      {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && (
+      {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && contentTab === 'videos' && (
         <div className="p-5 sm:p-6 bg-white/[0.03] border border-white/10 rounded-3xl space-y-5">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0"><VideoIcon size={20} className="text-blue-500" /></div>
@@ -2077,6 +2098,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 <ImageIcon size={10} /> Slideshow ({slideshow.length})
                 <input type="file" multiple className="hidden" accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []) as File[]; setSlideshowFiles(files); setSlideshow(files.map(f => URL.createObjectURL(f))); }} />
               </label>
+              <button
+                type="button"
+                onClick={() => { setPageDir(step < 2 ? 1 : -1); setStep(2); setContentTab('videos'); }}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/8 text-[8px] font-black uppercase tracking-widest text-small-orange active:scale-95"
+              >
+                <VideoIcon size={10} /> Videos & BTS
+              </button>
               <label className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full cursor-pointer border border-white/8 text-[8px] font-black uppercase tracking-widest text-small-orange active:scale-95">
                 <User size={10} /> Profile Pix
                 <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setArtistImage(URL.createObjectURL(f)); setArtistFile(f); } }} />
@@ -2159,6 +2187,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <span className="text-[9px] font-black uppercase tracking-widest text-small-orange group-hover:text-white">Slideshow ({slideshow.length})</span>
               <input type="file" multiple className="hidden" accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []) as File[]; setSlideshowFiles(files); setSlideshow(files.map(f => URL.createObjectURL(f))); }} />
             </label>
+            <button
+              type="button"
+              onClick={() => { setPageDir(step < 2 ? 1 : -1); setStep(2); setContentTab('videos'); }}
+              className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-blue-500/20 rounded-full border border-white/5 hover:border-blue-500/30 transition-all group active:scale-95"
+            >
+              <VideoIcon size={12} className="text-white/30 group-hover:text-blue-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-small-orange group-hover:text-blue-300">Videos & BTS</span>
+            </button>
             <label className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer border border-white/5 transition-all group active:scale-95">
               <User size={12} className="text-white/30 group-hover:text-white" />
               <span className="text-[9px] font-black uppercase tracking-widest text-small-orange group-hover:text-white">Profile Pix</span>

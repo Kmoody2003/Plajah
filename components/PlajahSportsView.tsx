@@ -156,7 +156,7 @@ const normalizeSportsArticle = (item: any, fallbackSource = 'Sports'): Article =
   title: item.title || item.headline || 'Sports update',
   content: item.content || item.summary || item.description || item.descriptionText || '',
   source: item.source || item.byline || fallbackSource,
-  url: item.url || item.links?.web?.href || '#',
+  url: item.url || item.links?.web?.href || item.links?.mobile?.href || '',
   imageUrl: bestSportsImage(item),
   timestamp: item.timestamp || (item.published ? new Date(item.published).getTime() : Date.now()),
 } as Article);
@@ -198,8 +198,8 @@ const SportsHero: React.FC<{
 
   const handleItemClick = (item: any) => {
     if (!onNavigate) return;
-    if (item.leagueId) onNavigate(item.leagueId);
-    else if (item.url && item.url !== '#') onNavigate(undefined, item.url);
+    if (item.url && item.url !== '#') onNavigate(undefined, item.url);
+    else if (item.leagueId) onNavigate(item.leagueId);
   };
 
   if (!items.length) return (
@@ -336,7 +336,7 @@ const SportsHero: React.FC<{
 // ─── Headline card ─────────────────────────────────────────────────────────────
 const HeadlineCard: React.FC<{ article: Article; featured?: boolean }> = ({ article, featured }) => (
   <a
-    href={article.url || '#'} target="_blank" rel="noreferrer"
+    href={article.url || undefined} target="_blank" rel="noreferrer"
     className={`group flex gap-4 p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-[1.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all ${featured ? 'flex-col' : ''}`}
   >
     {article.imageUrl && (
