@@ -4,7 +4,7 @@ import {
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square, 
     Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
-    Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity
+    Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box
 } from 'lucide-react';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -14,6 +14,7 @@ import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import ShaderPanel from './components/ShaderPanel';
 import MidiNotesScene from './components/MidiNotesScene';
+import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
 import TimelineStrip from './components/TimelineStrip';
 import MatteLayer, { MatteSettings } from './components/MatteLayer';
@@ -154,7 +155,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showRail, setShowRail] = useState(true);
     const [showTimeline, setShowTimeline] = useState(true);
     const [showMatte, setShowMatte] = useState(false);
-    const [showClipGrid, setShowClipGrid] = useState(false);
+    const [showClipGrid, setShowClipGrid] = useState(true);
     // Milkdrop (butterchurn) — open-source preset engine as a selectable core viz.
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
@@ -166,6 +167,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showShaderPanel, setShowShaderPanel] = useState(false);
     // Synthesia-style MIDI falling-notes scene (driven by live MIDI input).
     const [midiNotes, setMidiNotes] = useState(false);
+    // 3D mode (React Three Fiber) — null = off.
+    const [three3d, setThree3d] = useState<Three3DConfig | null>(null);
+    const [showThreePanel, setShowThreePanel] = useState(false);
     // Overlay layers (Lottie + HTML/URL) + perf HUD / mode.
     const [overlay, setOverlay] = useState({
         lottieUrl: '', lottieOn: false, lottieOpacity: 0.9,
@@ -537,30 +541,48 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </DraggablePanel>
             )}
 
-            {/* ─── Clip launcher grid — draggable, pinnable (Resolume-style cells) ─── */}
-            {showClipGrid && (
-                <DraggablePanel
-                    id="clipgrid"
-                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 312, y: 96 }}
-                    zIndex={36}
-                    label="Clips"
-                    onClose={() => setShowClipGrid(false)}
-                >
-                    <ClipGrid
-                        config={config}
-                        onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); } setConfig(prev => ({ ...prev, ...patch })); }}
-                        milkdrop={{
-                            enabled: milkdrop,
-                            name: milkdropMeta.name,
-                            count: milkdropMeta.count,
-                            onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); } return n; }),
-                            onPrev: () => setMilkdropIdx(i => i - 1),
-                            onNext: () => setMilkdropIdx(i => i + 1),
-                            onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
-                        }}
-                    />
-                </DraggablePanel>
-            )}
+            {/* ─── Clip Launcher — Resolume-style bottom strip ─── */}
+            <AnimatePresence>
+                {showClipGrid && (
+                    <motion.div
+                        key="clip-launcher"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 30, stiffness: 240 }}
+                        className="fixed bottom-0 left-0 right-0 flex flex-col"
+                        style={{ height: 220, zIndex: 200, background: 'rgba(6,6,16,0.95)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)' }}
+                    >
+                        {/* Close handle */}
+                        <button
+                            onClick={() => setShowClipGrid(false)}
+                            className="absolute top-1 right-2 w-6 h-6 flex items-center justify-center rounded text-white/20 hover:text-white hover:bg-white/10 transition-all z-10"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* ClipGrid fills the strip */}
+                        <ClipGrid
+                            bottomLayout
+                            config={config}
+                            onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); } setConfig(prev => ({ ...prev, ...patch })); }}
+                            onSetBgMedia={(media) => {
+                                if (media) setBgMedia1([media]);
+                                else setBgMedia1([]);
+                            }}
+                            milkdrop={{
+                                enabled: milkdrop,
+                                name: milkdropMeta.name,
+                                count: milkdropMeta.count,
+                                onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); setThree3d(null); } return n; }),
+                                onPrev: () => setMilkdropIdx(i => i - 1),
+                                onNext: () => setMilkdropIdx(i => i + 1),
+                                onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
+                            }}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ─── Custom GLSL shader editor — draggable, pinnable ─── */}
             {showShaderPanel && (
@@ -574,9 +596,60 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     <ShaderPanel
                         active={!!shaderSrc}
                         error={shaderError}
-                        onApply={(src) => { setMilkdrop(false); setMidiNotes(false); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
+                        onApply={(src) => { setMilkdrop(false); setMidiNotes(false); setThree3d(null); setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src); }}
                         onOff={() => { setShaderSrc(null); setShaderError(null); }}
                     />
+                </DraggablePanel>
+            )}
+
+            {/* ─── 3D panel — scene / day-night / camera presets ─── */}
+            {showThreePanel && (
+                <DraggablePanel
+                    id="threepanel"
+                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 312, y: 96 }}
+                    zIndex={39}
+                    label="3D"
+                    onClose={() => setShowThreePanel(false)}
+                >
+                    <div className="w-[280px] bg-black/75 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl shadow-2xl p-3 space-y-3">
+                        <button
+                            onClick={() => setThree3d(c => {
+                                if (c) return null;
+                                setShaderSrc(null); setMilkdrop(false); setMidiNotes(false);
+                                return { scene: 'water', variant: 'night', camera: 'orbit-slow' };
+                            })}
+                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${three3d ? 'bg-sky-600/50 border-sky-400/50 text-white' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}
+                        >
+                            <Box className="w-3.5 h-3.5" /> {three3d ? '3D Mode ON' : 'Enter 3D Mode'}
+                        </button>
+                        {three3d && (
+                            <>
+                                <div>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Scene · Reflective Water</p>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {(['day', 'night', 'park'] as Three3DVariant[]).map(v => (
+                                            <button key={v} onClick={() => setThree3d(c => c && { ...c, variant: v })}
+                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.variant === v ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                                                {v === 'park' ? 'Park' : v}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Camera</p>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {([['orbit-slow', 'Slow Orbit'], ['orbit-fast', 'Fast Orbit'], ['dolly', 'Dolly'], ['static', 'Static']] as [Three3DCamera, string][]).map(([cam, label]) => (
+                                            <button key={cam} onClick={() => setThree3d(c => c && { ...c, camera: cam })}
+                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.camera === cam ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-[7px] text-white/25 leading-relaxed">Drag to orbit manually · scroll to zoom. Album art floats on the water and reflects; waves & splashes react to the audio. Forest scene coming next.</p>
+                            </>
+                        )}
+                    </div>
                 </DraggablePanel>
             )}
 
@@ -606,7 +679,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* Core Visualiser — Milkdrop (butterchurn) when enabled, else a studio
                 engine scene (Canvas2D + WebGL) or the classic high-fidelity
                 AudioVisualizer. All share the one analyser. */}
-            {analyserRef.current && (
+            {three3d ? (
+                <ThreeScene
+                    analyser={analyserRef.current}
+                    config={three3d}
+                    albumUrl={platform?.mediaImages?.[0] || bgMedia1.find(m => m.type === 'image')?.url}
+                    palette={config.colorPalette}
+                />
+            ) : analyserRef.current && (
                 shaderSrc ? (
                     <ShaderLayer
                         analyser={analyserRef.current}
@@ -708,8 +788,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showShaderPanel || shaderSrc ? 'bg-cyan-600/40 border-cyan-500/50' : 'bg-black/40 border-white/10 hover:bg-cyan-600/30'}`}>
                     <Cpu className="w-4 h-4 text-white/80" />
                 </button>
+                {/* Studio: 3D mode (React Three Fiber) */}
+                <button onClick={() => setShowThreePanel(v => !v)} title="3D visualizers (water, reflections, orbiting camera)"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showThreePanel || three3d ? 'bg-sky-600/40 border-sky-500/50' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}>
+                    <Box className="w-4 h-4 text-white/80" />
+                </button>
                 {/* Studio: Synthesia-style MIDI falling-notes scene */}
-                <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
+                <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
                     <Piano className="w-4 h-4 text-white/80" />
                 </button>

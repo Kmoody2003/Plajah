@@ -1,347 +1,506 @@
 // ClipGrid — Resolume-style clip launcher.
 //
-// MIDI auto-map: when a Maschine Studio pad fires (notes 60–75), pad index
-// (note − 60) fires the corresponding cell in the active tab.
+// Architecture:
+//   4 columns = 4 compositing layers (BG → VIZ → PAL → FX)
+//   4 rows per column = 4 clip slots per layer
+//   MIDI column-major: padIdx = note-60, col = padIdx%4, row = padIdx>>2
+//   Clicking a cell activates that clip in its layer.
 //
-//   Tab "scenes"   → pad N fires SCENE_CATALOG[N]
-//   Tab "palettes" → pad N fires PALETTES[N]
-//   Tab "clips"    → pad N fires captured looks[N]
-//   Tab "milkdrop" → pad 0=toggle, 1=prev, 2=random, 3=next
-//
-// Cells display their pad assignment (P1–P16) so the VJ can read the layout.
+// Layer routing:
+//   BG  → onSetBgMedia (bgMedia1 in parent)
+//   VIZ → onApply({ mode })
+//   PAL → onApply({ colorPalette })
+//   FX  → milkdrop controls / onApply toggle keys
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Trash2, Grid3x3, Palette, Sparkle, Wind, SkipBack, SkipForward, Shuffle, Radio } from 'lucide-react';
-import { VisualizationConfig, VisualizerMode } from '../types';
-import { SCENE_CATALOG } from '../engine/sceneCatalog';
-import { MidiEventData } from '../services/midiService';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Upload, Wind, SkipBack, SkipForward, Shuffle, Radio, Play } from 'lucide-react';
+import { VisualizationConfig, VisualizerMode, BackgroundMedia } from '../types';
+import { MidiEventData, rotatePalette } from '../services/midiService';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type ClipKind = 'empty' | 'scene' | 'palette' | 'fx' | 'media';
+
+export interface ClipSlot {
+  kind:          ClipKind;
+  name:          string;
+  color:         string;
+  // scene
+  sceneMode?:    string;
+  // palette
+  paletteColors?: string[];
+  // fx
+  fxKey?:        string; // 'milkdrop' | 'glitch' | 'bassShake' | 'paletteRotate' | 'milkdropNext'
+  // media
+  mediaUrl?:     string;
+  mediaType?:    'video' | 'image';
+  loop?:         boolean;
+}
 
 export interface MilkdropControls {
   enabled: boolean;
-  name: string;
-  count: number;
-  onToggle: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-  onRandom: () => void;
+  name:    string;
+  count:   number;
+  onToggle:  () => void;
+  onPrev:    () => void;
+  onNext:    () => void;
+  onRandom:  () => void;
 }
 
-const CLIPS_KEY = 'plajah-pixels-clips-v1';
+// ─── Default clip matrix (4 cols × 4 rows) ───────────────────────────────────
 
-interface UserClip { id: string; name: string; config: Partial<VisualizationConfig>; }
-
-const PALETTES: { name: string; cols: [string, string, string, string] }[] = [
-  { name: 'Neon',   cols: ['#FF00CC', '#3333FF', '#00CCFF', '#FFFFFF'] },
-  { name: 'Sunset', cols: ['#FF8C00', '#FF2D95', '#7A1FA2', '#FFE08A'] },
-  { name: 'Cyber',  cols: ['#00FFC6', '#0066FF', '#B500FF', '#001018'] },
-  { name: 'Fire',   cols: ['#FFE070', '#FF7A00', '#E0245E', '#3A0000'] },
-  { name: 'Aurora', cols: ['#7CFFCB', '#3AA0FF', '#A06BFF', '#04122A'] },
-  { name: 'Mono',   cols: ['#FFFFFF', '#AAAAAA', '#444444', '#000000'] },
+const DEFAULT_MATRIX: ClipSlot[][] = [
+  // ── Col 0: BG (background media / scene) ──────────────────────────────────
+  [
+    { kind: 'empty', name: 'Drop media', color: '#1e1e2e' },
+    { kind: 'empty', name: 'Drop media', color: '#1e1e2e' },
+    { kind: 'empty', name: 'Drop media', color: '#1e1e2e' },
+    { kind: 'empty', name: 'Drop media', color: '#1e1e2e' },
+  ],
+  // ── Col 1: VIZ (audio visualizer scenes) ──────────────────────────────────
+  [
+    { kind: 'scene', name: 'SPECTRUM',   color: '#8b5cf6', sceneMode: 'SPECTRUM'     },
+    { kind: 'scene', name: 'WAVEFORM',   color: '#6366f1', sceneMode: 'WAVEFORM'     },
+    { kind: 'scene', name: 'PARTICLES',  color: '#0ea5e9', sceneMode: 'PARTICLES'    },
+    { kind: 'scene', name: 'NEBULA',     color: '#ec4899', sceneMode: 'NEBULA'       },
+  ],
+  // ── Col 2: PAL (color palettes) ───────────────────────────────────────────
+  [
+    { kind: 'palette', name: 'NEON',     color: '#FF00CC', paletteColors: ['#FF00CC','#3333FF','#00CCFF','#FFFFFF'] },
+    { kind: 'palette', name: 'SUNSET',   color: '#FF8C00', paletteColors: ['#FF8C00','#FF2D95','#7A1FA2','#FFE08A'] },
+    { kind: 'palette', name: 'CYBER',    color: '#00FFC6', paletteColors: ['#00FFC6','#0066FF','#B500FF','#001018'] },
+    { kind: 'palette', name: 'FIRE',     color: '#FFE070', paletteColors: ['#FFE070','#FF7A00','#E0245E','#3A0000'] },
+  ],
+  // ── Col 3: FX (effect toggles) ────────────────────────────────────────────
+  [
+    { kind: 'fx', name: 'MILKDROP',    color: '#c084fc', fxKey: 'milkdrop'       },
+    { kind: 'fx', name: 'GLITCH',      color: '#22d3ee', fxKey: 'glitch'         },
+    { kind: 'fx', name: 'BASS↑',       color: '#ef4444', fxKey: 'bassShake'      },
+    { kind: 'fx', name: 'PALETTE→',    color: '#fbbf24', fxKey: 'paletteRotate'  },
+  ],
 ];
 
-function loadClips(): UserClip[] {
-  try { return JSON.parse(localStorage.getItem(CLIPS_KEY) || '[]'); } catch { return []; }
+const COLUMN_META = [
+  { label: 'BG',  blendLabel: 'NORMAL', color: '#6366f1', desc: 'Background media layer' },
+  { label: 'VIZ', blendLabel: 'ADD',    color: '#8b5cf6', desc: 'Audio visualizer scene'  },
+  { label: 'PAL', blendLabel: 'SCREEN', color: '#ec4899', desc: 'Color palette'            },
+  { label: 'FX',  blendLabel: 'SCREEN', color: '#06b6d4', desc: 'Effect overlays'          },
+];
+
+const MATRIX_KEY = 'plajah-clip-matrix-v2';
+
+function loadMatrix(): ClipSlot[][] {
+  try {
+    const raw = sessionStorage.getItem(MATRIX_KEY);
+    if (!raw) return DEFAULT_MATRIX.map(col => col.map(s => ({ ...s })));
+    const saved = JSON.parse(raw) as ClipSlot[][];
+    // Restore defaults for slots that are missing (e.g. after code update)
+    return saved.map((col, ci) =>
+      col.map((slot, ri) => slot || DEFAULT_MATRIX[ci]?.[ri] || { kind: 'empty', name: 'Drop media', color: '#1e1e2e' })
+    );
+  } catch {
+    return DEFAULT_MATRIX.map(col => col.map(s => ({ ...s })));
+  }
 }
-function saveClips(c: UserClip[]) {
-  try { localStorage.setItem(CLIPS_KEY, JSON.stringify(c)); } catch { /* ignore */ }
+function saveMatrix(m: ClipSlot[][]) {
+  try { sessionStorage.setItem(MATRIX_KEY, JSON.stringify(m)); } catch { /* ignore */ }
 }
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  config: VisualizationConfig;
-  onApply: (patch: Partial<VisualizationConfig>) => void;
-  milkdrop?: MilkdropControls;
+  config:         VisualizationConfig;
+  onApply:        (patch: Partial<VisualizationConfig>) => void;
+  milkdrop?:      MilkdropControls;
+  onSetBgMedia?:  (media: BackgroundMedia | null) => void;
+  bottomLayout?:  boolean;
 }
 
-// ─── Cell component ───────────────────────────────────────────────────────────
+// ─── Resolume-style clip cell ─────────────────────────────────────────────────
 
 interface CellProps {
-  active?:    boolean;
-  midiFlash?: boolean;
-  padNum?:    number;   // 0-based pad index (shows P1, P2…)
-  onClick:    () => void;
-  children:   React.ReactNode;
-  accent?:    string;
-  onDelete?:  () => void;
+  slot:      ClipSlot;
+  colIdx:    number;
+  rowIdx:    number;
+  active:    boolean;
+  flash:     boolean;
+  onActivate: () => void;
+  onDrop:    (file: File) => void;
 }
 
-const Cell: React.FC<CellProps> = ({
-  active, midiFlash, padNum, onClick, children, accent = '#b56cff', onDelete,
-}) => (
-  <div
-    onClick={onClick}
-    className="group relative rounded-lg cursor-pointer p-2 h-14 flex flex-col justify-end overflow-hidden transition-all select-none"
-    style={{
-      border:     midiFlash ? `1px solid #ffffff` : active ? `1px solid ${accent}` : '1px solid rgba(255,255,255,0.10)',
-      background: midiFlash ? `${accent}88` : active ? `linear-gradient(160deg, ${accent}44, ${accent}22)` : '#0d0d16',
-      boxShadow:  midiFlash ? `0 0 0 2px #fff, 0 10px 28px ${accent}80`
-                : active    ? `0 0 0 1px ${accent}, 0 10px 24px ${accent}40`
-                : 'none',
-      transform: midiFlash ? 'scale(0.94)' : 'scale(1)',
-    }}
-  >
-    {/* Pad number badge */}
-    {padNum !== undefined && (
-      <span
-        className="absolute top-1 left-1.5 text-[7px] font-black font-mono leading-none"
-        style={{ color: active || midiFlash ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.22)' }}
-      >
-        P{padNum + 1}
-      </span>
-    )}
+const ClipCell: React.FC<CellProps> = ({ slot, colIdx, rowIdx, active, flash, onActivate, onDrop }) => {
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-    {children}
+  const padNum = rowIdx * 4 + colIdx; // 0–15
 
-    {onDelete && (
-      <button
-        onClick={e => { e.stopPropagation(); onDelete(); }}
-        className="absolute top-1 right-1 w-4 h-4 rounded-md bg-black/60 text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"
-      >
-        <Trash2 className="w-2.5 h-2.5" />
-      </button>
-    )}
-  </div>
-);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
+      onDrop(file);
+    }
+  };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onDrop(file);
+  };
+
+  // Cell background based on slot kind + state
+  let bg = '#0c0c18';
+  let borderColor = 'rgba(255,255,255,0.07)';
+  let textColor = 'rgba(255,255,255,0.4)';
+
+  if (flash) {
+    bg = '#ffffff';
+    borderColor = '#ffffff';
+    textColor = '#000000';
+  } else if (active) {
+    bg = `${slot.color}33`;
+    borderColor = `${slot.color}cc`;
+    textColor = '#ffffff';
+  } else if (dragOver) {
+    bg = `${slot.color}22`;
+    borderColor = slot.color;
+  } else if (slot.kind === 'palette' && slot.paletteColors) {
+    bg = '#0c0c18';
+  }
+
+  return (
+    <div
+      onClick={slot.kind === 'empty' ? () => fileRef.current?.click() : onActivate}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="relative flex flex-col justify-between cursor-pointer overflow-hidden select-none transition-all"
+      style={{
+        borderRadius: 3,
+        border: `1px solid ${borderColor}`,
+        background: bg,
+        transform: flash ? 'scale(0.9)' : 'scale(1)',
+        boxShadow: flash
+          ? `0 0 0 2px rgba(255,255,255,0.7), 0 0 20px ${slot.color}`
+          : active
+            ? `0 0 0 1px ${slot.color}66, 0 0 14px ${slot.color}44`
+            : 'none',
+        minHeight: 0,
+      }}
+    >
+      {/* Colored left stripe — Resolume signature */}
+      <div
+        className="absolute left-0 top-0 bottom-0"
+        style={{
+          width: 3,
+          background: flash ? '#fff' : active ? slot.color : `${slot.color}55`,
+        }}
+      />
+
+      {/* Palette swatch background */}
+      {slot.kind === 'palette' && slot.paletteColors && (
+        <div className="absolute inset-0 flex opacity-25">
+          {slot.paletteColors.map((c, i) => <div key={i} className="flex-1" style={{ background: c }} />)}
+        </div>
+      )}
+
+      {/* Media thumbnail */}
+      {slot.kind === 'media' && slot.mediaUrl && (
+        <div className="absolute inset-0 overflow-hidden">
+          {slot.mediaType === 'video' ? (
+            <video
+              src={slot.mediaUrl}
+              className="w-full h-full object-cover opacity-40"
+              muted autoPlay loop playsInline
+            />
+          ) : (
+            <img src={slot.mediaUrl} className="w-full h-full object-cover opacity-40" alt="" />
+          )}
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-full justify-between p-1.5 pl-2.5">
+        {/* Top: pad number */}
+        <div className="flex items-center justify-between">
+          <span
+            className="text-[7px] font-black font-mono leading-none"
+            style={{ color: flash ? '#000' : active ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.18)' }}
+          >
+            P{padNum + 1}
+          </span>
+          {/* Play indicator */}
+          {active && !flash && (
+            <Play className="w-2 h-2 fill-current" style={{ color: slot.color }} />
+          )}
+        </div>
+
+        {/* Bottom: clip name */}
+        <div>
+          {slot.kind === 'empty' ? (
+            <div className="flex flex-col items-center justify-center gap-0.5 py-1">
+              <Upload className="w-3 h-3" style={{ color: 'rgba(255,255,255,0.2)' }} />
+              <span className="text-[7px]" style={{ color: 'rgba(255,255,255,0.2)' }}>DRAG / CLICK</span>
+            </div>
+          ) : (
+            <>
+              <div
+                className="text-[10px] font-black leading-tight uppercase tracking-wide truncate"
+                style={{ color: flash ? '#000' : textColor === '#ffffff' ? '#fff' : textColor }}
+              >
+                {slot.name}
+              </div>
+              <div
+                className="text-[7px] uppercase tracking-widest leading-none mt-0.5"
+                style={{ color: flash ? '#333' : active ? `${slot.color}cc` : 'rgba(255,255,255,0.18)' }}
+              >
+                {slot.kind === 'scene'   ? 'SCENE'   :
+                 slot.kind === 'palette' ? 'PALETTE' :
+                 slot.kind === 'fx'      ? 'FX'      :
+                 slot.kind === 'media'   ? (slot.mediaType?.toUpperCase() ?? 'MEDIA') : ''}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="video/*,image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+};
 
 // ─── ClipGrid ─────────────────────────────────────────────────────────────────
 
-const ClipGrid: React.FC<Props> = ({ config, onApply, milkdrop }) => {
-  const [tab,          setTab]          = useState<'scenes' | 'palettes' | 'clips' | 'milkdrop'>('scenes');
-  const [clips,        setClips]        = useState<UserClip[]>(() => loadClips());
-  const [flashedPad,   setFlashedPad]   = useState<number | null>(null);
-  const [midiActive,   setMidiActive]   = useState(false);
-  const midiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const ClipGrid: React.FC<Props> = ({
+  config, onApply, milkdrop, onSetBgMedia, bottomLayout,
+}) => {
+  const [matrix,     setMatrix]     = useState<ClipSlot[][]>(() => loadMatrix());
+  const [activeRows, setActiveRows] = useState<(number | null)[]>([null, null, null, null]);
+  const [flashedPad, setFlashedPad] = useState<number | null>(null);
+  const [midiActive, setMidiActive] = useState(false);
+  const midiTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configRef   = useRef(config);
+  const milkdropRef = useRef(milkdrop);
+  useEffect(() => { configRef.current   = config;   }, [config]);
+  useEffect(() => { milkdropRef.current = milkdrop; }, [milkdrop]);
 
-  // Keep tab in a ref so the event handler always sees the latest value
-  const tabRef   = useRef(tab);
-  const clipsRef = useRef(clips);
-  useEffect(() => { tabRef.current = tab;     }, [tab]);
-  useEffect(() => { clipsRef.current = clips; }, [clips]);
+  // ── Fire a clip by col + row ────────────────────────────────────────────────
+  const fireClip = useCallback((col: number, row: number, mat?: ClipSlot[][]) => {
+    const m = mat ?? matrix;
+    const slot = m[col]?.[row];
+    if (!slot) return;
 
-  // ── MIDI pad → cell fire ──────────────────────────────────────────────────
+    setActiveRows(prev => {
+      const next = [...prev];
+      next[col] = next[col] === row ? null : row; // toggle if already active
+      return next;
+    });
+
+    if (slot.kind === 'scene' && slot.sceneMode) {
+      onApply({ mode: slot.sceneMode as VisualizerMode });
+    } else if (slot.kind === 'palette' && slot.paletteColors) {
+      onApply({ colorPalette: [...slot.paletteColors] });
+    } else if (slot.kind === 'fx') {
+      const md = milkdropRef.current;
+      switch (slot.fxKey) {
+        case 'milkdrop':       md?.onToggle();      break;
+        case 'milkdropNext':   md?.onNext();        break;
+        case 'glitch':         onApply({ enableGlitch: !(configRef.current as any).enableGlitch }); break;
+        case 'bassShake':      onApply({ enableBassShake: !(configRef.current as any).enableBassShake }); break;
+        case 'paletteRotate':  onApply({ colorPalette: rotatePalette(configRef.current.colorPalette) }); break;
+      }
+    } else if (slot.kind === 'media' && slot.mediaUrl) {
+      onSetBgMedia?.({ url: slot.mediaUrl, type: slot.mediaType ?? 'video', id: `clip-${col}-${row}` });
+    } else if (slot.kind === 'empty') {
+      // handled by ClipCell (opens file picker)
+    }
+  }, [matrix, onApply, onSetBgMedia]);
+
+  // ── MIDI pad → clip fire (column-major: col = padIdx%4, row = padIdx>>2) ───
   useEffect(() => {
     const handleNoteOn = (e: Event) => {
       const d = (e as CustomEvent).detail as MidiEventData;
       if (!d) return;
       const note = d.note;
       if (note < 60 || note > 75) return;
+      const padIdx = note - 60;
+      const col = padIdx % 4;
+      const row = padIdx >> 2;
 
-      const padIdx = note - 60; // 0–15
-
-      // Flash the cell
       setFlashedPad(padIdx);
       if (midiTimerRef.current) clearTimeout(midiTimerRef.current);
       midiTimerRef.current = setTimeout(() => setFlashedPad(null), 180);
 
-      // MIDI active indicator pulse
       setMidiActive(true);
       if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
       activeTimerRef.current = setTimeout(() => setMidiActive(false), 800);
 
-      const currentTab = tabRef.current;
-
-      if (currentTab === 'scenes') {
-        const scene = SCENE_CATALOG[padIdx];
-        if (scene) onApply({ mode: scene.mode as VisualizerMode });
-
-      } else if (currentTab === 'palettes') {
-        const palette = PALETTES[padIdx];
-        if (palette) onApply({ colorPalette: [...palette.cols] });
-
-      } else if (currentTab === 'clips') {
-        const clip = clipsRef.current[padIdx];
-        if (clip) onApply(clip.config);
-
-      } else if (currentTab === 'milkdrop' && milkdrop) {
-        if      (padIdx === 0) milkdrop.onToggle();
-        else if (padIdx === 1) milkdrop.onPrev();
-        else if (padIdx === 2) milkdrop.onRandom();
-        else if (padIdx === 3) milkdrop.onNext();
-      }
+      fireClip(col, row);
     };
 
     window.addEventListener('plajah-midi-note-on', handleNoteOn);
     return () => {
       window.removeEventListener('plajah-midi-note-on', handleNoteOn);
-      if (midiTimerRef.current)  clearTimeout(midiTimerRef.current);
+      if (midiTimerRef.current)   clearTimeout(midiTimerRef.current);
       if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
     };
-  }, [onApply, milkdrop]);
+  }, [fireClip]);
 
-  const captureLook = () => {
-    const snap: Partial<VisualizationConfig> = { ...config };
-    const clip: UserClip = {
-      id: `clip_${clips.length}_${snap.mode}`,
-      name: `${snap.name || 'Look'} ${clips.length + 1}`,
-      config: snap,
+  // ── Assign media file to a cell ─────────────────────────────────────────────
+  const assignMedia = (col: number, row: number, file: File) => {
+    const url = URL.createObjectURL(file);
+    const mediaType: 'video' | 'image' = file.type.startsWith('video/') ? 'video' : 'image';
+    const newSlot: ClipSlot = {
+      kind: 'media',
+      name: file.name.replace(/\.[^.]+$/, '').slice(0, 14).toUpperCase(),
+      color: '#6366f1',
+      mediaUrl: url,
+      mediaType,
+      loop: true,
     };
-    const next = [...clips, clip];
-    setClips(next); saveClips(next);
-    setTab('clips');
+    const updated: ClipSlot[][] = matrix.map((c, ci) =>
+      c.map((s, ri) => (ci === col && ri === row ? newSlot : s))
+    );
+    setMatrix(updated);
+    saveMatrix(updated);
   };
 
-  const deleteClip = (id: string) => {
-    const next = clips.filter(c => c.id !== id);
-    setClips(next); saveClips(next);
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const isPadFlashed = (col: number, row: number) => {
+    if (flashedPad === null) return false;
+    return flashedPad % 4 === col && flashedPad >> 2 === row;
   };
 
-  const paletteActive = (cols: string[]) =>
-    JSON.stringify(config.colorPalette) === JSON.stringify(cols);
+  const isPaletteActive = (slot: ClipSlot) =>
+    slot.kind === 'palette' && slot.paletteColors &&
+    JSON.stringify(config.colorPalette) === JSON.stringify(slot.paletteColors);
 
-  // Total cells in each tab (for showing pad numbers)
-  const sceneCount   = SCENE_CATALOG.length;
-  const paletteCount = PALETTES.length;
+  const isFxActive = (slot: ClipSlot) => {
+    if (slot.kind !== 'fx') return false;
+    const c = config as any;
+    switch (slot.fxKey) {
+      case 'milkdrop':  return !!milkdrop?.enabled;
+      case 'glitch':    return !!c.enableGlitch;
+      case 'bassShake': return !!c.enableBassShake;
+      default:          return false;
+    }
+  };
 
-  return (
-    <div className="w-[280px] max-h-[65vh] flex flex-col bg-black/70 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl shadow-2xl overflow-hidden">
+  const isSlotActive = (slot: ClipSlot, col: number, row: number): boolean => {
+    if (slot.kind === 'scene')   return config.mode === slot.sceneMode;
+    if (slot.kind === 'palette') return isPaletteActive(slot);
+    if (slot.kind === 'fx')      return isFxActive(slot);
+    if (slot.kind === 'media')   return activeRows[col] === row;
+    return false;
+  };
 
-      {/* MIDI status bar */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-white/5 bg-white/3">
-        <Radio className={`w-3 h-3 shrink-0 transition-colors ${midiActive ? 'text-green-400' : 'text-white/20'}`} />
-        <span className="text-[9px] font-mono text-white/30 flex-1">
-          {midiActive ? 'MIDI pad fired' : 'Pads auto-mapped — hit a pad to fire a cell'}
-        </span>
-      </div>
+  // ── Bottom / Resolume layout ─────────────────────────────────────────────────
+  if (bottomLayout) {
+    return (
+      <div className="w-full h-full flex flex-col" style={{ padding: '0 8px 8px 8px' }}>
 
-      {/* Tabs */}
-      <div className="flex border-b border-white/10 text-[9px] font-black uppercase tracking-widest">
-        {([
-          ['scenes',   Grid3x3] as const,
-          ['palettes', Palette] as const,
-          ['clips',    Sparkle] as const,
-          ...(milkdrop ? [['milkdrop', Wind] as const] : []),
-        ]).map(([t, Icon]) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2 flex items-center justify-center gap-1 border-b-2 transition-colors ${
-              tab === t ? 'border-purple-500 text-purple-300 bg-white/5' : 'border-transparent text-white/40 hover:text-white'
-            }`}
-          >
-            <Icon className="w-3 h-3" /> {t === 'milkdrop' ? 'MILK' : t}
-          </button>
-        ))}
-      </div>
+        {/* MIDI status row */}
+        <div className="flex items-center justify-between py-1 px-1 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <Radio className={`w-3 h-3 ${midiActive ? 'text-green-400' : 'text-white/15'}`} />
+            <span className="text-[8px] font-mono" style={{ color: midiActive ? 'rgba(74,222,128,0.8)' : 'rgba(255,255,255,0.15)' }}>
+              {midiActive ? 'MIDI FIRED' : 'P1–P16 MAPPED  ·  COL = LAYER  ·  ROW = CLIP'}
+            </span>
+          </div>
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-2 scrollbar-none">
+        {/* 4-column grid */}
+        <div className="flex-1 grid gap-1.5 min-h-0" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {COLUMN_META.map((col, ci) => (
+            <div key={col.label} className="flex flex-col gap-1 min-h-0">
 
-        {/* ── Scenes tab ──────────────────────────────────────────────────── */}
-        {tab === 'scenes' && (
-          <div className="grid grid-cols-2 gap-1.5">
-            {SCENE_CATALOG.map((s, i) => (
-              <Cell
-                key={s.mode}
-                active={config.mode === s.mode}
-                midiFlash={flashedPad === i}
-                padNum={i < 16 ? i : undefined}
-                accent={s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#b56cff'}
-                onClick={() => onApply({ mode: s.mode as VisualizerMode })}
+              {/* Column header */}
+              <div
+                className="flex items-center justify-between px-2 py-1 rounded-sm shrink-0"
+                style={{ background: `${col.color}18`, borderBottom: `1px solid ${col.color}44` }}
               >
-                <span className="text-[10px] font-bold text-white leading-tight">{s.name}</span>
-                <span className="text-[7px] uppercase tracking-widest text-white/40">{s.cat}</span>
-                {s.kind === 'gl' && (
-                  <span className="absolute top-1 right-1 text-[6px] tracking-widest text-cyan-300 bg-black/50 border border-white/20 rounded px-1">GLSL</span>
-                )}
-              </Cell>
-            ))}
-          </div>
-        )}
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: col.color }}>
+                  {col.label}
+                </span>
+                <span
+                  className="text-[7px] font-mono px-1 rounded"
+                  style={{ background: `${col.color}22`, color: `${col.color}99`, border: `1px solid ${col.color}33` }}
+                >
+                  {col.blendLabel}
+                </span>
+              </div>
 
-        {/* ── Palettes tab ─────────────────────────────────────────────────── */}
-        {tab === 'palettes' && (
-          <div className="grid grid-cols-2 gap-1.5">
-            {PALETTES.map((p, i) => (
-              <Cell
-                key={p.name}
-                active={paletteActive(p.cols)}
-                midiFlash={flashedPad === i}
-                padNum={i}
-                accent={p.cols[0]}
-                onClick={() => onApply({ colorPalette: [...p.cols] })}
-              >
-                <div className="absolute inset-0 flex">
-                  {p.cols.map((c, ci) => <div key={ci} className="flex-1" style={{ background: c }} />)}
-                </div>
-                <span className="relative text-[10px] font-black text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{p.name}</span>
-              </Cell>
-            ))}
-          </div>
-        )}
-
-        {/* ── Milkdrop tab ─────────────────────────────────────────────────── */}
-        {tab === 'milkdrop' && milkdrop && (
-          <div className="space-y-3">
-            {/* Pad legend for milkdrop */}
-            <div className="grid grid-cols-4 gap-1 text-[8px] font-mono text-white/30">
-              <span className={`text-center py-1 rounded border ${flashedPad === 0 ? 'border-purple-400 text-purple-300 bg-purple-500/20' : 'border-white/10'}`}>P1 Toggle</span>
-              <span className={`text-center py-1 rounded border ${flashedPad === 1 ? 'border-purple-400 text-purple-300 bg-purple-500/20' : 'border-white/10'}`}>P2 Prev</span>
-              <span className={`text-center py-1 rounded border ${flashedPad === 2 ? 'border-purple-400 text-purple-300 bg-purple-500/20' : 'border-white/10'}`}>P3 Rand</span>
-              <span className={`text-center py-1 rounded border ${flashedPad === 3 ? 'border-purple-400 text-purple-300 bg-purple-500/20' : 'border-white/10'}`}>P4 Next</span>
-            </div>
-
-            <button
-              onClick={milkdrop.onToggle}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
-                milkdrop.enabled
-                  ? 'bg-purple-600/50 border-purple-400/50 text-white'
-                  : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
-              }`}
-            >
-              <Wind className="w-3.5 h-3.5" />
-              {milkdrop.enabled ? 'Milkdrop ON' : 'Enable Milkdrop'}
-            </button>
-            <p className="text-[8px] text-white/30 leading-relaxed text-center">
-              Butterchurn engine — {milkdrop.count > 0 ? `${milkdrop.count} presets` : 'thousands of presets'}, audio-reactive.
-            </p>
-            {milkdrop.enabled && (
-              <>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button onClick={milkdrop.onPrev}   title="Previous" className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><SkipBack   className="w-3.5 h-3.5" /></button>
-                  <button onClick={milkdrop.onRandom} title="Random"   className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><Shuffle    className="w-3.5 h-3.5" /></button>
-                  <button onClick={milkdrop.onNext}   title="Next"     className="py-2 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all"><SkipForward className="w-3.5 h-3.5" /></button>
-                </div>
-                {milkdrop.name && (
-                  <p className="text-[9px] text-white/50 text-center break-words px-1 leading-snug">
-                    {milkdrop.name.length > 48 ? milkdrop.name.slice(0, 48) + '…' : milkdrop.name}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ── Clips tab ────────────────────────────────────────────────────── */}
-        {tab === 'clips' && (
-          <div className="space-y-2">
-            <button
-              onClick={captureLook}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-purple-400/30 text-[10px] font-black uppercase tracking-widest text-white transition-all"
-            >
-              <Camera className="w-3.5 h-3.5" /> Capture current look
-            </button>
-            {clips.length === 0 ? (
-              <p className="text-[9px] text-white/30 text-center py-4 leading-relaxed">
-                Build a look in the panels, capture it here, then fire it live with a pad.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-1.5">
-                {clips.map((c, i) => (
-                  <Cell
-                    key={c.id}
-                    active={config.mode === c.config.mode}
-                    midiFlash={flashedPad === i}
-                    padNum={i < 16 ? i : undefined}
-                    onClick={() => onApply(c.config)}
-                    onDelete={() => deleteClip(c.id)}
-                  >
-                    <span className="text-[10px] font-bold text-white leading-tight truncate">{c.name}</span>
-                    <span className="text-[7px] uppercase tracking-widest text-white/40">Captured</span>
-                  </Cell>
+              {/* Clip cells (rows) */}
+              <div className="flex-1 grid gap-1 min-h-0" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
+                {matrix[ci]?.map((slot, ri) => (
+                  <ClipCell
+                    key={ri}
+                    slot={slot}
+                    colIdx={ci}
+                    rowIdx={ri}
+                    active={isSlotActive(slot, ci, ri)}
+                    flash={isPadFlashed(ci, ri)}
+                    onActivate={() => fireClip(ci, ri)}
+                    onDrop={file => assignMedia(ci, ri, file)}
+                  />
                 ))}
               </div>
-            )}
+            </div>
+          ))}
+        </div>
+
+        {/* Milkdrop transport (shown when Milkdrop FX is active) */}
+        {milkdrop?.enabled && (
+          <div className="flex items-center gap-2 pt-1 px-1 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <Wind className="w-3 h-3 text-purple-400" />
+            <span className="text-[8px] font-mono text-white/30 flex-1 truncate">{milkdrop.name || 'Milkdrop'}</span>
+            <button onClick={milkdrop.onPrev}   className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white transition-colors"><SkipBack    className="w-3 h-3" /></button>
+            <button onClick={milkdrop.onRandom} className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white transition-colors"><Shuffle     className="w-3 h-3" /></button>
+            <button onClick={milkdrop.onNext}   className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white transition-colors"><SkipForward className="w-3 h-3" /></button>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ── Compact sidebar / floating layout (non-bottom) ────────────────────────
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-white/5 shrink-0">
+        <Radio className={`w-3 h-3 shrink-0 ${midiActive ? 'text-green-400' : 'text-white/20'}`} />
+        <span className="text-[9px] font-mono text-white/30">
+          {midiActive ? 'MIDI clip fired' : 'Col-major MIDI: P1/P5/P9/P13=BG · P2/P6/P10/P14=VIZ'}
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto scrollbar-none p-2">
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(4, 48px)' }}>
+          {matrix.map((col, ci) =>
+            col.map((slot, ri) => (
+              <ClipCell
+                key={`${ci}-${ri}`}
+                slot={slot}
+                colIdx={ci}
+                rowIdx={ri}
+                active={isSlotActive(slot, ci, ri)}
+                flash={isPadFlashed(ci, ri)}
+                onActivate={() => fireClip(ci, ri)}
+                onDrop={file => assignMedia(ci, ri, file)}
+              />
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
