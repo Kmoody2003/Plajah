@@ -38,8 +38,9 @@ export interface PostComment {
   likedBy?: string[];
   likesCount?: number;
   isPending?: boolean;
-  videoUrl?: string;  // video response attachment
-  audioUrl?: string;  // voice note attachment
+  videoUrl?: string;
+  audioUrl?: string;
+  gifUrl?: string;
 }
 
 interface CommentSectionProps {
@@ -172,10 +173,10 @@ const CommentBubble: React.FC<BubbleProps> = ({
                 <audio src={(comment as any).audioUrl} controls className="w-full h-8 max-w-[240px]" />
               </div>
             )}
-            {(comment as any).gifUrl && (
+            {comment.gifUrl && (
               <div className="mt-2 rounded-2xl overflow-hidden max-w-[220px]">
                 <img
-                  src={(comment as any).gifUrl}
+                  src={comment.gifUrl}
                   alt=""
                   className="w-full h-auto"
                   loading="lazy"
@@ -803,6 +804,7 @@ const mapLegacyComment = (c: any): PostComment => ({
   parentId: c.parentId || null,
   likedBy: c.likedBy || [],
   likesCount: c.likesCount || 0,
+  ...(c.gifUrl ? { gifUrl: c.gifUrl } : {}),
 });
 
 const CommentSection: React.FC<CommentSectionProps> = ({
@@ -1156,7 +1158,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                             likedBy: [],
                             likesCount: 0,
                             gifUrl: url,
-                          } as any;
+                          };
                           handleCommentPosted(optimistic);
                           const parentId = replyTo?.id;
                           setReplyTo(null);

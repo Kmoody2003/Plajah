@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
     Play, Pause, Upload, Volume2, VolumeX, Disc, Square, 
     Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
-    Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box
+    Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
+    Monitor, Maximize2, EyeOff, Eye, Circle
 } from 'lucide-react';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -27,7 +28,7 @@ import DraggablePanel from './components/DraggablePanel';
 import ThemeGenerator from './components/ThemeGenerator';
 import BackgroundLayer from './components/BackgroundLayer';
 import GlobalLighting from './components/GlobalLighting';
-import TextOverlay from './components/TextOverlay';
+import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOverlay';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -89,6 +90,17 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     textOutline: true,
     textShatter: false,
     textShatterIntensity: 1.0,
+    textFont: 'Inter',
+    textGradient: false,
+    textGradientColors: ['#FF00CC', '#00CCFF'],
+    textGradientAngle: 0,
+    textVowelReactor: false,
+    textVowelEffect: 'glow' as const,
+    textConsonantReactor: false,
+    textConsonantEffect: 'shake' as const,
+    textReactorIntensity: 1.0,
+    textPhysics: 'none' as const,
+    textPhysicsIntensity: 1.0,
     enableCaptions: false,
     enableLiveCaptions: false,
     captionsSyncMode: 'beat',
@@ -171,6 +183,68 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // 3D mode (React Three Fiber) — null = off.
     const [three3d, setThree3d] = useState<Three3DConfig | null>(null);
     const [showThreePanel, setShowThreePanel] = useState(false);
+
+    // ── Output: record · fullscreen/dismiss · send-to-display ────────────────────
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [uiHidden, setUiHidden] = useState(false);   // dismiss all chrome → pure visual
+    const [isRecording, setIsRecording] = useState(false);
+    const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
+
+    const stopRecording = useCallback(() => {
+        const r = recRef.current; if (!r) return;
+        try { r.recorder.stop(); } catch { /* */ }
+        recRef.current = null; setIsRecording(false);
+    }, []);
+
+    const startRecording = useCallback(async () => {
+        try {
+            // Captures the real composited live output across every mode (2D, GLSL,
+            // Milkdrop, 3D) — pick "This Tab" when prompted (dismiss UI first for a
+            // clean capture). Records video + tab audio to a downloadable .webm.
+            const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+                video: { frameRate: 60 }, audio: true, preferCurrentTab: true,
+            });
+            const chunks: Blob[] = [];
+            const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+                ? 'video/webm;codecs=vp9' : 'video/webm';
+            const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+            recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `plajah-pixels-${Date.now()}.webm`; a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 8000);
+                stream.getTracks().forEach(t => t.stop());
+            };
+            stream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
+            recorder.start();
+            recRef.current = { recorder, stream };
+            setIsRecording(true);
+        } catch (e) { console.warn('[Plajah Pixels] recording failed/cancelled:', e); }
+    }, [stopRecording]);
+
+    const toggleRecord = useCallback(() => { isRecording ? stopRecording() : startRecording(); }, [isRecording, startRecording, stopRecording]);
+
+    const enterFullscreen = useCallback(async (screen?: any) => {
+        const el = rootRef.current; if (!el) return;
+        try { await (el.requestFullscreen as any)(screen ? { screen } : undefined); } catch { /* */ }
+    }, []);
+
+    // Send the program output to another display (Window Management API) and
+    // fullscreen it there; falls back to fullscreen on the current screen.
+    const sendToDisplay = useCallback(async () => {
+        try {
+            const w: any = window;
+            if (w.getScreenDetails) {
+                const details = await w.getScreenDetails();
+                const ext = details.screens.find((s: any) => !s.isPrimary) || details.currentScreen;
+                await enterFullscreen(ext);
+                return;
+            }
+        } catch { /* permission denied / unsupported → fall through */ }
+        enterFullscreen();
+    }, [enterFullscreen]);
     // Overlay layers (Lottie + HTML/URL) + perf HUD / mode.
     const [overlay, setOverlay] = useState({
         lottieUrl: '', lottieOn: false, lottieOpacity: 0.9,
@@ -350,6 +424,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         setConfig(prev => (prev.textContent === platform.currentTrackTitle ? prev : { ...prev, textContent: platform.currentTrackTitle }));
     }, [platform?.currentTrackTitle]);
 
+    // Preload all Google Fonts when the text tab is opened
+    useEffect(() => {
+        if (activeTab === 'text') {
+            TEXT_FONTS.forEach(f => { if (f.gfUrl) ensureFontLoaded(f.name); });
+        }
+    }, [activeTab]);
+
     // Effective transport: slave to the platform when bridged, else self-driven.
     const effTogglePlay = () => (platform ? platform.togglePlay() : handleTogglePlay());
     const effVolumeChange = (v: number) => { if (platform) platform.setVolume(v); else handleVolumeChange(v); };
@@ -504,10 +585,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     }) : null;
 
     return (
-        <div id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans">
-            {/* ─── Platform-slaved chrome: exit, title, tracklist toggle ─── */}
-            {platform && (
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
+        <div ref={rootRef} id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans">
+            {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
+            {platform && !uiHidden && (
+                <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
                     <button
                         onClick={platform.onClose}
                         title="Exit Plajah Pixels"
@@ -534,7 +615,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             )}
 
             {/* ─── Tracklist — draggable, pinnable, collapsible (hide via handle ×) ─── */}
-            {platform && showTracklist && platform.tracklist.length > 0 && (
+            {platform && showTracklist && !uiHidden && platform.tracklist.length > 0 && (
                 <DraggablePanel id="tracklist" defaultPos={{ x: 24, y: 96 }} zIndex={40} label="Tracklist" onClose={() => setShowTracklist(false)}>
                     <div className="w-64 max-h-[58vh] overflow-y-auto bg-black/70 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl p-2 shadow-2xl scrollbar-none">
                         {tracklistRows}
@@ -544,7 +625,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             {/* ─── Clip Launcher — Resolume-style bottom strip ─── */}
             <AnimatePresence>
-                {showClipGrid && (
+                {showClipGrid && !uiHidden && (
                     <motion.div
                         key="clip-launcher"
                         initial={{ y: '100%' }}
@@ -552,42 +633,61 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 30, stiffness: 240 }}
                         className="fixed bottom-0 left-0 right-0 flex flex-col"
-                        style={{ height: 420, zIndex: 200, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -12px 60px rgba(0,0,0,0.8)' }}
+                        style={{ height: 'min(80vh, 560px)', zIndex: 200, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -12px 60px rgba(0,0,0,0.8)' }}
                     >
                         {/* Close handle */}
                         <button
                             onClick={() => setShowClipGrid(false)}
-                            className="absolute top-1 right-2 w-6 h-6 flex items-center justify-center rounded text-white/20 hover:text-white hover:bg-white/10 transition-all z-10"
+                            className="absolute top-1 right-2 w-6 h-6 flex items-center justify-center rounded text-white/20 hover:text-white hover:bg-white/10 transition-all z-20"
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Resolume-style clip launcher */}
-                        <ClipLauncher
+                        {/* Scenes — horizontal row across the top of the deck */}
+                        <SceneRail
                             config={config}
-                            onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); } setConfig(prev => ({ ...prev, ...patch })); }}
-                            onSetBgMedia={(media) => {
-                                if (media) setBgMedia1([media]);
-                                else setBgMedia1([]);
-                            }}
-                            milkdrop={{
-                                enabled: milkdrop,
-                                name: milkdropMeta.name,
-                                count: milkdropMeta.count,
-                                idx: milkdropIdx,
-                                onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); } return n; }),
-                                onPrev:   () => setMilkdropIdx(i => i - 1),
-                                onNext:   () => setMilkdropIdx(i => i + 1),
-                                onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
-                                onSetIdx: (i) => setMilkdropIdx(i),
-                            }}
+                            visible={showRail}
+                            embedded
+                            onPick={(mode) => { setMilkdrop(false); setShaderSrc(null); setThree3d(null); setConfig(prev => ({ ...prev, mode })); }}
+                        />
+
+                        {/* Resolume-style clip launcher (fills the middle) */}
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <ClipLauncher
+                                config={config}
+                                onApply={(patch) => { if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); } setConfig(prev => ({ ...prev, ...patch })); }}
+                                onSetBgMedia={(media) => {
+                                    if (media) setBgMedia1([media]);
+                                    else setBgMedia1([]);
+                                }}
+                                milkdrop={{
+                                    enabled: milkdrop,
+                                    name: milkdropMeta.name,
+                                    count: milkdropMeta.count,
+                                    idx: milkdropIdx,
+                                    onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); setThree3d(null); } return n; }),
+                                    onPrev:   () => setMilkdropIdx(i => i - 1),
+                                    onNext:   () => setMilkdropIdx(i => i + 1),
+                                    onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
+                                    onSetIdx: (i) => setMilkdropIdx(i),
+                                }}
+                            />
+                        </div>
+
+                        {/* Natural-language timeline — bottom of the deck */}
+                        <TimelineStrip
+                            embedded
+                            visible={showTimeline}
+                            duration={audioState.duration}
+                            currentTime={audioState.currentTime}
+                            onApply={(patch) => setConfig(prev => ({ ...prev, ...patch }))}
                         />
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* ─── Custom GLSL shader editor — draggable, pinnable ─── */}
-            {showShaderPanel && (
+            {showShaderPanel && !uiHidden && (
                 <DraggablePanel
                     id="shaderpanel"
                     defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 372, y: 96 }}
@@ -605,75 +705,119 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             )}
 
             {/* ─── 3D panel — scene / day-night / camera presets ─── */}
-            {showThreePanel && (
-                <DraggablePanel
-                    id="threepanel"
-                    defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 312, y: 96 }}
-                    zIndex={39}
-                    label="3D"
-                    onClose={() => setShowThreePanel(false)}
-                >
-                    <div className="w-[280px] bg-black/75 backdrop-blur-2xl border border-white/10 border-t-0 rounded-b-2xl shadow-2xl p-3 space-y-3">
-                        <button
-                            onClick={() => setThree3d(c => {
-                                if (c) return null;
-                                setShaderSrc(null); setMilkdrop(false); setMidiNotes(false);
-                                return { scene: 'water', variant: 'night', camera: 'orbit-slow' };
-                            })}
-                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${three3d ? 'bg-sky-600/50 border-sky-400/50 text-white' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}
-                        >
-                            <Box className="w-3.5 h-3.5" /> {three3d ? '3D Mode ON' : 'Enter 3D Mode'}
-                        </button>
-                        {three3d && (
-                            <>
+            {/* ─── 3D Scene Panel — fixed right-side slide-in (always on top) ─── */}
+            <AnimatePresence>
+                {showThreePanel && !uiHidden && (
+                    <motion.div
+                        key="three-panel"
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+                        className="fixed top-0 right-0 h-full flex flex-col"
+                        style={{ width: 280, zIndex: 300, background: 'rgba(6,6,16,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(14,165,233,0.2)', boxShadow: '-8px 0 40px rgba(0,0,0,0.7)' }}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-3 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(14,165,233,0.15)' }}>
+                            <div className="flex items-center gap-2">
+                                <Box className="w-3.5 h-3.5 text-sky-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white/70">3D Scenes</span>
+                            </div>
+                            <button onClick={() => setShowThreePanel(false)} className="w-6 h-6 flex items-center justify-center rounded text-white/30 hover:text-white hover:bg-white/10 transition-all">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-none">
+                            {/* Enable / disable 3D */}
+                            <button
+                                onClick={() => setThree3d(c => {
+                                    if (c) return null;
+                                    setShaderSrc(null); setMilkdrop(false); setMidiNotes(false);
+                                    return { scene: 'water', variant: 'night', camera: 'orbit-slow' };
+                                })}
+                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${three3d ? 'bg-sky-600/40 border-sky-400/50 text-white' : 'bg-white/5 border-white/10 text-white/60 hover:bg-sky-600/20 hover:border-sky-500/30 hover:text-white'}`}
+                            >
+                                <Box className="w-4 h-4" /> {three3d ? '3D Active — Click to Exit' : 'Enter 3D Mode'}
+                            </button>
+
+                            {/* Scene picker */}
+                            <div>
+                                <p className="text-[8px] font-black uppercase tracking-widest mb-2" style={{ color: 'rgba(14,165,233,0.6)' }}>Scene</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([['water', 'Water 🌊', 'Reflective ocean with album art float'], ['forest', 'Forest 🌲', 'Trees react to audio beats']] as const).map(([s, label, desc]) => (
+                                        <button key={s}
+                                            onClick={() => {
+                                                if (!three3d) { setShaderSrc(null); setMilkdrop(false); setMidiNotes(false); }
+                                                setThree3d(c => c ? { ...c, scene: s } : { scene: s, variant: 'night', camera: 'orbit-slow' });
+                                            }}
+                                            className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all text-left"
+                                            style={{
+                                                background: three3d?.scene === s ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.03)',
+                                                border: three3d?.scene === s ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                                                color: three3d?.scene === s ? '#fff' : 'rgba(255,255,255,0.55)',
+                                            }}
+                                        >
+                                            <span className="text-[10px] font-black uppercase tracking-wide w-full">{label}</span>
+                                            <span className="text-[7px] text-white/30 leading-snug w-full">{desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Variant (water only) */}
+                            {(three3d?.scene === 'water' || !three3d) && (
                                 <div>
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Scene</p>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        {([['water', 'Water'], ['forest', 'Forest']] as ['water' | 'forest', string][]).map(([s, label]) => (
-                                            <button key={s} onClick={() => setThree3d(c => c && { ...c, scene: s })}
-                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.scene === s ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
-                                                {label}
-                                            </button>
+                                    <p className="text-[8px] font-black uppercase tracking-widest mb-2" style={{ color: 'rgba(14,165,233,0.6)' }}>Time of Day</p>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {([['day', '☀️ Day'], ['night', '🌙 Night'], ['park', '🎡 Park']] as const).map(([v, label]) => (
+                                            <button key={v}
+                                                onClick={() => setThree3d(c => c ? { ...c, variant: v } : { scene: 'water', variant: v, camera: 'orbit-slow' })}
+                                                className="py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all"
+                                                style={{
+                                                    background: three3d?.variant === v ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.03)',
+                                                    border: three3d?.variant === v ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                                                    color: three3d?.variant === v ? '#7dd3fc' : 'rgba(255,255,255,0.45)',
+                                                }}
+                                            >{label}</button>
                                         ))}
                                     </div>
                                 </div>
-                                {three3d.scene === 'water' && (
-                                    <div>
-                                        <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Water · Time of day</p>
-                                        <div className="grid grid-cols-3 gap-1.5">
-                                            {(['day', 'night', 'park'] as Three3DVariant[]).map(v => (
-                                                <button key={v} onClick={() => setThree3d(c => c && { ...c, variant: v })}
-                                                    className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.variant === v ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
-                                                    {v === 'park' ? 'Park' : v}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Camera</p>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        {([['orbit-slow', 'Slow Orbit'], ['orbit-fast', 'Fast Orbit'], ['dolly', 'Dolly'], ['static', 'Static']] as [Three3DCamera, string][]).map(([cam, label]) => (
-                                            <button key={cam} onClick={() => setThree3d(c => c && { ...c, camera: cam })}
-                                                className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${three3d.camera === cam ? 'bg-sky-600/40 border-sky-400/40 text-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
+                            )}
+
+                            {/* Camera */}
+                            <div>
+                                <p className="text-[8px] font-black uppercase tracking-widest mb-2" style={{ color: 'rgba(14,165,233,0.6)' }}>Camera</p>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {([['orbit-slow', '🔄 Slow Orbit'], ['orbit-fast', '⚡ Fast Orbit'], ['dolly', '🎬 Dolly'], ['static', '📷 Static']] as const).map(([cam, label]) => (
+                                        <button key={cam}
+                                            onClick={() => setThree3d(c => c ? { ...c, camera: cam } : { scene: 'water', variant: 'night', camera: cam })}
+                                            className="py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all"
+                                            style={{
+                                                background: three3d?.camera === cam ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.03)',
+                                                border: three3d?.camera === cam ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                                                color: three3d?.camera === cam ? '#7dd3fc' : 'rgba(255,255,255,0.45)',
+                                            }}
+                                        >{label}</button>
+                                    ))}
                                 </div>
-                                <p className="text-[7px] text-white/25 leading-relaxed">
-                                    {three3d.scene === 'water'
-                                        ? 'Drag to orbit · scroll to zoom. Album art floats on the water and reflects; waves & splashes react to the audio.'
-                                        : 'Drag to orbit · scroll to zoom. Trees sway with the song; ground pulses & kicks up dust on the beat; grass waves to the vocals; highs shift leaf color.'}
-                                </p>
-                            </>
-                        )}
-                    </div>
-                </DraggablePanel>
-            )}
+                            </div>
+
+                            {/* Info */}
+                            <p className="text-[7px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                                Drag canvas to orbit · Scroll to zoom · Scene reacts to live audio.{'\n'}
+                                {three3d?.scene === 'water'
+                                    ? 'Album art floats on the water and reflects. Waves & splashes pulse to the beat.'
+                                    : 'Trees sway with the song. Ground pulses on kicks. Highs shift leaf color.'}
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ─── Overlay layers panel (Lottie + HTML) — draggable, pinnable ─── */}
-            {showLayersPanel && (
+            {showLayersPanel && !uiHidden && (
                 <DraggablePanel
                     id="layerspanel"
                     defaultPos={{ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 332, y: 96 }}
@@ -757,33 +901,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {overlay.lottieOn && overlay.lottieUrl && <LottieLayer src={overlay.lottieUrl} opacity={overlay.lottieOpacity} />}
 
             {/* Performance HUD */}
-            {showFps && <FpsMeter />}
+            {showFps && !uiHidden && <FpsMeter />}
 
             {/* MIDI Status Floating HUD */}
-            <MidiStatusHud config={config} />
+            {!uiHidden && <MidiStatusHud config={config} />}
 
-            {/* ─── Studio engine UI: scene rail, NL timeline, matte panel ─── */}
-            <SceneRail
-                config={config}
-                visible={showRail}
-                onPick={(mode) => setConfig(prev => ({ ...prev, mode }))}
-            />
-            <TimelineStrip
-                visible={showTimeline}
-                duration={audioState.duration}
-                currentTime={audioState.currentTime}
-                onApply={(patch) => setConfig(prev => ({ ...prev, ...patch }))}
-            />
+            {/* Scenes rail + NL timeline now live inside the bottom deck (above
+                and below the clip launcher). Only the matte panel floats here. */}
             <MattePanel
                 engine={matteEngineRef.current!}
                 settings={matteSettings}
                 setSettings={setMatteSettings}
-                visible={showMatte}
+                visible={showMatte && !uiHidden}
                 onClose={() => setShowMatte(false)}
             />
 
             {/* Floating Top Header */}
-            <div id="title-header" className="absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none">
+            <div id="title-header" className={`absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none ${uiHidden ? 'hidden' : ''}`}>
                 <div className="w-10 h-10 bg-purple-600/30 backdrop-blur-xl border border-purple-500/30 rounded-full flex items-center justify-center animate-spin-slow">
                     <Music className="w-5 h-5 text-purple-400" />
                 </div>
@@ -796,7 +930,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             </div>
 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
-            <div className="absolute top-6 right-20 z-30 flex items-center gap-2">
+            <div className={`absolute top-6 right-20 z-30 flex items-center gap-2 ${uiHidden ? 'hidden' : ''}`}>
+                {/* ── Output: record · send to display · fullscreen · dismiss UI ── */}
+                <button onClick={toggleRecord} title={isRecording ? 'Stop recording' : 'Record live output (.webm)'}
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500/40 border-red-500/60 animate-pulse' : 'bg-black/40 border-white/10 hover:bg-red-500/30'}`}>
+                    <Circle className="w-4 h-4" fill={isRecording ? 'currentColor' : 'none'} style={{ color: isRecording ? '#fca5a5' : 'rgba(255,255,255,0.8)' }} />
+                </button>
+                <button onClick={sendToDisplay} title="Send output to another display (fullscreen)"
+                    className="w-9 h-9 bg-black/40 hover:bg-sky-600/30 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
+                    <Monitor className="w-4 h-4 text-white/80" />
+                </button>
+                <button onClick={() => enterFullscreen()} title="Fullscreen"
+                    className="w-9 h-9 bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
+                    <Maximize2 className="w-4 h-4 text-white/80" />
+                </button>
+                <button onClick={() => setUiHidden(true)} title="Dismiss UI (full-screen visual)"
+                    className="w-9 h-9 bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
+                    <EyeOff className="w-4 h-4 text-white/80" />
+                </button>
+                <div className="w-px h-5 bg-white/10 mx-0.5" />
                 {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}
                 <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
@@ -871,14 +1023,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             <button 
                 id="toggle-settings-btn"
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="absolute top-6 right-6 z-30 w-11 h-11 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center hover:scale-105 transition-all text-white hover:border-purple-500/40 shadow-xl"
+                className={`absolute top-6 right-6 z-30 w-11 h-11 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center hover:scale-105 transition-all text-white hover:border-purple-500/40 shadow-xl ${uiHidden ? 'hidden' : ''}`}
                 title="Toggle Configuration Panel"
             >
                 {isSettingsOpen ? <X className="w-5 h-5 text-purple-400" /> : <Sliders className="w-5 h-5" />}
             </button>
 
             {/* Floating Control Center Dock — draggable + pinnable + persisted */}
-            <DraggablePanel
+            {!uiHidden && <DraggablePanel
                 id="controls-dock"
                 defaultPos={{
                     x: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 1280) / 2 - 360),
@@ -893,8 +1045,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         onTogglePlay={effTogglePlay}
                         onUpload={handleUpload}
                         onVolumeChange={effVolumeChange}
-                        isRecording={false}
-                        onToggleRecord={() => {}}
+                        isRecording={isRecording}
+                        onToggleRecord={toggleRecord}
                         hideUpload={!!platform}
                         slaved={!!platform}
                         onSeek={effSeek}
@@ -905,11 +1057,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         in ./components/ThemeGenerator and the import below). To re-enable,
                         restore: <ThemeGenerator onThemeGenerated={c => setConfig(prev => ({ ...prev, ...c }))} currentConfigName={config.name} /> */}
                 </div>
-            </DraggablePanel>
+            </DraggablePanel>}
+
+            {/* Restore UI pill (shown only when the UI is dismissed) */}
+            {uiHidden && (
+                <button onClick={() => setUiHidden(false)} title="Show controls"
+                    className="fixed top-3 left-3 z-[300] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                    <Eye className="w-3.5 h-3.5" /> Show UI
+                </button>
+            )}
 
             {/* Sliding Tabbed Configuration Drawer (Glassmorphism) */}
             <AnimatePresence>
-                {isSettingsOpen && (
+                {isSettingsOpen && !uiHidden && (
                     <motion.div 
                         id="settings-drawer"
                         initial={{ x: "100%", opacity: 0 }}
@@ -1791,44 +1951,245 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                             {activeTab === 'text' && (
                                 <div className="space-y-5">
-                                    {/* Text Overlay Option block */}
+                                    {/* Text Overlay — full style gallery */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
                                         <div className="flex justify-between items-center text-xs">
                                             <span className="text-purple-400 font-medium">Graphic Text Overlays</span>
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 checked={config.enableText}
                                                 onChange={e => setConfig(prev => ({ ...prev, enableText: e.target.checked }))}
                                                 className="w-4 h-4 accent-purple-500 cursor-pointer"
                                             />
                                         </div>
+
                                         {config.enableText && (
-                                            <>
-                                                <div>
-                                                    <label className="text-xs text-white/60 block mb-1">Display Text Content</label>
-                                                    <input 
-                                                        type="text" 
+                                            <div className="space-y-4">
+                                                {/* Content + Size */}
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="text"
                                                         value={config.textContent}
                                                         onChange={e => setConfig(prev => ({ ...prev, textContent: e.target.value }))}
+                                                        placeholder="Display text…"
                                                         className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
                                                     />
-                                                </div>
-                                                <div>
-                                                    <div className="flex justify-between text-xs text-white/60 mb-1">
-                                                        <span>Overlay Text Size</span>
-                                                        <span className="font-mono text-purple-400">{config.textSize}px</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-white/40 shrink-0">Size</span>
+                                                        <input
+                                                            type="range" min="40" max="240" step="4"
+                                                            value={config.textSize}
+                                                            onChange={e => setConfig(prev => ({ ...prev, textSize: parseInt(e.target.value) }))}
+                                                            className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                        />
+                                                        <span className="text-[10px] font-mono text-purple-400 w-10 text-right">{config.textSize}px</span>
                                                     </div>
-                                                    <input 
-                                                        type="range" 
-                                                        min="40" 
-                                                        max="200" 
-                                                        step="5"
-                                                        value={config.textSize}
-                                                        onChange={e => setConfig(prev => ({ ...prev, textSize: parseInt(e.target.value) }))}
-                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                                                    />
                                                 </div>
-                                            </>
+
+                                                {/* ── Style Presets ── */}
+                                                <div>
+                                                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">Style Presets</p>
+                                                    <div className="grid grid-cols-5 gap-1">
+                                                        {[
+                                                            { label: 'Clean', patch: { textFont: 'Inter', textGradient: false, textColor: '#FFFFFF', textOutline: false } },
+                                                            { label: 'Neon', patch: { textFont: 'Orbitron', textGradient: false, textColor: '#00FFFF', textOutline: false } },
+                                                            { label: 'Fire', patch: { textFont: 'Anton', textGradient: true, textGradientColors: ['#FFE060', '#FF2400'], textGradientAngle: 90 } },
+                                                            { label: 'Ice', patch: { textFont: 'Rajdhani', textGradient: true, textGradientColors: ['#FFFFFF', '#00CCFF'], textGradientAngle: 270 } },
+                                                            { label: 'Gold', patch: { textFont: 'Bebas Neue', textGradient: true, textGradientColors: ['#FFD700', '#B8860B'], textGradientAngle: 90 } },
+                                                            { label: 'Chrome', patch: { textFont: 'Exo 2', textGradient: true, textGradientColors: ['#E8E8E8', '#888888'], textGradientAngle: 90 } },
+                                                            { label: 'Retro', patch: { textFont: 'VT323', textGradient: false, textColor: '#FF6B35', textOutline: false } },
+                                                            { label: 'Mono', patch: { textFont: 'Share Tech Mono', textGradient: false, textColor: '#00FF41', textOutline: false } },
+                                                            { label: 'Rainbow', patch: { textFont: 'Bebas Neue', textGradient: true, textGradientColors: ['#FF00CC', '#00CCFF'], textGradientAngle: 0 } },
+                                                            { label: 'Ghost', patch: { textFont: 'Inter', textGradient: false, textColor: '#FFFFFF', textOutline: true } },
+                                                        ].map(({ label, patch }) => (
+                                                            <button
+                                                                key={label}
+                                                                onClick={() => setConfig(prev => ({ ...prev, ...patch }))}
+                                                                className="h-7 text-[9px] font-black uppercase tracking-wide rounded-lg bg-white/5 border border-white/10 hover:bg-purple-600/30 hover:border-purple-500/50 text-white/60 hover:text-white transition-all"
+                                                            >
+                                                                {label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* ── Font Gallery ── */}
+                                                <div>
+                                                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">Font</p>
+                                                    <div className="grid grid-cols-4 gap-1">
+                                                        {TEXT_FONTS.map(f => (
+                                                            <button
+                                                                key={f.name}
+                                                                onClick={() => setConfig(prev => ({ ...prev, textFont: f.name }))}
+                                                                style={{ fontFamily: f.name }}
+                                                                className={`h-8 text-[11px] font-bold rounded-lg border transition-all truncate px-1 ${
+                                                                    (config.textFont || 'Inter') === f.name
+                                                                        ? 'bg-purple-600/40 border-purple-500/60 text-white'
+                                                                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                                                                }`}
+                                                            >
+                                                                {f.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* ── Color / Gradient ── */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="text-[10px] text-white/40 uppercase tracking-widest">Fill</p>
+                                                        <button
+                                                            onClick={() => setConfig(prev => ({ ...prev, textGradient: !prev.textGradient }))}
+                                                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded transition-all ${config.textGradient ? 'bg-purple-600/40 text-purple-300' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}
+                                                        >
+                                                            {config.textGradient ? 'Gradient' : 'Solid'}
+                                                        </button>
+                                                    </div>
+                                                    {!config.textGradient ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="color"
+                                                                value={config.textColor}
+                                                                onChange={e => setConfig(prev => ({ ...prev, textColor: e.target.value }))}
+                                                                className="w-10 h-8 rounded cursor-pointer border border-white/10 bg-black/30"
+                                                            />
+                                                            <span className="text-[10px] font-mono text-white/40">{config.textColor}</span>
+                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                <label className="flex items-center gap-1.5 text-[10px] text-white/50 cursor-pointer">
+                                                                    <input type="checkbox" checked={config.textOutline} onChange={e => setConfig(prev => ({ ...prev, textOutline: e.target.checked }))} className="accent-purple-500" />
+                                                                    Outline
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="color"
+                                                                    value={config.textGradientColors?.[0] || '#FF00CC'}
+                                                                    onChange={e => setConfig(prev => ({ ...prev, textGradientColors: [e.target.value, prev.textGradientColors?.[1] || '#00CCFF'] }))}
+                                                                    className="flex-1 h-8 rounded cursor-pointer border border-white/10"
+                                                                />
+                                                                <input
+                                                                    type="color"
+                                                                    value={config.textGradientColors?.[1] || '#00CCFF'}
+                                                                    onChange={e => setConfig(prev => ({ ...prev, textGradientColors: [prev.textGradientColors?.[0] || '#FF00CC', e.target.value] }))}
+                                                                    className="flex-1 h-8 rounded cursor-pointer border border-white/10"
+                                                                />
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] text-white/40 shrink-0">Angle</span>
+                                                                <input
+                                                                    type="range" min="0" max="360" step="15"
+                                                                    value={config.textGradientAngle ?? 0}
+                                                                    onChange={e => setConfig(prev => ({ ...prev, textGradientAngle: parseInt(e.target.value) }))}
+                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer"
+                                                                />
+                                                                <span className="text-[10px] font-mono text-purple-400 w-8 text-right">{config.textGradientAngle ?? 0}°</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* ── Audio Reactors ── */}
+                                                <div>
+                                                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">Audio Reactors</p>
+                                                    <div className="space-y-2">
+                                                        {/* Vowel reactor */}
+                                                        <div className={`p-2 rounded-lg border transition-all ${config.textVowelReactor ? 'bg-purple-900/20 border-purple-500/30' : 'bg-white/[0.03] border-white/8'}`}>
+                                                            <div className="flex items-center justify-between mb-1.5">
+                                                                <label className="flex items-center gap-2 text-[10px] text-white/60 cursor-pointer">
+                                                                    <input type="checkbox" checked={!!config.textVowelReactor} onChange={e => setConfig(prev => ({ ...prev, textVowelReactor: e.target.checked }))} className="accent-purple-500" />
+                                                                    <span className={config.textVowelReactor ? 'text-purple-300' : ''}>Vowel Reactor</span>
+                                                                    <span className="text-[8px] text-white/25">mid-freq</span>
+                                                                </label>
+                                                            </div>
+                                                            {config.textVowelReactor && (
+                                                                <div className="flex gap-1 flex-wrap">
+                                                                    {(['scale', 'glow', 'color', 'float'] as const).map(ef => (
+                                                                        <button key={ef} onClick={() => setConfig(prev => ({ ...prev, textVowelEffect: ef }))}
+                                                                            className={`text-[8px] uppercase font-black px-2 py-0.5 rounded transition-all ${config.textVowelEffect === ef ? 'bg-purple-600/50 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                                                                            {ef}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Consonant reactor */}
+                                                        <div className={`p-2 rounded-lg border transition-all ${config.textConsonantReactor ? 'bg-pink-900/20 border-pink-500/30' : 'bg-white/[0.03] border-white/8'}`}>
+                                                            <div className="flex items-center justify-between mb-1.5">
+                                                                <label className="flex items-center gap-2 text-[10px] text-white/60 cursor-pointer">
+                                                                    <input type="checkbox" checked={!!config.textConsonantReactor} onChange={e => setConfig(prev => ({ ...prev, textConsonantReactor: e.target.checked }))} className="accent-pink-500" />
+                                                                    <span className={config.textConsonantReactor ? 'text-pink-300' : ''}>Consonant Reactor</span>
+                                                                    <span className="text-[8px] text-white/25">high-freq</span>
+                                                                </label>
+                                                            </div>
+                                                            {config.textConsonantReactor && (
+                                                                <div className="flex gap-1 flex-wrap">
+                                                                    {(['shake', 'blur', 'scatter', 'glitch'] as const).map(ef => (
+                                                                        <button key={ef} onClick={() => setConfig(prev => ({ ...prev, textConsonantEffect: ef }))}
+                                                                            className={`text-[8px] uppercase font-black px-2 py-0.5 rounded transition-all ${config.textConsonantEffect === ef ? 'bg-pink-600/50 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                                                                            {ef}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Reactor intensity */}
+                                                        {(config.textVowelReactor || config.textConsonantReactor) && (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] text-white/40 shrink-0">Intensity</span>
+                                                                <input type="range" min="0.1" max="3" step="0.1"
+                                                                    value={config.textReactorIntensity ?? 1}
+                                                                    onChange={e => setConfig(prev => ({ ...prev, textReactorIntensity: parseFloat(e.target.value) }))}
+                                                                    className="flex-1 h-1 accent-purple-500 cursor-pointer" />
+                                                                <span className="text-[10px] font-mono text-purple-400 w-6 text-right">{(config.textReactorIntensity ?? 1).toFixed(1)}×</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* ── Physics ── */}
+                                                <div>
+                                                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">Physics</p>
+                                                    <div className="grid grid-cols-3 gap-1 mb-2">
+                                                        {(['none', 'float', 'wave', 'bounce', 'scatter', 'elastic'] as const).map(ph => (
+                                                            <button key={ph} onClick={() => setConfig(prev => ({ ...prev, textPhysics: ph }))}
+                                                                className={`h-7 text-[9px] font-black uppercase rounded-lg border transition-all ${
+                                                                    (config.textPhysics || 'none') === ph
+                                                                        ? 'bg-cyan-600/40 border-cyan-500/50 text-cyan-300'
+                                                                        : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                                                                }`}>
+                                                                {ph}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    {(config.textPhysics && config.textPhysics !== 'none') && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] text-white/40 shrink-0">Force</span>
+                                                            <input type="range" min="0.1" max="3" step="0.1"
+                                                                value={config.textPhysicsIntensity ?? 1}
+                                                                onChange={e => setConfig(prev => ({ ...prev, textPhysicsIntensity: parseFloat(e.target.value) }))}
+                                                                className="flex-1 h-1 accent-cyan-500 cursor-pointer" />
+                                                            <span className="text-[10px] font-mono text-cyan-400 w-6 text-right">{(config.textPhysicsIntensity ?? 1).toFixed(1)}×</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* ── Shatter ── */}
+                                                <div className="flex items-center justify-between">
+                                                    <label className="flex items-center gap-2 text-[10px] text-white/50 cursor-pointer">
+                                                        <input type="checkbox" checked={config.textShatter} onChange={e => setConfig(prev => ({ ...prev, textShatter: e.target.checked }))} className="accent-purple-500" />
+                                                        Shatter on Beat
+                                                    </label>
+                                                    {config.textShatter && (
+                                                        <input type="range" min="0.1" max="3" step="0.1"
+                                                            value={config.textShatterIntensity}
+                                                            onChange={e => setConfig(prev => ({ ...prev, textShatterIntensity: parseFloat(e.target.value) }))}
+                                                            className="w-20 h-1 accent-purple-500 cursor-pointer" />
+                                                    )}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
 

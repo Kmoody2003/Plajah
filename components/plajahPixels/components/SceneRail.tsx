@@ -10,10 +10,36 @@ interface Props {
   config: VisualizationConfig;
   onPick: (mode: VisualizerMode) => void;
   visible: boolean;
+  /** Embedded horizontal row (top of the deck) instead of the floating rail. */
+  embedded?: boolean;
 }
 
-const SceneRail: React.FC<Props> = ({ config, onPick, visible }) => {
+const SceneRail: React.FC<Props> = ({ config, onPick, visible, embedded }) => {
   if (!visible) return null;
+
+  if (embedded) {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto scrollbar-none shrink-0 border-b border-white/[0.06]">
+        <span className="text-[8px] font-black uppercase tracking-[0.22em] text-white/30 shrink-0 pr-1">Scenes</span>
+        {SCENE_CATALOG.map((s) => {
+          const active = config.mode === s.mode;
+          return (
+            <button key={s.mode} onClick={() => onPick(s.mode)} title={s.cat}
+              className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+              style={{
+                border: active ? '1px solid #b56cff' : '1px solid rgba(255,255,255,0.10)',
+                background: active ? 'linear-gradient(160deg, rgba(181,108,255,0.28), rgba(255,93,177,0.18))' : '#0d0d16',
+                color: active ? '#fff' : 'rgba(244,242,255,0.6)',
+                boxShadow: active ? '0 0 0 1px #b56cff' : 'none',
+              }}>
+              {s.name}{s.kind === 'gl' && <span className="ml-1 text-[7px] text-cyan-300">GL</span>}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }}

@@ -120,6 +120,18 @@ export interface VisualizationConfig {
   textOutline: boolean;
   textShatter: boolean;
   textShatterIntensity: number;
+  // ─── Text Style Gallery ───────────────────────────────────────────────────
+  textFont?: string;
+  textGradient?: boolean;
+  textGradientColors?: string[];
+  textGradientAngle?: number;
+  textVowelReactor?: boolean;
+  textVowelEffect?: 'scale' | 'glow' | 'color' | 'float';
+  textConsonantReactor?: boolean;
+  textConsonantEffect?: 'shake' | 'blur' | 'scatter' | 'glitch';
+  textReactorIntensity?: number;
+  textPhysics?: 'none' | 'float' | 'wave' | 'bounce' | 'scatter' | 'elastic';
+  textPhysicsIntensity?: number;
 
   enableCaptions: boolean;
   enableLiveCaptions: boolean;

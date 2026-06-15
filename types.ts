@@ -855,11 +855,12 @@ export interface Comment {
   author: string;
   text: string;
   timestamp: number;
-  trackId?: string; 
+  trackId?: string;
   videoId?: string;
   uid?: string | null;
-  parentId?: string; // For replies
+  parentId?: string;
   mediaTimestamp?: number;
+  gifUrl?: string;
 }
 
 export interface Review {

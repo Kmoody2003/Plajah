@@ -17,6 +17,8 @@ interface Props {
   currentTime: number;
   visible: boolean;
   onApply: (patch: Partial<VisualizationConfig>) => void;
+  /** Render inline at the bottom of the deck instead of as a floating strip. */
+  embedded?: boolean;
 }
 
 const AUTOPILOT = [
@@ -28,7 +30,7 @@ const CHIPS = ['drop hard, violet', 'tranquil aurora, ocean', 'liquid plasma flo
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const TimelineStrip: React.FC<Props> = ({ duration, currentTime, visible, onApply }) => {
+const TimelineStrip: React.FC<Props> = ({ duration, currentTime, visible, onApply, embedded }) => {
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [pop, setPop] = useState<{ time: number; x: number } | null>(null);
   const [text, setText] = useState('');
@@ -66,7 +68,11 @@ const TimelineStrip: React.FC<Props> = ({ duration, currentTime, visible, onAppl
 
   return (
     <>
-      <div style={{
+      <div style={embedded ? {
+        position: 'relative', zIndex: 27, height: 54, margin: '0 10px 8px',
+        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
+        padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10, flex: 'none',
+      } : {
         position: 'absolute', bottom: 96, left: 18, right: 18, zIndex: 27, height: 54,
         background: 'rgba(18,18,26,0.45)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 16,
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', padding: '8px 12px',
@@ -94,7 +100,7 @@ const TimelineStrip: React.FC<Props> = ({ duration, currentTime, visible, onAppl
       </div>
 
       {pop && (
-        <div style={{ position: 'absolute', zIndex: 40, width: 320, left: pop.x, bottom: 160, background: 'rgba(20,18,30,0.94)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 16, backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', padding: 14, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }}>
+        <div style={{ position: 'fixed', zIndex: 240, width: 320, left: pop.x, bottom: 160, background: 'rgba(20,18,30,0.94)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 16, backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', padding: 14, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: 12, color: '#f4f2ff', margin: 0 }}>Marker instruction</h4>
             <X size={14} style={{ cursor: 'pointer', color: 'rgba(244,242,255,0.6)' }} onClick={() => setPop(null)} />

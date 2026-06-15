@@ -155,10 +155,22 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
 
   const handlePost = async (text: string, parentId?: string) => {
     if (!text.trim()) return;
-    await postComment(album.id, { 
-      author: user?.displayName || 'LISTENER', 
-      text, 
-      timestamp: Date.now(), 
+    await postComment(album.id, {
+      author: user?.displayName || 'LISTENER',
+      text,
+      timestamp: Date.now(),
+      trackId: videoId ? undefined : (trackId || 'album'),
+      videoId: videoId || undefined,
+      parentId: parentId || undefined
+    });
+  };
+
+  const handlePostGif = async (gifUrl: string, parentId?: string) => {
+    await postComment(album.id, {
+      author: user?.displayName || 'LISTENER',
+      text: '',
+      gifUrl,
+      timestamp: Date.now(),
       trackId: videoId ? undefined : (trackId || 'album'),
       videoId: videoId || undefined,
       parentId: parentId || undefined
@@ -238,9 +250,10 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
 
       <div className={minimal ? 'max-h-[400px]' : 'h-full flex-1 overflow-hidden'}>
         {activeTab === 'COMMENTS' ? (
-          <CommentSection 
+          <CommentSection
             comments={comments}
             onPostComment={handlePost}
+            onPostGif={handlePostGif}
             onVisitUser={onVisitUser}
             currentUser={user}
             themeColor={themeColor}
