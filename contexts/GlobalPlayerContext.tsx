@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useRef, useEffect, useMemo,
 import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/backendService';
+import { diagnoseAudioUrl, createDecodeAudioPlayer, fetchWavInfo, type DecodedAudioPlayer } from '../services/audioFormatService';
+import { fixTrackStorageMetadata } from '../services/backendService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -116,6 +118,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // Fallback decode player for formats the <audio> element can't handle (24-bit WAV, AIFF, etc.)
+  const decodedPlayerRef = useRef<DecodedAudioPlayer | null>(null);
+  const usingDecodeFallbackRef = useRef(false);
   const pannerRef = useRef<PannerNode | null>(null);
   const bypassGainRef = useRef<GainNode | null>(null);
   const pannerInputGainRef = useRef<GainNode | null>(null);
@@ -264,6 +269,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       } else if (videoRef.current) {
         videoRef.current.pause();
       }
+    } else if (usingDecodeFallbackRef.current && decodedPlayerRef.current) {
+      decodedPlayerRef.current.pause();
     } else {
       audioRef.current.pause();
     }
@@ -285,6 +292,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
         setIsPlaying(true);
       }
+    } else if (usingDecodeFallbackRef.current && decodedPlayerRef.current) {
+      decodedPlayerRef.current.play().then(() => setIsPlaying(true)).catch(e => console.error("Decode fallback resume failed:", e));
     } else {
       audio.play().catch(e => {
         if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
@@ -328,8 +337,32 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     if (source !== 'VIDEO') {
+      // Tear down any previous decode fallback player
+      if (decodedPlayerRef.current) {
+        try { decodedPlayerRef.current.stop(); } catch (_) {}
+        decodedPlayerRef.current = null;
+        usingDecodeFallbackRef.current = false;
+      }
+
       if (isNewTrack) {
-        const isExternal = !!track.url && track.url.startsWith('http') && !track.url.includes(window.location.host);
+        // Prefer the browser-compatible WAV if one has been converted (avoids decode fallback)
+        const effectiveUrl = (track.browserCompatUrl && track.browserCompatStatus === 'done')
+          ? track.browserCompatUrl
+          : track.url;
+
+        // Catch missing/empty URLs immediately — never assign '' to audio.src
+        if (!effectiveUrl) {
+          console.error(`[Plajah Audio] Track "${track.title}" has no URL. Nothing to play.`);
+          diagnoseAudioUrl('').catch(() => {});
+          setCurrentTrack(track); setCurrentAlbum(album); setAudioSource(source);
+          setIsPlaying(false);
+          return;
+        }
+
+        // Rewrite track.url to the effective URL for the rest of the playback pipeline
+        track = { ...track, url: effectiveUrl };
+
+        const isExternal = effectiveUrl.startsWith('http') && !effectiveUrl.includes(window.location.host);
         if (isExternal) {
           audio.crossOrigin = "anonymous";
         } else {
@@ -337,7 +370,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
         try {
           if (audio.src !== track.url) {
-            audio.src = track.url || '';
+            audio.src = track.url;
             // DO NOT call audio.load() — breaks iOS background sequential playback
           }
         } catch (e) {
@@ -345,16 +378,82 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
 
+      /**
+       * Fallback: fetch + AudioContext.decodeAudioData for formats the
+       * <audio> element can't handle (24/32-bit WAV, AIFF, ALAC, etc.)
+       */
+      const tryDecodeFallback = async (url: string) => {
+        const ctx = audioContextRef.current;
+        if (!ctx) return;
+        console.warn(`[Plajah Audio] Attempting AudioContext.decodeAudioData() fallback for "${track.title}"`);
+        try {
+          const destination = analyserRef.current ?? ctx.destination;
+          const player = await createDecodeAudioPlayer(url, ctx, destination);
+          decodedPlayerRef.current = player;
+          usingDecodeFallbackRef.current = true;
+          // Silently fix the Firebase Storage Content-Type so next play can try native
+          fixTrackStorageMetadata(url).catch(() => {});
+          player.onEnded(() => {
+            setIsPlaying(false);
+            // Auto-advance — fire next() via stateRef so it doesn't need to be in deps
+            if (stateRef.current.repeatMode !== 'ONE') {
+              const albumTracks = stateRef.current.currentAlbum?.tracks ?? [];
+              const idx = albumTracks.findIndex(t => t.id === stateRef.current.currentTrack?.id);
+              if (idx !== -1 && idx < albumTracks.length - 1) {
+                const nextTrack = albumTracks[idx + 1];
+                setTimeout(() => playTrack(nextTrack, stateRef.current.currentAlbum, 'LIBRARY'), 0);
+              }
+            } else if (stateRef.current.repeatMode === 'ONE') {
+              player.play(0).catch(() => {});
+            }
+          });
+          await player.play(0);
+          setIsPlaying(true);
+          console.info(`[Plajah Audio] Decode fallback playing "${track.title}" (${player.duration.toFixed(1)}s)`);
+        } catch (decodeErr) {
+          console.error(`[Plajah Audio] Decode fallback also failed for "${track.title}":`, decodeErr);
+          diagnoseAudioUrl(url).catch(() => {});
+        }
+      };
+
       const attemptPlay = () => {
         // Resume AudioContext first so it doesn't silently swallow playback
         const ctx = audioContextRef.current;
-        const doPlay = () => {
+        const doPlay = async () => {
+          // Proactive WAV pre-check: detect non-16-bit PCM before native <audio> plays
+          // so the user never hears silence on 24-bit/32-bit/float/extensible WAV files.
+          const urlLower = (track.url ?? '').toLowerCase().split('?')[0];
+          const isWavLike = urlLower.endsWith('.wav') || urlLower.endsWith('.wave') ||
+                            urlLower.endsWith('.bwf') || urlLower.endsWith('.rf64') || urlLower.endsWith('.w64');
+          if (isWavLike && track.url) {
+            try {
+              const wavInfo = await fetchWavInfo(track.url);
+              if (!wavInfo.isSupported) {
+                console.info(`[Plajah Audio] WAV pre-check: ${wavInfo.formatName} (${wavInfo.bitsPerSample}-bit) in "${track.title}" — skipping native <audio>, going direct to decode fallback`);
+                await tryDecodeFallback(track.url);
+                return;
+              }
+            } catch {
+              // Range request failed — proceed to native and let onerror catch it
+            }
+          }
+
           const playPromise = audio.play();
           if (playPromise !== undefined) {
-            playPromise.catch(e => {
+            playPromise.catch(async (e) => {
               if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
-              console.error('Playback failed:', e.name, e.message);
-              // Retry with a fresh audio element (strips AudioContext + CORS constraint)
+              console.error('[Plajah Audio] Native play failed:', e.name, e.message, 'URL:', track.url);
+
+              // Run diagnostics to explain the failure
+              diagnoseAudioUrl(track.url || '').catch(() => {});
+
+              // Tier 2: try AudioContext.decodeAudioData (handles 24-bit WAV, AIFF, etc.)
+              if (track.url) {
+                await tryDecodeFallback(track.url);
+                return;
+              }
+
+              // Tier 3: fresh <audio> element without Web Audio wrapping (strips CORS/context lock)
               if (sourceRef.current) {
                 try { sourceRef.current.disconnect(); } catch (_) {}
                 sourceRef.current = null;
@@ -365,7 +464,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               setAudioElement(newAud);
               newAud.play().catch(pErr => {
                 if (pErr.name === 'AbortError' || pErr.message?.includes('interrupted')) return;
-                console.error("Final playback attempt failed:", pErr.message || pErr);
+                console.error("[Plajah Audio] All playback attempts failed:", pErr.message || pErr);
               });
             });
           }
@@ -375,6 +474,18 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           ctx.resume().then(doPlay).catch(doPlay);
         } else {
           doPlay();
+        }
+      };
+
+      // Also attach onerror for cases where the element loads but errors out
+      audio.onerror = async () => {
+        if (!track.url) return;
+        const err = audio.error;
+        console.error(`[Plajah Audio] HTMLAudioElement error for "${track.title}": code=${err?.code} msg=${err?.message}`);
+        diagnoseAudioUrl(track.url).catch(() => {});
+        // Attempt decode fallback on load error too
+        if (!usingDecodeFallbackRef.current) {
+          await tryDecodeFallback(track.url);
         }
       };
 

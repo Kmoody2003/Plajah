@@ -8,13 +8,14 @@ import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
-  Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink,
+  Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
 import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
+import { AUDIO_ACCEPT } from '../services/audioFormatService';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album) => void;
@@ -329,9 +330,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           }
         } catch (e) { console.error("Failed to parse playlist XML", e); }
       }
+      // All audio extensions we support — match by extension too since exotic formats
+      // (AIFF, APE, WavPack, FLAC, 24-bit WAV, etc.) may have type='' or type='application/octet-stream'
+      const KNOWN_AUDIO_EXTS = new Set([
+        'mp3','mp2','mp1','m4a','aac','ogg','oga','opus','webm','weba','wav','wave','bwf','rf64','w64',
+        'flac','aiff','aif','aifc','alac','ape','wv','tta','tak','shn','caf','mka','wma','ra','rm',
+        'ac3','eac3','dts','dtshd','mpc','amr','gsm','iamf','mid','midi','kar','mod','xm','it','s3m',
+      ]);
       for (const file of fileArray) {
-        const isIamf = file.name.toLowerCase().endsWith('.iamf');
-        if (isIamf || file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+        const ext = file.name.toLowerCase().split('.').pop() ?? '';
+        const isKnownAudio = KNOWN_AUDIO_EXTS.has(ext);
+        if (isKnownAudio || file.type.startsWith('audio/') || file.type.startsWith('video/')) {
           newTracks.push({
             id: Math.random().toString(36).substr(2, 9),
             title: file.name.replace(/\.[^/.]+$/, "").replace(/^\d+\s*[-_]*\s*/, ""),
@@ -341,7 +350,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             price: 0,
             isPaywalled: false,
             genre,
-            ...(isIamf && { isEclipsa: true }),
+            ...(ext === 'iamf' && { isEclipsa: true }),
           });
         }
       }
@@ -801,7 +810,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && contentTab === 'tracks' && (
         <div className="space-y-4">
           <div className="relative group">
-            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : 'audio/*,.iamf'} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : AUDIO_ACCEPT} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">
               <div className="p-6 rounded-2xl bg-white/5 text-white/40 group-hover:text-white transition-all shadow-2xl group-hover:scale-110 duration-500"><Upload size={32} /></div>
               <div className="text-center px-4">
@@ -1944,7 +1953,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                         <label className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
                           style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
                           <Upload size={9} /> File
-                          <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
+                          <input type="file" accept={AUDIO_ACCEPT + ',video/*'} className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCreatorHnsSlotUpload(track, slot, f); }} />
                         </label>
                         {existing && (
                           <button type="button"
@@ -1986,7 +1995,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const stepContent = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7];
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl flex items-center justify-center z-[200] p-4 md:p-8">
+    <div className="fixed inset-0 flex items-center justify-center z-[200] p-4 md:p-8" style={{ background: 'rgba(4,3,10,0.60)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
 
       {/* HNS Track Picker Modal */}
       {hnsTrackPicker && (
@@ -2032,7 +2041,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
       <div
         className="max-w-7xl w-full border border-white/10 rounded-3xl sm:rounded-[2rem] overflow-hidden flex flex-col lg:flex-row shadow-3xl h-full lg:h-[88vh] max-h-[1000px] animate-in zoom-in-95 duration-300"
-        style={{ background: 'radial-gradient(ellipse 80% 55% at 8% -8%, rgba(107,0,153,0.22) 0%, transparent 56%), radial-gradient(ellipse 62% 50% at 94% 108%, rgba(212,0,85,0.16) 0%, transparent 55%), radial-gradient(ellipse 55% 42% at 62% 45%, rgba(255,140,0,0.09) 0%, transparent 62%), #09090d' }}
+        style={{ background: 'radial-gradient(ellipse 80% 55% at 8% -8%, rgba(107,0,153,0.30) 0%, transparent 56%), radial-gradient(ellipse 62% 50% at 94% 108%, rgba(212,0,85,0.22) 0%, transparent 55%), radial-gradient(ellipse 55% 42% at 62% 45%, rgba(255,140,0,0.12) 0%, transparent 62%), rgba(6,6,12,0.72)', backdropFilter: 'blur(40px) saturate(1.6)', WebkitBackdropFilter: 'blur(40px) saturate(1.6)' }}
       >
 
         {/* Deploy Overlay */}
@@ -2132,6 +2141,19 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </div>
               <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCoverImage(URL.createObjectURL(f)); setCoverFile(f); } }} />
             </label>
+            {/* Share icon on thumbnail — always clickable, sits above the artwork hover */}
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const shareData = { title: title || 'Check out this album on Plajah', text: artist ? `${title} by ${artist}` : title || 'Check out this album on Plajah', url: initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin };
+                if (navigator.share) { try { await navigator.share(shareData); } catch {} }
+                else { await navigator.clipboard.writeText(initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin); }
+              }}
+              className="absolute top-2.5 right-2.5 z-10 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/80 hover:border-white/40 transition-all opacity-0 group-hover:opacity-100"
+            >
+              <Share2 size={14} />
+            </button>
           </div>
 
           {/* Directly-editable project title — obvious affordance + callout */}
@@ -2201,6 +2223,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setArtistImage(URL.createObjectURL(f)); setArtistFile(f); } }} />
             </label>
           </div>
+
         </div>
         )}
 
@@ -2233,8 +2256,34 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </AnimatePresence>
           </div>
 
+          {/* Share This Album */}
+          <div className="shrink-0 px-8 py-3 border-t border-white/5 bg-black/30 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={async () => {
+                const shareData = {
+                  title: title || 'Check out this album on Plajah',
+                  text: artist ? `${title} by ${artist}` : title || 'Check out this album on Plajah',
+                  url: initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin,
+                };
+                if (navigator.share) {
+                  try { await navigator.share(shareData); } catch {}
+                } else {
+                  await navigator.clipboard.writeText(initialAlbum?.id ? `${window.location.origin}/?type=album&id=${initialAlbum.id}` : window.location.origin);
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,140,0,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,140,0,0.35)'; (e.currentTarget as HTMLButtonElement).style.color = '#FF8C00'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+            >
+              <Share2 size={14} />
+              Share This Album
+            </button>
+          </div>
+
           {/* Navigation Footer */}
-          <div className={`shrink-0 px-8 lg:px-16 py-6 border-t border-white/5 bg-[#0a0a0a] flex items-center gap-4 ${isMobile ? 'pb-10' : ''}`}>
+          <div className={`shrink-0 px-8 lg:px-16 py-6 border-t border-white/5 bg-black/30 backdrop-blur-sm flex items-center gap-4 ${isMobile ? 'pb-10' : ''}`}>
             {step > 0 && (
               <button type="button" onClick={goBack} className="flex items-center gap-2 px-8 py-4 bg-white/5 rounded-full text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 border border-white/10">
                 <ChevronLeft size={16} /> Back

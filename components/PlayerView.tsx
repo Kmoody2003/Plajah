@@ -20,7 +20,7 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward, ChevronRight, Waves, RotateCcw, ListPlus
+  SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -466,10 +466,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   
   const [comments, setComments] = useState<Comment[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
+  const [tabEdge, setTabEdge] = useState({ left: false, right: true });
+  const onTabScroll = useCallback(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    setTabEdge({ left: el.scrollLeft > 4, right: el.scrollLeft < el.scrollWidth - el.clientWidth - 4 });
+  }, []);
+  const scrollTabsBy = (dir: number) => tabScrollRef.current?.scrollBy({ left: dir * 110, behavior: 'smooth' });
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishStatus, setPublishStatus] = useState({ text: '', percent: 0 });
   const [publicUrl, setPublicUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
 
   // Detect mobile: touch devices (foldables, phones, tablets) always get mobile UI
@@ -954,6 +963,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </button>
                 )}
               </div>
+              {/* Share icon overlaid on cover art */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
+                className="absolute top-4 right-4 z-20 w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/70 hover:border-white/40 transition-all"
+              >
+                <Share2 size={16} />
+              </button>
               {/* Floating Track Info on Cover */}
               <div className="absolute bottom-6 left-6 right-6">
                 <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
@@ -964,26 +980,86 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </div>
 
         {/* Tabbed Navigation */}
-        <div className="flex items-center bg-black/40 backdrop-blur-md border-b border-white/5 sticky top-0 z-40 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracklist'), icon: List },
-            { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-            { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
-            { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
-            { id: 'INFO', label: 'Notes', icon: Sparkles }
-          ].map(tab => (
-            <button 
-              key={tab.id} 
-              onClick={() => setActiveHUD(tab.id as any)}
-              className={`flex-1 py-4 flex flex-col items-center gap-1 transition-all relative ${activeHUD === tab.id ? 'text-white' : 'text-white/20'}`}
-            >
-              <tab.icon size={16} />
-              <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
-              {activeHUD === tab.id && (
-                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-small-orange" />
-              )}
-            </button>
-          ))}
+        <div className="relative sticky top-0 z-40 overflow-hidden shrink-0" style={{
+          background: 'linear-gradient(135deg, rgba(6,4,10,0.92) 0%, rgba(10,4,8,0.92) 100%)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderBottom: '1px solid rgba(255,255,255,0.055)',
+        }}>
+          {/* Subtle orange→purple tint on the glass */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(105deg, rgba(255,140,0,0.045) 0%, rgba(139,92,246,0.045) 100%)' }} />
+          {/* Bottom separator with colour hint */}
+          <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,140,0,0.18) 30%, rgba(139,92,246,0.18) 70%, transparent 100%)' }} />
+
+          {/* Left edge chevron — fades in once user has scrolled */}
+          <button
+            onClick={() => scrollTabsBy(-1)}
+            className="absolute left-0 top-0 bottom-0 z-20 w-7 flex items-center justify-center transition-all duration-200"
+            style={{
+              background: 'linear-gradient(to right, rgba(6,4,10,0.95) 55%, transparent)',
+              opacity: tabEdge.left ? 1 : 0,
+              pointerEvents: tabEdge.left ? 'auto' : 'none',
+            }}
+          >
+            <ChevronLeft size={11} className="text-white/55" />
+          </button>
+
+          {/* Right edge chevron — visible on mount to signal scrollable content */}
+          <button
+            onClick={() => scrollTabsBy(1)}
+            className="absolute right-0 top-0 bottom-0 z-20 w-7 flex items-center justify-center transition-all duration-200"
+            style={{
+              background: 'linear-gradient(to left, rgba(6,4,10,0.95) 55%, transparent)',
+              opacity: tabEdge.right ? 1 : 0,
+              pointerEvents: tabEdge.right ? 'auto' : 'none',
+            }}
+          >
+            <ChevronRight size={11} className="text-white/55" />
+          </button>
+
+          {/* Scrollable tab row */}
+          <div
+            ref={tabScrollRef}
+            onScroll={onTabScroll}
+            className="overflow-x-auto no-scrollbar px-7 py-2"
+          >
+            <div className="flex items-center gap-1 min-w-max">
+              {([
+                { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracklist'), icon: List },
+                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
+                { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
+                { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
+                { id: 'INFO', label: 'Notes', icon: Sparkles },
+              ] as const).map(tab => {
+                const active = activeHUD === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveHUD(tab.id as any)}
+                    className="relative flex items-center gap-1.5 px-2.5 py-[5px] whitespace-nowrap shrink-0 overflow-hidden transition-all duration-200"
+                    style={active ? {
+                      borderRadius: '7px',
+                      background: 'linear-gradient(135deg, rgba(255,140,0,0.14) 0%, rgba(139,92,246,0.14) 100%)',
+                      border: '1px solid rgba(255,140,0,0.28)',
+                      boxShadow: '0 0 12px rgba(255,140,0,0.09), inset 0 1px 0 rgba(255,255,255,0.06)',
+                      color: '#fff',
+                    } : {
+                      borderRadius: '7px',
+                      background: 'rgba(255,255,255,0.038)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      color: 'rgba(255,255,255,0.32)',
+                    }}
+                  >
+                    {active && (
+                      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,140,0,0.07) 0%, rgba(139,92,246,0.07) 100%)', borderRadius: '6px' }} />
+                    )}
+                    <tab.icon size={10} className="relative shrink-0" />
+                    <span className="relative text-[7.5px] font-black uppercase tracking-widest">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -1276,7 +1352,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                          <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
                          <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
                          {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
-                         <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>
+                         {isOwner && <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>}
                        </>
                      )}
                    </div>
@@ -1435,7 +1511,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <button onClick={onBack} className="p-5 bg-white/5 border border-white/10 rounded-full hover:bg-white/20 transition-all">
                   <ArrowLeft size={28} />
                 </button>
-                <nav className="flex bg-white/5 backdrop-blur-2xl rounded-[2rem] p-2 border border-white/10 shadow-2xl overflow-x-auto no-scrollbar">
+                <nav className="flex items-center gap-1.5 p-1.5 rounded-xl overflow-x-auto no-scrollbar shrink-0" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   {[
                     { id: 'TRACKS', label: 'Playlist', icon: List },
                     { id: 'LYRICS', label: 'Signal', icon: Music2 },
@@ -1443,15 +1519,32 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
                     { id: 'INFO', label: 'Notes', icon: Sparkles },
                     { id: 'ABOUT', label: 'Identity', icon: User }
-                  ].map(tab => (
-                    <button 
-                      key={tab.id} 
-                      onClick={() => setActiveHUD(tab.id as any)}
-                      className={`px-8 py-4 rounded-[1.5rem] flex items-center gap-3 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeHUD === tab.id ? 'bg-white text-black shadow-[0_0_40px_rgba(255,255,255,0.2)]' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                    >
-                      <tab.icon size={18} /> {tab.label}
-                    </button>
-                  ))}
+                  ].map(tab => {
+                    const active = activeHUD === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveHUD(tab.id as any)}
+                        className="relative flex items-center gap-1.5 px-4 py-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap overflow-hidden"
+                        style={active ? {
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, rgba(255,140,0,0.18) 0%, rgba(139,92,246,0.18) 100%)',
+                          border: '1px solid rgba(255,140,0,0.30)',
+                          boxShadow: '0 0 16px rgba(255,140,0,0.12)',
+                          color: '#fff',
+                        } : {
+                          borderRadius: '8px',
+                          background: 'transparent',
+                          border: '1px solid transparent',
+                          color: 'rgba(255,255,255,0.35)',
+                        }}
+                      >
+                        {active && <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,140,0,0.07) 0%, rgba(139,92,246,0.07) 100%)', borderRadius: '7px' }} />}
+                        <tab.icon size={14} className="relative shrink-0" />
+                        <span className="relative">{tab.label}</span>
+                      </button>
+                    );
+                  })}
                 </nav>
               </div>
             </div>
@@ -1986,6 +2079,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                    <Activity size={10} /> FX Stage
                  </button>
                </div>
+
+               {/* Share This Album — centered below the Art / Slideshow / FX Stage row */}
+               {!isPublic && (
+                 <button
+                   onClick={() => setShowShareModal(true)}
+                   className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 group"
+                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
+                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,140,0,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,140,0,0.35)'; (e.currentTarget as HTMLButtonElement).style.color = '#FF8C00'; }}
+                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+                 >
+                   <Share2 size={14} /> Share This Album
+                 </button>
+               )}
              </div>
 
              {/* Layer 2 — World + character info cards just below album art */}
@@ -2064,129 +2170,142 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12 pointer-events-none">
-        <header className={`pointer-events-auto flex flex-nowrap items-center gap-4 mb-6 overflow-x-auto no-scrollbar pb-2 shrink-0 ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] w-full' : 'w-full'}`}>
+        {/* Desktop header — scrollable row of unified compact rounded-rect buttons */}
+        <div className={`pointer-events-auto relative mb-6 shrink-0 ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] w-full' : 'w-full'}`}>
+          {/* Left scroll chevron */}
+          <button
+            onClick={() => scrollTabsBy(-1)}
+            className="absolute left-0 top-0 bottom-2 z-10 w-8 flex items-center justify-center transition-all duration-200"
+            style={{ background: 'linear-gradient(to right, rgba(8,6,12,0.92) 50%, transparent)', opacity: tabEdge.left ? 1 : 0, pointerEvents: tabEdge.left ? 'auto' : 'none' }}
+          >
+            <ChevronLeft size={12} className="text-white/50" />
+          </button>
+          {/* Right scroll chevron */}
+          <button
+            onClick={() => scrollTabsBy(1)}
+            className="absolute right-0 top-0 bottom-2 z-10 w-8 flex items-center justify-center transition-all duration-200"
+            style={{ background: 'linear-gradient(to left, rgba(8,6,12,0.92) 50%, transparent)', opacity: tabEdge.right ? 1 : 0, pointerEvents: tabEdge.right ? 'auto' : 'none' }}
+          >
+            <ChevronRight size={12} className="text-white/50" />
+          </button>
+          <header ref={tabScrollRef} onScroll={onTabScroll} className="flex flex-nowrap items-center gap-2 pb-2 overflow-x-auto no-scrollbar px-1">
              {isVisualizerLayout && (
                <button
                  onClick={() => setIsVisualizerLayout(false)}
-                 className="flex items-center gap-2 px-5 py-3 bg-small-orange/20 border border-small-orange/30 text-small-orange rounded-full font-black text-xs uppercase tracking-widest hover:bg-small-orange/30 transition-all shrink-0"
+                 className="flex items-center gap-1.5 px-3.5 py-2 bg-small-orange/20 border border-small-orange/30 text-small-orange rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-small-orange/30 transition-all shrink-0 whitespace-nowrap"
                >
-                 <Activity size={14} /> FX Stage On
+                 <Activity size={13} /> FX Stage On
                </button>
              )}
              {!isPublic ? (
-               <button onClick={onBack} className="flex items-center gap-4 px-8 py-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all font-black text-xs uppercase tracking-widest">
-                 <ArrowLeft size={18} /> Library
+               <button onClick={onBack} className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap">
+                 <ArrowLeft size={13} /> Library
                </button>
              ) : (
-                <div className="flex items-center gap-4 px-8 py-4 bg-theme-card backdrop-blur-md border border-white/10 rounded-full font-black text-xs uppercase tracking-widest">
-                 <Globe size={18} className="text-green-500" /> Live Microsite
+               <div className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap">
+                 <Globe size={13} className="text-green-500" /> Live Microsite
                </div>
              )}
              {isOwner && onEdit && (
-               <button onClick={() => onEdit(album)} className="flex items-center gap-4 px-8 py-4 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl">
-                 <Zap size={18} /> Edit Album
+               <button onClick={() => onEdit(album)} className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all font-black text-[9px] uppercase tracking-widest shadow-lg shrink-0 whitespace-nowrap">
+                 <Zap size={13} /> Edit Album
                </button>
              )}
              <button
                onClick={() => setIsTVMode(!isTVMode)}
-               className={`flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl ${isTVMode ? 'bg-small-orange text-black' : 'bg-white/10 text-white border border-white/10'}`}
+               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap ${isTVMode ? 'bg-small-orange text-black' : 'bg-white/8 text-white border border-white/10'}`}
              >
-               <VideoIcon size={18} /> {isTVMode ? 'TV Mode On' : 'TV Mode Off'}
+               <VideoIcon size={13} /> {isTVMode ? 'TV On' : 'TV Mode'}
              </button>
-
              <button
                onClick={() => setIsDJMode(true)}
-               className="flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl bg-white/10 text-white border border-white/10 hover:bg-[#00D4AA]/20 hover:border-[#00D4AA]/40 hover:text-[#00D4AA]"
+               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest bg-white/8 text-white border border-white/10 hover:bg-[#00D4AA]/20 hover:border-[#00D4AA]/40 hover:text-[#00D4AA] shrink-0 whitespace-nowrap"
              >
-               <Disc size={18} /> DJ Mode
+               <Disc size={13} /> DJ Mode
              </button>
-
              <button
                onClick={() => setIsLightingOpen(true)}
-               className={`flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl border ${isLightingOpen ? 'bg-[#FF8C00]/20 border-[#FF8C00]/40 text-[#FF8C00]' : 'bg-white/10 text-white border-white/10 hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/30 hover:text-[#FF8C00]'}`}
+               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap border ${isLightingOpen ? 'bg-[#FF8C00]/20 border-[#FF8C00]/40 text-[#FF8C00]' : 'bg-white/8 text-white border-white/10 hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/30 hover:text-[#FF8C00]'}`}
              >
-               <Zap size={18} /> Lights
+               <Zap size={13} /> Lights
              </button>
-
-             {/* Load this whole album/playlist into Plajah Pixels */}
              <button
                onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } }))}
-               title="Plajah Pixels — load this album into the visualizer"
-               className="flex items-center gap-4 px-8 py-4 rounded-full transition-all font-black text-xs uppercase tracking-widest shadow-xl border bg-white/10 text-white border-white/10 hover:bg-purple-500/20 hover:border-purple-400/40 hover:text-purple-200"
+               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest bg-white/8 text-white border border-white/10 hover:bg-purple-500/20 hover:border-purple-400/40 hover:text-purple-200 shrink-0 whitespace-nowrap"
              >
-               <Sparkles size={18} /> Plajah Pixels
+               <Sparkles size={13} /> Plajah Pixels
              </button>
-
              {!isOwner && !isPreview && (
                <>
-                 <button 
-                   onClick={() => setIsDonationModalOpen(true)}
-                   className="flex items-center gap-4 px-8 py-4 bg-small-orange text-black rounded-full hover:scale-105 transition-all font-black text-xs uppercase tracking-widest shadow-[0_4px_20px_rgba(255,140,0,0.3)] active:scale-95"
-                 >
-                   <HeartHandshake size={18} /> Gifts & tips
+                 <button onClick={() => setIsDonationModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-small-orange text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all active:scale-95">
+                   <HeartHandshake size={13} /> Gifts & Tips
                  </button>
-                 <button 
-                   onClick={() => {
-                     const event = new CustomEvent('OPEN_PIF_MODAL');
-                     window.dispatchEvent(event);
-                   }}
-                   className="flex items-center gap-4 px-8 py-4 bg-white/5 border border-white/10 text-white rounded-full hover:bg-white/10 transition-all font-black text-xs uppercase tracking-widest shadow-xl active:scale-95"
-                 >
-                   <Heart size={18} /> Pay It Forward
+                 <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL'))} className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 border border-white/10 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:bg-white/10 transition-all active:scale-95">
+                   <Heart size={13} /> Pay It Forward
                  </button>
                </>
              )}
-             
-             {[
-               { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
-               { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-               { id: 'MEDIA', label: 'Music Videos & Art', icon: VideoIcon },
-               { id: 'COMMENTS', label: 'The Social Feed', icon: MessageSquare },
-               { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles }
-             ].map(tab => (
-               <button key={tab.id} onClick={() => setActiveHUD(tab.id as any)} className={`flex items-center whitespace-nowrap gap-2 px-4 py-2 lg:px-4 lg:py-2.5 rounded-full border transition-all text-[10px] font-black uppercase tracking-widest ${activeHUD === tab.id ? 'bg-white text-black border-white shadow-xl scale-105' : 'bg-black/60 border-white/10 text-white/30 hover:bg-white/5'}`}>
-                 <tab.icon size={16} /> {tab.label}
-               </button>
-             ))}
 
-             <button 
-               onClick={() => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT')} 
-               className={`px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest border transition-all whitespace-nowrap ${
-                 activeHUD === 'ABOUT' 
-                   ? 'bg-small-orange text-black border-small-orange shadow-[0_4px_15px_rgba(255,140,0,0.2)]' 
-                   : 'bg-white/5 border-white/10 hover:bg-white/10'
-               }`}
+             {/* ── Tab nav — rounded-rect with orange-purple frost glass active state ── */}
+             <div className="w-px h-5 bg-white/10 shrink-0 mx-1" />
+             {([
+               { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
+               { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
+               { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
+               { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
+               { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles },
+             ] as const).map(tab => {
+               const active = activeHUD === tab.id;
+               return (
+                 <button
+                   key={tab.id}
+                   onClick={() => setActiveHUD(tab.id as any)}
+                   className="relative flex items-center gap-1.5 px-3.5 py-2 font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap overflow-hidden transition-all duration-200"
+                   style={active ? {
+                     borderRadius: '8px',
+                     background: 'linear-gradient(135deg, rgba(255,140,0,0.16) 0%, rgba(139,92,246,0.16) 100%)',
+                     border: '1px solid rgba(255,140,0,0.30)',
+                     boxShadow: '0 0 14px rgba(255,140,0,0.10), inset 0 1px 0 rgba(255,255,255,0.07)',
+                     color: '#fff',
+                   } : {
+                     borderRadius: '8px',
+                     background: 'rgba(255,255,255,0.04)',
+                     border: '1px solid rgba(255,255,255,0.08)',
+                     color: 'rgba(255,255,255,0.35)',
+                   }}
+                 >
+                   {active && <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,140,0,0.06) 0%, rgba(139,92,246,0.06) 100%)', borderRadius: '7px' }} />}
+                   <tab.icon size={13} className="relative shrink-0" />
+                   <span className="relative">{tab.label}</span>
+                 </button>
+               );
+             })}
+             <div className="w-px h-5 bg-white/10 shrink-0 mx-1" />
+
+             <button
+               onClick={() => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT')}
+               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest border transition-all shrink-0 whitespace-nowrap ${activeHUD === 'ABOUT' ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
              >
-                {activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist'}
+               <User size={13} /> {activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist'}
              </button>
              {album.galleryUrl && (
-               <a 
-                 href={album.galleryUrl} 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="px-8 py-4 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-3"
-               >
-                 <Globe size={18} /> Gallery
+               <a href={album.galleryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all">
+                 <Globe size={13} /> Gallery
                </a>
              )}
-             <button 
-               onClick={() => setShowCaptions(!showCaptions)} 
-               className={`px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest border transition-all ${
-                 showCaptions 
-                   ? 'bg-small-orange text-black border-small-orange shadow-[0_4px_15px_rgba(255,140,0,0.2)]' 
-                   : 'bg-white/5 border-white/10 hover:bg-white/10'
-               }`}
+             <button
+               onClick={() => setShowCaptions(!showCaptions)}
+               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest border transition-all shrink-0 whitespace-nowrap ${showCaptions ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
              >
-                {showCaptions ? 'Hide Captions' : 'Show Captions'}
+               {showCaptions ? 'Hide Captions' : 'Captions'}
              </button>
              {!isPublic && (
-               <div className="ml-auto">
-                 <button onClick={() => setShowShareModal(true)} className="px-10 py-4 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-3">
-                   <Share2 size={18} /> Share
-                 </button>
-               </div>
+               <button onClick={() => setShowShareModal(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all ml-auto">
+                 <Share2 size={13} /> Share
+               </button>
              )}
-        </header>
+          </header>
+        </div>
 
         <div className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}>
           {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
@@ -2361,7 +2480,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
                                   <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
                                   {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
-                                  <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>
+                                  {isOwner && <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>}
                                 </>
                               )}
                             </div>
@@ -3014,64 +3133,161 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
       </AnimatePresence>
 
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-[200] flex items-center justify-center p-6">
-          <div className="max-w-xl w-full bg-[#080808] border border-white/10 p-12 rounded-[3rem] text-center shadow-3xl animate-in zoom-in-95 font-sans">
-            <button onClick={() => setShowShareModal(false)} className="absolute top-12 right-12 text-white/20 hover:text-white p-2 transition-transform hover:rotate-90"><X size={32} /></button>
-            <div className={`w-24 h-24 bg-green-500/10 border-green-500/30 flex items-center justify-center mx-auto mb-8 border rounded-[2.5rem] shadow-2xl`}>
-              <Share2 size={36} className="text-green-500" />
-            </div>
-            <h2 className="text-4xl font-display font-black tracking-tight mb-6 uppercase tracking-widest">Share Microsite</h2>
-            <p className="text-xs font-bold text-white/30 mb-16 tracking-widest uppercase leading-loose">Your album is hosted and ready for distribution.</p>
-            
-            <div className="space-y-8">
-              <div className="flex items-center gap-4 p-10 bg-white/[0.04] border border-white/10 rounded-[3rem] group">
-                 <LinkIcon size={24} className="text-white/20 shrink-0" />
-                 <span className="flex-1 text-left text-sm font-bold text-white/60 truncate">{publicUrl}</span>
-                 <button onClick={() => { navigator.clipboard.writeText(publicUrl); setCopied(true); setTimeout(()=>setCopied(false),2000); }} className="p-5 bg-white text-black rounded-2xl hover:bg-gray-200 transition-all active:scale-90">
-                   {copied ? <Check size={24} className="text-green-600" /> : <Copy size={24} />}
-                 </button>
-              </div>
-              <div className="p-12 border border-white/10 bg-white/[0.02] rounded-[4rem] flex flex-col gap-6">
-                <div className="flex items-center justify-between text-left">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.4em] text-green-500 mb-2">Status: Online</p>
-                    <p className="text-sm font-bold text-white/40 uppercase tracking-widest">Public Microsite Validated</p>
-                  </div>
-                  <button onClick={() => window.open(publicUrl, '_blank')} className="p-6 bg-white/10 hover:bg-white/20 rounded-3xl transition-all shadow-xl"><ExternalLink size={28} /></button>
+      {showShareModal && (() => {
+        const shareText = `Listen to ${album.title} by ${album.artist} on Plajah`;
+        const albumUrl = publicUrl || `${window.location.origin}/?type=album&id=${album.id}`;
+        const embedCode = `<iframe src="${albumUrl}&embed=1" width="420" height="160" frameborder="0" allow="autoplay; encrypted-media" style="border-radius:16px;border:none;overflow:hidden"></iframe>`;
+
+        const openShare = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
+        const copyClipboard = async (text: string, onDone: () => void) => {
+          await navigator.clipboard.writeText(text);
+          onDone();
+        };
+
+        const socials: { label: string; sublabel?: string; bg: string; fg: string; icon: React.ReactNode; action: () => void }[] = [
+          {
+            label: 'X', sublabel: 'Twitter',
+            bg: '#000', fg: '#fff',
+            icon: <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+            action: () => openShare(`https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(albumUrl)}`),
+          },
+          {
+            label: 'Facebook',
+            bg: '#1877F2', fg: '#fff',
+            icon: <Facebook size={18} />,
+            action: () => openShare(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(albumUrl)}`),
+          },
+          {
+            label: 'WhatsApp',
+            bg: '#25D366', fg: '#fff',
+            icon: <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
+            action: () => openShare(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + albumUrl)}`),
+          },
+          {
+            label: 'Telegram',
+            bg: '#229ED9', fg: '#fff',
+            icon: <Send size={17} />,
+            action: () => openShare(`https://t.me/share/url?url=${encodeURIComponent(albumUrl)}&text=${encodeURIComponent(shareText)}`),
+          },
+          {
+            label: 'Instagram', sublabel: 'Copy link',
+            bg: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', fg: '#fff',
+            icon: <Instagram size={18} />,
+            action: () => copyClipboard(albumUrl, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }),
+          },
+          {
+            label: 'TikTok', sublabel: 'Copy link',
+            bg: '#010101', fg: '#fff',
+            icon: <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.24 8.24 0 004.82 1.54V6.78a4.85 4.85 0 01-1.05-.09z"/></svg>,
+            action: () => copyClipboard(albumUrl, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }),
+          },
+          {
+            label: 'Threads', sublabel: 'Copy link',
+            bg: '#000', fg: '#fff',
+            icon: <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 012.141.099c-.172-.768-.517-1.353-1.03-1.743-.647-.497-1.534-.748-2.637-.756-1.917.014-3.091.698-3.758 2.122l-1.914-.755c.907-2.045 2.81-3.146 5.666-3.17 1.578.012 2.924.404 4.002 1.167 1.182.84 1.923 2.115 2.203 3.794.15.029.297.063.444.1.802.2 1.516.533 2.124 1.013 1.064.845 1.75 2.066 2.031 3.621.397 2.206-.193 4.426-1.62 5.942C17.172 23.236 14.977 24 12.186 24zm.554-8.49c-.137.008-.278.014-.423.018 1.136-.33 1.826-1.04 2.053-2.114a11.774 11.774 0 00-1.985-.199c-.956.056-1.711.315-2.199.754-.364.316-.549.726-.524 1.158.033.604.408 1.115 1.053 1.533.548.356 1.218.515 1.95.494.19-.005.373-.02.548-.046l.016.003a5.3 5.3 0 00-.489-.6z"/></svg>,
+            action: () => copyClipboard(albumUrl, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }),
+          },
+          {
+            label: 'Reddit',
+            bg: '#FF4500', fg: '#fff',
+            icon: <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>,
+            action: () => openShare(`https://www.reddit.com/submit?url=${encodeURIComponent(albumUrl)}&title=${encodeURIComponent(album.title + ' by ' + album.artist + ' on Plajah')}`),
+          },
+          {
+            label: 'Email',
+            bg: '#EA4335', fg: '#fff',
+            icon: <Mail size={18} />,
+            action: () => window.open(`mailto:?subject=${encodeURIComponent(album.title + ' on Plajah')}&body=${encodeURIComponent(shareText + '\n\n' + albumUrl)}`),
+          },
+          {
+            label: 'SMS',
+            bg: '#34C759', fg: '#fff',
+            icon: <MessageSquare size={17} />,
+            action: () => window.open(`sms:?body=${encodeURIComponent(shareText + ' ' + albumUrl)}`),
+          },
+        ];
+
+        return (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-3xl z-[200] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="max-w-lg w-full bg-[#080808] border border-white/10 rounded-[2.5rem] shadow-3xl animate-in zoom-in-95 overflow-hidden">
+              {/* Header */}
+              <div className="relative px-8 pt-8 pb-6 text-center border-b border-white/5">
+                <button onClick={() => setShowShareModal(false)} className="absolute top-6 right-6 p-2 text-white/20 hover:text-white transition-all hover:rotate-90"><X size={22} /></button>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg,rgba(107,0,153,0.3),rgba(255,140,0,0.2))', border: '1px solid rgba(255,140,0,0.2)' }}>
+                  <Share2 size={22} className="text-orange-300" />
                 </div>
-                
-                <div className="pt-6 border-t border-white/5 grid grid-cols-2 gap-4">
-                  <button 
-                    onClick={() => {
-                      const text = `Check out ${album.title} by ${album.artist} on @Plajah!`;
-                      window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(publicUrl)}`, '_blank');
-                    }}
-                    className="flex flex-col items-center gap-3 p-6 bg-white/5 rounded-3xl hover:bg-white/10 transition-all group"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                      <X size={20} />
+                <h2 className="text-xl font-display font-black uppercase tracking-widest mb-1">{album.title}</h2>
+                <p className="text-[10px] font-bold text-small-orange/70 uppercase tracking-[0.3em] truncate">{album.artist}</p>
+              </div>
+
+              <div className="px-6 py-5 space-y-5">
+                {/* Direct link */}
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-2 px-1">Direct Link</p>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-white/[0.04] border border-white/10 rounded-2xl">
+                    <LinkIcon size={14} className="text-white/20 shrink-0" />
+                    <span className="flex-1 text-[10px] font-bold text-white/50 truncate">{albumUrl}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(albumUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                        style={{ background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)', border: copied ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ade80' : '#fff' }}
+                      >
+                        {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+                      </button>
+                      <button
+                        onClick={() => window.open(albumUrl, '_blank', 'noopener,noreferrer')}
+                        className="p-1.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
+                      >
+                        <ExternalLink size={13} />
+                      </button>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Post to X</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const text = `I'm listening to ${album.title} by ${album.artist} on Plajah. Check it out!`;
-                      window.open(`mailto:?subject=${encodeURIComponent(album.title)}&body=${encodeURIComponent(`${text}\n\n${publicUrl}`)}`);
-                    }}
-                    className="flex flex-col items-center gap-3 p-6 bg-white/5 rounded-3xl hover:bg-white/10 transition-all group"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                      <Mail size={20} />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Email Link</span>
-                  </button>
+                  </div>
+                </div>
+
+                {/* Embed code */}
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-2 px-1">Embed Player</p>
+                  <div className="flex items-start gap-2 px-4 py-3 bg-white/[0.04] border border-white/10 rounded-2xl">
+                    <code className="flex-1 text-[8px] font-mono text-white/30 break-all leading-relaxed">{embedCode}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(embedCode); setCopiedEmbed(true); setTimeout(() => setCopiedEmbed(false), 2000); }}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all mt-0.5"
+                      style={{ background: copiedEmbed ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)', border: copiedEmbed ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.1)', color: copiedEmbed ? '#4ade80' : '#fff' }}
+                    >
+                      {copiedEmbed ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Social grid */}
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-2 px-1">Share To</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {socials.map(({ label, sublabel, bg, fg, icon, action }) => (
+                      <button
+                        key={label}
+                        onClick={action}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all hover:scale-105 active:scale-95"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      >
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ background: bg, color: fg }}
+                        >
+                          {icon}
+                        </div>
+                        <span className="text-[7px] font-black uppercase tracking-wider text-white/50 leading-tight text-center">{label}</span>
+                        {sublabel && <span className="text-[6px] text-white/25 uppercase tracking-wider leading-tight">{sublabel}</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       <SmartLightingPanel
         isOpen={isLightingOpen}

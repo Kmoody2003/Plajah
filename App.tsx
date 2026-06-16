@@ -268,6 +268,7 @@ import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
+import ProjectTray from './components/ProjectTray';
 
 import SpatialToggle from './components/SpatialToggle';
 import SpatialImage from './components/SpatialImage';
@@ -337,6 +338,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isMuseOpen, setIsMuseOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
+  const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
@@ -1990,6 +1992,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} />
                   </div>
+                  {/* Project Tray toggle */}
+                  <button
+                    onClick={() => setIsProjectTrayOpen(v => !v)}
+                    title="Project Tray"
+                    className="relative shrink-0 p-3 rounded-2xl transition-all border"
+                    style={isProjectTrayOpen || isCreatorMinimized
+                      ? { background: 'linear-gradient(135deg,rgba(107,0,153,0.35),rgba(255,140,0,0.25))', border: '1px solid rgba(255,140,0,0.3)' }
+                      : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <Layers size={18} className={isProjectTrayOpen || isCreatorMinimized ? 'text-orange-300' : 'text-white/40'} />
+                    {isCreatorMinimized && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-400 ring-2 ring-[#0a0a0a]" />
+                    )}
+                  </button>
                   {isNanoView && (
                     <button
                       onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
@@ -3029,7 +3045,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 setIsCreatorMinimized(false);
                 setCreatorInitialType(undefined);
               }}
-              onMinimize={() => setIsCreatorMinimized(true)}
+              onMinimize={() => { setIsCreatorMinimized(true); setIsProjectTrayOpen(true); }}
               isMinimized={isCreatorMinimized}
               initialAlbum={editingAlbum || undefined}
               initialType={creatorInitialType as any}
@@ -3135,9 +3151,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           onClose={() => setPifWins(prev => prev.filter(w => w.id !== win.id))} 
         />
       ))}
-      <UploadManager 
-        isMinimizedCreator={isCreatorMinimized} 
-        onRestoreCreator={() => setIsCreatorMinimized(false)} 
+      <UploadManager
+        isMinimizedCreator={isCreatorMinimized}
+        onRestoreCreator={() => setIsCreatorMinimized(false)}
+      />
+      <ProjectTray
+        isOpen={isProjectTrayOpen}
+        onClose={() => setIsProjectTrayOpen(false)}
+        isCreatorMinimized={isCreatorMinimized}
+        creatorProjectTitle={editingAlbum?.title || undefined}
+        onRestoreCreator={() => { setIsCreatorMinimized(false); setIsProjectTrayOpen(false); }}
+        recentAlbums={albums.slice(0, 6)}
       />
       <LiveFeedPlayer
         feed={activeLiveFeed}

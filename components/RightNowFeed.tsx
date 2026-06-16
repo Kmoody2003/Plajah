@@ -264,10 +264,15 @@ const RightNowFeed: React.FC<RightNowFeedProps> = ({
     const text = entry.type === 'TRACK'
       ? `I'm listening to "${entry.trackTitle}" by ${entry.trackArtist} on Plajah right now 🎵`
       : `I'm watching "${entry.videoTitle}" on Plajah right now 🎬`;
+    const assetUrl = entry.type === 'TRACK' && entry.albumId
+      ? `${window.location.origin}/?type=album&id=${entry.albumId}`
+      : entry.type === 'VIDEO' && entry.videoId
+        ? `${window.location.origin}/?type=video&id=${entry.videoId}`
+        : window.location.origin;
     if (navigator.share) {
-      navigator.share({ text, url: window.location.href });
+      navigator.share({ text, url: assetUrl });
     } else {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(assetUrl);
       setSharing(entry.uid);
       setTimeout(() => setSharing(null), 2000);
     }

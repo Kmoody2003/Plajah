@@ -15,7 +15,7 @@ import {
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2,
-  Film, BarChart2, FileText, Users,
+  Film, BarChart2, FileText, Users, Activity,
 } from 'lucide-react';
 import FediverseSettings from './FediverseSettings';
 import FediverseHub from './FediverseHub';
@@ -33,6 +33,7 @@ import FilmAnalyticsView from './FilmAnalyticsView';
 import MusicDistributionHub from './MusicDistributionHub';
 import ArtistRadioBuilder from './ArtistRadioBuilder';
 import PodcastRssSettings from './PodcastRssSettings';
+import AudioHealthPanel from './AudioHealthPanel';
 // Books Studio
 import BookCreatorWizard from './BookCreatorWizard';
 import SerialScheduler from './SerialScheduler';
@@ -69,7 +70,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
     'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' |
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
-    'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' |
+    'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
     'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY'
   >('ACCOUNT');
@@ -85,6 +86,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const [showAlbumSelector, setShowAlbumSelector] = useState(false);
   const [showCreator, setShowCreator] = useState<{ active: boolean; type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO'; album?: Album }>({ active: false });
   const [showWorldCreator, setShowWorldCreator] = useState(false);
+  const [audioHealthAlertCount, setAudioHealthAlertCount] = useState(0);
 
   useEffect(() => {
     loadProfile();
@@ -286,14 +288,20 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <span className="text-[8px] font-black uppercase tracking-[0.35em] text-purple-400/60">Music Studio</span>
               </div>
               {[
-                { id: 'MUSIC_STUDIO',  label: 'Music Hub',     icon: Music2  },
-                { id: 'ARTIST_RADIO',  label: 'Artist Radio',  icon: Radio   },
-                { id: 'PODCAST_HUB',   label: 'Podcast RSS',   icon: Tv      },
+                { id: 'MUSIC_STUDIO',  label: 'Music Hub',     icon: Music2    },
+                { id: 'ARTIST_RADIO',  label: 'Artist Radio',  icon: Radio     },
+                { id: 'PODCAST_HUB',   label: 'Podcast RSS',   icon: Tv        },
+                { id: 'AUDIO_HEALTH',  label: 'Audio Health',  icon: Activity  },
               ].map(item => (
                 <button key={item.id} onClick={() => setActiveTab(item.id as any)}
                   className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-purple-500 text-white shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
                   <item.icon size={18} />
                   <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                  {item.id === 'AUDIO_HEALTH' && audioHealthAlertCount > 0 && (
+                    <span className="ml-auto text-[8px] font-black px-1.5 py-0.5 rounded-full bg-orange-500 text-black leading-none">
+                      {audioHealthAlertCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </>
@@ -396,20 +404,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
       <main className="flex-1 overflow-y-auto p-8 lg:p-16">
         <div className="max-w-4xl mx-auto">
           {showCreator.active && (
-            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl p-4 lg:p-12 overflow-y-auto">
+            <div className="fixed inset-0 z-[100] bg-black/55 p-4 lg:p-12 overflow-y-auto" style={{ backdropFilter: 'blur(4px)' }}>
               <div className="max-w-6xl mx-auto relative">
-                <button 
-                  onClick={() => setShowCreator({ active: false })}
-                  className="absolute -top-4 -right-4 lg:top-0 lg:right-0 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-50"
-                >
-                  <X size={24} />
-                </button>
-                <AlbumCreator 
+                <AlbumCreator
                   onCreated={(album) => {
                     setShowCreator({ active: false });
                     loadUserAlbums();
                   }}
                   onCancel={() => setShowCreator({ active: false })}
+                  onMinimize={() => setShowCreator({ active: false })}
                   initialAlbum={showCreator.album || (showCreator.type ? { type: showCreator.type } as any : undefined)}
                 />
               </div>
@@ -1952,6 +1955,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           )}
           {activeTab === 'PODCAST_HUB' && (
             <PodcastRssSettings />
+          )}
+          {activeTab === 'AUDIO_HEALTH' && (
+            <AudioHealthPanel
+              albums={userAlbums}
+              onAlbumUpdated={(albumId) => {
+                // Refresh the album list so updated URLs take effect
+                loadUserAlbums();
+              }}
+            />
           )}
 
           {/* ── Books Studio Tabs ─────────────────────────────────────────── */}

@@ -1,8 +1,10 @@
-import { 
-  ref, 
-  uploadBytes, 
+import {
+  ref,
+  uploadBytes,
   uploadBytesResumable,
-  getDownloadURL 
+  getDownloadURL,
+  updateMetadata,
+  getMetadata,
 } from 'firebase/storage';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
@@ -1192,6 +1194,37 @@ export const uploadLandingBgAsset = async (
   return { url };
 };
 
+export const fetchSportsHeroConfig = async (): Promise<import('../types').SportsHeroConfig | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'systemConfig', 'sportsHero'));
+    return snap.exists() ? (snap.data() as import('../types').SportsHeroConfig) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveSportsHeroConfig = async (config: import('../types').SportsHeroConfig): Promise<void> => {
+  await setDoc(doc(db, 'systemConfig', 'sportsHero'), config);
+};
+
+export const uploadSportsHeroAsset = async (
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<{ url: string }> => {
+  const path = `sports-hero/${Date.now()}_${file.name}`;
+  const sRef = ref(storage, path);
+  const task = uploadBytesResumable(sRef, file);
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed',
+      snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      resolve
+    );
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  return { url };
+};
+
 
 // ── Club Cover Media ─────────────────────────────────────────────────────────
 
@@ -1998,21 +2031,41 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   let contentType = (blobOrFile as any).type;
   
   if (!contentType || contentType === 'application/octet-stream') {
-    // Try to guess from filename
+    // Try to guess from filename — exhaustive map so Firebase serves correct Content-Type
     const ext = filename.split('.').pop()?.toLowerCase();
     const mimeMap: Record<string, string> = {
-      'mp3': 'audio/mpeg',
-      'wav': 'audio/wav',
-      'ogg': 'audio/ogg',
-      'm4a': 'audio/mp4',
-      'mp4': 'video/mp4',
-      'webm': 'video/webm',
-      'mov': 'video/quicktime',
-      'png': 'image/png',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'gif': 'image/gif',
-      'webp': 'image/webp'
+      // Audio — lossy
+      'mp3': 'audio/mpeg', 'mp2': 'audio/mpeg', 'mp1': 'audio/mpeg',
+      'm4a': 'audio/mp4', 'aac': 'audio/aac',
+      'ogg': 'audio/ogg', 'oga': 'audio/ogg', 'opus': 'audio/ogg; codecs=opus',
+      'webm': 'audio/webm', 'weba': 'audio/webm',
+      'wma': 'audio/x-ms-wma', 'ra': 'audio/x-realaudio', 'rm': 'audio/x-realaudio',
+      'amr': 'audio/amr', 'gsm': 'audio/gsm',
+      // Audio — lossless / PCM
+      'wav': 'audio/wav', 'wave': 'audio/wav', 'bwf': 'audio/wav',
+      'rf64': 'audio/wav', 'w64': 'audio/wav',
+      'flac': 'audio/flac',
+      'aiff': 'audio/aiff', 'aif': 'audio/aiff', 'aifc': 'audio/aiff',
+      'alac': 'audio/mp4', 'ape': 'audio/x-ape',
+      'wv': 'audio/x-wavpack', 'tta': 'audio/x-tta', 'tak': 'audio/x-tak',
+      'shn': 'audio/x-shorten', 'caf': 'audio/x-caf',
+      // Audio — surround / broadcast
+      'ac3': 'audio/ac3', 'eac3': 'audio/eac3',
+      'dts': 'audio/vnd.dts', 'dtshd': 'audio/vnd.dts.hd',
+      'mpc': 'audio/x-musepack', 'mka': 'audio/x-matroska',
+      // Audio — game / immersive
+      'iamf': 'audio/iamf',
+      // Audio — MIDI / tracker
+      'mid': 'audio/midi', 'midi': 'audio/midi', 'kar': 'audio/midi',
+      'mod': 'audio/x-mod', 'xm': 'audio/x-xm', 'it': 'audio/x-it', 's3m': 'audio/x-s3m',
+      // Video
+      'mp4': 'video/mp4', 'mov': 'video/quicktime', 'mkv': 'video/x-matroska',
+      'm4v': 'video/mp4', 'avi': 'video/x-msvideo', 'wmv': 'video/x-ms-wmv',
+      'ts': 'video/mp2t', 'm2ts': 'video/mp2t', 'mts': 'video/mp2t',
+      // Image
+      'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+      'gif': 'image/gif', 'webp': 'image/webp', 'avif': 'image/avif',
+      'heic': 'image/heic', 'heif': 'image/heif', 'svg': 'image/svg+xml',
     };
     if (ext && mimeMap[ext]) {
       contentType = mimeMap[ext];
@@ -2070,6 +2123,122 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   } catch (error: any) {
     throw new Error(`Upload failed: ${error.message}`);
   }
+};
+
+// ─── Audio metadata fixer ─────────────────────────────────────────────────────
+
+/**
+ * Extract the Firebase Storage path from a Firebase download URL.
+ * Returns null for non-Firebase or object-URL tracks.
+ */
+const storagePathFromUrl = (url: string): string | null => {
+  try {
+    // Firebase download URLs: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded-path}?...
+    const match = url.match(/\/o\/([^?]+)/);
+    if (!match) return null;
+    return decodeURIComponent(match[1]);
+  } catch { return null; }
+};
+
+/**
+ * Fix the Content-Type metadata on an already-uploaded Firebase Storage file
+ * without re-uploading the bytes. Safe to call fire-and-forget.
+ * Returns the corrected MIME type, or null if not applicable/failed.
+ */
+export const fixTrackStorageMetadata = async (trackUrl: string): Promise<string | null> => {
+  if (!trackUrl || trackUrl.startsWith('blob:') || !trackUrl.includes('firebasestorage.googleapis.com')) {
+    return null;
+  }
+  try {
+    const storagePath = storagePathFromUrl(trackUrl);
+    if (!storagePath) return null;
+    const storageRef = ref(storage, storagePath);
+    const meta = await getMetadata(storageRef);
+    const ext = (meta.name ?? '').split('.').pop()?.toLowerCase() ?? '';
+    if (!ext) return null;
+
+    const MIME_MAP: Record<string, string> = {
+      mp3: 'audio/mpeg', mp2: 'audio/mpeg', mp1: 'audio/mpeg',
+      m4a: 'audio/mp4', aac: 'audio/aac',
+      ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg; codecs=opus',
+      webm: 'audio/webm', weba: 'audio/webm',
+      wav: 'audio/wav', wave: 'audio/wav', bwf: 'audio/wav', rf64: 'audio/wav', w64: 'audio/wav',
+      flac: 'audio/flac',
+      aiff: 'audio/aiff', aif: 'audio/aiff', aifc: 'audio/aiff',
+      alac: 'audio/mp4', ape: 'audio/x-ape', wv: 'audio/x-wavpack', tta: 'audio/x-tta',
+      tak: 'audio/x-tak', shn: 'audio/x-shorten', caf: 'audio/x-caf',
+      mka: 'audio/x-matroska', wma: 'audio/x-ms-wma', ra: 'audio/x-realaudio',
+      ac3: 'audio/ac3', eac3: 'audio/eac3', dts: 'audio/vnd.dts', mpc: 'audio/x-musepack',
+      amr: 'audio/amr', gsm: 'audio/gsm', iamf: 'audio/iamf',
+      mid: 'audio/midi', midi: 'audio/midi',
+    };
+
+    const correctMime = MIME_MAP[ext];
+    if (!correctMime) return null;
+
+    const currentMime = meta.contentType ?? '';
+    // Strip codec params before comparing
+    const currentBase = currentMime.split(';')[0].trim();
+    const correctBase = correctMime.split(';')[0].trim();
+
+    if (currentBase === correctBase) return currentMime; // already correct
+
+    console.info(`[Plajah Storage Fix] "${meta.name}": "${currentMime}" → "${correctMime}"`);
+    await updateMetadata(storageRef, { contentType: correctMime });
+    return correctMime;
+  } catch (e) {
+    // Non-fatal — metadata fix is best-effort
+    console.warn('[Plajah Storage Fix] Could not update metadata:', e);
+    return null;
+  }
+};
+
+export interface TrackFixResult {
+  trackId: string;
+  title: string;
+  url: string;
+  previousMime: string | null;
+  fixedMime: string | null;
+  fixed: boolean;
+  error?: string;
+}
+
+/**
+ * Scan every track in an album and fix any wrong Content-Types in Firebase Storage.
+ * Returns a per-track report. Pass onProgress to stream results as they come in.
+ */
+export const fixAlbumAudioMetadata = async (
+  album: { id: string; tracks: { id: string; title: string; url: string }[] },
+  onProgress?: (done: number, total: number, latest: TrackFixResult) => void
+): Promise<TrackFixResult[]> => {
+  const results: TrackFixResult[] = [];
+  const tracks = album.tracks ?? [];
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    const result: TrackFixResult = { trackId: t.id, title: t.title, url: t.url, previousMime: null, fixedMime: null, fixed: false };
+    try {
+      if (!t.url || t.url.startsWith('blob:') || !t.url.includes('firebasestorage.googleapis.com')) {
+        result.error = 'Not a Firebase Storage URL — skipped';
+      } else {
+        const tPath = storagePathFromUrl(t.url);
+        if (!tPath) { result.error = 'Could not parse storage path'; continue; }
+        const storageRef = ref(storage, tPath);
+        const meta = await getMetadata(storageRef);
+        result.previousMime = meta.contentType ?? null;
+        result.fixedMime = await fixTrackStorageMetadata(t.url);
+        result.fixed = !!result.fixedMime && result.fixedMime !== result.previousMime;
+      }
+    } catch (e: any) {
+      result.error = e?.message ?? String(e);
+    }
+    results.push(result);
+    onProgress?.(i + 1, tracks.length, result);
+  }
+
+  const fixedCount = results.filter(r => r.fixed).length;
+  console.info(`[Plajah Storage Fix] Album "${album.id}" — ${fixedCount}/${tracks.length} tracks corrected.`);
+  return results;
 };
 
 // --- WEB APPS ---

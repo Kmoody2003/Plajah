@@ -966,9 +966,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                             <button
                               key={track.id}
                               onClick={() => { playTrack(track, currentAlbum, 'LIBRARY'); setIsSpillOverOpen(false); }}
-                              className={`flex flex-col gap-1.5 min-w-[96px] p-2.5 rounded-2xl transition-all shrink-0 ${track.id === currentTrack?.id ? 'bg-white/10 ring-1 ring-small-orange/40' : 'bg-white/5'}`}
+                              className={`flex flex-col gap-1.5 w-20 shrink-0 p-2 rounded-2xl transition-all ${track.id === currentTrack?.id ? 'bg-white/10 ring-1 ring-small-orange/40' : 'bg-white/5'}`}
                             >
-                              <div className="w-full aspect-square rounded-xl overflow-hidden shadow-lg">
+                              <div className="w-16 h-16 rounded-lg overflow-hidden shadow-lg shrink-0">
                                 <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
                               </div>
                               <p className={`text-[7px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white/70'}`}>{track.title}</p>

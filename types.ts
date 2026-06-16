@@ -113,6 +113,9 @@ export interface Track {
   isEclipsa?: boolean;
   characterIds?: string[];                      // Characters featured in this song
   trackCharacterImages?: Record<string, string>; // Per-song image override (characterId → imageUrl)
+  originalUrl?: string; // Preserved original URL when track has been auto-converted for browser compatibility
+  browserCompatUrl?: string; // Browser-optimized WAV URL (16-bit PCM, plays natively without decode fallback)
+  browserCompatStatus?: 'pending' | 'converting' | 'done' | 'failed'; // Conversion state
 }
 
 export interface Photo {
@@ -2459,6 +2462,22 @@ export interface LandingBgConfig {
   slideshowIntervalMs: number; // default 5000
   overlayOpacity: number;      // 0–100, default 40
   assets: LandingBgAsset[];
+}
+
+export interface SportsHeroAsset {
+  id: string;
+  type: 'photo' | 'video';
+  url: string;
+  name: string;
+  leagueId?: string;
+  title?: string;
+  subtitle?: string;
+  uploadedAt: number;
+  isSelected: boolean;
+}
+
+export interface SportsHeroConfig {
+  assets: SportsHeroAsset[];
 }
 
 export interface SystemSettingsConfig {
