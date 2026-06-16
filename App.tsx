@@ -249,7 +249,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -383,6 +383,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isDockedFlipped, setIsDockedFlipped] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<'og' | 'grouped' | 'pinned'>(() =>
     (localStorage.getItem('plajah_sidebar_mode_v1') as 'og' | 'grouped' | 'pinned') || 'og'
   );
@@ -444,7 +445,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, repeatMode, setRepeatMode, volume, setVolume } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   useEffect(() => {
@@ -2296,16 +2297,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} />
                   </div>
-                  {/* Settings */}
+                  {/* Settings → User Account */}
                   <button
-                    onClick={() => setView('SETTINGS')}
-                    title="Settings"
+                    onClick={() => {
+                      if (user?.uid) {
+                        setViewedUserId(user.uid);
+                        setInitialProfileTab('ACCOUNT');
+                        setView('USER_PROFILE');
+                        window.history.replaceState({ view: 'USER_PROFILE' }, '', `/profile/${user.uid}`);
+                      }
+                    }}
+                    title="Account Settings"
                     className="shrink-0 p-3 rounded-2xl transition-all border"
-                    style={view === 'SETTINGS'
+                    style={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid))
                       ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
                       : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    <Settings size={18} className={view === 'SETTINGS' ? 'text-small-orange' : 'text-white/40'} />
+                    <Settings size={18} className={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid)) ? 'text-small-orange' : 'text-white/40'} />
                   </button>
                   {/* Project Tray toggle */}
                   <button
@@ -2336,184 +2344,240 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       return `${m}:${ss.toString().padStart(2, '0')}`;
                     };
                     return (
-                      <div className="rounded-[2rem] overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] relative">
-                        {/* Blurred cover as background */}
-                        {coverSrc && (
-                          <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.28) saturate(1.4)', zIndex: 0 }} />
-                        )}
-                        <div className="relative z-10">
+                      <div style={{ perspective: '1400px' }}>
+                        <motion.div
+                          animate={{ rotateY: isDockedFlipped ? 180 : 0 }}
+                          transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
+                          style={{ transformStyle: 'preserve-3d', position: 'relative' }}
+                        >
+                          {/* ══ FRONT FACE ══ */}
+                          <div
+                            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                            className="rounded-[2rem] overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] relative"
+                          >
+                            {coverSrc && (
+                              <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 pointer-events-none" style={{ filter: 'blur(24px) brightness(0.28) saturate(1.4)', zIndex: 0 }} />
+                            )}
+                            <div className="relative z-10">
 
-                          {/* ── EXPANDED: full inline nano ── */}
-                          {!isMinimized && (
-                            <>
-                              {/* Cover art with spinning vinyl overlay */}
-                              <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1/1' }}>
-                                {coverSrc
-                                  ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={40} className="text-white/15" /></div>
-                                }
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                                {/* Spinning vinyl */}
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                  <motion.div
-                                    animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-                                    transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-                                    className="w-20 h-20 rounded-full border-[5px] border-white/5 shadow-2xl relative overflow-hidden ring-1 ring-white/10 opacity-60"
-                                  >
-                                    {coverSrc && <img src={coverSrc} alt="" className="w-full h-full object-cover" />}
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <div className="w-5 h-5 rounded-full bg-black/90 border border-white/20" />
+                              {/* ── EXPANDED ── */}
+                              {!isMinimized && (
+                                <>
+                                  {/* Cover art + spinning vinyl */}
+                                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1/1' }}>
+                                    {coverSrc
+                                      ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
+                                      : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={40} className="text-white/15" /></div>
+                                    }
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                                    {/* Spinning vinyl */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                      <motion.div
+                                        animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
+                                        transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+                                        className="w-[42%] rounded-full border-[6px] border-white/5 shadow-2xl relative overflow-hidden ring-1 ring-white/10"
+                                        style={{ aspectRatio: '1/1', opacity: 0.72 }}
+                                      >
+                                        {coverSrc && <img src={coverSrc} alt="" className="w-full h-full object-cover" />}
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <div className="w-[22%] rounded-full bg-black/90 border border-white/20" style={{ aspectRatio: '1/1' }} />
+                                        </div>
+                                      </motion.div>
                                     </div>
-                                  </motion.div>
-                                </div>
-                                {/* Pop-out + track info */}
-                                <button
-                                  onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
-                                  className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
-                                  title="Pop out player"
-                                >
-                                  <Maximize2 size={11} />
-                                </button>
-                                <div className="absolute bottom-3 left-3 right-10">
-                                  <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
-                                  <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
-                                </div>
-                              </div>
+                                    {/* Top-left: flip, top-right: pop-out */}
+                                    <div className="absolute top-3 left-3 right-3 flex justify-between pointer-events-auto">
+                                      <button
+                                        onClick={() => setIsDockedFlipped(true)}
+                                        className={`p-1.5 rounded-xl backdrop-blur-sm border transition-all ${isSlideshowActive ? 'bg-small-orange/30 border-small-orange/50 text-small-orange' : 'bg-black/50 border-white/10 text-white/40 hover:text-small-orange hover:border-small-orange/30'}`}
+                                        title="Flip to back"
+                                      >
+                                        <Layers size={11} />
+                                      </button>
+                                      <button
+                                        onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                        className="p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
+                                        title="Pop out"
+                                      >
+                                        <Maximize2 size={11} />
+                                      </button>
+                                    </div>
+                                    {/* Track info at bottom of art */}
+                                    <div className="absolute bottom-3 left-3 right-3">
+                                      <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
+                                      <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                                    </div>
+                                  </div>
 
-                              {/* Seek bar + time */}
-                              <div className="px-4 pt-3 pb-1">
-                                <div
-                                  className="h-1 bg-white/10 rounded-full relative cursor-pointer group"
-                                  onClick={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    seek((e.clientX - rect.left) / rect.width * duration);
-                                  }}
-                                >
-                                  <div className="h-full bg-small-orange rounded-full transition-all group-hover:bg-orange-400" style={{ width: `${pct}%` }} />
-                                  <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-all" style={{ left: `calc(${pct}% - 5px)` }} />
+                                  {/* Seek bar + timestamps */}
+                                  <div className="px-4 pt-3 pb-1">
+                                    <div
+                                      className="h-1 bg-white/10 rounded-full relative cursor-pointer group"
+                                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}
+                                    >
+                                      <div className="h-full bg-small-orange rounded-full group-hover:bg-orange-400 transition-colors" style={{ width: `${pct}%` }} />
+                                      <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-all pointer-events-none" style={{ left: `calc(${pct}% - 5px)` }} />
+                                    </div>
+                                    <div className="flex justify-between mt-1">
+                                      <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(currentTime)}</span>
+                                      <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(duration)}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* ── Row 1: Main playback ── */}
+                                  <div className="flex items-center justify-center gap-3 px-4 pb-2">
+                                    <button onClick={prev} className="p-2 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5"><SkipBack size={15} /></button>
+                                    <button
+                                      onClick={() => isPlaying ? pause() : resume()}
+                                      className="w-11 h-11 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.45)]"
+                                    >
+                                      {isPlaying ? <Pause size={16} className="text-black" /> : <Play size={16} className="text-black fill-black" />}
+                                    </button>
+                                    <button onClick={next} className="p-2 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5"><SkipForward size={15} /></button>
+                                  </div>
+
+                                  {/* ── Row 2: Repeat + volume slider ── */}
+                                  <div className="flex items-center gap-2 px-4 pb-2">
+                                    <button
+                                      onClick={() => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF')}
+                                      className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5"
+                                      title={`Repeat: ${repeatMode}`}
+                                    >
+                                      {repeatMode === 'ONE' ? <Repeat1 size={13} className="text-small-orange" /> : <Repeat size={13} className={repeatMode === 'ALL' ? 'text-small-orange' : 'text-white/25'} />}
+                                    </button>
+                                    <button
+                                      onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
+                                      className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5"
+                                    >
+                                      {volume === 0 ? <VolumeX size={13} className="text-white/25" /> : <Volume2 size={13} className="text-white/40" />}
+                                    </button>
+                                    <input
+                                      type="range" min={0} max={1} step={0.01} value={volume}
+                                      onChange={e => setVolume(parseFloat(e.target.value))}
+                                      className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
+                                      style={{ accentColor: '#FF8C00' }}
+                                    />
+                                  </div>
+
+                                  {/* ── Row 3: FX toggles + compact toggle ── */}
+                                  <div className="flex items-center justify-between px-3 pb-3">
+                                    <div className="flex items-center gap-0.5">
+                                      <button
+                                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
+                                        className={`p-1.5 rounded-lg transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
+                                        title="Frequency Visualizer"
+                                      ><Activity size={12} /></button>
+                                      <button
+                                        onClick={() => setIsMiniPlayerActive(!isMiniPlayerActive)}
+                                        className={`p-1.5 rounded-lg transition-all ${isMiniPlayerActive ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
+                                        title="Mini Player"
+                                      ><Tv size={12} /></button>
+                                      <button
+                                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
+                                        className={`p-1.5 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
+                                        title="3D Depth"
+                                      ><Box size={12} /></button>
+                                      <button
+                                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
+                                        className={`p-1.5 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
+                                        title="Spatial Audio"
+                                      ><Headphones size={12} /></button>
+                                    </div>
+                                    <button
+                                      onClick={() => setIsMinimized(true)}
+                                      className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-all hover:bg-white/5"
+                                      title="Compact"
+                                    ><ChevronDown size={12} /></button>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* ── COMPACT bar ── */}
+                              {isMinimized && (
+                                <>
+                                  <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
+                                    {coverSrc
+                                      ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
+                                      : <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Music2 size={14} className="text-white/20" /></div>
+                                    }
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
+                                      <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                                    </div>
+                                    <button onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }} className="p-1 rounded-lg text-white/25 hover:text-white transition-all" title="Pop out"><Maximize2 size={10} /></button>
+                                  </div>
+                                  <div className="h-[2px] bg-white/10 cursor-pointer mx-3" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
+                                    <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <div className="flex items-center justify-between px-3 py-2">
+                                    <button onClick={prev} className="p-1 text-white/35 hover:text-white transition-all"><SkipBack size={12} /></button>
+                                    <button onClick={() => isPlaying ? pause() : resume()} className="w-7 h-7 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+                                      {isPlaying ? <Pause size={11} className="text-black" /> : <Play size={11} className="text-black fill-black" />}
+                                    </button>
+                                    <button onClick={next} className="p-1 text-white/35 hover:text-white transition-all"><SkipForward size={12} /></button>
+                                    <button onClick={() => setIsMinimized(false)} className="p-1 text-white/20 hover:text-white/60 transition-all" title="Expand"><ChevronUp size={11} /></button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ══ BACK FACE ══ */}
+                          <div
+                            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                            className="rounded-[2rem] overflow-hidden border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.7)] flex flex-col"
+                          >
+                            {/* Full-bleed cover art */}
+                            {coverSrc
+                              ? <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'brightness(0.32) saturate(1.7)' }} />
+                              : <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 to-black" />
+                            }
+                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20" />
+
+                            {/* Flip-back button */}
+                            <div className="relative z-10 flex justify-end p-4">
+                              <button
+                                onClick={() => setIsDockedFlipped(false)}
+                                className="p-1.5 rounded-xl bg-black/60 backdrop-blur-sm border border-white/15 text-white/40 hover:text-white transition-all"
+                                title="Flip back"
+                              ><RotateCcw size={11} /></button>
+                            </div>
+
+                            {/* Content — fills remaining height */}
+                            <div className="relative z-10 flex flex-col flex-1 justify-end px-5 pb-5 gap-4">
+                              {/* Track info */}
+                              <div>
+                                <p className="text-[8px] font-black text-small-orange uppercase tracking-widest mb-0.5">{currentAlbum?.artist || ''}</p>
+                                <p className="text-sm font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
+                                {currentAlbum?.title && <p className="text-[8px] text-white/35 uppercase tracking-widest mt-0.5 truncate">{currentAlbum.title}</p>}
+                              </div>
+                              {/* Seek */}
+                              <div>
+                                <div className="h-0.5 bg-white/20 rounded-full cursor-pointer" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
+                                  <div className="h-full bg-small-orange rounded-full" style={{ width: `${pct}%` }} />
                                 </div>
                                 <div className="flex justify-between mt-1">
                                   <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(currentTime)}</span>
                                   <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(duration)}</span>
                                 </div>
                               </div>
-
-                              {/* Main controls row */}
-                              <div className="flex items-center justify-between px-4 pb-3">
-                                {/* Repeat */}
-                                <button
-                                  onClick={() => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF')}
-                                  className="p-1.5 rounded-lg transition-all hover:bg-white/5"
-                                  title={`Repeat: ${repeatMode}`}
-                                >
-                                  {repeatMode === 'ONE'
-                                    ? <Repeat1 size={13} className="text-small-orange" />
-                                    : <Repeat size={13} className={repeatMode === 'ALL' ? 'text-small-orange' : 'text-white/25'} />
-                                  }
-                                </button>
-                                <button onClick={prev} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
-                                  <SkipBack size={15} />
-                                </button>
+                              {/* Controls */}
+                              <div className="flex items-center justify-center gap-5">
+                                <button onClick={prev} className="p-2 text-white/50 hover:text-white transition-all"><SkipBack size={18} /></button>
                                 <button
                                   onClick={() => isPlaying ? pause() : resume()}
-                                  className="w-10 h-10 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.45)]"
+                                  className="w-12 h-12 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_24px_rgba(255,140,0,0.5)]"
                                 >
-                                  {isPlaying
-                                    ? <Pause size={15} className="text-black" />
-                                    : <Play size={15} className="text-black fill-black" />
-                                  }
+                                  {isPlaying ? <Pause size={18} className="text-black" /> : <Play size={18} className="text-black fill-black" />}
                                 </button>
-                                <button onClick={next} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
-                                  <SkipForward size={15} />
-                                </button>
-                                {/* Volume */}
-                                <button
-                                  onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-                                  className="p-1.5 rounded-lg transition-all hover:bg-white/5"
-                                  title={volume === 0 ? 'Unmute' : 'Mute'}
-                                >
-                                  {volume === 0
-                                    ? <VolumeX size={13} className="text-white/25" />
-                                    : <Volume2 size={13} className="text-white/40 hover:text-white" />
-                                  }
-                                </button>
+                                <button onClick={next} className="p-2 text-white/50 hover:text-white transition-all"><SkipForward size={18} /></button>
                               </div>
-
-                              {/* Volume slider */}
-                              <div className="px-4 pb-3">
-                                <input
-                                  type="range" min={0} max={1} step={0.01} value={volume}
-                                  onChange={e => setVolume(parseFloat(e.target.value))}
-                                  className="w-full h-1 rounded-full appearance-none cursor-pointer"
-                                  style={{ accentColor: '#FF8C00' }}
-                                />
-                              </div>
-
-                              {/* Compact toggle */}
-                              <button
-                                onClick={() => setIsMinimized(true)}
-                                className="w-full flex items-center justify-center gap-1 pb-3 text-white/20 hover:text-white/50 transition-all text-[7px] font-black uppercase tracking-widest"
-                              >
-                                <ChevronDown size={10} /> Compact
-                              </button>
-                            </>
-                          )}
-
-                          {/* ── COMPACT: minimal bar ── */}
-                          {isMinimized && (
-                            <>
-                              <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
-                                {coverSrc
-                                  ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
-                                  : <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Music2 size={14} className="text-white/20" /></div>
-                                }
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
-                                  <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
-                                </div>
-                                <button
-                                  onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
-                                  className="p-1 rounded-lg text-white/25 hover:text-white transition-all"
-                                  title="Pop out player"
-                                >
-                                  <Maximize2 size={10} />
-                                </button>
-                              </div>
-                              {/* Thin seek bar */}
-                              <div
-                                className="h-[2px] bg-white/10 cursor-pointer mx-3"
-                                onClick={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  seek((e.clientX - rect.left) / rect.width * duration);
-                                }}
-                              >
-                                <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
-                              </div>
-                              {/* Compact controls */}
-                              <div className="flex items-center justify-between px-3 py-2">
-                                <button onClick={prev} className="p-1 text-white/35 hover:text-white transition-all"><SkipBack size={12} /></button>
-                                <button
-                                  onClick={() => isPlaying ? pause() : resume()}
-                                  className="w-7 h-7 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
-                                >
-                                  {isPlaying ? <Pause size={11} className="text-black" /> : <Play size={11} className="text-black fill-black" />}
-                                </button>
-                                <button onClick={next} className="p-1 text-white/35 hover:text-white transition-all"><SkipForward size={12} /></button>
-                                <button
-                                  onClick={() => setIsMinimized(false)}
-                                  className="p-1 text-white/20 hover:text-white/60 transition-all"
-                                  title="Expand"
-                                >
-                                  <ChevronUp size={11} />
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                            </div>
+                          </div>
+                        </motion.div>
                       </div>
                     );
                   })() : (
-                    /* Empty state — no track */
+                    /* Empty state */
                     <div className="rounded-[2rem] border border-white/[0.06] bg-white/[0.02] flex items-center justify-center py-5 gap-2.5">
                       <Music2 size={14} className="text-white/15" />
                       <span className="text-[8px] font-black uppercase tracking-widest text-white/15">Player</span>
