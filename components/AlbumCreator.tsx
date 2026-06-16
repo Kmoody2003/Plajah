@@ -9,6 +9,7 @@ import {
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
   Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
+  RefreshCw, Play, Square, ShieldCheck, AlertTriangle, ShieldX,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
@@ -16,6 +17,7 @@ import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
+import AudioHealthPanel from './AudioHealthPanel';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album) => void;
@@ -98,7 +100,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     window.innerWidth < 1024;
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
-  const [contentTab, setContentTab] = useState<'tracks' | 'videos'>('tracks');
+  const [contentTab, setContentTab] = useState<'tracks' | 'audio_health' | 'videos' | 'quality'>('tracks');
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
   const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
@@ -172,6 +174,14 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Track preview + QC
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  type QcStatus = 'idle' | 'running' | 'pass' | 'warn' | 'fail';
+  type TrackQcResult = { status: QcStatus; duration?: number; peak?: number; rms?: number; issue?: string };
+  const [qcResults, setQcResults] = useState<Record<string, TrackQcResult>>({});
+  const [isQcRunning, setIsQcRunning] = useState(false);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -371,6 +381,65 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const updateTrack = useCallback((id: string, updates: Partial<Track>) => {
     setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   }, []);
+
+  const stopPreview = useCallback(() => {
+    if (previewAudioRef.current) { previewAudioRef.current.pause(); previewAudioRef.current = null; }
+    setPreviewingId(null);
+  }, []);
+
+  const togglePreview = useCallback((track: Track) => {
+    if (previewingId === track.id) { stopPreview(); return; }
+    stopPreview();
+    const audio = new Audio(track.url);
+    audio.onended = () => setPreviewingId(null);
+    audio.onerror = () => setPreviewingId(null);
+    audio.play().catch(() => setPreviewingId(null));
+    previewAudioRef.current = audio;
+    setPreviewingId(track.id);
+  }, [previewingId, stopPreview]);
+
+  const runQcForTrack = useCallback(async (track: Track): Promise<TrackQcResult> => {
+    try {
+      const res = await fetch(track.url);
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength === 0) return { status: 'fail', issue: 'File is empty (0 bytes) — re-upload the audio file' };
+      const ctx = new AudioContext();
+      let audioBuffer: AudioBuffer;
+      try {
+        audioBuffer = await ctx.decodeAudioData(buf.slice(0));
+      } catch (e: any) {
+        ctx.close();
+        return { status: 'fail', issue: `Could not decode audio: ${e?.message || 'unsupported format'}` };
+      }
+      ctx.close();
+      const dur = audioBuffer.duration;
+      if (dur < 0.5) return { status: 'fail', duration: dur, issue: `Track is too short (${dur.toFixed(2)}s) — likely a corrupt or empty file` };
+      let peak = 0, sumSq = 0, n = 0;
+      for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+        const d = audioBuffer.getChannelData(c);
+        for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; sumSq += d[i] * d[i]; n++; }
+      }
+      const rms = Math.sqrt(sumSq / (n || 1));
+      if (rms < 0.0005) return { status: 'fail', duration: dur, peak, rms, issue: 'Track is silent — listeners will hear nothing' };
+      if (peak >= 0.999) return { status: 'warn', duration: dur, peak, rms, issue: 'Clipping detected — peaks are at max amplitude, may sound distorted' };
+      return { status: 'pass', duration: dur, peak, rms };
+    } catch (e: any) {
+      if (track.url && !track.url.startsWith('blob:')) return { status: 'warn', issue: 'Remote file — verify audio plays correctly before publishing' };
+      return { status: 'fail', issue: `Analysis error: ${e?.message || 'unknown'}` };
+    }
+  }, []);
+
+  const runAllQc = useCallback(async () => {
+    const toCheck = tracks.filter(t => t.url);
+    if (!toCheck.length) return;
+    setIsQcRunning(true);
+    for (const track of toCheck) {
+      setQcResults(prev => ({ ...prev, [track.id]: { status: 'running' } }));
+      const result = await runQcForTrack(track);
+      setQcResults(prev => ({ ...prev, [track.id]: result }));
+    }
+    setIsQcRunning(false);
+  }, [tracks, runQcForTrack]);
 
   const handleGenerateAI = useCallback(async () => {
     if (!title) return;
@@ -586,10 +655,32 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </button>
           <button
             type="button"
+            onClick={() => setContentTab('audio_health')}
+            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${contentTab === 'audio_health' ? 'bg-small-orange text-black shadow' : 'text-white/40 hover:text-white'}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${tracks.some(t => t.url) ? 'bg-green-400 animate-pulse' : 'bg-white/20'}`} />
+            Audio Health
+          </button>
+          <button
+            type="button"
             onClick={() => setContentTab('videos')}
             className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${contentTab === 'videos' ? 'bg-white text-black shadow' : 'text-white/40 hover:text-white'}`}
           >
             Videos &amp; BTS
+          </button>
+          <button
+            type="button"
+            onClick={() => setContentTab('quality')}
+            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${contentTab === 'quality' ? 'bg-green-500 text-white shadow' : 'text-white/40 hover:text-white'}`}
+          >
+            {(() => {
+              const vals = Object.values(qcResults);
+              if (vals.some(r => r.status === 'fail')) return <ShieldX size={11} className="text-red-400" />;
+              if (vals.some(r => r.status === 'warn')) return <AlertTriangle size={11} className="text-yellow-400" />;
+              if (vals.length > 0 && vals.every(r => r.status === 'pass')) return <ShieldCheck size={11} className="text-green-400" />;
+              return <ShieldCheck size={11} className="text-white/30" />;
+            })()}
+            QC Check
           </button>
         </div>
       )}
@@ -923,8 +1014,20 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {/* Track list + Order — unified scroll container */}
       {type !== 'BOOK' && tracks.length > 0 && contentTab === 'tracks' && (
         <div className="max-h-[62vh] overflow-y-auto track-scrollbar space-y-5 -mr-3 pr-3">
+          {/* Affordance hint */}
+          {tracks.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 rounded-2xl" style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.14)' }}>
+              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><GripVertical size={10} className="text-small-orange" />Drag to reorder</span>
+              <span className="text-white/15">·</span>
+              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><RefreshCw size={10} className="text-small-orange" />Replace file</span>
+              <span className="text-white/15">·</span>
+              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><Play size={10} className="text-small-orange" />Preview audio</span>
+              <span className="text-white/15">·</span>
+              <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/40"><ShieldCheck size={10} className="text-small-orange" />Run QC before publishing</span>
+            </div>
+          )}
           {tracks.map((track, i) => (
-            <div key={track.id} className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all">
+            <div key={track.id} className={`flex flex-col gap-4 p-5 rounded-2xl border transition-all ${previewingId === track.id ? 'bg-green-500/5 border-green-500/20' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.05]'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5 flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
@@ -933,8 +1036,40 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     <Pencil size={12} className="absolute right-1 top-1/2 -translate-y-1/2 text-white/25 group-hover/tt:text-small-orange group-focus-within/tt:text-small-orange pointer-events-none transition-colors" />
                   </div>
                 </div>
-                <button type="button" onClick={() => setTracks(tracks.filter(t => t.id !== track.id))} className="p-4 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"><Trash2 size={20} /></button>
+                <div className="flex items-center gap-1">
+                  {/* Preview */}
+                  <button type="button" onClick={() => togglePreview(track)} title={previewingId === track.id ? 'Stop preview' : 'Preview audio'} className={`p-3 rounded-full transition-all ${previewingId === track.id ? 'text-green-400 bg-green-500/10' : 'text-white/20 hover:text-green-400 hover:bg-green-400/10'}`}>
+                    {previewingId === track.id ? <Square size={15} className="fill-green-400" /> : <Play size={15} />}
+                  </button>
+                  {/* Replace file */}
+                  <label title="Replace audio file" className="p-3 rounded-full text-white/20 hover:text-small-orange hover:bg-small-orange/10 transition-all cursor-pointer">
+                    <RefreshCw size={15} />
+                    <input type="file" className="hidden" accept={AUDIO_ACCEPT} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) { stopPreview(); updateTrack(track.id, { file, url: URL.createObjectURL(file) }); setQcResults(prev => { const n = { ...prev }; delete n[track.id]; return n; }); }
+                      e.target.value = '';
+                    }} />
+                  </label>
+                  {/* Delete */}
+                  <button type="button" onClick={() => { stopPreview(); setTracks(tracks.filter(t => t.id !== track.id)); }} className="p-3 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"><Trash2 size={15} /></button>
+                </div>
               </div>
+              {/* QC status inline badge if run */}
+              {qcResults[track.id] && qcResults[track.id].status !== 'running' && (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${
+                  qcResults[track.id].status === 'pass' ? 'bg-green-500/10 border border-green-500/25 text-green-400' :
+                  qcResults[track.id].status === 'warn' ? 'bg-yellow-500/10 border border-yellow-500/25 text-yellow-400' :
+                  'bg-red-500/10 border border-red-500/25 text-red-400'
+                }`}>
+                  {qcResults[track.id].status === 'pass' ? <ShieldCheck size={10} /> : qcResults[track.id].status === 'warn' ? <AlertTriangle size={10} /> : <ShieldX size={10} />}
+                  {qcResults[track.id].issue || (qcResults[track.id].status === 'pass' ? `Pass — ${(qcResults[track.id].duration || 0).toFixed(1)}s, peak ${((qcResults[track.id].peak || 0) * 100).toFixed(0)}%` : '')}
+                </div>
+              )}
+              {qcResults[track.id]?.status === 'running' && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 text-[8px] font-black uppercase tracking-widest text-white/40">
+                  <Loader2 size={10} className="animate-spin" /> Analyzing…
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Price ($)</label>
@@ -1050,6 +1185,150 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Audio Health tab */}
+      {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && contentTab === 'audio_health' && (
+        <AudioHealthPanel
+          albums={initialAlbum ? [{ ...initialAlbum, tracks }] : tracks.some(t => t.url) ? [{
+            id: 'draft',
+            title: title || 'Draft',
+            coverImage,
+            tracks,
+            type: 'MUSIC' as const,
+            artistName: '',
+            uid: '',
+            timestamp: Date.now(),
+            isPublic: false,
+          } as any] : []}
+        />
+      )}
+
+      {/* Quality Control tab */}
+      {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && contentTab === 'quality' && (
+        <div className="space-y-5 animate-in fade-in duration-300">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-green-400" />
+                <h3 className="text-base font-black uppercase tracking-widest">Quality Control</h3>
+              </div>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 leading-relaxed">
+                Analyzes each audio file in-browser — checks for empty files, silence, clipping, and decode errors. Run before publishing to catch problems before listeners do.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isQcRunning || tracks.filter(t => t.url).length === 0}
+              onClick={runAllQc}
+              className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+              style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}
+            >
+              {isQcRunning ? <><Loader2 size={12} className="animate-spin" />Analyzing…</> : <><ShieldCheck size={12} />Run All Checks</>}
+            </button>
+          </div>
+
+          {/* Per-track results */}
+          {tracks.filter(t => t.url).length === 0 ? (
+            <div className="py-16 border-2 border-dashed border-white/5 rounded-3xl text-center">
+              <ShieldCheck size={24} className="mx-auto mb-3 text-white/10" />
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No audio tracks yet — add tracks in the Audio Tracks tab first</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tracks.filter(t => t.url).map((track, i) => {
+                const qc = qcResults[track.id];
+                return (
+                  <div key={track.id} className={`p-4 rounded-2xl border transition-all ${
+                    !qc ? 'bg-white/[0.03] border-white/5' :
+                    qc.status === 'running' ? 'bg-white/[0.03] border-white/10' :
+                    qc.status === 'pass' ? 'bg-green-500/5 border-green-500/20' :
+                    qc.status === 'warn' ? 'bg-yellow-500/5 border-yellow-500/20' :
+                    'bg-red-500/5 border-red-500/20'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      {/* Status icon */}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        !qc ? 'bg-white/5 text-white/20' :
+                        qc.status === 'running' ? 'bg-white/5 text-white/40' :
+                        qc.status === 'pass' ? 'bg-green-500/20 text-green-400' :
+                        qc.status === 'warn' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-red-500/20 text-red-400'
+                      }`}>
+                        {!qc && <ShieldCheck size={14} />}
+                        {qc?.status === 'running' && <Loader2 size={14} className="animate-spin" />}
+                        {qc?.status === 'pass' && <ShieldCheck size={14} />}
+                        {qc?.status === 'warn' && <AlertTriangle size={14} />}
+                        {qc?.status === 'fail' && <ShieldX size={14} />}
+                      </div>
+                      {/* Track info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-small-orange shrink-0">{i + 1}</span>
+                          <p className="text-[11px] font-black uppercase tracking-wide text-white truncate">{track.title || 'Untitled'}</p>
+                        </div>
+                        {qc && qc.status !== 'running' && (
+                          <p className={`text-[9px] font-bold mt-0.5 ${
+                            qc.status === 'pass' ? 'text-green-400/80' : qc.status === 'warn' ? 'text-yellow-400/80' : 'text-red-400/80'
+                          }`}>
+                            {qc.issue || (qc.status === 'pass' ? `OK — ${(qc.duration || 0).toFixed(1)}s · peak ${((qc.peak || 0) * 100).toFixed(0)}% · RMS ${((qc.rms || 0) * 100).toFixed(1)}%` : '')}
+                          </p>
+                        )}
+                        {qc?.status === 'running' && <p className="text-[9px] font-bold text-white/30 mt-0.5">Analyzing audio…</p>}
+                        {!qc && <p className="text-[9px] font-bold text-white/20 mt-0.5">Not checked yet — click Run All Checks</p>}
+                      </div>
+                      {/* Per-track recheck */}
+                      {qc && qc.status !== 'running' && (
+                        <button type="button" onClick={async () => {
+                          setQcResults(prev => ({ ...prev, [track.id]: { status: 'running' } }));
+                          const result = await runQcForTrack(track);
+                          setQcResults(prev => ({ ...prev, [track.id]: result }));
+                        }} className="shrink-0 p-2 rounded-xl text-white/20 hover:text-white hover:bg-white/5 transition-all" title="Re-check this track">
+                          <RefreshCw size={12} />
+                        </button>
+                      )}
+                      {/* Replace if failed */}
+                      {qc?.status === 'fail' && (
+                        <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:scale-105"
+                          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                          <Upload size={10} /> Replace
+                          <input type="file" className="hidden" accept={AUDIO_ACCEPT} onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) { updateTrack(track.id, { file, url: URL.createObjectURL(file) }); setQcResults(prev => { const n = { ...prev }; delete n[track.id]; return n; }); }
+                            e.target.value = '';
+                          }} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Summary */}
+          {Object.keys(qcResults).length > 0 && !isQcRunning && (() => {
+            const vals = Object.values(qcResults);
+            const fails = vals.filter(r => r.status === 'fail').length;
+            const warns = vals.filter(r => r.status === 'warn').length;
+            const passes = vals.filter(r => r.status === 'pass').length;
+            return (
+              <div className={`flex items-center gap-3 p-4 rounded-2xl text-[9px] font-black uppercase tracking-widest ${
+                fails > 0 ? 'bg-red-500/10 border border-red-500/25 text-red-400' :
+                warns > 0 ? 'bg-yellow-500/10 border border-yellow-500/25 text-yellow-400' :
+                'bg-green-500/10 border border-green-500/25 text-green-400'
+              }`}>
+                {fails > 0 ? <ShieldX size={14} /> : warns > 0 ? <AlertTriangle size={14} /> : <ShieldCheck size={14} />}
+                <span>
+                  {fails > 0 ? `${fails} track${fails > 1 ? 's' : ''} failed QC — fix before publishing` :
+                   warns > 0 ? `${warns} warning${warns > 1 ? 's' : ''} — review before publishing` :
+                   `All ${passes} track${passes > 1 ? 's' : ''} passed quality check`}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -2295,6 +2574,32 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </button>
             ) : (
               <div className="flex-1 flex flex-col gap-3">
+                {/* QC warning if tracks have failures */}
+                {type === 'MUSIC' && tracks.length > 0 && (() => {
+                  const vals = Object.values(qcResults);
+                  const hasFailures = vals.some(r => r.status === 'fail');
+                  const hasWarnings = vals.some(r => r.status === 'warn');
+                  const unchecked = tracks.filter(t => t.url && !qcResults[t.id]).length;
+                  if (hasFailures) return (
+                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
+                      <ShieldX size={12} className="shrink-0 mt-0.5" />
+                      <span>QC failed on {vals.filter(r => r.status === 'fail').length} track{vals.filter(r => r.status === 'fail').length > 1 ? 's' : ''} — listeners may not hear audio. <button type="button" className="underline" onClick={() => { setStep(2); setContentTab('quality'); }}>Review in QC tab</button></span>
+                    </div>
+                  );
+                  if (hasWarnings) return (
+                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', color: '#facc15' }}>
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                      <span>QC warning on {vals.filter(r => r.status === 'warn').length} track{vals.filter(r => r.status === 'warn').length > 1 ? 's' : ''} — may have audio issues. <button type="button" className="underline" onClick={() => { setStep(2); setContentTab('quality'); }}>Review in QC tab</button></span>
+                    </div>
+                  );
+                  if (unchecked > 0 && vals.length === 0) return (
+                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }}>
+                      <ShieldCheck size={12} className="shrink-0 mt-0.5" />
+                      <span>Quality check not run — <button type="button" className="underline text-small-orange" onClick={() => { setStep(2); setContentTab('quality'); }}>run QC</button> to verify audio before publishing</span>
+                    </div>
+                  );
+                  return null;
+                })()}
                 {!initialAlbum && (
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <button

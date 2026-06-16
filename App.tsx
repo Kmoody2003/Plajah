@@ -249,7 +249,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -444,7 +444,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, repeatMode, setRepeatMode, volume, setVolume } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   useEffect(() => {
@@ -2296,10 +2296,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} />
                   </div>
+                  {/* Settings */}
+                  <button
+                    onClick={() => setView('SETTINGS')}
+                    title="Settings"
+                    className="shrink-0 p-3 rounded-2xl transition-all border"
+                    style={view === 'SETTINGS'
+                      ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
+                      : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <Settings size={18} className={view === 'SETTINGS' ? 'text-small-orange' : 'text-white/40'} />
+                  </button>
                   {/* Project Tray toggle */}
                   <button
                     onClick={() => setIsProjectTrayOpen(v => !v)}
-                    title="Project Tray"
+                    title="My Projects"
                     className="relative shrink-0 p-3 rounded-2xl transition-all border"
                     style={isProjectTrayOpen || isCreatorMinimized
                       ? { background: 'linear-gradient(135deg,rgba(107,0,153,0.35),rgba(255,140,0,0.25))', border: '1px solid rgba(255,140,0,0.3)' }
@@ -2319,6 +2330,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   {(currentTrack || isNanoView) ? (() => {
                     const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
                     const coverSrc = currentAlbum?.coverImage;
+                    const fmtTime = (s: number) => {
+                      if (!isFinite(s) || s < 0) return '0:00';
+                      const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+                      return `${m}:${ss.toString().padStart(2, '0')}`;
+                    };
                     return (
                       <div className="rounded-[2rem] overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] relative">
                         {/* Blurred cover as background */}
@@ -2326,90 +2342,173 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.28) saturate(1.4)', zIndex: 0 }} />
                         )}
                         <div className="relative z-10">
-                          {/* Expanded artwork area */}
+
+                          {/* ── EXPANDED: full inline nano ── */}
                           {!isMinimized && (
-                            <div className="relative w-full aspect-square overflow-hidden">
-                              {coverSrc
-                                ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
-                                : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={32} className="text-white/20" /></div>
-                              }
-                              {/* Overlay gradient */}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                              {/* Pop-out button top-right */}
-                              <button
-                                onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
-                                className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
-                                title="Pop out player"
-                              >
-                                <Maximize2 size={11} />
-                              </button>
-                              {/* Track info overlaid bottom */}
-                              <div className="absolute bottom-3 left-3 right-10">
-                                <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
-                                <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                            <>
+                              {/* Cover art with spinning vinyl overlay */}
+                              <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1/1' }}>
+                                {coverSrc
+                                  ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={40} className="text-white/15" /></div>
+                                }
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                                {/* Spinning vinyl */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <motion.div
+                                    animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
+                                    transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+                                    className="w-20 h-20 rounded-full border-[5px] border-white/5 shadow-2xl relative overflow-hidden ring-1 ring-white/10 opacity-60"
+                                  >
+                                    {coverSrc && <img src={coverSrc} alt="" className="w-full h-full object-cover" />}
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="w-5 h-5 rounded-full bg-black/90 border border-white/20" />
+                                    </div>
+                                  </motion.div>
+                                </div>
+                                {/* Pop-out + track info */}
+                                <button
+                                  onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                  className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
+                                  title="Pop out player"
+                                >
+                                  <Maximize2 size={11} />
+                                </button>
+                                <div className="absolute bottom-3 left-3 right-10">
+                                  <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
+                                  <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                                </div>
                               </div>
-                            </div>
+
+                              {/* Seek bar + time */}
+                              <div className="px-4 pt-3 pb-1">
+                                <div
+                                  className="h-1 bg-white/10 rounded-full relative cursor-pointer group"
+                                  onClick={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    seek((e.clientX - rect.left) / rect.width * duration);
+                                  }}
+                                >
+                                  <div className="h-full bg-small-orange rounded-full transition-all group-hover:bg-orange-400" style={{ width: `${pct}%` }} />
+                                  <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-all" style={{ left: `calc(${pct}% - 5px)` }} />
+                                </div>
+                                <div className="flex justify-between mt-1">
+                                  <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(currentTime)}</span>
+                                  <span className="text-[7px] font-bold text-white/30 tabular-nums">{fmtTime(duration)}</span>
+                                </div>
+                              </div>
+
+                              {/* Main controls row */}
+                              <div className="flex items-center justify-between px-4 pb-3">
+                                {/* Repeat */}
+                                <button
+                                  onClick={() => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF')}
+                                  className="p-1.5 rounded-lg transition-all hover:bg-white/5"
+                                  title={`Repeat: ${repeatMode}`}
+                                >
+                                  {repeatMode === 'ONE'
+                                    ? <Repeat1 size={13} className="text-small-orange" />
+                                    : <Repeat size={13} className={repeatMode === 'ALL' ? 'text-small-orange' : 'text-white/25'} />
+                                  }
+                                </button>
+                                <button onClick={prev} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
+                                  <SkipBack size={15} />
+                                </button>
+                                <button
+                                  onClick={() => isPlaying ? pause() : resume()}
+                                  className="w-10 h-10 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.45)]"
+                                >
+                                  {isPlaying
+                                    ? <Pause size={15} className="text-black" />
+                                    : <Play size={15} className="text-black fill-black" />
+                                  }
+                                </button>
+                                <button onClick={next} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
+                                  <SkipForward size={15} />
+                                </button>
+                                {/* Volume */}
+                                <button
+                                  onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
+                                  className="p-1.5 rounded-lg transition-all hover:bg-white/5"
+                                  title={volume === 0 ? 'Unmute' : 'Mute'}
+                                >
+                                  {volume === 0
+                                    ? <VolumeX size={13} className="text-white/25" />
+                                    : <Volume2 size={13} className="text-white/40 hover:text-white" />
+                                  }
+                                </button>
+                              </div>
+
+                              {/* Volume slider */}
+                              <div className="px-4 pb-3">
+                                <input
+                                  type="range" min={0} max={1} step={0.01} value={volume}
+                                  onChange={e => setVolume(parseFloat(e.target.value))}
+                                  className="w-full h-1 rounded-full appearance-none cursor-pointer"
+                                  style={{ accentColor: '#FF8C00' }}
+                                />
+                              </div>
+
+                              {/* Compact toggle */}
+                              <button
+                                onClick={() => setIsMinimized(true)}
+                                className="w-full flex items-center justify-center gap-1 pb-3 text-white/20 hover:text-white/50 transition-all text-[7px] font-black uppercase tracking-widest"
+                              >
+                                <ChevronDown size={10} /> Compact
+                              </button>
+                            </>
                           )}
 
-                          {/* Compact header when minimized */}
+                          {/* ── COMPACT: minimal bar ── */}
                           {isMinimized && (
-                            <div className="flex items-center gap-2.5 px-3 py-2">
-                              {coverSrc
-                                ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
-                                : <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Music2 size={14} className="text-white/20" /></div>
-                              }
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
-                                <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                            <>
+                              <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
+                                {coverSrc
+                                  ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
+                                  : <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Music2 size={14} className="text-white/20" /></div>
+                                }
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
+                                  <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                                </div>
+                                <button
+                                  onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                  className="p-1 rounded-lg text-white/25 hover:text-white transition-all"
+                                  title="Pop out player"
+                                >
+                                  <Maximize2 size={10} />
+                                </button>
                               </div>
-                              <button
-                                onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
-                                className="p-1.5 rounded-xl text-white/30 hover:text-white transition-all"
-                                title="Pop out player"
+                              {/* Thin seek bar */}
+                              <div
+                                className="h-[2px] bg-white/10 cursor-pointer mx-3"
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  seek((e.clientX - rect.left) / rect.width * duration);
+                                }}
                               >
-                                <Maximize2 size={10} />
-                              </button>
-                            </div>
+                                <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
+                              </div>
+                              {/* Compact controls */}
+                              <div className="flex items-center justify-between px-3 py-2">
+                                <button onClick={prev} className="p-1 text-white/35 hover:text-white transition-all"><SkipBack size={12} /></button>
+                                <button
+                                  onClick={() => isPlaying ? pause() : resume()}
+                                  className="w-7 h-7 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                                >
+                                  {isPlaying ? <Pause size={11} className="text-black" /> : <Play size={11} className="text-black fill-black" />}
+                                </button>
+                                <button onClick={next} className="p-1 text-white/35 hover:text-white transition-all"><SkipForward size={12} /></button>
+                                <button
+                                  onClick={() => setIsMinimized(false)}
+                                  className="p-1 text-white/20 hover:text-white/60 transition-all"
+                                  title="Expand"
+                                >
+                                  <ChevronUp size={11} />
+                                </button>
+                              </div>
+                            </>
                           )}
-
-                          {/* Progress bar */}
-                          <div
-                            className="h-[2px] bg-white/10 relative cursor-pointer mx-3"
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              const frac = (e.clientX - rect.left) / rect.width;
-                              seek(frac * duration);
-                            }}
-                          >
-                            <div className="h-full bg-small-orange transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-
-                          {/* Controls */}
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <button onClick={prev} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
-                              <SkipBack size={14} />
-                            </button>
-                            <button
-                              onClick={() => isPlaying ? pause() : resume()}
-                              className="w-9 h-9 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(255,140,0,0.4)]"
-                            >
-                              {isPlaying
-                                ? <Pause size={14} className="text-black" />
-                                : <Play size={14} className="text-black fill-black" />
-                              }
-                            </button>
-                            <button onClick={next} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
-                              <SkipForward size={14} />
-                            </button>
-                            {/* Minimize / expand toggle */}
-                            <button
-                              onClick={() => setIsMinimized(!isMinimized)}
-                              className="p-1.5 text-white/25 hover:text-white/60 transition-all rounded-lg hover:bg-white/5"
-                              title={isMinimized ? 'Expand' : 'Compact'}
-                            >
-                              {isMinimized ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            </button>
-                          </div>
                         </div>
                       </div>
                     );
@@ -3547,7 +3646,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         isCreatorMinimized={isCreatorMinimized}
         creatorProjectTitle={editingAlbum?.title || undefined}
         onRestoreCreator={() => { setIsCreatorMinimized(false); setIsProjectTrayOpen(false); }}
-        recentAlbums={albums.slice(0, 6)}
+        recentAlbums={albums.filter(a => a.ownerId === user?.uid).slice(0, 6)}
       />
       <LiveFeedPlayer
         feed={activeLiveFeed}
