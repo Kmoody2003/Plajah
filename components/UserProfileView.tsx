@@ -420,7 +420,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     setActiveTab(initialTab || 'FEED');
     artistModeDismissedRef.current = false;
     setShowArtistMode(false);
-  }, [uid]);
+  }, [uid, initialTab]);
 
   // Load any existing custom billboard ad for this user
   useEffect(() => {

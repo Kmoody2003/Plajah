@@ -2334,7 +2334,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               {/* ── Docked Nano Player ── always above the profile card */}
               {!isSidebarCollapsed && (
-                <div className="px-4 pt-4 border-t border-white/[0.06]">
+                <div className="-mx-4 lg:-mx-6 pt-0 border-t border-white/[0.06]">
                   {(currentTrack || isNanoView) ? (() => {
                     const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
                     const coverSrc = currentAlbum?.coverImage;
@@ -2353,18 +2353,40 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           {/* ══ FRONT FACE ══ */}
                           <div
                             style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                            className="rounded-[2rem] overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] relative"
+                            className="overflow-hidden bg-black/70 backdrop-blur-2xl relative"
                           >
                             {coverSrc && (
-                              <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 pointer-events-none" style={{ filter: 'blur(24px) brightness(0.28) saturate(1.4)', zIndex: 0 }} />
+                              <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 pointer-events-none" style={{ filter: 'blur(32px) brightness(0.22) saturate(1.6)', zIndex: 0 }} />
                             )}
                             <div className="relative z-10">
 
                               {/* ── EXPANDED ── */}
                               {!isMinimized && (
                                 <>
+                                  {/* ── Navigate row ── */}
+                                  <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/[0.06]">
+                                    <div className="flex items-center gap-0.5">
+                                      <button onClick={() => setView('DASHBOARD')} className={`p-2 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="Home"><Home size={13} /></button>
+                                      <button onClick={() => { setViewedUserId(user?.uid ?? null); setView('USER_PROFILE'); }} className={`p-2 rounded-xl transition-all ${view === 'USER_PROFILE' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="My Profile"><User size={13} /></button>
+                                      <button onClick={() => setView('SEARCH')} className={`p-2 rounded-xl transition-all ${view === 'SEARCH' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="Search"><Search size={13} /></button>
+                                      <button onClick={() => { setViewedUserId(user?.uid ?? null); setInitialProfileTab('ACCOUNT'); setView('USER_PROFILE'); }} className="p-2 rounded-xl text-white/35 hover:text-white hover:bg-white/5 transition-all" title="Account Settings"><Settings size={13} /></button>
+                                    </div>
+                                    <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Navigate</span>
+                                  </div>
+
+                                  {/* ── Theme row ── */}
+                                  <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
+                                    <div className="flex items-center gap-0.5 p-1 bg-black/30 rounded-xl">
+                                      <button onClick={() => handleSetTheme('DARK')} className={`p-1.5 rounded-lg transition-all ${theme === 'DARK' ? 'bg-white/20 text-white' : 'text-white/30 hover:text-white'}`} title="Dark"><Moon size={11} /></button>
+                                      <button onClick={() => handleSetTheme('LIGHT')} className={`p-1.5 rounded-lg transition-all ${theme === 'LIGHT' ? 'bg-white text-black' : 'text-white/30 hover:text-white'}`} title="Light"><Sun size={11} /></button>
+                                      <button onClick={() => handleSetTheme('PLAJAH')} className={`p-1.5 rounded-lg transition-all ${theme === 'PLAJAH' ? 'bg-small-orange text-white' : 'text-white/30 hover:text-white'}`} title="Plajah"><Sparkles size={11} /></button>
+                                      <button onClick={() => handleSetTheme('NEBULA')} className={`p-1.5 rounded-lg transition-all ${theme === 'NEBULA' ? 'bg-indigo-500 text-white' : 'text-white/30 hover:text-white'}`} title="Nebula"><Globe size={11} /></button>
+                                    </div>
+                                    <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Themes</span>
+                                  </div>
+
                                   {/* Cover art + spinning vinyl */}
-                                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1/1' }}>
+                                  <div className="relative w-full overflow-hidden" style={{ height: '200px' }}>
                                     {coverSrc
                                       ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
                                       : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={40} className="text-white/15" /></div>
@@ -2375,45 +2397,38 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                       <motion.div
                                         animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
                                         transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-                                        className="w-[42%] rounded-full border-[6px] border-white/5 shadow-2xl relative overflow-hidden ring-1 ring-white/10"
-                                        style={{ aspectRatio: '1/1', opacity: 0.72 }}
+                                        className="w-28 h-28 rounded-full border-[6px] border-white/5 shadow-2xl relative overflow-hidden ring-1 ring-white/10"
+                                        style={{ opacity: 0.72 }}
                                       >
                                         {coverSrc && <img src={coverSrc} alt="" className="w-full h-full object-cover" />}
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                          <div className="w-[22%] rounded-full bg-black/90 border border-white/20" style={{ aspectRatio: '1/1' }} />
+                                          <div className="w-7 h-7 rounded-full bg-black/90 border border-white/20" />
                                         </div>
                                       </motion.div>
                                     </div>
-                                    {/* Top-left: flip, top-right: pop-out */}
-                                    <div className="absolute top-3 left-3 right-3 flex justify-between pointer-events-auto">
+                                    {/* Top overlay: flip + pop-out */}
+                                    <div className="absolute top-2 left-3 right-3 flex justify-between pointer-events-auto">
                                       <button
                                         onClick={() => setIsDockedFlipped(true)}
-                                        className={`p-1.5 rounded-xl backdrop-blur-sm border transition-all ${isSlideshowActive ? 'bg-small-orange/30 border-small-orange/50 text-small-orange' : 'bg-black/50 border-white/10 text-white/40 hover:text-small-orange hover:border-small-orange/30'}`}
+                                        className="p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-small-orange hover:border-small-orange/30 transition-all"
                                         title="Flip to back"
-                                      >
-                                        <Layers size={11} />
-                                      </button>
+                                      ><Layers size={11} /></button>
                                       <button
                                         onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
                                         className="p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
                                         title="Pop out"
-                                      >
-                                        <Maximize2 size={11} />
-                                      </button>
+                                      ><Maximize2 size={11} /></button>
                                     </div>
-                                    {/* Track info at bottom of art */}
-                                    <div className="absolute bottom-3 left-3 right-3">
+                                    {/* Track info */}
+                                    <div className="absolute bottom-2 left-3 right-3">
                                       <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
                                       <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
                                     </div>
                                   </div>
 
-                                  {/* Seek bar + timestamps */}
+                                  {/* Seek bar */}
                                   <div className="px-4 pt-3 pb-1">
-                                    <div
-                                      className="h-1 bg-white/10 rounded-full relative cursor-pointer group"
-                                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}
-                                    >
+                                    <div className="h-1 bg-white/10 rounded-full relative cursor-pointer group" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
                                       <div className="h-full bg-small-orange rounded-full group-hover:bg-orange-400 transition-colors" style={{ width: `${pct}%` }} />
                                       <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-all pointer-events-none" style={{ left: `calc(${pct}% - 5px)` }} />
                                     </div>
@@ -2423,70 +2438,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                     </div>
                                   </div>
 
-                                  {/* ── Row 1: Main playback ── */}
+                                  {/* Playback row */}
                                   <div className="flex items-center justify-center gap-3 px-4 pb-2">
                                     <button onClick={prev} className="p-2 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5"><SkipBack size={15} /></button>
-                                    <button
-                                      onClick={() => isPlaying ? pause() : resume()}
-                                      className="w-11 h-11 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.45)]"
-                                    >
+                                    <button onClick={() => isPlaying ? pause() : resume()} className="w-11 h-11 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,140,0,0.45)]">
                                       {isPlaying ? <Pause size={16} className="text-black" /> : <Play size={16} className="text-black fill-black" />}
                                     </button>
                                     <button onClick={next} className="p-2 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5"><SkipForward size={15} /></button>
                                   </div>
 
-                                  {/* ── Row 2: Repeat + volume slider ── */}
+                                  {/* Repeat + volume row */}
                                   <div className="flex items-center gap-2 px-4 pb-2">
-                                    <button
-                                      onClick={() => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF')}
-                                      className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5"
-                                      title={`Repeat: ${repeatMode}`}
-                                    >
+                                    <button onClick={() => setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF')} className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5" title={`Repeat: ${repeatMode}`}>
                                       {repeatMode === 'ONE' ? <Repeat1 size={13} className="text-small-orange" /> : <Repeat size={13} className={repeatMode === 'ALL' ? 'text-small-orange' : 'text-white/25'} />}
                                     </button>
-                                    <button
-                                      onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-                                      className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5"
-                                    >
+                                    <button onClick={() => setVolume(volume > 0 ? 0 : 0.8)} className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-white/5">
                                       {volume === 0 ? <VolumeX size={13} className="text-white/25" /> : <Volume2 size={13} className="text-white/40" />}
                                     </button>
-                                    <input
-                                      type="range" min={0} max={1} step={0.01} value={volume}
-                                      onChange={e => setVolume(parseFloat(e.target.value))}
-                                      className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                                      style={{ accentColor: '#FF8C00' }}
-                                    />
+                                    <input type="range" min={0} max={1} step={0.01} value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 h-1 rounded-full appearance-none cursor-pointer" style={{ accentColor: '#FF8C00' }} />
                                   </div>
 
-                                  {/* ── Row 3: FX toggles + compact toggle ── */}
-                                  <div className="flex items-center justify-between px-3 pb-3">
+                                  {/* FX row + compact toggle */}
+                                  <div className="flex items-center justify-between px-3 pb-3 border-t border-white/[0.05] pt-2">
                                     <div className="flex items-center gap-0.5">
-                                      <button
-                                        onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)}
-                                        className={`p-1.5 rounded-lg transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
-                                        title="Frequency Visualizer"
-                                      ><Activity size={12} /></button>
-                                      <button
-                                        onClick={() => setIsMiniPlayerActive(!isMiniPlayerActive)}
-                                        className={`p-1.5 rounded-lg transition-all ${isMiniPlayerActive ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
-                                        title="Mini Player"
-                                      ><Tv size={12} /></button>
-                                      <button
-                                        onClick={() => setIsThreeDEnabled(!isThreeDEnabled)}
-                                        className={`p-1.5 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
-                                        title="3D Depth"
-                                      ><Box size={12} /></button>
-                                      <button
-                                        onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)}
-                                        className={`p-1.5 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
-                                        title="Spatial Audio"
-                                      ><Headphones size={12} /></button>
+                                      <button onClick={() => setIsFrequencyVisualizerEnabled(!isFrequencyVisualizerEnabled)} className={`p-1.5 rounded-lg transition-all ${isFrequencyVisualizerEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="Frequency Visualizer"><Activity size={12} /></button>
+                                      <button onClick={() => setIsMiniPlayerActive(!isMiniPlayerActive)} className={`p-1.5 rounded-lg transition-all ${isMiniPlayerActive ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="Mini Player"><Tv size={12} /></button>
+                                      <button onClick={() => setIsThreeDEnabled(!isThreeDEnabled)} className={`p-1.5 rounded-lg transition-all ${isThreeDEnabled ? 'text-small-orange bg-small-orange/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="3D Depth"><Box size={12} /></button>
+                                      <button onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)} className={`p-1.5 rounded-lg transition-all ${isSpatialAudioEnabled ? 'text-violet-400 bg-violet-500/10' : 'text-white/20 hover:text-white hover:bg-white/5'}`} title="Spatial Audio"><Headphones size={12} /></button>
                                     </div>
-                                    <button
-                                      onClick={() => setIsMinimized(true)}
-                                      className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-all hover:bg-white/5"
-                                      title="Compact"
-                                    ><ChevronDown size={12} /></button>
+                                    <button onClick={() => setIsMinimized(true)} className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-all hover:bg-white/5" title="Compact"><ChevronDown size={12} /></button>
                                   </div>
                                 </>
                               )}
@@ -2505,7 +2485,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                     </div>
                                     <button onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }} className="p-1 rounded-lg text-white/25 hover:text-white transition-all" title="Pop out"><Maximize2 size={10} /></button>
                                   </div>
-                                  <div className="h-[2px] bg-white/10 cursor-pointer mx-3" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
+                                  <div className="h-[2px] bg-white/10 cursor-pointer" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
                                     <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
                                   </div>
                                   <div className="flex items-center justify-between px-3 py-2">
@@ -2524,7 +2504,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           {/* ══ BACK FACE ══ */}
                           <div
                             style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                            className="rounded-[2rem] overflow-hidden border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.7)] flex flex-col"
+                            className="overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.7)] flex flex-col"
                           >
                             {/* Full-bleed cover art */}
                             {coverSrc
