@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useMemo,
 import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/backendService';
-import { diagnoseAudioUrl, createDecodeAudioPlayer, fetchWavInfo, type DecodedAudioPlayer } from '../services/audioFormatService';
-import { fixTrackStorageMetadata } from '../services/backendService';
+import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } from '../services/audioFormatService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -345,13 +344,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       if (isNewTrack) {
-        // Prefer the browser-compatible WAV if one has been converted (avoids decode fallback)
-        const effectiveUrl = (track.browserCompatUrl && track.browserCompatStatus === 'done')
-          ? track.browserCompatUrl
-          : track.url;
-
         // Catch missing/empty URLs immediately — never assign '' to audio.src
-        if (!effectiveUrl) {
+        if (!track.url) {
           console.error(`[Plajah Audio] Track "${track.title}" has no URL. Nothing to play.`);
           diagnoseAudioUrl('').catch(() => {});
           setCurrentTrack(track); setCurrentAlbum(album); setAudioSource(source);
@@ -359,10 +353,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           return;
         }
 
-        // Rewrite track.url to the effective URL for the rest of the playback pipeline
-        track = { ...track, url: effectiveUrl };
-
-        const isExternal = effectiveUrl.startsWith('http') && !effectiveUrl.includes(window.location.host);
+        const isExternal = track.url.startsWith('http') && !track.url.includes(window.location.host);
         if (isExternal) {
           audio.crossOrigin = "anonymous";
         } else {
@@ -391,8 +382,6 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const player = await createDecodeAudioPlayer(url, ctx, destination);
           decodedPlayerRef.current = player;
           usingDecodeFallbackRef.current = true;
-          // Silently fix the Firebase Storage Content-Type so next play can try native
-          fixTrackStorageMetadata(url).catch(() => {});
           player.onEnded(() => {
             setIsPlaying(false);
             // Auto-advance — fire next() via stateRef so it doesn't need to be in deps
@@ -419,25 +408,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const attemptPlay = () => {
         // Resume AudioContext first so it doesn't silently swallow playback
         const ctx = audioContextRef.current;
-        const doPlay = async () => {
-          // Proactive WAV pre-check: detect non-16-bit PCM before native <audio> plays
-          // so the user never hears silence on 24-bit/32-bit/float/extensible WAV files.
-          const urlLower = (track.url ?? '').toLowerCase().split('?')[0];
-          const isWavLike = urlLower.endsWith('.wav') || urlLower.endsWith('.wave') ||
-                            urlLower.endsWith('.bwf') || urlLower.endsWith('.rf64') || urlLower.endsWith('.w64');
-          if (isWavLike && track.url) {
-            try {
-              const wavInfo = await fetchWavInfo(track.url);
-              if (!wavInfo.isSupported) {
-                console.info(`[Plajah Audio] WAV pre-check: ${wavInfo.formatName} (${wavInfo.bitsPerSample}-bit) in "${track.title}" — skipping native <audio>, going direct to decode fallback`);
-                await tryDecodeFallback(track.url);
-                return;
-              }
-            } catch {
-              // Range request failed — proceed to native and let onerror catch it
-            }
-          }
-
+        const doPlay = () => {
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise.catch(async (e) => {
