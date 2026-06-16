@@ -533,7 +533,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         setIsBottomSectionExpanded(false);
-      }, 3000);
+      }, 6000);
     };
 
     resetTimer(); // Start initial timer
@@ -2096,11 +2096,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
                   {[
-                    { id: 'MUSIC',     icon: Music2,        label: 'Chora' },
-                    { id: 'ARTICLES',  icon: Newspaper,     label: 'News'  },
-                    { id: 'DASHBOARD', icon: Home,          label: 'Home'  },
-                    { id: 'CHAT',      icon: MessageSquare, label: 'Chat'  },
-                    { id: 'SEARCH',    icon: Search,        label: 'Search'},
+                    { id: 'MUSIC',     icon: Music2,        label: 'Chora'  },
+                    { id: 'ARTICLES',  icon: Newspaper,     label: 'News'   },
+                    { id: 'DASHBOARD', icon: Home,          label: 'Home'   },
+                    { id: 'CHAT',      icon: MessageSquare, label: 'Chat'   },
+                    { id: 'FEED',      icon: Rss,           label: 'Social' },
                   ].map(tab => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
@@ -2159,11 +2159,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                     className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] overflow-y-auto gpu"
                   >
-                    <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b border-white/5 glass-nav rounded-t-m3-2xl">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">All Sections</span>
-                      <button onClick={() => setIsBottomSectionExpanded(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                        <ChevronDown size={16} className="text-white/60" />
-                      </button>
+                    <div className="sticky top-0 glass-nav rounded-t-m3-2xl border-b border-white/5">
+                      <div className="flex items-center justify-between px-5 pt-3 pb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">All Sections</span>
+                        <button onClick={() => setIsBottomSectionExpanded(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                          <ChevronDown size={16} className="text-white/60" />
+                        </button>
+                      </div>
+                      {/* Search bar */}
+                      <form
+                        className="px-4 pb-3"
+                        onSubmit={e => {
+                          e.preventDefault();
+                          const q = (e.currentTarget.elements.namedItem('drawerSearch') as HTMLInputElement)?.value?.trim();
+                          if (q) setSearchQuery(q);
+                          setView('SEARCH' as any);
+                          setIsBottomSectionExpanded(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <Search size={14} className="text-white/35 shrink-0" />
+                          <input
+                            name="drawerSearch"
+                            type="search"
+                            placeholder="Search Plajah…"
+                            className="flex-1 bg-transparent text-white text-[13px] placeholder:text-white/30 outline-none"
+                            defaultValue={searchQuery}
+                          />
+                        </div>
+                      </form>
                     </div>
                     <div className="grid grid-cols-4 gap-2 p-4">
                       {[
