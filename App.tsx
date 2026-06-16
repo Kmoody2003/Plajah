@@ -303,7 +303,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
-    window.history.replaceState({ view: 'LANDING' }, '', window.location.pathname);
+    // Preserve query string and hash so deep-links (?type=album&id=xxx) survive replaceState
+    window.history.replaceState({ view: 'LANDING' }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
