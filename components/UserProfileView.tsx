@@ -43,7 +43,8 @@ import {
   ChevronRight,
   Trash2,
   Shuffle,
-  Bookmark
+  Bookmark,
+  Megaphone,
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -123,6 +124,9 @@ import ProfileSmartCard from './ProfileSmartCard';
 import ArtistModeLanding from './ArtistModeLanding';
 import ArtistServicesTab from './ArtistServicesTab';
 import PlajahBrandConnect from './PlajahBrandConnect';
+import AdCreator from './AdCreator';
+import { loadUserAd } from '../services/backendService';
+import { UserAd } from '../types';
 
 interface UserProfileViewProps {
   uid: string;
@@ -242,6 +246,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
+  const [showAdCreator, setShowAdCreator] = useState(false);
+  const [myUserAd, setMyUserAd] = useState<UserAd | null>(null);
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
     () => auth.currentUser?.uid === uid ? 'GLOBAL' : 'PERSONAL'
   );
@@ -409,6 +415,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     setActiveTab(initialTab || 'FEED');
     artistModeDismissedRef.current = false;
     setShowArtistMode(false);
+  }, [uid]);
+
+  // Load any existing custom billboard ad for this user
+  useEffect(() => {
+    if (auth.currentUser?.uid !== uid) return;
+    loadUserAd(uid).then(setMyUserAd).catch(() => {});
   }, [uid]);
 
   const handleFollowToggle = async () => {
@@ -2174,13 +2186,65 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </section>
               </motion.div>
             ) : activeTab === 'MANAGE' && isOwnProfile ? (
-              <motion.div 
+              <motion.div
                 key="manage"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-12"
               >
+                {/* ── Ad Studio ── */}
+                <div className="bg-white/5 p-8 lg:p-12 rounded-[3rem] border border-white/10">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-4 bg-[#6B0099]/20 rounded-2xl">
+                      <Megaphone size={24} className="text-[#9B59B6]" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-black uppercase tracking-tightest">Ad Studio</h3>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Build your billboard ad</p>
+                    </div>
+                    {myUserAd && (
+                      <span className="px-3 py-1 bg-green-500/15 border border-green-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-green-400">
+                        Ad Live
+                      </span>
+                    )}
+                  </div>
+
+                  {myUserAd ? (
+                    <div className="flex items-center gap-4 p-5 bg-white/5 rounded-2xl border border-white/8 mb-4">
+                      {myUserAd.backgroundUrl && (
+                        <div className="w-16 h-24 rounded-xl overflow-hidden shrink-0 bg-white/10">
+                          {myUserAd.backgroundType === 'video'
+                            ? <video src={myUserAd.backgroundUrl} muted className="w-full h-full object-cover" />
+                            : <img src={myUserAd.backgroundUrl} alt="" className="w-full h-full object-cover" />}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black text-white mb-1">
+                          {myUserAd.promotedAssetTitle ? `Promoting: ${myUserAd.promotedAssetTitle}` : 'Custom ad active'}
+                        </p>
+                        {myUserAd.ctaText && (
+                          <p className="text-[8px] text-small-orange font-bold">"{myUserAd.ctaText}"</p>
+                        )}
+                        <p className="text-[7.5px] text-white/30 mt-1">
+                          Background: {myUserAd.backgroundType} · Profile at ({Math.round(myUserAd.profilePicX)}%, {Math.round(myUserAd.profilePicY)}%)
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-white/35 mb-4 leading-relaxed">
+                      Design a custom ad for the platform billboard. Set a video or image background, choose content to promote, add a call-to-action, and position your profile button anywhere on the canvas.
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => setShowAdCreator(true)}
+                    className="px-8 py-3 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_24px_rgba(107,0,153,0.35)]"
+                  >
+                    {myUserAd ? 'Edit My Ad →' : 'Create My Ad →'}
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {/* Radio Settings */}
                   <div className="bg-white/5 p-8 lg:p-12 rounded-[3rem] border border-white/10">
@@ -3301,6 +3365,18 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       <AnimatePresence>
         {signInAction && (
           <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Ad Creator overlay ── */}
+      <AnimatePresence>
+        {showAdCreator && profile && (
+          <AdCreator
+            userProfile={profile}
+            existingAd={myUserAd}
+            onClose={() => setShowAdCreator(false)}
+            onSaved={saved => { setMyUserAd(saved); setShowAdCreator(false); }}
+          />
         )}
       </AnimatePresence>
 

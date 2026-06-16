@@ -183,9 +183,28 @@ const EventProductionStudio = retryLazy(() => import('./components/EventProducti
 const TicketDesigner = retryLazy(() => import('./components/TicketDesigner'));
 const LiveEventsGallery = retryLazy(() => import('./components/LiveEventsGallery'));
 const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
+const PlajahPlusLandingModal = retryLazy(() => import('./components/PlajahPlusLanding'));
+const AlbumAdBillboard = retryLazy(() => import('./components/AlbumAdBillboard'));
+const AdBillboardRenderer = retryLazy(() => import('./components/AdBillboardRenderer'));
 const RelloView = retryLazy(() => import('./components/RelloView'));
 
 import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
+
+type AdSlot =
+  | { kind: 'plus' }
+  | { kind: 'profile'; profile: import('./types').UserProfile }
+  | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
+  | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile };
+
+const AD_DURATION: Record<AdSlot['kind'], number> = {
+  plus:      25000,
+  profile:   15000,
+  album:     45000,
+  custom_ad: 30000,
+};
+
+// ~14-frame crossfade at 60 fps ≈ 233 ms
+const AD_CROSSFADE_MS = 233;
 
 // Theme base backgrounds — matched to index.css per-theme gradients.
 // Rendered as inline styles so they are immune to CSS cascade / Tailwind layer conflicts.
@@ -229,7 +248,7 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
 import { Plus, Music2, Layers, Mic, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -391,6 +410,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     );
   });
   const [isBottomSectionExpanded, setIsBottomSectionExpanded] = useState(false);
+  const [drawerSearchFocused, setDrawerSearchFocused] = useState(false);
+  const [adSlots, setAdSlots] = useState<AdSlot[]>([]);
+  const [adSlotIdx, setAdSlotIdx] = useState(0);
+  const [showPlajahPlusBillboard, setShowPlajahPlusBillboard] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedTeamLeague, setSelectedTeamLeague] = useState<string | null>(null);
@@ -1338,6 +1361,49 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   }, [viewedUserId, view, visitedProfile]);
 
+  // Build the ad slot pool once on mount — profiles + latest album + custom user ads
+  useEffect(() => {
+    fetchFeaturedProfiles().then(async profiles => {
+      const seed = Math.floor(Date.now() / 86400000);
+      const shuffled = [...profiles].sort((a, b) => {
+        const ha = (a.uid.charCodeAt(0) + seed) % 97;
+        const hb = (b.uid.charCodeAt(0) + seed) % 97;
+        return ha - hb;
+      });
+      // Fetch latest album AND custom ad for the first 10 profiles in parallel
+      const top = shuffled.slice(0, 10);
+      const [albumEntries, adEntries] = await Promise.all([
+        Promise.all(top.map(p => fetchLatestAlbumForUser(p.uid).then(a => [p.uid, a] as const))),
+        Promise.all(top.map(p => loadUserAd(p.uid).then(a => [p.uid, a] as const))),
+      ]);
+      const albumMap = new Map(albumEntries.filter(([, a]) => !!a) as [string, import('./types').Album][]);
+      const adMap   = new Map(adEntries.filter(([, a]) => !!a)   as [string, import('./types').UserAd][]);
+
+      const slots: AdSlot[] = [{ kind: 'plus' }];
+      for (const profile of shuffled) {
+        const customAd = adMap.get(profile.uid);
+        if (customAd) {
+          // Custom ad takes precedence — profile slot is skipped, custom_ad is 30 s
+          slots.push({ kind: 'custom_ad', ad: customAd, profile });
+        } else {
+          slots.push({ kind: 'profile', profile });
+          const album = albumMap.get(profile.uid);
+          if (album) slots.push({ kind: 'album', album, profile });
+        }
+      }
+      setAdSlots(slots);
+    }).catch(() => {});
+  }, []);
+
+  // Variable-duration timer: profile = 15s, album = 45s, plus = 25s
+  useEffect(() => {
+    if (adSlots.length === 0) return;
+    const current = adSlots[adSlotIdx % adSlots.length];
+    const duration = AD_DURATION[current.kind];
+    const t = setTimeout(() => setAdSlotIdx(i => i + 1), duration);
+    return () => clearTimeout(t);
+  }, [adSlotIdx, adSlots]);
+
   if (isLoading && view !== 'LANDING') {
     return (
       <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center gap-6">
@@ -1496,33 +1562,270 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 )}
               </>
             )}
-            {/* Left Ad Area (Moved to far left) */}
+            {/* Left Ad Billboard — full-height canvas, floor to ceiling */}
           {(!isPublicView && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL') && (
-            <aside className="lg:w-80 p-8 border-r border-white/5 bg-black/40 backdrop-blur-3xl hidden lg:flex flex-col gap-8 sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar overflow-x-hidden">
-              <SystemMessageBanner />
-              <div className="flex items-center gap-3 mb-4">
-                <Sparkles size={16} className="text-small-orange" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Sponsored Content</span>
-              </div>
-              <a 
-                href="https://google.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="group relative aspect-video w-full bg-gradient-to-br from-[#6B0099] to-[#FF8C00] rounded-[2rem] overflow-hidden shadow-2xl hover:scale-105 transition-all active:scale-95"
-              >
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                  <Logo size={40} className="mb-4" />
-                  <p className="text-sm font-black uppercase tracking-tighter text-white mb-2">Upgrade to Pro</p>
-                  <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest">Unlock Global Distribution</p>
-                </div>
-                <div className="absolute bottom-4 right-4 p-2 bg-white/10 backdrop-blur-md rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Share2 size={12} className="text-white" />
-                </div>
-              </a>
-              <div className="mt-auto p-6 bg-white/5 rounded-[2rem] border border-white/5">
-                <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] leading-loose">Support the creators of Plajah by exploring our partner network.</p>
-              </div>
+            <aside className="lg:w-80 hidden lg:block sticky top-0 h-screen z-50 shrink-0 overflow-hidden border-r border-white/[0.06] relative">
+              <AnimatePresence mode="sync">
+              {(() => {
+                const slots = adSlots.length > 0 ? adSlots : [{ kind: 'plus' as const }];
+                const currentSlot = slots[adSlotIdx % slots.length];
+                const dotTotal = Math.min(slots.length, 7);
+                const dotActive = adSlotIdx % dotTotal;
+                const poolSize = dotTotal; // keep for dot rendering compat
+                const slot = dotActive;    // keep for dot rendering compat
+                const fadeS = AD_CROSSFADE_MS / 1000;
+
+                /* ── Compute slot content, then crossfade-wrap ── */
+                let slotContent: React.ReactNode;
+
+                if (currentSlot.kind === 'custom_ad') {
+                  slotContent = (
+                    <Suspense fallback={null}>
+                      <AdBillboardRenderer
+                        ad={currentSlot.ad}
+                        profile={currentSlot.profile}
+                        onVisitProfile={handleVisitUser}
+                        onOpenAsset={ad => {
+                          if (ad.promotedAssetId && ad.promotedType === 'MUSIC') {
+                            window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: { id: ad.promotedAssetId, title: ad.promotedAssetTitle, coverImage: ad.promotedAssetImageUrl } } }));
+                          }
+                        }}
+                        dotCount={dotTotal}
+                        dotIdx={dotActive}
+                      />
+                    </Suspense>
+                  );
+                } else if (currentSlot.kind === 'album') {
+                  slotContent = (
+                    <Suspense fallback={null}>
+                      <AlbumAdBillboard
+                        album={currentSlot.album}
+                        profile={currentSlot.profile}
+                        onOpenAlbum={album => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album } }))}
+                        dotCount={dotTotal}
+                        dotIdx={dotActive}
+                      />
+                    </Suspense>
+                  );
+                } else if (currentSlot.kind !== 'profile') {
+                  /* ── Plajah+ subscription tiers billboard ── */
+                  slotContent = (
+                    <button
+                      key="plajah-plus-ad"
+                      onClick={() => setShowPlajahPlusBillboard(true)}
+                      className="group relative block w-full h-full text-left cursor-pointer"
+                    >
+                      {/* Background: loop a video from the ad pool if available, else dark gradient */}
+                      {(() => {
+                        const videoSlot = adSlots.find(s => s.kind === 'custom_ad' && (s as any).ad?.backgroundType === 'video' && (s as any).ad?.backgroundUrl)
+                          || adSlots.find(s => s.kind === 'album' && (s as any).album?.tracks?.find((t: any) => t.videoUrl));
+                        const videoUrl = videoSlot?.kind === 'custom_ad' ? (videoSlot as any).ad.backgroundUrl
+                          : videoSlot?.kind === 'album' ? (videoSlot as any).album.tracks.find((t: any) => t.videoUrl)?.videoUrl
+                          : null;
+                        return videoUrl ? (
+                          <video src={videoUrl} autoPlay muted loop playsInline
+                            className="absolute inset-0 w-full h-full object-cover"
+                            style={{ filter: 'brightness(0.15) saturate(0.7)' }} />
+                        ) : null;
+                      })()}
+                      <div className="absolute inset-0 bg-[#080008]" style={{ opacity: adSlots.some(s => s.kind === 'custom_ad') ? 0.6 : 1 }} />
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_15%,rgba(255,140,0,0.18)_0%,transparent_55%)]" />
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_55%,rgba(107,0,153,0.22)_0%,transparent_55%)]" />
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_40%_90%,rgba(212,0,85,0.22)_0%,transparent_50%)]" />
+
+                      {/* System message */}
+                      <div className="absolute top-0 left-0 right-0 z-20">
+                        <SystemMessageBanner />
+                      </div>
+
+                      {/* Plajah+ badge */}
+                      <div className="absolute top-4 left-0 right-0 flex justify-center z-10">
+                        <span className="flex items-center gap-1.5 px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-[7px] font-black uppercase tracking-[0.35em] text-white/50">
+                          <Sparkles size={7} className="text-[#FF8C00]" /> Plajah+
+                        </span>
+                      </div>
+
+                      {/* Main content — vertically centered */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-5 gap-3.5">
+
+                        {/* Wordmark */}
+                        <div className="text-center mb-1">
+                          <p className="text-[32px] font-black tracking-tight text-white leading-none">
+                            Plajah<span style={{ background: 'linear-gradient(90deg,#D40055,#FF8C00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>+</span>
+                          </p>
+                          <p className="text-[8px] text-white/35 font-semibold mt-2 max-w-[190px] mx-auto leading-[1.6] italic">
+                            "the only subscription service where the creators get more than the platform"
+                          </p>
+                        </div>
+
+                        {/* Tier 1 — Starter (least, at top) */}
+                        <div className="w-full rounded-2xl border border-[#FF8C00]/25 bg-[#FF8C00]/8 p-3.5 group-hover:border-[#FF8C00]/40 transition-colors">
+                          <div className="flex items-start justify-between mb-1.5">
+                            <div>
+                              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[#FF8C00] mb-0.5">Starter</p>
+                              <p className="text-[22px] font-black text-white leading-none">$4.99<span className="text-[10px] font-medium text-white/35">/mo</span></p>
+                            </div>
+                            <div className="text-right pt-0.5">
+                              <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$3.00</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $1.99</p>
+                            </div>
+                          </div>
+                          <p className="text-[7.5px] text-white/40 leading-relaxed">50 GB storage · 100 pts/mo · 10% off everything</p>
+                        </div>
+
+                        {/* Tier 2 — Pro (mid) */}
+                        <div className="w-full rounded-2xl border border-[#6B0099]/45 bg-[#6B0099]/12 p-3.5 ring-1 ring-[#6B0099]/20 group-hover:border-[#6B0099]/60 transition-colors">
+                          <div className="flex items-start justify-between mb-1.5">
+                            <div>
+                              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[#9B59B6] mb-0.5">Pro</p>
+                              <p className="text-[22px] font-black text-white leading-none">$9.99<span className="text-[10px] font-medium text-white/35">/mo</span></p>
+                            </div>
+                            <div className="text-right pt-0.5">
+                              <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$7.00</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $2.99</p>
+                            </div>
+                          </div>
+                          <p className="text-[7.5px] text-white/40 leading-relaxed">75 GB · 300 pts/mo · 15% off · TV & Pay-Per-View</p>
+                        </div>
+
+                        {/* Tier 3 — Elite (highest, at bottom) */}
+                        <div className="w-full rounded-2xl border border-[#D40055]/35 bg-[#D40055]/8 p-3.5 group-hover:border-[#D40055]/55 transition-colors">
+                          <div className="flex items-start justify-between mb-1.5">
+                            <div>
+                              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-[#D40055] mb-0.5">Elite</p>
+                              <p className="text-[22px] font-black text-white leading-none">$14.99<span className="text-[10px] font-medium text-white/35">/mo</span></p>
+                            </div>
+                            <div className="text-right pt-0.5">
+                              <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$11.00</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $3.99</p>
+                            </div>
+                          </div>
+                          <p className="text-[7.5px] text-white/40 leading-relaxed">100 GB · 1,000 pts/mo · 20% off · Max promo boost</p>
+                        </div>
+
+                        {/* CTA */}
+                        <div className="mt-1 px-7 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white transition-all"
+                          style={{ background: 'linear-gradient(90deg,#D40055,#6B0099,#FF8C00)', boxShadow: '0 0 20px rgba(212,0,85,0.35)' }}>
+                          Subscribe →
+                        </div>
+                      </div>
+
+                      {/* Dot indicators */}
+                      <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5">
+                        {Array.from({ length: Math.min(poolSize, 7) }).map((_, i) => (
+                          <span key={i} className="rounded-full transition-all duration-300"
+                            style={{ width: i === slot % Math.min(poolSize, 7) ? '16px' : '5px', height: '5px', background: i === slot % Math.min(poolSize, 7) ? '#ff8c00' : 'rgba(255,255,255,0.2)' }} />
+                        ))}
+                      </div>
+                    </button>
+                  );
+
+                /* ── User profile billboard ── */
+                } else {
+                const profile = currentSlot.profile;
+                slotContent = (
+                  <div key={`profile-ad-${profile.uid}`} className="relative w-full h-full group">
+
+                    {/* Cover art fills entire billboard, auto-cropped center */}
+                    {profile.coverArt ? (
+                      <img
+                        src={profile.coverArt}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-[8s] group-hover:scale-105"
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0"
+                        style={{ background: `linear-gradient(180deg, ${profile.brandColor || '#1a0035'} 0%, #0a0a0a 100%)` }}
+                      />
+                    )}
+
+                    {/* Cinematic gradient scrims: heavy at bottom for legibility, light at top */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/50" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
+
+                    {/* Sponsored label — top-center */}
+                    <div className="absolute top-4 left-0 right-0 flex justify-center z-10">
+                      <span className="flex items-center gap-1.5 px-3 py-1 bg-black/50 backdrop-blur-md border border-white/10 rounded-full text-[7px] font-black uppercase tracking-[0.35em] text-white/45">
+                        <Sparkles size={7} /> Featured Creator
+                      </span>
+                    </div>
+
+                    {/* System message at very top */}
+                    <div className="absolute top-0 left-0 right-0 z-20">
+                      <SystemMessageBanner />
+                    </div>
+
+                    {/* Avatar — centered horizontally, sits at ~40% from top */}
+                    <div className="absolute inset-0 flex flex-col items-center" style={{ paddingTop: '38%' }}>
+                      <button
+                        onClick={() => handleVisitUser(profile.uid)}
+                        className="relative w-24 h-24 rounded-full overflow-hidden ring-[3px] ring-white/30 hover:ring-small-orange transition-all duration-300 shadow-[0_0_40px_rgba(0,0,0,0.8)] hover:scale-105 active:scale-95"
+                        title={`Visit ${profile.displayName}'s profile`}
+                      >
+                        <img
+                          src={profile.photoURL}
+                          alt={profile.displayName}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Subtle inner glow ring on hover */}
+                        <div className="absolute inset-0 rounded-full border border-white/20" />
+                      </button>
+                    </div>
+
+                    {/* Name, bio, follower count — anchored to bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 px-6 pb-16 text-center">
+                      <p className="text-xl font-black uppercase tracking-tight text-white leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                        {profile.displayName}
+                      </p>
+                      {profile.bio && (
+                        <p className="text-[10px] text-white/45 font-medium mt-2 leading-relaxed line-clamp-3 max-w-[220px] mx-auto">
+                          {profile.bio}
+                        </p>
+                      )}
+                      {profile.followerCount > 0 && (
+                        <p className="text-[9px] text-small-orange font-black uppercase tracking-[0.3em] mt-3">
+                          {profile.followerCount >= 1000
+                            ? `${(profile.followerCount / 1000).toFixed(1)}k`
+                            : profile.followerCount} followers
+                        </p>
+                      )}
+                      <button
+                        onClick={() => handleVisitUser(profile.uid)}
+                        className="mt-4 px-6 py-2 bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white hover:text-black text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300"
+                      >
+                        View Profile
+                      </button>
+                    </div>
+
+                    {/* Pill dots — just above the bottom text */}
+                    <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5">
+                      {Array.from({ length: Math.min(poolSize, 7) }).map((_, i) => (
+                        <span key={i} className="rounded-full transition-all duration-300"
+                          style={{ width: i === slot % Math.min(poolSize, 7) ? '16px' : '5px', height: '5px', background: i === slot % Math.min(poolSize, 7) ? '#ff8c00' : 'rgba(255,255,255,0.2)' }} />
+                      ))}
+                    </div>
+                  </div>
+                ); // end profile slotContent
+                } // end else
+
+                return (
+                  <motion.div
+                    key={adSlotIdx}
+                    className="absolute inset-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: fadeS, ease: 'linear' }}
+                  >
+                    {slotContent}
+                  </motion.div>
+                );
+              })()}
+              </AnimatePresence>
             </aside>
           )}
 
@@ -2157,7 +2460,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: '100%', opacity: 0 }}
                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                    className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] overflow-y-auto gpu"
+                    className={`fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] gpu${drawerSearchFocused ? '' : ' overflow-y-auto'}`}
                   >
                     <div className="sticky top-0 glass-nav rounded-t-m3-2xl border-b border-white/5">
                       <div className="flex items-center justify-between px-5 pt-3 pb-2">
@@ -2166,28 +2469,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           <ChevronDown size={16} className="text-white/60" />
                         </button>
                       </div>
-                      {/* Search bar */}
-                      <form
-                        className="px-4 pb-3"
-                        onSubmit={e => {
-                          e.preventDefault();
-                          const q = (e.currentTarget.elements.namedItem('drawerSearch') as HTMLInputElement)?.value?.trim();
-                          if (q) setSearchQuery(q);
-                          setView('SEARCH' as any);
-                          setIsBottomSectionExpanded(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          <Search size={14} className="text-white/35 shrink-0" />
-                          <input
-                            name="drawerSearch"
-                            type="search"
-                            placeholder="Search Plajah…"
-                            className="flex-1 bg-transparent text-white text-[13px] placeholder:text-white/30 outline-none"
-                            defaultValue={searchQuery}
-                          />
-                        </div>
-                      </form>
+                      {/* Search bar — full live search, same as desktop sidebar */}
+                      <div className="px-2 pb-2">
+                        <SidebarSearch
+                          isSidebarCollapsed={false}
+                          theme={theme}
+                          onVisitUser={(uid) => { handleVisitUser(uid); setIsBottomSectionExpanded(false); }}
+                          onSelectItem={(item) => { handleSelectItem(item); setIsBottomSectionExpanded(false); }}
+                          onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); setIsBottomSectionExpanded(false); }}
+                          onSelectGame={(game) => { handleSelectGame(game); setIsBottomSectionExpanded(false); }}
+                          onSelectView={(v) => { setView(v as any); setIsBottomSectionExpanded(false); }}
+                          onSelectLiveFeed={(feed) => { setActiveLiveFeed(feed); setIsBottomSectionExpanded(false); }}
+                          onFocusChange={setDrawerSearchFocused}
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2 p-4">
                       {[
@@ -3211,6 +3506,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           />
         </Suspense>
       )}
+
+      {/* Plajah+ Billboard modal */}
+      <AnimatePresence>
+        {showPlajahPlusBillboard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md"
+            onClick={e => { if (e.target === e.currentTarget) setShowPlajahPlusBillboard(false); }}
+          >
+            <button
+              onClick={() => setShowPlajahPlusBillboard(false)}
+              className="fixed top-4 right-4 z-[61] p-3 bg-white/10 border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+            >
+              <XIcon size={18} />
+            </button>
+            <Suspense fallback={null}>
+              <PlajahPlusLandingModal onClose={() => setShowPlajahPlusBillboard(false)} />
+            </Suspense>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Achievement Sidebar */}
       <AnimatePresence>

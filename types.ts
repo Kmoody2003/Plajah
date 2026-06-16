@@ -1267,6 +1267,51 @@ export interface AdConfig {
   targetGenres?: string[];
 }
 
+export type UserAdPromotedType =
+  | 'MUSIC' | 'VIDEO' | 'PODCAST' | 'ARTICLE'
+  | 'BOOK'  | 'FILM'  | 'TV'      | 'GAME'
+  | 'LIVE_EVENT' | 'SANCTUARY';
+
+export interface UserAdTrack {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface UserAd {
+  id: string;
+  ownerId: string;
+  createdAt: number;
+  updatedAt: number;
+  isActive: boolean;
+
+  /** Background fill of the billboard */
+  backgroundType: 'video' | 'image' | 'cover_art';
+  backgroundUrl?: string;
+
+  /** Draggable profile-pic button position, 0–100 % of canvas */
+  profilePicX: number;
+  profilePicY: number;
+
+  /** Promoted asset */
+  promotedType?: UserAdPromotedType;
+  promotedAssetId?: string;
+  promotedAssetTitle?: string;
+  promotedAssetImageUrl?: string;
+
+  /** CTA tag shown at bottom */
+  ctaText?: string;
+
+  /** Autoplay-muted video teaser (centre of ad) */
+  miniVideoUrl?: string;
+  miniVideoAssetId?: string;
+
+  /** Album sample player */
+  albumPreviewId?: string;
+  albumPreviewTitle?: string;
+  albumPreviewTracks?: UserAdTrack[];
+}
+
 export interface Newsletter {
   id: string;
   artistId: string;

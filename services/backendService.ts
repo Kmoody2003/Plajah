@@ -6872,6 +6872,74 @@ export const fetchAllUsers = async (): Promise<UserProfile[]> => {
   }
 };
 
+export const fetchFeaturedProfiles = async (): Promise<UserProfile[]> => {
+  try {
+    const q = query(collection(db, 'users'), where('isArtist', '==', true), limit(30));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ uid: d.id, ...d.data() } as UserProfile))
+      .filter(u => !!u.photoURL && !!u.displayName);
+  } catch {
+    return [];
+  }
+};
+
+export const fetchLatestAlbumForUser = async (uid: string): Promise<Album | null> => {
+  try {
+    const q = query(collection(db, 'albums'), where('ownerId', '==', uid), limit(10));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const albums = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Album))
+      .filter(a => a.isPublic !== false && (a.tracks?.length ?? 0) > 0);
+    albums.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return albums[0] ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── User Ad (Billboard Ad Creator) ────────────────────────────────────────
+
+export const saveUserAd = async (
+  ad: Partial<import('../types').UserAd> & { ownerId: string }
+): Promise<string> => {
+  const id = (ad as any).id || `uad_${Date.now()}`;
+  const now = Date.now();
+  const data = {
+    ...ad,
+    id,
+    createdAt: (ad as any).createdAt || now,
+    updatedAt: now,
+    isActive: ad.isActive ?? true,
+    profilePicX: ad.profilePicX ?? 50,
+    profilePicY: ad.profilePicY ?? 40,
+    backgroundType: ad.backgroundType ?? 'cover_art',
+  };
+  await setDoc(doc(db, 'userAds', id), data);
+  return id;
+};
+
+export const loadUserAd = async (ownerId: string): Promise<import('../types').UserAd | null> => {
+  try {
+    const q = query(
+      collection(db, 'userAds'),
+      where('ownerId', '==', ownerId),
+      where('isActive', '==', true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as import('../types').UserAd;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteUserAd = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'userAds', id));
+};
+
 export const fetchSystemStats = async (): Promise<SystemStats> => {
   // In a real app, this would be aggregated by a Cloud Function
   // For now, we'll simulate it by fetching some counts
