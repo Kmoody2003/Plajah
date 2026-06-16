@@ -2170,25 +2170,111 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
 
       <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12 pointer-events-none">
-        {/* Desktop header — scrollable row of unified compact rounded-rect buttons */}
-        <div className={`pointer-events-auto relative mb-6 shrink-0 ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] w-full' : 'w-full'}`}>
-          {/* Left scroll chevron */}
-          <button
-            onClick={() => scrollTabsBy(-1)}
-            className="absolute left-0 top-0 bottom-2 z-10 w-8 flex items-center justify-center transition-all duration-200"
-            style={{ background: 'linear-gradient(to right, rgba(8,6,12,0.92) 50%, transparent)', opacity: tabEdge.left ? 1 : 0, pointerEvents: tabEdge.left ? 'auto' : 'none' }}
-          >
-            <ChevronLeft size={12} className="text-white/50" />
-          </button>
-          {/* Right scroll chevron */}
-          <button
-            onClick={() => scrollTabsBy(1)}
-            className="absolute right-0 top-0 bottom-2 z-10 w-8 flex items-center justify-center transition-all duration-200"
-            style={{ background: 'linear-gradient(to left, rgba(8,6,12,0.92) 50%, transparent)', opacity: tabEdge.right ? 1 : 0, pointerEvents: tabEdge.right ? 'auto' : 'none' }}
-          >
-            <ChevronRight size={12} className="text-white/50" />
-          </button>
-          <header ref={tabScrollRef} onScroll={onTabScroll} className="flex flex-nowrap items-center gap-2 pb-2 overflow-x-auto no-scrollbar px-1">
+        {/* ── Right-side vertical action column (desktop only) ── */}
+        <div className="hidden lg:flex absolute right-6 top-0 bottom-0 z-50 flex-col items-end justify-center gap-[3px] pointer-events-auto" style={{ paddingRight: '0px' }}>
+          {/* Helper: icon + expandable label pill */}
+          {[
+            ...(!isPublic ? [{ key: 'back', icon: ArrowLeft, label: 'Library', onClick: onBack, style: {} }] : [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }]),
+            ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), style: { color: '#FF8C00' } }] : []),
+            ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), style: { color: '#FF8C00' } }] : []),
+            { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
+            { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => setIsDJMode(true), style: {} },
+            { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), style: isLightingOpen ? { color: '#FF8C00' } : {} },
+            { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), style: {} },
+            ...(!isOwner && !isPreview ? [
+              { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), style: { color: '#FF8C00' } },
+              { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), style: {} },
+            ] : []),
+          ].map(item => (
+            <button
+              key={item.key}
+              onClick={item.onClick}
+              disabled={!item.onClick}
+              className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
+              style={{ background: 'rgba(8,6,12,0.55)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
+            >
+              <span className="max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100" style={item.style}>
+                {item.label}
+              </span>
+              <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                <item.icon size={12} className="transition-colors" style={item.style} />
+              </div>
+            </button>
+          ))}
+
+          {/* Thin divider */}
+          <div className="w-6 h-px bg-white/10 my-1" />
+
+          {/* Tab nav buttons */}
+          {([
+            { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
+            { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
+            { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
+            { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
+            { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles },
+          ] as const).map(tab => {
+            const active = activeHUD === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveHUD(tab.id as any)}
+                className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
+                style={active ? {
+                  background: 'linear-gradient(135deg, rgba(255,140,0,0.22) 0%, rgba(139,92,246,0.22) 100%)',
+                  border: '1px solid rgba(255,140,0,0.35)',
+                  backdropFilter: 'blur(12px)',
+                } : {
+                  background: 'rgba(8,6,12,0.55)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                <span className={`max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 ${active ? 'text-white' : 'text-white/45'}`}>
+                  {tab.label}
+                </span>
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <tab.icon size={12} className={active ? 'text-small-orange' : 'text-white/40 group-hover:text-white/70 transition-colors'} />
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Thin divider */}
+          <div className="w-6 h-px bg-white/10 my-1" />
+
+          {/* About / Gallery / Captions / Share */}
+          {[
+            { key: 'about', icon: User, label: activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist', onClick: () => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT'), active: activeHUD === 'ABOUT' },
+            ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
+            { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
+            ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
+          ].map(item => (
+            <button
+              key={item.key}
+              onClick={item.onClick}
+              className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
+              style={item.active ? {
+                background: 'rgba(255,140,0,0.18)',
+                border: '1px solid rgba(255,140,0,0.35)',
+                backdropFilter: 'blur(12px)',
+              } : {
+                background: 'rgba(8,6,12,0.55)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+              }}
+            >
+              <span className={`max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 ${item.active ? 'text-small-orange' : 'text-white/45'}`}>
+                {item.label}
+              </span>
+              <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                <item.icon size={12} className={item.active ? 'text-small-orange' : 'text-white/40 group-hover:text-white/70 transition-colors'} />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* ── LEGACY horizontal header kept as empty anchor (remove chevron refs) ── */}
+        {false && <header ref={tabScrollRef} onScroll={onTabScroll} className="hidden">
              {isVisualizerLayout && (
                <button
                  onClick={() => setIsVisualizerLayout(false)}
@@ -2304,8 +2390,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <Share2 size={13} /> Share
                </button>
              )}
-          </header>
-        </div>
+          </header>}
 
         <div className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}>
           {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}

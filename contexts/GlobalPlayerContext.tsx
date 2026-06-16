@@ -40,6 +40,8 @@ interface GlobalPlayerContextType {
   setIsSlideshowActive: (val: boolean) => void;
   isNanoView: boolean;
   setIsNanoView: (val: boolean) => void;
+  isNanoDocked: boolean;
+  setIsNanoDocked: (val: boolean) => void;
   isUserActive: boolean;
   setIsUserActive: (val: boolean) => void;
   nanoPosition: { x: number; y: number };
@@ -89,6 +91,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setIsSlideshowActive] = useState(false);
   const [isNanoView, setIsNanoView] = useState(true);
+  const [isNanoDocked, setIsNanoDocked] = useState(true);
   const [isUserActive, setIsUserActive] = useState(true);
   const [nanoPosition, setNanoPosition] = useState({ x: 20, y: window.innerHeight - 300 });
   const [theme, setTheme] = useState<'LIGHT' | 'DARK' | 'PASTEL' | 'PLAJAH' | 'BIG_SCREEN' | 'PHONE' | 'ETHEREAL' | 'NEBULA' | 'CITRUS'>('DARK');
@@ -936,7 +939,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     analyser: analyserRef.current, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
-    isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
+    isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
@@ -945,7 +948,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev,
     isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive,
-    isNanoView, setIsNanoView, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
+    isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,

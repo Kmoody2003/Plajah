@@ -188,7 +188,7 @@ const AlbumAdBillboard = retryLazy(() => import('./components/AlbumAdBillboard')
 const AdBillboardRenderer = retryLazy(() => import('./components/AdBillboardRenderer'));
 const RelloView = retryLazy(() => import('./components/RelloView'));
 
-import { useGlobalPlayer, useGlobalPlayerState } from './contexts/GlobalPlayerContext';
+import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
 
 type AdSlot =
   | { kind: 'plus' }
@@ -249,7 +249,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -444,7 +444,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const tooltipsActive = userProfile?.tooltipsEnabled ?? isFirstWeek;
 
-  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView } = useGlobalPlayerState();
+  const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized } = useGlobalPlayerState();
+  const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
   useEffect(() => {
     setGlobalView(view);
@@ -2291,7 +2292,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
-                {/* Notification row — player restore pill lives here when nano player is active */}
                 <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} />
@@ -2310,22 +2310,122 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-400 ring-2 ring-[#0a0a0a]" />
                     )}
                   </button>
-                  {isNanoView && (
-                    <button
-                      onClick={() => { setIsNanoView(false); setIsShrunk(false); }}
-                      title="Restore player"
-                      className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-500/20 border border-violet-500/30 text-violet-400 rounded-xl hover:bg-violet-500/30 transition-all shadow-[0_0_12px_rgba(139,92,246,0.3)]"
-                    >
-                      <Zap size={13} />
-                      {!isSidebarCollapsed && <span className="text-[8px] font-black uppercase tracking-widest">Player</span>}
-                    </button>
-                  )}
                 </div>
               </div>
 
-              <div className="pt-10 border-t border-theme space-y-6">
-                <div className={`p-6 bg-white/[0.04] border border-theme rounded-[2.5rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
-                  <div className={`flex items-center gap-4 ${isSidebarCollapsed ? 'mb-0 justify-center' : (theme === 'BIG_SCREEN' ? 'mb-6 justify-center group-hover/sidebar:justify-start' : 'mb-6')}`}>
+              {/* ── Docked Nano Player ── always above the profile card */}
+              {!isSidebarCollapsed && (
+                <div className="px-4 pt-4 border-t border-white/[0.06]">
+                  {(currentTrack || isNanoView) ? (() => {
+                    const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+                    const coverSrc = currentAlbum?.coverImage;
+                    return (
+                      <div className="rounded-[2rem] overflow-hidden border border-white/[0.08] bg-black/60 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] relative">
+                        {/* Blurred cover as background */}
+                        {coverSrc && (
+                          <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.28) saturate(1.4)', zIndex: 0 }} />
+                        )}
+                        <div className="relative z-10">
+                          {/* Expanded artwork area */}
+                          {!isMinimized && (
+                            <div className="relative w-full aspect-square overflow-hidden">
+                              {coverSrc
+                                ? <img src={coverSrc} alt={currentAlbum?.title} className="w-full h-full object-cover" />
+                                : <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music2 size={32} className="text-white/20" /></div>
+                              }
+                              {/* Overlay gradient */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                              {/* Pop-out button top-right */}
+                              <button
+                                onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
+                                title="Pop out player"
+                              >
+                                <Maximize2 size={11} />
+                              </button>
+                              {/* Track info overlaid bottom */}
+                              <div className="absolute bottom-3 left-3 right-10">
+                                <p className="text-[11px] font-black uppercase tracking-tight text-white leading-tight truncate">{currentTrack?.title || 'Nothing playing'}</p>
+                                <p className="text-[8px] font-bold text-small-orange/80 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Compact header when minimized */}
+                          {isMinimized && (
+                            <div className="flex items-center gap-2.5 px-3 py-2">
+                              {coverSrc
+                                ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
+                                : <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Music2 size={14} className="text-white/20" /></div>
+                              }
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
+                                <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
+                              </div>
+                              <button
+                                onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                className="p-1.5 rounded-xl text-white/30 hover:text-white transition-all"
+                                title="Pop out player"
+                              >
+                                <Maximize2 size={10} />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Progress bar */}
+                          <div
+                            className="h-[2px] bg-white/10 relative cursor-pointer mx-3"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const frac = (e.clientX - rect.left) / rect.width;
+                              seek(frac * duration);
+                            }}
+                          >
+                            <div className="h-full bg-small-orange transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+
+                          {/* Controls */}
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <button onClick={prev} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
+                              <SkipBack size={14} />
+                            </button>
+                            <button
+                              onClick={() => isPlaying ? pause() : resume()}
+                              className="w-9 h-9 rounded-full bg-small-orange flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(255,140,0,0.4)]"
+                            >
+                              {isPlaying
+                                ? <Pause size={14} className="text-black" />
+                                : <Play size={14} className="text-black fill-black" />
+                              }
+                            </button>
+                            <button onClick={next} className="p-1.5 text-white/40 hover:text-white transition-all rounded-lg hover:bg-white/5">
+                              <SkipForward size={14} />
+                            </button>
+                            {/* Minimize / expand toggle */}
+                            <button
+                              onClick={() => setIsMinimized(!isMinimized)}
+                              className="p-1.5 text-white/25 hover:text-white/60 transition-all rounded-lg hover:bg-white/5"
+                              title={isMinimized ? 'Expand' : 'Compact'}
+                            >
+                              {isMinimized ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    /* Empty state — no track */
+                    <div className="rounded-[2rem] border border-white/[0.06] bg-white/[0.02] flex items-center justify-center py-5 gap-2.5">
+                      <Music2 size={14} className="text-white/15" />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-white/15">Player</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-theme space-y-4 px-4">
+                <div className={`p-4 bg-white/[0.04] border border-theme rounded-[2rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
+                  <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
                      <PioneerGoldFrame active={!!userProfile?.hasSeenWelcomePackage} size="sm">
                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
                          {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
@@ -2336,21 +2436,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         <p className="text-[8px] font-bold text-small-orange truncate opacity-60">{user ? user.email : 'Public Instance'}</p>
                      </div>
                   </div>
-                  
-                  <div className={`flex flex-col gap-3 ${isSidebarCollapsed ? 'items-center' : (theme === 'BIG_SCREEN' ? 'items-center group-hover/sidebar:items-start' : '')}`}>
-                    <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${cloudStatus === 'CONNECTED' ? 'text-green-500' : cloudStatus === 'OFFLINE' ? 'text-red-500' : 'text-white/20'}`}>
-                      {cloudStatus === 'CONNECTED' ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-                      <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>
-                        {cloudStatus === 'CONNECTED' ? 'Cloud Verified' : cloudStatus === 'OFFLINE' ? 'Connection Lost' : 'Checking Link...'}
-                      </span>
-                    </div>
-                  </div>
 
                   {/* ── Creator Tools Persistent Shortcut ── */}
                   {user && (
                     <button
                       onClick={() => setView('PLAJAH_STUDIO')}
-                      className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest rounded-xl px-3 py-2.5 transition-all mb-2 ${
+                      className={`mt-3 flex items-center gap-3 text-[9px] font-black uppercase tracking-widest rounded-xl px-3 py-2.5 transition-all w-full ${
                         view === 'PLAJAH_STUDIO'
                           ? 'bg-[#FF8C00] text-black'
                           : 'bg-[#FF8C00]/10 border border-[#FF8C00]/20 text-[#FF8C00] hover:bg-[#FF8C00]/20'
@@ -2362,31 +2453,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Creator Tools</span>
                     </button>
                   )}
-                  <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-3">
-                    {user ? (
-                      <button onClick={logout} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                        <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-                          <LogOut size={14} className="text-red-400" />
-                        </div>
-                        <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign Out</span>
-                      </button>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <button onClick={loginWithGoogle} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-white/5 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                          <div className="w-8 h-8 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
-                            <LogIn size={14} />
-                          </div>
-                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign In with Google</span>
-                        </button>
-                        <button onClick={loginWithTwitter} className={`flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-white/5 rounded-xl px-3 py-2 transition-all ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
-                          <div className="w-8 h-8 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
-                            <XIcon size={14} />
-                          </div>
-                          <span className={isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:inline' : '')}>Sign In with X</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </aside>

@@ -85,6 +85,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     nanoPosition,
     setIsNanoView,
     isNanoView,
+    isNanoDocked,
+    setIsNanoDocked,
     isShrunk,
     setIsShrunk,
     isMinimized,
@@ -337,6 +339,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     await nanoControls.start({ x: 0, y: 0, transition: { type: 'spring', damping: 20 } });
   };
 
+  if (isNanoView && isNanoDocked && !isPhoneMode) return null;
+
   if (isNanoView && !isPhoneMode) {
     return (
       <>
@@ -401,14 +405,23 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 <div className="absolute bottom-0 left-0 w-24 h-24 z-10 bg-white/[0.02] border-b border-l border-white/10 rounded-bl-[3rem] hover:bg-small-orange/10 transition-colors" />
                 <div className="absolute bottom-0 right-0 w-24 h-24 z-10 bg-white/[0.02] border-b border-r border-white/10 rounded-br-[3rem] hover:bg-small-orange/10 transition-colors" />
 
-                {/* Reset Button */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); snapReset(); }}
-                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-white rounded-full transition-all border border-white/10 active:scale-90"
-                  title="Reset Position"
-                >
-                  <RotateCcw size={12} />
-                </button>
+                {/* Dock back + Reset buttons */}
+                <div className="absolute top-4 right-4 z-50 flex items-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsNanoDocked(true); }}
+                    className="p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-small-orange rounded-full transition-all border border-white/10 active:scale-90"
+                    title="Dock to sidebar"
+                  >
+                    <Minimize2 size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); snapReset(); }}
+                    className="p-2.5 bg-black/40 hover:bg-black/60 text-white/40 hover:text-white rounded-full transition-all border border-white/10 active:scale-90"
+                    title="Reset Position"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
 
                 {/* Visualizer Header */}
                 <div className="flex-1 relative overflow-hidden">
