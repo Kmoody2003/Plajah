@@ -26,7 +26,7 @@ import React, {
 import {
   Play, ChevronLeft, ChevronRight, Upload, Plus,
   Zap, Image, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
-  Eye, EyeOff, Power, X, Cpu,
+  Eye, EyeOff, Power, X, Cpu, Trash2,
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
@@ -201,16 +201,26 @@ interface CellProps {
   onDrop:           (file: File) => void;
   onAssign:         (clip: LauncherClip) => void;
   onUpdateOpacity:  (opacity: number) => void;
+  onClear?:         () => void;
 }
 
 const ClipCell: React.FC<CellProps> = ({
-  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onUpdateOpacity,
+  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const padNum  = layerIdx * 4 + colIdx;
   const accent  = clip?.color ?? '#444';
   const clipOpacity = clip?.opacity ?? 1;
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!menuPos) return;
+    const close = () => setMenuPos(null);
+    window.addEventListener('click', close, { once: true });
+    return () => window.removeEventListener('click', close);
+  }, [menuPos]);
 
   return (
     <div
@@ -231,6 +241,7 @@ const ClipCell: React.FC<CellProps> = ({
         opacity: clipOpacity < 1 ? 0.4 + clipOpacity * 0.6 : 1,
       }}
       onClick={clip ? onActivate : () => fileRef.current?.click()}
+      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMenuPos({ x: e.clientX, y: e.clientY }); }}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={e => {
@@ -241,6 +252,30 @@ const ClipCell: React.FC<CellProps> = ({
         if (f && (f.type.startsWith('video/') || f.type.startsWith('image/'))) onDrop(f);
       }}
     >
+      {/* Right-click context menu */}
+      {menuPos && (
+        <div
+          className="fixed z-[500] rounded-xl overflow-hidden border border-white/10 shadow-2xl"
+          style={{ top: menuPos.y, left: menuPos.x, background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(16px)', minWidth: 164 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { setMenuPos(null); fileRef.current?.click(); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left"
+          >
+            <Upload className="w-3 h-3" /> Replace with file
+          </button>
+          {clip && (
+            <button
+              onClick={() => { setMenuPos(null); onClear?.(); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-left border-t border-white/05"
+            >
+              <Trash2 className="w-3 h-3" /> Clear cell
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Left accent stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-0.5"
         style={{ background: flash ? '#fff' : active ? accent : `${accent}44` }} />
@@ -353,6 +388,7 @@ interface LayerRowProps {
   onFireClip:    (colIdx: number) => void;
   onDropMedia:   (colIdx: number, file: File) => void;
   onAssignClip:  (colIdx: number, clip: LauncherClip) => void;
+  onClearClip:   (colIdx: number) => void;
   onDeleteLayer: () => void;
   isDefaultLayer: boolean;
 }
@@ -362,7 +398,7 @@ const LAYER_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444
 
 const LayerRow: React.FC<LayerRowProps> = ({
   layer, layerIdx, scrollLeft, flashedPads,
-  onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip,
+  onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip, onClearClip,
   onDeleteLayer, isDefaultLayer,
 }) => {
   const isFlashed  = (ci: number) => flashedPads.has(layerIdx * 4 + ci);
@@ -467,6 +503,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               onDrop={f => onDropMedia(ci, f)}
               onAssign={c => onAssignClip(ci, c)}
               onUpdateOpacity={opacity => onUpdateClip(ci, { opacity })}
+              onClear={() => onClearClip(ci)}
             />
           ))}
         </div>
@@ -936,6 +973,12 @@ const ClipLauncher: React.FC<Props> = ({
     ));
   }, []);
 
+  const clearClip = useCallback((li: number, ci: number) => {
+    setLayers(prev => prev.map((l, i) =>
+      i === li ? { ...l, clips: l.clips.map((c, ci2) => ci2 === ci ? null : c), activeCol: l.activeCol === ci ? -1 : l.activeCol } : l
+    ));
+  }, []);
+
   // ── Scroll ──────────────────────────────────────────────────────────────────
   const canScrollLeft  = scrollLeft > 0;
   const canScrollRight = scrollLeft < (colCount - 4) * STEP;
@@ -1035,6 +1078,7 @@ const ClipLauncher: React.FC<Props> = ({
                 onFireClip={ci => fireClip(li, ci)}
                 onDropMedia={(ci, f) => dropMedia(li, ci, f)}
                 onAssignClip={(ci, clip) => assignClip(li, ci, clip)}
+                onClearClip={ci => clearClip(li, ci)}
                 onDeleteLayer={() => deleteLayer(li)}
                 isDefaultLayer={li < 3}
               />

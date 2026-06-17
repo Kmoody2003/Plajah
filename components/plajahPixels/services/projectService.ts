@@ -1,9 +1,15 @@
 /**
  * Plajah Pixels — Project Save / Load Service
- * Handles serialization and deserialization of .plajah project files.
+ * Handles serialization and deserialization of .plajah project files,
+ * plus cloud save/load to the user's Plajah profile via Firestore.
  */
 
 import { PlajahProject, PlajahMediaRef, VisualizationConfig, BackgroundMedia } from '../types';
+import { db } from '../../../services/backendService';
+import {
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc,
+  query, orderBy, serverTimestamp, Timestamp,
+} from 'firebase/firestore';
 
 const FORMAT = 'plajah-pixels' as const;
 const VERSION = '1.0.0';
@@ -148,6 +154,108 @@ export function loadProject(file: File): Promise<LoadedProject> {
     reader.onerror = () => reject(new Error('Failed to read project file'));
     reader.readAsText(file);
   });
+}
+
+// ─── Cloud Save / Load ────────────────────────────────────────────────────────
+
+export interface CloudProjectMeta {
+  id: string;
+  projectName: string;
+  savedAt: string;
+  mode: string;
+  thumbnail?: string; // data-URL of a canvas screenshot, optional
+}
+
+/**
+ * Save a project to the user's profile in Firestore.
+ * Path: users/{uid}/plajahProjects/{projectId}
+ * The project JSON is stored as a string field to avoid Firestore size limits on objects.
+ */
+export async function saveProjectToCloud(
+  uid: string,
+  config: VisualizationConfig,
+  bgMedia1: BackgroundMedia[],
+  bgMedia2: BackgroundMedia[],
+  audioFileName?: string,
+  thumbnail?: string
+): Promise<string> {
+  const [serialized1, serialized2] = await Promise.all([
+    serializeMediaList(bgMedia1),
+    serializeMediaList(bgMedia2),
+  ]);
+
+  const project: PlajahProject = {
+    __format: 'plajah-pixels',
+    version: '1.0.0',
+    projectName: config.name || 'Plajah Project',
+    savedAt: new Date().toISOString(),
+    config,
+    bgMedia1: serialized1,
+    bgMedia2: serialized2,
+    audioFileName,
+  };
+
+  const projectsCol = collection(db, 'users', uid, 'plajahProjects');
+  const projectRef = doc(projectsCol);
+  await setDoc(projectRef, {
+    projectName: project.projectName,
+    mode: config.mode,
+    savedAt: serverTimestamp(),
+    savedAtIso: project.savedAt,
+    thumbnail: thumbnail ?? null,
+    projectJson: JSON.stringify(project),
+  });
+
+  return projectRef.id;
+}
+
+/**
+ * List all cloud-saved projects for a user, ordered by save date (newest first).
+ */
+export async function listCloudProjects(uid: string): Promise<CloudProjectMeta[]> {
+  const projectsCol = collection(db, 'users', uid, 'plajahProjects');
+  const q = query(projectsCol, orderBy('savedAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => {
+    const data = d.data();
+    const savedAt = data.savedAt instanceof Timestamp
+      ? data.savedAt.toDate().toISOString()
+      : (data.savedAtIso ?? '');
+    return {
+      id: d.id,
+      projectName: data.projectName ?? 'Untitled',
+      savedAt,
+      mode: data.mode ?? '',
+      thumbnail: data.thumbnail ?? undefined,
+    };
+  });
+}
+
+/**
+ * Load a specific cloud project by ID.
+ */
+export async function loadCloudProject(uid: string, projectId: string): Promise<LoadedProject> {
+  const projectRef = doc(db, 'users', uid, 'plajahProjects', projectId);
+  const snap = await getDoc(projectRef);
+  if (!snap.exists()) throw new Error('Project not found');
+  const data = snap.data();
+  const project: PlajahProject = JSON.parse(data.projectJson);
+  if (project.__format !== 'plajah-pixels') throw new Error('Invalid project format');
+  return {
+    config: project.config,
+    bgMedia1: deserializeMediaList(project.bgMedia1 ?? []),
+    bgMedia2: deserializeMediaList(project.bgMedia2 ?? []),
+    projectName: project.projectName,
+    savedAt: project.savedAt,
+    audioFileName: project.audioFileName,
+  };
+}
+
+/**
+ * Delete a cloud project.
+ */
+export async function deleteCloudProject(uid: string, projectId: string): Promise<void> {
+  await deleteDoc(doc(db, 'users', uid, 'plajahProjects', projectId));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

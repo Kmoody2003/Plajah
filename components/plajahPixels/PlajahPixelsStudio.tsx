@@ -16,6 +16,7 @@ import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
+import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY } from './components/ShaderPanel';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
@@ -35,7 +36,7 @@ import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
 import { generateThemeFromMood, generateVideoLoop, LiveLyricsSession } from './services/geminiService';
-import { saveProject, loadProject } from './services/projectService';
+import { saveProject, loadProject, saveProjectToCloud, listCloudProjects, loadCloudProject, deleteCloudProject } from './services/projectService';
 
 const DEFAULT_CONFIG: VisualizationConfig = {
     name: "Midnight Neon",
@@ -143,6 +144,10 @@ export interface PlajahPixelsPlatformBridge {
 }
 
 const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) => {
+    // Program-out popup mode: render only visualizer, no UI
+    const isProgramOut = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('programOut') === '1';
+
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -193,9 +198,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [three3d, setThree3d] = useState<Three3DConfig | null>(null);
     const [showThreePanel, setShowThreePanel] = useState(false);
 
-    // ── Output: record · fullscreen/dismiss · send-to-display ────────────────────
+    // ── Output: record · fullscreen/dismiss · program-out window ────────────────
     const rootRef = useRef<HTMLDivElement>(null);
-    const [uiHidden, setUiHidden] = useState(false);   // dismiss all chrome → pure visual
+    const [uiHidden, setUiHidden] = useState(false);
+    const [showProgramOutPicker, setShowProgramOutPicker] = useState(false);
+    const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
 
@@ -342,6 +349,29 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         enterFullscreen();
     }, [enterFullscreen]);
 
+    // Open a dedicated program-output popup window (visualizer only, no UI).
+    // Syncs config in real-time via BroadcastChannel.
+    const openProgramOut = useCallback(() => {
+        const existing = programOutRef.current;
+        if (existing && !existing.closed) { existing.focus(); return; }
+
+        const w = window.open(
+            window.location.href + (window.location.href.includes('?') ? '&' : '?') + 'programOut=1',
+            'PlajahProgramOut',
+            'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
+        );
+        if (!w) { alert('Popup blocked — allow popups for this site'); return; }
+        programOutRef.current = w;
+        setShowProgramOutPicker(false);
+    }, []);
+
+    // Broadcast config changes to any open program-out window.
+    useEffect(() => {
+        const ch = new BroadcastChannel('plajah-program-out');
+        ch.postMessage({ type: 'CONFIG_UPDATE', config });
+        return () => ch.close();
+    }, [config]);
+
     // ── Preview / Program (A/B) ──────────────────────────────────────────────────
     // Program = the live full-screen output (driven by `config` + the mode flags),
     // never disturbed while you audition. Preview = a small second pipeline that
@@ -483,6 +513,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [audioFileName, setAudioFileName] = useState<string | undefined>(undefined);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [showCloudProjects, setShowCloudProjects] = useState(false);
+    const [cloudProjects, setCloudProjects] = useState<import('./services/projectService').CloudProjectMeta[]>([]);
+    const [cloudProjectsLoading, setCloudProjectsLoading] = useState(false);
 
     // Audio Initialization & File Placement
     const handleUpload = (file: File) => {
@@ -696,13 +729,67 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const handleSaveProject = async () => {
         setIsSaving(true);
         try {
+            // Always save locally as .plajah file
             await saveProject(config, bgMedia1, bgMedia2, audioFileName);
+            // If signed in, also save to cloud profile
+            const uid = auth.currentUser?.uid;
+            if (uid) {
+                // Capture a thumbnail from the output canvas (best-effort)
+                let thumbnail: string | undefined;
+                try {
+                    const canvas = rootRef.current?.querySelector<HTMLCanvasElement>('#core-visualizer canvas, canvas');
+                    if (canvas) thumbnail = canvas.toDataURL('image/jpeg', 0.4);
+                } catch { /* skip thumbnail on cross-origin canvas */ }
+                await saveProjectToCloud(uid, config, bgMedia1, bgMedia2, audioFileName, thumbnail);
+            }
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
         } catch (err) {
             console.error('[PlajahPixels] Save failed:', err);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleOpenCloudProjects = async () => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        setShowCloudProjects(true);
+        setCloudProjectsLoading(true);
+        try {
+            const projects = await listCloudProjects(uid);
+            setCloudProjects(projects);
+        } catch (err) {
+            console.error('[PlajahPixels] Cloud list failed:', err);
+        } finally {
+            setCloudProjectsLoading(false);
+        }
+    };
+
+    const handleLoadCloudProject = async (projectId: string) => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        try {
+            const loaded = await loadCloudProject(uid, projectId);
+            setConfig(loaded.config);
+            setBgMedia1(loaded.bgMedia1);
+            setBgMedia2(loaded.bgMedia2);
+            if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
+            setShowCloudProjects(false);
+        } catch (err) {
+            console.error('[PlajahPixels] Cloud load failed:', err);
+            alert('Could not load project from cloud.');
+        }
+    };
+
+    const handleDeleteCloudProject = async (projectId: string) => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        try {
+            await deleteCloudProject(uid, projectId);
+            setCloudProjects(prev => prev.filter(p => p.id !== projectId));
+        } catch (err) {
+            console.error('[PlajahPixels] Cloud delete failed:', err);
         }
     };
 
@@ -742,8 +829,30 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         );
     }) : null;
 
+    const LAUNCHER_H = 410; // px — scene bar(28) + 3 layers(240) + add-layer bar(26) + source browser(116)
+
+    // ── Program-out window: just the visualizer, synced via BroadcastChannel ────
+    if (isProgramOut) {
+        return (
+            <div style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden' }}>
+                <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2} config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} id="po-bg" />
+                {analyserRef.current && (shaderSrc
+                    ? <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />
+                    : isStudioMode(config.mode)
+                        ? <StudioStage id="po-viz" analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
+                        : <AudioVisualizer id="po-viz" analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} hasBackground />
+                )}
+                {milkdrop && analyserRef.current && (
+                    <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
+                )}
+                <TextOverlay config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
+            </div>
+        );
+    }
+
     return (
-        <div ref={rootRef} id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans" style={{ contain: 'strict' }}>
+        <div className="flex flex-col overflow-hidden bg-black" style={{ height: '100dvh' }}>
+        <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
             {platform && !uiHidden && (
                 <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
@@ -786,12 +895,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 {showClipGrid && !uiHidden && (
                     <motion.div
                         key="clip-launcher"
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 240 }}
-                        className="fixed bottom-0 left-0 right-0 flex flex-col"
-                        style={{ height: 'min(80vh, 560px)', zIndex: 200, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -12px 60px rgba(0,0,0,0.8)' }}
+                        initial={{ height: 0 }}
+                        animate={{ height: LAUNCHER_H }}
+                        exit={{ height: 0 }}
+                        transition={{ type: 'spring', damping: 32, stiffness: 260 }}
+                        className="shrink-0 flex flex-col overflow-hidden"
+                        style={{ order: 2, zIndex: 10, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)' }}
                     >
                         {/* Close handle */}
                         <button
@@ -800,14 +909,6 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
-
-                        {/* Scenes — horizontal row across the top of the deck */}
-                        <SceneRail
-                            config={editTarget === 'preview' ? previewConfig : config}
-                            visible={showRail}
-                            embedded
-                            onPick={(mode) => applyLook({ mode })}
-                        />
 
                         {/* Resolume-style clip launcher (fills the middle) */}
                         <div className="flex-1 min-h-0 overflow-hidden">
@@ -1121,17 +1222,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             />
                         </div>
 
-                        {/* Natural-language timeline — bottom of the deck */}
-                        <TimelineStrip
-                            embedded
-                            visible={showTimeline}
-                            duration={audioState.duration}
-                            currentTime={audioState.currentTime}
-                            onApply={(patch) => setConfig(prev => ({ ...prev, ...patch }))}
-                        />
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* ─── Output Area: all canvas layers + UI panels + toolbar ─── */}
+            {/* order:1 = renders visually above the clip launcher (order:2) */}
+            <div className="relative min-h-0 overflow-hidden" style={{ order: 1, flex: 1, contain: 'strict' }}>
 
             {/* ─── Custom GLSL shader editor — draggable, pinnable ─── */}
             {showShaderPanel && !uiHidden && (
@@ -1369,6 +1466,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             {/* Accent Overlays */}
             <GlobalLighting id="global-lighting" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
+
+            {/* Post-processing effects overlay — covers ShaderLayer / ButterchurnLayer / 3D modes
+                where the per-canvas effect pipeline (AudioVisualizer, StudioStage) can't reach */}
+            <PostProcessLayer analyser={analyserRef.current} config={config} />
+
             <TextOverlay id="text-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
             <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={audioElRef} />
 
@@ -1443,10 +1545,45 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500/40 border-red-500/60 animate-pulse' : 'bg-black/40 border-white/10 hover:bg-red-500/30'}`}>
                     <Circle className="w-4 h-4" fill={isRecording ? 'currentColor' : 'none'} style={{ color: isRecording ? '#fca5a5' : 'rgba(255,255,255,0.8)' }} />
                 </button>
-                <button onClick={sendToDisplay} title="Send output to another display (fullscreen)"
-                    className="w-9 h-9 bg-black/40 hover:bg-sky-600/30 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
-                    <Monitor className="w-4 h-4 text-white/80" />
-                </button>
+                {/* Program Output — opens a dedicated visualizer-only popup window */}
+                <div className="relative">
+                    <button
+                        onClick={() => setShowProgramOutPicker(v => !v)}
+                        title="Program Output — open visualizer on a second display"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showProgramOutPicker ? 'bg-sky-600/40 border-sky-400/60' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}>
+                        <Monitor className="w-4 h-4 text-white/80" />
+                    </button>
+                    {showProgramOutPicker && (
+                        <div className="absolute bottom-12 right-0 w-72 rounded-xl overflow-hidden border border-white/10 shadow-2xl z-[300]"
+                            style={{ background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(24px)' }}>
+                            <div className="px-4 pt-3 pb-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/70 mb-1">Program Output</p>
+                                <p className="text-[9px] text-white/35 leading-relaxed mb-3">
+                                    Opens a visualizer-only popup window. Drag it to your second monitor and fullscreen it there (F11).
+                                </p>
+                                <button
+                                    onClick={openProgramOut}
+                                    className="w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                    style={{ background: 'rgba(14,165,233,0.3)', border: '1px solid rgba(14,165,233,0.5)', color: '#7dd3fc' }}
+                                >
+                                    Open Program Output Window
+                                </button>
+                                <button
+                                    onClick={sendToDisplay}
+                                    className="w-full mt-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+                                >
+                                    Fullscreen This Window on External Display
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => setShowProgramOutPicker(false)}
+                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white">
+                                <X className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
+                </div>
                 <button onClick={() => enterFullscreen()} title="Fullscreen"
                     className="w-9 h-9 bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
                     <Maximize2 className="w-4 h-4 text-white/80" />
@@ -1523,12 +1660,111 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     }
                 </button>
 
-                {/* Load Project */}
+                {/* Load Project (local file) */}
                 <label title="Load Project (.plajah)" className="w-9 h-9 bg-black/40 hover:bg-pink-600/30 backdrop-blur-xl border border-white/10 hover:border-pink-500/50 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer">
                     <FolderOpen className="w-4 h-4 text-white/70" />
                     <input type="file" accept=".plajah" onChange={handleLoadProject} className="hidden" />
                 </label>
+
+                {/* Cloud Projects — only shown when signed in */}
+                {auth.currentUser && (
+                    <button
+                        onClick={handleOpenCloudProjects}
+                        title="My Cloud Projects — open a saved project from your Plajah profile"
+                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showCloudProjects ? 'bg-sky-600/40 border-sky-400/60' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}
+                    >
+                        <Download className="w-4 h-4 text-white/70" />
+                    </button>
+                )}
             </div>
+
+            {/* Cloud Projects Modal */}
+            <AnimatePresence>
+                {showCloudProjects && (
+                    <motion.div
+                        key="cloud-projects-backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[400] flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+                        onClick={() => setShowCloudProjects(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="w-[480px] max-w-[92vw] max-h-[70vh] flex flex-col rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+                            style={{ background: 'rgba(6,6,18,0.98)', backdropFilter: 'blur(32px)' }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/08" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                                <div>
+                                    <p className="text-[11px] font-black uppercase tracking-widest text-white/80">My Cloud Projects</p>
+                                    <p className="text-[9px] text-white/30 mt-0.5">Saved to your Plajah profile · {auth.currentUser?.displayName || auth.currentUser?.email || 'You'}</p>
+                                </div>
+                                <button onClick={() => setShowCloudProjects(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-none">
+                                {cloudProjectsLoading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                                        <span className="text-[10px] text-white/40 ml-2">Loading projects…</span>
+                                    </div>
+                                ) : cloudProjects.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-white/25">
+                                        <FolderOpen className="w-8 h-8 mb-2" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">No cloud projects yet</p>
+                                        <p className="text-[9px] mt-1">Save a project to see it here</p>
+                                    </div>
+                                ) : cloudProjects.map(p => (
+                                    <div key={p.id}
+                                        className="flex items-center gap-3 p-3 rounded-xl border border-white/06 hover:border-white/15 hover:bg-white/04 transition-all group cursor-pointer"
+                                        onClick={() => handleLoadCloudProject(p.id)}
+                                    >
+                                        {/* Thumbnail */}
+                                        <div className="w-14 h-10 rounded-lg overflow-hidden shrink-0 bg-black/40">
+                                            {p.thumbnail
+                                                ? <img src={p.thumbnail} className="w-full h-full object-cover" alt="" />
+                                                : <div className="w-full h-full flex items-center justify-center"><Sparkles className="w-4 h-4 text-purple-400/50" /></div>
+                                            }
+                                        </div>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[11px] font-black text-white truncate">{p.projectName}</p>
+                                            <p className="text-[8px] text-white/35 mt-0.5">
+                                                {p.mode && <span className="uppercase tracking-widest mr-1.5">{p.mode}</span>}
+                                                {p.savedAt && new Date(p.savedAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        {/* Delete */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); handleDeleteCloudProject(p.id); }}
+                                            className="w-6 h-6 flex items-center justify-center rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-4 py-3 border-t border-white/06" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                <label className="flex items-center gap-2 text-[9px] text-white/30 hover:text-white/60 cursor-pointer transition-colors">
+                                    <FolderOpen className="w-3.5 h-3.5" />
+                                    Load from local .plajah file instead
+                                    <input type="file" accept=".plajah" onChange={e => { handleLoadProject(e); setShowCloudProjects(false); }} className="hidden" />
+                                </label>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Trigger Button: Settings Panel */}
             <button 
@@ -3075,6 +3311,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* ── End output area */}
+            </div>
+        </div>
+        {/* ── End outer flex wrapper */}
         </div>
     );
 };
