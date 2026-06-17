@@ -34,7 +34,7 @@ import { MidiEventData, rotatePalette } from '../services/midiService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ClipType = 'empty' | 'media' | 'generator' | 'milkdrop' | 'color';
+export type ClipType = 'empty' | 'media' | 'generator' | 'milkdrop' | 'color' | 'shader';
 
 export interface LauncherClip {
   id:            string;
@@ -54,6 +54,9 @@ export interface LauncherClip {
   milkdropName?: string;
   // color fill
   fillColor?:    string;
+  // shader
+  shaderSrc?:    string;
+  params?:       number[];  // iParam0..3 (0–1), only for shader clips
 }
 
 export interface LauncherLayer {
@@ -174,8 +177,12 @@ interface Props {
   bgMedia1?:     BackgroundMedia[];
   /** Shader library from ShaderPanel — shown as a SHADERS tab in the source browser. */
   shaderLibrary?: { name: string; src: string; category: string }[];
-  /** Called when user picks a shader from the source browser. */
+  /** Called when user picks a shader from the source browser (fly-drawer / non-cell path). */
   onApplyShader?: (src: string) => void;
+  /** Called when a shader clip cell fires or toggles off. src=null means stop. */
+  onLayerShader?: (layerIdx: number, src: string | null, blendMode: string, opacity: number, params: number[]) => void;
+  /** Called when the params sliders change for an active shader layer. */
+  onShaderParamsChange?: (layerIdx: number, params: number[]) => void;
   /** Content to render in the docked right panel (music controls + settings). */
   rightPanel?:   React.ReactNode;
   /** Called when the user taps the power button to close the launcher. */
@@ -228,6 +235,8 @@ const ClipCell: React.FC<CellProps> = ({
       onDragLeave={() => setDragOver(false)}
       onDrop={e => {
         e.preventDefault(); setDragOver(false);
+        const clipJson = e.dataTransfer.getData('application/plajah-clip');
+        if (clipJson) { try { onAssign(JSON.parse(clipJson)); } catch { /* */ } return; }
         const f = e.dataTransfer.files[0];
         if (f && (f.type.startsWith('video/') || f.type.startsWith('image/'))) onDrop(f);
       }}
@@ -289,6 +298,7 @@ const ClipCell: React.FC<CellProps> = ({
                 style={{ color: flash ? '#333' : active ? `${accent}99` : 'rgba(255,255,255,0.2)' }}>
                 {clip.type === 'generator' ? (clip.sceneKind === 'gl' ? 'GLSL' : 'GEN')
                 : clip.type === 'milkdrop' ? 'MILK'
+                : clip.type === 'shader'   ? 'GLSL'
                 : clip.type === 'media'    ? (clip.mediaType ?? 'MEDIA').toUpperCase()
                 : clip.type === 'color'    ? 'SOLID'
                 : ''}
@@ -655,14 +665,26 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                 return (
                   <div
                     key={shader.name}
-                    className="flex-shrink-0 flex flex-col justify-between cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04]"
+                    className="flex-shrink-0 flex flex-col justify-between cursor-grab rounded overflow-hidden transition-all hover:scale-[1.04]"
                     style={{ width: 80, background: `${color}18`, border: `1px solid ${color}44`, padding: '4px 6px' }}
+                    draggable
+                    onDragStart={e => {
+                      e.dataTransfer.setData('application/plajah-clip', JSON.stringify({
+                        id: `shader-${shader.name}-${Date.now()}`,
+                        type: 'shader',
+                        name: shader.name.slice(0, 18).toUpperCase(),
+                        color,
+                        shaderSrc: shader.src,
+                        opacity: 1,
+                        params: [0.5, 0.5, 0.5, 0.5],
+                      } as LauncherClip));
+                    }}
                     onClick={() => onApplyShader?.(shader.src)}
-                    title={`${shader.name} · ${shader.category}`}
+                    title={`${shader.name} · ${shader.category} — drag to a cell or click to preview`}
                   >
                     <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>{shader.category}</div>
                     <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>{shader.name}</div>
-                    <div className="text-[7px] font-black uppercase mt-0.5" style={{ color }}>GLSL</div>
+                    <div className="text-[7px] font-black uppercase mt-0.5" style={{ color }}>GLSL ↓ DRAG</div>
                   </div>
                 );
               })
@@ -698,12 +720,15 @@ const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
 const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetBgMedia,
   bgMedia1, shaderLibrary, onApplyShader,
+  onLayerShader, onShaderParamsChange,
   rightPanel, onPowerOff,
 }) => {
-  const [layers,      setLayers]      = useState<LauncherLayer[]>(() => loadLayers());
-  const [scrollLeft,  setScrollLeft]  = useState(0);
-  const [flashedPads, setFlashedPads] = useState<Set<number>>(new Set());
-  const [midiActive,  setMidiActive]  = useState(false);
+  const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
+  const [scrollLeft,    setScrollLeft]    = useState(0);
+  const [flashedPads,   setFlashedPads]   = useState<Set<number>>(new Set());
+  const [midiActive,    setMidiActive]    = useState(false);
+  const [selectedCell,  setSelectedCell]  = useState<{ li: number; ci: number } | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<'transport' | 'params'>('transport');
 
   const configRef = useRef(config);
   const milkRef   = useRef(milkdrop);
@@ -763,6 +788,9 @@ const ClipLauncher: React.FC<Props> = ({
       li === layerIdx ? { ...l, activeCol: l.activeCol === colIdx ? null : colIdx } : l
     ));
 
+    // Track which cell is selected for the PARAMS panel
+    setSelectedCell({ li: layerIdx, ci: colIdx });
+
     if (!clip) return;
     if (layer.bypassed || layer.muted) return;
 
@@ -792,10 +820,20 @@ const ClipLauncher: React.FC<Props> = ({
       const songName = decodeURIComponent(rawFile).replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
       if (songName) onApply({ textContent: songName } as any);
       if (layerIdx === 0) onApply({ blendMode: resolvedBlend });
+    } else if (clip.type === 'shader' && clip.shaderSrc) {
+      // Toggle: if this cell was already active we're turning it off
+      const wasActive = layer.activeCol === colIdx;
+      onLayerShader?.(
+        layerIdx,
+        wasActive ? null : clip.shaderSrc,
+        resolvedBlend,
+        layer.opacity,
+        clip.params ?? [0.5, 0.5, 0.5, 0.5],
+      );
     } else if (clip.type === 'color' && clip.fillColor) {
       onSetBgMedia(null);
     }
-  }, [onApply, onSetBgMedia]);
+  }, [onApply, onSetBgMedia, onLayerShader]);
 
   // ── Scene launch ────────────────────────────────────────────────────────────
   const launchScene = useCallback((colIdx: number) => {
@@ -1028,7 +1066,7 @@ const ClipLauncher: React.FC<Props> = ({
         />
       </div>
 
-      {/* ── Right panel (music + settings) ────────────────────────────── */}
+      {/* ── Right panel (PARAMS + transport/settings) ─────────────────── */}
       {rightPanel && (
         <div
           className="flex-shrink-0 flex flex-col overflow-hidden"
@@ -1038,7 +1076,123 @@ const ClipLauncher: React.FC<Props> = ({
             background: 'rgba(4,4,12,0.95)',
           }}
         >
-          {rightPanel}
+          {/* Tab bar */}
+          <div className="flex shrink-0" style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            {(['params', 'transport'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setRightPanelTab(t)}
+                className="flex-1 text-[8px] font-black uppercase tracking-widest transition-all"
+                style={{
+                  color: rightPanelTab === t ? '#c084fc' : 'rgba(255,255,255,0.25)',
+                  borderBottom: rightPanelTab === t ? '2px solid #8b5cf6' : '2px solid transparent',
+                  background: 'transparent',
+                }}
+              >
+                {t === 'params' ? '⚙ PARAMS' : '♬ CTRL'}
+              </button>
+            ))}
+          </div>
+
+          {rightPanelTab === 'params' ? (
+            /* ── FX / Shader params panel ── */
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+              {(() => {
+                const sel = selectedCell;
+                const clip = sel ? layers[sel.li]?.clips[sel.ci] : null;
+                const layer = sel ? layers[sel.li] : null;
+
+                if (!clip || !layer) return (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                    <div className="text-[8px] text-white/20 uppercase tracking-widest leading-relaxed">
+                      Fire a shader or<br />Milkdrop clip to<br />see parameters
+                    </div>
+                  </div>
+                );
+
+                if (clip.type === 'shader') return (
+                  <>
+                    <div className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#22d3ee' }}>
+                      {clip.name}
+                    </div>
+                    <div className="text-[7px] text-white/30 uppercase tracking-widest -mt-1">Shader Parameters</div>
+                    {(['A','B','C','D'] as const).map((label, idx) => {
+                      const val = clip.params?.[idx] ?? 0.5;
+                      return (
+                        <div key={label} className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <span className="text-[8px] font-black" style={{ color: '#22d3ee88' }}>PARAM {label}</span>
+                            <span className="text-[8px] font-mono text-white/40">{val.toFixed(2)}</span>
+                          </div>
+                          <input
+                            type="range" min="0" max="1" step="0.01"
+                            value={val}
+                            onChange={e => {
+                              const newParams = [...(clip.params ?? [0.5,0.5,0.5,0.5])];
+                              newParams[idx] = Number(e.target.value);
+                              updateClip(sel!.li, sel!.ci, { params: newParams });
+                              onShaderParamsChange?.(sel!.li, newParams);
+                            }}
+                            className="w-full cursor-pointer"
+                            style={{ accentColor: '#22d3ee', height: 14 }}
+                          />
+                        </div>
+                      );
+                    })}
+                    <div className="text-[6px] text-white/15 mt-2 leading-relaxed">
+                      Use iParam0–iParam3 in your GLSL to receive these values.
+                    </div>
+                  </>
+                );
+
+                if (clip.type === 'milkdrop') return (
+                  <>
+                    <div className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#c084fc' }}>
+                      {clip.name}
+                    </div>
+                    <div className="text-[7px] text-white/30 uppercase tracking-widest -mt-1">Milkdrop Controls</div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <span className="text-[8px] font-black" style={{ color: '#c084fc88' }}>BLEND SPEED</span>
+                        <span className="text-[8px] font-mono text-white/40">{((clip.params?.[0] ?? 0.5) * 4 + 0.5).toFixed(1)}s</span>
+                      </div>
+                      <input
+                        type="range" min="0" max="1" step="0.01"
+                        value={clip.params?.[0] ?? 0.5}
+                        onChange={e => {
+                          const newParams = [Number(e.target.value)];
+                          updateClip(sel!.li, sel!.ci, { params: newParams });
+                        }}
+                        className="w-full cursor-pointer"
+                        style={{ accentColor: '#c084fc', height: 14 }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <span className="text-[8px] font-black" style={{ color: '#c084fc88' }}>LAYER OPACITY</span>
+                        <span className="text-[8px] font-mono text-white/40">{Math.round(layer.opacity * 100)}%</span>
+                      </div>
+                      <input
+                        type="range" min="0" max="100" step="1"
+                        value={Math.round(layer.opacity * 100)}
+                        onChange={e => updateLayer(sel!.li, { opacity: Number(e.target.value) / 100 })}
+                        className="w-full cursor-pointer"
+                        style={{ accentColor: '#c084fc', height: 14 }}
+                      />
+                    </div>
+                  </>
+                );
+
+                return (
+                  <div className="text-[8px] text-white/20 text-center pt-4">
+                    Select a SHADER or<br />MILKDROP clip to edit params
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">{rightPanel}</div>
+          )}
         </div>
       )}
     </div>

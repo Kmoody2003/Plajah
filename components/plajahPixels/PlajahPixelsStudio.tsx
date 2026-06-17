@@ -184,6 +184,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [shaderStart, setShaderStart] = useState(0);
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
+    // Per-layer shaders from clip launcher (layerIdx → shader state)
+    type LayerShaderEntry = { src: string; blendMode: string; opacity: number; params: number[]; startTimeMs: number };
+    const [layerShaders, setLayerShaders] = useState<Record<number, LayerShaderEntry | null>>({});
     // Synthesia-style MIDI falling-notes scene (driven by live MIDI input).
     const [midiNotes, setMidiNotes] = useState(false);
     // 3D mode (React Three Fiber) — null = off.
@@ -360,6 +363,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setConfig(prev => ({ ...prev, ...patch }));
         }
     }, [editTarget]);
+
+    const handleLayerShader = useCallback((
+        layerIdx: number, src: string | null, blendMode: string, opacity: number, params: number[]
+    ) => {
+        setLayerShaders(prev => ({
+            ...prev,
+            [layerIdx]: src ? { src, blendMode, opacity, params, startTimeMs: performance.now() } : null,
+        }));
+    }, []);
+
+    const handleShaderParamsChange = useCallback((layerIdx: number, params: number[]) => {
+        setLayerShaders(prev => {
+            const entry = prev[layerIdx];
+            if (!entry) return prev;
+            return { ...prev, [layerIdx]: { ...entry, params } };
+        });
+    }, []);
 
     const applyShaderLook = useCallback((src: string) => {
         if (editTarget === 'preview') {
@@ -802,6 +822,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 bgMedia1={bgMedia1}
                                 shaderLibrary={SHADER_LIBRARY}
                                 onApplyShader={applyShaderLook}
+                                onLayerShader={handleLayerShader}
+                                onShaderParamsChange={handleShaderParamsChange}
                                 milkdrop={{
                                     enabled: milkdrop,
                                     name: milkdropMeta.name,
@@ -1317,6 +1339,22 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             onMeta={setMilkdropMeta}
                             onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
                         />
+                    )}
+
+                    {/* Clip launcher shader layers — one ShaderLayer per active shader cell */}
+                    {Object.entries(layerShaders).map(([li, entry]) =>
+                        entry && analyserRef.current ? (
+                            <ShaderLayer
+                                key={`layer-shader-${li}`}
+                                analyser={analyserRef.current}
+                                source={entry.src}
+                                startTimeMs={entry.startTimeMs}
+                                blendMode={entry.blendMode}
+                                layerOpacity={entry.opacity}
+                                params={entry.params}
+                                onError={() => {}}
+                            />
+                        ) : null
                     )}
                 </>
             )}

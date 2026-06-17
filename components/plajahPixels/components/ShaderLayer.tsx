@@ -12,6 +12,12 @@ interface Props {
   source: string;
   startTimeMs: number;
   onError?: (msg: string | null) => void;
+  /** CSS mix-blend-mode for layer compositing. */
+  blendMode?: string;
+  /** 0–1 layer opacity. */
+  layerOpacity?: number;
+  /** Up to 4 user-controlled parameters exposed as iParam0..iParam3 uniforms (0–1). */
+  params?: number[];
 }
 
 const VERT = `#version 300 es
@@ -27,12 +33,13 @@ uniform int iFrame;
 uniform vec4 iMouse;
 uniform sampler2D iChannel0;
 uniform float iBass, iMid, iTreble, iLevel;
+uniform float iParam0, iParam1, iParam2, iParam3;
 `;
 const FRAG_MAIN = `
 void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }
 `;
 
-const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError }) => {
+const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGL2RenderingContext | null>(null);
   const progRef = useRef<WebGLProgram | null>(null);
@@ -140,6 +147,10 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError }
         gl.uniform1i(u('iChannel0'), 0);
         gl.uniform1f(u('iBass'), bass); gl.uniform1f(u('iMid'), mid);
         gl.uniform1f(u('iTreble'), treble); gl.uniform1f(u('iLevel'), level);
+        gl.uniform1f(u('iParam0'), params?.[0] ?? 0.5);
+        gl.uniform1f(u('iParam1'), params?.[1] ?? 0.5);
+        gl.uniform1f(u('iParam2'), params?.[2] ?? 0.5);
+        gl.uniform1f(u('iParam3'), params?.[3] ?? 0.5);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         frameRef.current++;
       }
@@ -150,7 +161,16 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyser, startTimeMs]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full"
+      style={{
+        mixBlendMode: (blendMode ?? 'normal') as any,
+        opacity: layerOpacity ?? 1,
+      }}
+    />
+  );
 };
 
 export default ShaderLayer;
