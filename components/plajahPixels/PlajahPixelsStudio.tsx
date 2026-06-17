@@ -6,7 +6,7 @@ import {
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
-    Download, Send, Loader2
+    Download, Send, Loader2, SkipBack, SkipForward,
 } from 'lucide-react';
 import { uploadVideo, createVideoPlaylist, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
@@ -791,6 +791,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             <ClipLauncher
                                 config={editTarget === 'preview' ? previewConfig : config}
                                 onApply={applyLook}
+                                onPowerOff={() => setShowClipGrid(false)}
                                 onSetBgMedia={(media) => {
                                     if (media) setBgMedia1([media]);
                                     else setBgMedia1([]);
@@ -807,6 +808,286 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     onSetIdx: (i) => setMilkdropIdx(i),
                                     thumbnails: milkdropThumbnails,
                                 }}
+                                rightPanel={
+                                    <div className="h-full flex flex-col text-xs overflow-hidden">
+                                        {/* ── Music transport ─────────────────────────────── */}
+                                        <div className="shrink-0 p-3 space-y-2 border-b border-white/07" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                                            {platform?.currentTrackTitle && (
+                                                <div className="text-[9px] font-bold text-white/50 truncate px-0.5">
+                                                    {platform.currentTrackTitle}
+                                                </div>
+                                            )}
+                                            {/* Transport buttons */}
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button
+                                                    onClick={platform ? platform.prev : () => {}}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white/05 hover:bg-white/10 border border-white/08 transition-all"
+                                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                                                >
+                                                    <SkipBack className="w-3.5 h-3.5 text-white/60" />
+                                                </button>
+                                                <button
+                                                    onClick={effTogglePlay}
+                                                    className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
+                                                    style={{ background: audioState.isPlaying ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)', border: `1px solid ${audioState.isPlaying ? '#8b5cf6' : 'rgba(255,255,255,0.12)'}` }}
+                                                >
+                                                    {audioState.isPlaying
+                                                        ? <Pause className="w-4 h-4 text-purple-300" />
+                                                        : <Play  className="w-4 h-4 text-white/70" />}
+                                                </button>
+                                                <button
+                                                    onClick={platform ? platform.next : () => {}}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-full transition-all"
+                                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                                                >
+                                                    <SkipForward className="w-3.5 h-3.5 text-white/60" />
+                                                </button>
+                                            </div>
+                                            {/* Progress */}
+                                            <input
+                                                type="range" min="0" max={audioState.duration || 1} step="0.1"
+                                                value={audioState.currentTime}
+                                                onChange={e => effSeek(Number(e.target.value))}
+                                                className="w-full cursor-pointer"
+                                                style={{ accentColor: '#8b5cf6', height: 3 }}
+                                            />
+                                            {/* Volume */}
+                                            <div className="flex items-center gap-2">
+                                                {audioState.volume > 0
+                                                    ? <Volume2 className="w-3 h-3 text-white/30 shrink-0" />
+                                                    : <VolumeX className="w-3 h-3 text-white/30 shrink-0" />}
+                                                <input
+                                                    type="range" min="0" max="1" step="0.01"
+                                                    value={audioState.volume}
+                                                    onChange={e => effVolumeChange(Number(e.target.value))}
+                                                    className="flex-1 cursor-pointer"
+                                                    style={{ accentColor: '#8b5cf6', height: 3 }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* ── Settings tabs (compact) ─────────────────────── */}
+                                        <div className="shrink-0 flex overflow-x-auto" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', scrollbarWidth: 'none' }}>
+                                            {(['core','colors','ambient','stage','text','ai','midi'] as const).map(t => (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => setActiveTab(t)}
+                                                    className="flex-shrink-0 px-2 py-1.5 text-[8px] font-black uppercase tracking-wider transition-all border-b-2"
+                                                    style={{
+                                                        borderBottomColor: activeTab === t ? '#8b5cf6' : 'transparent',
+                                                        color: activeTab === t ? '#c084fc' : 'rgba(255,255,255,0.35)',
+                                                        background: 'transparent',
+                                                    }}
+                                                >
+                                                    {t}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* ── Settings content (scrollable) ───────────────── */}
+                                        <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ scrollbarWidth: 'thin' }}>
+
+                                            {/* CORE */}
+                                            {activeTab === 'core' && (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="text-[9px] text-white/40 block mb-1 uppercase tracking-widest">Mode</label>
+                                                        <select value={config.mode} onChange={e => setConfig(p => ({ ...p, mode: e.target.value as any }))}
+                                                            className="w-full bg-black/60 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none">
+                                                            {Object.values(VisualizerMode).map(m => <option key={m} value={m} className="bg-zinc-900">{m}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Sensitivity</span><span className="text-purple-400 font-mono">{config.sensitivity}x</span></div>
+                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={e => setConfig(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Speed</span><span className="text-purple-400 font-mono">{config.speed}x</span></div>
+                                                        <input type="range" min="0.1" max="3.0" step="0.1" value={config.speed} onChange={e => setConfig(p => ({ ...p, speed: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Smoothing</span><span className="text-purple-400 font-mono">{config.smoothingTimeConstant}</span></div>
+                                                        <input type="range" min="0" max="0.95" step="0.05" value={config.smoothingTimeConstant} onChange={e => setConfig(p => ({ ...p, smoothingTimeConstant: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Glow</span><span className="text-purple-400 font-mono">{config.glowIntensity}</span></div>
+                                                        <input type="range" min="0" max="40" step="1" value={config.glowIntensity} onChange={e => setConfig(p => ({ ...p, glowIntensity: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Blur</span>
+                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    {config.enableBlur && (
+                                                        <div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Blur strength</span><span className="text-purple-400 font-mono">{config.blurStrength}</span></div>
+                                                            <input type="range" min="0.1" max="2.0" step="0.1" value={config.blurStrength} onChange={e => setConfig(p => ({ ...p, blurStrength: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>FPS Target</span></div>
+                                                        <div className="flex gap-1">
+                                                            {[30, 60].map(fps => (
+                                                                <button key={fps} onClick={() => setConfig(p => ({ ...p, targetFrameRate: fps as 30|60 }))}
+                                                                    className="flex-1 py-1 rounded text-[9px] font-mono transition-all"
+                                                                    style={{ background: config.targetFrameRate === fps ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)', border: `1px solid ${config.targetFrameRate === fps ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`, color: config.targetFrameRate === fps ? '#c084fc' : 'rgba(255,255,255,0.5)' }}>
+                                                                    {fps}fps
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* COLORS */}
+                                            {activeTab === 'colors' && (
+                                                <div className="space-y-3">
+                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">Palette</p>
+                                                    <ColorPaletteEditor colors={config.colorPalette} onChange={colors => setConfig(p => ({ ...p, colorPalette: colors }))} />
+                                                </div>
+                                            )}
+
+                                            {/* AMBIENT / FX */}
+                                            {activeTab === 'ambient' && (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Blur</span>
+                                                        <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particles</span><span className="text-purple-400 font-mono">{config.particleCount}</span></div>
+                                                        <input type="range" min="10" max="300" step="10" value={config.particleCount} onChange={e => setConfig(p => ({ ...p, particleCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particle life</span><span className="text-purple-400 font-mono">{config.particleLifespan}s</span></div>
+                                                        <input type="range" min="0.5" max="5.0" step="0.1" value={config.particleLifespan} onChange={e => setConfig(p => ({ ...p, particleLifespan: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Layer 2</span>
+                                                        <input type="checkbox" checked={config.enableLayer2} onChange={e => setConfig(p => ({ ...p, enableLayer2: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    {config.enableLayer2 && (
+                                                        <div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Layer 2 opacity</span><span className="text-purple-400 font-mono">{config.layer2Opacity}</span></div>
+                                                            <input type="range" min="0" max="1" step="0.05" value={config.layer2Opacity} onChange={e => setConfig(p => ({ ...p, layer2Opacity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* STAGE */}
+                                            {activeTab === 'stage' && (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Mirror slicing</span>
+                                                        <input type="checkbox" checked={config.enableSlicing} onChange={e => setConfig(p => ({ ...p, enableSlicing: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    {config.enableSlicing && (
+                                                        <>
+                                                            <div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Slices</span><span className="text-purple-400 font-mono">{config.sliceCount}</span></div>
+                                                                <input type="range" min="2" max="24" step="1" value={config.sliceCount} onChange={e => setConfig(p => ({ ...p, sliceCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-purple-400 font-mono">{config.sliceRotation}°</span></div>
+                                                                <input type="range" min="0" max="360" step="5" value={config.sliceRotation} onChange={e => setConfig(p => ({ ...p, sliceRotation: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Beams</span>
+                                                        <input type="checkbox" checked={config.enableBeams} onChange={e => setConfig(p => ({ ...p, enableBeams: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Bass shake</span>
+                                                        <input type="checkbox" checked={config.enableBassShake} onChange={e => setConfig(p => ({ ...p, enableBassShake: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    {config.enableBassShake && (
+                                                        <div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Shake intensity</span><span className="text-purple-400 font-mono">{config.bassShakeIntensity}</span></div>
+                                                            <input type="range" min="0.1" max="3.0" step="0.1" value={config.bassShakeIntensity} onChange={e => setConfig(p => ({ ...p, bassShakeIntensity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Lighting</span>
+                                                        <input type="checkbox" checked={config.enableLighting} onChange={e => setConfig(p => ({ ...p, enableLighting: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TEXT */}
+                                            {activeTab === 'text' && (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>Text overlay</span>
+                                                        <input type="checkbox" checked={config.enableText} onChange={e => setConfig(p => ({ ...p, enableText: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    {config.enableText && (
+                                                        <>
+                                                            <input type="text" value={config.textContent} onChange={e => setConfig(p => ({ ...p, textContent: e.target.value }))} placeholder="Display text…" className="w-full bg-black/50 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none" />
+                                                            <div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Size</span><span className="text-purple-400 font-mono">{config.textSize}px</span></div>
+                                                                <input type="range" min="40" max="240" step="4" value={config.textSize} onChange={e => setConfig(p => ({ ...p, textSize: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                                <span>Captions</span>
+                                                                <input type="checkbox" checked={config.enableCaptions} onChange={e => setConfig(p => ({ ...p, enableCaptions: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* AI */}
+                                            {activeTab === 'ai' && (
+                                                <div className="space-y-3">
+                                                    <p className="text-[9px] text-white/40 uppercase tracking-widest">AI & Project</p>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={handleSaveProject} disabled={isSaving}
+                                                            className="flex-1 py-1.5 rounded text-[9px] font-bold transition-all"
+                                                            style={{ background: saveSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)', border: `1px solid ${saveSuccess ? '#10b981' : '#8b5cf6'}`, color: saveSuccess ? '#6ee7b7' : '#c084fc' }}>
+                                                            {saveSuccess ? '✓ Saved' : isSaving ? '…' : 'Save Project'}
+                                                        </button>
+                                                        <label className="flex-1 cursor-pointer">
+                                                            <input type="file" accept=".plajah" onChange={handleLoadProject} className="hidden" />
+                                                            <div className="w-full py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Load</div>
+                                                        </label>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="text-[9px] text-white/40 uppercase tracking-widest">BG Layer 1</p>
+                                                        <label className="block cursor-pointer">
+                                                            <input type="file" accept="image/*,video/mp4" onChange={e => handleBgUpload(e, 1)} className="hidden" />
+                                                            <div className="py-1.5 rounded text-[9px] font-bold text-center transition-all" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>+ Add BG file</div>
+                                                        </label>
+                                                        {bgMedia1.length > 0 && (
+                                                            <button onClick={() => setBgMedia1([])} className="w-full py-1 rounded text-[9px] text-red-400 transition-all" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>Clear ({bgMedia1.length})</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* MIDI */}
+                                            {activeTab === 'midi' && (
+                                                <MidiController
+                                                    config={config}
+                                                    setConfig={setConfig}
+                                                    audioContextRef={audioContextRef}
+                                                    analyserRef={analyserRef}
+                                                    audioElRef={audioElRef}
+                                                    sourceRef={sourceRef}
+                                                />
+                                            )}
+
+                                            {/* Open full settings link */}
+                                            <button
+                                                onClick={() => setIsSettingsOpen(v => !v)}
+                                                className="w-full py-2 mt-1 rounded text-[9px] font-black uppercase tracking-widest transition-all"
+                                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}
+                                            >
+                                                {isSettingsOpen ? '✕ Close' : '⚙ Full Settings'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
                             />
                         </div>
 

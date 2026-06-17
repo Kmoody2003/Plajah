@@ -1,22 +1,23 @@
 /**
  * ClipLauncher — Resolume-style clip matrix for Plajah Pixels.
  *
- * Layout (bottom of screen, slides up):
- *   ┌─ scene-launch bar ─────────────────────────────────────────────┐
- *   │  [Layer 3 controls] │ clips →  →  →  (scrollable columns)      │
- *   │  [Layer 2 controls] │ clips →  →  →                            │
- *   │  [Layer 1 controls] │ clips →  →  →                            │
- *   └─ source browser (GENERATORS / MILKDROP / MEDIA) ───────────────┘
+ * Layout:
+ *   ┌─ scene-launch bar ──────────────────────────────────────────── [⏻] ─┐
+ *   │  [Layer N controls] │ clips →  →  →  (scrollable columns)           │
+ *   │  [Layer 2 controls] │ clips →  →  →                    │ Right panel│
+ *   │  [Layer 1 controls] │ clips →  →  →                    │ (music +   │
+ *   │  [+ ADD LAYER]                                          │  settings) │
+ *   └─ source browser ───────────────────────────────────────────────────┘
  *
- * Layers (bottom = first rendered, top = last / highest z):
- *   Layer 1 (BG)  → onSetBgMedia  (background media or static color)
- *   Layer 2 (VIZ) → onApply({mode}) (audio-reactive generator scene)
+ * Per-clip opacity: drag the dot inside each clip left/right to fade.
+ * Per-layer opacity: the horizontal bar in the layer sidebar.
+ * Power button: top-right — closes the launcher, returning to fly-drawer mode.
+ *
+ * Layers (bottom = first rendered, top = last):
+ *   Layer 1 (BG)  → onSetBgMedia
+ *   Layer 2 (VIZ) → onApply({mode})
  *   Layer 3 (FX)  → FX toggles + Milkdrop
- *
- * MIDI (Maschine Studio 4×4, notes 60-75):
- *   Pad rows 1-3  → fire individual clip: layerIdx = row, colIdx = col
- *   Pad row  4    → scene-launch column: fires clips 0-3 across all layers
- *   Formula: padIdx = note-60; col = padIdx%4; row = padIdx>>2
+ *   Layer 4+      → user-added layers
  */
 
 import React, {
@@ -25,7 +26,7 @@ import React, {
 import {
   Play, Square, ChevronLeft, ChevronRight, Upload, Plus,
   Zap, Disc, Image, Video, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
-  Eye, EyeOff, Layers,
+  Eye, EyeOff, Layers, Power, X,
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
@@ -40,11 +41,12 @@ export interface LauncherClip {
   type:          ClipType;
   name:          string;
   color:         string;
+  opacity?:      number;  // 0–1, default 1 (per-clip fade)
   // media
   mediaUrl?:     string;
   mediaType?:    'video' | 'image';
   loop?:         boolean;
-  // generator (maps to our scene catalog)
+  // generator
   sceneMode?:    string;
   sceneKind?:    'classic' | 'canvas' | 'gl';
   // milkdrop
@@ -58,10 +60,10 @@ export interface LauncherLayer {
   id:          string;
   name:        string;
   blendMode:   string;
-  opacity:     number;   // 0–1
+  opacity:     number;   // 0–1 (layer-wide fade)
   bypassed:    boolean;
   muted:       boolean;
-  clips:       (LauncherClip | null)[];  // indexed by column
+  clips:       (LauncherClip | null)[];
   activeCol:   number | null;
 }
 
@@ -75,27 +77,22 @@ export interface MilkdropControls {
   onNext:      () => void;
   onRandom:    () => void;
   onSetIdx:    (i: number) => void;
-  /** Thumbnail map: preset name → JPEG data URL */
   thumbnails?: Record<string, string>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLEND_OPTIONS = ['Normal','Screen','Add','Multiply','Overlay','Lighten','Exclusion','Difference'];
-
-const NUM_COLS = 8;   // visible scrollable columns per layer
-
+const NUM_COLS      = 8;
 const ACCENT_COLORS = ['#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#a78bfa'];
 
 function makeDefaultLayers(): LauncherLayer[] {
-  // Layer 1 – BG (background media)
   const bg: LauncherLayer = {
     id: 'bg', name: 'BG', blendMode: 'Normal', opacity: 1, bypassed: false, muted: false,
     clips: Array(NUM_COLS).fill(null),
     activeCol: null,
   };
 
-  // Layer 2 – VIZ (audio-reactive generator scenes)
   const vizScenes: SceneEntry[] = SCENE_CATALOG.slice(0, NUM_COLS);
   const viz: LauncherLayer = {
     id: 'viz', name: 'VIZ', blendMode: 'Screen', opacity: 1, bypassed: false, muted: false,
@@ -106,17 +103,17 @@ function makeDefaultLayers(): LauncherLayer[] {
       color:     ACCENT_COLORS[i % ACCENT_COLORS.length],
       sceneMode: s.mode,
       sceneKind: s.kind,
+      opacity:   1,
     })),
     activeCol: 0,
   };
 
-  // Layer 3 – FX (effects / Milkdrop)
-  const fxClips: LauncherClip[] = [
-    { id: 'fx-milk',  type: 'milkdrop',   name: 'MILKDROP',  color: '#c084fc', milkdropIdx: 0 },
-    { id: 'fx-milk2', type: 'milkdrop',   name: 'MILK NEXT', color: '#a855f7', milkdropIdx: 1 },
-    { id: 'fx-glitch',type: 'generator',  name: 'GLITCH',    color: '#22d3ee', sceneMode: '__fx_glitch'   },
-    { id: 'fx-bass',  type: 'generator',  name: 'BASS↑',     color: '#ef4444', sceneMode: '__fx_bass'     },
-    ...Array(NUM_COLS - 4).fill(null).map((_, i) => null),
+  const fxClips: (LauncherClip | null)[] = [
+    { id: 'fx-milk',   type: 'milkdrop',  name: 'MILKDROP', color: '#c084fc', milkdropIdx: 0, opacity: 1 },
+    { id: 'fx-milk2',  type: 'milkdrop',  name: 'MILK NEXT',color: '#a855f7', milkdropIdx: 1, opacity: 1 },
+    { id: 'fx-glitch', type: 'generator', name: 'GLITCH',   color: '#22d3ee', sceneMode: '__fx_glitch', opacity: 1 },
+    { id: 'fx-bass',   type: 'generator', name: 'BASS↑',    color: '#ef4444', sceneMode: '__fx_bass',   opacity: 1 },
+    ...Array(NUM_COLS - 4).fill(null),
   ];
   const fx: LauncherLayer = {
     id: 'fx', name: 'FX', blendMode: 'Add', opacity: 0.8, bypassed: false, muted: false,
@@ -127,9 +124,8 @@ function makeDefaultLayers(): LauncherLayer[] {
   return [bg, viz, fx];
 }
 
-const MATRIX_KEY = 'plajah-clip-launcher-v1';
+const MATRIX_KEY = 'plajah-clip-launcher-v2';
 
-// Canvas2D composite operation names mapped from launcher blend mode labels
 const BLEND_MAP: Record<string, string> = {
   normal:     'source-over',
   screen:     'screen',
@@ -145,15 +141,13 @@ function loadLayers(): LauncherLayer[] {
   try {
     const raw = sessionStorage.getItem(MATRIX_KEY);
     if (!raw) return makeDefaultLayers();
-    const saved = JSON.parse(raw) as LauncherLayer[];
-    return saved;
+    return JSON.parse(raw) as LauncherLayer[];
   } catch {
     return makeDefaultLayers();
   }
 }
 function saveLayers(ls: LauncherLayer[]) {
   try {
-    // Don't persist blob URLs (they don't survive reload)
     const stripped = ls.map(l => ({
       ...l,
       clips: l.clips.map(c => {
@@ -172,29 +166,34 @@ interface Props {
   onApply:       (patch: Partial<VisualizationConfig>) => void;
   milkdrop:      MilkdropControls;
   onSetBgMedia:  (media: BackgroundMedia | null) => void;
+  /** Content to render in the docked right panel (music controls + settings). */
+  rightPanel?:   React.ReactNode;
+  /** Called when the user taps the power button to close the launcher. */
+  onPowerOff?:   () => void;
 }
 
 // ─── Clip Cell ────────────────────────────────────────────────────────────────
 
 interface CellProps {
-  clip:       LauncherClip | null;
-  layerIdx:   number;
-  colIdx:     number;
-  active:     boolean;
-  flash:      boolean;
-  onActivate: () => void;
-  onDrop:     (file: File) => void;
-  onAssign:   (clip: LauncherClip) => void;
+  clip:             LauncherClip | null;
+  layerIdx:         number;
+  colIdx:           number;
+  active:           boolean;
+  flash:            boolean;
+  onActivate:       () => void;
+  onDrop:           (file: File) => void;
+  onAssign:         (clip: LauncherClip) => void;
+  onUpdateOpacity:  (opacity: number) => void;
 }
 
 const ClipCell: React.FC<CellProps> = ({
-  clip, layerIdx, colIdx, active, flash, onActivate, onDrop,
+  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onUpdateOpacity,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const padNum = layerIdx * 4 + colIdx; // 0-based pad index (only first 4 cols have pads)
-
-  const accent = clip?.color ?? '#444';
+  const padNum  = layerIdx * 4 + colIdx;
+  const accent  = clip?.color ?? '#444';
+  const clipOpacity = clip?.opacity ?? 1;
 
   return (
     <div
@@ -205,13 +204,14 @@ const ClipCell: React.FC<CellProps> = ({
                   : active ? `linear-gradient(160deg,${accent}44,${accent}18)`
                   : dragOver ? `${accent}22`
                   : '#111118',
-        border: flash     ? '1px solid rgba(255,255,255,0.9)'
-              : active    ? `1px solid ${accent}cc`
-              : dragOver  ? `1px solid ${accent}`
+        border: flash    ? '1px solid rgba(255,255,255,0.9)'
+              : active   ? `1px solid ${accent}cc`
+              : dragOver ? `1px solid ${accent}`
               : '1px solid rgba(255,255,255,0.06)',
         borderRadius: 3,
         transform: flash ? 'scale(0.93)' : 'scale(1)',
         boxShadow: active && !flash ? `0 0 0 1px ${accent}55, 0 0 16px ${accent}33` : 'none',
+        opacity: clipOpacity < 1 ? 0.4 + clipOpacity * 0.6 : 1,
       }}
       onClick={clip ? onActivate : () => fileRef.current?.click()}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -248,11 +248,12 @@ const ClipCell: React.FC<CellProps> = ({
       )}
 
       {/* Content overlay */}
-      <div className="relative z-10 h-full flex flex-col justify-between p-1 pl-2">
+      <div className="relative z-10 h-full flex flex-col justify-between p-1 pl-2 pb-4">
         {/* Top row */}
         <div className="flex items-center justify-between">
           {colIdx < 4 && layerIdx < 3 && (
-            <span className="text-[6px] font-black font-mono" style={{ color: flash ? '#000' : 'rgba(255,255,255,0.2)' }}>
+            <span className="text-[6px] font-black font-mono"
+              style={{ color: flash ? '#000' : 'rgba(255,255,255,0.2)' }}>
               P{padNum + 1}
             </span>
           )}
@@ -287,6 +288,42 @@ const ClipCell: React.FC<CellProps> = ({
         </div>
       </div>
 
+      {/* ── Per-clip opacity dot ── */}
+      {clip && (
+        <div
+          className="absolute bottom-1 left-2 right-2 z-20"
+          onClick={e => e.stopPropagation()}
+          title={`Clip opacity: ${Math.round(clipOpacity * 100)}%`}
+        >
+          {/* Visual track + filled portion */}
+          <div className="relative h-3 flex items-center">
+            <div className="w-full h-px rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
+            <div
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-px rounded-full pointer-events-none"
+              style={{ width: `${clipOpacity * 100}%`, background: accent }}
+            />
+            {/* Dot handle (visible) */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full shadow-lg pointer-events-none transition-colors"
+              style={{
+                left:       `calc(${clipOpacity * 100}% - 5px)`,
+                background: active ? accent : `${accent}cc`,
+                border:     `1.5px solid ${active ? '#fff' : 'rgba(255,255,255,0.3)'}`,
+                boxShadow:  active ? `0 0 6px ${accent}` : 'none',
+              }}
+            />
+            {/* Invisible range input — handles all pointer events */}
+            <input
+              type="range" min="0" max="100" step="1"
+              value={Math.round(clipOpacity * 100)}
+              onChange={e => onUpdateOpacity(Number(e.target.value) / 100)}
+              className="absolute inset-0 w-full cursor-ew-resize"
+              style={{ opacity: 0, height: '100%', margin: 0, padding: 0 }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input */}
       <input ref={fileRef} type="file" accept="video/*,image/*" className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) onDrop(f); }} />
@@ -297,52 +334,68 @@ const ClipCell: React.FC<CellProps> = ({
 // ─── Layer Row ────────────────────────────────────────────────────────────────
 
 interface LayerRowProps {
-  layer:       LauncherLayer;
-  layerIdx:    number;
-  scrollLeft:  number;
-  flashedPads: Set<number>;
+  layer:         LauncherLayer;
+  layerIdx:      number;
+  scrollLeft:    number;
+  flashedPads:   Set<number>;
   onUpdateLayer: (patch: Partial<LauncherLayer>) => void;
+  onUpdateClip:  (colIdx: number, patch: Partial<LauncherClip>) => void;
   onFireClip:    (colIdx: number) => void;
   onDropMedia:   (colIdx: number, file: File) => void;
   onAssignClip:  (colIdx: number, clip: LauncherClip) => void;
+  onDeleteLayer: () => void;
+  isDefaultLayer: boolean;
 }
 
-const CELL_HEIGHT = 72;
+const CELL_HEIGHT = 80;
+const LAYER_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
 
 const LayerRow: React.FC<LayerRowProps> = ({
   layer, layerIdx, scrollLeft, flashedPads,
-  onUpdateLayer, onFireClip, onDropMedia, onAssignClip,
+  onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip,
+  onDeleteLayer, isDefaultLayer,
 }) => {
-  const isFlashed = (ci: number) => flashedPads.has(layerIdx * 4 + ci);
-  const layerColor = layerIdx === 0 ? '#6366f1' : layerIdx === 1 ? '#8b5cf6' : '#06b6d4';
+  const isFlashed  = (ci: number) => flashedPads.has(layerIdx * 4 + ci);
+  const layerColor = LAYER_COLORS[layerIdx % LAYER_COLORS.length];
 
   return (
     <div className="flex items-stretch" style={{ height: CELL_HEIGHT }}>
-      {/* ── Layer controls sidebar ───────────────────────────────────── */}
+      {/* ── Layer controls sidebar ─────────────────────────────────────── */}
       <div
-        className="flex-shrink-0 flex flex-col justify-between px-2 py-1"
+        className="flex-shrink-0 flex flex-col justify-between px-2 py-1.5 gap-1"
         style={{
-          width: 96,
-          background: layer.bypassed ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.4)',
+          width: 104,
+          background: layer.bypassed ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.45)',
           borderRight: `1px solid ${layerColor}33`,
           opacity: layer.muted ? 0.4 : 1,
         }}
       >
-        {/* Layer name + bypass */}
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: layerColor }}>
+        {/* Layer name + bypass + delete */}
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[9px] font-black uppercase tracking-widest truncate" style={{ color: layerColor }}>
             {layer.name}
           </span>
-          <button
-            onClick={() => onUpdateLayer({ bypassed: !layer.bypassed })}
-            className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-black transition-all"
-            style={{
-              background: layer.bypassed ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.05)',
-              border: layer.bypassed ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
-              color: layer.bypassed ? '#ef4444' : 'rgba(255,255,255,0.3)',
-            }}
-            title="Bypass layer"
-          >⊘</button>
+          <div className="flex items-center gap-0.5">
+            {!isDefaultLayer && (
+              <button
+                onClick={onDeleteLayer}
+                className="w-4 h-4 rounded flex items-center justify-center text-white/20 hover:text-red-400 transition-colors"
+                title="Remove layer"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+            <button
+              onClick={() => onUpdateLayer({ bypassed: !layer.bypassed })}
+              className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-black transition-all"
+              style={{
+                background: layer.bypassed ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.05)',
+                border:     layer.bypassed ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
+                color:      layer.bypassed ? '#ef4444' : 'rgba(255,255,255,0.3)',
+              }}
+              title="Bypass layer"
+            >⊘</button>
+          </div>
         </div>
 
         {/* Blend mode */}
@@ -358,18 +411,21 @@ const LayerRow: React.FC<LayerRowProps> = ({
           {BLEND_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
 
-        {/* Opacity bar */}
-        <div className="flex items-center gap-1">
-          <input
-            type="range" min="0" max="100" step="1"
-            value={Math.round(layer.opacity * 100)}
-            onChange={e => onUpdateLayer({ opacity: Number(e.target.value) / 100 })}
-            className="flex-1 h-1 appearance-none rounded cursor-pointer"
-            style={{ accentColor: layerColor }}
-          />
-          <span className="text-[7px] font-mono w-6 text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            {Math.round(layer.opacity * 100)}
-          </span>
+        {/* Row opacity — taller hit area, more visible */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            <input
+              type="range" min="0" max="100" step="1"
+              value={Math.round(layer.opacity * 100)}
+              onChange={e => onUpdateLayer({ opacity: Number(e.target.value) / 100 })}
+              className="flex-1 cursor-pointer"
+              style={{ accentColor: layerColor, height: 14 }}
+            />
+            <span className="text-[7px] font-mono w-6 text-right shrink-0"
+              style={{ color: 'rgba(255,255,255,0.4)' }}>
+              {Math.round(layer.opacity * 100)}
+            </span>
+          </div>
         </div>
 
         {/* Mute toggle */}
@@ -400,6 +456,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               onActivate={() => onFireClip(ci)}
               onDrop={f => onDropMedia(ci, f)}
               onAssign={c => onAssignClip(ci, c)}
+              onUpdateOpacity={opacity => onUpdateClip(ci, { opacity })}
             />
           ))}
         </div>
@@ -422,13 +479,12 @@ interface SourceBrowserProps {
 const SourceBrowser: React.FC<SourceBrowserProps> = ({
   milkdropControls, onAssignToLayer, layers,
 }) => {
-  const [tab, setTab] = useState<SourceTab>('generators');
-  const [search, setSearch] = useState('');
-  const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
-  const [loadingMilk, setLoadingMilk] = useState(false);
-  const [milkLoaded, setMilkLoaded] = useState(false);
+  const [tab,          setTab]          = useState<SourceTab>('generators');
+  const [search,       setSearch]       = useState('');
+  const [milkdropNames,setMilkdropNames]= useState<string[]>([]);
+  const [loadingMilk,  setLoadingMilk]  = useState(false);
+  const [milkLoaded,   setMilkLoaded]   = useState(false);
 
-  // Load Milkdrop preset names lazily when tab opens
   useEffect(() => {
     if (tab !== 'milkdrop' || milkLoaded) return;
     setLoadingMilk(true);
@@ -440,18 +496,17 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
     }).catch(() => {}).finally(() => setLoadingMilk(false));
   }, [tab, milkLoaded]);
 
-  const generators = useMemo(() =>
+  const generators   = useMemo(() =>
     SCENE_CATALOG.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase())),
   [search]);
-
   const filteredMilk = useMemo(() =>
     milkdropNames.filter(n => !search || n.toLowerCase().includes(search.toLowerCase())).slice(0, 120),
   [milkdropNames, search]);
 
   return (
     <div className="flex flex-col" style={{ height: 110, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-      {/* Source tabs */}
-      <div className="flex items-center gap-0 px-2 shrink-0" style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center gap-0 px-2 shrink-0"
+        style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         {([
           ['generators', Zap,   'GENERATORS'] as const,
           ['milkdrop',   Wind,  'MILKDROP']   as const,
@@ -469,7 +524,6 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
             <Icon className="w-3 h-3" />{label}
           </button>
         ))}
-        {/* Search */}
         <div className="ml-auto flex items-center gap-1.5 mr-1">
           <Search className="w-3 h-3 text-white/20" />
           <input
@@ -481,31 +535,25 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
         </div>
       </div>
 
-      {/* Content area */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'none' }}>
         <div className="flex gap-1 h-full items-stretch p-1">
 
-          {/* ── Generators ── */}
-          {tab === 'generators' && generators.map((s, i) => {
+          {tab === 'generators' && generators.map((s) => {
             const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#8b5cf6';
             return (
               <div
                 key={s.mode}
                 className="flex-shrink-0 flex flex-col justify-between cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04]"
-                style={{
-                  width: 72, background: `${color}18`,
-                  border: `1px solid ${color}44`,
-                  padding: '4px 6px',
-                }}
+                style={{ width: 72, background: `${color}18`, border: `1px solid ${color}44`, padding: '4px 6px' }}
                 draggable
                 onDragStart={e => {
                   e.dataTransfer.setData('application/plajah-clip', JSON.stringify({
                     id: `gen-${s.mode}-${Date.now()}`,
                     type: 'generator', name: s.name, color,
-                    sceneMode: s.mode, sceneKind: s.kind,
+                    sceneMode: s.mode, sceneKind: s.kind, opacity: 1,
                   } as LauncherClip));
                 }}
-                title={`${s.name} — ${s.cat}\nDrag to a layer cell or click to preview`}
+                title={`${s.name} — ${s.cat}`}
               >
                 <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>
                   {s.kind === 'gl' ? 'GLSL' : s.kind === 'canvas' ? 'GEN' : 'AUDIO'}
@@ -513,23 +561,24 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                 <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>
                   {s.name}
                 </div>
-                <div className="text-[6px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{s.cat.split('·')[1]?.trim()}</div>
+                <div className="text-[6px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  {s.cat.split('·')[1]?.trim()}
+                </div>
               </div>
             );
           })}
 
-          {/* ── Milkdrop ── */}
           {tab === 'milkdrop' && (
             <>
-              {/* Quick controls */}
-              <div className="flex-shrink-0 flex flex-col justify-center gap-1.5 pr-2" style={{ width: 100, borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex-shrink-0 flex flex-col justify-center gap-1.5 pr-2"
+                style={{ width: 100, borderRight: '1px solid rgba(255,255,255,0.07)' }}>
                 <button
                   onClick={milkdropControls.onToggle}
                   className="flex items-center justify-center gap-1 text-[8px] font-black uppercase rounded py-1 px-2 transition-all"
                   style={{
                     background: milkdropControls.enabled ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.05)',
-                    border: milkdropControls.enabled ? '1px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
-                    color: milkdropControls.enabled ? '#c084fc' : 'rgba(255,255,255,0.4)',
+                    border:     milkdropControls.enabled ? '1px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
+                    color:      milkdropControls.enabled ? '#c084fc' : 'rgba(255,255,255,0.4)',
                   }}
                 >
                   <Wind className="w-3 h-3" />
@@ -547,13 +596,12 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                 )}
               </div>
 
-              {/* Preset grid */}
               {loadingMilk ? (
                 <div className="flex items-center px-4 text-[9px] text-white/30">Loading presets…</div>
               ) : (
                 filteredMilk.map((name, i) => {
                   const isActive = milkdropControls.name === name;
-                  const thumb = milkdropControls.thumbnails?.[name];
+                  const thumb    = milkdropControls.thumbnails?.[name];
                   return (
                     <div
                       key={name}
@@ -561,8 +609,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                       style={{
                         width: 80,
                         backgroundImage: thumb ? `url(${thumb})` : undefined,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
+                        backgroundSize: 'cover', backgroundPosition: 'center',
                         background: !thumb ? (isActive ? 'rgba(192,132,252,0.25)' : 'rgba(124,58,237,0.12)') : undefined,
                         border: isActive ? '1px solid #c084fc' : '1px solid rgba(192,132,252,0.2)',
                         padding: '4px 6px',
@@ -574,8 +621,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                         e.dataTransfer.setData('application/plajah-clip', JSON.stringify({
                           id: `milk-${i}-${Date.now()}`,
                           type: 'milkdrop', name: name.slice(0, 20),
-                          color: '#c084fc',
-                          milkdropIdx: i, milkdropName: name,
+                          color: '#c084fc', milkdropIdx: i, milkdropName: name, opacity: 1,
                         } as LauncherClip));
                       }}
                     >
@@ -592,7 +638,6 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
             </>
           )}
 
-          {/* ── Media (upload prompt) ── */}
           {tab === 'media' && (
             <div className="flex items-center gap-3 px-4">
               <div className="text-center">
@@ -615,37 +660,37 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
 
 // ─── Main ClipLauncher ────────────────────────────────────────────────────────
 
-const ClipLauncher: React.FC<Props> = ({
-  config, onApply, milkdrop, onSetBgMedia,
-}) => {
-  const [layers,       setLayers]       = useState<LauncherLayer[]>(() => loadLayers());
-  const [scrollLeft,   setScrollLeft]   = useState(0);
-  const [flashedPads,  setFlashedPads]  = useState<Set<number>>(new Set());
-  const [midiActive,   setMidiActive]   = useState(false);
+const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
 
-  const configRef   = useRef(config);
-  const milkRef     = useRef(milkdrop);
-  const layersRef   = useRef(layers);
+const ClipLauncher: React.FC<Props> = ({
+  config, onApply, milkdrop, onSetBgMedia, rightPanel, onPowerOff,
+}) => {
+  const [layers,      setLayers]      = useState<LauncherLayer[]>(() => loadLayers());
+  const [scrollLeft,  setScrollLeft]  = useState(0);
+  const [flashedPads, setFlashedPads] = useState<Set<number>>(new Set());
+  const [midiActive,  setMidiActive]  = useState(false);
+
+  const configRef = useRef(config);
+  const milkRef   = useRef(milkdrop);
+  const layersRef = useRef(layers);
   useEffect(() => { configRef.current = config;   }, [config]);
   useEffect(() => { milkRef.current   = milkdrop; }, [milkdrop]);
   useEffect(() => { layersRef.current = layers; saveLayers(layers); }, [layers]);
 
-  const CELL_W = 88;
-  const GAP    = 4;
-  const STEP   = CELL_W + GAP;
-  const colCount = layers[0]?.clips.length ?? NUM_COLS;
+  const CELL_W    = 88;
+  const GAP       = 4;
+  const STEP      = CELL_W + GAP;
+  const colCount  = layers[0]?.clips.length ?? NUM_COLS;
 
-  // ── Video preload cache (ensures clips are in memory before trigger) ─────────
   const preloadRef = useRef<Record<string, HTMLVideoElement>>({});
 
-  // ── Fire a clip in a specific layer + column ────────────────────────────────
+  // ── Fire clip ───────────────────────────────────────────────────────────────
   const fireClip = useCallback((layerIdx: number, colIdx: number, ls?: LauncherLayer[]) => {
     const lrs = ls ?? layersRef.current;
     const layer = lrs[layerIdx];
     if (!layer) return;
     const clip = layer.clips[colIdx];
 
-    // Toggle: if already active, stop
     setLayers(prev => prev.map((l, li) =>
       li === layerIdx ? { ...l, activeCol: l.activeCol === colIdx ? null : colIdx } : l
     ));
@@ -653,8 +698,7 @@ const ClipLauncher: React.FC<Props> = ({
     if (!clip) return;
     if (layer.bypassed || layer.muted) return;
 
-    // Resolve layer blend mode for patching
-    const layerBlend = layer.blendMode.toLowerCase();
+    const layerBlend    = layer.blendMode.toLowerCase();
     const resolvedBlend = (BLEND_MAP[layerBlend] || layerBlend) as BlendMode;
 
     if (clip.type === 'generator') {
@@ -663,37 +707,59 @@ const ClipLauncher: React.FC<Props> = ({
       } else if (clip.sceneMode === '__fx_bass') {
         onApply({ enableBassShake: !(configRef.current as any).enableBassShake } as any);
       } else if (clip.sceneMode) {
-        // VIZ layer (layerIdx === 1): also apply the layer's blend mode
         const patch: Partial<VisualizationConfig> = { mode: clip.sceneMode as VisualizerMode };
-        if (layerIdx === 1) {
-          patch.blendMode = resolvedBlend;
-        }
+        if (layerIdx === 1) patch.blendMode = resolvedBlend;
         onApply(patch);
       }
     } else if (clip.type === 'milkdrop') {
-      // Set preset index FIRST, then toggle — order matters so the right preset loads
-      if (clip.milkdropIdx !== undefined) {
-        milkRef.current.onSetIdx(clip.milkdropIdx);
-      }
+      if (clip.milkdropIdx !== undefined) milkRef.current.onSetIdx(clip.milkdropIdx);
       milkRef.current.onToggle();
     } else if (clip.type === 'media' && clip.mediaUrl) {
-      // Apply the BG layer's blend mode when firing a media clip
       onSetBgMedia({ url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id });
-      if (layerIdx === 0) {
-        onApply({ blendMode: resolvedBlend });
-      }
+      if (layerIdx === 0) onApply({ blendMode: resolvedBlend });
     } else if (clip.type === 'color' && clip.fillColor) {
       onSetBgMedia(null);
     }
-  }, [onApply, onSetBgMedia]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onApply, onSetBgMedia]);
 
-  // ── Scene launch (fires one column across all layers simultaneously) ─────────
+  // ── Scene launch ────────────────────────────────────────────────────────────
   const launchScene = useCallback((colIdx: number) => {
     const lrs = layersRef.current;
     lrs.forEach((_, li) => fireClip(li, colIdx, lrs));
   }, [fireClip]);
 
-  // ── MIDI note handler ────────────────────────────────────────────────────────
+  // ── Add / remove layer ──────────────────────────────────────────────────────
+  const addLayer = useCallback(() => {
+    setLayers(prev => {
+      const n = prev.length + 1;
+      return [...prev, {
+        id:        `layer-${Date.now()}`,
+        name:      `LAYER ${n}`,
+        blendMode: 'Screen',
+        opacity:   1,
+        bypassed:  false,
+        muted:     false,
+        clips:     Array(NUM_COLS).fill(null),
+        activeCol: null,
+      }];
+    });
+  }, []);
+
+  const deleteLayer = useCallback((li: number) => {
+    setLayers(prev => prev.filter((_, i) => i !== li));
+  }, []);
+
+  // ── Update single clip field ────────────────────────────────────────────────
+  const updateClip = useCallback((li: number, ci: number, patch: Partial<LauncherClip>) => {
+    setLayers(prev => prev.map((l, i) =>
+      i === li ? {
+        ...l,
+        clips: l.clips.map((c, ci2) => ci2 === ci && c ? { ...c, ...patch } : c),
+      } : l
+    ));
+  }, []);
+
+  // ── MIDI ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     let flashTimer: ReturnType<typeof setTimeout>;
     let activeTimer: ReturnType<typeof setTimeout>;
@@ -704,26 +770,19 @@ const ClipLauncher: React.FC<Props> = ({
       const note = d.note;
       if (note < 60 || note > 75) return;
       const padIdx = note - 60;
-      const row = padIdx >> 2;   // 0-3
-      const col = padIdx % 4;    // 0-3
+      const row    = padIdx >> 2;
+      const col    = padIdx % 4;
 
-      // Flash visual
       setFlashedPads(prev => new Set([...prev, padIdx]));
       clearTimeout(flashTimer);
       flashTimer = setTimeout(() => setFlashedPads(new Set()), 180);
 
-      // MIDI active indicator
       setMidiActive(true);
       clearTimeout(activeTimer);
       activeTimer = setTimeout(() => setMidiActive(false), 800);
 
-      // Row 3 (top Maschine row = pads 12-15) = scene launch
-      if (row === 3) {
-        launchScene(col);
-      } else {
-        // Rows 0-2 fire individual layer clips
-        fireClip(row, col);
-      }
+      if (row === 3) launchScene(col);
+      else           fireClip(row, col);
     };
 
     window.addEventListener('plajah-midi-note-on', handler);
@@ -734,149 +793,177 @@ const ClipLauncher: React.FC<Props> = ({
     };
   }, [fireClip, launchScene]);
 
-  // ── Layer update helper ──────────────────────────────────────────────────────
+  // ── Layer update ────────────────────────────────────────────────────────────
   const updateLayer = useCallback((li: number, patch: Partial<LauncherLayer>) => {
     setLayers(prev => prev.map((l, i) => i === li ? { ...l, ...patch } : l));
   }, []);
 
-  // ── Drop media file onto a cell ──────────────────────────────────────────────
+  // ── Drop / assign ───────────────────────────────────────────────────────────
   const dropMedia = useCallback((li: number, ci: number, file: File) => {
-    const url = URL.createObjectURL(file);
+    const url       = URL.createObjectURL(file);
     const mediaType: 'video' | 'image' = file.type.startsWith('video/') ? 'video' : 'image';
     const clip: LauncherClip = {
       id: `media-${li}-${ci}-${Date.now()}`,
       type: 'media', name: file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase(),
-      color: '#6366f1', mediaUrl: url, mediaType, loop: true,
+      color: '#6366f1', mediaUrl: url, mediaType, loop: true, opacity: 1,
     };
-    // Preload video into browser memory so first trigger has no lag
     if (mediaType === 'video' && !preloadRef.current[url]) {
-      const preloadEl = document.createElement('video');
-      preloadEl.src = url;
-      preloadEl.preload = 'auto';
-      preloadEl.muted = true;
-      preloadEl.load();
-      preloadRef.current[url] = preloadEl;
+      const el = document.createElement('video');
+      el.src = url; el.preload = 'auto'; el.muted = true; el.load();
+      preloadRef.current[url] = el;
     }
     setLayers(prev => prev.map((l, i) =>
       i === li ? { ...l, clips: l.clips.map((c, ci2) => ci2 === ci ? clip : c) } : l
     ));
   }, []);
 
-  // ── Assign clip (from drag or source browser) ────────────────────────────────
   const assignClip = useCallback((li: number, ci: number, clip: LauncherClip) => {
     setLayers(prev => prev.map((l, i) =>
       i === li ? { ...l, clips: l.clips.map((c, ci2) => ci2 === ci ? { ...clip, id: `${clip.id}-${Date.now()}` } : c) } : l
     ));
   }, []);
 
-  // Handle drops from source browser onto cells
-  const handleLayerDrop = useCallback((li: number, ci: number, e: React.DragEvent) => {
-    e.preventDefault();
-    const clipData = e.dataTransfer.getData('application/plajah-clip');
-    if (clipData) {
-      try { assignClip(li, ci, JSON.parse(clipData)); } catch { /* ignore */ }
-      return;
-    }
-    const file = e.dataTransfer.files[0];
-    if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
-      dropMedia(li, ci, file);
-    }
-  }, [assignClip, dropMedia]);
+  // ── Scroll ──────────────────────────────────────────────────────────────────
+  const canScrollLeft  = scrollLeft > 0;
+  const canScrollRight = scrollLeft < (colCount - 4) * STEP;
+  const scrollBy = (dir: 1 | -1) =>
+    setScrollLeft(s => Math.max(0, Math.min((colCount - 4) * STEP, s + dir * STEP * 4)));
+  const visibleColStart = Math.round(scrollLeft / STEP);
 
-  // ── Milkdrop bridge: when milkdrop layer is active route FX ─────────────────
   const milkdropForBrowser: MilkdropControls = useMemo(() => ({
     ...milkdrop,
     onSetIdx: milkdrop.onSetIdx,
   }), [milkdrop]);
 
-  // ── Scroll helpers ────────────────────────────────────────────────────────────
-  const canScrollLeft  = scrollLeft > 0;
-  const canScrollRight = scrollLeft < (colCount - 4) * STEP;
-  const scrollBy = (dir: 1 | -1) =>
-    setScrollLeft(s => Math.max(0, Math.min((colCount - 4) * STEP, s + dir * STEP * 4)));
-
-  const visibleColStart = Math.round(scrollLeft / STEP);
-
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full h-full flex flex-col" style={{ background: '#0a0a12' }}>
+    <div className="w-full h-full flex" style={{ background: '#0a0a12' }}>
 
-      {/* ── Scene launch bar (top, like Resolume column buttons) ──────── */}
-      <div className="flex items-center shrink-0 gap-1 px-2"
-        style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#080810' }}>
-        {/* Scroll arrows */}
-        <button onClick={() => scrollBy(-1)} disabled={!canScrollLeft}
-          className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </button>
+      {/* ── Main clip area ────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Scene launch buttons (one per visible column) */}
-        <div className="flex-1 flex gap-1 overflow-hidden" style={{ marginLeft: 96 }}>
-          {Array.from({ length: 4 }, (_, ci) => {
-            const absCol = visibleColStart + ci;
-            const anyActive = layers.some(l => l.activeCol === absCol && !l.bypassed && !l.muted);
-            return (
-              <button
-                key={ci}
-                onClick={() => launchScene(absCol)}
-                className="flex-shrink-0 flex items-center justify-center text-[8px] font-black uppercase tracking-widest rounded transition-all"
-                style={{
-                  width: CELL_W, height: 20,
-                  background: anyActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.04)',
-                  border: anyActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)',
-                  color: anyActive ? '#c084fc' : 'rgba(255,255,255,0.25)',
-                }}
-                title={`Launch scene ${absCol + 1} across all layers (MIDI P${ci * 3 + 13})`}
-              >
-                ▶ SCENE {absCol + 1}
-              </button>
-            );
-          })}
-        </div>
+        {/* Scene launch bar */}
+        <div className="flex items-center shrink-0 gap-1 px-2"
+          style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#080810' }}>
+          <button onClick={() => scrollBy(-1)} disabled={!canScrollLeft}
+            className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
 
-        {/* Scroll arrows right */}
-        <button onClick={() => scrollBy(1)} disabled={!canScrollRight}
-          className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-
-        {/* MIDI indicator */}
-        <div className="flex items-center gap-1.5 ml-2 shrink-0">
-          <Radio className={`w-3 h-3 ${midiActive ? 'text-green-400' : 'text-white/15'}`} />
-          <span className="text-[7px] font-mono" style={{ color: midiActive ? 'rgba(74,222,128,0.7)' : 'rgba(255,255,255,0.12)' }}>
-            {midiActive ? 'MIDI' : 'P1-P12 · ROW=LAYER · COL=CLIP'}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Layer rows (rendered bottom-up, so index 0 = Layer 1 = BG) ─── */}
-      <div className="flex flex-col-reverse" style={{ flex: '0 0 auto' }}>
-        {layers.map((layer, li) => (
-          <div key={layer.id}
-            style={{ borderTop: li > 0 ? '1px solid rgba(255,255,255,0.05)' : undefined }}
-            onDragOver={e => e.preventDefault()}
-          >
-            <LayerRow
-              layer={layer}
-              layerIdx={li}
-              scrollLeft={scrollLeft}
-              flashedPads={flashedPads}
-              onUpdateLayer={patch => updateLayer(li, patch)}
-              onFireClip={ci => fireClip(li, ci)}
-              onDropMedia={(ci, f) => dropMedia(li, ci, f)}
-              onAssignClip={(ci, clip) => assignClip(li, ci, clip)}
-            />
+          <div className="flex-1 flex gap-1 overflow-hidden" style={{ marginLeft: 104 }}>
+            {Array.from({ length: 4 }, (_, ci) => {
+              const absCol   = visibleColStart + ci;
+              const anyActive = layers.some(l => l.activeCol === absCol && !l.bypassed && !l.muted);
+              return (
+                <button
+                  key={ci}
+                  onClick={() => launchScene(absCol)}
+                  className="flex-shrink-0 flex items-center justify-center text-[8px] font-black uppercase tracking-widest rounded transition-all"
+                  style={{
+                    width: CELL_W, height: 20,
+                    background: anyActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.04)',
+                    border: anyActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)',
+                    color: anyActive ? '#c084fc' : 'rgba(255,255,255,0.25)',
+                  }}
+                  title={`Launch scene ${absCol + 1} across all layers`}
+                >
+                  ▶ SCENE {absCol + 1}
+                </button>
+              );
+            })}
           </div>
-        ))}
+
+          <button onClick={() => scrollBy(1)} disabled={!canScrollRight}
+            className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* MIDI indicator */}
+          <div className="flex items-center gap-1.5 ml-2 shrink-0">
+            <Radio className={`w-3 h-3 ${midiActive ? 'text-green-400' : 'text-white/15'}`} />
+            <span className="text-[7px] font-mono"
+              style={{ color: midiActive ? 'rgba(74,222,128,0.7)' : 'rgba(255,255,255,0.12)' }}>
+              {midiActive ? 'MIDI' : 'P1–P12'}
+            </span>
+          </div>
+
+          {/* Power button */}
+          {onPowerOff && (
+            <button
+              onClick={onPowerOff}
+              className="w-6 h-6 ml-2 flex items-center justify-center rounded-full shrink-0 transition-all hover:scale-110"
+              style={{
+                background: 'rgba(239,68,68,0.15)',
+                border:     '1px solid rgba(239,68,68,0.5)',
+                color:      '#f87171',
+              }}
+              title="Power off Clip Launcher — returns to fly-drawer mode"
+            >
+              <Power className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Layer rows (rendered bottom-up) */}
+        <div className="flex flex-col-reverse" style={{ flex: '0 0 auto' }}>
+          {layers.map((layer, li) => (
+            <div
+              key={layer.id}
+              style={{ borderTop: li > 0 ? '1px solid rgba(255,255,255,0.05)' : undefined }}
+              onDragOver={e => e.preventDefault()}
+            >
+              <LayerRow
+                layer={layer}
+                layerIdx={li}
+                scrollLeft={scrollLeft}
+                flashedPads={flashedPads}
+                onUpdateLayer={patch => updateLayer(li, patch)}
+                onUpdateClip={(ci, patch) => updateClip(li, ci, patch)}
+                onFireClip={ci => fireClip(li, ci)}
+                onDropMedia={(ci, f) => dropMedia(li, ci, f)}
+                onAssignClip={(ci, clip) => assignClip(li, ci, clip)}
+                onDeleteLayer={() => deleteLayer(li)}
+                isDefaultLayer={li < 3}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Add Layer button */}
+        <div className="flex items-center px-2 shrink-0"
+          style={{ height: 26, borderTop: '1px solid rgba(255,255,255,0.05)', background: '#06060f' }}>
+          <button
+            onClick={addLayer}
+            className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest transition-all hover:text-white/70"
+            style={{ color: 'rgba(255,255,255,0.25)' }}
+            title="Add a new layer above the stack"
+          >
+            <Plus className="w-3 h-3" /> ADD LAYER
+          </button>
+        </div>
+
+        {/* Source browser */}
+        <SourceBrowser
+          milkdropControls={milkdropForBrowser}
+          onAssignToLayer={assignClip}
+          layers={layers}
+          config={config}
+        />
       </div>
 
-      {/* ── Source browser ─────────────────────────────────────────────── */}
-      <SourceBrowser
-        milkdropControls={milkdropForBrowser}
-        onAssignToLayer={assignClip}
-        layers={layers}
-        config={config}
-      />
+      {/* ── Right panel (music + settings) ────────────────────────────── */}
+      {rightPanel && (
+        <div
+          className="flex-shrink-0 flex flex-col overflow-hidden"
+          style={{
+            width: 280,
+            borderLeft: '1px solid rgba(255,255,255,0.07)',
+            background: 'rgba(4,4,12,0.95)',
+          }}
+        >
+          {rightPanel}
+        </div>
+      )}
     </div>
   );
 };
