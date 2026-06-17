@@ -228,6 +228,12 @@ export interface PlajahProject {
   bgMedia1: PlajahMediaRef[];
   /** Layer 2 overlay media references */
   bgMedia2: PlajahMediaRef[];
-  /** Optional: name of last loaded audio file (not the file itself) */
+  /** Original audio filename */
   audioFileName?: string;
+  /** Audio file embedded as base64 data-URL (for local .plajah files) */
+  audioData?: string;
+  /** MIME type of the embedded audio (e.g. 'audio/mpeg') */
+  audioMimeType?: string;
+  /** Firebase Storage download URL (used in cloud saves instead of audioData) */
+  audioStorageUrl?: string;
 }

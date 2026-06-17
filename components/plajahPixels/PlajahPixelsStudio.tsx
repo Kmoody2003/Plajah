@@ -353,14 +353,26 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // Syncs config in real-time via BroadcastChannel.
     const openProgramOut = useCallback(() => {
         const existing = programOutRef.current;
-        if (existing && !existing.closed) { existing.focus(); return; }
+        if (existing && !existing.closed) {
+            existing.focus();
+            // Try to request fullscreen inside the popup
+            try { existing.document.documentElement.requestFullscreen?.(); } catch { /* */ }
+            return;
+        }
 
+        // Open at full screen dimensions so it can be dragged to a second monitor and
+        // fullscreened there without any chrome getting in the way.
+        const sw = window.screen.availWidth;
+        const sh = window.screen.availHeight;
+        const url = window.location.origin + window.location.pathname +
+            (window.location.search ? window.location.search + '&programOut=1' : '?programOut=1') +
+            window.location.hash;
         const w = window.open(
-            window.location.href + (window.location.href.includes('?') ? '&' : '?') + 'programOut=1',
+            url,
             'PlajahProgramOut',
-            'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
+            `width=${sw},height=${sh},left=0,top=0,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`,
         );
-        if (!w) { alert('Popup blocked — allow popups for this site'); return; }
+        if (!w) { alert('Popup blocked — allow popups for this site to use Program Output'); return; }
         programOutRef.current = w;
         setShowProgramOutPicker(false);
     }, []);
@@ -511,30 +523,48 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [aiRefImage, setAiRefImage] = useState<string | null>(null);
     const [isLiveLyricsActive, setIsLiveLyricsActive] = useState(false);
     const [audioFileName, setAudioFileName] = useState<string | undefined>(undefined);
+    const audioBlobUrlRef = useRef<string | undefined>(undefined); // current audio blob URL for project save
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [showCloudProjects, setShowCloudProjects] = useState(false);
     const [cloudProjects, setCloudProjects] = useState<import('./services/projectService').CloudProjectMeta[]>([]);
     const [cloudProjectsLoading, setCloudProjectsLoading] = useState(false);
 
+    // ── Audio context setup (shared between file upload and project load) ───────
+    const ensureAudioContext = () => {
+        if (audioContextRef.current) return;
+        audioContextRef.current = new AudioContext();
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        audioElRef.current = new Audio();
+        const source = audioContextRef.current.createMediaElementSource(audioElRef.current);
+        sourceRef.current = source;
+        source.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
+        audioElRef.current.ontimeupdate = () => setAudioState(s => ({ ...s, currentTime: audioElRef.current?.currentTime || 0 }));
+        audioElRef.current.onloadedmetadata = () => setAudioState(s => ({ ...s, duration: audioElRef.current?.duration || 0 }));
+    };
+
     // Audio Initialization & File Placement
     const handleUpload = (file: File) => {
         setAudioFileName(file.name);
-        if (!audioContextRef.current) {
-            audioContextRef.current = new AudioContext();
-            analyserRef.current = audioContextRef.current.createAnalyser();
-            audioElRef.current = new Audio();
-            const source = audioContextRef.current.createMediaElementSource(audioElRef.current);
-            sourceRef.current = source;
-            source.connect(analyserRef.current);
-            analyserRef.current.connect(audioContextRef.current.destination);
-            
-            audioElRef.current.ontimeupdate = () => setAudioState(s => ({ ...s, currentTime: audioElRef.current?.currentTime || 0 }));
-            audioElRef.current.onloadedmetadata = () => setAudioState(s => ({ ...s, duration: audioElRef.current?.duration || 0 }));
-        }
-        audioElRef.current!.src = URL.createObjectURL(file);
+        ensureAudioContext();
+        if (audioBlobUrlRef.current?.startsWith('blob:')) URL.revokeObjectURL(audioBlobUrlRef.current);
+        const blobUrl = URL.createObjectURL(file);
+        audioBlobUrlRef.current = blobUrl;
+        audioElRef.current!.src = blobUrl;
         audioElRef.current!.play();
         setAudioState(s => ({ ...s, isPlaying: true, duration: audioElRef.current?.duration || 0 }));
+    };
+
+    const loadAudioFromUrl = (url: string, filename?: string) => {
+        if (filename) setAudioFileName(filename);
+        ensureAudioContext();
+        if (audioBlobUrlRef.current?.startsWith('blob:') && audioBlobUrlRef.current !== url)
+            URL.revokeObjectURL(audioBlobUrlRef.current);
+        audioBlobUrlRef.current = url;
+        audioElRef.current!.src = url;
+        audioElRef.current!.pause();
+        setAudioState(s => ({ ...s, isPlaying: false }));
     };
 
     const handleVolumeChange = (v: number) => {
@@ -729,9 +759,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const handleSaveProject = async () => {
         setIsSaving(true);
         try {
-            // Always save locally as .plajah file
-            await saveProject(config, bgMedia1, bgMedia2, audioFileName);
-            // If signed in, also save to cloud profile
+            const audioBlobUrl = audioBlobUrlRef.current;
+            // Always save locally as .plajah file (includes embedded audio)
+            await saveProject(config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl);
+            // If signed in, also save to cloud profile (audio goes to Firebase Storage)
             const uid = auth.currentUser?.uid;
             if (uid) {
                 // Capture a thumbnail from the output canvas (best-effort)
@@ -740,7 +771,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     const canvas = rootRef.current?.querySelector<HTMLCanvasElement>('#core-visualizer canvas, canvas');
                     if (canvas) thumbnail = canvas.toDataURL('image/jpeg', 0.4);
                 } catch { /* skip thumbnail on cross-origin canvas */ }
-                await saveProjectToCloud(uid, config, bgMedia1, bgMedia2, audioFileName, thumbnail);
+                await saveProjectToCloud(uid, config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl, thumbnail);
             }
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
@@ -774,7 +805,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
-            if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
+            if (loaded.audioBlobUrl) loadAudioFromUrl(loaded.audioBlobUrl, loaded.audioFileName);
+            else if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
             setShowCloudProjects(false);
         } catch (err) {
             console.error('[PlajahPixels] Cloud load failed:', err);
@@ -800,7 +832,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
-            if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
+            if (loaded.audioBlobUrl) loadAudioFromUrl(loaded.audioBlobUrl, loaded.audioFileName);
+            else if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
         } catch (err) {
             console.error('[PlajahPixels] Load failed:', err);
             alert('Could not load project file. Make sure it is a valid .plajah file.');
@@ -834,7 +867,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // ── Program-out window: just the visualizer, synced via BroadcastChannel ────
     if (isProgramOut) {
         return (
-            <div style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden' }}>
+            <div
+                style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none' }}
+                onDoubleClick={() => {
+                    const el = document.documentElement;
+                    if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {});
+                    else document.exitFullscreen?.();
+                }}
+            >
                 <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2} config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} id="po-bg" />
                 {analyserRef.current && (shaderSrc
                     ? <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />

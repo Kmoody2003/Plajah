@@ -5,14 +5,41 @@
  */
 
 import { PlajahProject, PlajahMediaRef, VisualizationConfig, BackgroundMedia } from '../types';
-import { db } from '../../../services/backendService';
+import { db, storage } from '../../../services/backendService';
 import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, orderBy, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const FORMAT = 'plajah-pixels' as const;
 const VERSION = '1.0.0';
+
+// ─── Audio helpers ────────────────────────────────────────────────────────────
+
+async function blobUrlToDataUrl(blobUrl: string): Promise<{ dataUrl: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(blobUrl);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: blob.type || 'audio/mpeg' });
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export function dataUrlToObjectUrl(dataUrl: string): string {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'audio/mpeg';
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return URL.createObjectURL(new Blob([arr], { type: mime }));
+}
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
 
@@ -60,16 +87,19 @@ async function serializeMediaList(mediaList: BackgroundMedia[]): Promise<PlajahM
 
 /**
  * Serialize the full app state into a PlajahProject and trigger a .plajah download.
+ * audioBlobUrl — the blob: URL currently loaded in the <audio> element.
  */
 export async function saveProject(
   config: VisualizationConfig,
   bgMedia1: BackgroundMedia[],
   bgMedia2: BackgroundMedia[],
-  audioFileName?: string
+  audioFileName?: string,
+  audioBlobUrl?: string
 ): Promise<void> {
-  const [serialized1, serialized2] = await Promise.all([
+  const [serialized1, serialized2, audioResult] = await Promise.all([
     serializeMediaList(bgMedia1),
     serializeMediaList(bgMedia2),
+    audioBlobUrl ? blobUrlToDataUrl(audioBlobUrl) : Promise.resolve(null),
   ]);
 
   const project: PlajahProject = {
@@ -81,6 +111,8 @@ export async function saveProject(
     bgMedia1: serialized1,
     bgMedia2: serialized2,
     audioFileName,
+    audioData: audioResult?.dataUrl,
+    audioMimeType: audioResult?.mimeType,
   };
 
   const json = JSON.stringify(project, null, 2);
@@ -105,6 +137,8 @@ export interface LoadedProject {
   projectName: string;
   savedAt: string;
   audioFileName?: string;
+  /** Blob object-URL ready to set as audio.src (caller must revoke when done) */
+  audioBlobUrl?: string;
 }
 
 /**
@@ -139,6 +173,7 @@ export function loadProject(file: File): Promise<LoadedProject> {
           throw new Error(`Not a valid Plajah Pixels project file (got format: "${project.__format}")`);
         }
 
+        const audioBlobUrl = project.audioData ? dataUrlToObjectUrl(project.audioData) : undefined;
         resolve({
           config: project.config,
           bgMedia1: deserializeMediaList(project.bgMedia1 ?? []),
@@ -146,6 +181,7 @@ export function loadProject(file: File): Promise<LoadedProject> {
           projectName: project.projectName,
           savedAt: project.savedAt,
           audioFileName: project.audioFileName,
+          audioBlobUrl,
         });
       } catch (err) {
         reject(err);
@@ -177,12 +213,31 @@ export async function saveProjectToCloud(
   bgMedia1: BackgroundMedia[],
   bgMedia2: BackgroundMedia[],
   audioFileName?: string,
+  audioBlobUrl?: string,
   thumbnail?: string
 ): Promise<string> {
   const [serialized1, serialized2] = await Promise.all([
     serializeMediaList(bgMedia1),
     serializeMediaList(bgMedia2),
   ]);
+
+  const projectsCol = collection(db, 'users', uid, 'plajahProjects');
+  const projectRef = doc(projectsCol);
+
+  // Upload audio to Firebase Storage (avoids Firestore 1 MB doc limit)
+  let audioStorageUrl: string | undefined;
+  if (audioBlobUrl) {
+    try {
+      const res = await fetch(audioBlobUrl);
+      const audioBlob = await res.blob();
+      const ext = audioFileName?.split('.').pop() ?? 'mp3';
+      const audioRef = storageRef(storage, `users/${uid}/plajahAudio/${projectRef.id}.${ext}`);
+      await uploadBytes(audioRef, audioBlob, { contentType: audioBlob.type || 'audio/mpeg' });
+      audioStorageUrl = await getDownloadURL(audioRef);
+    } catch (e) {
+      console.warn('[projectService] Could not upload audio to Storage:', e);
+    }
+  }
 
   const project: PlajahProject = {
     __format: 'plajah-pixels',
@@ -193,10 +248,9 @@ export async function saveProjectToCloud(
     bgMedia1: serialized1,
     bgMedia2: serialized2,
     audioFileName,
+    audioStorageUrl,
   };
 
-  const projectsCol = collection(db, 'users', uid, 'plajahProjects');
-  const projectRef = doc(projectsCol);
   await setDoc(projectRef, {
     projectName: project.projectName,
     mode: config.mode,
@@ -241,6 +295,9 @@ export async function loadCloudProject(uid: string, projectId: string): Promise<
   const data = snap.data();
   const project: PlajahProject = JSON.parse(data.projectJson);
   if (project.__format !== 'plajah-pixels') throw new Error('Invalid project format');
+
+  // Audio: prefer Storage URL, fall back to embedded data-URL
+  const audioSrc = project.audioStorageUrl ?? (project.audioData ? dataUrlToObjectUrl(project.audioData) : undefined);
   return {
     config: project.config,
     bgMedia1: deserializeMediaList(project.bgMedia1 ?? []),
@@ -248,13 +305,20 @@ export async function loadCloudProject(uid: string, projectId: string): Promise<
     projectName: project.projectName,
     savedAt: project.savedAt,
     audioFileName: project.audioFileName,
+    audioBlobUrl: audioSrc,
   };
 }
 
 /**
- * Delete a cloud project.
+ * Delete a cloud project and its associated Storage assets.
  */
 export async function deleteCloudProject(uid: string, projectId: string): Promise<void> {
+  // Try to delete audio from Storage (best-effort — ignore if not found)
+  for (const ext of ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac']) {
+    try {
+      await deleteObject(storageRef(storage, `users/${uid}/plajahAudio/${projectId}.${ext}`));
+    } catch { /* file may not exist for this extension */ }
+  }
   await deleteDoc(doc(db, 'users', uid, 'plajahProjects', projectId));
 }
 
