@@ -7,9 +7,10 @@ import { AppNotification } from '../types';
 
 interface NotificationCenterProps {
   onNavigate?: (notification: AppNotification) => void;
+  onOpenAlerts?: () => void;
 }
 
-const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate }) => {
+const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onOpenAlerts }) => {
   const { notifications, unreadCount, markAsRead, clearAll, isLoading } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -35,7 +36,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate }) =
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { if (onOpenAlerts) { onOpenAlerts(); } else { setIsOpen(!isOpen); } }}
         className="relative p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 group"
       >
         <Bell size={20} className={unreadCount > 0 ? "text-small-orange animate-tada" : "text-white/40 group-hover:text-white"} />

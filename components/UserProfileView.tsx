@@ -45,8 +45,6 @@ import {
   Shuffle,
   Bookmark,
   Megaphone,
-  ShieldCheck,
-  Palette,
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -72,7 +70,6 @@ import {
   fetchUserWorlds,
   saveWebApp,
   updateUserProfile,
-  updateAccountType,
   subscribeToMailingList,
   unsubscribeFromMailingList,
   isSubscribedToMailingList,
@@ -129,6 +126,7 @@ import PlajahBrandConnect from './PlajahBrandConnect';
 import AdCreator from './AdCreator';
 import { loadUserAd } from '../services/backendService';
 import { UserAd } from '../types';
+import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface UserProfileViewProps {
   uid: string;
@@ -143,7 +141,7 @@ interface UserProfileViewProps {
   onOpenCreator?: (type?: string) => void;
   /** Navigate a Platform Pulse notification to its post/asset/activity. */
   onNotificationNavigate?: (n: any) => void;
-  initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'ACCOUNT';
+  initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
 const UserProfileSlideshow: React.FC<{ items: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[], themeColor: string }> = ({ items, themeColor }) => {
@@ -247,10 +245,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT' | 'ACCOUNT'>(initialTab || 'FEED');
-  const [editDisplayName, setEditDisplayName] = useState('');
-  const [editBio, setEditBio] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const { playTrack } = useGlobalPlayerState();
+  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
   const [showAdCreator, setShowAdCreator] = useState(false);
   const [myUserAd, setMyUserAd] = useState<UserAd | null>(null);
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
@@ -1036,32 +1032,51 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-               {profile.pinnedItems.map((pin, idx) => {
-                 let displayItem: any = null;
-                 if (pin.type === 'POST') displayItem = { title: 'Pinned Post', type: 'POST', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 if (pin.type === 'VIDEO') displayItem = { title: 'Pinned Video', type: 'VIDEO', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 if (pin.type === 'AUDIO') displayItem = { title: 'Pinned Audio', type: 'AUDIO', cover: `https://picsum.photos/seed/${pin.id}/400/300` };
-                 
+               {profile.pinnedItems.map((pin) => {
+                 // Try refId first, fall back to id (for pins created before refId field was added)
+                 const contentRef = (pin as any).refId || pin.id;
+                 const album = pin.type === 'AUDIO' ? content.find(a => a.id === contentRef) : null;
+                 const video = pin.type === 'VIDEO' ? (profile.videos || []).find((v: any) => v.id === contentRef || v.url === contentRef) : null;
+                 const article = pin.type === 'POST' ? articles.find(a => a.id === contentRef) : null;
+                 const cover = album?.coverImage || (video as any)?.thumbnailUrl || (article as any)?.coverImage || null;
+                 const title = album?.title || (video as any)?.title || (article as any)?.title || `Pinned ${pin.type}`;
+                 const canPlay = pin.type === 'AUDIO' && album && album.tracks && album.tracks.length > 0;
+
+                 const handlePinClick = () => {
+                   if (canPlay && album) { playTrack(album.tracks[0], album, 'LIBRARY'); return; }
+                   if (article && onNavigate) { onNavigate('FEED' as any); return; }
+                   if (video && (video as any).url) { window.open((video as any).url, '_blank'); }
+                 };
+
                  return (
-                   <div key={pin.id} className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-                     <img loading="lazy" decoding="async" 
-                       src={displayItem?.cover}
-                       alt={displayItem?.title}
-                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                       referrerPolicy="no-referrer"
-                     />
+                   <div
+                     key={pin.id}
+                     className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 transition-all"
+                     onClick={handlePinClick}
+                   >
+                     {cover
+                       ? <img loading="lazy" decoding="async" src={cover} alt={title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
+                       : <div className="w-full h-full flex items-center justify-center">
+                           {pin.type === 'AUDIO' ? <Music size={32} className="text-white/15" /> : pin.type === 'VIDEO' ? <Play size={32} className="text-white/15" /> : <BookOpen size={32} className="text-white/15" />}
+                         </div>
+                     }
                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                     <div className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md rounded-full text-white/80 shrink-0">
+                     <div className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md rounded-full">
                         <Zap size={10} className="text-small-orange fill-small-orange" />
                      </div>
-                     <div className="absolute inset-x-0 bottom-0 p-4">
-                       <div className="flex items-center gap-2 mb-1">
-                         <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
-                           {displayItem?.type}
-                         </span>
+                     {canPlay && (
+                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <div className="w-10 h-10 rounded-full bg-small-orange/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                           <Play size={16} className="text-black fill-black ml-0.5" />
+                         </div>
                        </div>
-                       <h4 className="text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
-                         {displayItem?.title}
+                     )}
+                     <div className="absolute inset-x-0 bottom-0 p-4">
+                       <span className="px-1.5 py-0.5 bg-small-orange/20 text-small-orange text-[7px] font-black uppercase tracking-widest rounded-sm backdrop-blur-md border border-small-orange/20">
+                         {pin.type}
+                       </span>
+                       <h4 className="mt-1 text-[10px] font-black uppercase tracking-tight text-white truncate group-hover:text-small-orange transition-colors">
+                         {title}
                        </h4>
                      </div>
                    </div>
@@ -1287,7 +1302,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
             ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
             ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
-            ...(isOwnProfile ? [{ id: 'ACCOUNT', label: '⚙ Account' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
@@ -2190,211 +2204,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     </div>
                   )}
                 </section>
-              </motion.div>
-            ) : activeTab === 'ACCOUNT' && isOwnProfile ? (
-              <motion.div
-                key="account"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-8 max-w-3xl mx-auto"
-              >
-                {/* ── Section: Profile Identity ── */}
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2.5rem] p-8 space-y-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-3 bg-small-orange/15 rounded-2xl"><UserIcon size={18} className="text-small-orange" /></div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-widest text-white">Profile Identity</h3>
-                      <p className="text-[9px] text-white/35 uppercase tracking-widest mt-0.5">Name, bio, and profile photo</p>
-                    </div>
-                  </div>
-                  {/* Profile photo row */}
-                  <div className="flex items-center gap-5">
-                    <div className="relative group/aphoto w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-white/5">
-                      <img src={profile.customPhotoURL || profile.photoURL || undefined} alt="" className="w-full h-full object-cover" />
-                      <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/aphoto:opacity-100 transition-all cursor-pointer">
-                        <Camera size={18} className="text-white" />
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProfileUpdate('photo', f); }} />
-                      </label>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Profile Photo</p>
-                      <label className="cursor-pointer px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/30 transition-all inline-flex items-center gap-2">
-                        <Camera size={11} /> Change Photo
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProfileUpdate('photo', f); }} />
-                      </label>
-                    </div>
-                  </div>
-                  {/* Display name */}
-                  <div>
-                    <label className="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 ml-1">Display Name</label>
-                    <input
-                      type="text"
-                      value={editDisplayName || profile.displayName || ''}
-                      onChange={(e) => setEditDisplayName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 ring-small-orange outline-none transition-all placeholder:text-white/20"
-                      placeholder="Your name or artist name"
-                    />
-                  </div>
-                  {/* Bio */}
-                  <div>
-                    <label className="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 ml-1">Bio</label>
-                    <textarea
-                      value={editBio !== '' ? editBio : (profile.bio || '')}
-                      onChange={(e) => setEditBio(e.target.value)}
-                      rows={3}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 ring-small-orange outline-none transition-all resize-none placeholder:text-white/20"
-                      placeholder="Tell the world who you are..."
-                    />
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (!auth.currentUser) return;
-                      setIsSavingProfile(true);
-                      try {
-                        const updates: Record<string, string> = {};
-                        if (editDisplayName && editDisplayName !== profile.displayName) updates.displayName = editDisplayName;
-                        if (editBio !== '' && editBio !== profile.bio) updates.bio = editBio;
-                        if (Object.keys(updates).length > 0) {
-                          await updateUserProfile(uid, updates);
-                          setProfile({ ...profile, ...updates });
-                          setEditDisplayName('');
-                          setEditBio('');
-                        }
-                      } catch (err) { console.error(err); }
-                      finally { setIsSavingProfile(false); }
-                    }}
-                    disabled={isSavingProfile}
-                    className="px-6 py-3 bg-small-orange text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    {isSavingProfile ? 'Saving…' : 'Save Identity'}
-                  </button>
-                </div>
-
-                {/* ── Section: Cover Art ── */}
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2.5rem] p-8 space-y-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-3 bg-blue-500/15 rounded-2xl"><ImageIcon size={18} className="text-blue-400" /></div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-widest text-white">Cover Art</h3>
-                      <p className="text-[9px] text-white/35 uppercase tracking-widest mt-0.5">Your profile banner image</p>
-                    </div>
-                  </div>
-                  <div className="relative w-full h-28 rounded-2xl overflow-hidden border border-white/10 bg-white/5 group/cover">
-                    {profile.coverArt
-                      ? <img src={profile.coverArt} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-white/15 text-[9px] font-black uppercase tracking-widest">No cover set</div>
-                    }
-                    <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/cover:opacity-100 transition-all cursor-pointer backdrop-blur-sm">
-                      <div className="flex items-center gap-2 text-white font-black text-[9px] uppercase tracking-widest">
-                        <Camera size={16} /> Change Cover
-                      </div>
-                      <input type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProfileUpdate('cover', f); }} />
-                    </label>
-                  </div>
-                </div>
-
-                {/* ── Section: Account Type ── */}
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2.5rem] p-8 space-y-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-3 bg-purple-500/15 rounded-2xl"><ShieldCheck size={18} className="text-purple-400" /></div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-widest text-white">Account Type</h3>
-                      <p className="text-[9px] text-white/35 uppercase tracking-widest mt-0.5">Your current access level</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/8">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white">{profile.accountType || 'FAN'}</p>
-                      <p className="text-[8px] text-white/35 uppercase tracking-widest mt-0.5">
-                        {(profile.accountType === 'FAN' || !profile.accountType) && 'Discover, follow, and engage with creators.'}
-                        {profile.accountType === 'ARTIST' && 'Upload music, videos, and run your artist page.'}
-                        {profile.accountType === 'BRAND' && 'Brand account for promotion and sponsorships.'}
-                        {profile.accountType === 'WRITER' && 'Writer/journalist content creator account.'}
-                      </p>
-                    </div>
-                    <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                      profile.accountType === 'FAN' || !profile.accountType ? 'bg-white/10 border-white/15 text-white/60'
-                      : profile.accountType === 'ARTIST' ? 'bg-small-orange/15 border-small-orange/30 text-small-orange'
-                      : 'bg-purple-500/15 border-purple-500/30 text-purple-400'
-                    }`}>{profile.accountType || 'FAN'}</span>
-                  </div>
-                  {(profile.accountType === 'FAN' || !profile.accountType) && (
-                    <button
-                      onClick={async () => { await updateAccountType('ARTIST'); setProfile({ ...profile, accountType: 'ARTIST' }); }}
-                      className="w-full py-3 bg-gradient-to-r from-small-orange to-[#D40055] text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
-                    >
-                      Upgrade to Artist →
-                    </button>
-                  )}
-                </div>
-
-                {/* ── Section: Appearance ── */}
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2.5rem] p-8 space-y-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-3 bg-[#6B0099]/20 rounded-2xl"><Palette size={18} className="text-[#9B59B6]" /></div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-widest text-white">Appearance</h3>
-                      <p className="text-[9px] text-white/35 uppercase tracking-widest mt-0.5">Themes, frosted glass, video backgrounds</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setActiveTab('THEMES')}
-                      className="p-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-start gap-2 hover:bg-white/10 hover:border-white/20 transition-all text-left"
-                    >
-                      <Palette size={18} className="text-[#9B59B6]" />
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white">Themes</p>
-                      <p className="text-[8px] text-white/35">Browse & apply platform themes</p>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('PHOTOS')}
-                      className="p-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-start gap-2 hover:bg-white/10 hover:border-white/20 transition-all text-left"
-                    >
-                      <Camera size={18} className="text-blue-400" />
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white">Photos</p>
-                      <p className="text-[8px] text-white/35">Manage your photo gallery</p>
-                    </button>
-                  </div>
-                  {/* Frosted background toggle */}
-                  <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/8">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Frosted Glass Background</p>
-                      <p className="text-[8px] text-white/35 mt-0.5">Apply a frosted blur effect to your profile</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const next = profile.frostedBackground ? '' : '1';
-                        setProfile({ ...profile, frostedBackground: next });
-                        updateUserProfile(uid, { frostedBackground: next }).catch(console.error);
-                      }}
-                      className={`w-12 h-7 rounded-full p-1 transition-all ${profile.frostedBackground ? 'bg-small-orange' : 'bg-white/10'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white transition-all ${profile.frostedBackground ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* ── Section: Avatar Studio ── */}
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2.5rem] p-8">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-small-orange/15 rounded-2xl"><Sparkles size={18} className="text-small-orange" /></div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white">Avatar Studio</h3>
-                        <p className="text-[9px] text-white/35 uppercase tracking-widest mt-0.5">Create and customize your 3D avatar</p>
-                      </div>
-                    </div>
-                    {onNavigate && (
-                      <button
-                        onClick={() => onNavigate('AVATAR_STUDIO')}
-                        className="px-5 py-2.5 bg-small-orange/15 border border-small-orange/30 text-small-orange rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-small-orange/25 transition-all"
-                      >
-                        Open Studio →
-                      </button>
-                    )}
-                  </div>
-                </div>
               </motion.div>
             ) : activeTab === 'MANAGE' && isOwnProfile ? (
               <motion.div

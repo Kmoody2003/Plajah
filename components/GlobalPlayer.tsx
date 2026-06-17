@@ -266,14 +266,15 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }, [radioStats.songCount, audioSource]);
 
   useEffect(() => {
-    // Only auto-collapse when nothing is playing — never hide an active session
+    // Docked nano manages its own collapse via the 20s idle timer in App.tsx
+    if (isNanoDocked) return;
     const nonMusicViews = ['CHAT', 'USER_PROFILE', 'SEARCH', 'FEED', 'DASHBOARD', 'SETTINGS', 'HELP_CENTER'];
     if (nonMusicViews.includes(view) && !isPlaying) {
         setIsMinimized(true);
     } else if (isPlaying) {
         setIsMinimized(false);
     }
-  }, [view, isPlaying]);
+  }, [view, isPlaying, isNanoDocked]);
 
   useEffect(() => {
     if (currentUser) {
@@ -1840,8 +1841,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                 )}
 
                 <div className="flex items-center gap-2 pl-2">
-                  <button onClick={() => setIsNanoView?.(!isNanoView)} className="p-2 text-white/20 hover:text-white hover:bg-white/5 rounded-xl transition-all" title="Nano">
-                    {isNanoView ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                  <button
+                    onClick={() => { setIsNanoDocked(true); setIsNanoView(true); }}
+                    className="p-2 text-white/20 hover:text-small-orange hover:bg-small-orange/5 rounded-xl transition-all"
+                    title="Back to sidebar player"
+                  >
+                    <Minimize2 size={16} />
                   </button>
                   
                   {(currentTrack || currentVideo) && (

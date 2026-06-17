@@ -270,11 +270,13 @@ const NotifRow: React.FC<NotifRowProps> = ({ notif, onRead, onNavigate }) => {
 interface PersistentChatDrawerProps {
   currentView?: AppView;
   onNotificationNavigate?: (notif: AppNotification) => void;
+  externalTrigger?: { tab: string; ts: number } | null;
 }
 
-const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView, onNotificationNavigate }) => {
+const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView, onNotificationNavigate, externalTrigger }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('LIVE');
+  const prevTriggerTs = useRef<number | null>(null);
 
   const [msgCache, setMsgCache] = useState<Record<string, ChatMessage[]>>({});
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -297,6 +299,14 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
   const liveRoomId = activeContentId ? `live_chat_${activeContentId}` : 'live_chat_global';
 
   const uid = auth.currentUser?.uid;
+
+  useEffect(() => {
+    if (!externalTrigger) return;
+    if (prevTriggerTs.current === externalTrigger.ts) return;
+    prevTriggerTs.current = externalTrigger.ts;
+    setIsOpen(true);
+    setActiveTab(externalTrigger.tab as TabType);
+  }, [externalTrigger]);
 
   useEffect(() => {
     if (currentRoomRef.current === liveRoomId) return;

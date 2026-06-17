@@ -248,8 +248,8 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw } from 'lucide-react';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, updateAccountType, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -281,7 +281,7 @@ import { UploadProvider } from './contexts/UploadContext';
 import { AchievementProvider } from './contexts/AchievementContext';
 import { PointsProvider } from './contexts/PointsContext';
 import { BadgeProvider } from './contexts/BadgeContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
 import { SpatialProvider } from './contexts/SpatialContext';
 import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -393,6 +393,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     catch { return ['USER_PROFILE', 'DASHBOARD', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'FEED', 'LIVE_HUB', 'POSTMAN']; }
   });
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
+  const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  const [settingsDisplayName, setSettingsDisplayName] = useState('');
+  const [settingsBio, setSettingsBio] = useState('');
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
@@ -451,6 +456,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     setGlobalView(view);
   }, [view, setGlobalView]);
+
+  // Docked nano: collapse to compact after 20s of no playback, expand when playing
+  useEffect(() => {
+    if (!isNanoDocked) return;
+    if (isPlaying) {
+      setIsMinimized(false);
+      return;
+    }
+    if (!currentTrack) {
+      const t = setTimeout(() => setIsMinimized(true), 20000);
+      return () => clearTimeout(t);
+    }
+  }, [isNanoDocked, isPlaying, currentTrack, setIsMinimized]);
 
   // Persist transcribed scores exported from the Breakdown into Lorea.
   useEffect(() => initLoreaScoreListener(), []);
@@ -702,11 +720,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CHAT') {
       setView('CHAT');
     } else if (target === 'SETTINGS') {
-      if (!user) {
-        loginWithGoogle();
-        return;
-      }
-      setView('CREATOR');
+      if (!user) { loginWithGoogle(); return; }
+      setShowUserSettings(true);
     } else if (target === 'CREATOR') {
       if (!user) {
         loginWithGoogle();
@@ -2295,19 +2310,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
                 <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
                   <div className="flex-1">
-                    <NotificationCenter onNavigate={handleNotificationNavigate} />
+                    <NotificationCenter onNavigate={handleNotificationNavigate} onOpenAlerts={() => setNotifDrawerTrigger({ tab: 'ALERTS', ts: Date.now() })} />
                   </div>
                   {/* Settings → User Account */}
                   <button
-                    onClick={() => {
-                      if (user?.uid) {
-                        setViewedUserId(user.uid);
-                        setInitialProfileTab('ACCOUNT');
-                        setView('USER_PROFILE');
-                        window.history.replaceState({ view: 'USER_PROFILE' }, '', `/profile/${user.uid}`);
-                      }
-                    }}
-                    title="Account Settings"
+                    onClick={() => { if (user) setShowUserSettings(true); else loginWithGoogle(); }}
+                    title="Settings"
                     className="shrink-0 p-3 rounded-2xl transition-all border"
                     style={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid))
                       ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
@@ -2334,7 +2342,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               {/* ── Docked Nano Player ── always above the profile card */}
               {!isSidebarCollapsed && (
-                <div className="-mx-4 lg:-mx-6 pt-0 border-t border-white/[0.06]">
+                <div className="px-2 pt-3 pb-2 border-t border-white/[0.06]">
                   {(currentTrack || isNanoView) ? (() => {
                     const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
                     const coverSrc = currentAlbum?.coverImage;
@@ -2344,7 +2352,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       return `${m}:${ss.toString().padStart(2, '0')}`;
                     };
                     return (
-                      <div style={{ perspective: '1400px' }}>
+                      <div style={{ perspective: '1400px', borderRadius: '1.5rem', boxShadow: '0 16px 48px rgba(0,0,0,0.85), 0 4px 20px rgba(0,0,0,0.6)' }}>
                         <motion.div
                           animate={{ rotateY: isDockedFlipped ? 180 : 0 }}
                           transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
@@ -2353,7 +2361,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           {/* ══ FRONT FACE ══ */}
                           <div
                             style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                            className="overflow-hidden bg-black/70 backdrop-blur-2xl relative"
+                            className="overflow-hidden bg-black/70 backdrop-blur-2xl relative rounded-3xl"
                           >
                             {coverSrc && (
                               <img src={coverSrc} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 pointer-events-none" style={{ filter: 'blur(32px) brightness(0.22) saturate(1.6)', zIndex: 0 }} />
@@ -2361,15 +2369,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             <div className="relative z-10">
 
                               {/* ── EXPANDED ── */}
+                              <AnimatePresence>
                               {!isMinimized && (
-                                <>
+                                <motion.div
+                                  key="expanded"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1, transition: { duration: 0.3 } }}
+                                  exit={{ opacity: 0, transition: { duration: 2, ease: 'easeInOut' } }}
+                                >
                                   {/* ── Navigate row ── */}
                                   <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/[0.06]">
                                     <div className="flex items-center gap-0.5">
                                       <button onClick={() => setView('DASHBOARD')} className={`p-2 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="Home"><Home size={13} /></button>
                                       <button onClick={() => { setViewedUserId(user?.uid ?? null); setView('USER_PROFILE'); }} className={`p-2 rounded-xl transition-all ${view === 'USER_PROFILE' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="My Profile"><User size={13} /></button>
                                       <button onClick={() => setView('SEARCH')} className={`p-2 rounded-xl transition-all ${view === 'SEARCH' ? 'bg-small-orange/15 text-small-orange' : 'text-white/35 hover:text-white hover:bg-white/5'}`} title="Search"><Search size={13} /></button>
-                                      <button onClick={() => { setViewedUserId(user?.uid ?? null); setInitialProfileTab('ACCOUNT'); setView('USER_PROFILE'); }} className="p-2 rounded-xl text-white/35 hover:text-white hover:bg-white/5 transition-all" title="Account Settings"><Settings size={13} /></button>
+                                      <button onClick={() => { if (user) setShowUserSettings(true); }} className="p-2 rounded-xl text-white/35 hover:text-white hover:bg-white/5 transition-all" title="Settings"><Settings size={13} /></button>
                                     </div>
                                     <span className="text-[7px] font-black uppercase tracking-widest text-white/20">Navigate</span>
                                   </div>
@@ -2414,9 +2428,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                         title="Flip to back"
                                       ><Layers size={11} /></button>
                                       <button
-                                        onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }}
+                                        onClick={() => { setIsNanoDocked(false); setIsNanoView(false); }}
                                         className="p-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
-                                        title="Pop out"
+                                        title="Full Player"
                                       ><Maximize2 size={11} /></button>
                                     </div>
                                     {/* Track info */}
@@ -2468,12 +2482,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                     </div>
                                     <button onClick={() => setIsMinimized(true)} className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-all hover:bg-white/5" title="Compact"><ChevronDown size={12} /></button>
                                   </div>
-                                </>
+                                </motion.div>
                               )}
+                              </AnimatePresence>
 
                               {/* ── COMPACT bar ── */}
+                              <AnimatePresence>
                               {isMinimized && (
-                                <>
+                                <motion.div
+                                  key="compact"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1, transition: { duration: 0.4 } }}
+                                  exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                                >
                                   <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
                                     {coverSrc
                                       ? <img src={coverSrc} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-white/10" />
@@ -2483,7 +2504,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                       <p className="text-[9px] font-black uppercase tracking-tight text-white truncate leading-tight">{currentTrack?.title || 'Nothing playing'}</p>
                                       <p className="text-[7px] font-bold text-small-orange/70 uppercase tracking-widest truncate">{currentAlbum?.artist || ''}</p>
                                     </div>
-                                    <button onClick={() => { setIsNanoDocked(false); setIsNanoView(true); setIsMinimized(false); }} className="p-1 rounded-lg text-white/25 hover:text-white transition-all" title="Pop out"><Maximize2 size={10} /></button>
+                                    <button onClick={() => { setIsNanoDocked(false); setIsNanoView(false); }} className="p-1 rounded-lg text-white/25 hover:text-white transition-all" title="Full Player"><Maximize2 size={10} /></button>
                                   </div>
                                   <div className="h-[2px] bg-white/10 cursor-pointer" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); }}>
                                     <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
@@ -2496,15 +2517,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                     <button onClick={next} className="p-1 text-white/35 hover:text-white transition-all"><SkipForward size={12} /></button>
                                     <button onClick={() => setIsMinimized(false)} className="p-1 text-white/20 hover:text-white/60 transition-all" title="Expand"><ChevronUp size={11} /></button>
                                   </div>
-                                </>
+                                </motion.div>
                               )}
+                              </AnimatePresence>
                             </div>
                           </div>
 
                           {/* ══ BACK FACE ══ */}
                           <div
                             style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                            className="overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.7)] flex flex-col"
+                            className="overflow-hidden rounded-3xl flex flex-col"
                           >
                             {/* Full-bleed cover art */}
                             {coverSrc
@@ -3786,7 +3808,205 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
       )}
-      {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} />}
+      {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+
+      {/* ── User Settings Panel ── */}
+      <AnimatePresence>
+        {showUserSettings && user && (
+          <>
+            <motion.div
+              key="settings-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[800] bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowUserSettings(false)}
+            />
+            <motion.div
+              key="settings-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 z-[801] w-full max-w-md bg-[#0a0a0a]/98 backdrop-blur-3xl border-l border-white/[0.08] overflow-y-auto flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-8 pt-8 pb-6 border-b border-white/[0.06] shrink-0">
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-[0.3em] text-white">Account Settings</h2>
+                  <p className="text-[9px] text-white/30 uppercase tracking-widest mt-1">{user.email}</p>
+                </div>
+                <button onClick={() => setShowUserSettings(false)} className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 text-white/40 hover:text-white transition-all"><XIcon size={16} /></button>
+              </div>
+
+              <div className="flex-1 px-8 py-6 space-y-5">
+                {/* Profile Identity */}
+                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2rem] p-6 space-y-5">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="p-2.5 bg-small-orange/15 rounded-xl"><User size={15} className="text-small-orange" /></div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Profile Identity</h3>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">Name, bio, and photo</p>
+                    </div>
+                  </div>
+                  {/* Avatar */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative group/avt w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-white/10">
+                      <img src={userProfile?.customPhotoURL || user.photoURL || undefined} alt="" className="w-full h-full object-cover" />
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avt:opacity-100 transition-all cursor-pointer">
+                        <Camera size={14} className="text-white" />
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                          const f = e.target.files?.[0]; if (!f || !userProfile) return;
+                          const { uploadFile } = await import('./services/backendService');
+                          const url = await uploadFile(`profiles/${user.uid}/photo`, f);
+                          await updateUserProfile(user.uid, { customPhotoURL: url });
+                          setUserProfile({ ...userProfile, customPhotoURL: url });
+                        }} />
+                      </label>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">Profile Photo</p>
+                      <label className="cursor-pointer px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/30 transition-all inline-flex items-center gap-1.5">
+                        <Camera size={9} /> Change
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                          const f = e.target.files?.[0]; if (!f || !userProfile) return;
+                          const { uploadFile } = await import('./services/backendService');
+                          const url = await uploadFile(`profiles/${user.uid}/photo`, f);
+                          await updateUserProfile(user.uid, { customPhotoURL: url });
+                          setUserProfile({ ...userProfile, customPhotoURL: url });
+                        }} />
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-black uppercase tracking-widest text-white/35 mb-1.5 ml-1">Display Name</label>
+                    <input
+                      type="text"
+                      value={settingsDisplayName || userProfile?.displayName || ''}
+                      onChange={(e) => setSettingsDisplayName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 ring-small-orange outline-none transition-all placeholder:text-white/20"
+                      placeholder="Your name or artist name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-black uppercase tracking-widest text-white/35 mb-1.5 ml-1">Bio</label>
+                    <textarea
+                      value={settingsBio !== '' ? settingsBio : (userProfile?.bio || '')}
+                      onChange={(e) => setSettingsBio(e.target.value)}
+                      rows={3}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-medium focus:ring-2 ring-small-orange outline-none transition-all resize-none placeholder:text-white/20"
+                      placeholder="Tell the world who you are..."
+                    />
+                  </div>
+                  <button
+                    disabled={settingsSaving}
+                    onClick={async () => {
+                      if (!userProfile) return;
+                      setSettingsSaving(true);
+                      try {
+                        const updates: Record<string, string> = {};
+                        if (settingsDisplayName && settingsDisplayName !== userProfile.displayName) updates.displayName = settingsDisplayName;
+                        if (settingsBio !== '' && settingsBio !== userProfile.bio) updates.bio = settingsBio;
+                        if (Object.keys(updates).length > 0) {
+                          await updateUserProfile(user.uid, updates);
+                          setUserProfile({ ...userProfile, ...updates });
+                          setSettingsDisplayName('');
+                          setSettingsBio('');
+                        }
+                      } finally { setSettingsSaving(false); }
+                    }}
+                    className="px-5 py-2.5 bg-small-orange text-black rounded-full text-[8px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  >{settingsSaving ? 'Saving…' : 'Save Changes'}</button>
+                </div>
+
+                {/* Account Type */}
+                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2rem] p-6 space-y-4">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="p-2.5 bg-purple-500/15 rounded-xl"><Shield size={15} className="text-purple-400" /></div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Account Type</h3>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">Your current access level</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/8">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white">{userProfile?.accountType || 'FAN'}</p>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5">
+                        {(!userProfile?.accountType || userProfile.accountType === 'FAN') ? 'Discover, follow, and engage' : 'Creator account — upload & manage content'}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border ${
+                      (!userProfile?.accountType || userProfile.accountType === 'FAN') ? 'bg-white/8 border-white/12 text-white/50' : 'bg-small-orange/15 border-small-orange/30 text-small-orange'
+                    }`}>{userProfile?.accountType || 'FAN'}</span>
+                  </div>
+                  {(!userProfile?.accountType || userProfile.accountType === 'FAN') && (
+                    <button
+                      onClick={async () => {
+                        await updateAccountType('ARTIST');
+                        if (userProfile) setUserProfile({ ...userProfile, accountType: 'ARTIST' });
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-small-orange to-[#D40055] text-white rounded-full text-[8px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
+                    >Upgrade to Artist →</button>
+                  )}
+                </div>
+
+                {/* Appearance */}
+                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[2rem] p-6 space-y-4">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="p-2.5 bg-indigo-500/15 rounded-xl"><Palette size={15} className="text-indigo-400" /></div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Appearance</h3>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">Themes &amp; visual preferences</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['DARK', 'LIGHT', 'PLAJAH', 'NEBULA'] as const).map(t => (
+                      <button key={t} onClick={() => handleSetTheme(t)} className={`p-3 rounded-2xl border text-[7px] font-black uppercase tracking-widest transition-all flex flex-col items-center gap-1.5 ${theme === t ? 'bg-small-orange/15 border-small-orange/35 text-small-orange' : 'bg-white/5 border-white/8 text-white/35 hover:text-white hover:border-white/20'}`}>
+                        {t === 'DARK' ? <Moon size={14} /> : t === 'LIGHT' ? <Sun size={14} /> : t === 'PLAJAH' ? <Sparkles size={14} /> : <Globe size={14} />}
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Frosted glass toggle */}
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/8">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white">Frosted Glass Background</p>
+                      <p className="text-[7px] text-white/30 mt-0.5">Blur effect on your profile background</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!userProfile) return;
+                        const next = userProfile.frostedBackground ? '' : '1';
+                        setUserProfile({ ...userProfile, frostedBackground: next });
+                        updateUserProfile(user.uid, { frostedBackground: next } as any).catch(console.error);
+                      }}
+                      className={`w-11 h-6 rounded-full p-0.5 transition-all ${userProfile?.frostedBackground ? 'bg-small-orange' : 'bg-white/10'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white transition-all ${userProfile?.frostedBackground ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danger zone */}
+                <div className="bg-white/[0.02] border border-white/[0.05] rounded-[2rem] p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2.5 bg-red-500/10 rounded-xl"><ShieldAlert size={15} className="text-red-400" /></div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Account Actions</h3>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest">Sign out or manage session</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { logout(); setShowUserSettings(false); }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                  ><LogOut size={12} /> Sign Out</button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>
