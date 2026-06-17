@@ -1430,10 +1430,10 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       >
                         <Plus size={18} className="text-white group-hover:text-black transition-colors" />
                       </button>
-                      <button 
-                        onClick={() => onNavigate?.('CREATOR')}
+                      <button
+                        onClick={() => onNavigate?.('SETTINGS')}
                         className="p-2.5 bg-white text-black hover:bg-small-orange hover:text-white rounded-2xl transition-all shadow-xl"
-                        title="Backend / Creator Dashboard"
+                        title="User Backend"
                       >
                         <Settings size={18} />
                       </button>
