@@ -3,12 +3,13 @@ import { scoreText } from '../src/lib/scoreText';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
-import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction } from '../services/backendService';
+import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks } from '../services/backendService';
+import { getDailyFigure } from '../services/historyData';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
 import { fetchNewsFromRSS } from '../services/rssService';
-import { ArrowLeft, User, Music2, MessageSquare, Image as ImageIcon, Send, Play, UserPlus, UserMinus, Globe, Newspaper, Zap, TrendingUp, Reply, Trash2, Sparkles, Book, Disc, Gamepad2, Tv, Radio, Layers, ChevronLeft, ChevronRight, Maximize2, ExternalLink, Volume2, VolumeX, Pause, Plus, Check, X, Heart, Pen, Share2, Mic, Search, Users, Cloud, Smile, MoreHorizontal, Info, Clock, Swords } from 'lucide-react';
+import { ArrowLeft, User, Music2, MessageSquare, Image as ImageIcon, Send, Play, UserPlus, UserMinus, Globe, Newspaper, Zap, TrendingUp, Reply, Trash2, Sparkles, Book, BookOpen, Disc, Film, Gamepad2, Tv, Radio, Layers, ChevronLeft, ChevronRight, Maximize2, ExternalLink, Volume2, VolumeX, Pause, Plus, Check, X, Heart, Pen, Share2, Mic, Search, Users, Cloud, Smile, MoreHorizontal, Info, Clock, Swords } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring, useInView } from 'motion/react';
@@ -1263,6 +1264,12 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   });
   const [showGoLive, setShowGoLive] = useState(false);
   const [showStartTalk, setShowStartTalk] = useState(false);
+  const [globalActiveTalks, setGlobalActiveTalks] = useState<LiveTalk[]>([]);
+  const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
+  const [clockTime, setClockTime] = useState(() => new Date());
+  const [featuredMusic, setFeaturedMusic] = useState<Album | null>(null);
+  const [featuredFilm, setFeaturedFilm] = useState<Album | null>(null);
+  const [featuredBook, setFeaturedBook] = useState<Album | null>(null);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
   const [timelineValue, setTimelineValue] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
@@ -1447,6 +1454,43 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     }
     return () => unsub?.();
   }, [activeTab, plajahFilter, currentUser?.uid]);
+
+  // Live clock — ticks every second
+  useEffect(() => {
+    const t = setInterval(() => setClockTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Featured content for Today on Plajah discovery strip
+  useEffect(() => {
+    if (activeTab !== 'GLOBAL') return;
+    fetchAllPublicAlbums().then(albums => {
+      const music = albums.find(a => a.type === 'MUSIC');
+      const film  = albums.find(a => a.type === 'VIDEO');
+      if (music) setFeaturedMusic(music);
+      if (film)  setFeaturedFilm(film);
+    }).catch(() => {});
+    fetchPublicBooks().then(books => {
+      if (!books.length) return;
+      const seed = Math.floor(Date.now() / 86400000) % books.length;
+      setFeaturedBook(books[seed]);
+    }).catch(() => {});
+  }, [activeTab]);
+
+  // Live talks listener for the GLOBAL tab strip
+  useEffect(() => {
+    if (activeTab !== 'GLOBAL') return;
+    const unsub = listenToActiveLiveTalks(setGlobalActiveTalks);
+    return () => unsub();
+  }, [activeTab]);
+
+  // Subscribed podcast albums for the GLOBAL tab strip
+  useEffect(() => {
+    if (activeTab !== 'GLOBAL' || !userProfile) return;
+    const ids: string[] = (userProfile as any).subscribedPodcastIds ?? [];
+    if (!ids.length) { setSubscribedPodcasts([]); return; }
+    fetchAlbumsByIds(ids.slice(0, 20)).then(albums => setSubscribedPodcasts(albums)).catch(() => {});
+  }, [activeTab, userProfile?.uid]);
 
   // Timeline scrubber ↔ feed scroll sync
   useEffect(() => {
@@ -1961,12 +2005,6 @@ const toggleFavoriteTeam = async (team: string) => {
     setIsPosting(false);
   };
 
-  const trendingTopics = [
-    { tag: '#GlobalMusic', count: '1.2k' },
-    { tag: '#ArtRevolution', count: '850' },
-    { tag: '#StudioLife', count: '2.4k' },
-    { tag: '#NewTech', count: '500' }
-  ];
 
   return (
     <>
@@ -1999,7 +2037,7 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
           </div>
 
-          <nav className="flex gap-2 px-1 overflow-x-auto no-scrollbar pb-1">
+          <nav className="flex gap-1.5 px-1 overflow-x-auto no-scrollbar pb-1">
             {[
               { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
               { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
@@ -2011,13 +2049,13 @@ const toggleFavoriteTeam = async (team: string) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as FeedTab)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all shrink-0 ${
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
                   activeTab === tab.id
                     ? 'bg-white text-black shadow-lg'
                     : 'bg-white/5 border border-white/8 text-white/45 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <tab.icon size={13} className={tab.id === 'NOW' && activeTab !== tab.id ? 'text-green-400' : ''} />
+                <tab.icon size={11} className={tab.id === 'NOW' && activeTab !== tab.id ? 'text-green-400' : ''} />
                 {tab.label}
                 {tab.isNew && activeTab !== tab.id && (
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -2052,13 +2090,6 @@ const toggleFavoriteTeam = async (team: string) => {
                   </button>
                 )}
               </div>
-              {trendingTopics.map(topic => (
-                <button key={topic.tag} className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white text-white hover:text-black transition-all flex items-center gap-3">
-                  <span className="text-small-orange">#</span>
-                  <span>{topic.tag}</span>
-                  <span className="opacity-40 font-mono">{topic.count}</span>
-                </button>
-              ))}
             </div>
           )}
         </header>
@@ -2668,6 +2699,160 @@ const toggleFavoriteTeam = async (team: string) => {
         /* ── Plajah Social Canvas ───────────────────────────── */
         <div className="w-full min-w-0 max-w-full md:max-w-3xl lg:max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1700px] mx-auto flex flex-col flex-1 overflow-hidden">
 
+          {/* ── Today on Plajah — Clock · Featured Releases · History Cards ── */}
+          {(() => {
+            const musicFigure = getDailyFigure('MUSIC');
+            const filmFigure  = getDailyFigure('FILM_TV');
+            const hh = String(clockTime.getHours()).padStart(2, '0');
+            const mm = String(clockTime.getMinutes()).padStart(2, '0');
+            const ss = String(clockTime.getSeconds()).padStart(2, '0');
+            const dateStr = clockTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            return (
+              <div className="shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+
+                  {/* ── Gorgeous Clock ── */}
+                  <div className="shrink-0 w-[260px] h-[170px] rounded-[1.75rem] relative overflow-hidden border border-white/8 flex flex-col items-center justify-center"
+                    style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(255,140,0,0.12) 0%, rgba(0,0,0,0.7) 70%)', boxShadow: '0 0 48px rgba(255,140,0,0.07)' }}>
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(255,255,255,0.03)_0%,transparent_70%)]" />
+                    <div className="relative text-center px-5">
+                      <div className="text-[8px] font-black uppercase tracking-[0.4em] text-small-orange/60 mb-3 flex items-center justify-center gap-1.5">
+                        <Clock size={8} />
+                        Plajah · Now
+                      </div>
+                      <div className="flex items-baseline justify-center gap-1">
+                        <span className="text-5xl font-black tabular-nums leading-none text-white" style={{ letterSpacing: '-0.02em' }}>{hh}:{mm}</span>
+                        <span className="text-xl font-black tabular-nums text-small-orange/70 leading-none" style={{ letterSpacing: '-0.02em' }}>:{ss}</span>
+                      </div>
+                      <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-3 leading-tight">{dateStr}</div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-small-orange/30 to-transparent" />
+                  </div>
+
+                  {/* ── Latest Chora Release ── */}
+                  {featuredMusic && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredMusic } }))}
+                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-small-orange/30 transition-all group text-left"
+                    >
+                      {featuredMusic.coverImage
+                        ? <img src={featuredMusic.coverImage} alt={featuredMusic.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        : <div className="absolute inset-0 bg-white/5" />}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-small-orange/25 rounded-full text-[7px] font-black uppercase tracking-widest text-small-orange">
+                          <Music2 size={7} /> Chora · New
+                        </span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredMusic.title}</p>
+                        {featuredMusic.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredMusic.artistName}</p>}
+                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-small-orange">Play →</span>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* ── Latest Taleo Release ── */}
+                  {featuredFilm && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredFilm } }))}
+                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-cyan-400/30 transition-all group text-left"
+                    >
+                      {featuredFilm.coverImage
+                        ? <img src={featuredFilm.coverImage} alt={featuredFilm.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        : <div className="absolute inset-0 bg-white/5" />}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-cyan-400/25 rounded-full text-[7px] font-black uppercase tracking-widest text-cyan-400">
+                          <Film size={7} /> Taleo · New
+                        </span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredFilm.title}</p>
+                        {featuredFilm.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredFilm.artistName}</p>}
+                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-cyan-400">Watch →</span>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* ── Random Lorea Book ── */}
+                  {featuredBook && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredBook } }))}
+                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-emerald-400/30 transition-all group text-left"
+                    >
+                      {featuredBook.coverImage
+                        ? <img src={featuredBook.coverImage} alt={featuredBook.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        : <div className="absolute inset-0 bg-white/5" />}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-emerald-400/25 rounded-full text-[7px] font-black uppercase tracking-widest text-emerald-400">
+                          <BookOpen size={7} /> Lorea · Classic
+                        </span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredBook.title}</p>
+                        {featuredBook.artistName && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredBook.artistName}</p>}
+                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-emerald-400">Read →</span>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* ── Music History Today (Chora) ── */}
+                  <div
+                    onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'CHORA_HISTORY' } }))}
+                    className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-amber-500/20 hover:border-amber-400/40 cursor-pointer transition-all group"
+                    style={{ boxShadow: '0 0 24px rgba(245,158,11,0.06)' }}
+                  >
+                    {musicFigure.imageUrl && (
+                      <>
+                        <img src={musicFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
+                        <img src={musicFigure.imageUrl} alt={musicFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                      </>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-amber-500/25 rounded-full text-[7px] font-black uppercase tracking-widest text-amber-400">
+                        <Music2 size={7} /> Music History
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white leading-tight">{musicFigure.name}</p>
+                      <p className="text-[8px] text-amber-400/70 font-bold mt-0.5">{musicFigure.era}</p>
+                      <p className="text-[8px] text-white/30 mt-1 leading-relaxed line-clamp-2">{musicFigure.bio.slice(0, 70)}…</p>
+                    </div>
+                  </div>
+
+                  {/* ── Film History Today (Taleo) ── */}
+                  <div
+                    onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'TALEO_HISTORY' } }))}
+                    className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-blue-500/20 hover:border-blue-400/40 cursor-pointer transition-all group"
+                    style={{ boxShadow: '0 0 24px rgba(59,130,246,0.06)' }}
+                  >
+                    {filmFigure.imageUrl && (
+                      <>
+                        <img src={filmFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
+                        <img src={filmFigure.imageUrl} alt={filmFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                      </>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-blue-500/25 rounded-full text-[7px] font-black uppercase tracking-widest text-blue-400">
+                        <Film size={7} /> Film History
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white leading-tight">{filmFigure.name}</p>
+                      <p className="text-[8px] text-blue-400/70 font-bold mt-0.5">{filmFigure.era}</p>
+                      <p className="text-[8px] text-white/30 mt-1 leading-relaxed line-clamp-2">{filmFigure.bio.slice(0, 70)}…</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Go Live button ── */}
           {currentUser && (
             <div className="shrink-0 px-4 pt-3 flex justify-end">
@@ -2691,6 +2876,63 @@ const toggleFavoriteTeam = async (team: string) => {
                 followedUids={userProfile?.following ?? []}
                 onVisitUser={onVisitUser}
               />
+            </div>
+          )}
+
+          {/* ── Active Live Talks & Streams strip ── */}
+          {globalActiveTalks.length > 0 && (
+            <div className="shrink-0 px-4 py-3 border-b border-white/5">
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-red-400">Live Now</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                {globalActiveTalks.slice(0, 10).map(talk => (
+                  <button
+                    key={talk.id}
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-drawer', { detail: { tab: 'LIVETALK', talkId: talk.id } }))}
+                    className="flex-shrink-0 flex items-center gap-2.5 bg-red-500/10 border border-red-500/20 hover:border-red-500/40 rounded-2xl px-3.5 py-2 transition-all group"
+                  >
+                    <div className="relative shrink-0">
+                      <img src={talk.hostPhoto || undefined} alt={talk.hostName} className="w-7 h-7 rounded-full object-cover ring-1 ring-red-500/40" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
+                    </div>
+                    <div className="text-left min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white truncate max-w-[120px]">{talk.title}</p>
+                      <p className="text-[8px] text-red-400/80 font-bold truncate max-w-[120px]">{talk.hostName}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[8px] text-white/40 shrink-0">
+                      <Users size={9} />
+                      <span>{talk.listeners?.length + talk.speakers?.length || 0}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Subscribed Podcast Episodes strip ── */}
+          {subscribedPodcasts.length > 0 && (
+            <div className="shrink-0 px-4 py-3 border-b border-white/5">
+              <div className="flex items-center gap-2 mb-2.5">
+                <Mic size={10} className="text-purple-400" />
+                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-purple-400">Your Podcasts</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                {subscribedPodcasts.map(pod => (
+                  <button
+                    key={pod.id}
+                    onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: pod } }))}
+                    className="flex-shrink-0 flex items-center gap-2.5 bg-white/[0.04] border border-white/8 hover:border-white/20 rounded-2xl px-3 py-2 transition-all group"
+                  >
+                    <img src={pod.coverImage || undefined} alt={pod.title} className="w-8 h-8 rounded-xl object-cover shrink-0" />
+                    <div className="text-left min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white truncate max-w-[110px] group-hover:text-small-orange transition-colors">{pod.title}</p>
+                      <p className="text-[8px] text-white/35 font-bold">{pod.tracks?.length ?? 0} ep</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

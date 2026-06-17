@@ -21,6 +21,7 @@ import { Article, UserProfile, Post } from '../types';
 import { fetchLeagueNews, fetchLeagueScores, fetchWorldCupWindow } from '../services/sportsService';
 import { SPORTS_INTELLIGENCE_DOMAINS, seedSportsSourceRegistry } from '../services/sportsKnowledgeService';
 import { getLeagueStaticTeams } from '../data/leagueTeams';
+import { WC26_TEAMS } from '../data/worldCup2026';
 import { StatCardBuilder } from './sports/StatCardBuilder';
 import { RaceHistoryView } from './sports/RaceHistoryView';
 
@@ -82,14 +83,70 @@ const LEAGUE_LOGOS: Record<string, string> = {
   INDYCAR: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80',
 };
 
+// Each slide is a placeholder shown briefly while live news loads.
+// imageUrl is empty for sports where no reliable still is known —
+// the carousel shows a dark gradient instead. News loading replaces
+// these with real action photos pulled from the league's own feed.
 const HERO_FALLBACKS = [
-  { id: 'h1', title: 'World Sport Today',   subtitle: 'Breaking headlines across every league', imageUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1400&q=80', leagueId: 'ALL' },
-  { id: 'h2', title: 'Game Day Coverage',   subtitle: 'Live scores, analysis and highlights',   imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80', leagueId: 'NBA' },
-  { id: 'h3', title: 'Formula 1 Season',    subtitle: 'Race results, standings and replay',     imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80', leagueId: 'F1' },
-  { id: 'h4', title: 'NASCAR Thunder',      subtitle: 'Cup Series — picks, standings, history', imageUrl: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=1400&q=80', leagueId: 'NASCAR' },
-  { id: 'h5', title: 'IndyCar Open Wheel',  subtitle: 'Indy 500, road courses & ovals',        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&q=80', leagueId: 'INDYCAR' },
-  { id: 'h6', title: 'World Cup 2026',      subtitle: '48 nations · FIFA USA · June–July 2026', imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=1400&q=80', leagueId: 'WORLD_CUP' },
+  { id: 'h-wc',     title: 'World Cup 2026',    subtitle: '48 nations · Every match · Only on Plajah', imageUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=1400&q=80', leagueId: 'WORLD_CUP' },
+  { id: 'h-nba',    title: 'NBA Basketball',     subtitle: 'Live scores · Highlights · Analysis',       imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1400&q=80',  leagueId: 'NBA' },
+  { id: 'h-nfl',    title: 'NFL Football',       subtitle: 'This week · Live scores · Standings',       imageUrl: '', leagueId: 'NFL' },
+  { id: 'h-f1',     title: 'Formula 1',          subtitle: 'Race results · Standings · Race replay',    imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80',  leagueId: 'F1' },
+  { id: 'h-nascar', title: 'NASCAR Cup Series',  subtitle: 'Cup standings · Picks · History',           imageUrl: '', leagueId: 'NASCAR' },
+  { id: 'h-mlb',    title: 'MLB Baseball',       subtitle: 'Scores · Stats · Season highlights',        imageUrl: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=1400&q=80', leagueId: 'MLB' },
+  { id: 'h-ufc',    title: 'UFC · MMA',          subtitle: 'Fight cards · Results · Rankings',          imageUrl: '', leagueId: 'UFC' },
+  { id: 'h-indycar',title: 'IndyCar Open Wheel', subtitle: 'Indy 500 · Road courses · Ovals',           imageUrl: '', leagueId: 'INDYCAR' },
 ];
+
+// ── Sport image guard ──────────────────────────────────────────────────────────
+// At least one of these terms must appear in the article text/title/source/url
+// for an article's image to be placed in that league's hero slot.
+// This prevents a crypto story, wrong-sport article, or off-topic news photo
+// from ever ending up in the carousel.
+const SPORT_REQUIRED_TERMS: Record<string, string[]> = {
+  NBA:       ['nba','basketball','lakers','celtics','warriors','bulls','heat','knicks','nets','sixers','bucks','nuggets','suns','mavericks','rockets','clippers','thunder','blazers','jazz','spurs','grizzlies','pelicans','hornets','hawks','pistons','cavaliers','pacers','magic','raptors','timberwolves','wizards','kings','dunk','alley-oop','court','playoff','three-point','point guard','shooting guard','small forward','power forward','center'],
+  NFL:       ['nfl','football','quarterback','touchdown','super bowl','superbowl','chiefs','eagles','cowboys','patriots','packers','seahawks','rams','49ers','ravens','steelers','broncos','bears','giants','jets','bills','dolphins','colts','texans','jaguars','titans','browns','bengals','raiders','chargers','cardinals','falcons','saints','buccaneers','panthers','vikings','lions','gridiron','nfc','afc','field goal','end zone','running back','wide receiver','linebacker','cornerback'],
+  MLB:       ['mlb','baseball','yankees','red sox','dodgers','cubs','mets','braves','astros','cardinals','giants','phillies','brewers','padres','athletics','orioles','blue jays','rays','mariners','angels','tigers','twins','white sox','royals','rangers','pitcher','home run','inning','batting','strikeout','world series','outfield','shortstop','catcher','umpire','bullpen','dugout','ball park'],
+  NHL:       ['nhl','hockey','puck','ice rink','rangers','bruins','maple leafs','canadiens','blackhawks','penguins','capitals','lightning','avalanche','golden knights','oilers','flames','canucks','jets','wild','sabres','flyers','devils','islanders','ducks','kings','sharks','stars','blues','predators','red wings','hurricanes','blue jackets','senators','panthers','goalie','power play','penalty shot','faceoff','slap shot'],
+  F1:        ['formula 1','formula one','f1','grand prix','ferrari','mercedes','red bull racing','mclaren','hamilton','verstappen','leclerc','alonso','norris','sainz','pérez','perez','aston martin f1','williams f1','haas f1','alpine f1','pole position','pit stop','lap record','race circuit','constructor championship','fastest lap'],
+  NASCAR:    ['nascar','cup series','daytona','talladega','bristol','martinsville','charlotte motor','hendrick','penske nascar','stock car','superspeedway','restrictor plate','checkered flag','caution flag','pit road','drafting','plate racing','xfinity','truck series'],
+  INDYCAR:   ['indycar','indy 500','indianapolis 500','open wheel','andretti','chip ganassi','team penske indycar','oval race','indy car','road course indy'],
+  UFC:       ['ufc','mma','mixed martial arts','octagon','knockout','submission','rear naked choke','takedown','fight night','pay-per-view ppv','heavyweight','lightweight','welterweight','middleweight','featherweight','bantamweight','flyweight','women\'s'],
+  MMA:       ['mma','mixed martial arts','ufc','bellator','one championship','fight','knockout','submission','grappling'],
+  BOXING:    ['boxing','heavyweight','welterweight','lightweight','bout','boxing ring','boxing gloves','jab','uppercut','knockdown','k.o.','t.k.o.','split decision','unanimous decision'],
+  FIFA:      ['soccer','football match','premier league','la liga','bundesliga','serie a','ligue 1','champions league','europa league','manchester','barcelona','real madrid','liverpool','arsenal','chelsea','juventus','bayern munich','psg','paris saint-germain','goal scorer','goalkeeper','striker','corner kick','penalty kick','offside','header','dribble'],
+  WORLD_CUP: ['world cup','fifa','world cup 2026','group stage','knockout round','quarterfinal','semifinal','soccer match','football match','goal','nations'],
+  MLS:       ['mls','major league soccer','lafc','inter miami','galaxy','sounders','portland timbers','toronto fc','atlanta united','chicago fire','new york city fc','nycfc','new england revolution','houston dynamo','colorado rapids'],
+  WNBA:      ['wnba','women\'s basketball','basketball','liberty','aces','dream','sparks','wings','mercury','mystics','fever','lynx','storm','sky','sun'],
+  TENNIS:    ['tennis','wimbledon','us open tennis','french open','australian open','grand slam','serve','ace','deuce','set','match point','djokovic','federer','nadal','swiatek','sinner','alcaraz','serena','gauff','osaka','raquet','volley'],
+  GOLF:      ['golf','pga tour','masters','the open championship','us open golf','ryder cup','mcilroy','scottie scheffler','fairway','birdie','eagle','par','bogey','tee shot','iron shot','chipping','putting','18th hole'],
+  CRICKET:   ['cricket','test match','odi','t20','ipl','wicket','batsman','bowler','over','innings','ashes','cricket world cup'],
+  RUGBY:     ['rugby union','rugby league','try','scrum','lineout','conversion','drop goal','six nations','rugby world cup','all blacks','springboks'],
+  ESPORTS:   ['esports','e-sports','gaming tournament','league of legends','dota 2','cs:go','csgo','valorant','overwatch league','fortnite competitive','pro player','roster change','lan event'],
+};
+
+// These terms disqualify any article from the hero carousel regardless of league.
+const HERO_BLOCKLIST = [
+  'bitcoin','crypto','cryptocurrency','blockchain','ethereum','nft','defi','web3','token','dogecoin','altcoin','binance','coinbase',
+  'stock market','wall street','dow jones','nasdaq','s&p 500','hedge fund','ipo','investment fund',
+  'election','president','congress','senate','legislation','parliament','prime minister','political',
+  'fashion week','beauty','makeup','skincare','hairstyle','celebrity wedding','red carpet',
+  'real estate','mortgage','interest rate','federal reserve',
+];
+
+// Returns true only if an article is confirmed relevant to the given sport.
+// An empty leagueId or 'ALL' skips the check.
+const articleMatchesSport = (
+  article: { title?: string; source?: string; content?: string; url?: string },
+  leagueId: string,
+): boolean => {
+  const text = `${article.title ?? ''} ${article.source ?? ''} ${article.content ?? ''} ${article.url ?? ''}`.toLowerCase();
+  // Block obviously-wrong content from every sport slot.
+  if (HERO_BLOCKLIST.some(b => text.includes(b))) return false;
+  const required = SPORT_REQUIRED_TERMS[leagueId];
+  if (required) return required.some(kw => text.includes(kw));
+  return true; // Unknown league — don't block.
+};
 
 // ── Crisp imagery ───────────────────────────────────────────────────────────
 // Article art often arrives as a small thumbnail and gets stretched into a big
@@ -424,6 +481,7 @@ interface Props {
 export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
   const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
+  const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
   const [favoriteTeams, setFavTeams]  = useState<any[]>([]);
   const [headlines, setHeadlines]     = useState<Article[]>([]);
   const [liveScores, setLiveScores]   = useState<any[]>([]);
@@ -527,8 +585,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
       const liveOrToday = scoreArr.filter(isLiveOrTodayEvent);
       setLiveScores(liveOrToday.slice(0, 12));
 
-      // Build hero from news with images — attach leagueId so clicking navigates
-      const heroItems = newsArr
+      // Build hero from news — filter to sport-relevant articles only so we never
+      // show a wrong-sport or off-topic image (e.g. crypto on the NBA slide).
+      const sportNews = tab !== 'ALL'
+        ? newsArr.filter((n: any) => articleMatchesSport(n, tab))
+        : newsArr;
+
+      const heroItems = sportNews
         .filter((n: any) => n.imageUrl)
         .slice(0, 6)
         .map((n: any, i: number) => ({
@@ -539,13 +602,23 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
           url: n.url,
           leagueId: tab !== 'ALL' ? tab : undefined,
         }));
+      // Need at least 2 validated images; otherwise keep the sport's fallback gradient.
       if (heroItems.length >= 2) setHero(heroItems);
     } finally {
       setLoadingNews(false);
     }
   };
 
-  useEffect(() => { loadData(activeTab); }, [activeTab]);
+  useEffect(() => {
+    // Reset to this sport's own fallback while news loads so stale images from the
+    // previous tab never bleed into the new tab's carousel.
+    const sportFallback = HERO_FALLBACKS.find(f => f.leagueId === activeTab);
+    setHero(sportFallback
+      ? [sportFallback]
+      : [{ id: `loading-${activeTab}`, title: activeTab, subtitle: 'Live coverage on Plajah', imageUrl: '', leagueId: activeTab }]
+    );
+    loadData(activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     seedSportsSourceRegistry().catch(() => {});
@@ -638,7 +711,94 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-5 lg:px-10 py-6 space-y-6 sm:space-y-8">
 
-        {/* ── WORLD CUP — front & center, first thing you see ─────────────────── */}
+        {/* ── WORLD CUP SHOWCASE — always top, always first ─────────────────── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl leading-none select-none">⚽</span>
+              <div>
+                <p className="text-[7px] font-black uppercase tracking-[0.45em] text-[#39B54A]">FIFA World Cup 2026™ · North, Central America &amp; Caribbean</p>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">The World Cup Hub</h2>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/15 border border-red-500/25 shrink-0">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
+              <span className="text-[7px] font-black uppercase tracking-widest text-red-400">Tournament Live</span>
+            </div>
+          </div>
+
+          <motion.button
+            className="relative w-full overflow-hidden rounded-3xl text-left group"
+            style={{ background: 'linear-gradient(135deg, #010E04 0%, #001122 50%, #010A03 100%)', border: '1px solid rgba(57,181,74,0.18)' }}
+            onClick={() => { setActiveTab('WORLD_CUP'); setWcOpenTab('clubs'); }}
+            whileHover={{ scale: 1.003 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="absolute inset-0 flex items-center overflow-hidden opacity-[0.07] pointer-events-none select-none text-3xl gap-1.5 px-3">
+              {WC26_TEAMS.slice(0, 28).map((t: any) => <span key={t.id}>{t.flag}</span>)}
+            </div>
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#39B54A]/65 to-transparent" />
+            <div className="absolute -top-16 left-1/3 w-96 h-48 bg-[#39B54A]/6 blur-3xl rounded-full pointer-events-none" />
+            <div className="relative px-6 py-7 sm:px-8 sm:py-9 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex items-center gap-5 shrink-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl shrink-0"
+                  style={{ background: 'rgba(57,181,74,0.12)', border: '1px solid rgba(57,181,74,0.25)' }}>
+                  📹
+                </div>
+                <div>
+                  <p className="text-[7px] font-black uppercase tracking-[0.45em] text-[#39B54A] mb-1.5">Live · Real Video · 24 Fans Per Room</p>
+                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white leading-none">Live Fan Rooms</h3>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 sm:pl-2">
+                <p className="text-sm sm:text-base text-white/50 leading-relaxed max-w-xs sm:max-w-sm">
+                  Watch every match with your nation's fans. Real faces. Real reactions. Only on Plajah.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <span className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest whitespace-nowrap"
+                  style={{ background: '#39B54A', color: '#000' }}>
+                  Find Your Room <ChevronRight size={14} />
+                </span>
+              </div>
+            </div>
+          </motion.button>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {([
+              { emoji: '🏆', color: '#FFB514', badge: 'Interactive 3D', title: 'Hall of Legends', desc: 'Walk through every World Cup champion in a cinematic 3D trophy room. No other platform has this.', tab: 'history' },
+              { emoji: '🎯', color: '#FF8C00', badge: 'All 104 Matches', title: 'Pick Every Match', desc: 'Lock your bracket from the group stage all the way to the Final. Compete globally.', tab: 'picks' },
+              { emoji: '🌍', color: '#39B54A', badge: '48 Live Communities', title: 'Nation Fan Clubs', desc: 'Every competing nation has its own hub — rosters, timelines, media, and live video rooms.', tab: 'clubs' },
+              { emoji: '⚡', color: '#3B82F6', badge: 'Auto-Updating', title: 'Live Bracket', desc: 'Track every result from groups to the knockout Final. Crystal clear. Always live.', tab: 'bracket' },
+            ] as const).map(card => (
+              <motion.button
+                key={card.tab}
+                className="group relative text-left overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 hover:border-white/[0.12] transition-all"
+                onClick={() => { setActiveTab('WORLD_CUP'); setWcOpenTab(card.tab); }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ duration: 0.15 }}
+              >
+                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${card.color}55, transparent)` }} />
+                <div className="text-3xl mb-4 select-none">{card.emoji}</div>
+                <p className="text-[7px] font-black uppercase tracking-[0.35em] mb-2" style={{ color: card.color }}>{card.badge}</p>
+                <h4 className="text-[11px] sm:text-xs font-black uppercase tracking-tight text-white mb-2 leading-snug">{card.title}</h4>
+                <p className="text-[10px] text-white/35 leading-relaxed">{card.desc}</p>
+                <div className="absolute bottom-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ChevronRight size={12} style={{ color: card.color }} />
+                </div>
+              </motion.button>
+            ))}
+          </div>
+
+          <button
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-white/[0.06] text-white/25 text-[9px] font-black uppercase tracking-widest hover:text-white/50 hover:border-white/12 transition-all"
+            onClick={() => setActiveTab('WORLD_CUP')}
+          >
+            Open Full World Cup Hub <ChevronRight size={11} />
+          </button>
+        </div>
+
+        {/* ── WORLD CUP LIVE SCORES / FIXTURES ─────────────────────────────── */}
         <WorldCupTopBoard onOpenFull={() => setActiveTab('WORLD_CUP')} />
 
         {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
@@ -765,7 +925,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
           <div className="space-y-6 lg:space-y-8 min-w-0">
             {/* World Cup Hub */}
             {activeTab === 'WORLD_CUP' && (
-              <WorldCupHub currentUser={currentUser ?? null} />
+              <WorldCupHub
+                currentUser={currentUser ?? null}
+                initialTab={wcOpenTab as any}
+              />
             )}
 
             {/* Health & Fitness hub tabs */}

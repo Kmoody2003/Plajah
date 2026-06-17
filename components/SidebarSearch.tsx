@@ -37,6 +37,7 @@ interface SidebarSearchProps {
   onSelectGame: (game: any) => void;
   onSelectView: (view: string) => void;
   onSelectLiveFeed: (feed: any) => void;
+  onFocusChange?: (isFocused: boolean) => void;
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -98,9 +99,15 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
   onSelectGame,
   onSelectView,
   onSelectLiveFeed,
+  onFocusChange,
 }) => {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
+
+  const setFocusedWithCallback = (v: boolean) => {
+    setFocused(v);
+    onFocusChange?.(v);
+  };
 
   // Content catalogs
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -292,7 +299,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
       default:           onSelectItem(result.raw); break;
     }
     setQuery('');
-    setFocused(false);
+    setFocusedWithCallback(false);
   };
 
   const isCollapsed = isSidebarCollapsed || theme === 'BIG_SCREEN';
@@ -325,8 +332,8 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
           placeholder="Search music, videos, articles..."
           value={query}
           onChange={e => setQuery(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 160)}
+          onFocus={() => setFocusedWithCallback(true)}
+          onBlur={() => setTimeout(() => setFocusedWithCallback(false), 160)}
           className="w-full h-10 bg-white/[0.06] border border-white/[0.08] rounded-xl pl-9 pr-8 text-[11px] text-white placeholder-white/25 focus:outline-none focus:border-white/20 focus:bg-white/[0.09] transition-all"
         />
         {q && (
@@ -348,7 +355,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
             <div className="flex flex-wrap gap-2">
               <button
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => { onSelectView('PEOPLE'); setFocused(false); }}
+                onClick={() => { onSelectView('PEOPLE'); setFocusedWithCallback(false); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00]/10 border border-[#FF8C00]/20 text-[9px] font-black uppercase tracking-wider text-[#FF8C00] hover:bg-[#FF8C00]/20 transition-colors"
               >
                 <Users size={10} />
@@ -356,7 +363,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
               </button>
               <button
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => { onSelectView('SEARCH'); setFocused(false); }}
+                onClick={() => { onSelectView('SEARCH'); setFocusedWithCallback(false); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-wider text-white/50 hover:bg-white/10 transition-colors"
               >
                 <Search size={10} />
@@ -420,14 +427,14 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
               <div className="px-4 py-2 border-t border-white/[0.04] flex items-center justify-between">
                 <button
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => { onSelectView('SEARCH'); setQuery(''); setFocused(false); }}
+                  onClick={() => { onSelectView('SEARCH'); setQuery(''); setFocusedWithCallback(false); }}
                   className="text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
                 >
                   Full search →
                 </button>
                 <button
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => { onSelectView('PEOPLE'); setQuery(''); setFocused(false); }}
+                  onClick={() => { onSelectView('PEOPLE'); setQuery(''); setFocusedWithCallback(false); }}
                   className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#FF8C00]/50 hover:text-[#FF8C00] transition-colors"
                 >
                   <Users size={10} />

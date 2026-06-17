@@ -73,6 +73,7 @@ type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'bracket' | 'picks'
 
 interface Props {
   currentUser: UserProfile | null;
+  initialTab?: HubTab;
 }
 
 // ── Match card ─────────────────────────────────────────────────────────────────
@@ -372,8 +373,8 @@ const PodcastCard: React.FC<{ podcast: typeof WC26_PODCASTS[0] }> = ({ podcast }
 };
 
 // ── Main hub ──────────────────────────────────────────────────────────────────
-const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
-  const [tab, setTab] = useState<HubTab>('news');
+const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
+  const [tab, setTab] = useState<HubTab>(initialTab ?? 'news');
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [wcNews, setWcNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -381,6 +382,12 @@ const WorldCupHub: React.FC<Props> = ({ currentUser }) => {
 
   const upcoming = useMemo(() => getUpcomingMatches(12), []);
   const live = useMemo(() => getLiveMatches(), []);
+
+  // When a deep-link from the parent changes (e.g. clicking a feature card),
+  // snap to the requested tab.
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     if (tab !== 'news') return;

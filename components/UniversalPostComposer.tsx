@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Image, Smile, Globe, X, Mic, Camera, Square, Share2,
   BarChart2, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2,
-  ToggleLeft, ToggleRight,
+  ToggleLeft, ToggleRight, BookOpen, List,
 } from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld, UserProfile } from '../types';
@@ -58,6 +58,10 @@ export interface ComposerPostData {
   exclusive?: ExclusiveConfig;
   /** Creator-applied content labels (graphic / 18+ / artistic nudity / sensitive) */
   contentLabels?: import('../services/contentSafetyService').ContentLabel[];
+  /** Long-form post mode: thread splits at 500 chars; booklet shows page-turn UI */
+  postMode?: 'thread' | 'booklet';
+  /** Pre-split chunks used when postMode === 'thread' or 'booklet' */
+  threadChunks?: string[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -168,6 +172,21 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [selectedViewLimit, setSelectedViewLimit]     = useState(25);
   const [camSeconds, setCamSeconds] = useState(0);
   const [detectedEmbeds, setDetectedEmbeds] = useState<SocialEmbed[]>([]);
+  const [postMode, setPostMode] = useState<'thread' | 'booklet'>('thread');
+
+  const CHUNK_SIZE = 500;
+  const splitIntoChunks = (str: string): string[] => {
+    const chunks: string[] = [];
+    let remaining = str;
+    while (remaining.length > CHUNK_SIZE) {
+      let cut = remaining.lastIndexOf(' ', CHUNK_SIZE);
+      if (cut < CHUNK_SIZE * 0.6) cut = CHUNK_SIZE;
+      chunks.push(remaining.slice(0, cut).trim());
+      remaining = remaining.slice(cut).trim();
+    }
+    if (remaining) chunks.push(remaining);
+    return chunks;
+  };
 
   // Detect social URLs in text as user types (debounced 350ms)
   useEffect(() => {
@@ -456,13 +475,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
         ? { ...poll, options: poll.options.filter(o => o.trim()) }
         : undefined;
-      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}) });
+      const isLong = text.length > CHUNK_SIZE;
+      const threadChunks = isLong ? splitIntoChunks(text) : undefined;
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}) });
       if (crossPost && hasFediverse && text.trim()) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
       setText(''); setAttachments([]); setAssetEmbed(undefined); setTheme('STANDARD');
       setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
       setExclusive(null); setShowExclusive(false); setContentLabels([]);
+      setPostMode('thread');
       setExpanded(false);
     } finally { setPosting(false); }
   };
@@ -1098,10 +1120,34 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           🔥
         </button>
 
+        {/* Post-mode toggle — visible when text passes 500 chars */}
+        {text.length > CHUNK_SIZE && (
+          <div className="flex items-center gap-0.5 bg-white/5 rounded-xl p-0.5 border border-white/8">
+            <button
+              title="Thread mode — splits into a connected thread"
+              onClick={() => setPostMode('thread')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${postMode === 'thread' ? 'bg-small-orange text-black' : 'text-white/35 hover:text-white'}`}
+            >
+              <List size={11} />
+              Thread
+            </button>
+            <button
+              title="Booklet mode — turns like pages every 500 characters"
+              onClick={() => setPostMode('booklet')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${postMode === 'booklet' ? 'bg-purple-500 text-white' : 'text-white/35 hover:text-white'}`}
+            >
+              <BookOpen size={11} />
+              Booklet
+            </button>
+          </div>
+        )}
+
         <div className="flex-1" />
 
-        <span className={`text-[9px] font-black tabular-nums ${text.length > 280 ? 'text-red-400' : 'text-white/20'}`}>
-          {text.length}/280
+        <span className={`text-[9px] font-black tabular-nums ${text.length > CHUNK_SIZE ? 'text-small-orange' : 'text-white/20'}`}>
+          {text.length > CHUNK_SIZE
+            ? `${splitIntoChunks(text).length} ${postMode === 'booklet' ? 'pages' : 'parts'}`
+            : `${text.length}`}
         </span>
 
         {hasFediverse && (
@@ -1118,7 +1164,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         )}
 
         <button
-          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); setPoll(null); setDataViz(null); setExclusive(null); setShowExclusive(false); }}
+          onClick={() => { setExpanded(false); setText(''); setAttachments([]); setAssetEmbed(undefined); setPoll(null); setDataViz(null); setExclusive(null); setShowExclusive(false); setPostMode('thread'); }}
           className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/8 transition-all"
         >
           <X size={14} />
@@ -1126,7 +1172,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
         <button
           onClick={handlePost}
-          disabled={!canPost || posting || text.length > 280}
+          disabled={!canPost || posting}
           className="px-6 py-2 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-small-orange/90 transition-all"
         >
           {posting ? '...' : 'Post'}
