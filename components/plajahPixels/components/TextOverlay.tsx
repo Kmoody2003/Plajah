@@ -50,6 +50,21 @@ export function ensureFontLoaded(family: string) {
     }
 }
 
+// Shatter animation constants
+const EXPLODE_MS  = 380;
+const HOLD_MS     = 160;
+const RETURN_MS   = 640;
+const BEATS_PER_TRIGGER = 8; // every 2 measures in 4/4
+const KICK_THRESHOLD    = 0.44; // absolute kick level
+const KICK_RISE         = 0.14; // transient rise required
+const SNARE_BODY_RISE   = 0.13;
+const SNARE_CRACK_RISE  = 0.07;
+const DRUM_DEBOUNCE_MS  = 200;
+
+const easeOutCubic  = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeInOutCubic = (t: number) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
 const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number | null>(null);
@@ -59,6 +74,20 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
     const charStatesRef = useRef<CharState[]>([]);
     const elasticRef = useRef(1);
     const lastBassHitRef = useRef(0);
+
+    // ── Kick/snare detector state ──────────────────────────────────────────
+    const prevKickRef      = useRef(0);
+    const prevSnareBodyRef = useRef(0);
+    const prevSnareCrackRef= useRef(0);
+    const lastKickTimeRef  = useRef(0);
+    const lastSnareTimeRef = useRef(0);
+    const beatCountRef     = useRef(0);
+
+    // ── Shatter animation state machine ───────────────────────────────────
+    const shatterPhaseRef  = useRef<'idle'|'exploding'|'hold'|'returning'>('idle');
+    const shatterProgRef   = useRef(0);  // 0=assembled, 1=fully shattered
+    const shatterStartRef  = useRef(0);
+    const holdStartRef     = useRef(0);
 
     // Load Google Font when textFont changes
     useEffect(() => {
@@ -123,21 +152,22 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
 
             // ── Audio analysis ─────────────────────────────────────────────
             let bassLevel = 0, vowelLevel = 0, consonantLevel = 0;
-            let jitterX = 0, jitterY = 0, blur = 0, explosion = 0;
+            let jitterX = 0, jitterY = 0, blur = 0;
 
             if (analyser && isPlaying) {
                 const bufLen = analyser.frequencyBinCount;
                 const data = new Uint8Array(bufLen);
                 analyser.getByteFrequencyData(data);
 
-                // Bass 0–250 Hz
+                const nyq = analyser.context.sampleRate / 2;
+                const binHz = nyq / bufLen;
+
+                // Bass 0–250 Hz (for physics/pulse, not shatter trigger)
                 let bassSum = 0;
                 for (let i = 0; i < 10; i++) bassSum += data[i];
                 bassLevel = (bassSum / 10) / 255;
 
                 // Vowels ~300–3000 Hz
-                const nyq = analyser.context.sampleRate / 2;
-                const binHz = nyq / bufLen;
                 const vs = Math.floor(300 / binHz), ve = Math.floor(3000 / binHz);
                 let vSum = 0;
                 for (let i = vs; i < ve && i < bufLen; i++) vSum += data[i];
@@ -149,14 +179,81 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 for (let i = cs; i < ce && i < bufLen; i++) cSum += data[i];
                 consonantLevel = cSum / (Math.max(1, ce - cs) * 255);
 
-                // Heavy kick jitter
-                if (bassLevel * config.sensitivity > 0.7) {
-                    const s = (bassLevel * config.sensitivity - 0.7) * 20;
+                // ── Kick: 50–120 Hz transient ──────────────────────────────
+                const ks = Math.max(1, Math.floor(50 / binHz));
+                const ke = Math.floor(120 / binHz);
+                let kSum = 0;
+                for (let i = ks; i <= ke && i < bufLen; i++) kSum += data[i];
+                const kickLevel = kSum / (Math.max(1, ke - ks + 1) * 255);
+                const kickRise  = kickLevel - prevKickRef.current;
+                const isKick = kickLevel > KICK_THRESHOLD && kickRise > KICK_RISE
+                    && (time - lastKickTimeRef.current) > DRUM_DEBOUNCE_MS;
+
+                // ── Snare: 150–350 Hz body + 2500–6000 Hz crack ────────────
+                const sbs = Math.floor(150 / binHz), sbe = Math.floor(350 / binHz);
+                let sbSum = 0;
+                for (let i = sbs; i <= sbe && i < bufLen; i++) sbSum += data[i];
+                const snareBodyLevel = sbSum / (Math.max(1, sbe - sbs + 1) * 255);
+                const snareBodyRise  = snareBodyLevel - prevSnareBodyRef.current;
+
+                const scs = Math.floor(2500 / binHz), sce = Math.floor(6000 / binHz);
+                let scSum = 0;
+                for (let i = scs; i <= sce && i < bufLen; i++) scSum += data[i];
+                const snareCrackLevel = scSum / (Math.max(1, sce - scs + 1) * 255);
+                const snareCrackRise  = snareCrackLevel - prevSnareCrackRef.current;
+
+                const isSnare = snareBodyRise > SNARE_BODY_RISE && snareCrackRise > SNARE_CRACK_RISE
+                    && (time - lastSnareTimeRef.current) > DRUM_DEBOUNCE_MS;
+
+                if (isKick) lastKickTimeRef.current = time;
+                if (isSnare) lastSnareTimeRef.current = time;
+
+                // ── Beat counter → shatter trigger every 2 measures ────────
+                if ((isKick || isSnare) && config.textShatter) {
+                    beatCountRef.current++;
+                    if (beatCountRef.current % BEATS_PER_TRIGGER === 0
+                            && shatterPhaseRef.current === 'idle') {
+                        shatterPhaseRef.current = 'exploding';
+                        shatterStartRef.current = time;
+                    }
+                }
+
+                prevKickRef.current       = kickLevel;
+                prevSnareBodyRef.current  = snareBodyLevel;
+                prevSnareCrackRef.current = snareCrackLevel;
+
+                // Heavy kick jitter (visual only, not tied to shatter trigger)
+                if (kickLevel * config.sensitivity > 0.7) {
+                    const s = (kickLevel * config.sensitivity - 0.7) * 20;
                     jitterX = (Math.random() - 0.5) * s;
                     jitterY = (Math.random() - 0.5) * s;
                     blur = s * 0.5;
                 }
-                explosion = Math.pow(bassLevel, 3) * (config.textShatterIntensity || 1) * 150;
+            }
+
+            // ── Shatter state machine ──────────────────────────────────────
+            let explosion = 0;
+            if (config.textShatter && shatterPhaseRef.current !== 'idle') {
+                const elapsed = time - shatterStartRef.current;
+                const phase = shatterPhaseRef.current;
+
+                if (phase === 'exploding') {
+                    const p = Math.min(1, elapsed / EXPLODE_MS);
+                    shatterProgRef.current = easeOutCubic(p);
+                    if (p >= 1) { shatterPhaseRef.current = 'hold'; holdStartRef.current = time; }
+                } else if (phase === 'hold') {
+                    shatterProgRef.current = 1;
+                    if (time - holdStartRef.current > HOLD_MS) {
+                        shatterPhaseRef.current = 'returning';
+                        shatterStartRef.current = time;
+                    }
+                } else if (phase === 'returning') {
+                    const p = Math.min(1, elapsed / RETURN_MS);
+                    shatterProgRef.current = 1 - easeInOutCubic(p);
+                    if (p >= 1) { shatterPhaseRef.current = 'idle'; shatterProgRef.current = 0; }
+                }
+
+                explosion = shatterProgRef.current * (config.textShatterIntensity || 1) * 150;
             }
 
             const pulse = bassLevel * config.sensitivity * 0.4;

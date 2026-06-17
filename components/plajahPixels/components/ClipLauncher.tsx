@@ -769,9 +769,6 @@ const ClipLauncher: React.FC<Props> = ({
     const layerBlend    = layer.blendMode.toLowerCase();
     const resolvedBlend = (BLEND_MAP[layerBlend] || layerBlend) as BlendMode;
 
-    // Auto-populate the text overlay with the clip name when firing any clip
-    onApply({ textContent: clip.name } as any);
-
     if (clip.type === 'generator') {
       if (clip.sceneMode === '__fx_glitch') {
         onApply({ enableGlitch: !(configRef.current as any).enableGlitch } as any);
@@ -790,6 +787,10 @@ const ClipLauncher: React.FC<Props> = ({
       milkRef.current.onSetOpacity?.(layer.opacity);
     } else if (clip.type === 'media' && clip.mediaUrl) {
       onSetBgMedia({ url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id });
+      // Auto-populate text with song filename (strip path, query string, and extension)
+      const rawFile = clip.mediaUrl.split('/').pop()?.split('?')[0] ?? '';
+      const songName = decodeURIComponent(rawFile).replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+      if (songName) onApply({ textContent: songName } as any);
       if (layerIdx === 0) onApply({ blendMode: resolvedBlend });
     } else if (clip.type === 'color' && clip.fillColor) {
       onSetBgMedia(null);
