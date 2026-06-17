@@ -9,7 +9,7 @@ import {
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
   Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
-  RefreshCw, Play, Square, ShieldCheck, AlertTriangle, ShieldX,
+  RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
@@ -182,6 +182,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   type TrackQcResult = { status: QcStatus; duration?: number; peak?: number; rms?: number; issue?: string };
   const [qcResults, setQcResults] = useState<Record<string, TrackQcResult>>({});
   const [isQcRunning, setIsQcRunning] = useState(false);
+
+  // Tap-to-sync
+  const [tapSyncTrackId, setTapSyncTrackId] = useState<string | null>(null);
+  const tapAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [tapCurrentLine, setTapCurrentLine] = useState(0);
+  const [tapTimes, setTapTimes] = useState<number[]>([]);
+  const [tapIsPlaying, setTapIsPlaying] = useState(false);
+  const [tapCurrentTime, setTapCurrentTime] = useState(0);
+  const [tapDuration, setTapDuration] = useState(0);
+  const tapRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -398,6 +408,91 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     setPreviewingId(track.id);
   }, [previewingId, stopPreview]);
 
+  const openTapSync = useCallback((track: Track) => {
+    stopPreview();
+    if (tapAudioRef.current) { tapAudioRef.current.pause(); tapAudioRef.current = null; }
+    if (tapRafRef.current) cancelAnimationFrame(tapRafRef.current);
+    setTapCurrentLine(0);
+    setTapTimes([]);
+    setTapIsPlaying(false);
+    setTapCurrentTime(0);
+    setTapDuration(0);
+    setTapSyncTrackId(track.id);
+  }, [stopPreview]);
+
+  const closeTapSync = useCallback((savePartial = false) => {
+    if (savePartial && tapSyncTrackId && tapTimes.length > 0) {
+      const track = tracks.find(t => t.id === tapSyncTrackId);
+      if (track?.lyrics) {
+        const lines = track.lyrics.split('\n').filter((l: string) => l.trim());
+        const timeCodedLyrics = lines.slice(0, tapTimes.length).map((text: string, i: number) => ({ time: tapTimes[i], text: text.trim() }));
+        if (timeCodedLyrics.length > 0) updateTrack(tapSyncTrackId, { timeCodedLyrics });
+      }
+    }
+    if (tapAudioRef.current) { tapAudioRef.current.pause(); tapAudioRef.current = null; }
+    if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
+    setTapSyncTrackId(null);
+    setTapIsPlaying(false);
+    setTapCurrentTime(0);
+    setTapCurrentLine(0);
+    setTapTimes([]);
+  }, [tapSyncTrackId, tapTimes, tracks, updateTrack]);
+
+  const tapPlay = useCallback((track: Track) => {
+    if (!tapAudioRef.current) {
+      const audio = new Audio(track.url);
+      audio.onloadedmetadata = () => setTapDuration(audio.duration);
+      audio.onended = () => setTapIsPlaying(false);
+      tapAudioRef.current = audio;
+    }
+    tapAudioRef.current.play().catch(() => {});
+    setTapIsPlaying(true);
+    const tick = () => {
+      if (tapAudioRef.current && !tapAudioRef.current.paused) {
+        setTapCurrentTime(tapAudioRef.current.currentTime);
+        tapRafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    tapRafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const tapPause = useCallback(() => {
+    if (tapAudioRef.current) tapAudioRef.current.pause();
+    if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
+    setTapIsPlaying(false);
+  }, []);
+
+  const tapRestart = useCallback((track: Track) => {
+    if (tapAudioRef.current) { tapAudioRef.current.pause(); tapAudioRef.current = null; }
+    if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
+    setTapCurrentLine(0);
+    setTapTimes([]);
+    setTapIsPlaying(false);
+    setTapCurrentTime(0);
+    // re-open fresh audio
+    const audio = new Audio(track.url);
+    audio.onloadedmetadata = () => setTapDuration(audio.duration);
+    audio.onended = () => setTapIsPlaying(false);
+    tapAudioRef.current = audio;
+  }, []);
+
+  const handleTap = useCallback((track: Track) => {
+    if (!tapAudioRef.current) return;
+    const time = tapAudioRef.current.currentTime;
+    const lines = (track.lyrics || '').split('\n').filter((l: string) => l.trim());
+    const newTimes = [...tapTimes, time];
+    const nextLine = tapCurrentLine + 1;
+    if (nextLine >= lines.length) {
+      // All lines stamped — save and close
+      const timeCodedLyrics = lines.map((text: string, i: number) => ({ time: newTimes[i] ?? 0, text: text.trim() }));
+      updateTrack(track.id, { timeCodedLyrics });
+      closeTapSync(false);
+    } else {
+      setTapTimes(newTimes);
+      setTapCurrentLine(nextLine);
+    }
+  }, [tapTimes, tapCurrentLine, updateTrack, closeTapSync]);
+
   const runQcForTrack = useCallback(async (track: Track): Promise<TrackQcResult> => {
     try {
       const res = await fetch(track.url);
@@ -458,6 +553,33 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     setStatus({ text: initialAlbum ? "Updating Cloud Index..." : "Synthesizing Metadata...", percent: 5 });
     try {
       const trackNames = type === 'BOOK' ? bookChapters.map(c => c.title) : tracks.map(t => t.title);
+
+      // Auto-sync captions for MUSIC tracks that have lyrics but no manual sync
+      let autoSyncedTracks = tracks;
+      if (type === 'MUSIC') {
+        const needsSync = tracks.some(t => t.lyrics && (!t.timeCodedLyrics || t.timeCodedLyrics.length === 0));
+        if (needsSync) {
+          setStatus({ text: 'Auto-syncing captions…', percent: 15 });
+        }
+        autoSyncedTracks = tracks.map(track => {
+          if (track.lyrics && (!track.timeCodedLyrics || track.timeCodedLyrics.length === 0)) {
+            const lines = track.lyrics.split('\n').filter((l: string) => l.trim());
+            if (lines.length > 0) {
+              const dur = track.duration ?? lines.length * 3.5;
+              const interval = dur / lines.length;
+              return {
+                ...track,
+                timeCodedLyrics: lines.map((text: string, i: number) => ({
+                  time: Math.round(i * interval * 10) / 10,
+                  text: text.trim(),
+                })),
+              };
+            }
+          }
+          return track;
+        });
+      }
+
       let description = initialAlbum?.description || "";
       let themeColor = initialAlbum?.themeColor || "#ffffff";
       if (!initialAlbum) {
@@ -521,7 +643,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         linerNotes,
         artistImage: artistImage || coverImage,
         artistFile, coverImage, coverFile, description, themeColor,
-        tracks, slideshow, slideshowFiles, galleryUrl, socialLinks,
+        tracks: autoSyncedTracks, slideshow, slideshowFiles, galleryUrl, socialLinks,
         musicVideos: type === 'VIDEO' && subType === 'MOVIE' ? musicVideos.map(v => ({ ...v, movieMetadata: finalMovieMetadata })) : musicVideos,
         videoPlaylists,
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
@@ -1093,20 +1215,85 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               </div>
               {type === 'MUSIC' && (
                 <>
+                  {/* ── Lyrics ── */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Lyrics</label>
-                      <button type="button" onClick={async () => { setStatus({ text: `Generating lyrics...`, percent: 40 }); const lyricsArr = await (await import('../services/geminiService')).generateTrackLyrics(track.title, artist); updateTrack(track.id, { lyrics: lyricsArr.join('\n') }); setStatus({ text: "", percent: 0 }); }} className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors"><Sparkles size={10} /> Sync AI Lyrics</button>
+                      <button type="button" onClick={async () => { setStatus({ text: `Generating lyrics…`, percent: 40 }); const lyricsArr = await (await import('../services/geminiService')).generateTrackLyrics(track.title, artist); updateTrack(track.id, { lyrics: lyricsArr.join('\n') }); setStatus({ text: '', percent: 0 }); }} className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors"><Sparkles size={10} /> Generate AI</button>
                     </div>
-                    <textarea value={track.lyrics || ''} onChange={(e) => updateTrack(track.id, { lyrics: e.target.value })} placeholder="Paste or generate lyrics here..." className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] font-medium text-white/80 outline-none h-28 resize-none" />
+                    <textarea
+                      value={track.lyrics || ''}
+                      onChange={(e) => updateTrack(track.id, { lyrics: e.target.value })}
+                      placeholder="Paste or write lyrics here — each line becomes a caption…"
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] font-medium text-white/80 outline-none h-28 resize-none focus:border-white/20 transition-colors"
+                    />
                   </div>
+
+                  {/* ── Caption Sync card ── discoverable, always visible when there are lyrics */}
+                  {(() => {
+                    const hasSynced = (track.timeCodedLyrics?.length ?? 0) > 0;
+                    const hasLyrics = !!track.lyrics?.trim();
+                    const fmtT = (s: number) => { const m = Math.floor(s / 60); const ss = Math.floor(s % 60); return `${m}:${ss.toString().padStart(2,'0')}`; };
+                    return (
+                      <div className={`rounded-2xl border overflow-hidden transition-all ${hasSynced ? 'border-small-orange/25 bg-small-orange/[0.04]' : 'border-white/[0.08] bg-white/[0.02]'}`}>
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${hasSynced ? 'bg-small-orange/20' : 'bg-white/5'}`}>
+                              {hasSynced
+                                ? <Check size={13} className="text-small-orange" />
+                                : <Mic2 size={13} className="text-white/25" />
+                              }
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white">Caption Sync</p>
+                              <p className="text-[8px] text-white/30 mt-0.5">
+                                {hasSynced
+                                  ? `${track.timeCodedLyrics!.length} lines synced — tap to re-sync`
+                                  : hasLyrics
+                                    ? 'Auto-sync will run on publish · or tap to sync manually'
+                                    : 'Add lyrics above to unlock caption sync'}
+                              </p>
+                            </div>
+                          </div>
+                          {hasLyrics && (
+                            <button
+                              type="button"
+                              onClick={() => openTapSync(track)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-small-orange/15 border border-small-orange/30 text-small-orange rounded-full text-[8px] font-black uppercase tracking-widest hover:bg-small-orange/25 active:scale-95 transition-all"
+                            >
+                              <Mic2 size={10} /> Tap to Sync
+                            </button>
+                          )}
+                        </div>
+                        {/* Existing synced lines preview */}
+                        {hasSynced && (
+                          <div className="px-4 pb-3 max-h-28 overflow-y-auto custom-scrollbar">
+                            <div className="border-t border-white/[0.06] pt-2 space-y-1">
+                              {track.timeCodedLyrics!.map((l, i) => (
+                                <div key={i} className="flex items-baseline gap-2.5">
+                                  <span className="text-[7px] font-mono text-small-orange/50 shrink-0 tabular-nums w-8">{fmtT(l.time)}</span>
+                                  <span className="text-[8px] text-white/45 truncate">{l.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Auto-sync badge when lyrics exist but no sync yet */}
+                        {!hasSynced && hasLyrics && (
+                          <div className="mx-4 mb-3 flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                            <Sparkles size={10} className="text-small-orange/50 shrink-0" />
+                            <p className="text-[7.5px] text-white/30 font-bold">Captions auto-generated from lyrics when you publish — no extra work needed</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Artist Notes ── */}
                   <div className="space-y-3">
                     <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Artist Notes (one per line)</label>
-                    <textarea value={track.artistNotes?.join('\n') || ''} onChange={(e) => updateTrack(track.id, { artistNotes: e.target.value.split('\n').filter(n => n.trim() !== '') })} placeholder="Notes for your fans..." className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-medium focus:outline-none h-20 resize-none" />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Synced Lyrics (MM:SS text format)</label>
-                    <textarea value={track.timeCodedLyrics?.map(l => { const m = Math.floor(l.time / 60); const s = Math.floor(l.time % 60); return `[${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}] ${l.text}`; }).join('\n') || ''} onChange={(e) => { const lines = e.target.value.split('\n'); const timeCoded = lines.map(line => { const match = line.match(/\[(\d+):(\d+)\]\s*(.*)/); return match ? { time: parseInt(match[1]) * 60 + parseInt(match[2]), text: match[3] } : null; }).filter(Boolean) as { time: number, text: string }[]; updateTrack(track.id, { timeCodedLyrics: timeCoded }); }} placeholder="[00:15] Lyric line here..." className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-[10px] font-mono text-small-orange/80 outline-none h-36 resize-none" />
+                    <textarea value={track.artistNotes?.join('\n') || ''} onChange={(e) => updateTrack(track.id, { artistNotes: e.target.value.split('\n').filter(n => n.trim() !== '') })} placeholder="Notes for your fans…" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-medium focus:outline-none h-20 resize-none" />
                   </div>
                 </>
               )}
@@ -2622,6 +2809,137 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           </div>
         </form>
       </div>
+
+      {/* ── Tap-to-Sync overlay ── */}
+      {tapSyncTrackId && (() => {
+        const track = tracks.find(t => t.id === tapSyncTrackId);
+        if (!track) return null;
+        const lines = (track.lyrics || '').split('\n').filter((l: string) => l.trim());
+        if (lines.length === 0) return null;
+        const pct = tapDuration > 0 ? (tapCurrentTime / tapDuration) * 100 : 0;
+        const fmtT = (s: number) => { const m = Math.floor(s / 60); const ss = Math.floor(s % 60); return `${m}:${ss.toString().padStart(2,'0')}`; };
+        const isDone = tapCurrentLine >= lines.length;
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex flex-col bg-black/95 backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Top bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-small-orange mb-0.5">Tap to Sync</p>
+                <p className="text-sm font-black uppercase tracking-tight text-white truncate max-w-xs">{track.title}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {tapTimes.length > 0 && !isDone && (
+                  <button type="button" onClick={() => closeTapSync(true)} className="px-4 py-2 bg-white/10 border border-white/15 rounded-full text-[8px] font-black uppercase tracking-widest text-white/60 hover:text-white transition-all">
+                    Save Partial
+                  </button>
+                )}
+                <button type="button" onClick={() => closeTapSync(false)} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Main area */}
+            <div className="flex-1 flex flex-col items-center justify-center px-8 gap-8">
+              {/* Line counter */}
+              <div className="flex items-center gap-2">
+                {lines.map((_: string, i: number) => (
+                  <div key={i} className={`h-1 rounded-full transition-all ${i < tapCurrentLine ? 'bg-small-orange w-4' : i === tapCurrentLine ? 'bg-small-orange/60 w-6' : 'bg-white/10 w-2'}`} />
+                ))}
+              </div>
+
+              {isDone ? (
+                /* Completion state */
+                <div className="text-center space-y-4">
+                  <div className="w-20 h-20 rounded-full bg-small-orange/15 border-2 border-small-orange/40 flex items-center justify-center mx-auto">
+                    <Check size={36} className="text-small-orange" />
+                  </div>
+                  <p className="text-xl font-black uppercase tracking-tight text-white">All {lines.length} lines synced!</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest">Captions will be saved when you publish</p>
+                  <button type="button" onClick={() => {
+                    const timeCodedLyrics = lines.map((text: string, i: number) => ({ time: tapTimes[i] ?? 0, text: text.trim() }));
+                    updateTrack(track.id, { timeCodedLyrics });
+                    closeTapSync(false);
+                  }} className="px-8 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                    Save Sync →
+                  </button>
+                </div>
+              ) : (
+                /* Active sync state */
+                <>
+                  {/* Previous line (context) */}
+                  {tapCurrentLine > 0 && (
+                    <p className="text-[12px] text-white/15 font-bold uppercase tracking-wide text-center max-w-lg">
+                      {lines[tapCurrentLine - 1]}
+                    </p>
+                  )}
+                  {/* Current line — big + highlighted */}
+                  <div className="text-center max-w-xl">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/60 mb-3">
+                      Line {tapCurrentLine + 1} of {lines.length}
+                    </p>
+                    <p className="text-3xl font-black uppercase tracking-tight text-white leading-tight">
+                      {lines[tapCurrentLine]}
+                    </p>
+                  </div>
+                  {/* Next line (preview) */}
+                  {tapCurrentLine < lines.length - 1 && (
+                    <p className="text-[12px] text-white/15 font-bold uppercase tracking-wide text-center max-w-lg">
+                      {lines[tapCurrentLine + 1]}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Timeline + controls */}
+            {!isDone && (
+              <div className="px-8 pb-8 space-y-5">
+                {/* Progress bar */}
+                <div>
+                  <div className="h-1 bg-white/10 rounded-full cursor-pointer" onClick={(e) => {
+                    if (!tapAudioRef.current || tapDuration === 0) return;
+                    const r = e.currentTarget.getBoundingClientRect();
+                    tapAudioRef.current.currentTime = ((e.clientX - r.left) / r.width) * tapDuration;
+                  }}>
+                    <div className="h-full bg-small-orange rounded-full transition-none" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[7px] text-white/25 font-mono tabular-nums">{fmtT(tapCurrentTime)}</span>
+                    <span className="text-[7px] text-white/25 font-mono tabular-nums">{fmtT(tapDuration)}</span>
+                  </div>
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center gap-3">
+                  {/* Restart */}
+                  <button type="button" onClick={() => tapRestart(track)} className="p-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all" title="Restart">
+                    <SkipBack size={16} />
+                  </button>
+                  {/* Play / Pause */}
+                  <button type="button" onClick={() => tapIsPlaying ? tapPause() : tapPlay(track)} className="p-4 rounded-2xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition-all" title={tapIsPlaying ? 'Pause' : 'Play'}>
+                    {tapIsPlaying ? <Pause size={20} /> : <Play size={20} />}
+                  </button>
+                  {/* TAP button — the primary action */}
+                  <button
+                    type="button"
+                    onClick={() => handleTap(track)}
+                    disabled={!tapIsPlaying && tapCurrentTime === 0}
+                    className="flex-1 py-4 rounded-2xl bg-small-orange text-black font-black text-base uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_32px_rgba(255,140,0,0.4)] disabled:opacity-40 disabled:cursor-not-allowed select-none"
+                  >
+                    ▸ TAP — "{lines[tapCurrentLine]?.substring(0, 30)}{(lines[tapCurrentLine]?.length ?? 0) > 30 ? '…' : ''}"
+                  </button>
+                </div>
+
+                <p className="text-center text-[7.5px] text-white/20 uppercase tracking-widest">
+                  Press TAP when you hear each lyric line start · {lines.length - tapCurrentLine} lines remaining
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
