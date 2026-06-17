@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-    Play, Pause, Upload, Volume2, VolumeX, Disc, Square, 
-    Settings, Sliders, Sparkles, Music, Cpu, Layers, Type, 
+import {
+    Play, Pause, Upload, Volume2, VolumeX, Disc, Square,
+    Settings, Sliders, Sparkles, Music, Cpu, Layers, Type,
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
-    Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight
+    Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
+    Download, Send, Loader2
 } from 'lucide-react';
+import { uploadVideo, createVideoPlaylist, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
@@ -173,6 +175,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
     const [milkdropMeta, setMilkdropMeta] = useState<{ count: number; name: string }>({ count: 0, name: '' });
+    const [milkdropThumbnails, setMilkdropThumbnails] = useState<Record<string, string>>({});
     // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
     const [shaderSrc, setShaderSrc] = useState<string | null>(null);
     const [shaderStart, setShaderStart] = useState(0);
@@ -190,6 +193,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [isRecording, setIsRecording] = useState(false);
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
 
+    // ── Save modal state ──────────────────────────────────────────────────────────
+    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [reelloSending, setReelloSending] = useState(false);
+    const [reelloProgress, setReelloProgress] = useState(0);
+    const [reelloSuccess, setReelloSuccess] = useState(false);
+    const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+
     const stopRecording = useCallback(() => {
         const r = recRef.current; if (!r) return;
         try { r.recorder.stop(); } catch { /* */ }
@@ -198,33 +209,112 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     const startRecording = useCallback(async () => {
         try {
-            // Captures the real composited live output across every mode (2D, GLSL,
-            // Milkdrop, 3D) — pick "This Tab" when prompted (dismiss UI first for a
-            // clean capture). Records video + tab audio to a downloadable .webm.
-            const stream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-                video: { frameRate: 60 }, audio: true, preferCurrentTab: true,
+            // a) Capture video from the tab — no tab audio; we'll add AudioContext audio directly
+            const videoStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+                video: { frameRate: 60, width: { ideal: 1920 } },
+                audio: false,
+                preferCurrentTab: true,
             });
+
+            // b) Capture audio directly from the AnalyserNode (raw, unprocessed)
+            let combinedStream = videoStream;
+            if (analyserRef.current) {
+                const audioCtx = analyserRef.current.context as AudioContext;
+                const destNode = audioCtx.createMediaStreamDestination();
+                analyserRef.current.connect(destNode);
+                audioDestRef.current = destNode;
+                combinedStream = new MediaStream([
+                    ...videoStream.getVideoTracks(),
+                    ...destNode.stream.getAudioTracks(),
+                ]);
+            }
+
+            // c) Codec priority: MP4 (Chrome 130+/Safari) → VP9 → VP8 → fallback webm
+            const codecs = [
+                'video/mp4;codecs=avc1',
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm',
+            ];
+            const mime = codecs.find(c => MediaRecorder.isTypeSupported(c)) ?? 'video/webm';
+
             const chunks: Blob[] = [];
-            const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-                ? 'video/webm;codecs=vp9' : 'video/webm';
-            const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+            const recorder = new MediaRecorder(combinedStream, {
+                mimeType: mime,
+                videoBitsPerSecond: 25_000_000,
+                audioBitsPerSecond: 320_000,
+            });
+
             recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
             recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `plajah-pixels-${Date.now()}.webm`; a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 8000);
-                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(chunks, { type: mime });
+                // Disconnect the extra AudioContext → destNode connection
+                if (audioDestRef.current && analyserRef.current) {
+                    try { analyserRef.current.disconnect(audioDestRef.current); } catch { /* */ }
+                    audioDestRef.current = null;
+                }
+                videoStream.getTracks().forEach(t => t.stop());
+                // Show save modal instead of auto-downloading
+                setRecordedBlob(blob);
+                setShowSaveModal(true);
+                setReelloSuccess(false);
+                setReelloProgress(0);
             };
-            stream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
-            recorder.start();
-            recRef.current = { recorder, stream };
+
+            videoStream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
+            recorder.start(100); // 100ms timeslice for reliability
+            recRef.current = { recorder, stream: combinedStream };
             setIsRecording(true);
         } catch (e) { console.warn('[Plajah Pixels] recording failed/cancelled:', e); }
     }, [stopRecording]);
 
     const toggleRecord = useCallback(() => { isRecording ? stopRecording() : startRecording(); }, [isRecording, startRecording, stopRecording]);
+
+    // ── Recording save modal handlers ─────────────────────────────────────────────
+    const handleDownloadRecording = useCallback(() => {
+        if (!recordedBlob) return;
+        const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+        const url = URL.createObjectURL(recordedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `plajah-pixels-${Date.now()}.${ext}`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+    }, [recordedBlob]);
+
+    const handleSendToReello = useCallback(async () => {
+        if (!recordedBlob || !auth.currentUser) return;
+        setReelloSending(true);
+        setReelloProgress(0);
+        try {
+            const trackTitle = platform?.currentTrackTitle || platform?.title;
+            const videoTitle = trackTitle ? `Plajah Pixels — ${trackTitle}` : 'Plajah Pixels Visual';
+            const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+            const file = new File([recordedBlob], `plajah-pixels.${ext}`, { type: recordedBlob.type });
+
+            const vid = await uploadVideo(
+                { file, title: videoTitle, isPrivate: false } as any,
+                (p: number) => setReelloProgress(p),
+            );
+
+            const displayName = auth.currentUser.displayName || 'Plajah';
+            const playlistTitle = `${displayName} Plajah Pixels`;
+            await createVideoPlaylist({ title: playlistTitle, videoIds: [(vid as any).id], isPublic: true } as any);
+
+            setReelloSuccess(true);
+        } catch (err) {
+            console.error('[Plajah Pixels] Send to Reello failed:', err);
+        } finally {
+            setReelloSending(false);
+        }
+    }, [recordedBlob, platform]);
+
+    const handleDismissSaveModal = useCallback(() => {
+        setShowSaveModal(false);
+        setRecordedBlob(null);
+        setReelloSuccess(false);
+        setReelloProgress(0);
+    }, []);
 
     const enterFullscreen = useCallback(async (screen?: any) => {
         const el = rootRef.current; if (!el) return;
@@ -630,7 +720,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     }) : null;
 
     return (
-        <div ref={rootRef} id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans">
+        <div ref={rootRef} id="plajah-pixels-root" className="relative w-full h-screen bg-black text-white overflow-hidden font-sans" style={{ contain: 'strict' }}>
             {/* ─── Platform-slaved chrome: exit, title, tracklist toggle — sits below icon row ─── */}
             {platform && !uiHidden && (
                 <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1.5 shadow-xl">
@@ -715,6 +805,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     onNext:   () => setMilkdropIdx(i => i + 1),
                                     onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
                                     onSetIdx: (i) => setMilkdropIdx(i),
+                                    thumbnails: milkdropThumbnails,
                                 }}
                             />
                         </div>
@@ -907,6 +998,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         analyser={analyserRef.current}
                         presetIndex={milkdropIdx}
                         onMeta={setMilkdropMeta}
+                        onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
                     />
                 ) : midiNotes ? (
                     <MidiNotesScene palette={config.colorPalette} />
@@ -1146,6 +1238,129 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     <Eye className="w-3.5 h-3.5" /> Show UI
                 </button>
             )}
+
+            {/* ─── Recording Save Modal ──────────────────────────────────────────── */}
+            <AnimatePresence>
+                {showSaveModal && recordedBlob && (
+                    <motion.div
+                        key="save-modal-backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[400] flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)' }}
+                        onClick={e => { if (e.target === e.currentTarget) handleDismissSaveModal(); }}
+                    >
+                        <motion.div
+                            key="save-modal"
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+                            className="relative w-[380px] max-w-[92vw] rounded-2xl overflow-hidden shadow-2xl"
+                            style={{
+                                background: 'rgba(8,4,24,0.96)',
+                                border: '1px solid rgba(139,92,246,0.35)',
+                                boxShadow: '0 0 60px rgba(139,92,246,0.2), 0 0 0 1px rgba(139,92,246,0.15)',
+                            }}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 py-4"
+                                style={{ borderBottom: '1px solid rgba(139,92,246,0.2)', background: 'rgba(139,92,246,0.08)' }}>
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                                        <Circle className="w-4 h-4 text-purple-300 fill-red-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-black uppercase tracking-widest text-white">Recording Complete</p>
+                                        <p className="text-[9px] text-white/40 mt-0.5">
+                                            {recordedBlob.type.includes('mp4') ? 'MP4' : 'WebM'} · {(recordedBlob.size / 1024 / 1024).toFixed(1)} MB
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={handleDismissSaveModal}
+                                    className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-all">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="p-5 space-y-3">
+                                {/* Download */}
+                                <button
+                                    onClick={handleDownloadRecording}
+                                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all group"
+                                    style={{
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                                >
+                                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                                        <Download className="w-4 h-4 text-white/80" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-[11px] font-black text-white">
+                                            Download {recordedBlob.type.includes('mp4') ? 'MP4' : 'WebM'}
+                                        </p>
+                                        <p className="text-[9px] text-white/40 mt-0.5">Save to your device</p>
+                                    </div>
+                                </button>
+
+                                {/* Send to Reello — only when signed in */}
+                                {auth.currentUser && (
+                                    <button
+                                        onClick={handleSendToReello}
+                                        disabled={reelloSending || reelloSuccess}
+                                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all disabled:opacity-70"
+                                        style={{
+                                            background: reelloSuccess ? 'rgba(16,185,129,0.15)' : 'rgba(139,92,246,0.15)',
+                                            border: reelloSuccess ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(139,92,246,0.4)',
+                                        }}
+                                    >
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                            style={{ background: reelloSuccess ? 'rgba(16,185,129,0.25)' : 'rgba(139,92,246,0.25)' }}>
+                                            {reelloSending
+                                                ? <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
+                                                : reelloSuccess
+                                                ? <CheckCircle className="w-4 h-4 text-green-400" />
+                                                : <Send className="w-4 h-4 text-purple-300" />
+                                            }
+                                        </div>
+                                        <div className="text-left flex-1 min-w-0">
+                                            <p className="text-[11px] font-black text-white">
+                                                {reelloSuccess ? 'Sent to Reello!' : 'Send to Reello'}
+                                            </p>
+                                            <p className="text-[9px] text-white/40 mt-0.5">
+                                                {reelloSuccess
+                                                    ? 'Published to your Plajah Pixels playlist'
+                                                    : `Publish as ${auth.currentUser.displayName || 'your'} Plajah Pixels`
+                                                }
+                                            </p>
+                                        </div>
+                                        {/* Progress bar */}
+                                        {reelloSending && reelloProgress > 0 && (
+                                            <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden shrink-0">
+                                                <div className="h-full bg-purple-400 rounded-full transition-all"
+                                                    style={{ width: `${reelloProgress}%` }} />
+                                            </div>
+                                        )}
+                                    </button>
+                                )}
+
+                                {/* Discard */}
+                                <button
+                                    onClick={handleDismissSaveModal}
+                                    className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors"
+                                >
+                                    Discard Recording
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Sliding Tabbed Configuration Drawer (Glassmorphism) */}
             <AnimatePresence>

@@ -66,15 +66,17 @@ export interface LauncherLayer {
 }
 
 export interface MilkdropControls {
-  enabled:   boolean;
-  name:      string;
-  count:     number;
-  idx:       number;
-  onToggle:  () => void;
-  onPrev:    () => void;
-  onNext:    () => void;
-  onRandom:  () => void;
-  onSetIdx:  (i: number) => void;
+  enabled:     boolean;
+  name:        string;
+  count:       number;
+  idx:         number;
+  onToggle:    () => void;
+  onPrev:      () => void;
+  onNext:      () => void;
+  onRandom:    () => void;
+  onSetIdx:    (i: number) => void;
+  /** Thumbnail map: preset name → JPEG data URL */
+  thumbnails?: Record<string, string>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -126,6 +128,18 @@ function makeDefaultLayers(): LauncherLayer[] {
 }
 
 const MATRIX_KEY = 'plajah-clip-launcher-v1';
+
+// Canvas2D composite operation names mapped from launcher blend mode labels
+const BLEND_MAP: Record<string, string> = {
+  normal:     'source-over',
+  screen:     'screen',
+  add:        'lighter',
+  multiply:   'multiply',
+  overlay:    'overlay',
+  lighten:    'lighten',
+  exclusion:  'exclusion',
+  difference: 'difference',
+};
 
 function loadLayers(): LauncherLayer[] {
   try {
@@ -539,13 +553,17 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
               ) : (
                 filteredMilk.map((name, i) => {
                   const isActive = milkdropControls.name === name;
+                  const thumb = milkdropControls.thumbnails?.[name];
                   return (
                     <div
                       key={name}
-                      className="flex-shrink-0 flex flex-col justify-end cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04]"
+                      className="flex-shrink-0 flex flex-col justify-end cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04] relative"
                       style={{
                         width: 80,
-                        background: isActive ? 'rgba(192,132,252,0.25)' : 'rgba(124,58,237,0.12)',
+                        backgroundImage: thumb ? `url(${thumb})` : undefined,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        background: !thumb ? (isActive ? 'rgba(192,132,252,0.25)' : 'rgba(124,58,237,0.12)') : undefined,
                         border: isActive ? '1px solid #c084fc' : '1px solid rgba(192,132,252,0.2)',
                         padding: '4px 6px',
                       }}
@@ -561,9 +579,12 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                         } as LauncherClip));
                       }}
                     >
-                      <div className="text-[6px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(192,132,252,0.5)' }}>MILK</div>
-                      <div className="text-[8px] font-bold leading-tight text-white/70 truncate">{name.slice(0, 22)}</div>
-                      {isActive && <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-400 mx-auto" />}
+                      {thumb && <div className="absolute inset-0 bg-black/50" />}
+                      <div className="relative z-10">
+                        <div className="text-[6px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(192,132,252,0.8)' }}>MILK</div>
+                        <div className="text-[8px] font-bold leading-tight text-white/90 truncate drop-shadow">{name.slice(0, 22)}</div>
+                        {isActive && <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-400 mx-auto" />}
+                      </div>
                     </div>
                   );
                 })
@@ -614,6 +635,9 @@ const ClipLauncher: React.FC<Props> = ({
   const STEP   = CELL_W + GAP;
   const colCount = layers[0]?.clips.length ?? NUM_COLS;
 
+  // ── Video preload cache (ensures clips are in memory before trigger) ─────────
+  const preloadRef = useRef<Record<string, HTMLVideoElement>>({});
+
   // ── Fire a clip in a specific layer + column ────────────────────────────────
   const fireClip = useCallback((layerIdx: number, colIdx: number, ls?: LauncherLayer[]) => {
     const lrs = ls ?? layersRef.current;
@@ -629,23 +653,39 @@ const ClipLauncher: React.FC<Props> = ({
     if (!clip) return;
     if (layer.bypassed || layer.muted) return;
 
+    // Resolve layer blend mode for patching
+    const layerBlend = layer.blendMode.toLowerCase();
+    const resolvedBlend = (BLEND_MAP[layerBlend] || layerBlend) as BlendMode;
+
     if (clip.type === 'generator') {
       if (clip.sceneMode === '__fx_glitch') {
         onApply({ enableGlitch: !(configRef.current as any).enableGlitch } as any);
       } else if (clip.sceneMode === '__fx_bass') {
         onApply({ enableBassShake: !(configRef.current as any).enableBassShake } as any);
       } else if (clip.sceneMode) {
-        onApply({ mode: clip.sceneMode as VisualizerMode });
+        // VIZ layer (layerIdx === 1): also apply the layer's blend mode
+        const patch: Partial<VisualizationConfig> = { mode: clip.sceneMode as VisualizerMode };
+        if (layerIdx === 1) {
+          patch.blendMode = resolvedBlend;
+        }
+        onApply(patch);
       }
     } else if (clip.type === 'milkdrop') {
-      if (clip.milkdropIdx !== undefined) milkRef.current.onSetIdx(clip.milkdropIdx);
+      // Set preset index FIRST, then toggle — order matters so the right preset loads
+      if (clip.milkdropIdx !== undefined) {
+        milkRef.current.onSetIdx(clip.milkdropIdx);
+      }
       milkRef.current.onToggle();
     } else if (clip.type === 'media' && clip.mediaUrl) {
+      // Apply the BG layer's blend mode when firing a media clip
       onSetBgMedia({ url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id });
+      if (layerIdx === 0) {
+        onApply({ blendMode: resolvedBlend });
+      }
     } else if (clip.type === 'color' && clip.fillColor) {
       onSetBgMedia(null);
     }
-  }, [onApply, onSetBgMedia]);
+  }, [onApply, onSetBgMedia]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Scene launch (fires one column across all layers simultaneously) ─────────
   const launchScene = useCallback((colIdx: number) => {
@@ -708,6 +748,15 @@ const ClipLauncher: React.FC<Props> = ({
       type: 'media', name: file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase(),
       color: '#6366f1', mediaUrl: url, mediaType, loop: true,
     };
+    // Preload video into browser memory so first trigger has no lag
+    if (mediaType === 'video' && !preloadRef.current[url]) {
+      const preloadEl = document.createElement('video');
+      preloadEl.src = url;
+      preloadEl.preload = 'auto';
+      preloadEl.muted = true;
+      preloadEl.load();
+      preloadRef.current[url] = preloadEl;
+    }
     setLayers(prev => prev.map((l, i) =>
       i === li ? { ...l, clips: l.clips.map((c, ci2) => ci2 === ci ? clip : c) } : l
     ));
