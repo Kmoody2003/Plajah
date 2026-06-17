@@ -340,8 +340,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
       setLoading(false);  // ← spinner clears here, profile renders
 
-      // Show Artist Mode landing for visitors (not own profile) if enabled
-      if (p && (p as any).artistModeEnabled && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
+      // Show Artist Mode landing for visitors (not own profile); on by default for non-FAN accounts unless explicitly disabled
+      if (p && p.accountType !== 'FAN' && p.artistModeEnabled !== false && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
         artistModeDismissedRef.current = true;
         setShowArtistMode(true);
       }
@@ -631,7 +631,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       {showArtistMode && profile && (
         <ArtistModeLanding
           profile={profile}
+          albums={content}
           onDismiss={() => setShowArtistMode(false)}
+          onSelectAlbum={album => { setShowArtistMode(false); onSelectAlbum(album); }}
+          onSelectTrack={track => { setShowArtistMode(false); const album = content.find(a => a.tracks?.some(t => t.id === track.id)) ?? null; playTrack(track, album, 'LIBRARY'); }}
+          onSelectVideo={video => { setShowArtistMode(false); setActiveTab('VIDEOS'); }}
           onSelectArticle={article => { setShowArtistMode(false); onSelectArticle?.(article); }}
         />
       )}
@@ -841,15 +845,31 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     />
                   </div>
                 )}
-              {/* Name — standalone, no inline badges */}
-              <motion.h1
+              {/* Name — per-character 3D flip-in on each profile visit */}
+              <h1
+                key={uid}
                 className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
-                animate={{ scale: [1, 1.013, 1], opacity: [1, 0.92, 1] }}
-                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                style={{ transformOrigin: 'left center' }}
+                style={{ perspective: '1200px', perspectiveOrigin: 'left center' }}
               >
-                {profile.displayName}
-              </motion.h1>
+                {(profile.displayName ?? '').split('').map((char, i) => (
+                  char === ' '
+                    ? <span key={i}>&nbsp;</span>
+                    : (
+                      <motion.span
+                        key={`${uid}-${i}`}
+                        initial={{ rotateY: 90, opacity: 0, display: 'inline-block' }}
+                        animate={showArtistMode
+                          ? { rotateY: 90, opacity: 0, display: 'inline-block' }
+                          : { rotateY: 0, opacity: 1, display: 'inline-block' }
+                        }
+                        transition={{ delay: showArtistMode ? 0 : 0.05 + i * 0.05, duration: 2.0, ease: 'easeInOut' }}
+                        style={{ transformOrigin: 'left center' }}
+                      >
+                        {char}
+                      </motion.span>
+                    )
+                ))}
+              </h1>
 
               {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}
 

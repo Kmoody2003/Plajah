@@ -1600,7 +1600,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         onVisitProfile={handleVisitUser}
                         onOpenAsset={ad => {
                           if (ad.promotedAssetId && ad.promotedType === 'MUSIC') {
-                            window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: { id: ad.promotedAssetId, title: ad.promotedAssetTitle, coverImage: ad.promotedAssetImageUrl } } }));
+                            const fullAlbum = albums.find(a => a.id === ad.promotedAssetId) || { id: ad.promotedAssetId, title: ad.promotedAssetTitle, coverImage: ad.promotedAssetImageUrl } as any;
+                            setSelectedAlbum(fullAlbum);
+                            setView('PLAYER');
                           }
                         }}
                         dotCount={dotTotal}
@@ -1614,7 +1616,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <AlbumAdBillboard
                         album={currentSlot.album}
                         profile={currentSlot.profile}
-                        onOpenAlbum={album => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album } }))}
+                        onOpenAlbum={album => { setSelectedAlbum(album); setView('PLAYER'); }}
                         dotCount={dotTotal}
                         dotIdx={dotActive}
                       />

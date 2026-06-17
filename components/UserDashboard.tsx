@@ -1093,6 +1093,32 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                       <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.tooltipsEnabled ? 'left-7' : 'left-1'}`} />
                     </button>
                   </div>
+
+                  {profile.accountType !== 'FAN' && (
+                    <div className="flex items-start justify-between gap-6 pt-6 border-t border-white/5">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-[#c084fc] mb-1">Artist Mode Landing Page</h3>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest leading-relaxed">
+                          Visitors see a 30-second immersive showcase before your full profile loads.{' '}
+                          <span className="text-white/30">On by default — </span>
+                          <button
+                            type="button"
+                            onClick={() => setProfile({ ...profile, artistModeEnabled: false })}
+                            className="text-[#c084fc]/60 hover:text-[#c084fc] underline underline-offset-2 transition-colors"
+                          >
+                            click here to turn it off
+                          </button>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setProfile({ ...profile, artistModeEnabled: profile.artistModeEnabled === false ? true : false })}
+                        className={`w-14 h-8 rounded-full transition-all relative shrink-0 mt-0.5 ${profile.artistModeEnabled !== false ? 'bg-[#6B0099]' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.artistModeEnabled !== false ? 'left-7' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Account Identity Section */}
