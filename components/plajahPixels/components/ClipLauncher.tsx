@@ -24,9 +24,9 @@ import React, {
   useState, useEffect, useRef, useCallback, useMemo,
 } from 'react';
 import {
-  Play, Square, ChevronLeft, ChevronRight, Upload, Plus,
-  Zap, Disc, Image, Video, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
-  Eye, EyeOff, Layers, Power, X,
+  Play, ChevronLeft, ChevronRight, Upload, Plus,
+  Zap, Image, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
+  Eye, EyeOff, Power, X, Cpu,
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
@@ -68,16 +68,20 @@ export interface LauncherLayer {
 }
 
 export interface MilkdropControls {
-  enabled:     boolean;
-  name:        string;
-  count:       number;
-  idx:         number;
-  onToggle:    () => void;
-  onPrev:      () => void;
-  onNext:      () => void;
-  onRandom:    () => void;
-  onSetIdx:    (i: number) => void;
-  thumbnails?: Record<string, string>;
+  enabled:          boolean;
+  name:             string;
+  count:            number;
+  idx:              number;
+  onToggle:         () => void;
+  onPrev:           () => void;
+  onNext:           () => void;
+  onRandom:         () => void;
+  onSetIdx:         (i: number) => void;
+  /** Called when the FX layer fires a milkdrop clip — sets the CSS blend mode for the layer. */
+  onSetBlendMode?:  (mode: string) => void;
+  /** Called when the FX layer opacity changes — sets the layer opacity for butterchurn. */
+  onSetOpacity?:    (opacity: number) => void;
+  thumbnails?:      Record<string, string>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -166,6 +170,12 @@ interface Props {
   onApply:       (patch: Partial<VisualizationConfig>) => void;
   milkdrop:      MilkdropControls;
   onSetBgMedia:  (media: BackgroundMedia | null) => void;
+  /** bgMedia1 from studio — auto-synced into BG layer cells so drawer library → clip grid. */
+  bgMedia1?:     BackgroundMedia[];
+  /** Shader library from ShaderPanel — shown as a SHADERS tab in the source browser. */
+  shaderLibrary?: { name: string; src: string; category: string }[];
+  /** Called when user picks a shader from the source browser. */
+  onApplyShader?: (src: string) => void;
   /** Content to render in the docked right panel (music controls + settings). */
   rightPanel?:   React.ReactNode;
   /** Called when the user taps the power button to close the launcher. */
@@ -247,8 +257,8 @@ const ClipCell: React.FC<CellProps> = ({
           style={{ background: 'linear-gradient(135deg,#c084fc,#7c3aed,#1e1b4b)' }} />
       )}
 
-      {/* Content overlay */}
-      <div className="relative z-10 h-full flex flex-col justify-between p-1 pl-2 pb-4">
+      {/* Content overlay — leave 16px at bottom for the opacity dot */}
+      <div className="relative z-10 h-full flex flex-col justify-between p-1 pl-2" style={{ paddingBottom: 18 }}>
         {/* Top row */}
         <div className="flex items-center justify-between">
           {colIdx < 4 && layerIdx < 3 && (
@@ -288,39 +298,29 @@ const ClipCell: React.FC<CellProps> = ({
         </div>
       </div>
 
-      {/* ── Per-clip opacity dot ── */}
+      {/* ── Per-clip opacity dot (only visible on hover) ── */}
       {clip && (
         <div
-          className="absolute bottom-1 left-2 right-2 z-20"
+          className="absolute bottom-0.5 left-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+          style={{ height: 14 }}
+          onMouseDown={e => e.stopPropagation()}
           onClick={e => e.stopPropagation()}
-          title={`Clip opacity: ${Math.round(clipOpacity * 100)}%`}
+          title={`Opacity: ${Math.round(clipOpacity * 100)}%`}
         >
-          {/* Visual track + filled portion */}
-          <div className="relative h-3 flex items-center">
-            <div className="w-full h-px rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-px rounded-full pointer-events-none"
-              style={{ width: `${clipOpacity * 100}%`, background: accent }}
-            />
-            {/* Dot handle (visible) */}
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full shadow-lg pointer-events-none transition-colors"
-              style={{
-                left:       `calc(${clipOpacity * 100}% - 5px)`,
-                background: active ? accent : `${accent}cc`,
-                border:     `1.5px solid ${active ? '#fff' : 'rgba(255,255,255,0.3)'}`,
-                boxShadow:  active ? `0 0 6px ${accent}` : 'none',
-              }}
-            />
-            {/* Invisible range input — handles all pointer events */}
-            <input
-              type="range" min="0" max="100" step="1"
-              value={Math.round(clipOpacity * 100)}
-              onChange={e => onUpdateOpacity(Number(e.target.value) / 100)}
-              className="absolute inset-0 w-full cursor-ew-resize"
-              style={{ opacity: 0, height: '100%', margin: 0, padding: 0 }}
-            />
-          </div>
+          {/* Track */}
+          <div className="absolute" style={{ left: 4, right: 4, top: 6, height: 1, borderRadius: 1, background: 'rgba(255,255,255,0.15)' }} />
+          {/* Filled */}
+          <div className="absolute pointer-events-none" style={{ left: 4, top: 6, height: 1, width: `calc(${clipOpacity * 100}% - 8px)`, borderRadius: 1, background: accent }} />
+          {/* Dot */}
+          <div className="absolute pointer-events-none" style={{ left: `calc(${clipOpacity * 100}% - 4px)`, top: 2, width: 9, height: 9, borderRadius: '50%', background: accent, border: '1.5px solid rgba(255,255,255,0.6)', boxShadow: `0 0 4px ${accent}88` }} />
+          {/* Range input — full size for easy grab, fully transparent */}
+          <input
+            type="range" min="0" max="100" step="1"
+            value={Math.round(clipOpacity * 100)}
+            onChange={e => onUpdateOpacity(Number(e.target.value) / 100)}
+            className="absolute inset-0 w-full cursor-ew-resize"
+            style={{ opacity: 0, margin: 0, padding: 0, height: '100%' }}
+          />
         </div>
       )}
 
@@ -467,17 +467,19 @@ const LayerRow: React.FC<LayerRowProps> = ({
 
 // ─── Source Browser ───────────────────────────────────────────────────────────
 
-type SourceTab = 'generators' | 'milkdrop' | 'media';
+type SourceTab = 'generators' | 'milkdrop' | 'shaders' | 'media';
 
 interface SourceBrowserProps {
   milkdropControls: MilkdropControls;
   onAssignToLayer:  (layerIdx: number, colIdx: number, clip: LauncherClip) => void;
   layers:           LauncherLayer[];
   config:           VisualizationConfig;
+  shaderLibrary?:   { name: string; src: string; category: string }[];
+  onApplyShader?:   (src: string) => void;
 }
 
 const SourceBrowser: React.FC<SourceBrowserProps> = ({
-  milkdropControls, onAssignToLayer, layers,
+  milkdropControls, onAssignToLayer, layers, shaderLibrary, onApplyShader,
 }) => {
   const [tab,          setTab]          = useState<SourceTab>('generators');
   const [search,       setSearch]       = useState('');
@@ -510,6 +512,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
         {([
           ['generators', Zap,   'GENERATORS'] as const,
           ['milkdrop',   Wind,  'MILKDROP']   as const,
+          ['shaders',    Cpu,   'SHADERS']    as const,
           ['media',      Image, 'MEDIA']       as const,
         ] as const).map(([id, Icon, label]) => (
           <button
@@ -638,6 +641,36 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
             </>
           )}
 
+          {/* ── Shaders ── */}
+          {tab === 'shaders' && (
+            shaderLibrary && shaderLibrary.length > 0 ? (
+              shaderLibrary.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase())).map((shader) => {
+                const catColors: Record<string, string> = {
+                  'Audio-Reactive': '#22d3ee',
+                  'Generative':     '#a78bfa',
+                  'Cinematic':      '#f59e0b',
+                  'Abstract':       '#ec4899',
+                };
+                const color = catColors[shader.category] ?? '#8b5cf6';
+                return (
+                  <div
+                    key={shader.name}
+                    className="flex-shrink-0 flex flex-col justify-between cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04]"
+                    style={{ width: 80, background: `${color}18`, border: `1px solid ${color}44`, padding: '4px 6px' }}
+                    onClick={() => onApplyShader?.(shader.src)}
+                    title={`${shader.name} · ${shader.category}`}
+                  >
+                    <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>{shader.category}</div>
+                    <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>{shader.name}</div>
+                    <div className="text-[7px] font-black uppercase mt-0.5" style={{ color }}>GLSL</div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex items-center px-4 text-[9px] text-white/30">No shaders loaded — open the Shader editor first.</div>
+            )
+          )}
+
           {tab === 'media' && (
             <div className="flex items-center gap-3 px-4">
               <div className="text-center">
@@ -663,7 +696,9 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
 const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
 
 const ClipLauncher: React.FC<Props> = ({
-  config, onApply, milkdrop, onSetBgMedia, rightPanel, onPowerOff,
+  config, onApply, milkdrop, onSetBgMedia,
+  bgMedia1, shaderLibrary, onApplyShader,
+  rightPanel, onPowerOff,
 }) => {
   const [layers,      setLayers]      = useState<LauncherLayer[]>(() => loadLayers());
   const [scrollLeft,  setScrollLeft]  = useState(0);
@@ -673,6 +708,39 @@ const ClipLauncher: React.FC<Props> = ({
   const configRef = useRef(config);
   const milkRef   = useRef(milkdrop);
   const layersRef = useRef(layers);
+
+  // Sync bgMedia1 from studio into BG layer (layer 0) empty cells
+  useEffect(() => {
+    if (!bgMedia1 || bgMedia1.length === 0) return;
+    setLayers(prev => {
+      const bg = prev[0];
+      if (!bg) return prev;
+      let changed = false;
+      const newClips = [...bg.clips];
+      let nextSlot = 0;
+      for (const media of bgMedia1) {
+        // Skip forward past already-filled slots
+        while (nextSlot < newClips.length && newClips[nextSlot] !== null) nextSlot++;
+        if (nextSlot >= newClips.length) break;
+        const existing = newClips.find(c => c?.mediaUrl === media.url || c?.id === media.id);
+        if (existing) continue; // already present
+        newClips[nextSlot] = {
+          id:        media.id,
+          type:      'media',
+          name:      media.id.replace(/^default-/, '').replace(/-/g, ' ').toUpperCase().slice(0, 18),
+          color:     '#6366f1',
+          mediaUrl:  media.url,
+          mediaType: media.type,
+          loop:      true,
+          opacity:   1,
+        };
+        changed = true;
+        nextSlot++;
+      }
+      if (!changed) return prev;
+      return prev.map((l, i) => i === 0 ? { ...l, clips: newClips } : l);
+    });
+  }, [bgMedia1]);
   useEffect(() => { configRef.current = config;   }, [config]);
   useEffect(() => { milkRef.current   = milkdrop; }, [milkdrop]);
   useEffect(() => { layersRef.current = layers; saveLayers(layers); }, [layers]);
@@ -701,6 +769,9 @@ const ClipLauncher: React.FC<Props> = ({
     const layerBlend    = layer.blendMode.toLowerCase();
     const resolvedBlend = (BLEND_MAP[layerBlend] || layerBlend) as BlendMode;
 
+    // Auto-populate the text overlay with the clip name when firing any clip
+    onApply({ textContent: clip.name } as any);
+
     if (clip.type === 'generator') {
       if (clip.sceneMode === '__fx_glitch') {
         onApply({ enableGlitch: !(configRef.current as any).enableGlitch } as any);
@@ -714,6 +785,9 @@ const ClipLauncher: React.FC<Props> = ({
     } else if (clip.type === 'milkdrop') {
       if (clip.milkdropIdx !== undefined) milkRef.current.onSetIdx(clip.milkdropIdx);
       milkRef.current.onToggle();
+      // Pass the FX layer blend mode and opacity to the butterchurn compositor
+      milkRef.current.onSetBlendMode?.(resolvedBlend);
+      milkRef.current.onSetOpacity?.(layer.opacity);
     } else if (clip.type === 'media' && clip.mediaUrl) {
       onSetBgMedia({ url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id });
       if (layerIdx === 0) onApply({ blendMode: resolvedBlend });
@@ -948,6 +1022,8 @@ const ClipLauncher: React.FC<Props> = ({
           onAssignToLayer={assignClip}
           layers={layers}
           config={config}
+          shaderLibrary={shaderLibrary}
+          onApplyShader={onApplyShader}
         />
       </div>
 

@@ -16,7 +16,7 @@ import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
-import ShaderPanel from './components/ShaderPanel';
+import ShaderPanel, { SHADER_LIBRARY } from './components/ShaderPanel';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
@@ -171,11 +171,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showTimeline, setShowTimeline] = useState(true);
     const [showMatte, setShowMatte] = useState(false);
     const [showClipGrid, setShowClipGrid] = useState(true);
-    // Milkdrop (butterchurn) — open-source preset engine as a selectable core viz.
+    // Milkdrop (butterchurn) — overlaid ON TOP of the visualizer (composited, not exclusive).
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
     const [milkdropMeta, setMilkdropMeta] = useState<{ count: number; name: string }>({ count: 0, name: '' });
     const [milkdropThumbnails, setMilkdropThumbnails] = useState<Record<string, string>>({});
+    // Blend mode for the milkdrop overlay layer — set by clip launcher FX layer blend.
+    const [milkdropBlendMode, setMilkdropBlendMode] = useState<string>('screen');
+    const [milkdropLayerOpacity, setMilkdropLayerOpacity] = useState<number>(0.8);
     // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
     const [shaderSrc, setShaderSrc] = useState<string | null>(null);
     const [shaderStart, setShaderStart] = useState(0);
@@ -796,6 +799,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     if (media) setBgMedia1([media]);
                                     else setBgMedia1([]);
                                 }}
+                                bgMedia1={bgMedia1}
+                                shaderLibrary={SHADER_LIBRARY}
+                                onApplyShader={applyShaderLook}
                                 milkdrop={{
                                     enabled: milkdrop,
                                     name: milkdropMeta.name,
@@ -806,6 +812,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     onNext:   () => setMilkdropIdx(i => i + 1),
                                     onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
                                     onSetIdx: (i) => setMilkdropIdx(i),
+                                    onSetBlendMode: (m) => setMilkdropBlendMode(m),
+                                    onSetOpacity: (o) => setMilkdropLayerOpacity(o),
                                     thumbnails: milkdropThumbnails,
                                 }}
                                 rightPanel={
@@ -1256,9 +1264,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 id="bg-layer"
             />
 
-            {/* Core Visualiser — Milkdrop (butterchurn) when enabled, else a studio
-                engine scene (Canvas2D + WebGL) or the classic high-fidelity
-                AudioVisualizer. All share the one analyser. */}
+            {/* Core Visualiser — layered compositing:
+                  Layer 0 (bottom): BackgroundLayer (bgMedia1 + bgMedia2)
+                  Layer 1 (VIZ):    StudioStage / AudioVisualizer / ShaderLayer / MidiNotes / ThreeScene
+                                    — uses config.blendMode (set by clip launcher VIZ row)
+                  Layer 2 (FX):     ButterchurnLayer — overlaid ON TOP with its own blend mode
+                                    — ALWAYS composites over layer 1 when milkdrop is enabled
+                All layers share the same analyser. */}
             {three3d ? (
                 <ThreeScene
                     analyser={analyserRef.current}
@@ -1267,38 +1279,46 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     palette={config.colorPalette}
                 />
             ) : analyserRef.current && (
-                shaderSrc ? (
-                    <ShaderLayer
-                        analyser={analyserRef.current}
-                        source={shaderSrc}
-                        startTimeMs={shaderStart}
-                        onError={setShaderError}
-                    />
-                ) : milkdrop ? (
-                    <ButterchurnLayer
-                        analyser={analyserRef.current}
-                        presetIndex={milkdropIdx}
-                        onMeta={setMilkdropMeta}
-                        onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
-                    />
-                ) : midiNotes ? (
-                    <MidiNotesScene palette={config.colorPalette} />
-                ) : isStudioMode(config.mode) ? (
-                    <StudioStage
-                        id="core-visualizer"
-                        analyser={analyserRef.current}
-                        config={config}
-                        isPlaying={audioState.isPlaying}
-                    />
-                ) : (
-                    <AudioVisualizer
-                        id="core-visualizer"
-                        analyser={analyserRef.current}
-                        config={config}
-                        isPlaying={audioState.isPlaying}
-                        hasBackground={bgMedia1.length > 0 || bgMedia2.length > 0}
-                    />
-                )
+                <>
+                    {/* VIZ layer — always renders (unless 3D mode) */}
+                    {shaderSrc ? (
+                        <ShaderLayer
+                            analyser={analyserRef.current}
+                            source={shaderSrc}
+                            startTimeMs={shaderStart}
+                            onError={setShaderError}
+                        />
+                    ) : midiNotes ? (
+                        <MidiNotesScene palette={config.colorPalette} />
+                    ) : isStudioMode(config.mode) ? (
+                        <StudioStage
+                            id="core-visualizer"
+                            analyser={analyserRef.current}
+                            config={config}
+                            isPlaying={audioState.isPlaying}
+                        />
+                    ) : (
+                        <AudioVisualizer
+                            id="core-visualizer"
+                            analyser={analyserRef.current}
+                            config={config}
+                            isPlaying={audioState.isPlaying}
+                            hasBackground={bgMedia1.length > 0 || bgMedia2.length > 0}
+                        />
+                    )}
+
+                    {/* FX layer — Milkdrop composites ON TOP of VIZ via mix-blend-mode */}
+                    {milkdrop && (
+                        <ButterchurnLayer
+                            analyser={analyserRef.current}
+                            presetIndex={milkdropIdx}
+                            blendMode={milkdropBlendMode}
+                            layerOpacity={milkdropLayerOpacity}
+                            onMeta={setMilkdropMeta}
+                            onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
+                        />
+                    )}
+                </>
             )}
 
             {/* Keyable media / matte layer (luma · chroma · AI) */}

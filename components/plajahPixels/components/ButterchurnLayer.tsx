@@ -7,6 +7,10 @@ interface Props {
   analyser:       AnalyserNode;
   presetIndex:    number;
   blendSeconds?:  number;
+  /** CSS mix-blend-mode to composite this layer over the visualizer below it. */
+  blendMode?:     string;
+  /** 0–1 opacity for this layer. */
+  layerOpacity?:  number;
   /** Reports the loaded preset count + current preset name back to the UI. */
   onMeta?:        (meta: { count: number; name: string }) => void;
   /** Called after each preset settles with a JPEG thumbnail dataURL. */
@@ -14,7 +18,7 @@ interface Props {
 }
 
 const ButterchurnLayer: React.FC<Props> = ({
-  analyser, presetIndex, blendSeconds = 2.0, onMeta, onThumbnail,
+  analyser, presetIndex, blendSeconds = 2.0, blendMode, layerOpacity, onMeta, onThumbnail,
 }) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const vizRef         = useRef<any>(null);
@@ -135,7 +139,12 @@ const ButterchurnLayer: React.FC<Props> = ({
     <canvas
       ref={canvasRef}
       className="absolute inset-0 w-full h-full"
-      style={{ zIndex: 1, willChange: 'transform', imageRendering: 'auto' }}
+      style={{
+        willChange: 'transform',
+        imageRendering: 'auto',
+        mixBlendMode: (blendMode ?? 'screen') as any,
+        opacity: layerOpacity ?? 1,
+      }}
     />
   );
 };

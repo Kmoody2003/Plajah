@@ -594,6 +594,17 @@ const CATS: { id: string; label: string; color: string }[] = [
   { id: 'abstract',   label: 'Abstract',        color: '#10b981' },
 ];
 
+/** Exported shader library for use in ClipLauncher's SHADERS source tab. */
+export const SHADER_LIBRARY: { name: string; src: string; category: string }[] =
+  SHADERS.map(s => ({
+    name:     s.name,
+    src:      s.src,
+    category: s.cat === 'audio'     ? 'Audio-Reactive'
+             : s.cat === 'gen'      ? 'Generative'
+             : s.cat === 'cinematic'? 'Cinematic'
+             : 'Abstract',
+  }));
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
