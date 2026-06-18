@@ -1458,6 +1458,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Sacred Library: per-user Bible notes (doc id = {uid}__{ref}) ─────────────
+    match /bibleNotes/{noteId} {
+      allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid
+                    && noteId == request.auth.uid + '__' + request.resource.data.ref
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() <= 5000;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     // ── WC Video Chat Rooms ──────────────────────────────────────────────────────
     match /wcVideoRooms/{clubId} {
       allow read: if isAuthenticated();

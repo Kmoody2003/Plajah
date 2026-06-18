@@ -87,6 +87,47 @@ export const HYMNS: Hymn[] = [
   },
 ];
 
+// ── Primary texts — read the actual documents in-app ────────────────────────
+export interface PrimaryText { title: string; era: string; type: string; source: string; body: string[]; }
+
+export const PRIMARY_TEXTS: PrimaryText[] = [
+  {
+    title: 'The Apostles’ Creed', era: 'c. 2nd–4th century', type: 'Creed', source: 'Traditional Western text',
+    body: [
+      'I believe in God, the Father almighty, creator of heaven and earth.',
+      'And in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended to the dead. On the third day he rose again; he ascended into heaven, is seated at the right hand of the Father, and will come to judge the living and the dead.',
+      'I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and the life everlasting. Amen.',
+    ],
+  },
+  {
+    title: 'The Nicene Creed', era: '325 / 381 AD', type: 'Creed', source: 'First Council of Nicaea & Constantinople',
+    body: [
+      'We believe in one God, the Father almighty, maker of heaven and earth, of all things visible and invisible.',
+      'And in one Lord Jesus Christ, the only-begotten Son of God, begotten of the Father before all ages; Light of Light, true God of true God, begotten not made, of one essence with the Father, by whom all things were made; who for us men and for our salvation came down from heaven, and was incarnate by the Holy Spirit of the Virgin Mary, and was made man;',
+      'and was crucified also for us under Pontius Pilate; he suffered and was buried; and the third day he rose again, according to the Scriptures; and ascended into heaven, and sits at the right hand of the Father; and he shall come again, with glory, to judge the living and the dead; whose kingdom shall have no end.',
+      'And we believe in the Holy Spirit, the Lord and Giver of Life, who proceeds from the Father, who with the Father and the Son together is worshipped and glorified, who spoke by the prophets.',
+      'And we believe in one holy catholic and apostolic Church. We acknowledge one baptism for the remission of sins; and we look for the resurrection of the dead, and the life of the world to come. Amen.',
+    ],
+  },
+  {
+    title: 'The Didache — The Two Ways', era: 'c. 1st century', type: 'Teaching', source: 'Teaching of the Twelve Apostles, ch. 1–2',
+    body: [
+      'There are two ways, one of life and one of death; and between the two ways there is a great difference.',
+      'The way of life is this: First, you shall love God who made you; second, your neighbour as yourself; and whatever you would not have done to you, do not do to another.',
+      'Bless those who curse you, and pray for your enemies, and fast for those who persecute you. For what credit is it if you love those who love you? Do not the heathen do the same? But love those who hate you, and you shall have no enemy.',
+      'My child, flee from every evil and from everything like it. Be not angry, for anger leads to murder… but be meek, for the meek shall inherit the earth.',
+    ],
+  },
+  {
+    title: 'The Chalcedonian Definition', era: '451 AD', type: 'Definition', source: 'Council of Chalcedon',
+    body: [
+      'Following the holy Fathers, we all with one voice confess our Lord Jesus Christ to be one and the same Son, the same perfect in Godhead and the same perfect in manhood, truly God and truly man…',
+      'to be acknowledged in two natures, without confusion, without change, without division, without separation; the distinction of natures being in no way annulled by the union, but rather the property of each nature being preserved, and concurring in one Person and one Subsistence,',
+      'not parted or divided into two persons, but one and the same Son and only-begotten God the Word, the Lord Jesus Christ; as the prophets from the beginning declared concerning him, and the Lord Jesus Christ himself taught us, and the Creed of the holy Fathers has handed down to us.',
+    ],
+  },
+];
+
 // ── The eight sections of the library ────────────────────────────────────────
 export const SACRED_SECTIONS: LibrarySection[] = [
   {

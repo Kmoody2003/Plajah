@@ -65,6 +65,23 @@ export const ensureGuestAuth = async (): Promise<User | null> => {
     return null;
   }
 };
+
+// ── Sacred Library: cloud-synced Bible notes (per user, per verse ref) ────────
+export const loadBibleNotes = async (uid: string): Promise<Record<string, string>> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'bibleNotes'), where('uid', '==', uid)));
+    const out: Record<string, string> = {};
+    snap.forEach(d => { const x = d.data() as any; if (x.ref) out[x.ref] = x.text || ''; });
+    return out;
+  } catch { return {}; }
+};
+export const saveBibleNote = async (uid: string, ref: string, text: string): Promise<void> => {
+  const id = `${uid}__${ref}`;
+  try {
+    if (text.trim()) await setDoc(doc(db, 'bibleNotes', id), { uid, ref, text: text.slice(0, 5000), updatedAt: Date.now() });
+    else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
+  } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
+};
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode } from '../types';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {

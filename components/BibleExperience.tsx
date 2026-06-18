@@ -10,12 +10,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft, ChevronRight, BookOpen, ScrollText, Users, Landmark, Pickaxe,
   Map as MapIcon, Swords, Crown, Gem, Music2, Sparkles, StickyNote, MessageCircle,
-  X, ExternalLink, Play, ChevronDown, Cross,
+  X, ExternalLink, Play, ChevronDown, Cross, FileText, Maximize2,
 } from 'lucide-react';
 import {
   BOOKS, BibleBook, BibleVerse, fetchParallel, translationsForBook, BibleTranslation,
 } from '../services/bibleService';
-import { SACRED_SECTIONS, HYMNS, LibrarySection } from '../data/sacredLibrary';
+import { SACRED_SECTIONS, HYMNS, LibrarySection, PRIMARY_TEXTS } from '../data/sacredLibrary';
+import { auth, loadBibleNotes, saveBibleNote } from '../services/backendService';
 
 const ICONS: Record<string, React.FC<any>> = { ScrollText, Users, Landmark, Pickaxe, Map: MapIcon, Swords, Crown, Gem };
 const NOTES_KEY = 'plajah_bible_notes_v1';
@@ -32,10 +33,11 @@ const SACRED_BG: React.CSSProperties = {
     'repeating-linear-gradient(45deg, rgba(255,255,255,0.014) 0 2px, transparent 2px 6px)',
 };
 
-type View = { kind: 'home' } | { kind: 'read' } | { kind: 'hymns' } | { kind: 'section'; id: string };
+type View = { kind: 'home' } | { kind: 'read' } | { kind: 'hymns' } | { kind: 'texts' } | { kind: 'section'; id: string };
 
 const BibleExperience: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [view, setView] = useState<View>({ kind: 'home' });
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null); // in-app manuscript embed
 
   const back = () => {
     if (view.kind === 'home') onBack();
@@ -60,7 +62,25 @@ const BibleExperience: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         {view.kind === 'home' && <Home key="home" onOpen={setView} />}
         {view.kind === 'read' && <Reader key="read" />}
         {view.kind === 'hymns' && <Hymns key="hymns" />}
-        {view.kind === 'section' && <Section key={view.id} section={SACRED_SECTIONS.find(s => s.id === view.id)!} />}
+        {view.kind === 'texts' && <Texts key="texts" />}
+        {view.kind === 'section' && <Section key={view.id} section={SACRED_SECTIONS.find(s => s.id === view.id)!} onEmbed={(url, title) => setViewer({ url, title })} />}
+      </AnimatePresence>
+
+      {/* In-app manuscript / scan viewer (embeds the source viewer; opens full if it refuses to frame) */}
+      <AnimatePresence>
+        {viewer && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[140] bg-black/90 backdrop-blur-sm flex flex-col">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#d4af37]/20 bg-[#08070c]">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#d4af37] truncate flex items-center gap-2"><ScrollText size={13} /> {viewer.title}</span>
+              <div className="flex items-center gap-2">
+                <a href={viewer.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/70 hover:text-white"><Maximize2 size={11} /> Full viewer</a>
+                <button onClick={() => setViewer(null)} className="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center text-white/70 hover:text-white"><X size={15} /></button>
+              </div>
+            </div>
+            <iframe src={viewer.url} title={viewer.title} className="flex-1 w-full bg-white" referrerPolicy="no-referrer" />
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -118,6 +138,9 @@ const Home: React.FC<{ onOpen: (v: View) => void }> = ({ onOpen }) => (
       <FeatureCard icon={<Music2 size={22} />} title="Ancient Hymns" subtitle="The oldest songs of the Church"
         blurb="Phos Hilaron, the Oxyrhynchus hymn, the Te Deum — recordings with original + English lyrics, side by side."
         onClick={() => onOpen({ kind: 'hymns' })} />
+      <FeatureCard icon={<FileText size={22} />} title="Primary Texts" subtitle="Read the documents themselves"
+        blurb="The creeds, the Didache, the Chalcedonian Definition — the actual texts that defined the faith, read in-app."
+        onClick={() => onOpen({ kind: 'texts' })} />
       {SACRED_SECTIONS.map(s => {
         const Icon = ICONS[s.icon] || ScrollText;
         return (
@@ -156,6 +179,14 @@ const Reader: React.FC = () => {
   const [notes, setNotes] = useState<Record<string, string>>(loadNotes);
   const [openVerse, setOpenVerse] = useState<number | null>(null);
   const [pickBook, setPickBook] = useState(false);
+  const saveTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Cloud-synced notes: pull the signed-in user's notes once and merge them in.
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    loadBibleNotes(uid).then(cloud => { if (Object.keys(cloud).length) setNotes(prev => ({ ...prev, ...cloud })); });
+  }, []);
 
   // Keep active translations valid for the current testament.
   useEffect(() => {
@@ -180,7 +211,14 @@ const Reader: React.FC = () => {
 
   const refKey = (v: number) => `${book.num}:${chapter}:${v}`;
   const setNote = (v: number, text: string) => {
-    setNotes(prev => { const n = { ...prev }; if (text.trim()) n[refKey(v)] = text; else delete n[refKey(v)]; saveNotes(n); return n; });
+    const ref = refKey(v);
+    setNotes(prev => { const n = { ...prev }; if (text.trim()) n[ref] = text; else delete n[ref]; saveNotes(n); return n; });
+    // Debounced cloud sync (signed-in users get cross-device notes).
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      clearTimeout(saveTimers.current[ref]);
+      saveTimers.current[ref] = setTimeout(() => saveBibleNote(uid, ref, text), 800);
+    }
   };
   const toggleT = (slug: string) => setActive(prev => prev.includes(slug) ? (prev.length > 1 ? prev.filter(s => s !== slug) : prev) : [...prev, slug]);
 
@@ -332,25 +370,69 @@ const Hymns: React.FC = () => (
   </motion.div>
 );
 
+// ── Primary texts reader ─────────────────────────────────────────────────────
+const Texts: React.FC = () => {
+  const [open, setOpen] = useState(0);
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto px-5 sm:px-8 pb-24 pt-8">
+      <h2 className="text-3xl font-black tracking-tight">Primary <span className="text-[#d4af37]">Texts</span></h2>
+      <p className="text-white/40 text-sm mt-2 mb-8 max-w-2xl">The documents that defined the faith — read the actual words, then ask Aria to unpack them.</p>
+      <div className="space-y-3">
+        {PRIMARY_TEXTS.map((t, i) => {
+          const isOpen = open === i;
+          return (
+            <div key={t.title} className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <button onClick={() => setOpen(isOpen ? -1 : i)} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
+                <div>
+                  <h3 className="text-sm font-black">{t.title}</h3>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-[#d4af37]/70 mt-0.5">{t.era} · {t.type}</p>
+                </div>
+                <ChevronDown size={16} className={`text-white/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="px-5 pb-5 space-y-3">
+                  {t.body.map((p, j) => <p key={j} className="text-[14px] leading-relaxed text-white/75 font-serif">{p}</p>)}
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-white/25 pt-1">Source · {t.source}</p>
+                  <button onClick={() => askAria(`You are Aria, a learned and reverent teacher of Church history. Walk me through "${t.title}" (${t.era}). Explain its historical context, what each part means, the controversy it answered, and why it still matters.`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#d4af37] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all">
+                    <Sparkles size={11} /> Ask Aria to explain
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
 // ── Curated section ──────────────────────────────────────────────────────────
-const Section: React.FC<{ section: LibrarySection }> = ({ section }) => (
+const Section: React.FC<{ section: LibrarySection; onEmbed: (url: string, title: string) => void }> = ({ section, onEmbed }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-4xl mx-auto px-5 sm:px-8 pb-24 pt-8">
     <h2 className="text-3xl font-black tracking-tight">{section.title}</h2>
     <p className="text-[#d4af37]/70 text-[10px] font-black uppercase tracking-widest mt-1">{section.subtitle}</p>
     <p className="text-white/40 text-sm mt-3 mb-8 max-w-2xl leading-relaxed">{section.intro}</p>
     <div className="grid sm:grid-cols-2 gap-4">
-      {section.entries.map(e => (
-        <a key={e.title} href={e.url} target="_blank" rel="noreferrer"
-          className="group block p-5 rounded-2xl border border-white/8 hover:border-[#d4af37]/30 transition-all hover:-translate-y-0.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            {e.tag && <span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#d4af37]/12 text-[#d4af37]/80">{e.tag}</span>}
-            <ExternalLink size={13} className="text-white/25 group-hover:text-[#d4af37] transition-colors ml-auto" />
-          </div>
-          <h3 className="text-sm font-black leading-tight">{e.title}</h3>
-          {(e.by || e.era) && <p className="text-[9px] font-bold text-white/35 mt-0.5">{[e.era, e.by].filter(Boolean).join(' · ')}</p>}
-          <p className="text-[11px] text-white/45 leading-relaxed mt-2">{e.blurb}</p>
-        </a>
-      ))}
+      {section.entries.map(e => {
+        const embed = section.id === 'manuscripts';   // manuscripts open in-app
+        const inner = (
+          <>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              {e.tag && <span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#d4af37]/12 text-[#d4af37]/80">{e.tag}</span>}
+              {embed ? <Maximize2 size={13} className="text-white/25 group-hover:text-[#d4af37] transition-colors ml-auto" />
+                     : <ExternalLink size={13} className="text-white/25 group-hover:text-[#d4af37] transition-colors ml-auto" />}
+            </div>
+            <h3 className="text-sm font-black leading-tight">{e.title}</h3>
+            {(e.by || e.era) && <p className="text-[9px] font-bold text-white/35 mt-0.5">{[e.era, e.by].filter(Boolean).join(' · ')}</p>}
+            <p className="text-[11px] text-white/45 leading-relaxed mt-2">{e.blurb}</p>
+          </>
+        );
+        const cls = 'group block text-left p-5 rounded-2xl border border-white/8 hover:border-[#d4af37]/30 transition-all hover:-translate-y-0.5';
+        return embed
+          ? <button key={e.title} onClick={() => onEmbed(e.url, e.title)} className={cls} style={{ background: 'rgba(255,255,255,0.03)' }}>{inner}</button>
+          : <a key={e.title} href={e.url} target="_blank" rel="noreferrer" className={cls} style={{ background: 'rgba(255,255,255,0.03)' }}>{inner}</a>;
+      })}
     </div>
     <div className="mt-8 p-4 rounded-2xl border border-[#d4af37]/20 flex items-center gap-3" style={{ background: 'rgba(212,175,55,0.06)' }}>
       <Sparkles size={16} className="text-[#d4af37] shrink-0" />
