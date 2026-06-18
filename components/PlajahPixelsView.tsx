@@ -14,6 +14,16 @@ import type { Album, Track } from '../types';
 import { getActiveCaption, trackHasCaptions } from '../src/lib/captions';
 import PlajahPixelsStudio, { PlajahPixelsPlatformBridge } from './plajahPixels/PlajahPixelsStudio';
 
+function timeCodedToLrc(lines: { time: number; text: string }[]): string {
+  return lines.map(({ time, text }) => {
+    const m = Math.floor(time / 60);
+    const s = time % 60;
+    const mm = String(m).padStart(2, '0');
+    const ss = s.toFixed(2).padStart(5, '0');
+    return `[${mm}:${ss}]${text}`;
+  }).join('\n');
+}
+
 export interface PlajahPixelsPayload {
   album?: Album | null;
   track?: Track | null;
@@ -77,6 +87,9 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
     mediaImages,
     currentCaption: getActiveCaption(gp.currentTrack, gp.currentTime, gp.duration),
     hasCaptions: trackHasCaptions(gp.currentTrack),
+    lrcLyrics: gp.currentTrack?.timeCodedLyrics?.length
+      ? timeCodedToLrc(gp.currentTrack.timeCodedLyrics)
+      : undefined,
     currentTrackTitle: gp.currentTrack?.title ?? '',
     title: album?.title ?? track?.title ?? 'Plajah Pixels',
     onClose,

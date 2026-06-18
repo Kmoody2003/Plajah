@@ -2458,7 +2458,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/40 uppercase transition-all disabled:opacity-50"
                      >
                        {isGeneratingCaptions ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                       {isGeneratingCaptions ? 'Analyzing...' : currentTrack.timeCodedLyrics ? 'Re-Sync AI' : 'Auto-Caption'}
+                       {isGeneratingCaptions ? 'Analyzing...' : currentTrack.timeCodedLyrics ? 'Re-Sync Lyrics' : 'Sync Lyrics'}
                      </button>
                    )}
 

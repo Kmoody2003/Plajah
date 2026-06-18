@@ -9,175 +9,278 @@ interface GlobalLightingProps {
     id?: string;
 }
 
-const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPlaying }) => {
+interface Fixture {
+    mountFrac: number;   // 0-1 normalized horizontal mount position along top rig
+    hue: number;         // resolved hex colour
+    panPhase: number;    // LFO phase offset so fixtures sweep out of sync
+    panFreq: number;     // LFO sweep frequency (rad/s equivalent)
+    tiltOffset: number;  // slight downward tilt variation per fixture
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+    const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return r
+        ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) }
+        : { r: 255, g: 255, b: 255 };
+}
+
+function buildFixtures(count: number): Fixture[] {
+    return Array.from({ length: count }, (_, i) => ({
+        mountFrac: (i + 0.5) / count,
+        hue: 0,                             // resolved per-frame from palette
+        panPhase: (i / count) * Math.PI * 2,
+        panFreq: 0.28 + i * 0.06,           // each fixture sweeps at slightly different rate
+        tiltOffset: (i % 2 === 0 ? 1 : -1) * 0.05,
+    }));
+}
+
+const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPlaying, id }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number | null>(null);
-    const lastFrameTimeRef = useRef(0);
+    const rafRef = useRef<number | null>(null);
+    const lastFrameRef = useRef(0);
+    const beatRef = useRef(false);
+    const beatDecayRef = useRef(0);
+    const lastBassRef = useRef(0);
+    const lastBeatTimeRef = useRef(0);
 
-    // Helper to convert hex to rgba - computed only when config.lightColor changes
-    const hexToRgb = (hex: string) => {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : { r: 255, g: 255, b: 255 };
-    };
+    const fixtures = useMemo(
+        () => buildFixtures(Math.max(1, Math.min(6, config.beamCount ?? 3))),
+        [config.beamCount],
+    );
 
-    // Memoize the RGB value to avoid parsing hex in every frame
-    const lightRgb = useMemo(() => {
-        const lightColorHex = config.lightColor || config.colorPalette[0] || '#ffffff';
-        return hexToRgb(lightColorHex);
-    }, [config.lightColor, config.colorPalette]);
+    const palette = useMemo(
+        () => (config.beamColors?.length ? config.beamColors : config.colorPalette),
+        [config.beamColors, config.colorPalette],
+    );
 
     useEffect(() => {
         const animate = (time: number) => {
-             // Throttling logic
-             const fpsInterval = 1000 / (config.targetFrameRate || 60);
-             const elapsed = time - lastFrameTimeRef.current;
-             
-             if (elapsed < fpsInterval) {
-                 requestRef.current = requestAnimationFrame(animate);
-                 return;
-             }
-             lastFrameTimeRef.current = time - (elapsed % fpsInterval);
+            const fps = config.targetFrameRate || 60;
+            const elapsed = time - lastFrameRef.current;
+            if (elapsed < 1000 / fps) {
+                rafRef.current = requestAnimationFrame(animate);
+                return;
+            }
+            lastFrameRef.current = time - (elapsed % (1000 / fps));
 
             const canvas = canvasRef.current;
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            // Handle resize
             if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
             }
 
-            // Clear
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Audio Analysis
-            let kick = 0;
-            let mid = 0;
+            // ── Audio analysis ────────────────────────────────────────────────
+            let bass = 0, mid = 0, treble = 0;
             if (analyser && isPlaying) {
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                analyser.getByteFrequencyData(dataArray);
-                // Bass sum
-                let sum = 0;
-                for(let i=0; i<5; i++) sum += dataArray[i];
-                kick = (sum / 5) / 255; // 0.0 to 1.0
-                
-                // Mid sum for beams
-                let midSum = 0;
-                for(let i=10; i<30; i++) midSum += dataArray[i];
-                mid = (midSum / 20) / 255;
+                const buf = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(buf);
+                let bSum = 0, mSum = 0, tSum = 0;
+                for (let i = 0; i < 4; i++) bSum += buf[i];
+                for (let i = 8; i < 24; i++) mSum += buf[i];
+                for (let i = 40; i < 80; i++) tSum += buf[i];
+                bass = (bSum / 4) / 255;
+                mid = (mSum / 16) / 255;
+                treble = (tSum / 40) / 255;
+
+                // Beat detection: bass spike above previous + time gate
+                const now = performance.now();
+                const isBeat = bass > 0.55 && bass > lastBassRef.current * 1.2 && now - lastBeatTimeRef.current > 250;
+                if (isBeat) {
+                    lastBeatTimeRef.current = now;
+                    beatRef.current = true;
+                    beatDecayRef.current = 1.0;
+                }
+                lastBassRef.current = bass;
             }
 
-            const frameTime = performance.now() * 0.001 * config.speed;
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            const rgb = lightRgb; // Use memoized value
+            // Beat strobe decay
+            if (beatDecayRef.current > 0) beatDecayRef.current = Math.max(0, beatDecayRef.current - 0.06);
+            const strokeFlash = config.beamStrobeOnBeat ? beatDecayRef.current : 0;
 
-            // --- 1. Ambient / Moving Light (Lissajous) ---
-            const radiusX = canvas.width * 0.4;
-            const radiusY = canvas.height * 0.3;
-            const lx = cx + Math.sin(frameTime) * radiusX;
-            const ly = cy + Math.sin(frameTime * 2) * radiusY;
+            const t = performance.now() * 0.001 * (config.speed || 1);
+            const intensity = config.lightingIntensity ?? 1;
+            const W = canvas.width;
+            const H = canvas.height;
 
-            // Light Size & Intensity reacting to Kick
-            const baseSize = Math.max(canvas.width, canvas.height) * 0.5;
-            const pulseSize = baseSize + (kick * baseSize * 0.5 * config.lightingIntensity);
-            const opacity = 0.2 + (kick * 0.5 * config.lightingIntensity);
+            ctx.globalCompositeOperation = 'screen';
 
-            const gradient = ctx.createRadialGradient(lx, ly, 0, lx, ly, pulseSize);
-            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
-            gradient.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity * 0.5})`);
-            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+            // ── 1. Ambient moving lissajous wash ────────────────────────────
+            {
+                const lightColorHex = config.lightColor || palette[0] || '#ffffff';
+                const rgb = hexToRgb(lightColorHex);
+                const lx = W * 0.5 + Math.sin(t * 0.7) * W * 0.38;
+                const ly = H * 0.5 + Math.sin(t * 1.3) * H * 0.28;
+                const baseR = Math.max(W, H) * 0.5;
+                const pulseR = baseR + bass * baseR * 0.4 * intensity;
+                const op = (0.12 + bass * 0.22) * intensity;
+                const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, pulseR);
+                g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${op})`);
+                g.addColorStop(0.5, `rgba(${rgb.r},${rgb.g},${rgb.b},${op * 0.4})`);
+                g.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, W, H);
+            }
 
-            ctx.globalCompositeOperation = 'screen'; // Additive
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // --- 2. Moving Light Beams ---
+            // ── 2. Volumetric stage fixtures ─────────────────────────────────
             if (config.enableBeams) {
-                const drawBeam = (originX: number, originY: number, angle: number, beamWidth: number, length: number) => {
-                    ctx.save();
-                    ctx.translate(originX, originY);
-                    ctx.rotate(angle);
-                    
-                    // Create Beam Gradient (Fade out at end and sides)
-                    // We simulate a volumetric cone
-                    const grd = ctx.createLinearGradient(0, 0, 0, length);
-                    const beamOpacity = (0.2 + mid * 0.5) * config.lightingIntensity;
-                    
-                    grd.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${beamOpacity * 0.8})`);
-                    grd.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+                fixtures.forEach((fix, fi) => {
+                    const colorHex = palette[fi % palette.length] || '#ffffff';
+                    const rgb = hexToRgb(colorHex);
 
-                    ctx.fillStyle = grd;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0); // Origin
-                    ctx.lineTo(-beamWidth / 2, length); // Bottom Left
-                    // Curved bottom
-                    ctx.bezierCurveTo(-beamWidth/4, length + beamWidth/4, beamWidth/4, length + beamWidth/4, beamWidth/2, length);
-                    ctx.lineTo(0, 0); // Back to Origin
-                    ctx.fill();
+                    // Mount point (slightly above canvas top for clean cone origin)
+                    const mx = fix.mountFrac * W;
+                    const my = -8;
 
-                    // Inner core (brighter, narrower)
-                    const coreGrd = ctx.createLinearGradient(0, 0, 0, length * 0.8);
-                    coreGrd.addColorStop(0, `rgba(255, 255, 255, ${beamOpacity * 0.9})`);
-                    coreGrd.addColorStop(1, `rgba(255, 255, 255, 0)`);
-                    ctx.fillStyle = coreGrd;
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(-beamWidth / 6, length * 0.8);
-                    ctx.lineTo(beamWidth / 6, length * 0.8);
-                    ctx.fill();
+                    // Pan sweep: slow LFO gives moving-head feel
+                    const panSweep = Math.sin(t * fix.panFreq + fix.panPhase) * (Math.PI / 5.5);
+                    // Base angle: pointing downward (PI/2) + tilt offset per fixture + sweep
+                    const angle = Math.PI * 0.5 + fix.tiltOffset + panSweep;
 
-                    ctx.restore();
-                };
+                    // Beam length reaches well past canvas diagonal
+                    const beamLen = Math.sqrt(W * W + H * H) * 1.15;
 
-                // Beam Settings
-                const beamLength = Math.max(canvas.width, canvas.height) * 1.5;
-                const beamW = 150 + kick * 50; 
-                
-                // Beam 1: Top Left
-                const angle1 = Math.PI * 0.2 + Math.sin(frameTime * 0.8) * 0.3; // Swing
-                drawBeam(0, 0, angle1, beamW, beamLength);
+                    // Target point (may extend off canvas — that's fine)
+                    const tx = mx + Math.cos(angle) * beamLen;
+                    const ty = my + Math.sin(angle) * beamLen;
 
-                // Beam 2: Top Right
-                const angle2 = Math.PI * -0.2 + Math.sin(frameTime * 0.8 + Math.PI) * 0.3; 
-                drawBeam(canvas.width, 0, angle2, beamW, beamLength);
+                    // Beam direction unit vector
+                    const dx = tx - mx, dy = ty - my;
+                    const dLen = Math.sqrt(dx * dx + dy * dy);
+                    const udx = dx / dLen, udy = dy / dLen;
+                    // Normal (perpendicular) unit vector
+                    const nx = -udy, ny = udx;
 
-                // Beam 3: Moving Spot (follows lissajous ambient light X)
-                // Looks like a stage scan light
-                const angle3 = Math.PI * 0.5 + Math.sin(frameTime * 1.5) * 0.4;
-                // Origin oscillates at top
-                const topX = canvas.width/2 + Math.sin(frameTime * 0.5) * (canvas.width * 0.3);
-                drawBeam(topX, -50, angle3 - Math.PI/2, beamW * 0.6, beamLength * 0.8);
+                    // Spread expands with bass + beat
+                    const spreadBase = beamLen * 0.055;
+                    const spread = spreadBase + bass * spreadBase * 0.6 + strokeFlash * spreadBase * 0.4;
+
+                    // Strobe: on beat flash to white then decay
+                    const strobeBlend = strokeFlash;
+                    const beamR = Math.round(rgb.r + (255 - rgb.r) * strobeBlend);
+                    const beamG = Math.round(rgb.g + (255 - rgb.g) * strobeBlend);
+                    const beamB = Math.round(rgb.b + (255 - rgb.b) * strobeBlend);
+
+                    // Base beam opacity driven by mid + treble
+                    const beamOp = Math.min(1, (0.18 + mid * 0.35 + treble * 0.1 + strokeFlash * 0.55) * intensity);
+
+                    // ── 5 volumetric scatter passes (simulate atmospheric fog) ──
+                    for (let pass = 0; pass < 5; pass++) {
+                        const pSpread = spread * (1.0 + pass * 0.45);
+                        const pOp = beamOp * (0.85 - pass * 0.14);
+                        if (pOp <= 0) continue;
+
+                        // Cone tip → two far-end corners
+                        const ex1x = tx + nx * pSpread, ex1y = ty + ny * pSpread;
+                        const ex2x = tx - nx * pSpread, ex2y = ty - ny * pSpread;
+
+                        const grad = ctx.createLinearGradient(mx, my, tx, ty);
+                        grad.addColorStop(0, `rgba(${beamR},${beamG},${beamB},${pOp})`);
+                        grad.addColorStop(0.65, `rgba(${beamR},${beamG},${beamB},${pOp * 0.35})`);
+                        grad.addColorStop(1, `rgba(${beamR},${beamG},${beamB},0)`);
+
+                        ctx.beginPath();
+                        ctx.moveTo(mx, my);
+                        ctx.lineTo(ex1x, ex1y);
+                        ctx.lineTo(ex2x, ex2y);
+                        ctx.closePath();
+                        ctx.fillStyle = grad;
+                        ctx.fill();
+                    }
+
+                    // ── Core ray (tight bright centre line) ──────────────────
+                    {
+                        const coreSpread = spread * 0.08;
+                        const coreLen = beamLen * 0.72;
+                        const ctx_x = mx + udx * coreLen, ctx_y = my + udy * coreLen;
+                        const c1x = ctx_x + nx * coreSpread, c1y = ctx_y + ny * coreSpread;
+                        const c2x = ctx_x - nx * coreSpread, c2y = ctx_y - ny * coreSpread;
+
+                        const coreGrad = ctx.createLinearGradient(mx, my, ctx_x, ctx_y);
+                        const coreOp = Math.min(1, beamOp * 1.6 + strokeFlash * 0.6);
+                        coreGrad.addColorStop(0, `rgba(255,255,255,${coreOp})`);
+                        coreGrad.addColorStop(0.6, `rgba(${beamR},${beamG},${beamB},${coreOp * 0.6})`);
+                        coreGrad.addColorStop(1, `rgba(${beamR},${beamG},${beamB},0)`);
+
+                        ctx.beginPath();
+                        ctx.moveTo(mx, my);
+                        ctx.lineTo(c1x, c1y);
+                        ctx.lineTo(c2x, c2y);
+                        ctx.closePath();
+                        ctx.fillStyle = coreGrad;
+                        ctx.fill();
+                    }
+
+                    // ── Floor illumination pool ───────────────────────────────
+                    {
+                        // Find where beam axis crosses the stage floor (H * 0.93)
+                        const floorY = H * 0.93;
+                        if (ty > my) {                          // only if beam points downward
+                            const tf = (floorY - my) / (ty - my);
+                            const floorX = mx + udx * dLen * tf;
+                            const poolW = spread * tf * 0.9;
+                            const poolH = poolW * 0.22;         // squash to look like an ellipse on a flat stage
+
+                            const poolGrad = ctx.createRadialGradient(floorX, floorY, 0, floorX, floorY, poolW);
+                            const poolOp = beamOp * 0.65;
+                            poolGrad.addColorStop(0, `rgba(${beamR},${beamG},${beamB},${poolOp})`);
+                            poolGrad.addColorStop(0.5, `rgba(${beamR},${beamG},${beamB},${poolOp * 0.3})`);
+                            poolGrad.addColorStop(1, `rgba(${beamR},${beamG},${beamB},0)`);
+
+                            ctx.save();
+                            ctx.translate(floorX, floorY);
+                            ctx.scale(1, poolH / poolW);
+                            ctx.beginPath();
+                            ctx.arc(0, 0, poolW, 0, Math.PI * 2);
+                            ctx.fillStyle = poolGrad;
+                            ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+
+                    // ── Fixture head glow (mount point) ──────────────────────
+                    {
+                        const headGrad = ctx.createRadialGradient(mx, my + 12, 0, mx, my + 12, 28);
+                        const headOp = Math.min(1, beamOp * 1.2 + strokeFlash * 0.8);
+                        headGrad.addColorStop(0, `rgba(255,255,255,${headOp})`);
+                        headGrad.addColorStop(0.4, `rgba(${beamR},${beamG},${beamB},${headOp * 0.5})`);
+                        headGrad.addColorStop(1, `rgba(${beamR},${beamG},${beamB},0)`);
+                        ctx.beginPath();
+                        ctx.arc(mx, my + 12, 28, 0, Math.PI * 2);
+                        ctx.fillStyle = headGrad;
+                        ctx.fill();
+                    }
+                });
             }
 
             ctx.globalCompositeOperation = 'source-over';
-            requestRef.current = requestAnimationFrame(animate);
+            rafRef.current = requestAnimationFrame(animate);
         };
 
         if (config.enableLighting) {
-            requestRef.current = requestAnimationFrame(animate);
+            rafRef.current = requestAnimationFrame(animate);
         }
 
-        return () => {
-            if (requestRef.current !== null) cancelAnimationFrame(requestRef.current);
-        };
-    }, [config.enableLighting, config.enableBeams, config.lightingIntensity, config.speed, lightRgb, analyser, isPlaying]);
+        return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
+    }, [
+        config.enableLighting, config.enableBeams, config.lightingIntensity,
+        config.speed, config.lightColor, config.beamStrobeOnBeat,
+        fixtures, palette, analyser, isPlaying,
+    ]);
 
     if (!config.enableLighting) return null;
 
     return (
-        <canvas 
+        <canvas
+            id={id}
             ref={canvasRef}
             className="absolute inset-0 pointer-events-none z-[12]"
-            style={{ mixBlendMode: 'overlay' }} 
+            style={{ mixBlendMode: 'screen' }}
         />
     );
 };

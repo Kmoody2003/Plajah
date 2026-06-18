@@ -5,7 +5,8 @@
  */
 
 import { PlajahProject, PlajahMediaRef, VisualizationConfig, BackgroundMedia } from '../types';
-import { db, storage } from '../../../services/backendService';
+import { db } from '../../../services/backendService';
+import { storage } from '../../../services/firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, orderBy, serverTimestamp, Timestamp,

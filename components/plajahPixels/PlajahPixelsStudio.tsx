@@ -31,6 +31,7 @@ import DraggablePanel from './components/DraggablePanel';
 import ThemeGenerator from './components/ThemeGenerator';
 import BackgroundLayer from './components/BackgroundLayer';
 import GlobalLighting from './components/GlobalLighting';
+import SegmentationLayer from './components/SegmentationLayer';
 import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOverlay';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
@@ -75,10 +76,23 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     enableSliceShadow: false,
     enableSliceAutomation: false,
     sliceAutomationInterval: 2,
+    sliceRotationBeatPattern: undefined,
+    sliceRotationRange: 45,
+    slicePush: 0,
+    slicePushMusicDriven: false,
+    slicePushOscDriven: false,
     enableLighting: true,
     lightingIntensity: 1.0,
     enableBeams: true,
     lightColor: '#FFCC00',
+    beamCount: 3,
+    beamStrobeOnBeat: false,
+    enable3dDepth: false,
+    depthParallaxIntensity: 0.4,
+    cameraFlyThrough: true,
+    cameraFlySpeed: 1.0,
+    enableSegmentation: false,
+    depthLayerGap: 80,
     enableBassShake: false,
     bassShakeIntensity: 1.0,
     bassShakeInterval: 4,
@@ -138,6 +152,7 @@ export interface PlajahPixelsPlatformBridge {
     mediaImages: string[];     // album art + slideshow + current-track images
     currentCaption: string;    // active lyric line from the platform's caption system
     hasCaptions: boolean;      // whether the current track has lyrics/time-coded captions
+    lrcLyrics?: string;        // full LRC-formatted lyrics for time-sync mode
     currentTrackTitle: string; // current track name → auto-fills the text overlay
     title?: string;            // album / playlist title
     onClose: () => void;
@@ -153,6 +168,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const audioElRef = useRef<HTMLAudioElement | null>(null);
     const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
     const liveSessionRef = useRef<LiveLyricsSession | null>(null);
+    // Virtual time ref for LRC sync in platform mode — keeps currentTime in sync with the platform player
+    const platformTimeRef = useRef<{ currentTime: number }>({ currentTime: 0 });
     const [showTracklist, setShowTracklist] = useState(false);
 
     const [config, setConfig] = useState<VisualizationConfig>(DEFAULT_CONFIG);
@@ -201,6 +218,73 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // ── Output: record · fullscreen/dismiss · program-out window ────────────────
     const rootRef = useRef<HTMLDivElement>(null);
     const [uiHidden, setUiHidden] = useState(false);
+
+    // ── 3D Depth / Parallax camera ────────────────────────────────────────────
+    const depthMouseRef = useRef({ x: 0, y: 0 });
+    const depthSmoothRef = useRef({ x: 0, y: 0 });
+    const depthBgRef = useRef<HTMLDivElement>(null);
+    const depthVizRef = useRef<HTMLDivElement>(null);
+    const depthFgRef = useRef<HTMLDivElement>(null);
+    const depthRafRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (!config.enable3dDepth) {
+            // Reset transforms when depth mode is off
+            [depthBgRef, depthVizRef, depthFgRef].forEach(r => {
+                if (r.current) r.current.style.transform = '';
+            });
+            return;
+        }
+        const onMove = (e: MouseEvent) => {
+            depthMouseRef.current = {
+                x: (e.clientX / window.innerWidth - 0.5) * 2,
+                y: (e.clientY / window.innerHeight - 0.5) * 2,
+            };
+        };
+        window.addEventListener('mousemove', onMove, { passive: true });
+
+        const t0 = performance.now();
+        const tick = () => {
+            const sm = depthSmoothRef.current;
+            sm.x += (depthMouseRef.current.x - sm.x) * 0.07;
+            sm.y += (depthMouseRef.current.y - sm.y) * 0.07;
+
+            const flySpeed = config.cameraFlySpeed ?? 1.0;
+            const t = (performance.now() - t0) * 0.001 * flySpeed;
+            const driftX = config.cameraFlyThrough ? Math.sin(t * 0.11) * 0.28 + Math.sin(t * 0.07) * 0.12 : 0;
+            const driftY = config.cameraFlyThrough ? Math.sin(t * 0.09 + 1.2) * 0.16 : 0;
+            const camX = sm.x * 0.5 + driftX;
+            const camY = sm.y * 0.5 + driftY;
+            const str = (config.depthParallaxIntensity ?? 0.4) * 48; // max px travel
+
+            let bass = 0;
+            if (analyserRef.current) {
+                const buf = new Uint8Array(analyserRef.current.frequencyBinCount);
+                analyserRef.current.getByteFrequencyData(buf);
+                for (let i = 0; i < 4; i++) bass += buf[i];
+                bass /= (4 * 255);
+            }
+            const breathe = 1 + bass * 0.025 + Math.sin(t * 0.19) * 0.012;
+
+            if (depthBgRef.current)
+                depthBgRef.current.style.transform =
+                    `translate(${-camX * str * 0.5}px,${-camY * str * 0.5}px) scale(${breathe * 1.04})`;
+            if (depthVizRef.current)
+                depthVizRef.current.style.transform =
+                    `translate(${-camX * str * 0.12}px,${-camY * str * 0.12}px) scale(${breathe})`;
+            if (depthFgRef.current)
+                depthFgRef.current.style.transform =
+                    `translate(${camX * str * 0.35}px,${camY * str * 0.35}px) scale(${breathe * 0.97})`;
+
+            depthRafRef.current = requestAnimationFrame(tick);
+        };
+        depthRafRef.current = requestAnimationFrame(tick);
+
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            if (depthRafRef.current) cancelAnimationFrame(depthRafRef.current);
+        };
+    }, [config.enable3dDepth, config.depthParallaxIntensity, config.cameraFlyThrough, config.cameraFlySpeed]);
     const [showProgramOutPicker, setShowProgramOutPicker] = useState(false);
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
@@ -334,20 +418,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         try { await (el.requestFullscreen as any)(screen ? { screen } : undefined); } catch { /* */ }
     }, []);
 
-    // Send the program output to another display (Window Management API) and
-    // fullscreen it there; falls back to fullscreen on the current screen.
-    const sendToDisplay = useCallback(async () => {
-        try {
-            const w: any = window;
-            if (w.getScreenDetails) {
-                const details = await w.getScreenDetails();
-                const ext = details.screens.find((s: any) => !s.isPrimary) || details.currentScreen;
-                await enterFullscreen(ext);
-                return;
-            }
-        } catch { /* permission denied / unsupported → fall through */ }
-        enterFullscreen();
-    }, [enterFullscreen]);
+    const buildProgramOutUrl = () =>
+        window.location.origin + window.location.pathname +
+        (window.location.search ? window.location.search + '&programOut=1' : '?programOut=1') +
+        window.location.hash;
 
     // Open a dedicated program-output popup window (visualizer only, no UI).
     // Syncs config in real-time via BroadcastChannel.
@@ -355,20 +429,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         const existing = programOutRef.current;
         if (existing && !existing.closed) {
             existing.focus();
-            // Try to request fullscreen inside the popup
-            try { existing.document.documentElement.requestFullscreen?.(); } catch { /* */ }
             return;
         }
-
-        // Open at full screen dimensions so it can be dragged to a second monitor and
-        // fullscreened there without any chrome getting in the way.
         const sw = window.screen.availWidth;
         const sh = window.screen.availHeight;
-        const url = window.location.origin + window.location.pathname +
-            (window.location.search ? window.location.search + '&programOut=1' : '?programOut=1') +
-            window.location.hash;
         const w = window.open(
-            url,
+            buildProgramOutUrl(),
             'PlajahProgramOut',
             `width=${sw},height=${sh},left=0,top=0,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`,
         );
@@ -376,6 +442,42 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         programOutRef.current = w;
         setShowProgramOutPicker(false);
     }, []);
+
+    // Open program output on an external display and fullscreen it there.
+    // Uses Window Management API to position on the secondary screen.
+    const sendToDisplay = useCallback(async () => {
+        const url = buildProgramOutUrl();
+        try {
+            const w: any = window;
+            if (w.getScreenDetails) {
+                const details = await w.getScreenDetails();
+                const ext: any = details.screens.find((s: any) => !s.isPrimary) ?? details.currentScreen;
+                const existing = programOutRef.current;
+                if (existing && !existing.closed) existing.close();
+                const popup = window.open(
+                    url,
+                    'PlajahProgramOut',
+                    `width=${ext.availWidth},height=${ext.availHeight},left=${ext.availLeft},top=${ext.availTop},menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`,
+                );
+                if (!popup) { alert('Popup blocked — allow popups for this site to use Program Output'); return; }
+                programOutRef.current = popup;
+                // Request fullscreen inside popup once loaded
+                popup.addEventListener('load', () => {
+                    try { popup.document.documentElement.requestFullscreen?.(); } catch { /* */ }
+                }, { once: true });
+                return;
+            }
+        } catch { /* permission denied / unsupported → fall through */ }
+        // Fallback: open popup on current screen and request fullscreen
+        const existing = programOutRef.current;
+        if (existing && !existing.closed) { existing.focus(); try { existing.document.documentElement.requestFullscreen?.(); } catch { /* */ } return; }
+        const sw = window.screen.availWidth;
+        const sh = window.screen.availHeight;
+        const popup = window.open(url, 'PlajahProgramOut', `width=${sw},height=${sh},left=0,top=0,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`);
+        if (!popup) { alert('Popup blocked — allow popups for this site to use Program Output'); return; }
+        programOutRef.current = popup;
+        popup.addEventListener('load', () => { try { popup.document.documentElement.requestFullscreen?.(); } catch { /* */ } }, { once: true });
+    }, [enterFullscreen]);
 
     // Broadcast config changes to any open program-out window.
     useEffect(() => {
@@ -547,6 +649,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // Audio Initialization & File Placement
     const handleUpload = (file: File) => {
         setAudioFileName(file.name);
+        // Auto-populate text from audio filename only
+        const trackName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+        if (trackName) setConfig(prev => ({ ...prev, textContent: trackName }));
         ensureAudioContext();
         if (audioBlobUrlRef.current?.startsWith('blob:')) URL.revokeObjectURL(audioBlobUrlRef.current);
         const blobUrl = URL.createObjectURL(file);
@@ -621,22 +726,35 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     }, [platform?.tracklist.length]);
 
     // ─── Shared captions ───────────────────────────────────────────────────────
-    // Drive the captions overlay from the platform's existing caption system (the
-    // same lyrics the album view shows) — NOT the on-device/Gemini live-caption
-    // path. In platform mode Gemini can't connect anyway (we own no audio source
-    // node), so feeding the platform's active line into captionsText + the live
-    // display mode is purely the platform's captions flowing through the overlay.
+    // Drive the captions overlay from the platform's caption system.
+    // When the track has time-coded LRC lyrics, use LRC sync mode (exact timing).
+    // Otherwise fall back to the active single-line from getActiveCaption.
     useEffect(() => {
         if (!platform) return;
-        setConfig(prev => (prev.captionsText === platform.currentCaption ? prev : { ...prev, captionsText: platform.currentCaption }));
-    }, [platform?.currentCaption]);
+        if (platform.lrcLyrics) {
+            setConfig(prev => prev.captionsText === platform.lrcLyrics ? prev : {
+                ...prev, captionsText: platform.lrcLyrics!, captionsSyncMode: 'lrc',
+            });
+        } else {
+            setConfig(prev => prev.captionsText === platform.currentCaption ? prev : {
+                ...prev, captionsText: platform.currentCaption, captionsSyncMode: 'beat',
+            });
+        }
+    }, [platform?.lrcLyrics, platform?.currentCaption]);
 
-    // Turn the overlay on/off with the track's caption availability (only on track
-    // change, so it doesn't fight a manual toggle).
+    // Turn the overlay on/off with the track's caption availability.
+    // Do NOT set enableLiveCaptions here — that controls Gemini transcription (manual opt-in only).
     useEffect(() => {
         if (!platform) return;
-        setConfig(prev => ({ ...prev, enableCaptions: platform.hasCaptions, enableLiveCaptions: platform.hasCaptions }));
+        setConfig(prev => ({ ...prev, enableCaptions: platform.hasCaptions }));
     }, [platform?.hasCaptions]);
+
+    // Keep platform time ref in sync — used by CaptionsOverlay for LRC timing in platform mode.
+    useEffect(() => {
+        if (platform) {
+            platformTimeRef.current.currentTime = platform.currentTime;
+        }
+    }, [platform?.currentTime]);
 
     // Auto-fill the text overlay with the current track name (so the headline
     // text tracks whatever is playing). Lyrics flow separately via captions above.
@@ -862,7 +980,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         );
     }) : null;
 
-    const LAUNCHER_H = 410; // px — scene bar(28) + 3 layers(240) + add-layer bar(26) + source browser(116)
+    const LAUNCHER_H = 510; // px — scene bar(34) + 4 layers(368) + add-layer bar(30) + source browser(126) + buffer
 
     // ── Program-out window: just the visualizer, synced via BroadcastChannel ────
     if (isProgramOut) {
@@ -956,15 +1074,26 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 config={editTarget === 'preview' ? previewConfig : config}
                                 onApply={applyLook}
                                 onPowerOff={() => setShowClipGrid(false)}
-                                onSetBgMedia={(media) => {
-                                    if (media) setBgMedia1([media]);
-                                    else setBgMedia1([]);
+                                onSetLayerMedia={(layerIdx, media, blendMode, opacity, layerId) => {
+                                    if (layerId === 'bg') {
+                                        setBgMedia1(media ? [media] : []);
+                                    } else {
+                                        setBgMedia2(media ? [media] : []);
+                                        applyLook({
+                                            enableLayer2:     media !== null,
+                                            layer2BlendMode:  (blendMode ?? 'screen') as any,
+                                            layer2Opacity:    opacity ?? 1,
+                                        });
+                                    }
                                 }}
                                 bgMedia1={bgMedia1}
+                                bgMedia2={bgMedia2}
                                 shaderLibrary={SHADER_LIBRARY}
                                 onApplyShader={applyShaderLook}
                                 onLayerShader={handleLayerShader}
                                 onShaderParamsChange={handleShaderParamsChange}
+                                onSyncSceneAuto={(interval) => setConfig(prev => ({ ...prev, enableBackgroundRotation: true, backgroundRotationInterval: Math.min(20, interval) }))}
+                                analyser={analyserRef.current}
                                 milkdrop={{
                                     enabled: milkdrop,
                                     name: milkdropMeta.name,
@@ -981,6 +1110,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 }}
                                 rightPanel={
                                     <div className="h-full flex flex-col text-xs overflow-hidden">
+                                        {/* ── Program Output ───────────────────────────────── */}
+                                        <div className="shrink-0 px-3 pt-3 pb-2 space-y-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-white/40">Program Output</p>
+                                            <button
+                                                onClick={openProgramOut}
+                                                className="w-full py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all"
+                                                style={{ background: 'rgba(14,165,233,0.2)', border: '1px solid rgba(14,165,233,0.4)', color: '#7dd3fc' }}
+                                            >
+                                                <Monitor className="w-3 h-3" /> Open Output Window
+                                            </button>
+                                            <button
+                                                onClick={sendToDisplay}
+                                                className="w-full py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all"
+                                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }}
+                                            >
+                                                <Maximize2 className="w-3 h-3" /> Fullscreen External Display
+                                            </button>
+                                        </div>
+
                                         {/* ── Music transport ─────────────────────────────── */}
                                         <div className="shrink-0 p-3 space-y-2 border-b border-white/07" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                                             {platform?.currentTrackTitle && (
@@ -1133,12 +1281,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <input type="range" min="0.5" max="5.0" step="0.1" value={config.particleLifespan} onChange={e => setConfig(p => ({ ...p, particleLifespan: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Layer 2</span>
+                                                        <span>Blend Overlay</span>
                                                         <input type="checkbox" checked={config.enableLayer2} onChange={e => setConfig(p => ({ ...p, enableLayer2: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
                                                     </div>
                                                     {config.enableLayer2 && (
                                                         <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Layer 2 opacity</span><span className="text-purple-400 font-mono">{config.layer2Opacity}</span></div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Overlay opacity</span><span className="text-purple-400 font-mono">{config.layer2Opacity}</span></div>
                                                             <input type="range" min="0" max="1" step="0.05" value={config.layer2Opacity} onChange={e => setConfig(p => ({ ...p, layer2Opacity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                         </div>
                                                     )}
@@ -1162,11 +1310,49 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                 <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-purple-400 font-mono">{config.sliceRotation}°</span></div>
                                                                 <input type="range" min="0" max="360" step="5" value={config.sliceRotation} onChange={e => setConfig(p => ({ ...p, sliceRotation: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                             </div>
+                                                            <div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Push</span><span className="text-purple-400 font-mono">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span></div>
+                                                                <input type="range" min="0" max="1" step="0.01" value={config.slicePush ?? 0} onChange={e => setConfig(p => ({ ...p, slicePush: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
+                                                            </div>
+                                                            {(config.slicePush ?? 0) > 0 && (
+                                                                <div className="flex gap-3">
+                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
+                                                                        <input type="checkbox" checked={config.slicePushMusicDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushMusicDriven: e.target.checked }))} className="accent-purple-500" />
+                                                                        Bass drive
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1 text-[9px] text-white/40 cursor-pointer">
+                                                                        <input type="checkbox" checked={config.slicePushOscDriven ?? false} onChange={e => setConfig(p => ({ ...p, slicePushOscDriven: e.target.checked }))} className="accent-purple-500" />
+                                                                        LFO drive
+                                                                    </label>
+                                                                </div>
+                                                            )}
+                                                            {/* Rotation beat pattern */}
+                                                            <div>
+                                                                <div className="text-[8px] text-white/30 uppercase tracking-widest mb-1">Rotation snap</div>
+                                                                <div className="flex gap-1">
+                                                                    {(['off', '2', '4', '8', 'random'] as const).map(p => (
+                                                                        <button
+                                                                            key={p}
+                                                                            onClick={() => setConfig(prev => ({ ...prev, sliceRotationBeatPattern: p === 'off' ? undefined : p }))}
+                                                                            className="flex-1 py-0.5 rounded text-[7px] font-black uppercase transition-all"
+                                                                            style={{
+                                                                                background: (config.sliceRotationBeatPattern ?? 'off') === p ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.04)',
+                                                                                border: (config.sliceRotationBeatPattern ?? 'off') === p ? '1px solid rgba(139,92,246,0.7)' : '1px solid rgba(255,255,255,0.08)',
+                                                                                color: (config.sliceRotationBeatPattern ?? 'off') === p ? '#c084fc' : 'rgba(255,255,255,0.25)',
+                                                                            }}
+                                                                        >{p}</button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
                                                         </>
                                                     )}
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
-                                                        <span>Beams</span>
+                                                        <span>Stage Lights</span>
                                                         <input type="checkbox" checked={config.enableBeams} onChange={e => setConfig(p => ({ ...p, enableBeams: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[9px] text-white/40">
+                                                        <span>3D Depth</span>
+                                                        <input type="checkbox" checked={config.enable3dDepth ?? false} onChange={e => setConfig(p => ({ ...p, enable3dDepth: e.target.checked }))} className="accent-cyan-500 cursor-pointer" />
                                                     </div>
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
                                                         <span>Bass shake</span>
@@ -1413,15 +1599,20 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </DraggablePanel>
             )}
 
-            {/* Background Compositing Layer */}
-            <BackgroundLayer 
-                mediaList1={bgMedia1} 
-                mediaList2={bgMedia2} 
-                config={config} 
-                analyser={analyserRef.current} 
-                isPlaying={audioState.isPlaying} 
-                id="bg-layer"
+            {/* ── Depth plane: background (furthest from camera) ── */}
+            <div ref={depthBgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+            <BackgroundLayer
+                mediaList1={bgMedia1}
+                mediaList2={bgMedia2}
+                config={config}
+                analyser={analyserRef.current}
+                isPlaying={audioState.isPlaying}
+                id="px-bg"
             />
+            </div>
+
+            {/* ── Depth plane: VIZ midground ── */}
+            <div ref={depthVizRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
 
             {/* Core Visualiser — layered compositing:
                   Layer 0 (bottom): BackgroundLayer (bgMedia1 + bgMedia2)
@@ -1504,6 +1695,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 settings={matteSettings}
             />
 
+            </div>{/* end depthVizRef */}
+
+            {/* ── Depth plane: foreground overlays (closest to camera) ── */}
+            <div ref={depthFgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+
             {/* Accent Overlays */}
             <GlobalLighting id="global-lighting" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
 
@@ -1512,11 +1708,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             <PostProcessLayer analyser={analyserRef.current} config={config} />
 
             <TextOverlay id="text-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
-            <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={audioElRef} />
+            <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={platform ? (platformTimeRef as any) : audioElRef} />
 
             {/* User-loadable overlay layers (composite on top of the core visual) */}
             {overlay.htmlOn && overlay.htmlUrl && <HtmlLayer src={overlay.htmlUrl} opacity={overlay.htmlOpacity} interactive={overlay.htmlInteractive} />}
             {overlay.lottieOn && overlay.lottieUrl && <LottieLayer src={overlay.lottieUrl} opacity={overlay.lottieOpacity} />}
+
+            </div>{/* end depthFgRef */}
+
+            {/* Auto-segmentation engine — generates FG/BG masks when depth+segmentation is on */}
+            {config.enable3dDepth && config.enableSegmentation && (
+                <SegmentationLayer
+                    sourceSelector="#px-bg"
+                    useMediaPipe
+                    interval={100}
+                    luminanceThreshold={0.52}
+                />
+            )}
 
             {/* Performance HUD */}
             {showFps && !uiHidden && <FpsMeter />}
@@ -1585,45 +1793,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500/40 border-red-500/60 animate-pulse' : 'bg-black/40 border-white/10 hover:bg-red-500/30'}`}>
                     <Circle className="w-4 h-4" fill={isRecording ? 'currentColor' : 'none'} style={{ color: isRecording ? '#fca5a5' : 'rgba(255,255,255,0.8)' }} />
                 </button>
-                {/* Program Output — opens a dedicated visualizer-only popup window */}
-                <div className="relative">
-                    <button
-                        onClick={() => setShowProgramOutPicker(v => !v)}
-                        title="Program Output — open visualizer on a second display"
-                        className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showProgramOutPicker ? 'bg-sky-600/40 border-sky-400/60' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}>
-                        <Monitor className="w-4 h-4 text-white/80" />
-                    </button>
-                    {showProgramOutPicker && (
-                        <div className="absolute bottom-12 right-0 w-72 rounded-xl overflow-hidden border border-white/10 shadow-2xl z-[300]"
-                            style={{ background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(24px)' }}>
-                            <div className="px-4 pt-3 pb-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/70 mb-1">Program Output</p>
-                                <p className="text-[9px] text-white/35 leading-relaxed mb-3">
-                                    Opens a visualizer-only popup window. Drag it to your second monitor and fullscreen it there (F11).
-                                </p>
-                                <button
-                                    onClick={openProgramOut}
-                                    className="w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                    style={{ background: 'rgba(14,165,233,0.3)', border: '1px solid rgba(14,165,233,0.5)', color: '#7dd3fc' }}
-                                >
-                                    Open Program Output Window
-                                </button>
-                                <button
-                                    onClick={sendToDisplay}
-                                    className="w-full mt-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
-                                >
-                                    Fullscreen This Window on External Display
-                                </button>
-                            </div>
-                            <button
-                                onClick={() => setShowProgramOutPicker(false)}
-                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white">
-                                <X className="w-3 h-3" />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                {/* Program Output — quick launch (full controls in right panel when clip launcher is open) */}
+                <button
+                    onClick={openProgramOut}
+                    title="Program Output — open visualizer on a second display"
+                    className="w-9 h-9 backdrop-blur-xl border border-white/10 bg-black/40 hover:bg-sky-600/30 rounded-full flex items-center justify-center transition-all shadow-lg">
+                    <Monitor className="w-4 h-4 text-white/80" />
+                </button>
                 <button onClick={() => enterFullscreen()} title="Fullscreen"
                     className="w-9 h-9 bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg">
                     <Maximize2 className="w-4 h-4 text-white/80" />
@@ -2487,10 +2663,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         </div>
                                     </div>
 
-                                    {/* Layer 2 Blending */}
+                                    {/* Blend Overlay */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-white/60">Activate Layer 2 Blend Overlay</span>
+                                            <span className="text-white/60">Activate Blend Overlay</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={config.enableLayer2}
@@ -2689,10 +2865,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         )}
                                     </div>
 
-                                    {/* Automatic Background Cycling Rotation */}
+                                    {/* Scene Automation */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-white/60">Cyclical Background Slideshow</span>
+                                            <span className="text-white/60">Scene Automation</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={config.enableBackgroundRotation}
@@ -2801,37 +2977,220 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <span>Sector Rotation angle</span>
                                                         <span className="font-mono text-purple-400">{config.sliceRotation}°</span>
                                                     </div>
-                                                    <input 
-                                                        type="range" 
-                                                        min="0" 
-                                                        max="360" 
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="360"
                                                         step="5"
                                                         value={config.sliceRotation}
                                                         onChange={e => setConfig(prev => ({ ...prev, sliceRotation: parseInt(e.target.value) }))}
                                                         className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
                                                     />
                                                 </div>
+                                                <div>
+                                                    <div className="flex justify-between text-xs text-white/60 mb-1">
+                                                        <span>Slice Push</span>
+                                                        <span className="font-mono text-purple-400">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="0" max="1" step="0.01"
+                                                        value={config.slicePush ?? 0}
+                                                        onChange={e => setConfig(prev => ({ ...prev, slicePush: parseFloat(e.target.value) }))}
+                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    />
+                                                    <div className="flex gap-4 mt-2">
+                                                        <label className="flex items-center gap-1.5 text-xs text-white/50 cursor-pointer">
+                                                            <input type="checkbox" checked={config.slicePushMusicDriven ?? false} onChange={e => setConfig(prev => ({ ...prev, slicePushMusicDriven: e.target.checked }))} className="accent-purple-500" />
+                                                            Freq drive (per-slice)
+                                                        </label>
+                                                        <label className="flex items-center gap-1.5 text-xs text-white/50 cursor-pointer">
+                                                            <input type="checkbox" checked={config.slicePushOscDriven ?? false} onChange={e => setConfig(prev => ({ ...prev, slicePushOscDriven: e.target.checked }))} className="accent-purple-500" />
+                                                            LFO wave
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Rotation snap beat pattern */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs text-white/60 mb-2">
+                                                        <span>Rotation Snap Pattern</span>
+                                                        <span className="font-mono text-purple-400 text-[10px]">{config.sliceRotationBeatPattern ?? 'off'}</span>
+                                                    </div>
+                                                    <div className="flex gap-1.5">
+                                                        {(['off', '2', '4', '8', 'random'] as const).map(p => (
+                                                            <button
+                                                                key={p}
+                                                                onClick={() => setConfig(prev => ({ ...prev, sliceRotationBeatPattern: p === 'off' ? undefined : p }))}
+                                                                className="flex-1 py-1 rounded text-[9px] font-black uppercase transition-all"
+                                                                style={{
+                                                                    background: (config.sliceRotationBeatPattern ?? 'off') === p ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.04)',
+                                                                    border: (config.sliceRotationBeatPattern ?? 'off') === p ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.08)',
+                                                                    color: (config.sliceRotationBeatPattern ?? 'off') === p ? '#c084fc' : 'rgba(255,255,255,0.3)',
+                                                                }}
+                                                            >{p === 'off' ? 'OFF' : p === 'random' ? 'RND' : `${p}B`}</button>
+                                                        ))}
+                                                    </div>
+                                                    {config.sliceRotationBeatPattern && (
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Rotation range</span><span className="text-purple-400 font-mono">±{config.sliceRotationRange ?? 45}°</span></div>
+                                                            <input type="range" min="5" max="180" step="5"
+                                                                value={config.sliceRotationRange ?? 45}
+                                                                onChange={e => setConfig(prev => ({ ...prev, sliceRotationRange: parseInt(e.target.value) }))}
+                                                                className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </>
                                         )}
                                     </div>
 
-                                    {/* Global Lighting & Bass shake */}
+                                    {/* Concert Stage Lighting */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
-                                        <span className="text-xs font-medium text-purple-400 block">Strobe & Shakes</span>
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-white/60">Enable Active Beam Strips</span>
-                                            <input 
-                                                type="checkbox" 
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-medium text-purple-400">Concert Stage Lighting</span>
+                                            <input
+                                                type="checkbox"
                                                 checked={config.enableBeams}
                                                 onChange={e => setConfig(prev => ({ ...prev, enableBeams: e.target.checked }))}
                                                 className="w-4 h-4 accent-purple-500 cursor-pointer"
                                             />
                                         </div>
 
+                                        {config.enableBeams && (
+                                            <>
+                                                {/* Fixture count */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] text-white/50 mb-1.5">
+                                                        <span>Fixtures</span>
+                                                        <span className="text-purple-400 font-mono">{config.beamCount ?? 3}</span>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        {[1, 2, 3, 4, 5, 6].map(n => (
+                                                            <button key={n}
+                                                                onClick={() => setConfig(prev => ({ ...prev, beamCount: n }))}
+                                                                className="flex-1 py-1.5 rounded text-[9px] font-black transition-all"
+                                                                style={{
+                                                                    background: (config.beamCount ?? 3) === n ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.04)',
+                                                                    border: (config.beamCount ?? 3) === n ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.08)',
+                                                                    color: (config.beamCount ?? 3) === n ? '#c084fc' : 'rgba(255,255,255,0.3)',
+                                                                }}
+                                                            >{n}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Intensity */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                                                        <span>Intensity</span>
+                                                        <span className="text-purple-400 font-mono">{config.lightingIntensity?.toFixed(1)}</span>
+                                                    </div>
+                                                    <input type="range" min="0" max="2" step="0.05"
+                                                        value={config.lightingIntensity}
+                                                        onChange={e => setConfig(prev => ({ ...prev, lightingIntensity: parseFloat(e.target.value) }))}
+                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                    />
+                                                </div>
+
+                                                {/* Beat strobe */}
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-white/60">Strobe on Beat</span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={config.beamStrobeOnBeat ?? false}
+                                                        onChange={e => setConfig(prev => ({ ...prev, beamStrobeOnBeat: e.target.checked }))}
+                                                        className="w-4 h-4 accent-purple-500 cursor-pointer"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* 3D Depth Mode */}
+                                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-medium text-cyan-400">3D Depth Mode</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={config.enable3dDepth ?? false}
+                                                onChange={e => setConfig(prev => ({ ...prev, enable3dDepth: e.target.checked }))}
+                                                className="w-4 h-4 accent-cyan-500 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {config.enable3dDepth && (
+                                            <>
+                                                <p className="text-[9px] text-white/30 leading-relaxed">
+                                                    Separates layers into depth planes. Mouse drives camera parallax. Background recedes, overlays push forward.
+                                                </p>
+
+                                                {/* Parallax intensity */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                                                        <span>Parallax Depth</span>
+                                                        <span className="text-cyan-400 font-mono">{Math.round((config.depthParallaxIntensity ?? 0.4) * 100)}%</span>
+                                                    </div>
+                                                    <input type="range" min="0" max="1" step="0.05"
+                                                        value={config.depthParallaxIntensity ?? 0.4}
+                                                        onChange={e => setConfig(prev => ({ ...prev, depthParallaxIntensity: parseFloat(e.target.value) }))}
+                                                        className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                    />
+                                                </div>
+
+                                                {/* Camera fly-through */}
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-white/60">Camera Fly-Through</span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={config.cameraFlyThrough ?? true}
+                                                        onChange={e => setConfig(prev => ({ ...prev, cameraFlyThrough: e.target.checked }))}
+                                                        className="w-4 h-4 accent-cyan-500 cursor-pointer"
+                                                    />
+                                                </div>
+
+                                                {config.cameraFlyThrough && (
+                                                    <div>
+                                                        <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                                                            <span>Drift Speed</span>
+                                                            <span className="text-cyan-400 font-mono">{config.cameraFlySpeed?.toFixed(1) ?? '1.0'}×</span>
+                                                        </div>
+                                                        <input type="range" min="0.1" max="3" step="0.1"
+                                                            value={config.cameraFlySpeed ?? 1.0}
+                                                            onChange={e => setConfig(prev => ({ ...prev, cameraFlySpeed: parseFloat(e.target.value) }))}
+                                                            className="w-full bg-white/10 h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* Auto-segmentation */}
+                                                <div className="border-t border-white/5 pt-3 space-y-2">
+                                                    <div className="flex justify-between items-center text-xs">
+                                                        <span className="text-white/60">Auto Segmentation</span>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={config.enableSegmentation ?? false}
+                                                            onChange={e => setConfig(prev => ({ ...prev, enableSegmentation: e.target.checked }))}
+                                                            className="w-4 h-4 accent-cyan-500 cursor-pointer"
+                                                        />
+                                                    </div>
+                                                    {config.enableSegmentation && (
+                                                        <p className="text-[8px] text-white/30 leading-relaxed">
+                                                            Loads MediaPipe (~6MB) to extract subjects from background. Falls back to luminance-based separation for non-person content.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Bass shake */}
+                                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
+                                        <span className="text-xs font-medium text-purple-400 block">Camera Shake</span>
                                         <div className="flex justify-between items-center text-xs">
                                             <span className="text-white/60">Enable Bass Camera Shake</span>
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 checked={config.enableBassShake}
                                                 onChange={e => setConfig(prev => ({ ...prev, enableBassShake: e.target.checked }))}
                                                 className="w-4 h-4 accent-purple-500 cursor-pointer"
@@ -2844,10 +3203,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     <span>Bass Shock Intensity</span>
                                                     <span className="font-mono text-purple-400">{config.bassShakeIntensity}</span>
                                                 </div>
-                                                <input 
-                                                    type="range" 
-                                                    min="0.1" 
-                                                    max="3.0" 
+                                                <input
+                                                    type="range"
+                                                    min="0.1"
+                                                    max="3.0"
                                                     step="0.1"
                                                     value={config.bassShakeIntensity}
                                                     onChange={e => setConfig(prev => ({ ...prev, bassShakeIntensity: parseFloat(e.target.value) }))}
@@ -3294,27 +3653,27 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         </div>
                                     </div>
 
-                                    {/* Upload Ambient Backdrop Media assets - Layer 2 */}
+                                    {/* Upload Ambient Backdrop Media assets - Blend Overlay */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
                                         <div className="flex justify-between items-center">
                                             <span className="text-xs font-semibold text-pink-400 flex items-center gap-1.5">
                                                 <Layers2 className="w-4 h-4 text-pink-400" />
-                                                Layer 2 Overlay Library
+                                                Blend Overlay Library
                                             </span>
                                             <span className="text-[10px] text-white/40">{bgMedia2.length} Items</span>
                                         </div>
                                         <p className="text-[10.5px] text-white/50">Blend overlays (Bokehs, particles or lighting effects).</p>
-                                        
+
                                         <div className="flex gap-2">
                                             <label className="flex-1 cursor-pointer">
-                                                <input 
-                                                    type="file" 
-                                                    accept="image/*,video/mp4" 
+                                                <input
+                                                    type="file"
+                                                    accept="image/*,video/mp4"
                                                     onChange={e => handleBgUpload(e, 2)}
                                                     className="hidden"
                                                 />
                                                 <div className="bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg p-2 text-xs font-medium text-center transition-all">
-                                                    + Add To Layer 2
+                                                    + Add Blend Overlay
                                                 </div>
                                             </label>
                                             
@@ -3322,7 +3681,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <button
                                                     onClick={() => setBgMedia2([])}
                                                     className="p-2 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-400 text-xs transition-all"
-                                                    title="Clear active layer 2 backgrounds"
+                                                    title="Clear blend overlay library"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>

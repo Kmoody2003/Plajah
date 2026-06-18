@@ -845,30 +845,34 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     />
                   </div>
                 )}
-              {/* Name — per-character 3D flip-in on each profile visit */}
+              {/* Name — per-character 3D flip-in, word-aware so words never split mid-letter */}
               <h1
                 key={uid}
-                className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter break-words max-w-full text-white leading-[0.8] italic select-none`}
+                className={`${isMobile ? 'text-4xl' : 'text-5xl sm:text-7xl md:text-9xl lg:text-[12rem]'} font-black uppercase tracking-tighter max-w-full text-white leading-[0.8] italic select-none`}
                 style={{ perspective: '1200px', perspectiveOrigin: 'left center' }}
               >
-                {(profile.displayName ?? '').split('').map((char, i) => (
-                  char === ' '
-                    ? <span key={i}>&nbsp;</span>
-                    : (
-                      <motion.span
-                        key={`${uid}-${i}`}
-                        initial={{ rotateY: 90, opacity: 0, display: 'inline-block' }}
-                        animate={showArtistMode
-                          ? { rotateY: 90, opacity: 0, display: 'inline-block' }
-                          : { rotateY: 0, opacity: 1, display: 'inline-block' }
-                        }
-                        transition={{ delay: showArtistMode ? 0 : 0.05 + i * 0.05, duration: 2.0, ease: 'easeInOut' }}
-                        style={{ transformOrigin: 'left center' }}
-                      >
-                        {char}
-                      </motion.span>
-                    )
-                ))}
+                {(profile.displayName ?? '').split(' ').map((word, wi, words) => {
+                  const charOffset = words.slice(0, wi).reduce((acc, w) => acc + w.length, 0) + wi;
+                  return (
+                    <span key={wi} className="inline-block whitespace-nowrap">
+                      {word.split('').map((char, ci) => (
+                        <motion.span
+                          key={`${uid}-${wi}-${ci}`}
+                          initial={{ rotateY: 90, opacity: 0, display: 'inline-block' }}
+                          animate={showArtistMode
+                            ? { rotateY: 90, opacity: 0, display: 'inline-block' }
+                            : { rotateY: 0, opacity: 1, display: 'inline-block' }
+                          }
+                          transition={{ delay: showArtistMode ? 0 : 0.05 + (charOffset + ci) * 0.05, duration: 2.0, ease: 'easeInOut' }}
+                          style={{ transformOrigin: 'left center' }}
+                        >
+                          {char}
+                        </motion.span>
+                      ))}
+                      {wi < words.length - 1 && <span>&nbsp;</span>}
+                    </span>
+                  );
+                })}
               </h1>
 
               {/* Pill buttons are now rendered in the dedicated strip above the bio — removed from here */}

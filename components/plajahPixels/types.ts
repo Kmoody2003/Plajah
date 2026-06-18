@@ -99,6 +99,11 @@ export interface VisualizationConfig {
   enableSliceShadow: boolean;
   enableSliceAutomation: boolean;
   sliceAutomationInterval: number;
+  sliceRotationBeatPattern?: '2' | '4' | '8' | 'random'; // how often rotation snaps to a new random angle
+  sliceRotationRange?: number;   // max angle for random rotation (default 45°)
+  slicePush?: number;            // 0-1: base push — each slice scales + pushes up per its frequency energy
+  slicePushMusicDriven?: boolean; // each slice mapped to its own freq bin drives push independently
+  slicePushOscDriven?: boolean;   // LFO travels as a wave across slices (per-slice phase offset)
   enableLighting: boolean;
   lightingIntensity: number;
   enableBeams: boolean;
@@ -192,6 +197,28 @@ export interface VisualizationConfig {
   studioMirror?: boolean;
   /** beat-flash overlay for studio scenes */
   studioFlash?: boolean;
+
+  // ─── Concert Lighting ────────────────────────────────────────────────────────
+  /** Number of volumetric stage fixtures (1-6, default 3) */
+  beamCount?: number;
+  /** Flash fixtures to white on every detected beat */
+  beamStrobeOnBeat?: boolean;
+  /** Per-fixture colour overrides (hex array); falls back to colorPalette */
+  beamColors?: string[];
+
+  // ─── 3D Depth / Parallax ─────────────────────────────────────────────────────
+  /** Enable 3D parallax depth mode with camera fly-through */
+  enable3dDepth?: boolean;
+  /** Parallax travel intensity 0-1 (default 0.4) */
+  depthParallaxIntensity?: number;
+  /** Enable automated slow camera drift */
+  cameraFlyThrough?: boolean;
+  /** Camera drift speed multiplier */
+  cameraFlySpeed?: number;
+  /** Enable ML subject segmentation for foreground/background depth separation */
+  enableSegmentation?: boolean;
+  /** Depth gap between background and foreground layers in px */
+  depthLayerGap?: number;
 }
 
 export interface AudioState {

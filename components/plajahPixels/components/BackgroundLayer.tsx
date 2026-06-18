@@ -36,6 +36,8 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList
     const beatCounterRef = useRef(0);
     const lastBeatTimeRef = useRef(0);
     const rotationBeatCounterRef = useRef(0);
+    const sliceRotBeatCounterRef = useRef(0);
+    const sliceRotNextTriggerRef = useRef(2); // for 'random' mode: beats until next snap
     const oscillatorPhaseRef = useRef(0);
     const energyAccumulatorRef = useRef(0);
 
@@ -208,15 +210,37 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList
             // Handle Automation Triggers
             if (isPlaying) {
                 if (beatDetected) {
+                    // Count automation (slice count randomizes on bar interval)
                     if (config.enableSliceAutomation) {
                         beatCounterRef.current++;
                         const beatsPerTrigger = (config.sliceAutomationInterval || 1) * 4;
                         if (beatCounterRef.current >= beatsPerTrigger) {
                             beatCounterRef.current = 0;
-                            setAutomatedValues({
+                            setAutomatedValues(prev => ({
+                                ...prev,
                                 count: Math.floor(Math.random() * 9) + 4,
-                                rotation: Math.floor(Math.random() * 90) - 45
-                            });
+                            }));
+                        }
+                    }
+
+                    // Rotation automation — independent beat pattern
+                    if (config.enableSliceAutomation && config.sliceRotationBeatPattern) {
+                        sliceRotBeatCounterRef.current++;
+                        let trigger: number;
+                        if (config.sliceRotationBeatPattern === '2')      trigger = 2;
+                        else if (config.sliceRotationBeatPattern === '4') trigger = 4;
+                        else if (config.sliceRotationBeatPattern === '8') trigger = 8;
+                        else /* 'random' */                               trigger = sliceRotNextTriggerRef.current;
+                        if (sliceRotBeatCounterRef.current >= trigger) {
+                            sliceRotBeatCounterRef.current = 0;
+                            if (config.sliceRotationBeatPattern === 'random') {
+                                sliceRotNextTriggerRef.current = Math.floor(Math.random() * 7) + 1; // 1–7 beats
+                            }
+                            const range = config.sliceRotationRange ?? 45;
+                            setAutomatedValues(prev => ({
+                                ...prev,
+                                rotation: (Math.random() * range * 2) - range,
+                            }));
                         }
                     }
                 }
@@ -333,7 +357,39 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList
                             // Parallax Depth per slice
                             const depth = config.enableParallax ? (1 + (i % 3) * 0.2) : 1;
                             const sliceTx = tx * depth;
-                            const sliceTy = ty * depth;
+                            let sliceTy = ty * depth;
+
+                            // Per-slice push: each slice driven by its own frequency bin + LFO wave + beat spike
+                            const basePush = config.slicePush ?? 0;
+                            let pushVal = basePush;
+                            if (config.enableSlicing && (basePush > 0 || config.slicePushMusicDriven || config.slicePushOscDriven)) {
+                                // Map slice index → frequency spectrum (sub-bass left, treble right)
+                                // Bins 2–180 cover ~40 Hz – 8 kHz for a 44100 Hz / 2048 FFT context
+                                const specBin = Math.floor(2 + (i / renderCount) * 178);
+                                const freqEnergy = dataArray ? (dataArray[specBin] || 0) / 255 : 0;
+
+                                // Per-slice LFO: traveling wave across slices (phase offset by position)
+                                const slicePhaseOff = (i / renderCount) * Math.PI * 2;
+                                const sliceOscVal = 0.5 + 0.5 * Math.sin(oscillatorPhaseRef.current * Math.PI * 2 + slicePhaseOff);
+
+                                // Beat spike: bass-bin slices (left ~30%) get an extra kick on beat detection
+                                const isBassSlice = i / renderCount < 0.35;
+                                const beatSpike = (beatDetected && isBassSlice) ? freqEnergy * 0.6 : 0;
+
+                                pushVal = basePush;
+                                if (config.slicePushMusicDriven) {
+                                    // Each slice's push = its own frequency energy (normalized by base)
+                                    pushVal += freqEnergy * (0.5 + basePush * 0.5);
+                                    pushVal += beatSpike;
+                                }
+                                if (config.slicePushOscDriven) {
+                                    pushVal += sliceOscVal * Math.max(basePush, 0.25);
+                                }
+                                pushVal = Math.min(1.2, Math.max(0, pushVal));
+
+                                sliceScale += pushVal * 0.55;        // scale toward viewer
+                                sliceTy   -= pushVal * height * 0.18; // push upward
+                            }
 
                             ctx.save();
                             
@@ -367,10 +423,23 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList
                             ctx.scale(sliceScale, sliceScale);
                             ctx.translate(-imgCx, -imgCy);
 
+                            // Drop shadow for pushed slices
+                            if (pushVal > 0.02) {
+                                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                                ctx.shadowBlur   = pushVal * 28;
+                                ctx.shadowOffsetY = pushVal * height * 0.04;
+                                ctx.shadowOffsetX = 0;
+                            }
+
                             try {
                                 ctx.drawImage(source, 0, 0, width, height);
                             } catch(e) {}
-                            
+
+                            // Reset shadow before gradient pass
+                            ctx.shadowColor = 'transparent';
+                            ctx.shadowBlur = 0;
+                            ctx.shadowOffsetY = 0;
+
                             // 3. Shadow / Depth
                             if (config.enableSliceShadow) {
                                 ctx.globalCompositeOperation = 'source-over'; 

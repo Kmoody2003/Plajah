@@ -14,7 +14,7 @@
  * Power button: top-right — closes the launcher, returning to fly-drawer mode.
  *
  * Layers (bottom = first rendered, top = last):
- *   Layer 1 (BG)  → onSetBgMedia
+ *   Layer 1 (BG)  → onSetLayerMedia(0, ...)
  *   Layer 2 (VIZ) → onApply({mode})
  *   Layer 3 (FX)  → FX toggles + Milkdrop
  *   Layer 4+      → user-added layers
@@ -26,7 +26,7 @@ import React, {
 import {
   Play, ChevronLeft, ChevronRight, Upload, Plus,
   Zap, Image, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
-  Eye, EyeOff, Power, X, Cpu, Trash2,
+  Eye, EyeOff, Power, X, Cpu, Trash2, Copy,
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
@@ -60,14 +60,16 @@ export interface LauncherClip {
 }
 
 export interface LauncherLayer {
-  id:          string;
-  name:        string;
-  blendMode:   string;
-  opacity:     number;   // 0–1 (layer-wide fade)
-  bypassed:    boolean;
-  muted:       boolean;
-  clips:       (LauncherClip | null)[];
-  activeCol:   number | null;
+  id:            string;
+  name:          string;
+  blendMode:     string;
+  opacity:       number;   // 0–1 (layer-wide fade)
+  bypassed:      boolean;
+  muted:         boolean;
+  clips:         (LauncherClip | null)[];
+  activeCol:     number | null;
+  autoMode?:     'off' | 'next' | 'random';
+  autoInterval?: number;  // seconds, default 4
 }
 
 export interface MilkdropControls {
@@ -94,10 +96,18 @@ const NUM_COLS      = 8;
 const ACCENT_COLORS = ['#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#a78bfa'];
 
 function makeDefaultLayers(): LauncherLayer[] {
+  // OVERLAY (index 0): bgMedia2 — renders below BG in flex-col-reverse UI (bottommost row)
+  const overlay: LauncherLayer = {
+    id: 'overlay', name: 'OVERLAY', blendMode: 'Screen', opacity: 0.6, bypassed: false, muted: false,
+    clips: Array(NUM_COLS).fill(null),
+    activeCol: null, autoMode: 'off', autoInterval: 4,
+  };
+
+  // BG (index 1): bgMedia1 base layer
   const bg: LauncherLayer = {
     id: 'bg', name: 'BG', blendMode: 'Normal', opacity: 1, bypassed: false, muted: false,
     clips: Array(NUM_COLS).fill(null),
-    activeCol: null,
+    activeCol: null, autoMode: 'off', autoInterval: 4,
   };
 
   const vizScenes: SceneEntry[] = SCENE_CATALOG.slice(0, NUM_COLS);
@@ -112,7 +122,7 @@ function makeDefaultLayers(): LauncherLayer[] {
       sceneKind: s.kind,
       opacity:   1,
     })),
-    activeCol: 0,
+    activeCol: 0, autoMode: 'off', autoInterval: 4,
   };
 
   const fxClips: (LauncherClip | null)[] = [
@@ -125,10 +135,11 @@ function makeDefaultLayers(): LauncherLayer[] {
   const fx: LauncherLayer = {
     id: 'fx', name: 'FX', blendMode: 'Add', opacity: 0.8, bypassed: false, muted: false,
     clips: fxClips,
-    activeCol: null,
+    activeCol: null, autoMode: 'off', autoInterval: 4,
   };
 
-  return [bg, viz, fx];
+  // Order: [overlay, bg, viz, fx] — flex-col-reverse renders overlay at bottom, fx at top
+  return [overlay, bg, viz, fx];
 }
 
 const MATRIX_KEY = 'plajah-clip-launcher-v2';
@@ -148,7 +159,20 @@ function loadLayers(): LauncherLayer[] {
   try {
     const raw = sessionStorage.getItem(MATRIX_KEY);
     if (!raw) return makeDefaultLayers();
-    return JSON.parse(raw) as LauncherLayer[];
+    let parsed = JSON.parse(raw) as LauncherLayer[];
+    // Migration: prepend overlay layer if not present
+    if (!parsed.find(l => l.id === 'overlay')) {
+      parsed = [
+        { id: 'overlay', name: 'OVERLAY', blendMode: 'Screen', opacity: 0.6, bypassed: false, muted: false,
+          clips: Array(NUM_COLS).fill(null), activeCol: null, autoMode: 'off', autoInterval: 4 },
+        ...parsed,
+      ];
+    }
+    return parsed.map(l => ({
+      ...l,
+      autoMode:     l.autoMode     ?? 'off',
+      autoInterval: l.autoInterval ?? 4,
+    }));
   } catch {
     return makeDefaultLayers();
   }
@@ -172,9 +196,12 @@ interface Props {
   config:        VisualizationConfig;
   onApply:       (patch: Partial<VisualizationConfig>) => void;
   milkdrop:      MilkdropControls;
-  onSetBgMedia:  (media: BackgroundMedia | null) => void;
+  /** Layer-aware media setter. Routes by layerId: 'bg' → bgMedia1, 'overlay'/others → bgMedia2. */
+  onSetLayerMedia: (layerIdx: number, media: BackgroundMedia | null, blendMode?: string, opacity?: number, layerId?: string) => void;
   /** bgMedia1 from studio — auto-synced into BG layer cells so drawer library → clip grid. */
   bgMedia1?:     BackgroundMedia[];
+  /** bgMedia2 from studio — auto-synced into OVERLAY layer cells. */
+  bgMedia2?:     BackgroundMedia[];
   /** Shader library from ShaderPanel — shown as a SHADERS tab in the source browser. */
   shaderLibrary?: { name: string; src: string; category: string }[];
   /** Called when user picks a shader from the source browser (fly-drawer / non-cell path). */
@@ -183,6 +210,12 @@ interface Props {
   onLayerShader?: (layerIdx: number, src: string | null, blendMode: string, opacity: number, params: number[]) => void;
   /** Called when the params sliders change for an active shader layer. */
   onShaderParamsChange?: (layerIdx: number, params: number[]) => void;
+  /** Called when user presses SYNC in the AUTO tab to push scene interval to studio config. */
+  onSyncSceneAuto?: (interval: number) => void;
+  /** Called when the global blend overlay toggle changes — drives config.enableLayer2 in the studio. */
+  onSetBlendActive?: (enabled: boolean) => void;
+  /** Audio analyser for beat-driven scene automation. */
+  analyser?: AnalyserNode | null;
   /** Content to render in the docked right panel (music controls + settings). */
   rightPanel?:   React.ReactNode;
   /** Called when the user taps the power button to close the launcher. */
@@ -202,10 +235,11 @@ interface CellProps {
   onAssign:         (clip: LauncherClip) => void;
   onUpdateOpacity:  (opacity: number) => void;
   onClear?:         () => void;
+  onCopyToNext?:    () => void;
 }
 
 const ClipCell: React.FC<CellProps> = ({
-  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear,
+  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear, onCopyToNext,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -266,12 +300,20 @@ const ClipCell: React.FC<CellProps> = ({
             <Upload className="w-3 h-3" /> Replace with file
           </button>
           {clip && (
-            <button
-              onClick={() => { setMenuPos(null); onClear?.(); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-left border-t border-white/05"
-            >
-              <Trash2 className="w-3 h-3" /> Clear cell
-            </button>
+            <>
+              <button
+                onClick={() => { setMenuPos(null); onCopyToNext?.(); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left border-t border-white/05"
+              >
+                <Copy className="w-3 h-3" /> Copy to next scene
+              </button>
+              <button
+                onClick={() => { setMenuPos(null); onClear?.(); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-left border-t border-white/05"
+              >
+                <Trash2 className="w-3 h-3" /> Clear cell
+              </button>
+            </>
           )}
         </div>
       )}
@@ -325,11 +367,11 @@ const ClipCell: React.FC<CellProps> = ({
             </div>
           ) : (
             <>
-              <div className="text-[9px] font-black uppercase leading-tight truncate"
+              <div className="text-[11px] font-black uppercase leading-tight truncate"
                 style={{ color: flash ? '#000' : '#ffffffcc' }}>
                 {clip.name}
               </div>
-              <div className="text-[6px] uppercase tracking-widest mt-0.5"
+              <div className="text-[8px] uppercase tracking-widest mt-0.5"
                 style={{ color: flash ? '#333' : active ? `${accent}99` : 'rgba(255,255,255,0.2)' }}>
                 {clip.type === 'generator' ? (clip.sceneKind === 'gl' ? 'GLSL' : 'GEN')
                 : clip.type === 'milkdrop' ? 'MILK'
@@ -389,17 +431,19 @@ interface LayerRowProps {
   onDropMedia:   (colIdx: number, file: File) => void;
   onAssignClip:  (colIdx: number, clip: LauncherClip) => void;
   onClearClip:   (colIdx: number) => void;
+  onCopyClip:    (colIdx: number) => void;
+  onClearRow:    () => void;
   onDeleteLayer: () => void;
   isDefaultLayer: boolean;
 }
 
-const CELL_HEIGHT = 80;
+const CELL_HEIGHT = 92;
 const LAYER_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
 
 const LayerRow: React.FC<LayerRowProps> = ({
   layer, layerIdx, scrollLeft, flashedPads,
-  onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip, onClearClip,
-  onDeleteLayer, isDefaultLayer,
+  onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip, onClearClip, onCopyClip,
+  onClearRow, onDeleteLayer, isDefaultLayer,
 }) => {
   const isFlashed  = (ci: number) => flashedPads.has(layerIdx * 4 + ci);
   const layerColor = LAYER_COLORS[layerIdx % LAYER_COLORS.length];
@@ -408,9 +452,9 @@ const LayerRow: React.FC<LayerRowProps> = ({
     <div className="flex items-stretch" style={{ height: CELL_HEIGHT }}>
       {/* ── Layer controls sidebar ─────────────────────────────────────── */}
       <div
-        className="flex-shrink-0 flex flex-col justify-between px-2 py-1.5 gap-1"
+        className="flex-shrink-0 flex flex-col justify-between px-2 py-2 gap-1"
         style={{
-          width: 104,
+          width: 160,
           background: layer.bypassed ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.45)',
           borderRight: `1px solid ${layerColor}33`,
           opacity: layer.muted ? 0.4 : 1,
@@ -418,10 +462,18 @@ const LayerRow: React.FC<LayerRowProps> = ({
       >
         {/* Layer name + bypass + delete */}
         <div className="flex items-center justify-between gap-1">
-          <span className="text-[9px] font-black uppercase tracking-widest truncate" style={{ color: layerColor }}>
+          <span className="text-[11px] font-black uppercase tracking-widest truncate" style={{ color: layerColor }}>
             {layer.name}
           </span>
           <div className="flex items-center gap-0.5">
+            {/* Clear row */}
+            <button
+              onClick={onClearRow}
+              className="w-4 h-4 rounded flex items-center justify-center text-white/20 hover:text-orange-400 transition-colors"
+              title="Clear all clips in this row"
+            >
+              <Trash2 className="w-2.5 h-2.5" />
+            </button>
             {!isDefaultLayer && (
               <button
                 onClick={onDeleteLayer}
@@ -448,7 +500,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
         <select
           value={layer.blendMode}
           onChange={e => onUpdateLayer({ blendMode: e.target.value })}
-          className="text-[8px] uppercase font-bold rounded appearance-none px-1 py-0.5 cursor-pointer"
+          className="text-[9px] uppercase font-bold rounded appearance-none px-1 py-0.5 cursor-pointer"
           style={{
             background: `${layerColor}18`, border: `1px solid ${layerColor}44`,
             color: layerColor, outline: 'none',
@@ -467,7 +519,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               className="flex-1 cursor-pointer"
               style={{ accentColor: layerColor, height: 14 }}
             />
-            <span className="text-[7px] font-mono w-6 text-right shrink-0"
+            <span className="text-[8px] font-mono w-7 text-right shrink-0"
               style={{ color: 'rgba(255,255,255,0.4)' }}>
               {Math.round(layer.opacity * 100)}
             </span>
@@ -478,11 +530,41 @@ const LayerRow: React.FC<LayerRowProps> = ({
         <button
           onClick={() => onUpdateLayer({ muted: !layer.muted })}
           className="flex items-center gap-1 transition-all"
-          style={{ color: layer.muted ? '#ef4444' : 'rgba(255,255,255,0.25)', fontSize: 7 }}
+          style={{ color: layer.muted ? '#ef4444' : 'rgba(255,255,255,0.25)', fontSize: 8 }}
         >
-          {layer.muted ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-          <span className="text-[7px] uppercase tracking-widest">{layer.muted ? 'MUTED' : 'LIVE'}</span>
+          {layer.muted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          <span className="text-[8px] uppercase tracking-widest">{layer.muted ? 'MUTED' : 'LIVE'}</span>
         </button>
+
+        {/* Row automation */}
+        <div className="flex items-center gap-1 mt-0.5">
+          <button
+            onClick={() => {
+              const modes: ('off' | 'next' | 'random')[] = ['off', 'next', 'random'];
+              const cur = modes.indexOf(layer.autoMode ?? 'off');
+              onUpdateLayer({ autoMode: modes[(cur + 1) % modes.length] });
+            }}
+            className="flex items-center gap-0.5 px-1.5 rounded text-[7px] font-black uppercase tracking-widest"
+            style={{
+              background: layer.autoMode && layer.autoMode !== 'off' ? `${layerColor}30` : 'rgba(255,255,255,0.04)',
+              border: layer.autoMode && layer.autoMode !== 'off' ? `1px solid ${layerColor}66` : '1px solid rgba(255,255,255,0.08)',
+              color: layer.autoMode && layer.autoMode !== 'off' ? layerColor : 'rgba(255,255,255,0.2)',
+            }}
+            title="Row automation: cycle OFF → NEXT → RANDOM"
+          >
+            {!layer.autoMode || layer.autoMode === 'off' ? '⏸ AUTO' : layer.autoMode === 'next' ? '▶ NEXT' : '⁂ RAND'}
+          </button>
+          {layer.autoMode && layer.autoMode !== 'off' && (
+            <input
+              type="number" min="1" max="60" step="1"
+              value={layer.autoInterval ?? 4}
+              onChange={e => onUpdateLayer({ autoInterval: Math.max(1, Math.min(60, Number(e.target.value))) })}
+              className="w-8 bg-transparent border border-white/10 rounded text-[7px] text-center text-white/50 outline-none"
+              title="Interval in seconds"
+              onClick={e => e.stopPropagation()}
+            />
+          )}
+        </div>
       </div>
 
       {/* ── Clip cells ───────────────────────────────────────────────── */}
@@ -504,6 +586,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               onAssign={c => onAssignClip(ci, c)}
               onUpdateOpacity={opacity => onUpdateClip(ci, { opacity })}
               onClear={() => onClearClip(ci)}
+              onCopyToNext={() => onCopyClip(ci)}
             />
           ))}
         </div>
@@ -517,16 +600,20 @@ const LayerRow: React.FC<LayerRowProps> = ({
 type SourceTab = 'generators' | 'milkdrop' | 'shaders' | 'media';
 
 interface SourceBrowserProps {
-  milkdropControls: MilkdropControls;
-  onAssignToLayer:  (layerIdx: number, colIdx: number, clip: LauncherClip) => void;
-  layers:           LauncherLayer[];
-  config:           VisualizationConfig;
-  shaderLibrary?:   { name: string; src: string; category: string }[];
-  onApplyShader?:   (src: string) => void;
+  milkdropControls:  MilkdropControls;
+  onAssignToLayer:   (layerIdx: number, colIdx: number, clip: LauncherClip) => void;
+  layers:            LauncherLayer[];
+  config:            VisualizationConfig;
+  shaderLibrary?:    { name: string; src: string; category: string }[];
+  onApplyShader?:    (src: string) => void;
+  /** Called when user clicks a source item — locks preview in the right panel */
+  onPreviewSource?:  (clip: LauncherClip | null) => void;
+  /** Called on mouseEnter/mouseLeave — shows live preview in PARAMS tab, null on leave */
+  onHoverSource?:    (clip: LauncherClip | null) => void;
 }
 
 const SourceBrowser: React.FC<SourceBrowserProps> = ({
-  milkdropControls, onAssignToLayer, layers, shaderLibrary, onApplyShader,
+  milkdropControls, onAssignToLayer, layers, shaderLibrary, onPreviewSource, onHoverSource,
 }) => {
   const [tab,          setTab]          = useState<SourceTab>('generators');
   const [search,       setSearch]       = useState('');
@@ -553,7 +640,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
   [milkdropNames, search]);
 
   return (
-    <div className="flex flex-col" style={{ height: 110, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+    <div className="flex flex-col shrink-0" style={{ height: 126, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex items-center gap-0 px-2 shrink-0"
         style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         {([
@@ -590,12 +677,16 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
 
           {tab === 'generators' && generators.map((s) => {
             const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#8b5cf6';
+            const genClip: LauncherClip = { id: `gen-${s.mode}`, type: 'generator', name: s.name, color, sceneMode: s.mode, sceneKind: s.kind, opacity: 1 };
             return (
               <div
                 key={s.mode}
                 className="flex-shrink-0 flex flex-col justify-between cursor-pointer rounded overflow-hidden transition-all hover:scale-[1.04]"
                 style={{ width: 72, background: `${color}18`, border: `1px solid ${color}44`, padding: '4px 6px' }}
                 draggable
+                onClick={() => onPreviewSource?.(genClip)}
+                onMouseEnter={() => onHoverSource?.(genClip)}
+                onMouseLeave={() => onHoverSource?.(null)}
                 onDragStart={e => {
                   e.dataTransfer.setData('application/plajah-clip', JSON.stringify({
                     id: `gen-${s.mode}-${Date.now()}`,
@@ -603,7 +694,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                     sceneMode: s.mode, sceneKind: s.kind, opacity: 1,
                   } as LauncherClip));
                 }}
-                title={`${s.name} — ${s.cat}`}
+                title={`${s.name} — ${s.cat} · hover to preview, drag to assign`}
               >
                 <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>
                   {s.kind === 'gl' ? 'GLSL' : s.kind === 'canvas' ? 'GEN' : 'AUDIO'}
@@ -620,30 +711,13 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
 
           {tab === 'milkdrop' && (
             <>
-              <div className="flex-shrink-0 flex flex-col justify-center gap-1.5 pr-2"
-                style={{ width: 100, borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-                <button
-                  onClick={milkdropControls.onToggle}
-                  className="flex items-center justify-center gap-1 text-[8px] font-black uppercase rounded py-1 px-2 transition-all"
-                  style={{
-                    background: milkdropControls.enabled ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.05)',
-                    border:     milkdropControls.enabled ? '1px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
-                    color:      milkdropControls.enabled ? '#c084fc' : 'rgba(255,255,255,0.4)',
-                  }}
-                >
-                  <Wind className="w-3 h-3" />
-                  {milkdropControls.enabled ? 'ON' : 'OFF'}
-                </button>
-                <div className="flex gap-1">
-                  <button onClick={milkdropControls.onPrev}   className="flex-1 flex items-center justify-center py-1 rounded text-white/30 hover:text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}><SkipBack    className="w-3 h-3" /></button>
-                  <button onClick={milkdropControls.onRandom} className="flex-1 flex items-center justify-center py-1 rounded text-white/30 hover:text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}><Shuffle     className="w-3 h-3" /></button>
-                  <button onClick={milkdropControls.onNext}   className="flex-1 flex items-center justify-center py-1 rounded text-white/30 hover:text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}><SkipForward className="w-3 h-3" /></button>
+              <div className="flex-shrink-0 flex flex-col justify-center gap-1 px-2"
+                style={{ width: 88, borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="text-[6px] font-black uppercase tracking-widest text-white/20 mb-1">Active</div>
+                <div className="text-[7px] text-purple-300/70 leading-snug break-all">
+                  {milkdropControls.name ? milkdropControls.name.slice(0, 36) : '—'}
                 </div>
-                {milkdropControls.name && (
-                  <div className="text-[6px] text-white/30 leading-snug break-all text-center">
-                    {milkdropControls.name.slice(0, 48)}
-                  </div>
-                )}
+                <div className="text-[6px] text-white/20 mt-1">Drag preset to a cell to assign</div>
               </div>
 
               {loadingMilk ? (
@@ -664,8 +738,14 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                         border: isActive ? '1px solid #c084fc' : '1px solid rgba(192,132,252,0.2)',
                         padding: '4px 6px',
                       }}
-                      title={name}
-                      onClick={() => milkdropControls.onSetIdx(i)}
+                      title={`${name} · hover to preview, drag to assign`}
+                      onClick={() => onPreviewSource?.({
+                        id: `milk-${i}`, type: 'milkdrop',
+                        name: name.slice(0, 20), color: '#c084fc',
+                        milkdropIdx: i, milkdropName: name, opacity: 1,
+                      })}
+                      onMouseEnter={() => onHoverSource?.({ id: `milk-${i}`, type: 'milkdrop', name: name.slice(0, 20), color: '#c084fc', milkdropIdx: i, milkdropName: name, opacity: 1 })}
+                      onMouseLeave={() => onHoverSource?.(null)}
                       draggable
                       onDragStart={e => {
                         e.dataTransfer.setData('application/plajah-clip', JSON.stringify({
@@ -716,8 +796,15 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                         params: [0.5, 0.5, 0.5, 0.5],
                       } as LauncherClip));
                     }}
-                    onClick={() => onApplyShader?.(shader.src)}
-                    title={`${shader.name} · ${shader.category} — drag to a cell or click to preview`}
+                    onClick={() => onPreviewSource?.({
+                      id: `shader-${shader.name}`, type: 'shader',
+                      name: shader.name.slice(0, 18).toUpperCase(), color,
+                      shaderSrc: shader.src, opacity: 1,
+                      params: [0.5, 0.5, 0.5, 0.5],
+                    })}
+                    onMouseEnter={() => onHoverSource?.({ id: `shader-${shader.name}`, type: 'shader', name: shader.name.slice(0, 18).toUpperCase(), color, shaderSrc: shader.src, opacity: 1, params: [0.5, 0.5, 0.5, 0.5] })}
+                    onMouseLeave={() => onHoverSource?.(null)}
+                    title={`${shader.name} · ${shader.category} — hover to preview, drag to assign`}
                   >
                     <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>{shader.category}</div>
                     <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>{shader.name}</div>
@@ -755,9 +842,9 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
 const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
 
 const ClipLauncher: React.FC<Props> = ({
-  config, onApply, milkdrop, onSetBgMedia,
-  bgMedia1, shaderLibrary, onApplyShader,
-  onLayerShader, onShaderParamsChange,
+  config, onApply, milkdrop, onSetLayerMedia,
+  bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
+  onLayerShader, onShaderParamsChange, onSyncSceneAuto, onSetBlendActive, analyser,
   rightPanel, onPowerOff,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
@@ -765,64 +852,98 @@ const ClipLauncher: React.FC<Props> = ({
   const [flashedPads,   setFlashedPads]   = useState<Set<number>>(new Set());
   const [midiActive,    setMidiActive]    = useState(false);
   const [selectedCell,  setSelectedCell]  = useState<{ li: number; ci: number } | null>(null);
-  const [rightPanelTab, setRightPanelTab] = useState<'transport' | 'params'>('transport');
+  const [rightPanelTab, setRightPanelTab] = useState<'transport' | 'params' | 'auto'>('transport');
+
+  // Global blend overlay toggle — mirrors config.enableLayer2 and controls whether ALL layers blend
+  const [globalBlendActive, setGlobalBlendActive] = useState<boolean>(() => config.enableLayer2 ?? true);
+
+  // Scene automation state
+  const [sceneAutoMode,     setSceneAutoMode]     = useState<'off' | 'next' | 'random'>('off');
+  const [sceneAutoInterval, setSceneAutoInterval] = useState(8); // seconds
+  const [sceneAutoTrigger,  setSceneAutoTrigger]  = useState<'time' | 'beat'>('time');
+  const [sceneAutoBars,     setSceneAutoBars]     = useState<2 | 4 | 8 | 16>(4); // bars between advances in beat mode
+  const sceneAutoColRef      = useRef(0);
+  const sceneBeatCounterRef  = useRef(0); // beats counted toward next scene change
+  const sceneLastBeatTimeRef = useRef(0); // last beat timestamp for debounce
+  // The single column that is currently driving program output (null = nothing launched yet)
+  const activeSceneColRef    = useRef<number | null>(null);
+  const [sceneMenu, setSceneMenu] = useState<{ x: number; y: number; col: number } | null>(null);
+  const [previewSource, setPreviewSource] = useState<LauncherClip | null>(null);
+  const [hoverSource,   setHoverSource]   = useState<LauncherClip | null>(null);
+  const prevTabRef = useRef<typeof rightPanelTab | null>(null); // tab to restore after hover
 
   const configRef = useRef(config);
   const milkRef   = useRef(milkdrop);
   const layersRef = useRef(layers);
 
-  // Sync bgMedia1 from studio into BG layer (layer 0) empty cells
-  useEffect(() => {
-    if (!bgMedia1 || bgMedia1.length === 0) return;
-    setLayers(prev => {
-      const bg = prev[0];
-      if (!bg) return prev;
+  // Helper: sync a media array into a layer row identified by id
+  function syncMediaToLayer(
+    mediaList: BackgroundMedia[],
+    layerId: string,
+    color: string,
+    setter: React.Dispatch<React.SetStateAction<LauncherLayer[]>>,
+  ) {
+    setter(prev => {
+      const layerIdx = prev.findIndex(l => l.id === layerId);
+      if (layerIdx === -1) return prev;
+      const layer = prev[layerIdx];
       let changed = false;
-      const newClips = [...bg.clips];
+      const newClips = [...layer.clips];
       let nextSlot = 0;
-      for (const media of bgMedia1) {
-        // Skip forward past already-filled slots
+      for (const media of mediaList) {
         while (nextSlot < newClips.length && newClips[nextSlot] !== null) nextSlot++;
         if (nextSlot >= newClips.length) break;
-        const existing = newClips.find(c => c?.mediaUrl === media.url || c?.id === media.id);
-        if (existing) continue; // already present
+        if (newClips.find(c => c?.mediaUrl === media.url || c?.id === media.id)) continue;
         newClips[nextSlot] = {
-          id:        media.id,
-          type:      'media',
-          name:      media.id.replace(/^default-/, '').replace(/-/g, ' ').toUpperCase().slice(0, 18),
-          color:     '#6366f1',
-          mediaUrl:  media.url,
-          mediaType: media.type,
-          loop:      true,
-          opacity:   1,
+          id: media.id, type: 'media',
+          name: media.id.replace(/^default-/, '').replace(/-/g, ' ').toUpperCase().slice(0, 18),
+          color, mediaUrl: media.url, mediaType: media.type, loop: true, opacity: 1,
         };
         changed = true;
         nextSlot++;
       }
       if (!changed) return prev;
-      return prev.map((l, i) => i === 0 ? { ...l, clips: newClips } : l);
+      return prev.map((l, i) => i === layerIdx ? { ...l, clips: newClips } : l);
     });
-  }, [bgMedia1]);
+  }
+
+  // Sync bgMedia1 → BG layer, bgMedia2 → OVERLAY layer
+  useEffect(() => { if (bgMedia1?.length) syncMediaToLayer(bgMedia1, 'bg', '#6366f1', setLayers); }, [bgMedia1]);
+  useEffect(() => { if (bgMedia2?.length) syncMediaToLayer(bgMedia2, 'overlay', '#ec4899', setLayers); }, [bgMedia2]);
   useEffect(() => { configRef.current = config;   }, [config]);
   useEffect(() => { milkRef.current   = milkdrop; }, [milkdrop]);
   useEffect(() => { layersRef.current = layers; saveLayers(layers); }, [layers]);
 
-  const CELL_W    = 88;
+  const CELL_W    = 101;
   const GAP       = 4;
   const STEP      = CELL_W + GAP;
   const colCount  = layers[0]?.clips.length ?? NUM_COLS;
 
   const preloadRef = useRef<Record<string, HTMLVideoElement>>({});
 
+  // ── Global blend toggle ──────────────────────────────────────────────────────
+  const toggleBlend = useCallback(() => {
+    setGlobalBlendActive(prev => {
+      const next = !prev;
+      onApply({ enableLayer2: next } as any);
+      onSetBlendActive?.(next);
+      return next;
+    });
+  }, [onApply, onSetBlendActive]);
+
   // ── Fire clip ───────────────────────────────────────────────────────────────
-  const fireClip = useCallback((layerIdx: number, colIdx: number, ls?: LauncherLayer[]) => {
+  // forceOn = true → always activate (used by scene launch); false → normal toggle (used by individual cell clicks)
+  const fireClip = useCallback((layerIdx: number, colIdx: number, ls?: LauncherLayer[], forceOn = false) => {
     const lrs = ls ?? layersRef.current;
     const layer = lrs[layerIdx];
     if (!layer) return;
     const clip = layer.clips[colIdx];
 
+    const isCurrentlyActive = layer.activeCol === colIdx;
+    const willBeActive = forceOn ? true : !isCurrentlyActive;
+
     setLayers(prev => prev.map((l, li) =>
-      li === layerIdx ? { ...l, activeCol: l.activeCol === colIdx ? null : colIdx } : l
+      li === layerIdx ? { ...l, activeCol: willBeActive ? colIdx : null } : l
     ));
 
     // Track which cell is selected for the PARAMS panel
@@ -832,51 +953,259 @@ const ClipLauncher: React.FC<Props> = ({
     if (layer.bypassed || layer.muted) return;
 
     const layerBlend    = layer.blendMode.toLowerCase();
-    const resolvedBlend = (BLEND_MAP[layerBlend] || layerBlend) as BlendMode;
+    const resolvedBlend = globalBlendActive
+      ? ((BLEND_MAP[layerBlend] || layerBlend) as BlendMode)
+      : 'normal' as BlendMode;
 
     if (clip.type === 'generator') {
-      if (clip.sceneMode === '__fx_glitch') {
-        onApply({ enableGlitch: !(configRef.current as any).enableGlitch } as any);
-      } else if (clip.sceneMode === '__fx_bass') {
-        onApply({ enableBassShake: !(configRef.current as any).enableBassShake } as any);
-      } else if (clip.sceneMode) {
-        const patch: Partial<VisualizationConfig> = { mode: clip.sceneMode as VisualizerMode };
-        if (layerIdx === 1) patch.blendMode = resolvedBlend;
-        onApply(patch);
+      if (layer.id === 'fx' && clip.sceneMode === '__fx_glitch') {
+        onApply({ enableGlitch: forceOn ? true : !(configRef.current as any).enableGlitch } as any);
+      } else if (layer.id === 'fx' && clip.sceneMode === '__fx_bass') {
+        onApply({ enableBassShake: forceOn ? true : !(configRef.current as any).enableBassShake } as any);
+      } else if (layer.id === 'viz' && clip.sceneMode) {
+        onApply({ mode: clip.sceneMode as VisualizerMode, blendMode: resolvedBlend });
       }
     } else if (clip.type === 'milkdrop') {
       if (clip.milkdropIdx !== undefined) milkRef.current.onSetIdx(clip.milkdropIdx);
-      milkRef.current.onToggle();
-      // Pass the FX layer blend mode and opacity to the butterchurn compositor
+      if (forceOn) {
+        // Scene launch: force ON — only toggle if milkdrop is currently off
+        if (!milkRef.current.enabled) milkRef.current.onToggle();
+      } else {
+        milkRef.current.onToggle();
+      }
       milkRef.current.onSetBlendMode?.(resolvedBlend);
-      milkRef.current.onSetOpacity?.(layer.opacity);
+      milkRef.current.onSetOpacity?.((clip.opacity ?? 1) * layer.opacity);
     } else if (clip.type === 'media' && clip.mediaUrl) {
-      onSetBgMedia({ url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id });
-      // Auto-populate text with song filename (strip path, query string, and extension)
-      const rawFile = clip.mediaUrl.split('/').pop()?.split('?')[0] ?? '';
-      const songName = decodeURIComponent(rawFile).replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
-      if (songName) onApply({ textContent: songName } as any);
-      if (layerIdx === 0) onApply({ blendMode: resolvedBlend });
+      onSetLayerMedia(layerIdx, { url: clip.mediaUrl, type: clip.mediaType ?? 'video', id: clip.id }, resolvedBlend, (clip.opacity ?? 1) * layer.opacity, layer.id);
     } else if (clip.type === 'shader' && clip.shaderSrc) {
-      // Toggle: if this cell was already active we're turning it off
-      const wasActive = layer.activeCol === colIdx;
+      // forceOn: always load shader; else toggle (load if was off, clear if was on)
+      const shouldLoad = forceOn ? true : !isCurrentlyActive;
       onLayerShader?.(
         layerIdx,
-        wasActive ? null : clip.shaderSrc,
+        shouldLoad ? clip.shaderSrc : null,
         resolvedBlend,
-        layer.opacity,
+        (clip.opacity ?? 1) * layer.opacity,
         clip.params ?? [0.5, 0.5, 0.5, 0.5],
       );
     } else if (clip.type === 'color' && clip.fillColor) {
-      onSetBgMedia(null);
+      onSetLayerMedia(layerIdx, null, undefined, undefined, layer.id);
     }
-  }, [onApply, onSetBgMedia, onLayerShader]);
+  }, [onApply, onSetLayerMedia, onLayerShader, globalBlendActive]);
 
-  // ── Scene launch ────────────────────────────────────────────────────────────
+  // Stop all program outputs from a column and clear its activeCol across all layers.
+  // Called before launching a new scene so the previous column goes dark.
+  const clearColumn = useCallback((colIdx: number, lrs: LauncherLayer[]) => {
+    lrs.forEach((layer, li) => {
+      if (layer.activeCol !== colIdx) return; // layer wasn't driven by this column
+      const clip = layer.clips[colIdx];
+      if (!clip || layer.bypassed || layer.muted) return;
+      if (clip.type === 'shader') {
+        onLayerShader?.(li, null, 'normal', 1, [0.5, 0.5, 0.5, 0.5]);
+      } else if (clip.type === 'milkdrop') {
+        if (milkRef.current.enabled) milkRef.current.onToggle(); // force OFF
+      } else if (clip.type === 'media') {
+        onSetLayerMedia(li, null, undefined, undefined, layer.id);
+      }
+      // generators intentionally not cleared — the visualizer mode persists until a new one is set
+    });
+    setLayers(prev => prev.map(l => ({
+      ...l,
+      activeCol: l.activeCol === colIdx ? null : l.activeCol,
+    })));
+  }, [onLayerShader, onSetLayerMedia]);
+
+  // ── Scene launch — exclusive: only ONE column drives program out at a time ──
   const launchScene = useCallback((colIdx: number) => {
     const lrs = layersRef.current;
-    lrs.forEach((_, li) => fireClip(li, colIdx, lrs));
-  }, [fireClip]);
+    const prevCol = activeSceneColRef.current;
+
+    // Tear down the previous scene column before firing the next
+    if (prevCol !== null && prevCol !== colIdx) {
+      clearColumn(prevCol, lrs);
+    }
+
+    // Force-activate every row in the new column (no toggle, always on)
+    lrs.forEach((_, li) => fireClip(li, colIdx, lrs, true));
+
+    activeSceneColRef.current = colIdx;
+  }, [clearColumn, fireClip]);
+
+  // Stable ref so automation effects always call the latest launchScene without
+  // listing it as a dependency (which would restart the effect on every fire).
+  const launchSceneRef = useRef<(colIdx: number) => void>(() => {});
+  useEffect(() => { launchSceneRef.current = launchScene; }, [launchScene]);
+
+  // Config value refs — beat mode reads these instead of capturing stale closures
+  const sceneAutoBarsRef = useRef(sceneAutoBars);
+  useEffect(() => { sceneAutoBarsRef.current = sceneAutoBars; }, [sceneAutoBars]);
+  const rotationMusicGovernRef = useRef(config.rotationMusicGovern);
+  useEffect(() => { rotationMusicGovernRef.current = config.rotationMusicGovern; }, [config.rotationMusicGovern]);
+
+  // ── Row automation timers ────────────────────────────────────────────────────
+  useEffect(() => {
+    const intervals: ReturnType<typeof setInterval>[] = [];
+    layers.forEach((layer, li) => {
+      if (!layer.autoMode || layer.autoMode === 'off') return;
+      const ms = (layer.autoInterval ?? 4) * 1000;
+      const id = setInterval(() => {
+        const lrs = layersRef.current;
+        const l = lrs[li];
+        if (!l || !l.autoMode || l.autoMode === 'off' || l.bypassed || l.muted) return;
+        const filled = l.clips.map((c, i) => c ? i : -1).filter(i => i >= 0);
+        if (filled.length === 0) return;
+        let nextCol: number;
+        if (l.autoMode === 'random') {
+          nextCol = filled[Math.floor(Math.random() * filled.length)];
+        } else {
+          const cur = filled.indexOf(l.activeCol ?? -1);
+          nextCol = filled[(cur + 1) % filled.length];
+        }
+        fireClip(li, nextCol, lrs);
+      }, ms);
+      intervals.push(id);
+    });
+    return () => intervals.forEach(clearInterval);
+    // Only re-run when autoMode or autoInterval changes, not on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers.map(l => `${l.id}:${l.autoMode}:${l.autoInterval}`).join(','), fireClip]);
+
+  // ── Scene automation — time mode ────────────────────────────────────────────
+  // launchScene is intentionally NOT in deps — we use launchSceneRef to call the
+  // latest version without restarting the interval every time it fires a scene.
+  useEffect(() => {
+    if (sceneAutoMode === 'off' || sceneAutoTrigger !== 'time') return;
+    const ms = sceneAutoInterval * 1000;
+    const id = setInterval(() => {
+      const lrs = layersRef.current;
+      const cc = lrs[0]?.clips.length ?? NUM_COLS;
+      let nextCol: number;
+      if (sceneAutoMode === 'random') {
+        // Only pick columns that actually have content
+        const nonEmpty = Array.from({ length: cc }, (_, i) => i)
+          .filter(c => lrs.some(l => l.clips[c] != null));
+        nextCol = nonEmpty.length > 0
+          ? nonEmpty[Math.floor(Math.random() * nonEmpty.length)]
+          : Math.floor(Math.random() * cc);
+      } else {
+        // Sequential — advance, skipping empty columns
+        let candidate = (sceneAutoColRef.current + 1) % cc;
+        for (let t = 0; t < cc; t++) {
+          if (lrs.some(l => l.clips[candidate] != null)) break;
+          candidate = (candidate + 1) % cc;
+        }
+        sceneAutoColRef.current = candidate;
+        nextCol = candidate;
+      }
+      launchSceneRef.current(nextCol);
+    }, ms);
+    return () => clearInterval(id);
+  }, [sceneAutoMode, sceneAutoTrigger, sceneAutoInterval]);
+
+  // ── Scene automation — beat mode ─────────────────────────────────────────────
+  // Derives live BPM from rolling beat-interval averaging, fires scene changes on
+  // exact bar boundaries. Uses launchSceneRef so firing a scene never restarts the
+  // effect (which would reset nextSceneAt → infinite stuck-on-scene-0 loop).
+  useEffect(() => {
+    if (sceneAutoMode === 'off' || sceneAutoTrigger !== 'beat' || !analyser) return;
+
+    const dataArr = new Uint8Array(analyser.frequencyBinCount);
+    const beatTimes: number[] = [];
+    let estimatedBpm = 120;
+    let lastDetectedBeat = 0;
+    let rafId: number;
+
+    // Start the clock immediately — don't wait for a beat to arrive before the
+    // first scene fires. Uses sceneAutoBarsRef so bar length updates live.
+    const barMs = () => (60000 / estimatedBpm) * 4 * sceneAutoBarsRef.current;
+    let nextSceneAt = performance.now() + barMs();
+
+    // Rolling bass energy history for onset detection (~20 frames ≈ 333ms at 60fps).
+    // Comparing against local average avoids hard absolute thresholds that fail on
+    // quiet or loud tracks.
+    const energyHistory = new Float32Array(20);
+    let histIdx = 0;
+
+    const tick = () => {
+      analyser.getByteFrequencyData(dataArr);
+
+      // Sub-bass energy (bins 0–4, 0–86 Hz)
+      let bass = 0;
+      for (let i = 0; i < 5; i++) bass += dataArr[i];
+      bass = (bass / 5) / 255;
+
+      // Wider bass energy (bins 0–12, 0–258 Hz) for backup onset detection
+      let midBass = 0;
+      for (let i = 0; i < 12; i++) midBass += dataArr[i];
+      midBass = (midBass / 12) / 255;
+
+      // Update rolling history
+      energyHistory[histIdx % energyHistory.length] = bass;
+      histIdx++;
+      let avgEnergy = 0;
+      for (let i = 0; i < energyHistory.length; i++) avgEnergy += energyHistory[i];
+      avgEnergy /= energyHistory.length;
+
+      const now = performance.now();
+      const minGap = Math.max(200, 60000 / Math.min(240, estimatedBpm * 2.2));
+
+      // Beat onset: current bass significantly above local rolling average
+      const isBeat = (bass > avgEnergy * 1.35 || midBass > avgEnergy * 1.5)
+        && bass > 0.18
+        && (now - lastDetectedBeat) > minGap;
+
+      if (isBeat) {
+        lastDetectedBeat = now;
+        beatTimes.push(now);
+        if (beatTimes.length > 8) beatTimes.shift();
+        if (beatTimes.length >= 2) {
+          let iSum = 0;
+          for (let i = 1; i < beatTimes.length; i++) iSum += beatTimes[i] - beatTimes[i - 1];
+          const rawBpm = 60000 / (iSum / (beatTimes.length - 1));
+          if (rawBpm >= 40 && rawBpm <= 240) {
+            estimatedBpm = estimatedBpm * 0.85 + rawBpm * 0.15;
+          }
+        }
+      }
+
+      // Music govern: intense bass nudges the next fire slightly sooner
+      if (rotationMusicGovernRef.current && bass > 0.78) {
+        const remaining = nextSceneAt - now;
+        if (remaining > 800) nextSceneAt -= remaining * 0.04;
+      }
+
+      // Fire on bar boundary — advance to next non-empty column
+      if (now >= nextSceneAt) {
+        const lrs = layersRef.current;
+        const cc = lrs[0]?.clips.length ?? NUM_COLS;
+        let nextCol: number;
+        if (sceneAutoMode === 'random') {
+          const nonEmpty = Array.from({ length: cc }, (_, i) => i)
+            .filter(c => lrs.some(l => l.clips[c] != null));
+          nextCol = nonEmpty.length > 0
+            ? nonEmpty[Math.floor(Math.random() * nonEmpty.length)]
+            : Math.floor(Math.random() * cc);
+        } else {
+          let candidate = (sceneAutoColRef.current + 1) % cc;
+          for (let t = 0; t < cc; t++) {
+            if (lrs.some(l => l.clips[candidate] != null)) break;
+            candidate = (candidate + 1) % cc;
+          }
+          sceneAutoColRef.current = candidate;
+          nextCol = candidate;
+        }
+        launchSceneRef.current(nextCol);
+        // Lock to bar grid from exact fire time, not real-time drift
+        nextSceneAt += barMs();
+      }
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+    // sceneAutoBars/rotationMusicGovern/launchScene intentionally excluded — stable
+    // refs are used instead so the effect never restarts when those values change.
+  }, [sceneAutoMode, sceneAutoTrigger, analyser]);
 
   // ── Add / remove layer ──────────────────────────────────────────────────────
   const addLayer = useCallback(() => {
@@ -950,21 +1279,33 @@ const ClipLauncher: React.FC<Props> = ({
 
   // ── Drop / assign ───────────────────────────────────────────────────────────
   const dropMedia = useCallback((li: number, ci: number, file: File) => {
-    const url       = URL.createObjectURL(file);
+    const blobUrl   = URL.createObjectURL(file);
     const mediaType: 'video' | 'image' = file.type.startsWith('video/') ? 'video' : 'image';
+    const clipId    = `media-${li}-${ci}-${Date.now()}`;
     const clip: LauncherClip = {
-      id: `media-${li}-${ci}-${Date.now()}`,
-      type: 'media', name: file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase(),
-      color: '#6366f1', mediaUrl: url, mediaType, loop: true, opacity: 1,
+      id: clipId, type: 'media', name: file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase(),
+      color: '#6366f1', mediaUrl: blobUrl, mediaType, loop: true, opacity: 1,
     };
-    if (mediaType === 'video' && !preloadRef.current[url]) {
+    if (mediaType === 'video' && !preloadRef.current[blobUrl]) {
       const el = document.createElement('video');
-      el.src = url; el.preload = 'auto'; el.muted = true; el.load();
-      preloadRef.current[url] = el;
+      el.src = blobUrl; el.preload = 'auto'; el.muted = true; el.load();
+      preloadRef.current[blobUrl] = el;
     }
     setLayers(prev => prev.map((l, i) =>
       i === li ? { ...l, clips: l.clips.map((c, ci2) => ci2 === ci ? clip : c) } : l
     ));
+    // Async: encode as data-URL for persistence (survives page refresh + project save)
+    // Skip large videos (>20 MB) to avoid crashing localStorage
+    if (file.size < 20 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setLayers(prev => prev.map((l, i) =>
+          i === li ? { ...l, clips: l.clips.map(c => c?.id === clipId ? { ...c, mediaUrl: dataUrl } : c) } : l
+        ));
+      };
+      reader.readAsDataURL(file);
+    }
   }, []);
 
   const assignClip = useCallback((li: number, ci: number, clip: LauncherClip) => {
@@ -979,6 +1320,42 @@ const ClipLauncher: React.FC<Props> = ({
     ));
   }, []);
 
+  const copyClipToNext = useCallback((li: number, ci: number) => {
+    setLayers(prev => {
+      const layer = prev[li];
+      if (!layer) return prev;
+      const clip = layer.clips[ci];
+      if (!clip) return prev;
+      const nextCi = ci + 1;
+      // Extend columns if needed (up to 20)
+      const needsExpand = nextCi >= layer.clips.length;
+      if (needsExpand && layer.clips.length >= 20) return prev;
+      return prev.map((l, i) => {
+        if (i !== li) {
+          if (needsExpand) return { ...l, clips: [...l.clips, null] };
+          return l;
+        }
+        const newClips = needsExpand ? [...l.clips, { ...clip, id: `${clip.id}-copy-${Date.now()}` }]
+          : l.clips.map((c, idx) => idx === nextCi ? { ...clip, id: `${clip.id}-copy-${Date.now()}` } : c);
+        return { ...l, clips: newClips };
+      });
+    });
+  }, []);
+
+  const clearRow = useCallback((li: number) => {
+    setLayers(prev => prev.map((l, i) =>
+      i === li ? { ...l, clips: l.clips.map(() => null), activeCol: null } : l
+    ));
+  }, []);
+
+  const clearScene = useCallback((ci: number) => {
+    setLayers(prev => prev.map(l => ({
+      ...l,
+      clips: l.clips.map((c, i) => i === ci ? null : c),
+      activeCol: l.activeCol === ci ? null : l.activeCol,
+    })));
+  }, []);
+
   // ── Scroll ──────────────────────────────────────────────────────────────────
   const canScrollLeft  = scrollLeft > 0;
   const canScrollRight = scrollLeft < (colCount - 4) * STEP;
@@ -991,47 +1368,178 @@ const ClipLauncher: React.FC<Props> = ({
     onSetIdx: milkdrop.onSetIdx,
   }), [milkdrop]);
 
+  // Close scene context menu on outside click
+  useEffect(() => {
+    if (!sceneMenu) return;
+    const close = () => setSceneMenu(null);
+    window.addEventListener('click', close, { once: true });
+    return () => window.removeEventListener('click', close);
+  }, [sceneMenu]);
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="w-full h-full flex" style={{ background: '#0a0a12' }}>
+
+      {/* Scene context menu */}
+      {sceneMenu && (
+        <div
+          className="fixed z-[500] rounded-xl overflow-hidden border border-white/10 shadow-2xl"
+          style={{ top: sceneMenu.y, left: sceneMenu.x, background: 'rgba(6,6,18,0.97)', backdropFilter: 'blur(16px)', minWidth: 180 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 border-b border-white/07">
+            <span className="text-[8px] font-black uppercase tracking-widest text-white/30">SCENE {sceneMenu.col + 1}</span>
+          </div>
+          <button
+            onClick={() => { launchScene(sceneMenu.col); setSceneMenu(null); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 transition-all text-left"
+          >
+            <Play className="w-3 h-3" /> Launch scene
+          </button>
+          <button
+            onClick={() => { clearScene(sceneMenu.col); setSceneMenu(null); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition-all text-left border-t border-white/05"
+          >
+            <Trash2 className="w-3 h-3" /> Clear scene
+          </button>
+        </div>
+      )}
 
       {/* ── Main clip area ────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Scene launch bar */}
         <div className="flex items-center shrink-0 gap-1 px-2"
-          style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#080810' }}>
+          style={{ height: 34, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#080810' }}>
           <button onClick={() => scrollBy(-1)} disabled={!canScrollLeft}
             className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
-          <div className="flex-1 flex gap-1 overflow-hidden" style={{ marginLeft: 104 }}>
-            {Array.from({ length: 4 }, (_, ci) => {
-              const absCol   = visibleColStart + ci;
-              const anyActive = layers.some(l => l.activeCol === absCol && !l.bypassed && !l.muted);
-              return (
-                <button
-                  key={ci}
-                  onClick={() => launchScene(absCol)}
-                  className="flex-shrink-0 flex items-center justify-center text-[8px] font-black uppercase tracking-widest rounded transition-all"
-                  style={{
-                    width: CELL_W, height: 20,
-                    background: anyActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.04)',
-                    border: anyActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)',
-                    color: anyActive ? '#c084fc' : 'rgba(255,255,255,0.25)',
-                  }}
-                  title={`Launch scene ${absCol + 1} across all layers`}
-                >
-                  ▶ SCENE {absCol + 1}
-                </button>
-              );
-            })}
+          {/* Scene buttons — all columns, translate in sync with clip cells.
+               Offset = sidebar(160) - outer-px2(8) - chevron-w5(20) - gap1(4) = 128 */}
+          <div className="flex-1 overflow-hidden" style={{ marginLeft: 128 }}>
+            <div className="flex gap-1 px-1" style={{ transform: `translateX(-${scrollLeft}px)`, willChange: 'transform' }}>
+              {Array.from({ length: colCount }, (_, absCol) => {
+                const anyActive = layers.some(l => l.activeCol === absCol && !l.bypassed && !l.muted);
+                return (
+                  <button
+                    key={absCol}
+                    onClick={() => launchScene(absCol)}
+                    onContextMenu={e => { e.preventDefault(); setSceneMenu({ x: e.clientX, y: e.clientY, col: absCol }); }}
+                    className="flex-shrink-0 flex items-center justify-center text-[10px] font-black uppercase tracking-widest rounded transition-all"
+                    style={{
+                      width: CELL_W, height: 26,
+                      background: anyActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.04)',
+                      border: anyActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)',
+                      color: anyActive ? '#c084fc' : 'rgba(255,255,255,0.25)',
+                    }}
+                    title={`Launch scene ${absCol + 1} — right-click to clear`}
+                  >
+                    ▶ {absCol + 1}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button onClick={() => scrollBy(1)} disabled={!canScrollRight}
             className="w-5 h-5 flex items-center justify-center rounded text-white/30 hover:text-white disabled:opacity-20 transition-all">
             <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Add column */}
+          <button
+            onClick={() => {
+              if (colCount >= 20) return;
+              setLayers(prev => prev.map(l => ({ ...l, clips: [...l.clips, null] })));
+            }}
+            disabled={colCount >= 20}
+            className="w-5 h-5 flex items-center justify-center rounded text-[9px] font-black transition-all ml-1"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: colCount >= 20 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.3)',
+            }}
+            title={colCount >= 20 ? 'Maximum 20 columns reached' : 'Add column'}
+          >
+            +
+          </button>
+
+          {/* Scene automation controls */}
+          <div className="flex items-center gap-1 ml-2 shrink-0">
+            <button
+              onClick={() => {
+                const modes: ('off' | 'next' | 'random')[] = ['off', 'next', 'random'];
+                const cur = modes.indexOf(sceneAutoMode);
+                setSceneAutoMode(modes[(cur + 1) % modes.length]);
+              }}
+              className="flex items-center gap-0.5 px-1.5 h-5 rounded text-[7px] font-black uppercase tracking-widest transition-all"
+              style={{
+                background: sceneAutoMode !== 'off' ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
+                border: sceneAutoMode !== 'off' ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                color: sceneAutoMode !== 'off' ? '#c084fc' : 'rgba(255,255,255,0.2)',
+              }}
+              title="Scene Automation: cycle OFF → NEXT → RANDOM"
+            >
+              {sceneAutoMode === 'off' ? '⏸ SCENE' : sceneAutoMode === 'next' ? '▶ SCENE' : '⁂ SCENE'}
+            </button>
+            {sceneAutoMode !== 'off' && (
+              <>
+                {/* Time/Beat toggle */}
+                <button
+                  onClick={() => setSceneAutoTrigger(t => t === 'time' ? 'beat' : 'time')}
+                  className="px-1 h-5 rounded text-[6px] font-black uppercase tracking-widest transition-all"
+                  style={{
+                    background: sceneAutoTrigger === 'beat' ? 'rgba(251,146,60,0.25)' : 'rgba(255,255,255,0.04)',
+                    border: sceneAutoTrigger === 'beat' ? '1px solid rgba(251,146,60,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    color: sceneAutoTrigger === 'beat' ? '#fb923c' : 'rgba(255,255,255,0.3)',
+                  }}
+                  title={sceneAutoTrigger === 'beat' ? 'Beat mode — click for time mode' : 'Time mode — click for beat mode'}
+                >
+                  {sceneAutoTrigger === 'beat' ? '♩ BEAT' : '⏱ TIME'}
+                </button>
+                {sceneAutoTrigger === 'time' ? (
+                  <input
+                    type="number" min="1" max="60" step="1"
+                    value={sceneAutoInterval}
+                    onChange={e => setSceneAutoInterval(Math.max(1, Math.min(60, Number(e.target.value))))}
+                    className="w-8 bg-transparent border border-white/10 rounded text-[7px] text-center text-white/50 outline-none"
+                    title="Scene interval in seconds"
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <select
+                    value={sceneAutoBars}
+                    onChange={e => setSceneAutoBars(Number(e.target.value) as 2 | 4 | 8 | 16)}
+                    className="bg-transparent border border-white/10 rounded text-[6px] text-orange-300/70 outline-none cursor-pointer"
+                    style={{ paddingLeft: 2, paddingRight: 2, height: 20 }}
+                    title="Bars between scene changes"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <option value={2}>2 bars</option>
+                    <option value={4}>4 bars</option>
+                    <option value={8}>8 bars</option>
+                    <option value={16}>16 bars</option>
+                  </select>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Global Blend Overlay toggle */}
+          <button
+            onClick={toggleBlend}
+            className="flex items-center gap-0.5 px-1.5 h-5 rounded text-[7px] font-black uppercase tracking-widest transition-all ml-2 shrink-0"
+            style={{
+              background: globalBlendActive ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.04)',
+              border:     globalBlendActive ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.1)',
+              color:      globalBlendActive ? '#34d399' : 'rgba(255,255,255,0.2)',
+              boxShadow:  globalBlendActive ? '0 0 6px rgba(16,185,129,0.25)' : 'none',
+            }}
+            title="Global Blend Overlay — toggles blend compositing across all layers and columns"
+          >
+            ⊕ BLEND
           </button>
 
           {/* MIDI indicator */}
@@ -1060,8 +1568,8 @@ const ClipLauncher: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Layer rows (rendered bottom-up) */}
-        <div className="flex flex-col-reverse" style={{ flex: '0 0 auto' }}>
+        {/* Layer rows (rendered bottom-up) — scrollable so source browser stays pinned */}
+        <div className="flex flex-col-reverse overflow-y-auto" style={{ flex: '1 1 0', minHeight: 0 }}>
           {layers.map((layer, li) => (
             <div
               key={layer.id}
@@ -1079,6 +1587,8 @@ const ClipLauncher: React.FC<Props> = ({
                 onDropMedia={(ci, f) => dropMedia(li, ci, f)}
                 onAssignClip={(ci, clip) => assignClip(li, ci, clip)}
                 onClearClip={ci => clearClip(li, ci)}
+                onCopyClip={ci => copyClipToNext(li, ci)}
+                onClearRow={() => clearRow(li)}
                 onDeleteLayer={() => deleteLayer(li)}
                 isDefaultLayer={li < 3}
               />
@@ -1088,7 +1598,7 @@ const ClipLauncher: React.FC<Props> = ({
 
         {/* Add Layer button */}
         <div className="flex items-center px-2 shrink-0"
-          style={{ height: 26, borderTop: '1px solid rgba(255,255,255,0.05)', background: '#06060f' }}>
+          style={{ height: 30, borderTop: '1px solid rgba(255,255,255,0.05)', background: '#06060f' }}>
           <button
             onClick={addLayer}
             className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest transition-all hover:text-white/70"
@@ -1107,6 +1617,21 @@ const ClipLauncher: React.FC<Props> = ({
           config={config}
           shaderLibrary={shaderLibrary}
           onApplyShader={onApplyShader}
+          onPreviewSource={clip => setPreviewSource(clip)}
+          onHoverSource={clip => {
+            setHoverSource(clip);
+            if (clip) {
+              if (rightPanelTab !== 'params') {
+                prevTabRef.current = rightPanelTab;
+                setRightPanelTab('params');
+              }
+            } else {
+              if (prevTabRef.current) {
+                setRightPanelTab(prevTabRef.current);
+                prevTabRef.current = null;
+              }
+            }
+          }}
         />
       </div>
 
@@ -1115,14 +1640,14 @@ const ClipLauncher: React.FC<Props> = ({
         <div
           className="flex-shrink-0 flex flex-col overflow-hidden"
           style={{
-            width: 280,
+            width: 340,
             borderLeft: '1px solid rgba(255,255,255,0.07)',
             background: 'rgba(4,4,12,0.95)',
           }}
         >
           {/* Tab bar */}
           <div className="flex shrink-0" style={{ height: 28, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            {(['params', 'transport'] as const).map(t => (
+            {(['params', 'auto', 'transport'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setRightPanelTab(t)}
@@ -1133,12 +1658,186 @@ const ClipLauncher: React.FC<Props> = ({
                   background: 'transparent',
                 }}
               >
-                {t === 'params' ? '⚙ PARAMS' : '♬ CTRL'}
+                {t === 'params' ? '⚙ PARAMS' : t === 'auto' ? '⟳ AUTO' : '♬ CTRL'}
               </button>
             ))}
           </div>
 
-          {rightPanelTab === 'params' ? (
+          {rightPanelTab === 'auto' ? (
+            /* ── AUTO tab ── */
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
+
+              {/* Scene Automation */}
+              <div>
+                <div className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-2">Scene Automation</div>
+                <div className="rounded-xl p-3 flex flex-col gap-2.5" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const modes: ('off' | 'next' | 'random')[] = ['off', 'next', 'random'];
+                        setSceneAutoMode(modes[(modes.indexOf(sceneAutoMode) + 1) % modes.length]);
+                      }}
+                      className="flex-1 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all"
+                      style={{
+                        background: sceneAutoMode !== 'off' ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.04)',
+                        border: sceneAutoMode !== 'off' ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
+                        color: sceneAutoMode !== 'off' ? '#c084fc' : 'rgba(255,255,255,0.3)',
+                      }}
+                    >
+                      {sceneAutoMode === 'off' ? '⏸ OFF' : sceneAutoMode === 'next' ? '▶ NEXT' : '⁂ RANDOM'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (sceneAutoMode === 'off') setSceneAutoMode('next');
+                        onSyncSceneAuto?.(sceneAutoInterval);
+                      }}
+                      className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all"
+                      style={{
+                        background: 'rgba(14,165,233,0.2)',
+                        border: '1px solid rgba(14,165,233,0.4)',
+                        color: '#7dd3fc',
+                      }}
+                      title="Sync interval to Studio Scene Automation"
+                    >
+                      ⟳ SYNC
+                    </button>
+                  </div>
+                  {/* Trigger mode toggle */}
+                  <div className="flex gap-1">
+                    {(['time', 'beat'] as const).map(t => (
+                      <button key={t}
+                        onClick={() => setSceneAutoTrigger(t)}
+                        className="flex-1 py-1 rounded text-[7px] font-black uppercase tracking-widest transition-all"
+                        style={{
+                          background: sceneAutoTrigger === t ? (t === 'beat' ? 'rgba(251,146,60,0.25)' : 'rgba(99,102,241,0.25)') : 'rgba(255,255,255,0.03)',
+                          border: sceneAutoTrigger === t ? (t === 'beat' ? '1px solid rgba(251,146,60,0.5)' : '1px solid rgba(99,102,241,0.5)') : '1px solid rgba(255,255,255,0.08)',
+                          color: sceneAutoTrigger === t ? (t === 'beat' ? '#fb923c' : '#a5b4fc') : 'rgba(255,255,255,0.2)',
+                        }}
+                      >
+                        {t === 'time' ? '⏱ TIME' : '♩ BEAT'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {sceneAutoTrigger === 'time' ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[7px] uppercase tracking-widest text-white/30 shrink-0">Interval</span>
+                      <input
+                        type="range" min="1" max="60" step="1"
+                        value={sceneAutoInterval}
+                        onChange={e => setSceneAutoInterval(Number(e.target.value))}
+                        className="flex-1 cursor-pointer"
+                        style={{ accentColor: '#8b5cf6', height: 14 }}
+                      />
+                      <input
+                        type="number" min="1" max="60" step="1"
+                        value={sceneAutoInterval}
+                        onChange={e => setSceneAutoInterval(Math.max(1, Math.min(60, Number(e.target.value))))}
+                        className="w-9 bg-transparent border border-white/10 rounded text-[8px] text-center text-white/60 outline-none"
+                      />
+                      <span className="text-[7px] text-white/20 shrink-0">s</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[7px] text-white/30 uppercase tracking-widest">Bars per scene</div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {([2, 4, 8, 16] as const).map(b => (
+                          <button key={b}
+                            onClick={() => setSceneAutoBars(b)}
+                            className="py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all"
+                            style={{
+                              background: sceneAutoBars === b ? 'rgba(251,146,60,0.3)' : 'rgba(255,255,255,0.04)',
+                              border: sceneAutoBars === b ? '1px solid rgba(251,146,60,0.6)' : '1px solid rgba(255,255,255,0.08)',
+                              color: sceneAutoBars === b ? '#fb923c' : 'rgba(255,255,255,0.3)',
+                            }}
+                          >
+                            {b} bar{b > 1 ? 's' : ''}
+                          </button>
+                        ))}
+                      </div>
+                      {!analyser && (
+                        <div className="text-[7px] text-orange-400/60 leading-snug">No audio — connect audio to enable beat sync</div>
+                      )}
+                      <div className="text-[7px] text-white/20 leading-snug">BPM is derived live from the music. Scenes lock to bar grid.</div>
+                      {config.rotationMusicGovern && (
+                        <div className="text-[7px] text-purple-300/50">Music govern: intense passages accelerate scene advance</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Row Automation */}
+              <div>
+                <div className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-2">Row Automation</div>
+                <div className="flex flex-col gap-2">
+                  {layers.map((layer, li) => {
+                    const col = LAYER_COLORS[li % LAYER_COLORS.length];
+                    return (
+                      <div key={layer.id} className="rounded-xl p-3 flex flex-col gap-2" style={{ background: `${col}10`, border: `1px solid ${col}30` }}>
+                        {/* Layer name */}
+                        <div className="text-[8px] font-black uppercase tracking-widest" style={{ color: col }}>{layer.name}</div>
+
+                        {/* Blend mode + opacity */}
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={layer.blendMode}
+                            onChange={e => updateLayer(li, { blendMode: e.target.value })}
+                            className="flex-1 text-[7px] font-bold uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none"
+                            style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${col}40`, color: col }}
+                          >
+                            {['Normal','Screen','Add','Multiply','Overlay','Soft-Light','Hard-Light','Difference','Exclusion','Lighten','Darken'].map(m => (
+                              <option key={m} value={m} className="bg-zinc-900">{m}</option>
+                            ))}
+                          </select>
+                          <span className="text-[7px] text-white/30 shrink-0 w-6 text-right">{Math.round(layer.opacity * 100)}%</span>
+                        </div>
+                        <input
+                          type="range" min="0" max="100" step="1"
+                          value={Math.round(layer.opacity * 100)}
+                          onChange={e => updateLayer(li, { opacity: Number(e.target.value) / 100 })}
+                          className="w-full cursor-pointer"
+                          style={{ accentColor: col, height: 12 }}
+                        />
+
+                        {/* Row auto mode + interval */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              const modes: ('off' | 'next' | 'random')[] = ['off', 'next', 'random'];
+                              const cur = modes.indexOf(layer.autoMode ?? 'off');
+                              updateLayer(li, { autoMode: modes[(cur + 1) % modes.length] });
+                            }}
+                            className="flex-1 py-0.5 rounded text-[7px] font-black uppercase tracking-widest transition-all"
+                            style={{
+                              background: (layer.autoMode ?? 'off') !== 'off' ? `${col}25` : 'rgba(255,255,255,0.03)',
+                              border: (layer.autoMode ?? 'off') !== 'off' ? `1px solid ${col}60` : '1px solid rgba(255,255,255,0.08)',
+                              color: (layer.autoMode ?? 'off') !== 'off' ? col : 'rgba(255,255,255,0.2)',
+                            }}
+                          >
+                            {(layer.autoMode ?? 'off') === 'off' ? '⏸ OFF' : layer.autoMode === 'next' ? '▶ NEXT' : '⁂ RND'}
+                          </button>
+                          {(layer.autoMode ?? 'off') !== 'off' && (
+                            <>
+                              <input
+                                type="number" min="1" max="60" step="1"
+                                value={layer.autoInterval ?? 4}
+                                onChange={e => updateLayer(li, { autoInterval: Math.max(1, Math.min(60, Number(e.target.value))) })}
+                                className="w-9 bg-transparent border border-white/10 rounded text-[7px] text-center outline-none"
+                                style={{ color: col }}
+                              />
+                              <span className="text-[7px] text-white/20 shrink-0">s</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          ) : rightPanelTab === 'params' ? (
             /* ── FX / Shader params panel ── */
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               {(() => {
@@ -1146,13 +1845,52 @@ const ClipLauncher: React.FC<Props> = ({
                 const clip = sel ? layers[sel.li]?.clips[sel.ci] : null;
                 const layer = sel ? layers[sel.li] : null;
 
-                if (!clip || !layer) return (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
-                    <div className="text-[8px] text-white/20 uppercase tracking-widest leading-relaxed">
-                      Fire a shader or<br />Milkdrop clip to<br />see parameters
+                if (!clip || !layer) {
+                  const displaySource = hoverSource ?? previewSource;
+                  const isHover = !!hoverSource;
+                  if (displaySource) return (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="text-[8px] font-black uppercase tracking-widest text-white/30">SOURCE PREVIEW</div>
+                        {isHover && <div className="px-1 py-0.5 rounded text-[6px] font-black uppercase tracking-widest" style={{ background: 'rgba(14,165,233,0.2)', border: '1px solid rgba(14,165,233,0.4)', color: '#7dd3fc' }}>HOVER</div>}
+                      </div>
+                      <div className="rounded-lg p-3 flex flex-col gap-1.5"
+                        style={{ background: `${displaySource.color ?? '#8b5cf6'}18`, border: `1px solid ${displaySource.color ?? '#8b5cf6'}${isHover ? '88' : '44'}` }}>
+                        <div className="text-[10px] font-black uppercase" style={{ color: displaySource.color ?? '#c084fc' }}>
+                          {displaySource.name}
+                        </div>
+                        <div className="text-[7px] uppercase tracking-widest text-white/40">
+                          {displaySource.type === 'generator' ? (displaySource.sceneKind === 'gl' ? 'GLSL Generator' : 'Canvas Generator')
+                           : displaySource.type === 'milkdrop' ? `Milkdrop · preset #${displaySource.milkdropIdx}`
+                           : displaySource.type === 'shader'   ? 'GLSL Shader'
+                           : displaySource.type}
+                        </div>
+                        {displaySource.milkdropName && (
+                          <div className="text-[7px] text-white/30 leading-snug break-all">{displaySource.milkdropName}</div>
+                        )}
+                      </div>
+                      <div className="text-[7px] text-white/25 text-center leading-relaxed">
+                        Drag onto a layer cell to assign.<br/>Only assigned clips affect the live output.
+                      </div>
+                      {!isHover && (
+                        <button
+                          onClick={() => setPreviewSource(null)}
+                          className="flex items-center justify-center gap-1 mt-1 px-2 py-1.5 rounded text-[8px] font-black uppercase tracking-widest transition-all"
+                          style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}
+                        >
+                          <X className="w-2.5 h-2.5" /> Clear Preview
+                        </button>
+                      )}
                     </div>
-                  </div>
-                );
+                  );
+                  return (
+                    <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                      <div className="text-[8px] text-white/20 uppercase tracking-widest leading-relaxed">
+                        Hover a source to preview<br />or fire a cell to edit params
+                      </div>
+                    </div>
+                  );
+                }
 
                 if (clip.type === 'shader') return (
                   <>
