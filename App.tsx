@@ -155,6 +155,7 @@ const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchi
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
+const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -528,6 +529,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
 
+    const handleOpenBible = () => setView('BIBLE');
+    window.addEventListener('OPEN_BIBLE', handleOpenBible);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
@@ -535,6 +539,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
+      window.removeEventListener('OPEN_BIBLE', handleOpenBible);
     };
   }, [user]);
 
@@ -3355,6 +3360,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
             {view === 'PLAJAH_PIXELS' && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
+            {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" />}
             {view === 'ART_GALLERY' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="GALLERY" />}

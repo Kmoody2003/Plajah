@@ -290,6 +290,14 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
       {/* Control bar — single centered row beneath the header, above the genre tabs */}
       <div className="mb-10 flex flex-wrap items-center justify-center gap-3 animate-in fade-in duration-700">
+        {/* Sacred Library — the comprehensive Bible & Church-history experience */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE'))}
+          className="flex items-center gap-2 px-5 py-2.5 text-black text-xs font-black uppercase tracking-widest rounded-full transition-all hover:opacity-90 shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #f3d27a, #d4af37)', boxShadow: '0 8px 24px rgba(212,175,55,0.25)' }}
+        >
+          <span>✝</span> Sacred Library
+        </button>
         {/* Write a Script — opens Script Writing Studio */}
         {onCreateScript && (
           <button
