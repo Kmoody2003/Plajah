@@ -31,10 +31,11 @@ import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
 import DraggablePanel from './components/DraggablePanel';
 import ThemeGenerator from './components/ThemeGenerator';
-import BackgroundLayer from './components/BackgroundLayer';
 import GlobalLighting from './components/GlobalLighting';
 import SegmentationLayer from './components/SegmentationLayer';
 import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOverlay';
+import ProgramOutView from './components/ProgramOutView';
+import MediaPreloader from './components/MediaPreloader';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -490,12 +491,37 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         popup.addEventListener('load', () => { try { popup.document.documentElement.requestFullscreen?.(); } catch { /* */ } }, { once: true });
     }, [enterFullscreen]);
 
-    // Broadcast config changes to any open program-out window.
+    // ── External-display feed ───────────────────────────────────────────────
+    // Expose the live analyser so the program-out window (a separate, same-origin
+    // window) can read it back via window.opener — Web Audio nodes can't cross a
+    // BroadcastChannel, but reading getByteFrequencyData cross-window is fine.
+    useEffect(() => {
+        (window as any).__plajahPixelsGetAnalyser = () => analyserRef.current;
+        return () => { try { delete (window as any).__plajahPixelsGetAnalyser; } catch { /* */ } };
+    }, []);
+
+    // Broadcast the full program STATE (composite layers + config + the global
+    // override flags) to any open program-out window, and answer its initial
+    // REQUEST_STATE so a freshly-opened window catches up immediately.
     useEffect(() => {
         const ch = new BroadcastChannel('plajah-program-out');
-        ch.postMessage({ type: 'CONFIG_UPDATE', config });
+        // Layers may carry blob: media URLs that won't resolve in another window;
+        // strip those so the clone shows whatever IS shareable rather than throwing.
+        const shareLayers = liveLayers.map(l => ({
+            ...l,
+            clips: l.clips.map(c => (c && c.mediaUrl?.startsWith('blob:') ? { ...c, mediaUrl: undefined } : c)),
+        }));
+        const payload = {
+            type: 'STATE',
+            config, layers: shareLayers, isPlaying: audioState.isPlaying,
+            shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity,
+            midiNotes, three3d,
+        };
+        const send = () => { try { ch.postMessage(payload); } catch { /* unclonable → ignore */ } };
+        ch.onmessage = (e) => { if (e.data?.type === 'REQUEST_STATE') send(); };
+        send();
         return () => ch.close();
-    }, [config]);
+    }, [config, liveLayers, audioState.isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d]);
 
     // ── Preview / Program (A/B) ──────────────────────────────────────────────────
     // Program = the live full-screen output (driven by `config` + the mode flags),
@@ -1007,30 +1033,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     const LAUNCHER_H = 510; // px — scene bar(34) + 4 layers(368) + add-layer bar(30) + source browser(126) + buffer
 
-    // ── Program-out window: just the visualizer, synced via BroadcastChannel ────
+    // ── Program-out window: a windowed CLONE of the live composite ──────────────
+    // Mirrors the LayerStack + global overrides, fed live from this window over a
+    // BroadcastChannel + the shared analyser (via window.opener). Self-contained
+    // in ProgramOutView so its hooks don't entangle the studio's.
     if (isProgramOut) {
-        return (
-            <div
-                style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none' }}
-                onDoubleClick={() => {
-                    const el = document.documentElement;
-                    if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {});
-                    else document.exitFullscreen?.();
-                }}
-            >
-                <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2} config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} id="po-bg" />
-                {analyserRef.current && (shaderSrc
-                    ? <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />
-                    : isStudioMode(config.mode)
-                        ? <StudioStage id="po-viz" analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
-                        : <AudioVisualizer id="po-viz" analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} hasBackground />
-                )}
-                {milkdrop && analyserRef.current && (
-                    <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
-                )}
-                <TextOverlay config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
-            </div>
-        );
+        return <ProgramOutView />;
     }
 
     return (
@@ -1629,6 +1637,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             <div ref={depthBgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
               <LayerStack layers={liveLayers} analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
             </div>
+
+            {/* Keep every launcher media clip decoded + buffered so firing a
+                column swaps instantly and holds 60fps (no first-frame stall). */}
+            <MediaPreloader layers={liveLayers} />
 
             {/* ── Depth plane: VIZ midground ── */}
             <div ref={depthVizRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>

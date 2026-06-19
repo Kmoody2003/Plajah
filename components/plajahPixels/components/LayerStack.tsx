@@ -21,7 +21,7 @@ const CSS_BLEND: Record<string, string> = {
   overlay: 'overlay', lighten: 'lighten', exclusion: 'exclusion', difference: 'difference',
 };
 
-const LayerSource: React.FC<{ clip: LauncherClip; analyser: AnalyserNode | null; config: VisualizationConfig; isPlaying: boolean }>
+export const LayerSource: React.FC<{ clip: LauncherClip; analyser: AnalyserNode | null; config: VisualizationConfig; isPlaying: boolean }>
   = ({ clip, analyser, config, isPlaying }) => {
   if (clip.type === 'color') {
     return <div className="absolute inset-0" style={{ background: clip.fillColor || '#000' }} />;

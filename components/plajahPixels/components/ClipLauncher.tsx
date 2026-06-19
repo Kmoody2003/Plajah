@@ -37,6 +37,7 @@ import {
   sceneRateOptions, defaultRate,
 } from '../engine/automationMatrix';
 import { MidiEventData, rotatePalette } from '../services/midiService';
+import { LayerSource } from './LayerStack';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -252,10 +253,12 @@ interface CellProps {
   onUpdateOpacity:  (opacity: number) => void;
   onClear?:         () => void;
   onCopyToNext?:    () => void;
+  /** Hover an assigned cell → live preview popup (null on leave). */
+  onHover?:         (clip: LauncherClip | null) => void;
 }
 
 const ClipCell: React.FC<CellProps> = ({
-  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear, onCopyToNext,
+  clip, layerIdx, colIdx, active, flash, onActivate, onDrop, onAssign, onUpdateOpacity, onClear, onCopyToNext, onHover,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -291,6 +294,8 @@ const ClipCell: React.FC<CellProps> = ({
         opacity: clipOpacity < 1 ? 0.4 + clipOpacity * 0.6 : 1,
       }}
       onClick={clip ? onActivate : () => fileRef.current?.click()}
+      onMouseEnter={() => { if (clip) onHover?.(clip); }}
+      onMouseLeave={() => onHover?.(null)}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMenuPos({ x: e.clientX, y: e.clientY }); }}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
@@ -451,6 +456,7 @@ interface LayerRowProps {
   onClearRow:    () => void;
   onDeleteLayer: () => void;
   isDefaultLayer: boolean;
+  onHoverClip:   (clip: LauncherClip | null) => void;
 }
 
 const CELL_HEIGHT = 92;
@@ -459,7 +465,7 @@ const LAYER_COLORS = ['#6366f1','#FF8C00','#06b6d4','#10b981','#f59e0b','#ef4444
 const LayerRow: React.FC<LayerRowProps> = ({
   layer, layerIdx, scrollLeft, flashedPads,
   onUpdateLayer, onUpdateClip, onFireClip, onDropMedia, onAssignClip, onClearClip, onCopyClip,
-  onClearRow, onDeleteLayer, isDefaultLayer,
+  onClearRow, onDeleteLayer, isDefaultLayer, onHoverClip,
 }) => {
   const isFlashed  = (ci: number) => flashedPads.has(layerIdx * 4 + ci);
   const layerColor = LAYER_COLORS[layerIdx % LAYER_COLORS.length];
@@ -603,6 +609,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               onUpdateOpacity={opacity => onUpdateClip(ci, { opacity })}
               onClear={() => onClearClip(ci)}
               onCopyToNext={() => onCopyClip(ci)}
+              onHover={onHoverClip}
             />
           ))}
         </div>
@@ -889,6 +896,15 @@ const ClipLauncher: React.FC<Props> = ({
   const [previewSource, setPreviewSource] = useState<LauncherClip | null>(null);
   const [hoverSource,   setHoverSource]   = useState<LauncherClip | null>(null);
   const prevTabRef = useRef<typeof rightPanelTab | null>(null); // tab to restore after hover
+  // ── Hover-preview popup: a small live mini-render that follows the cursor,
+  //    NEVER the program canvas. Active only while a source/clip is hovered. ──
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  useEffect(() => {
+    if (!hoverSource) return;
+    const onMove = (e: MouseEvent) => setHoverPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
+  }, [hoverSource]);
 
   const configRef       = useRef(config);
   const milkRef         = useRef(milkdrop);
@@ -1547,6 +1563,39 @@ const ClipLauncher: React.FC<Props> = ({
   return (
     <div className="w-full h-full flex" style={{ background: '#0a0a12' }}>
 
+      {/* ── Hover-preview popup — a small LIVE mini-render that follows the
+          cursor. Auditions the hovered source/clip without ever touching the
+          program canvas. ── */}
+      {hoverSource && (
+        <div
+          className="fixed z-[600] pointer-events-none rounded-lg overflow-hidden shadow-2xl"
+          style={{
+            left: Math.min(hoverPos.x + 18, (typeof window !== 'undefined' ? window.innerWidth : 1920) - 248),
+            top:  Math.max(8, hoverPos.y - 156),
+            width: 230, height: 150,
+            background: '#000',
+            border: `1px solid ${hoverSource.color ?? '#FF8C00'}88`,
+            boxShadow: `0 0 24px ${hoverSource.color ?? '#FF8C00'}55`,
+          }}
+        >
+          <div className="absolute inset-0">
+            <LayerSource clip={hoverSource} analyser={analyser ?? null} config={config} isPlaying />
+          </div>
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-2 py-1"
+            style={{ background: 'linear-gradient(180deg,rgba(0,0,0,0.7),transparent)' }}>
+            <span className="text-[8px] font-black uppercase tracking-widest truncate" style={{ color: hoverSource.color ?? '#fff' }}>
+              {hoverSource.name}
+            </span>
+            <span className="text-[6px] font-black uppercase tracking-widest text-white/40">Preview</span>
+          </div>
+          {!analyser && (hoverSource.type === 'generator' || hoverSource.type === 'milkdrop' || hoverSource.type === 'shader') && (
+            <div className="absolute inset-0 flex items-center justify-center text-[7px] uppercase tracking-widest text-white/30 text-center px-3">
+              Load audio to preview live
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Scene context menu */}
       {sceneMenu && (
         <div
@@ -1758,6 +1807,7 @@ const ClipLauncher: React.FC<Props> = ({
                 onClearRow={() => clearRow(li)}
                 onDeleteLayer={() => deleteLayer(li)}
                 isDefaultLayer={li < 3}
+                onHoverClip={setHoverSource}
               />
             </div>
           ))}
