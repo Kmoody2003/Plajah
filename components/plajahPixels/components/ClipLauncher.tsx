@@ -99,7 +99,7 @@ export interface MilkdropControls {
 
 const BLEND_OPTIONS = ['Normal','Screen','Add','Multiply','Overlay','Lighten','Exclusion','Difference'];
 const NUM_COLS      = 8;
-const ACCENT_COLORS = ['#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#a78bfa'];
+const ACCENT_COLORS = ['#FF8C00','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#a78bfa'];
 
 function makeDefaultLayers(): LauncherLayer[] {
   // OVERLAY (index 0): bgMedia2 — renders below BG in flex-col-reverse UI (bottommost row)
@@ -451,7 +451,7 @@ interface LayerRowProps {
 }
 
 const CELL_HEIGHT = 92;
-const LAYER_COLORS = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
+const LAYER_COLORS = ['#6366f1','#FF8C00','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
 
 const LayerRow: React.FC<LayerRowProps> = ({
   layer, layerIdx, scrollLeft, flashedPads,
@@ -667,7 +667,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
             onClick={() => setTab(id)}
             className="flex items-center gap-1.5 px-3 h-full text-[8px] font-black uppercase tracking-widest transition-all border-b-2"
             style={{
-              borderBottomColor: tab === id ? '#8b5cf6' : 'transparent',
+              borderBottomColor: tab === id ? '#FF8C00' : 'transparent',
               color: tab === id ? '#c084fc' : 'rgba(255,255,255,0.3)',
             }}
           >
@@ -689,7 +689,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
         <div className="flex gap-1 h-full items-stretch p-1">
 
           {tab === 'generators' && generators.map((s) => {
-            const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#8b5cf6';
+            const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#FF8C00';
             const genClip: LauncherClip = { id: `gen-${s.mode}`, type: 'generator', name: s.name, color, sceneMode: s.mode, sceneKind: s.kind, opacity: 1 };
             return (
               <div
@@ -727,7 +727,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
               <div className="flex-shrink-0 flex flex-col justify-center gap-1 px-2"
                 style={{ width: 88, borderRight: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="text-[6px] font-black uppercase tracking-widest text-white/20 mb-1">Active</div>
-                <div className="text-[7px] text-purple-300/70 leading-snug break-all">
+                <div className="text-[7px] text-[#FF8C00]/70 leading-snug break-all">
                   {milkdropControls.name ? milkdropControls.name.slice(0, 36) : '—'}
                 </div>
                 <div className="text-[6px] text-white/20 mt-1">Drag preset to a cell to assign</div>
@@ -772,7 +772,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                       <div className="relative z-10">
                         <div className="text-[6px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(192,132,252,0.8)' }}>MILK</div>
                         <div className="text-[8px] font-bold leading-tight text-white/90 truncate drop-shadow">{name.slice(0, 22)}</div>
-                        {isActive && <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-400 mx-auto" />}
+                        {isActive && <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-[#FF8C00] mx-auto" />}
                       </div>
                     </div>
                   );
@@ -791,7 +791,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                   'Cinematic':      '#f59e0b',
                   'Abstract':       '#ec4899',
                 };
-                const color = catColors[shader.category] ?? '#8b5cf6';
+                const color = catColors[shader.category] ?? '#FF8C00';
                 return (
                   <div
                     key={shader.name}
@@ -1595,7 +1595,7 @@ const ClipLauncher: React.FC<Props> = ({
                     style={{
                       width: CELL_W, height: 26,
                       background: anyActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.04)',
-                      border: anyActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)',
+                      border: anyActive ? '1px solid #FF8C00' : '1px solid rgba(255,255,255,0.08)',
                       color: anyActive ? '#c084fc' : 'rgba(255,255,255,0.25)',
                     }}
                     title={`Launch scene ${absCol + 1} — right-click to clear`}
@@ -1818,7 +1818,7 @@ const ClipLauncher: React.FC<Props> = ({
                 className="flex-1 text-[8px] font-black uppercase tracking-widest transition-all"
                 style={{
                   color: rightPanelTab === t ? '#c084fc' : 'rgba(255,255,255,0.25)',
-                  borderBottom: rightPanelTab === t ? '2px solid #8b5cf6' : '2px solid transparent',
+                  borderBottom: rightPanelTab === t ? '2px solid #FF8C00' : '2px solid transparent',
                   background: 'transparent',
                 }}
               >
@@ -1891,7 +1891,7 @@ const ClipLauncher: React.FC<Props> = ({
                         value={sceneAutoInterval}
                         onChange={e => setSceneAutoInterval(Number(e.target.value))}
                         className="flex-1 cursor-pointer"
-                        style={{ accentColor: '#8b5cf6', height: 14 }}
+                        style={{ accentColor: '#FF8C00', height: 14 }}
                       />
                       <input
                         type="number" min="1" max="60" step="1"
@@ -1924,7 +1924,7 @@ const ClipLauncher: React.FC<Props> = ({
                       )}
                       <div className="text-[7px] text-white/20 leading-snug">BPM is derived live from the music. Scenes lock to bar grid.</div>
                       {config.rotationMusicGovern && (
-                        <div className="text-[7px] text-purple-300/50">Music govern: intense passages accelerate scene advance</div>
+                        <div className="text-[7px] text-[#FF8C00]/50">Music govern: intense passages accelerate scene advance</div>
                       )}
                     </div>
                   )}
@@ -2163,7 +2163,7 @@ const ClipLauncher: React.FC<Props> = ({
                         {isHover && <div className="px-1 py-0.5 rounded text-[6px] font-black uppercase tracking-widest" style={{ background: 'rgba(14,165,233,0.2)', border: '1px solid rgba(14,165,233,0.4)', color: '#7dd3fc' }}>HOVER</div>}
                       </div>
                       <div className="rounded-lg p-3 flex flex-col gap-1.5"
-                        style={{ background: `${displaySource.color ?? '#8b5cf6'}18`, border: `1px solid ${displaySource.color ?? '#8b5cf6'}${isHover ? '88' : '44'}` }}>
+                        style={{ background: `${displaySource.color ?? '#FF8C00'}18`, border: `1px solid ${displaySource.color ?? '#FF8C00'}${isHover ? '88' : '44'}` }}>
                         <div className="text-[10px] font-black uppercase" style={{ color: displaySource.color ?? '#c084fc' }}>
                           {displaySource.name}
                         </div>

@@ -79,7 +79,7 @@ export const DraggablePanel: React.FC<DraggablePanelProps> = ({
           <button
             onClick={togglePin}
             title={pinned ? 'Unpin (allow dragging)' : 'Pin in place'}
-            className={`w-5 h-5 flex items-center justify-center rounded-md transition-all ${pinned ? 'text-purple-300' : 'text-white/40 hover:text-white'}`}
+            className={`w-5 h-5 flex items-center justify-center rounded-md transition-all ${pinned ? 'text-[#FF8C00]' : 'text-white/40 hover:text-white'}`}
           >
             {pinned ? <Pin className="w-3 h-3 fill-current" /> : <PinOff className="w-3 h-3" />}
           </button>

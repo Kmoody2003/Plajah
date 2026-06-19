@@ -27,10 +27,10 @@ const SceneRail: React.FC<Props> = ({ config, onPick, visible, embedded }) => {
             <button key={s.mode} onClick={() => onPick(s.mode)} title={s.cat}
               className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all"
               style={{
-                border: active ? '1px solid #b56cff' : '1px solid rgba(255,255,255,0.10)',
-                background: active ? 'linear-gradient(160deg, rgba(181,108,255,0.28), rgba(255,93,177,0.18))' : '#0d0d16',
+                border: active ? '1px solid #FF8C00' : '1px solid rgba(255,255,255,0.10)',
+                background: active ? 'linear-gradient(160deg, rgba(255,140,0,0.30), rgba(255,45,149,0.18))' : '#0d0d16',
                 color: active ? '#fff' : 'rgba(244,242,255,0.6)',
-                boxShadow: active ? '0 0 0 1px #b56cff' : 'none',
+                boxShadow: active ? '0 0 0 1px #FF8C00' : 'none',
               }}>
               {s.name}{s.kind === 'gl' && <span className="ml-1 text-[7px] text-cyan-300">GL</span>}
             </button>
@@ -59,9 +59,9 @@ const SceneRail: React.FC<Props> = ({ config, onPick, visible, embedded }) => {
           <div key={s.mode} onClick={() => onPick(s.mode)}
             style={{
               position: 'relative', borderRadius: 13, cursor: 'pointer', padding: '9px 10px',
-              border: active ? '1px solid #b56cff' : '1px solid rgba(255,255,255,0.10)',
-              background: active ? 'linear-gradient(160deg, rgba(181,108,255,0.28), rgba(255,93,177,0.18))' : '#0d0d16',
-              boxShadow: active ? '0 0 0 1px #b56cff, 0 12px 30px rgba(150,80,255,0.35)' : 'none',
+              border: active ? '1px solid #FF8C00' : '1px solid rgba(255,255,255,0.10)',
+              background: active ? 'linear-gradient(160deg, rgba(255,140,0,0.30), rgba(255,45,149,0.18))' : '#0d0d16',
+              boxShadow: active ? '0 0 0 1px #FF8C00, 0 12px 30px rgba(255,140,0,0.35)' : 'none',
               transition: 'all .18s ease', flex: 'none',
             }}
           >

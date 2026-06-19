@@ -464,7 +464,7 @@ const ClipGrid: React.FC<Props> = ({
         {/* Milkdrop transport (shown when Milkdrop FX is active) */}
         {milkdrop?.enabled && (
           <div className="flex items-center gap-2 pt-1 px-1 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <Wind className="w-3 h-3 text-purple-400" />
+            <Wind className="w-3 h-3 text-[#FF8C00]" />
             <span className="text-[8px] font-mono text-white/30 flex-1 truncate">{milkdrop.name || 'Milkdrop'}</span>
             <button onClick={milkdrop.onPrev}   className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white transition-colors"><SkipBack    className="w-3 h-3" /></button>
             <button onClick={milkdrop.onRandom} className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white transition-colors"><Shuffle     className="w-3 h-3" /></button>

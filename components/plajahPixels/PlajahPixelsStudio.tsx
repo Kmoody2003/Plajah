@@ -1239,19 +1239,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Sensitivity</span><span className="text-purple-400 font-mono">{config.sensitivity}x</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Sensitivity</span><span className="text-[#FF8C00] font-mono">{config.sensitivity}x</span></div>
                                                         <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={e => setConfig(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Speed</span><span className="text-purple-400 font-mono">{config.speed}x</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Speed</span><span className="text-[#FF8C00] font-mono">{config.speed}x</span></div>
                                                         <input type="range" min="0.1" max="3.0" step="0.1" value={config.speed} onChange={e => setConfig(p => ({ ...p, speed: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Smoothing</span><span className="text-purple-400 font-mono">{config.smoothingTimeConstant}</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Smoothing</span><span className="text-[#FF8C00] font-mono">{config.smoothingTimeConstant}</span></div>
                                                         <input type="range" min="0" max="0.95" step="0.05" value={config.smoothingTimeConstant} onChange={e => setConfig(p => ({ ...p, smoothingTimeConstant: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Glow</span><span className="text-purple-400 font-mono">{config.glowIntensity}</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Glow</span><span className="text-[#FF8C00] font-mono">{config.glowIntensity}</span></div>
                                                         <input type="range" min="0" max="40" step="1" value={config.glowIntensity} onChange={e => setConfig(p => ({ ...p, glowIntensity: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
@@ -1260,7 +1260,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     </div>
                                                     {config.enableBlur && (
                                                         <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Blur strength</span><span className="text-purple-400 font-mono">{config.blurStrength}</span></div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Blur strength</span><span className="text-[#FF8C00] font-mono">{config.blurStrength}</span></div>
                                                             <input type="range" min="0.1" max="2.0" step="0.1" value={config.blurStrength} onChange={e => setConfig(p => ({ ...p, blurStrength: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                         </div>
                                                     )}
@@ -1295,11 +1295,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <input type="checkbox" checked={config.enableBlur} onChange={e => setConfig(p => ({ ...p, enableBlur: e.target.checked }))} className="accent-purple-500 cursor-pointer" />
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particles</span><span className="text-purple-400 font-mono">{config.particleCount}</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particles</span><span className="text-[#FF8C00] font-mono">{config.particleCount}</span></div>
                                                         <input type="range" min="10" max="300" step="10" value={config.particleCount} onChange={e => setConfig(p => ({ ...p, particleCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div>
-                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particle life</span><span className="text-purple-400 font-mono">{config.particleLifespan}s</span></div>
+                                                        <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Particle life</span><span className="text-[#FF8C00] font-mono">{config.particleLifespan}s</span></div>
                                                         <input type="range" min="0.5" max="5.0" step="0.1" value={config.particleLifespan} onChange={e => setConfig(p => ({ ...p, particleLifespan: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                     </div>
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
@@ -1308,7 +1308,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     </div>
                                                     {config.enableLayer2 && (
                                                         <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Overlay opacity</span><span className="text-purple-400 font-mono">{config.layer2Opacity}</span></div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Overlay opacity</span><span className="text-[#FF8C00] font-mono">{config.layer2Opacity}</span></div>
                                                             <input type="range" min="0" max="1" step="0.05" value={config.layer2Opacity} onChange={e => setConfig(p => ({ ...p, layer2Opacity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                         </div>
                                                     )}
@@ -1325,15 +1325,15 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     {config.enableSlicing && (
                                                         <>
                                                             <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Slices</span><span className="text-purple-400 font-mono">{config.sliceCount}</span></div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Slices</span><span className="text-[#FF8C00] font-mono">{config.sliceCount}</span></div>
                                                                 <input type="range" min="2" max="24" step="1" value={config.sliceCount} onChange={e => setConfig(p => ({ ...p, sliceCount: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                             </div>
                                                             <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-purple-400 font-mono">{config.sliceRotation}°</span></div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Rotation</span><span className="text-[#FF8C00] font-mono">{config.sliceRotation}°</span></div>
                                                                 <input type="range" min="0" max="360" step="5" value={config.sliceRotation} onChange={e => setConfig(p => ({ ...p, sliceRotation: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                             </div>
                                                             <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Push</span><span className="text-purple-400 font-mono">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span></div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Push</span><span className="text-[#FF8C00] font-mono">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span></div>
                                                                 <input type="range" min="0" max="1" step="0.01" value={config.slicePush ?? 0} onChange={e => setConfig(p => ({ ...p, slicePush: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                             </div>
                                                             {(config.slicePush ?? 0) > 0 && (
@@ -1382,7 +1382,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     </div>
                                                     {config.enableBassShake && (
                                                         <div>
-                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Shake intensity</span><span className="text-purple-400 font-mono">{config.bassShakeIntensity}</span></div>
+                                                            <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Shake intensity</span><span className="text-[#FF8C00] font-mono">{config.bassShakeIntensity}</span></div>
                                                             <input type="range" min="0.1" max="3.0" step="0.1" value={config.bassShakeIntensity} onChange={e => setConfig(p => ({ ...p, bassShakeIntensity: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                         </div>
                                                     )}
@@ -1404,7 +1404,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                         <>
                                                             <input type="text" value={config.textContent} onChange={e => setConfig(p => ({ ...p, textContent: e.target.value }))} placeholder="Display text…" className="w-full bg-black/50 border border-white/10 rounded p-1.5 text-white text-[10px] outline-none" />
                                                             <div>
-                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Size</span><span className="text-purple-400 font-mono">{config.textSize}px</span></div>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-1"><span>Size</span><span className="text-[#FF8C00] font-mono">{config.textSize}px</span></div>
                                                                 <input type="range" min="40" max="240" step="4" value={config.textSize} onChange={e => setConfig(p => ({ ...p, textSize: parseInt(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#8b5cf6', height: 3 }} />
                                                             </div>
                                                             <div className="flex items-center justify-between text-[9px] text-white/40">
@@ -1799,11 +1799,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             {/* Floating Top Header */}
             <div id="title-header" className={`absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none ${uiHidden ? 'hidden' : ''}`}>
-                <div className="w-10 h-10 bg-purple-600/30 backdrop-blur-xl border border-purple-500/30 rounded-full flex items-center justify-center animate-spin-slow">
-                    <Music className="w-5 h-5 text-purple-400" />
+                <div className="w-10 h-10 bg-[#FF8C00]/25 backdrop-blur-xl border border-[#FF8C00]/40 rounded-full flex items-center justify-center animate-spin-slow">
+                    <Music className="w-5 h-5 text-[#FF8C00]" />
                 </div>
                 <div>
-                    <h1 className="text-lg font-semibold tracking-wider font-sans uppercase bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                    <h1 className="text-lg font-semibold tracking-wider font-sans uppercase bg-gradient-to-r from-[#FF8C00] via-fuchsia-500 to-purple-500 bg-clip-text text-transparent">
                         Plajah Pixels
                     </h1>
                     <p className="text-[10px] text-white/40 font-mono tracking-widest">{config.name} — Mode: {config.mode}</p>
@@ -1839,7 +1839,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <div className="w-px h-5 bg-white/10 mx-0.5" />
                 {/* Studio: clip-launcher grid toggle (Resolume-style cells) */}
                 <button onClick={() => setShowClipGrid(v => !v)} title="Toggle clip grid (launch scenes, palettes, captured looks)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showClipGrid ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Grid3x3 className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: custom GLSL shader editor toggle */}
@@ -1854,7 +1854,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </button>
                 {/* Studio: Synthesia-style MIDI falling-notes scene */}
                 <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Piano className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: overlay layers (Lottie + HTML/URL) */}
@@ -1873,12 +1873,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </button>
                 {/* Studio: scene rail toggle */}
                 <button onClick={() => setShowRail(v => !v)} title="Toggle scene rail"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showRail ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showRail ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Layers className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: timeline toggle */}
                 <button onClick={() => setShowTimeline(v => !v)} title="Toggle natural-language timeline"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showTimeline ? 'bg-purple-600/40 border-purple-500/50' : 'bg-black/40 border-white/10 hover:bg-purple-600/30'}`}>
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showTimeline ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Radio className="w-4 h-4 text-white/80" />
                 </button>
                 {/* Studio: matte panel toggle */}
@@ -1953,7 +1953,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-none">
                                 {cloudProjectsLoading ? (
                                     <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                                        <Loader2 className="w-5 h-5 text-[#FF8C00] animate-spin" />
                                         <span className="text-[10px] text-white/40 ml-2">Loading projects…</span>
                                     </div>
                                 ) : cloudProjects.length === 0 ? (
@@ -1971,7 +1971,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         <div className="w-14 h-10 rounded-lg overflow-hidden shrink-0 bg-black/40">
                                             {p.thumbnail
                                                 ? <img src={p.thumbnail} className="w-full h-full object-cover" alt="" />
-                                                : <div className="w-full h-full flex items-center justify-center"><Sparkles className="w-4 h-4 text-purple-400/50" /></div>
+                                                : <div className="w-full h-full flex items-center justify-center"><Sparkles className="w-4 h-4 text-[#FF8C00]/50" /></div>
                                             }
                                         </div>
                                         {/* Info */}
@@ -2010,10 +2010,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             <button 
                 id="toggle-settings-btn"
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className={`absolute top-6 right-6 z-30 w-11 h-11 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center hover:scale-105 transition-all text-white hover:border-purple-500/40 shadow-xl ${uiHidden ? 'hidden' : ''}`}
+                className={`absolute top-6 right-6 z-30 w-11 h-11 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center hover:scale-105 transition-all text-white hover:border-[#FF8C00]/40 shadow-xl ${uiHidden ? 'hidden' : ''}`}
                 title="Toggle Configuration Panel"
             >
-                {isSettingsOpen ? <X className="w-5 h-5 text-purple-400" /> : <Sliders className="w-5 h-5" />}
+                {isSettingsOpen ? <X className="w-5 h-5 text-[#FF8C00]" /> : <Sliders className="w-5 h-5" />}
             </button>
 
             {/* Floating Control Center Dock — draggable + pinnable + persisted */}
@@ -2083,7 +2083,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             <div className="flex items-center justify-between px-5 py-4"
                                 style={{ borderBottom: '1px solid rgba(139,92,246,0.2)', background: 'rgba(139,92,246,0.08)' }}>
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-[#FF8C00]/25 border border-[#FF8C00]/40 flex items-center justify-center">
                                         <Circle className="w-4 h-4 text-purple-300 fill-red-500" />
                                     </div>
                                     <div>
@@ -2200,49 +2200,49 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         <div className="flex bg-white/5 border-b border-white/10 overflow-x-auto text-[11px] font-mono scrollbar-none">
                             <button
                                 onClick={() => setActiveTab('core')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'core' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Cpu className="w-3.5 h-3.5" />
                                 <span>Core</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('colors')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'colors' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 <span>Palette</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('ambient')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ambient' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers className="w-3.5 h-3.5" />
                                 <span>FX</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('stage')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'stage' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Layers2 className="w-3.5 h-3.5" />
                                 <span>Stage</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('text')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'text' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Type className="w-3.5 h-3.5" />
                                 <span>Chat</span>
                             </button>
                              <button
                                 onClick={() => setActiveTab('ai')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Wand2 className="w-3.5 h-3.5" />
                                 <span>AI</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('midi')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'midi' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
                                 <Radio className="w-3.5 h-3.5" />
                                 <span>MIDI</span>
@@ -2251,7 +2251,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             {platform && platform.tracklist.length > 0 && (
                                 <button
                                     onClick={() => setActiveTab('tracks')}
-                                    className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-purple-400 font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                    className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'tracks' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                                 >
                                     <Music className="w-3.5 h-3.5" />
                                     <span>Tracks</span>
@@ -2295,7 +2295,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     <div>
                                         <div className="flex justify-between text-xs text-white/60 mb-1">
                                             <span>Smoothing Time</span>
-                                            <span className="font-mono text-purple-400">{config.smoothingTimeConstant}</span>
+                                            <span className="font-mono text-[#FF8C00]">{config.smoothingTimeConstant}</span>
                                         </div>
                                         <input 
                                             type="range" 
@@ -2326,7 +2326,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     <div>
                                         <div className="flex justify-between text-xs text-white/60 mb-1">
                                             <span>Waveform Sensitivity</span>
-                                            <span className="font-mono text-purple-400">{config.sensitivity}x</span>
+                                            <span className="font-mono text-[#FF8C00]">{config.sensitivity}x</span>
                                         </div>
                                         <input 
                                             type="range" 
@@ -2347,7 +2347,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <button
                                                     key={fps}
                                                     onClick={() => setConfig(prev => ({ ...prev, targetFrameRate: fps as 30 | 60 }))}
-                                                    className={`flex-1 py-1.5 rounded-lg border text-xs font-mono transition-all ${config.targetFrameRate === fps ? 'border-purple-500 bg-purple-500/20 text-purple-400' : 'border-white/10 text-white/60 hover:text-white'}`}
+                                                    className={`flex-1 py-1.5 rounded-lg border text-xs font-mono transition-all ${config.targetFrameRate === fps ? 'border-purple-500 bg-purple-500/20 text-[#FF8C00]' : 'border-white/10 text-white/60 hover:text-white'}`}
                                                 >
                                                     {fps} FPS
                                                 </button>
@@ -2359,7 +2359,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     <div>
                                         <div className="flex justify-between text-xs text-white/60 mb-1">
                                             <span>Wave Generation Speed</span>
-                                            <span className="font-mono text-purple-400">{config.speed}x</span>
+                                            <span className="font-mono text-[#FF8C00]">{config.speed}x</span>
                                         </div>
                                         <input 
                                             type="range" 
@@ -2403,7 +2403,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             <div>
                                                 <div className="flex justify-between text-xs text-white/60 mb-1">
                                                     <span>Blur Strength</span>
-                                                    <span className="font-mono text-purple-400">{config.blurStrength}</span>
+                                                    <span className="font-mono text-[#FF8C00]">{config.blurStrength}</span>
                                                 </div>
                                                 <input 
                                                     type="range" 
@@ -2420,11 +2420,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                                     {/* Particle Settings */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
-                                        <span className="text-xs font-medium text-purple-400 block">Particles System</span>
+                                        <span className="text-xs font-medium text-[#FF8C00] block">Particles System</span>
                                         <div>
                                             <div className="flex justify-between text-xs text-white/60 mb-1">
                                                 <span>Emitter Count</span>
-                                                <span className="font-mono text-purple-400">{config.particleCount}</span>
+                                                <span className="font-mono text-[#FF8C00]">{config.particleCount}</span>
                                             </div>
                                             <input 
                                                 type="range" 
@@ -2440,7 +2440,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         <div>
                                             <div className="flex justify-between text-xs text-white/60 mb-1">
                                                 <span>Average Lifespan</span>
-                                                <span className="font-mono text-purple-400">{config.particleLifespan}s</span>
+                                                <span className="font-mono text-[#FF8C00]">{config.particleLifespan}s</span>
                                             </div>
                                             <input 
                                                 type="range" 
@@ -2470,7 +2470,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             <div>
                                                 <div className="flex justify-between text-xs text-white/60 mb-1">
                                                     <span>Phonetic Mod Strength</span>
-                                                    <span className="font-mono text-purple-400">{config.lyricsDriveStrength || 1.0}x</span>
+                                                    <span className="font-mono text-[#FF8C00]">{config.lyricsDriveStrength || 1.0}x</span>
                                                 </div>
                                                 <input 
                                                     type="range" 
@@ -2487,7 +2487,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                                     {/* 12 Post-Processing Visual Matrices */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
-                                        <span className="text-xs font-semibold text-purple-400 block">12 Interactive Post-Processing Effects</span>
+                                        <span className="text-xs font-semibold text-[#FF8C00] block">12 Interactive Post-Processing Effects</span>
                                         
                                         {/* Effect 1: Chromatic Aberration */}
                                         <div className="space-y-2 border-b border-white/5 pb-2">
@@ -2703,7 +2703,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-xs text-white/60 mb-1">
                                                         <span>Overlay Transparency</span>
-                                                        <span className="font-mono text-purple-400">{config.layer2Opacity}</span>
+                                                        <span className="font-mono text-[#FF8C00]">{config.layer2Opacity}</span>
                                                     </div>
                                                     <input 
                                                         type="range" 
@@ -2760,7 +2760,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                 <div>
                                                                     <div className="flex justify-between text-[10px] text-white/40 mb-1">
                                                                         <span>LFO Speed (Hz)</span>
-                                                                        <span className="text-purple-400 font-mono">{config.l2OscillatorFreq !== undefined ? config.l2OscillatorFreq : 1.0}</span>
+                                                                        <span className="text-[#FF8C00] font-mono">{config.l2OscillatorFreq !== undefined ? config.l2OscillatorFreq : 1.0}</span>
                                                                     </div>
                                                                     <input 
                                                                         type="range"
@@ -2775,7 +2775,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                 <div>
                                                                     <div className="flex justify-between text-[10px] text-white/40 mb-1">
                                                                         <span>Freq Music Mod</span>
-                                                                        <span className="text-purple-400 font-mono">{config.l2OscillatorMusicMod !== undefined ? config.l2OscillatorMusicMod : 0.0}</span>
+                                                                        <span className="text-[#FF8C00] font-mono">{config.l2OscillatorMusicMod !== undefined ? config.l2OscillatorMusicMod : 0.0}</span>
                                                                     </div>
                                                                     <input 
                                                                         type="range"
@@ -2819,7 +2819,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             <div>
                                                                 <div className="flex justify-between text-[10px] text-white/40 mb-1">
                                                                     <span>Direct Music Amplitude Multiplier</span>
-                                                                    <span className="text-purple-400 font-mono">{config.l2MusicDriveStrength !== undefined ? config.l2MusicDriveStrength : 0.5}</span>
+                                                                    <span className="text-[#FF8C00] font-mono">{config.l2MusicDriveStrength !== undefined ? config.l2MusicDriveStrength : 0.5}</span>
                                                                 </div>
                                                                 <input 
                                                                     type="range"
@@ -2866,7 +2866,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                 <div>
                                                                     <div className="flex justify-between text-[10px] text-white/40 mb-1">
                                                                         <span>Composite Threshold</span>
-                                                                        <span className="text-purple-400 font-mono">{config.l2CompDriveThreshold !== undefined ? config.l2CompDriveThreshold : 0.5}</span>
+                                                                        <span className="text-[#FF8C00] font-mono">{config.l2CompDriveThreshold !== undefined ? config.l2CompDriveThreshold : 0.5}</span>
                                                                     </div>
                                                                     <input 
                                                                         type="range"
@@ -2929,7 +2929,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     <div>
                                                         <div className="flex justify-between text-[11px] text-white/40 mb-1">
                                                             <span>Time Cycle Interval</span>
-                                                            <span className="font-mono text-purple-400">{config.backgroundRotationInterval || 4} seconds</span>
+                                                            <span className="font-mono text-[#FF8C00]">{config.backgroundRotationInterval || 4} seconds</span>
                                                         </div>
                                                         <input 
                                                             type="range" 
@@ -2971,7 +2971,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     {/* Slicing Controls */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-purple-400 font-medium">Stage Mirror Slicing</span>
+                                            <span className="text-[#FF8C00] font-medium">Stage Mirror Slicing</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={config.enableSlicing}
@@ -2984,7 +2984,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-xs text-white/60 mb-1">
                                                         <span>Slice Slices Count</span>
-                                                        <span className="font-mono text-purple-400">{config.sliceCount}</span>
+                                                        <span className="font-mono text-[#FF8C00]">{config.sliceCount}</span>
                                                     </div>
                                                     <input 
                                                         type="range" 
@@ -2999,7 +2999,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-xs text-white/60 mb-1">
                                                         <span>Sector Rotation angle</span>
-                                                        <span className="font-mono text-purple-400">{config.sliceRotation}°</span>
+                                                        <span className="font-mono text-[#FF8C00]">{config.sliceRotation}°</span>
                                                     </div>
                                                     <input
                                                         type="range"
@@ -3014,7 +3014,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-xs text-white/60 mb-1">
                                                         <span>Slice Push</span>
-                                                        <span className="font-mono text-purple-400">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span>
+                                                        <span className="font-mono text-[#FF8C00]">{((config.slicePush ?? 0) * 100).toFixed(0)}%</span>
                                                     </div>
                                                     <input
                                                         type="range" min="0" max="1" step="0.01"
@@ -3038,7 +3038,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-xs text-white/60 mb-2">
                                                         <span>Rotation Snap Pattern</span>
-                                                        <span className="font-mono text-purple-400 text-[10px]">{config.sliceRotationBeatPattern ?? 'off'}</span>
+                                                        <span className="font-mono text-[#FF8C00] text-[10px]">{config.sliceRotationBeatPattern ?? 'off'}</span>
                                                     </div>
                                                     <div className="flex gap-1.5">
                                                         {(['off', '2', '4', '8', 'random'] as const).map(p => (
@@ -3056,7 +3056,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     </div>
                                                     {config.sliceRotationBeatPattern && (
                                                         <div className="mt-2">
-                                                            <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Rotation range</span><span className="text-purple-400 font-mono">±{config.sliceRotationRange ?? 45}°</span></div>
+                                                            <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Rotation range</span><span className="text-[#FF8C00] font-mono">±{config.sliceRotationRange ?? 45}°</span></div>
                                                             <input type="range" min="5" max="180" step="5"
                                                                 value={config.sliceRotationRange ?? 45}
                                                                 onChange={e => setConfig(prev => ({ ...prev, sliceRotationRange: parseInt(e.target.value) }))}
@@ -3072,7 +3072,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     {/* Concert Stage Lighting */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-xs font-medium text-purple-400">Concert Stage Lighting</span>
+                                            <span className="text-xs font-medium text-[#FF8C00]">Concert Stage Lighting</span>
                                             <input
                                                 type="checkbox"
                                                 checked={config.enableBeams}
@@ -3087,7 +3087,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-[10px] text-white/50 mb-1.5">
                                                         <span>Fixtures</span>
-                                                        <span className="text-purple-400 font-mono">{config.beamCount ?? 3}</span>
+                                                        <span className="text-[#FF8C00] font-mono">{config.beamCount ?? 3}</span>
                                                     </div>
                                                     <div className="flex gap-1">
                                                         {[1, 2, 3, 4, 5, 6].map(n => (
@@ -3108,7 +3108,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div>
                                                     <div className="flex justify-between text-[10px] text-white/50 mb-1">
                                                         <span>Intensity</span>
-                                                        <span className="text-purple-400 font-mono">{config.lightingIntensity?.toFixed(1)}</span>
+                                                        <span className="text-[#FF8C00] font-mono">{config.lightingIntensity?.toFixed(1)}</span>
                                                     </div>
                                                     <input type="range" min="0" max="2" step="0.05"
                                                         value={config.lightingIntensity}
@@ -3210,7 +3210,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                                     {/* Bass shake */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
-                                        <span className="text-xs font-medium text-purple-400 block">Camera Shake</span>
+                                        <span className="text-xs font-medium text-[#FF8C00] block">Camera Shake</span>
                                         <div className="flex justify-between items-center text-xs">
                                             <span className="text-white/60">Enable Bass Camera Shake</span>
                                             <input
@@ -3225,7 +3225,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             <div>
                                                 <div className="flex justify-between text-xs text-white/60 mb-1">
                                                     <span>Bass Shock Intensity</span>
-                                                    <span className="font-mono text-purple-400">{config.bassShakeIntensity}</span>
+                                                    <span className="font-mono text-[#FF8C00]">{config.bassShakeIntensity}</span>
                                                 </div>
                                                 <input
                                                     type="range"
@@ -3247,7 +3247,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     {/* Text Overlay — full style gallery */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-purple-400 font-medium">Graphic Text Overlays</span>
+                                            <span className="text-[#FF8C00] font-medium">Graphic Text Overlays</span>
                                             <input
                                                 type="checkbox"
                                                 checked={config.enableText}
@@ -3275,7 +3275,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             onChange={e => setConfig(prev => ({ ...prev, textSize: parseInt(e.target.value) }))}
                                                             className="flex-1 h-1 accent-purple-500 cursor-pointer"
                                                         />
-                                                        <span className="text-[10px] font-mono text-purple-400 w-10 text-right">{config.textSize}px</span>
+                                                        <span className="text-[10px] font-mono text-[#FF8C00] w-10 text-right">{config.textSize}px</span>
                                                     </div>
                                                 </div>
 
@@ -3298,7 +3298,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                             <button
                                                                 key={label}
                                                                 onClick={() => setConfig(prev => ({ ...prev, ...patch }))}
-                                                                className="h-7 text-[9px] font-black uppercase tracking-wide rounded-lg bg-white/5 border border-white/10 hover:bg-purple-600/30 hover:border-purple-500/50 text-white/60 hover:text-white transition-all"
+                                                                className="h-7 text-[9px] font-black uppercase tracking-wide rounded-lg bg-white/5 border border-white/10 hover:bg-[#FF8C00]/20 hover:border-purple-500/50 text-white/60 hover:text-white transition-all"
                                                             >
                                                                 {label}
                                                             </button>
@@ -3378,7 +3378,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                     onChange={e => setConfig(prev => ({ ...prev, textGradientAngle: parseInt(e.target.value) }))}
                                                                     className="flex-1 h-1 accent-purple-500 cursor-pointer"
                                                                 />
-                                                                <span className="text-[10px] font-mono text-purple-400 w-8 text-right">{config.textGradientAngle ?? 0}°</span>
+                                                                <span className="text-[10px] font-mono text-[#FF8C00] w-8 text-right">{config.textGradientAngle ?? 0}°</span>
                                                             </div>
                                                         </div>
                                                     )}
@@ -3436,7 +3436,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                                     value={config.textReactorIntensity ?? 1}
                                                                     onChange={e => setConfig(prev => ({ ...prev, textReactorIntensity: parseFloat(e.target.value) }))}
                                                                     className="flex-1 h-1 accent-purple-500 cursor-pointer" />
-                                                                <span className="text-[10px] font-mono text-purple-400 w-6 text-right">{(config.textReactorIntensity ?? 1).toFixed(1)}×</span>
+                                                                <span className="text-[10px] font-mono text-[#FF8C00] w-6 text-right">{(config.textReactorIntensity ?? 1).toFixed(1)}×</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -3489,7 +3489,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     {/* Sync Lyrics & Captions */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-4">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-purple-400 font-medium">Digital lyric overlays</span>
+                                            <span className="text-[#FF8C00] font-medium">Digital lyric overlays</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={config.enableCaptions}
@@ -3514,7 +3514,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                 <div className="pt-2 border-t border-white/15 space-y-2">
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-xs font-semibold text-white/80 flex items-center gap-1.5">
-                                                            <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+                                                            <Wand2 className="w-3.5 h-3.5 text-[#FF8C00]" />
                                                             Gemini Live Lyrics Stream
                                                         </span>
                                                         <span className={`w-2.5 h-2.5 rounded-full ${isLiveLyricsActive ? 'bg-green-500 animate-pulse' : 'bg-white/20'}`} />
@@ -3549,8 +3549,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 <div className="space-y-5">
                                     {/* Project Save / Load */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
-                                        <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
-                                            <Save className="w-4 h-4 text-purple-400" />
+                                        <span className="text-xs font-semibold text-[#FF8C00] flex items-center gap-1.5">
+                                            <Save className="w-4 h-4 text-[#FF8C00]" />
                                             Project File (.plajah)
                                         </span>
                                         <p className="text-[10.5px] text-white/50">Save your full session — config, visual layers, colors & text — as a portable <span className="font-mono text-purple-300">.plajah</span> file. Load it back anytime to pick up exactly where you left off.</p>
@@ -3576,8 +3576,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                                     {/* AI Generate Background Video */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
-                                        <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
-                                            <Video className="w-4 h-4 text-purple-400" />
+                                        <span className="text-xs font-semibold text-[#FF8C00] flex items-center gap-1.5">
+                                            <Video className="w-4 h-4 text-[#FF8C00]" />
                                             Generate AI Background (Veo)
                                         </span>
                                         <p className="text-[10.5px] text-white/50">Dream an original background loop using the high-physics Veo-3 generative video layer model.</p>
@@ -3628,8 +3628,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     {/* Upload Ambient Backdrop Media assets - Layer 1 */}
                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
-                                                <Image className="w-4 h-4 text-purple-400" />
+                                            <span className="text-xs font-semibold text-[#FF8C00] flex items-center gap-1.5">
+                                                <Image className="w-4 h-4 text-[#FF8C00]" />
                                                 Layer 1 Backdrop Library
                                             </span>
                                             <span className="text-[10px] text-white/40">{bgMedia1.length} Items</span>
