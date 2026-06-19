@@ -1215,12 +1215,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                                     onClick={() => setActiveTab(t)}
                                                     className="flex-shrink-0 px-2 py-1.5 text-[8px] font-black uppercase tracking-wider transition-all border-b-2"
                                                     style={{
-                                                        borderBottomColor: activeTab === t ? '#8b5cf6' : 'transparent',
-                                                        color: activeTab === t ? '#c084fc' : 'rgba(255,255,255,0.35)',
+                                                        borderBottomColor: activeTab === t ? '#FF8C00' : 'transparent',
+                                                        color: activeTab === t ? '#FF8C00' : 'rgba(255,255,255,0.35)',
                                                         background: 'transparent',
                                                     }}
                                                 >
-                                                    {t}
+                                                    {t === 'ai' ? 'Clips' : t}
                                                 </button>
                                             ))}
                                         </div>
@@ -2235,10 +2235,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             </button>
                              <button
                                 onClick={() => setActiveTab('ai')}
-                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-purple-500 text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
+                                className={`px-4 py-3 flex-1 flex flex-col items-center gap-1 border-b-2 transition-colors ${activeTab === 'ai' ? 'border-[#FF8C00] text-[#FF8C00] font-bold bg-white/5' : 'border-transparent text-white/50 hover:text-white'}`}
                             >
-                                <Wand2 className="w-3.5 h-3.5" />
-                                <span>AI</span>
+                                <Grid3x3 className="w-3.5 h-3.5" />
+                                <span>Clips</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('midi')}
@@ -3574,14 +3574,15 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                         </div>
                                     </div>
 
-                                    {/* AI Generate Background Video */}
-                                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3">
+                                    {/* AI Generate — present but NOT active yet (coming soon) */}
+                                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-3 opacity-70">
                                         <span className="text-xs font-semibold text-[#FF8C00] flex items-center gap-1.5">
                                             <Video className="w-4 h-4 text-[#FF8C00]" />
-                                            Generate AI Background (Veo)
+                                            AI Generate
+                                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] font-black uppercase tracking-widest text-white/50">Soon</span>
                                         </span>
-                                        <p className="text-[10.5px] text-white/50">Dream an original background loop using the high-physics Veo-3 generative video layer model.</p>
-                                        
+                                        <p className="text-[10.5px] text-white/50">Type a prompt to generate an image, or upload an image + prompt to generate a video — then drag the result straight into the clip launcher or download it. <span className="text-white/35">Not active yet.</span></p>
+
                                         <div>
                                             <label className="text-[11px] text-white/50 block mb-1">Starting Reference Image</label>
                                             <input 
@@ -3608,8 +3609,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
                                         <button
                                             onClick={handleGenerateVideo}
-                                            disabled={isGeneratingVideo || !aiVideoPrompt.trim() || !aiRefImage}
-                                            className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/30 text-white rounded-lg text-xs font-medium transition-colors flex justify-center items-center gap-1.5"
+                                            disabled
+                                            title="Coming soon — AI generation isn't active yet"
+                                            className="w-full py-2 bg-[#FF8C00]/30 text-white/70 rounded-lg text-xs font-medium flex justify-center items-center gap-1.5 cursor-not-allowed"
                                         >
                                             {isGeneratingVideo ? (
                                                 <>
