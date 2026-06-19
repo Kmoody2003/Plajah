@@ -14,7 +14,6 @@ import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
-import LayerStack from './components/LayerStack';
 import type { LauncherLayer } from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
@@ -37,7 +36,7 @@ import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOver
 import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
-import BackgroundLayer from './components/BackgroundLayer';
+import GLCompositorView from './components/GLCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -1729,13 +1728,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 mode. Clear a clip → that row renders nothing. Replaces the old
                 bgMedia1/bgMedia2 backdrop + single-core pipeline entirely. */}
             <div ref={depthBgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-              {/* Stage "Mirror slicing" effect surface — only mounted when the user
-                  enables slicing, so it's the kaleidoscope effect, never an
-                  always-on backdrop. Sits BEHIND the clip stack. */}
-              {config.enableSlicing && (
-                <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2} config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} id="px-bg-slice" />
-              )}
-              <LayerStack layers={liveLayers} analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
+              {/* Single-surface GPU compositor (Pixels Core). Composites every
+                  active launcher layer + the stage slicing surface into ONE
+                  vsync-locked canvas — replacing the old DOM mix-blend-mode stack.
+                  Falls back to the DOM LayerStack if WebGL2 is unavailable. */}
+              <GLCompositorView
+                layers={liveLayers}
+                analyser={analyserRef.current}
+                config={config}
+                isPlaying={audioState.isPlaying}
+                bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
+              />
             </div>
 
             {/* Keep every launcher media clip decoded + buffered so firing a
