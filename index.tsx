@@ -7,6 +7,13 @@ import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
 
+// Plajah Pixels external program-output window. Opened with ?programOut=1, this
+// is its OWN minimal entry — it must NOT boot the whole platform (auth, router,
+// player), or the popup just shows the website instead of the live composite.
+// We short-circuit here and mount only the ProgramOutView clone, lazily so it
+// never weighs on the main bundle.
+const ProgramOutView = React.lazy(() => import('./components/plajahPixels/components/ProgramOutView'));
+
 // Returns true if any audio or video element is actively playing.
 // We also check window.__plajahMediaActive which media components can set
 // for cases that don't use HTMLMediaElement (e.g. Web Audio, YouTube iframe API).
@@ -81,12 +88,29 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <GlobalPlayerProvider>
-        <App />
-      </GlobalPlayerProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+
+const isProgramOut =
+  new URLSearchParams(window.location.search).get('programOut') === '1';
+
+if (isProgramOut) {
+  // External display / video-wall clone — composite only, no platform shell.
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
+          <ProgramOutView />
+        </React.Suspense>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} else {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <GlobalPlayerProvider>
+          <App />
+        </GlobalPlayerProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}

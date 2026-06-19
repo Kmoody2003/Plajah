@@ -318,12 +318,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     const startRecording = useCallback(async () => {
         try {
-            // a) Capture video from the tab — no tab audio; we'll add AudioContext audio directly
+            // a) Capture video from the tab at NATIVE resolution + 60fps. No width
+            //    cap — capping forced a downscale that softened the output. Record
+            //    while fullscreen for a pristine full-res grab.
             const videoStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-                video: { frameRate: 60, width: { ideal: 1920 } },
+                video: {
+                    frameRate: { ideal: 60, max: 60 },
+                    width:  { ideal: 3840 },
+                    height: { ideal: 2160 },
+                },
                 audio: false,
                 preferCurrentTab: true,
             });
+            // Ask the captured track for the highest quality it can give.
+            try {
+                const vt = videoStream.getVideoTracks()[0];
+                await vt?.applyConstraints({ frameRate: 60, width: { ideal: 3840 }, height: { ideal: 2160 } });
+            } catch { /* track may not support constraints — keep defaults */ }
 
             // b) Capture audio directly from the AnalyserNode (raw, unprocessed)
             let combinedStream = videoStream;
@@ -338,9 +349,16 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 ]);
             }
 
-            // c) Codec priority: MP4 (Chrome 130+/Safari) → VP9 → VP8 → fallback webm
+            // c) Codec priority for the best pristine container the browser supports:
+            //    H.265/HEVC MP4 (Safari) → H.264 High-profile MP4 (Chrome 130+/Safari)
+            //    → VP9 WebM → fallback. mp4 strings carry AAC (mp4a.40.2) audio.
             const codecs = [
-                'video/mp4;codecs=avc1',
+                'video/mp4;codecs=hvc1.1.6.L153.B0,mp4a.40.2', // HEVC Main, ~4K
+                'video/mp4;codecs=hev1.1.6.L153.B0,mp4a.40.2',
+                'video/mp4;codecs=avc1.640034,mp4a.40.2',      // H.264 High 5.2
+                'video/mp4;codecs=avc1.4d0034,mp4a.40.2',      // H.264 Main 5.2
+                'video/mp4;codecs=avc1,mp4a.40.2',
+                'video/mp4',
                 'video/webm;codecs=vp9,opus',
                 'video/webm;codecs=vp8,opus',
                 'video/webm',
@@ -350,8 +368,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             const chunks: Blob[] = [];
             const recorder = new MediaRecorder(combinedStream, {
                 mimeType: mime,
-                videoBitsPerSecond: 25_000_000,
-                audioBitsPerSecond: 320_000,
+                videoBitsPerSecond: 80_000_000, // ~80 Mbps — visually lossless at 4K60
+                audioBitsPerSecond: 320_000,    // transparent (AAC/Opus)
             });
 
             recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
@@ -1777,7 +1795,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
             <div className={`absolute top-6 right-20 z-30 flex items-center gap-2 ${uiHidden ? 'hidden' : ''}`}>
                 {/* ── Output: record · send to display · fullscreen · dismiss UI ── */}
-                <button onClick={toggleRecord} title={isRecording ? 'Stop recording' : 'Record live output (.webm)'}
+                <button onClick={toggleRecord} title={isRecording ? 'Stop recording' : 'Record live output — high-bitrate MP4 (H.265/H.264) · pristine audio'}
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500/40 border-red-500/60 animate-pulse' : 'bg-black/40 border-white/10 hover:bg-red-500/30'}`}>
                     <Circle className="w-4 h-4" fill={isRecording ? 'currentColor' : 'none'} style={{ color: isRecording ? '#fca5a5' : 'rgba(255,255,255,0.8)' }} />
                 </button>

@@ -21,7 +21,7 @@
  */
 
 import React, {
-  useState, useEffect, useRef, useCallback, useMemo,
+  useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo,
 } from 'react';
 import {
   Play, ChevronLeft, ChevronRight, Upload, Plus,
@@ -897,14 +897,26 @@ const ClipLauncher: React.FC<Props> = ({
   const [hoverSource,   setHoverSource]   = useState<LauncherClip | null>(null);
   const prevTabRef = useRef<typeof rightPanelTab | null>(null); // tab to restore after hover
   // ── Hover-preview popup: a small live mini-render that follows the cursor,
-  //    NEVER the program canvas. Active only while a source/clip is hovered. ──
-  const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  //    NEVER the program canvas. Positioned imperatively (no re-render storm). ──
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const hoverPopRef = useRef<HTMLDivElement>(null);
+  const POP_W = 230, POP_H = 150;
+  const placePopup = useCallback(() => {
+    const el = hoverPopRef.current; if (!el) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.min(pointerRef.current.x + 18, vw - POP_W - 10);
+    const top  = Math.max(8, Math.min(pointerRef.current.y - POP_H - 6, vh - POP_H - 10));
+    el.style.left = `${left}px`;
+    el.style.top  = `${top}px`;
+  }, []);
+  // Always-on pointer tracker (passive, no re-render).
   useEffect(() => {
-    if (!hoverSource) return;
-    const onMove = (e: MouseEvent) => setHoverPos({ x: e.clientX, y: e.clientY });
+    const onMove = (e: MouseEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; if (hoverSource) placePopup(); };
     window.addEventListener('mousemove', onMove, { passive: true });
     return () => window.removeEventListener('mousemove', onMove);
-  }, [hoverSource]);
+  }, [hoverSource, placePopup]);
+  // Position immediately when a hover begins, before paint (no corner flash).
+  useLayoutEffect(() => { if (hoverSource) placePopup(); }, [hoverSource, placePopup]);
 
   const configRef       = useRef(config);
   const milkRef         = useRef(milkdrop);
@@ -1568,11 +1580,11 @@ const ClipLauncher: React.FC<Props> = ({
           program canvas. ── */}
       {hoverSource && (
         <div
+          ref={hoverPopRef}
           className="fixed z-[600] pointer-events-none rounded-lg overflow-hidden shadow-2xl"
           style={{
-            left: Math.min(hoverPos.x + 18, (typeof window !== 'undefined' ? window.innerWidth : 1920) - 248),
-            top:  Math.max(8, hoverPos.y - 156),
-            width: 230, height: 150,
+            left: -9999, top: -9999,
+            width: POP_W, height: POP_H,
             background: '#000',
             border: `1px solid ${hoverSource.color ?? '#FF8C00'}88`,
             boxShadow: `0 0 24px ${hoverSource.color ?? '#FF8C00'}55`,
