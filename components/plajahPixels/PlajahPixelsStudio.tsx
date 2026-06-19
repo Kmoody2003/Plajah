@@ -36,6 +36,7 @@ import SegmentationLayer from './components/SegmentationLayer';
 import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOverlay';
 import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
+import { makeSharedAnalyser } from './engine/sharedAnalyser';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -168,6 +169,18 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
+    // The RAW analyser node (for audio-graph wiring); analyserRef holds the
+    // per-frame-cached wrapper that every render layer reads from. See
+    // sharedAnalyser.ts — one FFT read per frame instead of one per layer.
+    const rawAnalyserRef = useRef<AnalyserNode | null>(null);
+    const frameClockRef = useRef<{ id: number }>({ id: 0 });
+    // Point analyserRef at a shared per-frame wrapper around `real`. Wrapping only
+    // when the underlying node identity changes keeps the cache stable.
+    const setVizAnalyser = useCallback((real: AnalyserNode | null) => {
+        if (rawAnalyserRef.current === real) return;
+        rawAnalyserRef.current = real;
+        analyserRef.current = real ? makeSharedAnalyser(real, frameClockRef.current) : null;
+    }, []);
     const audioElRef = useRef<HTMLAudioElement | null>(null);
     const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
     const liveSessionRef = useRef<LiveLyricsSession | null>(null);
@@ -255,6 +268,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         window.addEventListener('mousemove', onMove, { passive: true });
 
         const t0 = performance.now();
+        let bassBuf: Uint8Array | null = null; // reused each frame — no per-frame alloc
         const tick = () => {
             const sm = depthSmoothRef.current;
             sm.x += (depthMouseRef.current.x - sm.x) * 0.07;
@@ -271,7 +285,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             let bass = 0;
             if (analyserRef.current) {
-                const buf = new Uint8Array(analyserRef.current.frequencyBinCount);
+                if (!bassBuf || bassBuf.length !== analyserRef.current.frequencyBinCount)
+                    bassBuf = new Uint8Array(analyserRef.current.frequencyBinCount);
+                const buf = bassBuf;
                 analyserRef.current.getByteFrequencyData(buf);
                 for (let i = 0; i < 4; i++) bass += buf[i];
                 bass /= (4 * 255);
@@ -297,6 +313,16 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             if (depthRafRef.current) cancelAnimationFrame(depthRafRef.current);
         };
     }, [config.enable3dDepth]); // only restart when depth mode itself toggles
+
+    // Always-on frame clock — one tick per displayed frame. The shared analyser
+    // wrapper reads it to recompute the FFT at most once per frame no matter how
+    // many layers ask for the spectrum.
+    useEffect(() => {
+        let raf = 0;
+        const tick = () => { frameClockRef.current.id++; raf = requestAnimationFrame(tick); };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, []);
     const [showProgramOutPicker, setShowProgramOutPicker] = useState(false);
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
@@ -623,25 +649,60 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     });
     const [showLayersPanel, setShowLayersPanel] = useState(false);
     const [showFps, setShowFps] = useState(false);
-    const [perfMode, setPerfMode] = useState(false);
+    const [perfMode, setPerfMode] = useState(false); // manual "eco" reductions
+    const [perfAuto, setPerfAuto] = useState(false); // adaptive auto-scaler
     const perfPrevRef = useRef<Partial<VisualizationConfig> | null>(null);
+    const perfEngagedRef = useRef(false); // are the reductions currently applied?
     const overlayState: OverlayState = { ...overlay, set: (patch) => setOverlay(o => ({ ...o, ...patch })) };
 
-    // Performance mode — trade visual richness for framerate under heavy load.
-    const togglePerfMode = () => setPerfMode(on => {
-        const next = !on;
-        if (next) {
-            perfPrevRef.current = {
-                enableBlur: config.enableBlur, enableMosaic: config.enableMosaic, enableLayer2: config.enableLayer2,
-                enableBassShake: config.enableBassShake, particleCount: config.particleCount, glowIntensity: config.glowIntensity,
-            };
-            setConfig(prev => ({ ...prev, enableBlur: false, enableMosaic: false, enableLayer2: false, enableBassShake: false, particleCount: Math.min(prev.particleCount, 30), glowIntensity: Math.min(prev.glowIntensity, 8) }));
+    // Apply / restore the perf reductions. Idempotent and stable — saves the
+    // user's values inside the functional updater so a restore is always exact.
+    const applyPerf = useCallback((on: boolean) => {
+        if (on === perfEngagedRef.current) return;
+        perfEngagedRef.current = on;
+        if (on) {
+            setConfig(prev => {
+                perfPrevRef.current = {
+                    enableBlur: prev.enableBlur, enableMosaic: prev.enableMosaic, enableLayer2: prev.enableLayer2,
+                    enableBassShake: prev.enableBassShake, particleCount: prev.particleCount, glowIntensity: prev.glowIntensity,
+                };
+                return { ...prev, enableBlur: false, enableMosaic: false, enableLayer2: false, enableBassShake: false, particleCount: Math.min(prev.particleCount, 30), glowIntensity: Math.min(prev.glowIntensity, 8) };
+            });
         } else if (perfPrevRef.current) {
             const restore = perfPrevRef.current; perfPrevRef.current = null;
             setConfig(prev => ({ ...prev, ...restore }));
         }
-        return next;
-    });
+    }, []);
+
+    // Perf button cycles Off → Eco (manual) → Auto (adaptive) → Off.
+    const togglePerfMode = useCallback(() => {
+        if (!perfMode && !perfAuto) { setPerfMode(true); applyPerf(true); }
+        else if (perfMode) { setPerfMode(false); setPerfAuto(true); /* auto effect takes over */ }
+        else { setPerfAuto(false); }
+    }, [perfMode, perfAuto, applyPerf]);
+
+    // Adaptive auto-scaler — watch frame time and engage the reductions only when
+    // FPS is sustained below target, releasing when there's headroom again.
+    // Hysteresis (slow→engage after 1.5s, fast→release after 3s) avoids thrashing.
+    useEffect(() => {
+        if (!perfAuto) { applyPerf(false); return; }
+        let raf = 0, last = performance.now(), acc = 0, n = 0, lowMs = 0, highMs = 0;
+        const tick = () => {
+            const now = performance.now(); acc += now - last; last = now; n++;
+            if (acc >= 500) {
+                const fps = 1000 / (acc / n); acc = 0; n = 0;
+                const target = config.targetFrameRate || 60;
+                if (fps < target - 12) { lowMs += 500; highMs = 0; }
+                else if (fps > target - 3) { highMs += 500; lowMs = 0; }
+                else { lowMs = 0; highMs = 0; }
+                if (!perfEngagedRef.current && lowMs >= 1500) applyPerf(true);
+                else if (perfEngagedRef.current && highMs >= 3000) applyPerf(false);
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [perfAuto, config.targetFrameRate, applyPerf]);
     const matteEngineRef = useRef<MatteEngine | null>(null);
     if (!matteEngineRef.current) matteEngineRef.current = new MatteEngine();
     const [matteSettings, setMatteSettings] = useState<MatteSettings>({ mode: 'none', thresh: 0.30, scale: 1.0, react: true });
@@ -705,12 +766,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const ensureAudioContext = () => {
         if (audioContextRef.current) return;
         audioContextRef.current = new AudioContext();
-        analyserRef.current = audioContextRef.current.createAnalyser();
+        const rawAnalyser = audioContextRef.current.createAnalyser();
         audioElRef.current = new Audio();
         const source = audioContextRef.current.createMediaElementSource(audioElRef.current);
         sourceRef.current = source;
-        source.connect(analyserRef.current);
-        analyserRef.current.connect(audioContextRef.current.destination);
+        // Wire the audio graph with the RAW node, then expose the cached wrapper.
+        source.connect(rawAnalyser);
+        rawAnalyser.connect(audioContextRef.current.destination);
+        setVizAnalyser(rawAnalyser);
         audioElRef.current.ontimeupdate = () => setAudioState(s => ({ ...s, currentTime: audioElRef.current?.currentTime || 0 }));
         audioElRef.current.onloadedmetadata = () => setAudioState(s => ({ ...s, duration: audioElRef.current?.duration || 0 }));
     };
@@ -766,7 +829,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // fresh identity every render) so this only fires on real transport changes.
     useEffect(() => {
         if (!platform) return;
-        analyserRef.current = platform.analyser;
+        setVizAnalyser(platform.analyser);
         setAudioState({
             isPlaying: platform.isPlaying,
             currentTime: platform.currentTime,
@@ -1844,10 +1907,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
                     <Layers2 className="w-4 h-4 text-white/80" />
                 </button>
-                {/* Studio: performance mode + FPS */}
-                <button onClick={togglePerfMode} title="Performance mode (more FPS under load)"
-                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${perfMode ? 'bg-green-600/40 border-green-500/50' : 'bg-black/40 border-white/10 hover:bg-green-600/30'}`}>
+                {/* Studio: performance mode + FPS — cycles Off → Eco → Auto */}
+                <button onClick={togglePerfMode}
+                    title={perfAuto ? 'Performance: AUTO — adaptively drops effects only when FPS dips' : perfMode ? 'Performance: ECO — effects reduced now (click for Auto)' : 'Performance mode: Off (click for Eco, then Auto)'}
+                    className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${perfAuto ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : perfMode ? 'bg-green-600/40 border-green-500/50' : 'bg-black/40 border-white/10 hover:bg-green-600/30'}`}>
                     <Gauge className="w-4 h-4 text-white/80" />
+                    {perfAuto && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-[#FF8C00] text-black leading-tight">A</span>}
                 </button>
                 <button onClick={() => setShowFps(v => !v)} title="Toggle FPS meter"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showFps ? 'bg-white/20 border-white/30' : 'bg-black/40 border-white/10 hover:bg-white/10'}`}>
