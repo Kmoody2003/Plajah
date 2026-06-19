@@ -66,9 +66,55 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+const TUNNEL_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = vUv - 0.5; p.x *= aspect;
+  float r = length(p);
+  float f = fft(clamp(r * 1.2, 0.0, 1.0));
+  // receding rings, treble sharpens them
+  float rings = smoothstep(0.5, 0.0, abs(fract(r * 9.0 - iTime * 0.6) - 0.5)) ;
+  rings *= 0.4 + iTreble * 1.6;
+  vec3 col = mix(iC2, iC0, f) * rings * (0.5 + f * 1.6);
+  col *= smoothstep(0.0, 0.10, r); // fade the throat
+  fragColor = vec4(col, 1.0);
+}`;
+
+const VORTEX_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = vUv - 0.5; p.x *= aspect;
+  float r = length(p);
+  float a = atan(p.y, p.x);
+  float spiral = sin(a * 3.0 + r * 18.0 - iTime * 2.0);
+  float m = smoothstep(0.45, 0.95, spiral);
+  float f = fft(clamp(r, 0.0, 1.0));
+  vec3 col = mix(iC1, iC0, clamp(r * 1.5, 0.0, 1.0)) * m * (0.5 + iLevel * 1.2 + f);
+  col *= smoothstep(0.62, 0.0, r);
+  fragColor = vec4(col, 1.0);
+}`;
+
+const NEBULA_FS = HEADER + `
+void main(){
+  vec2 p = vUv;
+  float n = 0.0;
+  for (int i = 1; i <= 5; i++) {
+    float fi = float(i);
+    n += sin(p.x * fi * 6.0 + iTime * 0.5 * fi + p.y * 3.0) * 0.5 / fi;
+  }
+  float band = 0.5 + 0.5 * n;
+  float glow = smoothstep(0.28, 0.92, band + iLevel * 0.45);
+  vec3 col = mix(iC2, iC0, band) * glow;
+  col += iC1 * pow(glow, 3.0) * 0.5;
+  fragColor = vec4(col, 1.0);
+}`;
+
 const GEN_GLSL: Record<string, string> = {
   WAVEFORM: WAVEFORM_FS,
   SPECTRUM: SPECTRUM_FS,
+  TUNNEL: TUNNEL_FS,
+  VORTEX: VORTEX_FS,
+  NEBULA: NEBULA_FS,
 };
 
 export function hasGenerator(mode: string | undefined): boolean {
