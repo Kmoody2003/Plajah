@@ -14,6 +14,46 @@ import { registerSW } from 'virtual:pwa-register';
 // never weighs on the main bundle.
 const ProgramOutView = React.lazy(() => import('./components/plajahPixels/components/ProgramOutView'));
 
+// ── Force the whole app onto the discrete GPU (NVIDIA), not the integrated one ──
+// A browser binds a page to ONE GPU, decided by the power-preference of its WebGL
+// contexts. If any library creates a default (low-power) context first, the page
+// lands on the integrated Intel/Arc GPU and every later 'high-performance' request
+// is ignored for the rest of the page's life. We patch getContext so EVERY webgl/
+// webgl2 context app-wide (three.js, butterchurn, tfjs, custom GLSL, 3rd-party)
+// requests the discrete GPU — and log the active renderer once so it's verifiable.
+// NOTE: this is only a strong *hint*; the OS/driver can still override it. To fully
+// pin Chrome to NVIDIA, also set Windows → Graphics → (browser) → High performance
+// and NVIDIA Control Panel → Manage 3D settings → (browser) → High-performance GPU.
+(() => {
+  try {
+    const proto: any = HTMLCanvasElement.prototype;
+    const orig = proto.getContext;
+    let logged = false;
+    proto.getContext = function (type: string, attrs?: any) {
+      if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+        // Spread attrs AFTER so an explicit caller preference still wins.
+        attrs = { powerPreference: 'high-performance', ...(attrs || {}) };
+        const ctx = orig.call(this, type, attrs);
+        if (ctx && !logged) {
+          logged = true;
+          try {
+            const dbg = ctx.getExtension('WEBGL_debug_renderer_info');
+            if (dbg) console.info('[Plajah GPU] active renderer →', ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL));
+          } catch { /* */ }
+        }
+        return ctx;
+      }
+      return orig.call(this, type, attrs);
+    };
+    // WebGPU path (tfjs / MediaPipe) — prefer the high-performance adapter too.
+    const gpu: any = (navigator as any).gpu;
+    if (gpu?.requestAdapter) {
+      const ogReq = gpu.requestAdapter.bind(gpu);
+      gpu.requestAdapter = (opts?: any) => ogReq({ powerPreference: 'high-performance', ...(opts || {}) });
+    }
+  } catch { /* non-fatal — keep booting */ }
+})();
+
 // Returns true if any audio or video element is actively playing.
 // We also check window.__plajahMediaActive which media components can set
 // for cases that don't use HTMLMediaElement (e.g. Web Audio, YouTube iframe API).
