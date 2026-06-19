@@ -109,12 +109,71 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+const COSMIC_FS = HEADER + `
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    float t = iTime * (0.3 + fi * 0.15);
+    vec2 q = p * (3.0 + fi * 3.0);
+    vec2 id = floor(q * 8.0);
+    vec2 gv = fract(q * 8.0) - 0.5;
+    float h = hash(id + fi * 19.0);
+    float star = smoothstep(0.14, 0.0, length(gv)) * step(0.86, h);
+    float tw = 0.5 + 0.5 * sin(t * 6.0 + h * 30.0);
+    col += mix(iC2, iC0, h) * star * tw * (0.5 + iLevel);
+  }
+  col += iC1 * smoothstep(0.7, 0.0, length(p)) * iBass * 0.6;  // core warp glow
+  fragColor = vec4(col, 1.0);
+}`;
+
+const RETROGRID_FS = HEADER + `
+void main(){
+  vec2 uv = vUv;
+  float horizon = 0.5;
+  vec3 col = vec3(0.0);
+  if (uv.y < horizon) {
+    float z = 1.0 / ((horizon - uv.y) + 0.02);
+    float gx = abs(fract((uv.x - 0.5) * z) - 0.5);
+    float gz = abs(fract(z * 0.5 - iTime) - 0.5);
+    float line = smoothstep(0.04, 0.0, gx) + smoothstep(0.04, 0.0, gz);
+    col = mix(iC1, iC0, 0.5) * line * smoothstep(0.0, 0.4, horizon - uv.y) * (0.6 + iLevel);
+  } else {
+    float sun = smoothstep(0.25, 0.0, length((uv - vec2(0.5, horizon + 0.18)) * vec2(1.0, 1.4)));
+    col = mix(iC2 * 0.2, iC0, sun * (0.6 + iBass));
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+const KALEIDO_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  float seg = 8.0 + floor(iMid * 8.0);
+  float a = atan(p.y, p.x);
+  float r = length(p);
+  a = mod(a, 6.2831853 / seg);
+  a = abs(a - 3.14159265 / seg);
+  vec2 q = vec2(cos(a), sin(a)) * r;
+  float f = fft(clamp(r * 1.5, 0.0, 1.0));
+  float pat = 0.5 + 0.5 * sin(q.x * 20.0 + iTime * 1.5) * sin(q.y * 20.0 - iTime * 1.2);
+  float v = pat * smoothstep(0.72, 0.0, r) * (0.4 + f * 1.5);
+  vec3 col = mix(iC2, iC0, pat) * v + iC1 * f * 0.4;
+  fragColor = vec4(col, 1.0);
+}`;
+
 const GEN_GLSL: Record<string, string> = {
   WAVEFORM: WAVEFORM_FS,
   SPECTRUM: SPECTRUM_FS,
   TUNNEL: TUNNEL_FS,
   VORTEX: VORTEX_FS,
   NEBULA: NEBULA_FS,
+  COSMIC: COSMIC_FS,
+  RETROGRID: RETROGRID_FS,
+  KALEIDOSCOPE: KALEIDO_FS,
 };
 
 export function hasGenerator(mode: string | undefined): boolean {
