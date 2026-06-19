@@ -37,6 +37,7 @@ import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOver
 import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
+import BackgroundLayer from './components/BackgroundLayer';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -560,12 +561,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             config, layers: shareLayers, isPlaying: audioState.isPlaying,
             shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity,
             midiNotes, three3d,
+            // For the stage "Mirror slicing" effect on the external display.
+            bgMedia1, bgMedia2,
         };
         const send = () => { try { ch.postMessage(payload); } catch { /* unclonable → ignore */ } };
         ch.onmessage = (e) => { if (e.data?.type === 'REQUEST_STATE') send(); };
         send();
         return () => ch.close();
-    }, [config, liveLayers, audioState.isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d]);
+    }, [config, liveLayers, audioState.isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2]);
 
     // ── Preview / Program (A/B) ──────────────────────────────────────────────────
     // Program = the live full-screen output (driven by `config` + the mode flags),
@@ -1716,6 +1719,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 mode. Clear a clip → that row renders nothing. Replaces the old
                 bgMedia1/bgMedia2 backdrop + single-core pipeline entirely. */}
             <div ref={depthBgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+              {/* Stage "Mirror slicing" effect surface — only mounted when the user
+                  enables slicing, so it's the kaleidoscope effect, never an
+                  always-on backdrop. Sits BEHIND the clip stack. */}
+              {config.enableSlicing && (
+                <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2} config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} id="px-bg-slice" />
+              )}
               <LayerStack layers={liveLayers} analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
             </div>
 

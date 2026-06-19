@@ -21,7 +21,8 @@ import ButterchurnLayer from './ButterchurnLayer';
 import MidiNotesScene from './MidiNotesScene';
 import ThreeScene, { Three3DConfig } from './ThreeScene';
 import TextOverlay from './TextOverlay';
-import { VisualizationConfig } from '../types';
+import BackgroundLayer from './BackgroundLayer';
+import { VisualizationConfig, BackgroundMedia } from '../types';
 import type { LauncherLayer } from './ClipLauncher';
 
 interface ProgramState {
@@ -36,6 +37,8 @@ interface ProgramState {
   milkdropLayerOpacity: number;
   midiNotes: boolean;
   three3d: Three3DConfig | null;
+  bgMedia1: BackgroundMedia[];
+  bgMedia2: BackgroundMedia[];
 }
 
 const ProgramOutView: React.FC = () => {
@@ -94,13 +97,17 @@ const ProgramOutView: React.FC = () => {
   }
 
   const { config, layers, isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx,
-          milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d } = state;
+          milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2 } = state;
 
   return (
     <div
       style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none' }}
       onDoubleClick={onDoubleClick}
     >
+      {/* Stage "Mirror slicing" effect surface, mirrored from the studio. */}
+      {config.enableSlicing && bgMedia1 && (
+        <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2 || []} config={config} analyser={analyser} isPlaying={isPlaying} id="po-bg-slice" />
+      )}
       {/* The real composite — every active layer of the live column, stacked. */}
       <LayerStack layers={layers} analyser={analyser} config={config} isPlaying={isPlaying} />
 
