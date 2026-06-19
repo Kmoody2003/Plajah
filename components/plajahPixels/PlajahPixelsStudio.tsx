@@ -336,6 +336,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
     // The live GPU composite canvas — captured directly for drop-free recording.
     const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    // Recording mode: false = Fast (GPU canvas, drop-free, composite only);
+    // true = Full (screen capture, includes DOM overlays but heavier).
+    const [recordFull, setRecordFull] = useState(false);
+    const recordFullRef = useRef(false);
+    useEffect(() => { recordFullRef.current = recordFull; }, [recordFull]);
 
     // ── Save modal state ──────────────────────────────────────────────────────────
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -362,7 +367,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             //    lighting) join once they move into the compositor.
             let videoStream: MediaStream;
             const glCanvas = glCanvasRef.current;
-            if (glCanvas && (glCanvas as any).captureStream) {
+            if (glCanvas && (glCanvas as any).captureStream && !recordFullRef.current) {
                 videoStream = (glCanvas as any).captureStream(60);
             } else {
                 videoStream = await (navigator.mediaDevices as any).getDisplayMedia({
@@ -1910,10 +1915,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* Save / Load Project Buttons (top-right, beside settings toggle) */}
             <div className={`absolute top-6 right-20 z-30 flex items-center gap-2 ${uiHidden ? 'hidden' : ''}`}>
                 {/* ── Output: record · send to display · fullscreen · dismiss UI ── */}
-                <button onClick={toggleRecord} title={isRecording ? 'Stop recording' : 'Record live output — high-bitrate MP4 (H.265/H.264) · pristine audio'}
+                <button onClick={toggleRecord} title={isRecording ? 'Stop recording' : `Record ${recordFull ? 'FULL (screen — includes overlays)' : 'FAST (GPU canvas — drop-free, composite only)'} · high-bitrate MP4`}
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500/40 border-red-500/60 animate-pulse' : 'bg-black/40 border-white/10 hover:bg-red-500/30'}`}>
                     <Circle className="w-4 h-4" fill={isRecording ? 'currentColor' : 'none'} style={{ color: isRecording ? '#fca5a5' : 'rgba(255,255,255,0.8)' }} />
                 </button>
+                {!isRecording && (
+                    <button onClick={() => setRecordFull(v => !v)}
+                        title={recordFull ? 'Capture: FULL (screen) — includes text/lighting overlays, heavier. Click for Fast.' : 'Capture: FAST (GPU canvas) — drop-free, composite only. Click for Full (with overlays).'}
+                        className={`px-2 h-9 rounded-full text-[8px] font-black uppercase tracking-widest backdrop-blur-xl border transition-all shadow-lg ${recordFull ? 'bg-sky-600/40 border-sky-500/50 text-sky-200' : 'bg-black/40 border-white/10 text-white/55 hover:text-white'}`}>
+                        {recordFull ? 'Full' : 'Fast'}
+                    </button>
+                )}
                 {/* Program Output — quick launch (full controls in right panel when clip launcher is open) */}
                 <button
                     onClick={openProgramOut}
