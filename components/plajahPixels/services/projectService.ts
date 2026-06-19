@@ -86,6 +86,49 @@ async function serializeMediaList(mediaList: BackgroundMedia[]): Promise<PlajahM
   return results;
 }
 
+// ─── Launcher layer (clip matrix) serialization ─────────────────────────────────
+// The fired-clip grid is the heart of a project. We serialize the full layer
+// structure (types, scene modes, shader src, params, colors, opacity, blend).
+// Clip media: remote/data URLs are kept as-is; blob: URLs (user uploads) are
+// embedded as data-URLs ONLY when embedBlobs is true (local .plajah files). For
+// cloud saves embedBlobs is false to stay under the Firestore 1 MB doc limit —
+// the slot + every non-blob source still persists.
+
+async function blobToDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+async function serializeLayers(layers: any[] | undefined, embedBlobs: boolean): Promise<any[]> {
+  if (!Array.isArray(layers)) return [];
+  return Promise.all(layers.map(async (layer) => {
+    const clips = await Promise.all((layer.clips ?? []).map(async (clip: any) => {
+      if (!clip) return null;
+      if (clip.type === 'media' && clip.mediaUrl?.startsWith('blob:')) {
+        if (embedBlobs) {
+          const dataUrl = await blobToDataUrl(clip.mediaUrl);
+          return dataUrl ? { ...clip, mediaUrl: dataUrl } : { ...clip, mediaUrl: undefined };
+        }
+        return { ...clip, mediaUrl: undefined }; // cloud: drop the heavy blob, keep the slot
+      }
+      return clip;
+    }));
+    return { ...layer, clips };
+  }));
+}
+
+function deserializeLayers(layers: any[] | undefined): any[] | undefined {
+  return Array.isArray(layers) ? layers : undefined;
+}
+
 /**
  * Serialize the full app state into a PlajahProject and trigger a .plajah download.
  * audioBlobUrl — the blob: URL currently loaded in the <audio> element.
@@ -95,12 +138,14 @@ export async function saveProject(
   bgMedia1: BackgroundMedia[],
   bgMedia2: BackgroundMedia[],
   audioFileName?: string,
-  audioBlobUrl?: string
+  audioBlobUrl?: string,
+  layers?: any[]
 ): Promise<void> {
-  const [serialized1, serialized2, audioResult] = await Promise.all([
+  const [serialized1, serialized2, audioResult, serializedLayers] = await Promise.all([
     serializeMediaList(bgMedia1),
     serializeMediaList(bgMedia2),
     audioBlobUrl ? blobUrlToDataUrl(audioBlobUrl) : Promise.resolve(null),
+    serializeLayers(layers, /* embedBlobs */ true),
   ]);
 
   const project: PlajahProject = {
@@ -114,6 +159,7 @@ export async function saveProject(
     audioFileName,
     audioData: audioResult?.dataUrl,
     audioMimeType: audioResult?.mimeType,
+    layers: serializedLayers,
   };
 
   const json = JSON.stringify(project, null, 2);
@@ -140,6 +186,8 @@ export interface LoadedProject {
   audioFileName?: string;
   /** Blob object-URL ready to set as audio.src (caller must revoke when done) */
   audioBlobUrl?: string;
+  /** Clip-launcher layer/clip matrix to restore into the launcher. */
+  layers?: any[];
 }
 
 /**
@@ -183,6 +231,7 @@ export function loadProject(file: File): Promise<LoadedProject> {
           savedAt: project.savedAt,
           audioFileName: project.audioFileName,
           audioBlobUrl,
+          layers: deserializeLayers(project.layers),
         });
       } catch (err) {
         reject(err);
@@ -215,11 +264,13 @@ export async function saveProjectToCloud(
   bgMedia2: BackgroundMedia[],
   audioFileName?: string,
   audioBlobUrl?: string,
-  thumbnail?: string
+  thumbnail?: string,
+  layers?: any[]
 ): Promise<string> {
-  const [serialized1, serialized2] = await Promise.all([
+  const [serialized1, serialized2, serializedLayers] = await Promise.all([
     serializeMediaList(bgMedia1),
     serializeMediaList(bgMedia2),
+    serializeLayers(layers, /* embedBlobs */ false), // cloud: stay under Firestore 1 MB
   ]);
 
   const projectsCol = collection(db, 'users', uid, 'plajahProjects');
@@ -250,6 +301,7 @@ export async function saveProjectToCloud(
     bgMedia2: serialized2,
     audioFileName,
     audioStorageUrl,
+    layers: serializedLayers,
   };
 
   await setDoc(projectRef, {
@@ -307,6 +359,7 @@ export async function loadCloudProject(uid: string, projectId: string): Promise<
     savedAt: project.savedAt,
     audioFileName: project.audioFileName,
     audioBlobUrl: audioSrc,
+    layers: deserializeLayers(project.layers),
   };
 }
 

@@ -263,4 +263,7 @@ export interface PlajahProject {
   audioMimeType?: string;
   /** Firebase Storage download URL (used in cloud saves instead of audioData) */
   audioStorageUrl?: string;
+  /** Clip-launcher layer/clip matrix (the fired-clip grid). Typed loosely to
+   *  avoid a circular import with ClipLauncher; shape is LauncherLayer[]. */
+  layers?: any[];
 }

@@ -212,6 +212,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showClipGrid, setShowClipGrid] = useState(true);
     // The real composite: the full ordered layer stack emitted by the ClipLauncher.
     const [liveLayers, setLiveLayers] = useState<LauncherLayer[]>([]);
+    const liveLayersRef = useRef<LauncherLayer[]>([]);
+    useEffect(() => { liveLayersRef.current = liveLayers; }, [liveLayers]);
+    // Layers loaded from a project, pushed back into the launcher on importToken bump.
+    const [importLayers, setImportLayers] = useState<LauncherLayer[] | null>(null);
+    const [importToken, setImportToken] = useState(0);
     // Milkdrop (butterchurn) — overlaid ON TOP of the visualizer (composited, not exclusive).
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
@@ -1013,8 +1018,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         setIsSaving(true);
         try {
             const audioBlobUrl = audioBlobUrlRef.current;
-            // Always save locally as .plajah file (includes embedded audio)
-            await saveProject(config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl);
+            const layers = liveLayersRef.current;
+            // Always save locally as .plajah file (includes embedded audio + clips)
+            await saveProject(config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl, layers);
             // If signed in, also save to cloud profile (audio goes to Firebase Storage)
             const uid = auth.currentUser?.uid;
             if (uid) {
@@ -1024,7 +1030,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     const canvas = rootRef.current?.querySelector<HTMLCanvasElement>('#core-visualizer canvas, canvas');
                     if (canvas) thumbnail = canvas.toDataURL('image/jpeg', 0.4);
                 } catch { /* skip thumbnail on cross-origin canvas */ }
-                await saveProjectToCloud(uid, config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl, thumbnail);
+                await saveProjectToCloud(uid, config, bgMedia1, bgMedia2, audioFileName, audioBlobUrl, thumbnail, liveLayersRef.current);
             }
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
@@ -1058,6 +1064,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
+            if (loaded.layers) { setImportLayers(loaded.layers as LauncherLayer[]); setImportToken(t => t + 1); }
             if (loaded.audioBlobUrl) loadAudioFromUrl(loaded.audioBlobUrl, loaded.audioFileName);
             else if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
             setShowCloudProjects(false);
@@ -1085,6 +1092,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
+            if (loaded.layers) { setImportLayers(loaded.layers as LauncherLayer[]); setImportToken(t => t + 1); }
             if (loaded.audioBlobUrl) loadAudioFromUrl(loaded.audioBlobUrl, loaded.audioFileName);
             else if (loaded.audioFileName) setAudioFileName(loaded.audioFileName);
         } catch (err) {
@@ -1192,6 +1200,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 onApply={applyLook}
                                 onPowerOff={() => setShowClipGrid(false)}
                                 onLayersChange={setLiveLayers}
+                                importLayers={importLayers}
+                                importToken={importToken}
                                 /* Render bridges are NO-OPS now — the LayerStack renders every
                                    clip (media/generator/milkdrop/shader) directly from the layer
                                    stack, so firing a clip only updates that stack, never the old

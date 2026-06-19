@@ -237,6 +237,9 @@ interface Props {
   /** Emits the full ordered layer stack so the Studio can render it as the real
    *  composite (LayerStack). This is the source of truth for the program output. */
   onLayersChange?: (layers: LauncherLayer[]) => void;
+  /** Layers loaded from a saved project; applied whenever importToken changes. */
+  importLayers?: LauncherLayer[] | null;
+  importToken?: number;
 }
 
 // ─── Clip Cell ────────────────────────────────────────────────────────────────
@@ -868,9 +871,26 @@ const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetLayerMedia,
   bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
   onLayerShader, onShaderParamsChange, onLayerModulation, onSyncSceneAuto, onSetBlendActive, analyser,
-  rightPanel, onPowerOff, onLayersChange,
+  rightPanel, onPowerOff, onLayersChange, importLayers, importToken,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
+
+  // Restore layers loaded from a saved project. Keyed on importToken so it only
+  // fires on an explicit load (not on every render). Normalizes defaults so an
+  // older project missing newer fields still loads cleanly.
+  const lastImportRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (importToken == null || importToken === lastImportRef.current) return;
+    lastImportRef.current = importToken;
+    if (Array.isArray(importLayers) && importLayers.length) {
+      setLayers(importLayers.map(l => ({
+        ...l,
+        autoMode: l.autoMode ?? 'off',
+        autoInterval: l.autoInterval ?? 4,
+        clips: Array.isArray(l.clips) ? l.clips : Array(NUM_COLS).fill(null),
+      })));
+    }
+  }, [importToken, importLayers]);
   const [mappings,      setMappings]      = useState<Mapping[]>(() => loadMappings());
   const [scrollLeft,    setScrollLeft]    = useState(0);
   const [flashedPads,   setFlashedPads]   = useState<Set<number>>(new Set());
