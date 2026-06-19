@@ -67,6 +67,29 @@ out vec4 outColor;
 uniform sampler2D uTex;
 void main() { outColor = vec4(texture(uTex, vUv).rgb, 1.0); }`;
 
+// Global color grade — the first post-FX pass over the whole composite.
+const GRADE_FS = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uTex;
+uniform float uBright, uContrast, uSat, uGamma;
+void main() {
+  vec3 c = texture(uTex, vUv).rgb;
+  c = (c - 0.5) * uContrast + 0.5;            // contrast around mid-grey
+  c *= uBright;                                // brightness
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(vec3(l), c, uSat);                   // saturation
+  c = pow(max(c, 0.0), vec3(1.0 / max(uGamma, 0.01))); // gamma
+  outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+export interface GradeParams { brightness: number; contrast: number; saturation: number; gamma: number; }
+const NEUTRAL_GRADE: GradeParams = { brightness: 1, contrast: 1, saturation: 1, gamma: 1 };
+function isNeutral(g: GradeParams): boolean {
+  return g.brightness === 1 && g.contrast === 1 && g.saturation === 1 && g.gamma === 1;
+}
+
 export interface LayerInput {
   /** A texture already in our GL context (ported generator) … */
   texture?: WebGLTexture;
@@ -81,9 +104,11 @@ export class Compositor {
   private quad: WebGLVertexArrayObject;
   private compositeProg: WebGLProgram;
   private presentProg: WebGLProgram;
+  private gradeProg: WebGLProgram;
   private uDst: WebGLUniformLocation; private uSrc: WebGLUniformLocation;
   private uOpacity: WebGLUniformLocation; private uMode: WebGLUniformLocation;
   private uPresentTex: WebGLUniformLocation;
+  private gradeU: Record<string, WebGLUniformLocation | null> = {};
   private ping?: RenderTarget; private pong?: RenderTarget;
   private srcTex: WebGLTexture;       // reused for element uploads
   private width = 0; private height = 0;
@@ -96,11 +121,14 @@ export class Compositor {
     this.quad = createFullscreenQuad(gl);
     this.compositeProg = createProgram(gl, QUAD_VS, COMPOSITE_FS);
     this.presentProg = createProgram(gl, QUAD_VS, PRESENT_FS);
+    this.gradeProg = createProgram(gl, QUAD_VS, GRADE_FS);
     this.uDst = gl.getUniformLocation(this.compositeProg, 'uDst')!;
     this.uSrc = gl.getUniformLocation(this.compositeProg, 'uSrc')!;
     this.uOpacity = gl.getUniformLocation(this.compositeProg, 'uOpacity')!;
     this.uMode = gl.getUniformLocation(this.compositeProg, 'uMode')!;
     this.uPresentTex = gl.getUniformLocation(this.presentProg, 'uTex')!;
+    for (const n of ['uTex', 'uBright', 'uContrast', 'uSat', 'uGamma'])
+      this.gradeU[n] = gl.getUniformLocation(this.gradeProg, n);
     this.srcTex = makeSourceTexture(gl);
   }
 
@@ -172,10 +200,31 @@ export class Compositor {
     gl.bindVertexArray(null);
   }
 
-  /** One-shot: composite + present. */
-  render(layers: LayerInput[]) {
+  /** A post-FX grade pass: ping → pong, then swap so the accumulator is graded. */
+  private applyGrade(g: GradeParams) {
+    const gl = this.gl;
+    if (!this.ping || !this.pong) return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.useProgram(this.gradeProg);
+    gl.bindVertexArray(this.quad);
+    gl.disable(gl.BLEND);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.ping.tex);
+    gl.uniform1i(this.gradeU.uTex, 0);
+    gl.uniform1f(this.gradeU.uBright, g.brightness);
+    gl.uniform1f(this.gradeU.uContrast, g.contrast);
+    gl.uniform1f(this.gradeU.uSat, g.saturation);
+    gl.uniform1f(this.gradeU.uGamma, g.gamma);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindVertexArray(null);
+    const t = this.ping; this.ping = this.pong; this.pong = t; // graded → accumulator
+  }
+
+  /** One-shot: composite + (optional post-FX) + present. */
+  render(layers: LayerInput[], grade?: GradeParams) {
     if (this.disposed) return;
     this.composite(layers);
+    if (grade && !isNeutral(grade)) this.applyGrade(grade);
     this.present();
   }
 
@@ -187,5 +236,6 @@ export class Compositor {
     gl.deleteTexture(this.srcTex);
     gl.deleteProgram(this.compositeProg);
     gl.deleteProgram(this.presentProg);
+    gl.deleteProgram(this.gradeProg);
   }
 }

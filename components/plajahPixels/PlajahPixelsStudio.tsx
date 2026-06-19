@@ -48,6 +48,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     mode: VisualizerMode.Stage,
     targetFrameRate: 60,
     gpuGenerators: false,
+    gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
     colorPalette: ["#FF00CC", "#3333FF", "#00CCFF", "#FFFFFF"],
     smoothingTimeConstant: 0.8,
     minDecibels: -90,
@@ -1420,6 +1421,25 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                             {/* STAGE */}
                                             {activeTab === 'stage' && (
                                                 <div className="space-y-3">
+                                                    {/* Global color grade — GPU post-FX over the whole stage */}
+                                                    <div className="rounded-lg p-2 space-y-1.5" style={{ background: 'rgba(255,140,0,0.06)', border: '1px solid rgba(255,140,0,0.18)' }}>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-[#FF8C00]">Color Grade</span>
+                                                            <button onClick={() => setConfig(p => ({ ...p, gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1 }))}
+                                                                className="text-[8px] uppercase font-black text-white/30 hover:text-white/70 transition-colors">Reset</button>
+                                                        </div>
+                                                        {([
+                                                            ['Brightness', 'gradeBrightness', 0, 2],
+                                                            ['Contrast', 'gradeContrast', 0, 2],
+                                                            ['Saturation', 'gradeSaturation', 0, 2],
+                                                            ['Gamma', 'gradeGamma', 0.2, 2.2],
+                                                        ] as [string, 'gradeBrightness'|'gradeContrast'|'gradeSaturation'|'gradeGamma', number, number][]).map(([label, key, min, max]) => (
+                                                            <div key={key}>
+                                                                <div className="flex justify-between text-[9px] text-white/40 mb-0.5"><span>{label}</span><span className="text-[#FF8C00] font-mono">{(config[key] ?? 1).toFixed(2)}</span></div>
+                                                                <input type="range" min={min} max={max} step="0.01" value={config[key] ?? 1} onChange={e => setConfig(p => ({ ...p, [key]: parseFloat(e.target.value) }))} className="w-full cursor-pointer" style={{ accentColor: '#FF8C00', height: 3 }} />
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                     <div className="flex items-center justify-between text-[9px] text-white/40">
                                                         <span>Mirror slicing</span>
                                                         <input type="checkbox" checked={config.enableSlicing} onChange={e => setConfig(p => ({ ...p, enableSlicing: e.target.checked }))} className="accent-purple-500 cursor-pointer" />

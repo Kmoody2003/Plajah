@@ -161,7 +161,13 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
           else element = pickSource(wrapRefs.current.get(layer.id));
           if (element) inputs.push({ element, opacity, blendMode: layer.blendMode || 'normal' });
         }
-        comp.render(inputs);
+        const cfg = configRef.current;
+        comp.render(inputs, {
+          brightness: cfg.gradeBrightness ?? 1,
+          contrast: cfg.gradeContrast ?? 1,
+          saturation: cfg.gradeSaturation ?? 1,
+          gamma: cfg.gradeGamma ?? 1,
+        });
       }
       raf = requestAnimationFrame(tick);
     };

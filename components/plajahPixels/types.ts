@@ -65,6 +65,11 @@ export interface VisualizationConfig {
   targetFrameRate: 30 | 60;
   /** Opt-in: render supported generators natively on the GPU (Pixels Core). */
   gpuGenerators?: boolean;
+  /** Global color grade applied as a GPU post-FX pass (1 = neutral). */
+  gradeBrightness?: number;
+  gradeContrast?: number;
+  gradeSaturation?: number;
+  gradeGamma?: number;
   colorPalette: string[];
   smoothingTimeConstant: number;
   minDecibels: number;
