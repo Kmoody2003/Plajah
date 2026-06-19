@@ -233,6 +233,9 @@ interface Props {
   rightPanel?:   React.ReactNode;
   /** Called when the user taps the power button to close the launcher. */
   onPowerOff?:   () => void;
+  /** Emits the full ordered layer stack so the Studio can render it as the real
+   *  composite (LayerStack). This is the source of truth for the program output. */
+  onLayersChange?: (layers: LauncherLayer[]) => void;
 }
 
 // ─── Clip Cell ────────────────────────────────────────────────────────────────
@@ -858,7 +861,7 @@ const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetLayerMedia,
   bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
   onLayerShader, onShaderParamsChange, onLayerModulation, onSyncSceneAuto, onSetBlendActive, analyser,
-  rightPanel, onPowerOff,
+  rightPanel, onPowerOff, onLayersChange,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
   const [mappings,      setMappings]      = useState<Mapping[]>(() => loadMappings());
@@ -932,7 +935,7 @@ const ClipLauncher: React.FC<Props> = ({
   useEffect(() => { configRef.current = config;   }, [config]);
   useEffect(() => { sceneAutoModeRef.current = sceneAutoMode; }, [sceneAutoMode]);
   useEffect(() => { milkRef.current   = milkdrop; }, [milkdrop]);
-  useEffect(() => { layersRef.current = layers; saveLayers(layers); }, [layers]);
+  useEffect(() => { layersRef.current = layers; saveLayers(layers); onLayersChange?.(layers); }, [layers]);
   useEffect(() => { mappingsRef.current = mappings; saveMappings(mappings); }, [mappings]);
 
   const CELL_W    = 101;

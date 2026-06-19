@@ -14,6 +14,8 @@ import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
+import LayerStack from './components/LayerStack';
+import type { LauncherLayer } from './components/ClipLauncher';
 import ButterchurnLayer from './components/ButterchurnLayer';
 import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
@@ -193,6 +195,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showTimeline, setShowTimeline] = useState(true);
     const [showMatte, setShowMatte] = useState(false);
     const [showClipGrid, setShowClipGrid] = useState(true);
+    // The real composite: the full ordered layer stack emitted by the ClipLauncher.
+    const [liveLayers, setLiveLayers] = useState<LauncherLayer[]>([]);
     // Milkdrop (butterchurn) — overlaid ON TOP of the visualizer (composited, not exclusive).
     const [milkdrop, setMilkdrop] = useState(false);
     const [milkdropIdx, setMilkdropIdx] = useState(0);
@@ -1095,23 +1099,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 config={editTarget === 'preview' ? previewConfig : config}
                                 onApply={applyLook}
                                 onPowerOff={() => setShowClipGrid(false)}
-                                onSetLayerMedia={(layerIdx, media, blendMode, opacity, layerId) => {
-                                    if (layerId === 'bg') {
-                                        setBgMedia1(media ? [media] : []);
-                                    } else {
-                                        setBgMedia2(media ? [media] : []);
-                                        applyLook({
-                                            enableLayer2:     media !== null,
-                                            layer2BlendMode:  (blendMode ?? 'screen') as any,
-                                            layer2Opacity:    opacity ?? 1,
-                                        });
-                                    }
-                                }}
+                                onLayersChange={setLiveLayers}
+                                /* Render bridges are NO-OPS now — the LayerStack renders every
+                                   clip (media/generator/milkdrop/shader) directly from the layer
+                                   stack, so firing a clip only updates that stack, never the old
+                                   global single-core pipeline. */
+                                onSetLayerMedia={() => {}}
                                 bgMedia1={bgMedia1}
                                 bgMedia2={bgMedia2}
                                 shaderLibrary={SHADER_LIBRARY}
                                 onApplyShader={applyShaderLook}
-                                onLayerShader={handleLayerShader}
+                                onLayerShader={() => {}}
                                 onShaderParamsChange={handleShaderParamsChange}
                                 onLayerModulation={handleLayerModulation}
                                 onSyncSceneAuto={(interval) => setConfig(prev => ({ ...prev, enableBackgroundRotation: true, backgroundRotationInterval: Math.min(20, interval) }))}
@@ -1121,7 +1119,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                     name: milkdropMeta.name,
                                     count: milkdropMeta.count,
                                     idx: milkdropIdx,
-                                    onToggle: () => setMilkdrop(v => { const n = !v; if (n) { setShaderSrc(null); setMidiNotes(false); setThree3d(null); } return n; }),
+                                    /* No-op: firing a Milkdrop CLIP must not flip the global
+                                       Milkdrop override — the LayerStack renders the clip itself. */
+                                    onToggle: () => {},
                                     onPrev:   () => setMilkdropIdx(i => i - 1),
                                     onNext:   () => setMilkdropIdx(i => i + 1),
                                     onRandom: () => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1))),
@@ -1621,67 +1621,35 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </DraggablePanel>
             )}
 
-            {/* ── Depth plane: background (furthest from camera) ── */}
+            {/* ── The real composite: the full ordered clip-launcher layer stack ──
+                Every active layer of the column renders at once, stacked top-of-list
+                foremost, with per-row opacity × per-clip opacity and the row's blend
+                mode. Clear a clip → that row renders nothing. Replaces the old
+                bgMedia1/bgMedia2 backdrop + single-core pipeline entirely. */}
             <div ref={depthBgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-            <BackgroundLayer
-                mediaList1={bgMedia1}
-                mediaList2={bgMedia2}
-                config={config}
-                analyser={analyserRef.current}
-                isPlaying={audioState.isPlaying}
-                media1Opacity={bgMediaMod.m1}
-                media2Opacity={bgMediaMod.m2}
-                id="px-bg"
-            />
+              <LayerStack layers={liveLayers} analyser={analyserRef.current} config={config} isPlaying={audioState.isPlaying} />
             </div>
 
             {/* ── Depth plane: VIZ midground ── */}
             <div ref={depthVizRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
 
-            {/* Core Visualiser — layered compositing:
-                  Layer 0 (bottom): BackgroundLayer (bgMedia1 + bgMedia2)
-                  Layer 1 (VIZ):    StudioStage / AudioVisualizer / ShaderLayer / MidiNotes / ThreeScene
-                                    — uses config.blendMode (set by clip launcher VIZ row)
-                  Layer 2 (FX):     ButterchurnLayer — overlaid ON TOP with its own blend mode
-                                    — ALWAYS composites over layer 1 when milkdrop is enabled
-                All layers share the same analyser. */}
+            {/* EXPLICIT global override modes (toolbar toggles) — composited ON TOP
+                of the LayerStack only when the user turns one on. Default off → the
+                LayerStack IS the program output. Firing clips never activates these
+                (the launcher's render bridges are no-ops now). */}
             {three3d ? (
                 <ThreeScene
                     analyser={analyserRef.current}
                     config={three3d}
-                    albumUrl={platform?.mediaImages?.[0] || bgMedia1.find(m => m.type === 'image')?.url}
+                    albumUrl={platform?.mediaImages?.[0]}
                     palette={config.colorPalette}
                 />
             ) : analyserRef.current && (
                 <>
-                    {/* VIZ layer — always renders (unless 3D mode) */}
-                    {shaderSrc ? (
-                        <ShaderLayer
-                            analyser={analyserRef.current}
-                            source={shaderSrc}
-                            startTimeMs={shaderStart}
-                            onError={setShaderError}
-                        />
-                    ) : midiNotes ? (
-                        <MidiNotesScene palette={config.colorPalette} />
-                    ) : isStudioMode(config.mode) ? (
-                        <StudioStage
-                            id="core-visualizer"
-                            analyser={analyserRef.current}
-                            config={config}
-                            isPlaying={audioState.isPlaying}
-                        />
-                    ) : (
-                        <AudioVisualizer
-                            id="core-visualizer"
-                            analyser={analyserRef.current}
-                            config={config}
-                            isPlaying={audioState.isPlaying}
-                            hasBackground={bgMedia1.length > 0 || bgMedia2.length > 0}
-                        />
+                    {shaderSrc && (
+                        <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={setShaderError} />
                     )}
-
-                    {/* FX layer — Milkdrop composites ON TOP of VIZ via mix-blend-mode */}
+                    {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
                     {milkdrop && (
                         <ButterchurnLayer
                             analyser={analyserRef.current}
@@ -1691,22 +1659,6 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                             onMeta={setMilkdropMeta}
                             onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
                         />
-                    )}
-
-                    {/* Clip launcher shader layers — one ShaderLayer per active shader cell */}
-                    {Object.entries(layerShaders).map(([li, entry]) =>
-                        entry && analyserRef.current ? (
-                            <ShaderLayer
-                                key={`layer-shader-${li}`}
-                                analyser={analyserRef.current}
-                                source={entry.src}
-                                startTimeMs={entry.startTimeMs}
-                                blendMode={entry.blendMode}
-                                layerOpacity={layerMod[Number(li)]?.opacity ?? entry.opacity}
-                                params={entry.params}
-                                onError={() => {}}
-                            />
-                        ) : null
                     )}
                 </>
             )}
