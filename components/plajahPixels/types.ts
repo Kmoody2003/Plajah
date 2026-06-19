@@ -63,6 +63,8 @@ export interface VisualizationConfig {
   name: string;
   mode: VisualizerMode;
   targetFrameRate: 30 | 60;
+  /** Opt-in: render supported generators natively on the GPU (Pixels Core). */
+  gpuGenerators?: boolean;
   colorPalette: string[];
   smoothingTimeConstant: number;
   minDecibels: number;

@@ -47,6 +47,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     name: "Midnight Neon",
     mode: VisualizerMode.Stage,
     targetFrameRate: 60,
+    gpuGenerators: false,
     colorPalette: ["#FF00CC", "#3333FF", "#00CCFF", "#FFFFFF"],
     smoothingTimeConstant: 0.8,
     minDecibels: -90,
@@ -1738,6 +1739,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 config={config}
                 isPlaying={audioState.isPlaying}
                 bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
+                gpuGenerators={config.gpuGenerators}
               />
             </div>
 
@@ -1928,6 +1930,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 <button onClick={() => setShowLayersPanel(v => !v)} title="Overlay layers (Lottie / HTML)"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showLayersPanel || overlay.lottieOn || overlay.htmlOn ? 'bg-pink-600/40 border-pink-500/50' : 'bg-black/40 border-white/10 hover:bg-pink-600/30'}`}>
                     <Layers2 className="w-4 h-4 text-white/80" />
+                </button>
+                {/* Studio: GPU generators (Pixels Core) — native GLSL for supported modes */}
+                <button onClick={() => setConfig(p => ({ ...p, gpuGenerators: !p.gpuGenerators }))}
+                    title={`GPU generators: ${config.gpuGenerators ? 'ON — supported modes render natively on the GPU' : 'OFF (Canvas2D)'} · experimental`}
+                    className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${config.gpuGenerators ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
+                    <Cpu className="w-4 h-4 text-white/80" />
+                    {config.gpuGenerators && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-[#FF8C00] text-black leading-tight">GPU</span>}
                 </button>
                 {/* Studio: performance mode + FPS — cycles Off → Eco → Auto */}
                 <button onClick={togglePerfMode}

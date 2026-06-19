@@ -17,6 +17,8 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import LayerStack, { LayerSource } from './LayerStack';
 import BackgroundLayer from './BackgroundLayer';
 import { Compositor, LayerInput } from '../engine/core/compositor';
+import { AudioTexture } from '../engine/core/audioTexture';
+import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
 import { VisualizationConfig, BackgroundMedia } from '../types';
 import type { LauncherLayer } from './ClipLauncher';
 
@@ -28,6 +30,8 @@ interface Props {
   /** When set, the stage "Mirror slicing" surface (BackgroundLayer) is composited
    *  as the bottom layer. */
   bgSlice?: { mediaList1: BackgroundMedia[]; mediaList2: BackgroundMedia[] } | null;
+  /** Opt-in: render supported generators natively on the GPU (no Canvas2D). */
+  gpuGenerators?: boolean;
 }
 
 const MAX_HEIGHT = 1080; // internal render-target cap (aspect preserved)
@@ -50,15 +54,25 @@ function pickSource(w: HTMLElement | null | undefined): HTMLVideoElement | HTMLI
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice }) => {
+const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const compRef = useRef<Compositor | null>(null);
+  const genRef = useRef<GeneratorRenderer | null>(null);
+  const audioTexRef = useRef<AudioTexture | null>(null);
+  const startRef = useRef<number>(0);
   const [failed, setFailed] = useState(false);
+
+  // GPU generators only kick in for modes with a GLSL port AND the opt-in flag.
+  const useGpuGen = (clip: NonNullable<LauncherLayer['clips'][number]>) =>
+    !!gpuGenerators && clip.type === 'generator' && hasGenerator(clip.sceneMode);
 
   // Live refs read inside the rAF loop so it never restarts on a fire.
   const layersRef = useRef(layers);    layersRef.current = layers;
   const bgSliceRef = useRef(bgSlice);  bgSliceRef.current = bgSlice;
+  const analyserRef = useRef(analyser); analyserRef.current = analyser;
+  const configRef = useRef(config);    configRef.current = config;
+  const gpuGenRef = useRef(gpuGenerators); gpuGenRef.current = gpuGenerators;
 
   // layerId → hidden wrapper element; + per-color-layer scratch canvas.
   const wrapRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -80,13 +94,21 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
   useEffect(() => {
     if (!canvasRef.current) return;
     try {
-      compRef.current = new Compositor(canvasRef.current);
+      const comp = new Compositor(canvasRef.current);
+      compRef.current = comp;
+      genRef.current = new GeneratorRenderer(comp.gl);
+      audioTexRef.current = new AudioTexture(comp.gl);
+      startRef.current = performance.now();
     } catch (e) {
       console.warn('[PixelsCore] compositor init failed, falling back to DOM stack:', e);
       setFailed(true);
       return;
     }
-    return () => { compRef.current?.dispose(); compRef.current = null; };
+    return () => {
+      genRef.current?.dispose(); genRef.current = null;
+      audioTexRef.current?.dispose(); audioTexRef.current = null;
+      compRef.current?.dispose(); compRef.current = null;
+    };
   }, []);
 
   // The single render loop.
@@ -104,6 +126,13 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         if (h > MAX_HEIGHT) { w = Math.round(w * (MAX_HEIGHT / h)); h = MAX_HEIGHT; }
         comp.resize(w, h);
 
+        // Upload audio once per frame for any GPU generators this frame.
+        const gen = genRef.current, audioTex = audioTexRef.current;
+        const genActive = !!gpuGenRef.current && gen && audioTex;
+        if (genActive) audioTex!.update(analyserRef.current);
+        const palette = (configRef.current.colorPalette || []).slice(0, 3).map(hexToRgb);
+        const time = (performance.now() - startRef.current) / 1000;
+
         const inputs: LayerInput[] = [];
         // Bottom: stage slicing surface.
         if (bgSliceRef.current) {
@@ -119,6 +148,14 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
           if (!clip || clip.type === 'empty') continue;
           if (clip.type === 'generator' && clip.sceneMode?.startsWith('__fx_')) continue;
           const opacity = clamp01((layer.opacity ?? 1) * (clip.opacity ?? 1));
+          // Native GPU generator → render straight into a texture (no Canvas2D).
+          if (genActive && clip.type === 'generator' && hasGenerator(clip.sceneMode)) {
+            const tex = gen!.render(layer.id, clip.sceneMode!, w, h, {
+              time, audio: audioTex!, colors: palette, params: clip.params || [],
+            });
+            inputs.push({ texture: tex, opacity, blendMode: layer.blendMode || 'normal' });
+            continue;
+          }
           let element: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | null = null;
           if (clip.type === 'color') element = colorCanvasFor(layer.id, clip.fillColor || '#000');
           else element = pickSource(wrapRefs.current.get(layer.id));
@@ -138,8 +175,9 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
     const clip = layer.clips[layer.activeCol];
     if (!clip || clip.type === 'empty' || clip.type === 'color') return null;
     if (clip.type === 'generator' && clip.sceneMode?.startsWith('__fx_')) return null;
+    if (useGpuGen(clip)) return null; // rendered natively on the GPU — no Canvas2D needed
     return { layer, clip };
-  }).filter(Boolean) as { layer: LauncherLayer; clip: NonNullable<LauncherLayer['clips'][number]> }[], [layers]);
+  }).filter(Boolean) as { layer: LauncherLayer; clip: NonNullable<LauncherLayer['clips'][number]> }[], [layers, gpuGenerators]);
 
   // Fallback: the original DOM composite (only if WebGL2 init failed).
   if (failed) {
