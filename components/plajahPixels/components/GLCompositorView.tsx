@@ -32,6 +32,9 @@ interface Props {
   bgSlice?: { mediaList1: BackgroundMedia[]; mediaList2: BackgroundMedia[] } | null;
   /** Opt-in: render supported generators natively on the GPU (no Canvas2D). */
   gpuGenerators?: boolean;
+  /** Hands the live composite canvas up so the recorder can captureStream it
+   *  (hardware, drop-free) instead of screen-capturing the tab. */
+  onCanvas?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 const MAX_HEIGHT = 1080; // internal render-target cap (aspect preserved)
@@ -54,7 +57,7 @@ function pickSource(w: HTMLElement | null | undefined): HTMLVideoElement | HTMLI
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators }) => {
+const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const compRef = useRef<Compositor | null>(null);
@@ -99,12 +102,14 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
       genRef.current = new GeneratorRenderer(comp.gl);
       audioTexRef.current = new AudioTexture(comp.gl);
       startRef.current = performance.now();
+      onCanvas?.(canvasRef.current);
     } catch (e) {
       console.warn('[PixelsCore] compositor init failed, falling back to DOM stack:', e);
       setFailed(true);
       return;
     }
     return () => {
+      onCanvas?.(null);
       genRef.current?.dispose(); genRef.current = null;
       audioTexRef.current?.dispose(); audioTexRef.current = null;
       compRef.current?.dispose(); compRef.current = null;

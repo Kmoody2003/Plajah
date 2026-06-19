@@ -334,6 +334,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
+    // The live GPU composite canvas — captured directly for drop-free recording.
+    const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
     // ── Save modal state ──────────────────────────────────────────────────────────
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -351,23 +353,28 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
     const startRecording = useCallback(async () => {
         try {
-            // a) Capture video from the tab at NATIVE resolution + 60fps. No width
-            //    cap — capping forced a downscale that softened the output. Record
-            //    while fullscreen for a pristine full-res grab.
-            const videoStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-                video: {
-                    frameRate: { ideal: 60, max: 60 },
-                    width:  { ideal: 3840 },
-                    height: { ideal: 2160 },
-                },
-                audio: false,
-                preferCurrentTab: true,
-            });
-            // Ask the captured track for the highest quality it can give.
-            try {
-                const vt = videoStream.getVideoTracks()[0];
-                await vt?.applyConstraints({ frameRate: 60, width: { ideal: 3840 }, height: { ideal: 2160 } });
-            } catch { /* track may not support constraints — keep defaults */ }
+            // a) Video source. PREFER capturing the GPU composite canvas directly
+            //    (canvas.captureStream) — it's already on the GPU, so this is
+            //    drop-free and avoids the getDisplayMedia screen-grab + software
+            //    readback that tanked performance. Falls back to tab capture only
+            //    if the compositor canvas isn't available (WebGL2 unsupported).
+            //    NOTE: canvas capture records the composite; DOM overlays (text,
+            //    lighting) join once they move into the compositor.
+            let videoStream: MediaStream;
+            const glCanvas = glCanvasRef.current;
+            if (glCanvas && (glCanvas as any).captureStream) {
+                videoStream = (glCanvas as any).captureStream(60);
+            } else {
+                videoStream = await (navigator.mediaDevices as any).getDisplayMedia({
+                    video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+                    audio: false,
+                    preferCurrentTab: true,
+                });
+                try {
+                    const vt = videoStream.getVideoTracks()[0];
+                    await vt?.applyConstraints({ frameRate: 60, width: { ideal: 3840 }, height: { ideal: 2160 } });
+                } catch { /* track may not support constraints — keep defaults */ }
+            }
 
             // b) Capture audio directly from the AnalyserNode (raw, unprocessed)
             let combinedStream = videoStream;
@@ -1760,6 +1767,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 isPlaying={audioState.isPlaying}
                 bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
                 gpuGenerators={config.gpuGenerators}
+                onCanvas={c => { glCanvasRef.current = c; }}
               />
             </div>
 
