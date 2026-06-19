@@ -27,6 +27,10 @@ export default defineConfig(({ mode }) => {
           // (page <6s old + nothing playing) or the next time the app is opened
           // fresh — so updates are invisible and never reload an active session.
           registerType: 'prompt',
+          // Never run a service worker in dev. Otherwise a Workbox SW shadows the
+          // Vite dev server — it answers /assets/* from its precache (CacheFirst),
+          // so you edit source and the browser keeps serving the last prod build.
+          devOptions: { enabled: false },
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
             name: "Plajah",

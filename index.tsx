@@ -16,7 +16,7 @@ function isMediaActive(): boolean {
     .some(el => !el.paused && !el.ended && el.readyState > 2);
 }
 
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // Use 'prompt' mode so we control exactly when the update is applied.
   // autoUpdate would call location.reload() the moment any new deploy lands,
   // which interrupts video, audio, and games with no warning.
@@ -37,6 +37,25 @@ if ('serviceWorker' in navigator) {
       console.log('[SW] App ready for offline use.');
     },
   });
+} else if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+  // Dev self-heal. A service worker left over from a local production build
+  // (`npm run build` / `preview`) keeps controlling the page and answers
+  // /assets/* from its precache, so the Vite dev server is shadowed — you edit
+  // source and the browser shows the last built bundle. Unregister any leftover
+  // SW, drop its caches, and reload once (loop-guarded) so dev always reflects
+  // live source.
+  navigator.serviceWorker.getRegistrations().then(async (regs) => {
+    if (!regs.length) return;
+    await Promise.all(regs.map((r) => r.unregister()));
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if (!sessionStorage.getItem('__sw_dev_cleared')) {
+      sessionStorage.setItem('__sw_dev_cleared', '1');
+      location.reload();
+    }
+  }).catch(() => { /* best effort */ });
 }
 
 // Contain the known firebase-js-sdk Watch-stream assertion bug (thrown as

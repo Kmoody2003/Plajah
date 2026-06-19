@@ -220,16 +220,22 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [uiHidden, setUiHidden] = useState(false);
 
     // ── 3D Depth / Parallax camera ────────────────────────────────────────────
-    const depthMouseRef = useRef({ x: 0, y: 0 });
+    const depthMouseRef  = useRef({ x: 0, y: 0 });
     const depthSmoothRef = useRef({ x: 0, y: 0 });
-    const depthBgRef = useRef<HTMLDivElement>(null);
-    const depthVizRef = useRef<HTMLDivElement>(null);
-    const depthFgRef = useRef<HTMLDivElement>(null);
-    const depthRafRef = useRef<number | null>(null);
+    const depthBgRef     = useRef<HTMLDivElement>(null);
+    const depthVizRef    = useRef<HTMLDivElement>(null);
+    const depthFgRef     = useRef<HTMLDivElement>(null);
+    const depthRafRef    = useRef<number | null>(null);
+    // Live refs — read each rAF frame so sliders update instantly without restarting the loop
+    const depthParallaxRef  = useRef(config.depthParallaxIntensity ?? 0.4);
+    const cameraFlyRef      = useRef(config.cameraFlyThrough ?? true);
+    const cameraFlySpeedRef = useRef(config.cameraFlySpeed ?? 1.0);
+    useEffect(() => { depthParallaxRef.current  = config.depthParallaxIntensity ?? 0.4; }, [config.depthParallaxIntensity]);
+    useEffect(() => { cameraFlyRef.current      = config.cameraFlyThrough ?? true;       }, [config.cameraFlyThrough]);
+    useEffect(() => { cameraFlySpeedRef.current = config.cameraFlySpeed ?? 1.0;          }, [config.cameraFlySpeed]);
 
     useEffect(() => {
         if (!config.enable3dDepth) {
-            // Reset transforms when depth mode is off
             [depthBgRef, depthVizRef, depthFgRef].forEach(r => {
                 if (r.current) r.current.style.transform = '';
             });
@@ -249,13 +255,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             sm.x += (depthMouseRef.current.x - sm.x) * 0.07;
             sm.y += (depthMouseRef.current.y - sm.y) * 0.07;
 
-            const flySpeed = config.cameraFlySpeed ?? 1.0;
+            // Read live from refs — slider changes apply on the very next frame
+            const flySpeed = cameraFlySpeedRef.current;
             const t = (performance.now() - t0) * 0.001 * flySpeed;
-            const driftX = config.cameraFlyThrough ? Math.sin(t * 0.11) * 0.28 + Math.sin(t * 0.07) * 0.12 : 0;
-            const driftY = config.cameraFlyThrough ? Math.sin(t * 0.09 + 1.2) * 0.16 : 0;
+            const driftX = cameraFlyRef.current ? Math.sin(t * 0.11) * 0.28 + Math.sin(t * 0.07) * 0.12 : 0;
+            const driftY = cameraFlyRef.current ? Math.sin(t * 0.09 + 1.2) * 0.16 : 0;
             const camX = sm.x * 0.5 + driftX;
             const camY = sm.y * 0.5 + driftY;
-            const str = (config.depthParallaxIntensity ?? 0.4) * 48; // max px travel
+            const str = depthParallaxRef.current * 48;
 
             let bass = 0;
             if (analyserRef.current) {
@@ -284,7 +291,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             window.removeEventListener('mousemove', onMove);
             if (depthRafRef.current) cancelAnimationFrame(depthRafRef.current);
         };
-    }, [config.enable3dDepth, config.depthParallaxIntensity, config.cameraFlyThrough, config.cameraFlySpeed]);
+    }, [config.enable3dDepth]); // only restart when depth mode itself toggles
     const [showProgramOutPicker, setShowProgramOutPicker] = useState(false);
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
@@ -523,6 +530,20 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             if (!entry) return prev;
             return { ...prev, [layerIdx]: { ...entry, params } };
         });
+    }, []);
+
+    // Live driver-bus modulation (Steps 5a–5b). Shader layers carry per-index opacity;
+    // the bg/overlay media layers carry opacity multipliers fed into BackgroundLayer.
+    const [layerMod, setLayerMod] = useState<Record<number, { opacity?: number; blendAmount?: number }>>({});
+    const [bgMediaMod, setBgMediaMod] = useState<{ m1: number; m2: number }>({ m1: 1, m2: 1 });
+    const handleLayerModulation = useCallback((layerIdx: number, layerId: string, mod: { opacity?: number; blendAmount?: number }) => {
+        if (layerId === 'bg') {
+            if (mod.opacity != null) setBgMediaMod(p => (p.m1 === mod.opacity ? p : { ...p, m1: mod.opacity! }));
+        } else if (layerId === 'overlay') {
+            if (mod.opacity != null) setBgMediaMod(p => (p.m2 === mod.opacity ? p : { ...p, m2: mod.opacity! }));
+        } else {
+            setLayerMod(prev => ({ ...prev, [layerIdx]: { ...prev[layerIdx], ...mod } }));
+        }
     }, []);
 
     const applyShaderLook = useCallback((src: string) => {
@@ -1092,6 +1113,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 onApplyShader={applyShaderLook}
                                 onLayerShader={handleLayerShader}
                                 onShaderParamsChange={handleShaderParamsChange}
+                                onLayerModulation={handleLayerModulation}
                                 onSyncSceneAuto={(interval) => setConfig(prev => ({ ...prev, enableBackgroundRotation: true, backgroundRotationInterval: Math.min(20, interval) }))}
                                 analyser={analyserRef.current}
                                 milkdrop={{
@@ -1607,6 +1629,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 config={config}
                 analyser={analyserRef.current}
                 isPlaying={audioState.isPlaying}
+                media1Opacity={bgMediaMod.m1}
+                media2Opacity={bgMediaMod.m2}
                 id="px-bg"
             />
             </div>
@@ -1678,7 +1702,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 source={entry.src}
                                 startTimeMs={entry.startTimeMs}
                                 blendMode={entry.blendMode}
-                                layerOpacity={entry.opacity}
+                                layerOpacity={layerMod[Number(li)]?.opacity ?? entry.opacity}
                                 params={entry.params}
                                 onError={() => {}}
                             />

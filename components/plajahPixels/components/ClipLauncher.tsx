@@ -30,6 +30,12 @@ import {
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
+import { AudioDriverSampler } from '../engine/audioDrivers';
+import {
+  Mapping, DriverKind, TargetKind, DRIVER_KINDS, TARGET_KINDS,
+  isRowTarget, makeMapping, loadMappings, saveMappings,
+  sceneRateOptions, defaultRate,
+} from '../engine/automationMatrix';
 import { MidiEventData, rotatePalette } from '../services/midiService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -210,6 +216,13 @@ interface Props {
   onLayerShader?: (layerIdx: number, src: string | null, blendMode: string, opacity: number, params: number[]) => void;
   /** Called when the params sliders change for an active shader layer. */
   onShaderParamsChange?: (layerIdx: number, params: number[]) => void;
+  /**
+   * Live driver-bus modulation for a layer (Steps 5a–5b). Sends the modulated
+   * opacity (and, later, blend amount) for layer types whose opacity isn't
+   * otherwise live-settable. The Studio routes by layerId: 'bg'/'overlay' →
+   * BackgroundLayer media multipliers; other ids → shader-layer opacity.
+   */
+  onLayerModulation?: (layerIdx: number, layerId: string, mod: { opacity?: number; blendAmount?: number }) => void;
   /** Called when user presses SYNC in the AUTO tab to push scene interval to studio config. */
   onSyncSceneAuto?: (interval: number) => void;
   /** Called when the global blend overlay toggle changes — drives config.enableLayer2 in the studio. */
@@ -844,10 +857,11 @@ const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
 const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetLayerMedia,
   bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
-  onLayerShader, onShaderParamsChange, onSyncSceneAuto, onSetBlendActive, analyser,
+  onLayerShader, onShaderParamsChange, onLayerModulation, onSyncSceneAuto, onSetBlendActive, analyser,
   rightPanel, onPowerOff,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
+  const [mappings,      setMappings]      = useState<Mapping[]>(() => loadMappings());
   const [scrollLeft,    setScrollLeft]    = useState(0);
   const [flashedPads,   setFlashedPads]   = useState<Set<number>>(new Set());
   const [midiActive,    setMidiActive]    = useState(false);
@@ -863,6 +877,7 @@ const ClipLauncher: React.FC<Props> = ({
   const [sceneAutoTrigger,  setSceneAutoTrigger]  = useState<'time' | 'beat'>('time');
   const [sceneAutoBars,     setSceneAutoBars]     = useState<2 | 4 | 8 | 16>(4); // bars between advances in beat mode
   const sceneAutoColRef      = useRef(0);
+  const busSceneColRef       = useRef(0); // driver-bus sequential scene position
   const sceneBeatCounterRef  = useRef(0); // beats counted toward next scene change
   const sceneLastBeatTimeRef = useRef(0); // last beat timestamp for debounce
   // The single column that is currently driving program output (null = nothing launched yet)
@@ -872,9 +887,13 @@ const ClipLauncher: React.FC<Props> = ({
   const [hoverSource,   setHoverSource]   = useState<LauncherClip | null>(null);
   const prevTabRef = useRef<typeof rightPanelTab | null>(null); // tab to restore after hover
 
-  const configRef = useRef(config);
-  const milkRef   = useRef(milkdrop);
-  const layersRef = useRef(layers);
+  const configRef       = useRef(config);
+  const milkRef         = useRef(milkdrop);
+  const layersRef       = useRef(layers);
+  const mappingsRef     = useRef(mappings);
+  const sceneAutoModeRef = useRef(sceneAutoMode);
+  // Live driver-bus modulation per layer id (Step 4 writes; Step 5's real composite reads).
+  const layerModRef = useRef<Record<string, { opacity?: number; blendAmount?: number }>>({});
 
   // Helper: sync a media array into a layer row identified by id
   function syncMediaToLayer(
@@ -911,8 +930,10 @@ const ClipLauncher: React.FC<Props> = ({
   useEffect(() => { if (bgMedia1?.length) syncMediaToLayer(bgMedia1, 'bg', '#6366f1', setLayers); }, [bgMedia1]);
   useEffect(() => { if (bgMedia2?.length) syncMediaToLayer(bgMedia2, 'overlay', '#ec4899', setLayers); }, [bgMedia2]);
   useEffect(() => { configRef.current = config;   }, [config]);
+  useEffect(() => { sceneAutoModeRef.current = sceneAutoMode; }, [sceneAutoMode]);
   useEffect(() => { milkRef.current   = milkdrop; }, [milkdrop]);
   useEffect(() => { layersRef.current = layers; saveLayers(layers); }, [layers]);
+  useEffect(() => { mappingsRef.current = mappings; saveMappings(mappings); }, [mappings]);
 
   const CELL_W    = 101;
   const GAP       = 4;
@@ -1034,6 +1055,8 @@ const ClipLauncher: React.FC<Props> = ({
   // listing it as a dependency (which would restart the effect on every fire).
   const launchSceneRef = useRef<(colIdx: number) => void>(() => {});
   useEffect(() => { launchSceneRef.current = launchScene; }, [launchScene]);
+  const fireClipRef = useRef<typeof fireClip>(fireClip);
+  useEffect(() => { fireClipRef.current = fireClip; }, [fireClip]);
 
   // Config value refs — beat mode reads these instead of capturing stale closures
   const sceneAutoBarsRef = useRef(sceneAutoBars);
@@ -1042,6 +1065,9 @@ const ClipLauncher: React.FC<Props> = ({
   useEffect(() => { rotationMusicGovernRef.current = config.rotationMusicGovern; }, [config.rotationMusicGovern]);
 
   // ── Row automation timers ────────────────────────────────────────────────────
+  // Sequential mode marches through ALL columns left-to-right (same scene order
+  // as the launcher grid), so every auto-enabled row stays in the same column.
+  // fireClip is accessed via fireClipRef so the interval never restarts on a fire.
   useEffect(() => {
     const intervals: ReturnType<typeof setInterval>[] = [];
     layers.forEach((layer, li) => {
@@ -1051,23 +1077,29 @@ const ClipLauncher: React.FC<Props> = ({
         const lrs = layersRef.current;
         const l = lrs[li];
         if (!l || !l.autoMode || l.autoMode === 'off' || l.bypassed || l.muted) return;
-        const filled = l.clips.map((c, i) => c ? i : -1).filter(i => i >= 0);
-        if (filled.length === 0) return;
+        const cc = lrs[0]?.clips.length ?? NUM_COLS;
         let nextCol: number;
         if (l.autoMode === 'random') {
+          const filled = l.clips.map((c, i) => c ? i : -1).filter(i => i >= 0);
+          if (filled.length === 0) return;
           nextCol = filled[Math.floor(Math.random() * filled.length)];
         } else {
-          const cur = filled.indexOf(l.activeCol ?? -1);
-          nextCol = filled[(cur + 1) % filled.length];
+          // Advance through all columns in scene order (left to right) so all
+          // rows cycle in sync with the clip launcher column progression.
+          nextCol = ((l.activeCol ?? -1) + 1 + cc) % cc;
+          for (let t = 0; t < cc; t++) {
+            if (l.clips[nextCol] != null) break;
+            nextCol = (nextCol + 1) % cc;
+          }
+          if (l.clips[nextCol] == null) return; // row has no clips at all
         }
-        fireClip(li, nextCol, lrs);
+        fireClipRef.current(li, nextCol, lrs);
       }, ms);
       intervals.push(id);
     });
     return () => intervals.forEach(clearInterval);
-    // Only re-run when autoMode or autoInterval changes, not on every render
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.map(l => `${l.id}:${l.autoMode}:${l.autoInterval}`).join(','), fireClip]);
+  }, [layers.map(l => `${l.id}:${l.autoMode}:${l.autoInterval}`).join(',')]);
 
   // ── Scene automation — time mode ────────────────────────────────────────────
   // launchScene is intentionally NOT in deps — we use launchSceneRef to call the
@@ -1108,67 +1140,21 @@ const ClipLauncher: React.FC<Props> = ({
   useEffect(() => {
     if (sceneAutoMode === 'off' || sceneAutoTrigger !== 'beat' || !analyser) return;
 
-    const dataArr = new Uint8Array(analyser.frequencyBinCount);
-    const beatTimes: number[] = [];
-    let estimatedBpm = 120;
-    let lastDetectedBeat = 0;
+    const sampler = new AudioDriverSampler();
     let rafId: number;
 
     // Start the clock immediately — don't wait for a beat to arrive before the
-    // first scene fires. Uses sceneAutoBarsRef so bar length updates live.
-    const barMs = () => (60000 / estimatedBpm) * 4 * sceneAutoBarsRef.current;
+    // first scene fires. Uses sceneAutoBarsRef so bar length updates live, and
+    // sampler.bpm so the bar grid tracks the live tempo driver.
+    const barMs = () => (60000 / sampler.bpm) * 4 * sceneAutoBarsRef.current;
     let nextSceneAt = performance.now() + barMs();
 
-    // Rolling bass energy history for onset detection (~20 frames ≈ 333ms at 60fps).
-    // Comparing against local average avoids hard absolute thresholds that fail on
-    // quiet or loud tracks.
-    const energyHistory = new Float32Array(20);
-    let histIdx = 0;
-
     const tick = () => {
-      analyser.getByteFrequencyData(dataArr);
-
-      // Sub-bass energy (bins 0–4, 0–86 Hz)
-      let bass = 0;
-      for (let i = 0; i < 5; i++) bass += dataArr[i];
-      bass = (bass / 5) / 255;
-
-      // Wider bass energy (bins 0–12, 0–258 Hz) for backup onset detection
-      let midBass = 0;
-      for (let i = 0; i < 12; i++) midBass += dataArr[i];
-      midBass = (midBass / 12) / 255;
-
-      // Update rolling history
-      energyHistory[histIdx % energyHistory.length] = bass;
-      histIdx++;
-      let avgEnergy = 0;
-      for (let i = 0; i < energyHistory.length; i++) avgEnergy += energyHistory[i];
-      avgEnergy /= energyHistory.length;
-
       const now = performance.now();
-      const minGap = Math.max(200, 60000 / Math.min(240, estimatedBpm * 2.2));
-
-      // Beat onset: current bass significantly above local rolling average
-      const isBeat = (bass > avgEnergy * 1.35 || midBass > avgEnergy * 1.5)
-        && bass > 0.18
-        && (now - lastDetectedBeat) > minGap;
-
-      if (isBeat) {
-        lastDetectedBeat = now;
-        beatTimes.push(now);
-        if (beatTimes.length > 8) beatTimes.shift();
-        if (beatTimes.length >= 2) {
-          let iSum = 0;
-          for (let i = 1; i < beatTimes.length; i++) iSum += beatTimes[i] - beatTimes[i - 1];
-          const rawBpm = 60000 / (iSum / (beatTimes.length - 1));
-          if (rawBpm >= 40 && rawBpm <= 240) {
-            estimatedBpm = estimatedBpm * 0.85 + rawBpm * 0.15;
-          }
-        }
-      }
+      sampler.update(analyser, now);  // live tempo / intensity / beat detection
 
       // Music govern: intense bass nudges the next fire slightly sooner
-      if (rotationMusicGovernRef.current && bass > 0.78) {
+      if (rotationMusicGovernRef.current && sampler.intensity > 0.78) {
         const remaining = nextSceneAt - now;
         if (remaining > 800) nextSceneAt -= remaining * 0.04;
       }
@@ -1207,6 +1193,173 @@ const ClipLauncher: React.FC<Props> = ({
     // refs are used instead so the effect never restarts when those values change.
   }, [sceneAutoMode, sceneAutoTrigger, analyser]);
 
+  // ── Driver bus — scene + row target mappings (Steps 3–4) ──────────────────────
+  // A single rAF loop that samples the audio drivers, derives a 0–1 signal per
+  // driver, and applies every enabled mapping independently:
+  //   • scene targets → advance the active column on the driver's schedule (Step 3)
+  //   • row targets   → modulate layer opacity / shader params live (Step 4)
+  // Additive to the legacy Scene Automation panel (left untouched, so it can't
+  // regress). Restarts only when the *structure* of enabled mappings changes;
+  // depth/rate read live from mappingsRef so dragging a slider never resets the
+  // scheduling clocks or signal envelopes.
+  const mappingKey = mappings
+    .filter(m => m.enabled)
+    .map(m => `${m.id}:${m.driver}:${m.target}:${m.targetLayerId ?? ''}:${m.targetParamIdx ?? ''}`)
+    .join(',');
+  useEffect(() => {
+    if (!mappingKey) return; // no enabled mappings → bus idle
+
+    const sampler = new AudioDriverSampler();
+    let rafId: number;
+    let lastNow = performance.now();
+
+    // Shared per-driver signal state — computed once per frame, reused by every mapping.
+    let beatEnv  = 0; // decaying pulse: 1 on onset, falls toward 0
+    let lfoPhase = 0; // tempo LFO phase, in cycles
+    let barPhase = 0; // measure sawtooth, 0–1 across one bar
+
+    // Tempo-grid helpers — effect-scoped so both getSched (initial delay) and tick
+    // (rescheduling) can use them. Read sampler.bpm live at call time.
+    const beatMs = (beats: number) => (60000 / sampler.bpm) * beats;
+    const barMs  = (bars: number)  => (60000 / sampler.bpm) * 4 * bars;
+
+    // Per-mapping state: scene scheduling + last pushed row value (push throttle).
+    type Sched = { nextAt: number; beatAcc: number; lastFire: number; lastPush: number };
+    const sched = new Map<string, Sched>();
+    const getSched = (id: string, now: number): Sched => {
+      let s = sched.get(id);
+      if (!s) {
+        // Don't fire on the first frame — start the clock one cycle out so the
+        // user has time to observe and react before the first scene advance.
+        const m = mappingsRef.current.find(mp => mp.id === id);
+        let initDelay = 0;
+        if (m?.target === 'scene') {
+          const r = m.rate ?? defaultRate(m.driver);
+          if (m.driver === 'measure') initDelay = barMs(r);
+          else if (m.driver === 'tempo') initDelay = beatMs(r);
+          else initDelay = 2000; // intensity/beat: 2s grace on load
+        }
+        s = { nextAt: now + initDelay, beatAcc: 0, lastFire: 0, lastPush: -1 };
+        sched.set(id, s);
+      }
+      return s;
+    };
+
+    // Advance to the next non-empty column after the bus's current position.
+    const advanceScene = () => {
+      const lrs = layersRef.current;
+      const cc = lrs[0]?.clips.length ?? NUM_COLS;
+      let candidate = (busSceneColRef.current + 1) % cc;
+      for (let t = 0; t < cc; t++) {
+        if (lrs.some(l => l.clips[candidate] != null)) break;
+        candidate = (candidate + 1) % cc;
+      }
+      busSceneColRef.current = candidate;
+      launchSceneRef.current(candidate);
+    };
+
+    const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+    const tick = () => {
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - lastNow) / 1000); // seconds, capped to survive tab stalls
+      lastNow = now;
+      // Audio-driven values only update with an analyser. Without one, bpm stays at
+      // its 120 default (clock drivers keep running) while isBeat/intensity stay 0.
+      if (analyser) sampler.update(analyser, now);
+
+      // ── Derive the shared 0–1 driver signals for this frame ──
+      if (sampler.isBeat) beatEnv = 1; else beatEnv = Math.max(0, beatEnv - dt * 4); // ~250ms decay
+      lfoPhase = (lfoPhase + (sampler.bpm / 60) * dt) % 1;
+      const barLenSec = (60 / sampler.bpm) * 4;
+      barPhase = (barPhase + dt / barLenSec) % 1;
+      const signalFor = (driver: DriverKind): number => {
+        if (driver === 'intensity') return sampler.intensity;
+        if (driver === 'beat')      return beatEnv;
+        if (driver === 'tempo')     return (Math.sin(2 * Math.PI * lfoPhase) + 1) / 2;
+        return barPhase; // measure — sawtooth across the bar
+      };
+
+      const beatNow = sampler.isBeat;
+      const lrs     = layersRef.current;
+
+      for (const m of mappingsRef.current) {
+        if (!m.enabled) continue;
+        const s = getSched(m.id, now);
+
+        // ── Scene targets (Step 3) ──
+        // Respect the legacy "SCENE AUTO" off switch — if it's off, no automation
+        // pathway (legacy OR driver matrix) should advance scenes.
+        if (m.target === 'scene') {
+          if (sceneAutoModeRef.current === 'off') continue;
+          const rate = m.rate ?? defaultRate(m.driver);
+          let fire = false;
+          if (m.driver === 'beat') {
+            if (beatNow) { s.beatAcc++; if (s.beatAcc >= rate) { s.beatAcc = 0; fire = true; } }
+          } else if (m.driver === 'measure') {
+            if (now >= s.nextAt) { fire = true; s.nextAt = now + barMs(rate); }
+          } else if (m.driver === 'tempo') {
+            if (now >= s.nextAt) { fire = true; s.nextAt = now + beatMs(rate); }
+          } else if (m.driver === 'intensity') {
+            const threshold = 0.5 + (1 - m.depth) * 0.4; // depth 1 → 0.5, depth 0 → 0.9
+            if (sampler.intensity > threshold && (now - s.lastFire) > 250) { fire = true; s.lastFire = now; }
+          }
+          if (fire) advanceScene();
+          continue;
+        }
+
+        // ── Row targets (Step 4) ──
+        const layerIdx = lrs.findIndex(l => l.id === m.targetLayerId);
+        if (layerIdx === -1) continue;
+        const layer = lrs[layerIdx];
+        if (layer.bypassed || layer.muted) continue;
+        const signal     = signalFor(m.driver);
+        const activeClip = layer.activeCol != null ? layer.clips[layer.activeCol] : null;
+
+        if (m.target === 'rowParam') {
+          // Modulate a shader param around its set base. Live-applicable only to an
+          // active shader clip (onShaderParamsChange doesn't reset shader time).
+          if (activeClip?.type !== 'shader') continue;
+          const idx  = m.targetParamIdx ?? 0;
+          const base = activeClip.params?.[idx] ?? 0.5;
+          const out  = clamp01(base * (1 - m.depth) + signal * m.depth);
+          if (Math.abs(out - s.lastPush) < 0.004) continue; // skip redundant setstates
+          s.lastPush = out;
+          const newParams = [...(activeClip.params ?? [0.5, 0.5, 0.5, 0.5])];
+          newParams[idx] = out;
+          onShaderParamsChange?.(layerIdx, newParams);
+
+        } else if (m.target === 'rowOpacity') {
+          const base = layer.opacity;
+          const out  = clamp01(base * ((1 - m.depth) + m.depth * signal));
+          // Record for the real composite (Step 5 reads layerModRef for every layer type).
+          layerModRef.current[m.targetLayerId!] = { ...(layerModRef.current[m.targetLayerId!] ?? {}), opacity: out };
+          if (Math.abs(out - s.lastPush) < 0.004) continue; // skip redundant pushes
+          s.lastPush = out;
+          // Route to whichever live surface fits the layer's active clip:
+          //   milkdrop → its dedicated opacity setter; everything else → the Studio
+          //   modulation pipe (Step 5a), which applies it to shader layers today.
+          if (activeClip?.type === 'milkdrop' && milkRef.current.enabled) {
+            milkRef.current.onSetOpacity?.(out);
+          } else {
+            onLayerModulation?.(layerIdx, m.targetLayerId!, { opacity: out });
+          }
+
+        } else if (m.target === 'rowBlendAmount') {
+          // No blend-amount in the composite yet — recorded for Step 5.
+          layerModRef.current[m.targetLayerId!] = { ...(layerModRef.current[m.targetLayerId!] ?? {}), blendAmount: clamp01(signal * m.depth) };
+        }
+      }
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+    // Only mappingKey + analyser in deps — depth/rate read live via mappingsRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mappingKey, analyser]);
+
   // ── Add / remove layer ──────────────────────────────────────────────────────
   const addLayer = useCallback(() => {
     setLayers(prev => {
@@ -1226,6 +1379,17 @@ const ClipLauncher: React.FC<Props> = ({
 
   const deleteLayer = useCallback((li: number) => {
     setLayers(prev => prev.filter((_, i) => i !== li));
+  }, []);
+
+  // ── Driver matrix mappings (Step 2: editor state only, not yet live) ──────────
+  const addMapping = useCallback(() => {
+    setMappings(prev => [...prev, makeMapping({ targetLayerId: layersRef.current[0]?.id })]);
+  }, []);
+  const updateMapping = useCallback((id: string, patch: Partial<Mapping>) => {
+    setMappings(prev => prev.map(m => m.id === id ? { ...m, ...patch } : m));
+  }, []);
+  const deleteMapping = useCallback((id: string) => {
+    setMappings(prev => prev.filter(m => m.id !== id));
   }, []);
 
   // ── Update single clip field ────────────────────────────────────────────────
@@ -1765,6 +1929,150 @@ const ClipLauncher: React.FC<Props> = ({
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Driver Matrix — map any driver → any target (Step 2: editor only, not yet live) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Driver Matrix</span>
+                  <button
+                    onClick={addMapping}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest transition-all"
+                    style={{ background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.4)', color: '#67e8f9' }}
+                    title="Add a driver → target mapping"
+                  >
+                    <Plus className="w-2.5 h-2.5" /> MAP
+                  </button>
+                </div>
+
+                {mappings.length === 0 ? (
+                  <div
+                    className="rounded-xl p-3 text-[7px] text-white/25 leading-relaxed text-center"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}
+                  >
+                    No mappings yet. Add one to route a driver
+                    (measure · tempo · intensity · beat) onto a target —
+                    <br />e.g. intensity → layer opacity, or tempo → scene advance.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {mappings.map(m => {
+                      const dk = DRIVER_KINDS.find(d => d.id === m.driver)!;
+                      const tk = TARGET_KINDS.find(t => t.id === m.target)!;
+                      return (
+                        <div
+                          key={m.id}
+                          className="rounded-xl p-2.5 flex flex-col gap-2"
+                          style={{ background: `${dk.color}0d`, border: `1px solid ${dk.color}33`, opacity: m.enabled ? 1 : 0.5 }}
+                        >
+                          {/* driver → target */}
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={m.driver}
+                              onChange={e => updateMapping(m.id, { driver: e.target.value as DriverKind })}
+                              className="flex-1 text-[7px] font-black uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none"
+                              style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${dk.color}44`, color: dk.color }}
+                            >
+                              {DRIVER_KINDS.map(d => <option key={d.id} value={d.id} className="bg-zinc-900">{d.label}</option>)}
+                            </select>
+                            <span className="text-[9px] text-white/30 shrink-0">→</span>
+                            <select
+                              value={m.target}
+                              onChange={e => {
+                                const target = e.target.value as TargetKind;
+                                const patch: Partial<Mapping> = { target };
+                                if (isRowTarget(target) && !m.targetLayerId) patch.targetLayerId = layersRef.current[0]?.id;
+                                updateMapping(m.id, patch);
+                              }}
+                              className="flex-1 text-[7px] font-black uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none"
+                              style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                            >
+                              {TARGET_KINDS.map(t => <option key={t.id} value={t.id} className="bg-zinc-900">{t.label}</option>)}
+                            </select>
+                            <button
+                              onClick={() => deleteMapping(m.id)}
+                              className="w-4 h-4 flex items-center justify-center rounded text-white/20 hover:text-red-400 transition-colors shrink-0"
+                              title="Remove mapping"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+
+                          {/* rate selector for clock/beat scene targets */}
+                          {m.target === 'scene' && m.driver !== 'intensity' && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[7px] uppercase tracking-widest text-white/30 shrink-0">Every</span>
+                              <select
+                                value={m.rate ?? defaultRate(m.driver)}
+                                onChange={e => updateMapping(m.id, { rate: Number(e.target.value) })}
+                                className="text-[7px] font-bold uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none"
+                                style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.55)' }}
+                              >
+                                {sceneRateOptions(m.driver).map(r => (
+                                  <option key={r} value={r} className="bg-zinc-900">
+                                    {r} {m.driver === 'measure' ? (r > 1 ? 'BARS' : 'BAR') : (r > 1 ? 'BEATS' : 'BEAT')}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* layer + param selectors for row targets */}
+                          {tk.needsLayer && (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={m.targetLayerId ?? ''}
+                                onChange={e => updateMapping(m.id, { targetLayerId: e.target.value })}
+                                className="flex-1 text-[7px] font-bold uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none"
+                                style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.55)' }}
+                              >
+                                {layers.map(l => <option key={l.id} value={l.id} className="bg-zinc-900">{l.name}</option>)}
+                              </select>
+                              {tk.needsParam && (
+                                <select
+                                  value={m.targetParamIdx ?? 0}
+                                  onChange={e => updateMapping(m.id, { targetParamIdx: Number(e.target.value) })}
+                                  className="text-[7px] font-bold uppercase rounded appearance-none px-1.5 py-1 cursor-pointer outline-none shrink-0"
+                                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.55)' }}
+                                >
+                                  {['A', 'B', 'C', 'D'].map((p, i) => <option key={p} value={i} className="bg-zinc-900">PARAM {p}</option>)}
+                                </select>
+                              )}
+                            </div>
+                          )}
+
+                          {/* depth + enable */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[7px] uppercase tracking-widest text-white/30 shrink-0">Depth</span>
+                            <input
+                              type="range" min="0" max="100" step="1"
+                              value={Math.round(m.depth * 100)}
+                              onChange={e => updateMapping(m.id, { depth: Number(e.target.value) / 100 })}
+                              className="flex-1 cursor-pointer"
+                              style={{ accentColor: dk.color, height: 12 }}
+                            />
+                            <span className="text-[7px] font-mono text-white/40 w-6 text-right shrink-0">{Math.round(m.depth * 100)}</span>
+                            <button
+                              onClick={() => updateMapping(m.id, { enabled: !m.enabled })}
+                              className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest transition-all shrink-0"
+                              style={{
+                                background: m.enabled ? `${dk.color}25` : 'rgba(255,255,255,0.04)',
+                                border:     m.enabled ? `1px solid ${dk.color}66` : '1px solid rgba(255,255,255,0.1)',
+                                color:      m.enabled ? dk.color : 'rgba(255,255,255,0.25)',
+                              }}
+                            >
+                              {m.enabled ? 'ON' : 'OFF'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="text-[6px] text-white/20 leading-relaxed text-center px-2">
+                      Live: scene advance · shader params · milkdrop opacity.
+                      Media-layer opacity &amp; blend amount apply once the real composite lands (Step 5).
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Row Automation */}

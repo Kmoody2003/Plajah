@@ -42,6 +42,10 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
     const beatDecayRef = useRef(0);
     const lastBassRef = useRef(0);
     const lastBeatTimeRef = useRef(0);
+    // Live config ref — the rAF loop reads this every frame so sliders update
+    // instantly without restarting the loop (which would reset beat state).
+    const configRef = useRef(config);
+    useEffect(() => { configRef.current = config; }, [config]);
 
     const fixtures = useMemo(
         () => buildFixtures(Math.max(1, Math.min(6, config.beamCount ?? 3))),
@@ -55,7 +59,8 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
     useEffect(() => {
         const animate = (time: number) => {
-            const fps = config.targetFrameRate || 60;
+            const cfg = configRef.current;
+            const fps = cfg.targetFrameRate || 60;
             const elapsed = time - lastFrameRef.current;
             if (elapsed < 1000 / fps) {
                 rafRef.current = requestAnimationFrame(animate);
@@ -101,10 +106,10 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
             // Beat strobe decay
             if (beatDecayRef.current > 0) beatDecayRef.current = Math.max(0, beatDecayRef.current - 0.06);
-            const strokeFlash = config.beamStrobeOnBeat ? beatDecayRef.current : 0;
+            const strokeFlash = cfg.beamStrobeOnBeat ? beatDecayRef.current : 0;
 
-            const t = performance.now() * 0.001 * (config.speed || 1);
-            const intensity = config.lightingIntensity ?? 1;
+            const t = performance.now() * 0.001 * (cfg.speed || 1);
+            const intensity = cfg.lightingIntensity ?? 1;
             const W = canvas.width;
             const H = canvas.height;
 
@@ -112,7 +117,7 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
             // ── 1. Ambient moving lissajous wash ────────────────────────────
             {
-                const lightColorHex = config.lightColor || palette[0] || '#ffffff';
+                const lightColorHex = cfg.lightColor || palette[0] || '#ffffff';
                 const rgb = hexToRgb(lightColorHex);
                 const lx = W * 0.5 + Math.sin(t * 0.7) * W * 0.38;
                 const ly = H * 0.5 + Math.sin(t * 1.3) * H * 0.28;
@@ -128,7 +133,7 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
             }
 
             // ── 2. Volumetric stage fixtures ─────────────────────────────────
-            if (config.enableBeams) {
+            if (cfg.enableBeams) {
                 fixtures.forEach((fix, fi) => {
                     const colorHex = palette[fi % palette.length] || '#ffffff';
                     const rgb = hexToRgb(colorHex);
@@ -262,15 +267,16 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
             rafRef.current = requestAnimationFrame(animate);
         };
 
-        if (config.enableLighting) {
+        if (configRef.current.enableLighting) {
             rafRef.current = requestAnimationFrame(animate);
         }
 
         return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
     }, [
-        config.enableLighting, config.enableBeams, config.lightingIntensity,
-        config.speed, config.lightColor, config.beamStrobeOnBeat,
-        fixtures, palette, analyser, isPlaying,
+        // Only restart when structural things change (analyser, isPlaying, fixtures, palette).
+        // All config fields are read live from configRef.current inside animate so slider
+        // changes apply on the very next frame without resetting beat detection state.
+        config.enableLighting, fixtures, palette, analyser, isPlaying,
     ]);
 
     if (!config.enableLighting) return null;

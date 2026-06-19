@@ -9,12 +9,22 @@ interface BackgroundLayerProps {
     analyser: AnalyserNode | null;
     isPlaying: boolean;
     id?: string;
+    /** Live driver-bus opacity multipliers (Step 5b): 1 = unmodulated. */
+    media1Opacity?: number;
+    media2Opacity?: number;
 }
 
-const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList2, config, analyser, isPlaying }) => {
+const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList2, config, analyser, isPlaying, media1Opacity = 1, media2Opacity = 1 }) => {
     // Refs for the persistent source elements (off-screen)
     const source1Ref = useRef<HTMLVideoElement | HTMLImageElement>(null);
     const source2Ref = useRef<HTMLVideoElement | HTMLImageElement>(null);
+
+    // Live opacity multipliers from the driver bus, read inside the rAF render loop
+    // (refs so a 60fps modulation stream never restarts the animation).
+    const media1OpacityRef = useRef(1);
+    const media2OpacityRef = useRef(1);
+    media1OpacityRef.current = media1Opacity;
+    media2OpacityRef.current = media2Opacity;
     
     // Ref for the output canvas
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -455,14 +465,14 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ mediaList1, mediaList
                     }
                 };
 
-                // Draw Layer 1 (Content)
+                // Draw Layer 1 (Content) — × live bus opacity multiplier
                 if (source1Ref.current) {
-                    drawLayer(source1Ref.current, layer1Opacity, 'source-over');
+                    drawLayer(source1Ref.current, layer1Opacity * media1OpacityRef.current, 'source-over');
                 }
 
-                // Draw Layer 2 (Overlay/Environment)
+                // Draw Layer 2 (Overlay/Environment) — × live bus opacity multiplier
                 if (config.enableLayer2 && source2Ref.current) {
-                    drawLayer(source2Ref.current, layer2Opacity, activeBlendMode);
+                    drawLayer(source2Ref.current, layer2Opacity * media2OpacityRef.current, activeBlendMode);
                 }
             }
 
