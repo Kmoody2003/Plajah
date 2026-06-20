@@ -35,6 +35,10 @@ interface Props {
   /** Hands the live composite canvas up so the recorder can captureStream it
    *  (hardware, drop-free) instead of screen-capturing the tab. */
   onCanvas?: (canvas: HTMLCanvasElement | null) => void;
+  /** Overlay layers (text/lighting/3D/matte/…) to composite ON TOP of the clip
+   *  stack. Rendered hidden; their canvases are uploaded as top layers each frame.
+   *  When set, the single GL canvas becomes the FULL output. */
+  overlays?: React.ReactNode;
 }
 
 const MAX_HEIGHT = 1080; // internal render-target cap (aspect preserved)
@@ -57,9 +61,10 @@ function pickSource(w: HTMLElement | null | undefined): HTMLVideoElement | HTMLI
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas }) => {
+const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas, overlays }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayHostRef = useRef<HTMLDivElement>(null);
   const compRef = useRef<Compositor | null>(null);
   const genRef = useRef<GeneratorRenderer | null>(null);
   const audioTexRef = useRef<AudioTexture | null>(null);
@@ -166,6 +171,15 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
           else element = pickSource(wrapRefs.current.get(layer.id));
           if (element) inputs.push({ element, opacity, blendMode: layer.blendMode || 'normal' });
         }
+        // Overlay layers (unify mode): upload each overlay canvas as a top layer,
+        // in DOM order (viz below fg), source-over like the CSS planes they replace.
+        const host = overlayHostRef.current;
+        if (host) {
+          host.querySelectorAll('canvas').forEach(cv => {
+            const c = cv as HTMLCanvasElement;
+            if (c.width > 0 && c.height > 0) inputs.push({ element: c, opacity: 1, blendMode: 'normal' });
+          });
+        }
         const cfg = configRef.current;
         comp.render(inputs, {
           brightness: cfg.gradeBrightness ?? 1,
@@ -196,6 +210,7 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
       <div className="absolute inset-0">
         {bgSlice && <BackgroundLayer mediaList1={bgSlice.mediaList1} mediaList2={bgSlice.mediaList2} config={config} analyser={analyser} isPlaying={isPlaying} id="px-bg-slice" />}
         <LayerStack layers={layers} analyser={analyser} config={config} isPlaying={isPlaying} />
+        {overlays /* unify mode: render overlays as visible DOM since there's no GL canvas */}
       </div>
     );
   }
@@ -215,6 +230,9 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
             <LayerSource clip={clip} analyser={analyser} config={config} isPlaying={isPlaying} />
           </div>
         ))}
+        {/* Overlay layers (unify mode) — rendered hidden; their canvases are
+            uploaded as top compositor layers each frame. */}
+        {overlays && <div ref={overlayHostRef} style={{ position: 'absolute', inset: 0 }}>{overlays}</div>}
       </div>
       {/* The single composited surface. */}
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1, display: 'block' }} />

@@ -48,6 +48,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     mode: VisualizerMode.Stage,
     targetFrameRate: 60,
     gpuGenerators: false,
+    unifyOverlays: false,
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
     colorPalette: ["#FF00CC", "#3333FF", "#00CCFF", "#FFFFFF"],
     smoothingTimeConstant: 0.8,
@@ -1146,6 +1147,35 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         return <ProgramOutView />;
     }
 
+    // Overlay groups — rendered as DOM planes by default, or composited INTO the
+    // single GL canvas when config.unifyOverlays is on (so the one surface is the
+    // full output: Fast recording includes overlays, and it's the prereq for the
+    // OffscreenCanvas worker). HtmlLayer (an iframe) can't become a texture, so it
+    // always stays DOM on top; Lottie likewise stays DOM for its screen blend.
+    const unify = !!config.unifyOverlays;
+    const vizOverlay = (
+        <>
+            {three3d ? (
+                <ThreeScene analyser={analyserRef.current} config={three3d} albumUrl={platform?.mediaImages?.[0]} palette={config.colorPalette} />
+            ) : analyserRef.current && (
+                <>
+                    {shaderSrc && <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={setShaderError} />}
+                    {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
+                    {milkdrop && <ButterchurnLayer analyser={analyserRef.current} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
+                </>
+            )}
+            <MatteLayer id="matte-layer" analyser={analyserRef.current} engine={matteEngineRef.current!} settings={matteSettings} />
+        </>
+    );
+    const fgOverlay = (
+        <>
+            <GlobalLighting id="global-lighting" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
+            <PostProcessLayer analyser={analyserRef.current} config={config} />
+            <TextOverlay id="text-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
+            <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={platform ? (platformTimeRef as any) : audioElRef} />
+        </>
+    );
+
     return (
         <div className="flex flex-col overflow-hidden bg-black" style={{ height: '100dvh' }}>
         <div ref={rootRef} id="plajah-pixels-root" className="relative flex-1 min-h-0 flex flex-col overflow-hidden bg-black text-white font-sans">
@@ -1773,6 +1803,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
                 gpuGenerators={config.gpuGenerators}
                 onCanvas={c => { glCanvasRef.current = c; }}
+                overlays={unify ? <>{vizOverlay}{fgOverlay}</> : undefined}
               />
             </div>
 
@@ -1780,63 +1811,19 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 column swaps instantly and holds 60fps (no first-frame stall). */}
             <MediaPreloader layers={liveLayers} />
 
-            {/* ── Depth plane: VIZ midground ── */}
+            {/* ── Depth plane: VIZ midground (DOM) — empty when overlays are unified
+                into the GL canvas. ── */}
             <div ref={depthVizRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-
-            {/* EXPLICIT global override modes (toolbar toggles) — composited ON TOP
-                of the LayerStack only when the user turns one on. Default off → the
-                LayerStack IS the program output. Firing clips never activates these
-                (the launcher's render bridges are no-ops now). */}
-            {three3d ? (
-                <ThreeScene
-                    analyser={analyserRef.current}
-                    config={three3d}
-                    albumUrl={platform?.mediaImages?.[0]}
-                    palette={config.colorPalette}
-                />
-            ) : analyserRef.current && (
-                <>
-                    {shaderSrc && (
-                        <ShaderLayer analyser={analyserRef.current} source={shaderSrc} startTimeMs={shaderStart} onError={setShaderError} />
-                    )}
-                    {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
-                    {milkdrop && (
-                        <ButterchurnLayer
-                            analyser={analyserRef.current}
-                            presetIndex={milkdropIdx}
-                            blendMode={milkdropBlendMode}
-                            layerOpacity={milkdropLayerOpacity}
-                            onMeta={setMilkdropMeta}
-                            onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))}
-                        />
-                    )}
-                </>
-            )}
-
-            {/* Keyable media / matte layer (luma · chroma · AI) */}
-            <MatteLayer
-                id="matte-layer"
-                analyser={analyserRef.current}
-                engine={matteEngineRef.current!}
-                settings={matteSettings}
-            />
-
+            {!unify && vizOverlay}
             </div>{/* end depthVizRef */}
 
             {/* ── Depth plane: foreground overlays (closest to camera) ── */}
             <div ref={depthFgRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
 
-            {/* Accent Overlays */}
-            <GlobalLighting id="global-lighting" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
+            {!unify && fgOverlay}
 
-            {/* Post-processing effects overlay — covers ShaderLayer / ButterchurnLayer / 3D modes
-                where the per-canvas effect pipeline (AudioVisualizer, StudioStage) can't reach */}
-            <PostProcessLayer analyser={analyserRef.current} config={config} />
-
-            <TextOverlay id="text-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} />
-            <CaptionsOverlay id="captions-overlay" config={config} analyser={analyserRef.current} isPlaying={audioState.isPlaying} audioRef={platform ? (platformTimeRef as any) : audioElRef} />
-
-            {/* User-loadable overlay layers (composite on top of the core visual) */}
+            {/* User-loadable overlay layers — always DOM on top (iframe can't be a
+                texture; Lottie keeps its screen blend). */}
             {overlay.htmlOn && overlay.htmlUrl && <HtmlLayer src={overlay.htmlUrl} opacity={overlay.htmlOpacity} interactive={overlay.htmlInteractive} />}
             {overlay.lottieOn && overlay.lottieUrl && <LottieLayer src={overlay.lottieUrl} opacity={overlay.lottieOpacity} />}
 
@@ -1977,6 +1964,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${config.gpuGenerators ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                     <Cpu className="w-4 h-4 text-white/80" />
                     {config.gpuGenerators && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-[#FF8C00] text-black leading-tight">GPU</span>}
+                </button>
+                {/* Studio: unify overlays into the GPU canvas (full-output / Fast recording) */}
+                <button onClick={() => setConfig(p => ({ ...p, unifyOverlays: !p.unifyOverlays }))}
+                    title={`Unify overlays into the GPU canvas: ${config.unifyOverlays ? 'ON — text/lighting/3D composite on the single surface (Fast recording captures everything)' : 'OFF (overlays render as DOM on top)'} · experimental`}
+                    className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${config.unifyOverlays ? 'bg-sky-600/40 border-sky-500/50' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}>
+                    <Layers2 className="w-4 h-4 text-white/80" />
+                    {config.unifyOverlays && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-sky-400 text-black leading-tight">1</span>}
                 </button>
                 {/* Studio: performance mode + FPS — cycles Off → Eco → Auto */}
                 <button onClick={togglePerfMode}
