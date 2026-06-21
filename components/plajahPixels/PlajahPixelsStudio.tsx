@@ -397,12 +397,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 ]);
             }
 
-            // c) Codec priority for the best pristine container the browser supports:
-            //    H.265/HEVC MP4 (Safari) → H.264 High-profile MP4 (Chrome 130+/Safari)
-            //    → VP9 WebM → fallback. mp4 strings carry AAC (mp4a.40.2) audio.
+            // c) Codec priority: H.264 High-profile MP4 (universal, hardware NVENC/QSV)
+            //    → VP9 WebM → fallback. NO HEVC — isTypeSupported can report hvc1 true
+            //    on NVIDIA but the encoder then fails at runtime, firing onstop the
+            //    instant you hit Record (the save dialog popping at "start"). User
+            //    confirmed H.264 is the target anyway.
             const codecs = [
-                'video/mp4;codecs=hvc1.1.6.L153.B0,mp4a.40.2', // HEVC Main, ~4K
-                'video/mp4;codecs=hev1.1.6.L153.B0,mp4a.40.2',
                 'video/mp4;codecs=avc1.640034,mp4a.40.2',      // H.264 High 5.2
                 'video/mp4;codecs=avc1.4d0034,mp4a.40.2',      // H.264 Main 5.2
                 'video/mp4;codecs=avc1,mp4a.40.2',
@@ -416,20 +416,33 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             const chunks: Blob[] = [];
             const recorder = new MediaRecorder(combinedStream, {
                 mimeType: mime,
-                videoBitsPerSecond: 80_000_000, // ~80 Mbps — visually lossless at 4K60
+                videoBitsPerSecond: 40_000_000, // ~40 Mbps — visually lossless at 1080p60
                 audioBitsPerSecond: 320_000,    // transparent (AAC/Opus)
             });
 
-            recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: mime });
-                // Disconnect the extra AudioContext → destNode connection
+            const cleanupStreams = () => {
                 if (audioDestRef.current && analyserRef.current) {
                     try { analyserRef.current.disconnect(audioDestRef.current); } catch { /* */ }
                     audioDestRef.current = null;
                 }
                 videoStream.getTracks().forEach(t => t.stop());
-                // Show save modal instead of auto-downloading
+            };
+
+            recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+            recorder.onerror = (ev) => {
+                console.warn('[Plajah Pixels] MediaRecorder error:', (ev as any).error);
+                cleanupStreams();
+                recRef.current = null; setIsRecording(false);
+            };
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mime });
+                cleanupStreams();
+                // Only surface the save dialog for a REAL recording. A near-empty blob
+                // means the recorder failed/stopped instantly — don't pop a save prompt.
+                if (blob.size < 2048) {
+                    console.warn('[Plajah Pixels] recording produced no data — not saving.');
+                    return;
+                }
                 setRecordedBlob(blob);
                 setShowSaveModal(true);
                 setReelloSuccess(false);

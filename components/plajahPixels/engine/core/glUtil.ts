@@ -22,7 +22,9 @@ export function createGL(canvas: HTMLCanvasElement | OffscreenCanvas): GL | null
     depth: false,
     stencil: false,
     premultipliedAlpha: false,
-    preserveDrawingBuffer: false,
+    // Preserve the drawing buffer so canvas.captureStream() records real frames
+    // (not black). Minor cost on the discrete GPU; needed for the hardware recorder.
+    preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
     // NOT desynchronized: on Optimus laptops a low-latency/desynchronized surface
     // presents through the DISPLAY's GPU (the Intel iGPU), dragging the whole page
