@@ -367,9 +367,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             //    NOTE: canvas capture records the composite; DOM overlays (text,
             //    lighting) join once they move into the compositor.
             let videoStream: MediaStream;
+            let usedCanvas = false;
             const glCanvas = glCanvasRef.current;
             if (glCanvas && (glCanvas as any).captureStream && !recordFullRef.current) {
                 videoStream = (glCanvas as any).captureStream(60);
+                usedCanvas = true;
             } else {
                 videoStream = await (navigator.mediaDevices as any).getDisplayMedia({
                     video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 3840 }, height: { ideal: 2160 } },
@@ -434,7 +436,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 setReelloProgress(0);
             };
 
-            videoStream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
+            // Only auto-stop when the SCREEN-share track ends (user clicked the
+            // browser's "stop sharing"). For canvas capture this listener could fire
+            // spuriously the instant the compositor canvas resizes its buffer — which
+            // instantly stopped the recording and popped the save dialog at "start".
+            if (!usedCanvas) videoStream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
             recorder.start(100); // 100ms timeslice for reliability
             recRef.current = { recorder, stream: combinedStream };
             setIsRecording(true);
