@@ -165,6 +165,94 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+const STAGE_FS = HEADER + `
+void main(){
+  vec2 uv = vUv;
+  float panels = 14.0;
+  float idx = floor(uv.x * panels);
+  float f = fft(idx / panels);
+  float h = 0.08 + f * 0.82;                     // panel height from its bin
+  float panel = step(1.0 - h, uv.y);
+  float gap = smoothstep(0.0, 0.02, abs(fract(uv.x * panels) - 0.5) - 0.42);
+  float v = panel * (1.0 - gap);
+  vec3 col = mix(iC2, iC0, f) * v * (0.5 + f);
+  col += iC1 * smoothstep(0.03, 0.0, abs(uv.y - (1.0 - h))) * v; // bright top edge
+  fragColor = vec4(col, 1.0);
+}`;
+
+const LIQUID_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  float v = 0.0;
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    vec2 c = vec2(sin(iTime * 0.5 + fi * 1.3) * 0.3, cos(iTime * 0.4 + fi * 2.1) * 0.3);
+    float r = 0.12 + 0.06 * sin(iTime * 1.5 + fi) + iBass * 0.05;
+    v += smoothstep(r, r * 0.3, length(p - c));
+  }
+  v = smoothstep(0.6, 1.2, v);                    // metaball threshold
+  vec3 col = mix(iC2, iC0, v) * v * (0.6 + iLevel);
+  fragColor = vec4(col, 1.0);
+}`;
+
+const PARTICLES_FS = HEADER + `
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 40; i++) {
+    float fi = float(i);
+    float a = h2(vec2(fi, 1.0)), b = h2(vec2(fi, 2.0));
+    float ang = a * 6.2831853 + iTime * (0.2 + b * 0.5);
+    float rad = 0.1 + b * 0.4 + sin(iTime + fi) * 0.05 + iBass * 0.12;
+    vec2 pos = vec2(cos(ang), sin(ang)) * rad;
+    col += mix(iC0, iC1, a) * smoothstep(0.02, 0.0, length(p - pos)) * (0.5 + iLevel);
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_AURORA_FS = HEADER + `
+void main(){
+  vec2 uv = vUv;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    float y = 0.5 + 0.2 * sin(uv.x * 3.0 + iTime * 0.5 + fi * 1.2) + 0.1 * sin(uv.x * 7.0 - iTime * 0.3 + fi);
+    col += mix(iC2, iC0, fi / 5.0) * smoothstep(0.08, 0.0, abs(uv.y - y)) * (0.4 + iMid);
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_CHROME_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 7; i++) {
+    float fi = float(i);
+    vec2 c = vec2(sin(iTime * 0.3 + fi) * 0.35, cos(iTime * 0.25 + fi * 1.7) * 0.35);
+    col += mix(iC0, iC2, fi / 7.0) * smoothstep(0.25, 0.0, length(p - c)) * (0.5 + iLevel * 0.8);
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_BAUHAUS_FS = HEADER + `
+void main(){
+  vec2 uv = vUv * vec2(5.0, 3.0);
+  vec2 id = floor(uv);
+  vec2 gv = fract(uv) - 0.5;
+  float h = fract(sin(dot(id, vec2(12.9, 78.2))) * 43758.5);
+  float shape;
+  if (h < 0.33) shape = smoothstep(0.40, 0.35, length(gv));
+  else if (h < 0.66) shape = step(max(abs(gv.x), abs(gv.y)), 0.38);
+  else shape = step(gv.y, 0.38 - abs(gv.x) * 1.5) * step(-0.38, gv.y);
+  float f = fft(h);
+  vec3 col = mix(iC2, iC0, h) * shape * (0.5 + f);
+  fragColor = vec4(col, 1.0);
+}`;
+
 const GEN_GLSL: Record<string, string> = {
   WAVEFORM: WAVEFORM_FS,
   SPECTRUM: SPECTRUM_FS,
@@ -174,6 +262,12 @@ const GEN_GLSL: Record<string, string> = {
   COSMIC: COSMIC_FS,
   RETROGRID: RETROGRID_FS,
   KALEIDOSCOPE: KALEIDO_FS,
+  STAGE: STAGE_FS,
+  LIQUID: LIQUID_FS,
+  PARTICLES: PARTICLES_FS,
+  STUDIO_AURORA: STUDIO_AURORA_FS,
+  STUDIO_CHROME: STUDIO_CHROME_FS,
+  STUDIO_BAUHAUS: STUDIO_BAUHAUS_FS,
 };
 
 export function hasGenerator(mode: string | undefined): boolean {
