@@ -253,6 +253,84 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+const STORM_FS = HEADER + `
+float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+void main(){
+  vec2 uv = vUv;
+  float clouds = 0.0; vec2 q = uv * 3.0 + vec2(iTime * 0.05, 0.0);
+  for (int i = 0; i < 4; i++) { clouds += noise(q) * pow(0.5, float(i + 1)); q *= 2.0; }
+  vec3 col = mix(vec3(0.02, 0.02, 0.05), iC2 * 0.4, clouds);
+  float rain = step(0.97, h(vec2(floor(uv.x * 200.0), floor((uv.y + iTime * 2.0) * 40.0))));
+  col += vec3(0.6) * rain * 0.3;
+  col += iC0 * smoothstep(0.6, 1.0, iBass) * clouds * 2.0;   // lightning flash
+  fragColor = vec4(col, 1.0);
+}`;
+
+const LUMINANCE_FS = HEADER + `
+void main(){
+  vec2 uv = vUv;
+  float v = 0.5 + 0.5 * sin(uv.x * 8.0 + iTime) * sin(uv.y * 8.0 - iTime * 0.7);
+  v = pow(v, 1.0 + iTreble * 3.0);
+  vec3 col = mix(iC2, iC0, v) * (0.3 + iLevel * 1.4) + iC1 * iBass * 0.5;
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_NEBULA_FS = HEADER + `
+float hn(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 60; i++) {
+    float fi = float(i);
+    float a = hn(vec2(fi, 1.0)), b = hn(vec2(fi, 2.0)), c = hn(vec2(fi, 3.0));
+    float ang = a * 6.2831853 + iTime * 0.1 * (0.5 + b);
+    vec2 pos = vec2(cos(ang), sin(ang)) * (0.05 + c * 0.45) * (1.0 + iBass * 0.3);
+    col += mix(iC2, iC0, a) * smoothstep(0.03, 0.0, length(p - pos)) * (0.4 + iLevel);
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_GRAVITY_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    float fi = float(i);
+    vec2 c = vec2(sin(iTime * 0.3 + fi * 1.6), cos(iTime * 0.4 + fi * 2.1)) * 0.3;
+    float d = length(p - c);
+    col += mix(iC0, iC1, fi / 4.0) * (0.02 + iLevel * 0.04) / (d * d + 0.01);
+  }
+  fragColor = vec4(min(col, vec3(1.5)), 1.0);
+}`;
+
+const STUDIO_KINETIC_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  float seg = 6.0;
+  float a = atan(p.y, p.x); float r = length(p);
+  a = mod(a, 6.2831853 / seg); a = abs(a - 3.14159265 / seg);
+  vec2 q = vec2(cos(a), sin(a)) * r;
+  float grid = step(0.9, max(sin(q.x * 20.0 + iTime), sin(q.y * 20.0 - iTime)));
+  vec3 col = mix(iC2, iC0, r * 1.5) * grid * smoothstep(0.7, 0.0, r) * (0.5 + iMid);
+  fragColor = vec4(col, 1.0);
+}`;
+
+const STUDIO_RIPPLE_FS = HEADER + `
+void main(){
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = (vUv - 0.5); p.x *= aspect;
+  float r = length(p);
+  float v = 0.5 + 0.5 * sin(r * 40.0 - iTime * 4.0 - iBass * 10.0);
+  v *= smoothstep(0.7, 0.0, r);
+  vec3 col = mix(iC2, iC0, v) * (0.4 + iLevel) + iC1 * smoothstep(0.95, 1.0, v) * 0.5;
+  fragColor = vec4(col, 1.0);
+}`;
+
 const GEN_GLSL: Record<string, string> = {
   WAVEFORM: WAVEFORM_FS,
   SPECTRUM: SPECTRUM_FS,
@@ -265,9 +343,15 @@ const GEN_GLSL: Record<string, string> = {
   STAGE: STAGE_FS,
   LIQUID: LIQUID_FS,
   PARTICLES: PARTICLES_FS,
+  STORM: STORM_FS,
+  LUMINANCE: LUMINANCE_FS,
   STUDIO_AURORA: STUDIO_AURORA_FS,
   STUDIO_CHROME: STUDIO_CHROME_FS,
   STUDIO_BAUHAUS: STUDIO_BAUHAUS_FS,
+  STUDIO_NEBULA: STUDIO_NEBULA_FS,
+  STUDIO_GRAVITY: STUDIO_GRAVITY_FS,
+  STUDIO_KINETIC: STUDIO_KINETIC_FS,
+  STUDIO_RIPPLE: STUDIO_RIPPLE_FS,
 };
 
 export function hasGenerator(mode: string | undefined): boolean {
