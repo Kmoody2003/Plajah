@@ -1198,41 +1198,51 @@ const ClipLauncher: React.FC<Props> = ({
     // first scene fires. Uses sceneAutoBarsRef so bar length updates live, and
     // sampler.bpm so the bar grid tracks the live tempo driver.
     const barMs = () => (60000 / sampler.bpm) * 4 * sceneAutoBarsRef.current;
-    let nextSceneAt = performance.now() + barMs();
+    const beatsPerScene = () => Math.max(1, Math.round(4 * sceneAutoBarsRef.current));
+    // SAMPLE-ACCURATE: advance on the Nth *detected beat onset* (locked to the
+    // music), not a drifting BPM-derived timer. A timer is kept only as a fallback
+    // so quiet/beatless passages still progress.
+    let beatCount = 0;
+    let fallbackAt = performance.now() + barMs() * 1.6;
+
+    const advance = () => {
+      const lrs = layersRef.current;
+      const cc = lrs[0]?.clips.length ?? NUM_COLS;
+      let nextCol: number;
+      if (sceneAutoMode === 'random') {
+        const nonEmpty = Array.from({ length: cc }, (_, i) => i)
+          .filter(c => lrs.some(l => l.clips[c] != null));
+        nextCol = nonEmpty.length > 0
+          ? nonEmpty[Math.floor(Math.random() * nonEmpty.length)]
+          : Math.floor(Math.random() * cc);
+      } else {
+        let candidate = (sceneAutoColRef.current + 1) % cc;
+        for (let t = 0; t < cc; t++) {
+          if (lrs.some(l => l.clips[candidate] != null)) break;
+          candidate = (candidate + 1) % cc;
+        }
+        sceneAutoColRef.current = candidate;
+        nextCol = candidate;
+      }
+      launchSceneRef.current(nextCol);
+    };
 
     const tick = () => {
       const now = performance.now();
       sampler.update(analyser, now);  // live tempo / intensity / beat detection
+      if (sampler.isBeat) beatCount++;
 
-      // Music govern: intense bass nudges the next fire slightly sooner
-      if (rotationMusicGovernRef.current && sampler.intensity > 0.78) {
-        const remaining = nextSceneAt - now;
-        if (remaining > 800) nextSceneAt -= remaining * 0.04;
-      }
+      let fire = false;
+      if (beatCount >= beatsPerScene()) fire = true;            // locked to real beats
+      else if (now >= fallbackAt) fire = true;                  // beatless fallback
+      // Music govern: an intense bass hit can trigger one beat early.
+      else if (rotationMusicGovernRef.current && sampler.intensity > 0.82
+               && beatCount >= beatsPerScene() - 1) fire = true;
 
-      // Fire on bar boundary — advance to next non-empty column
-      if (now >= nextSceneAt) {
-        const lrs = layersRef.current;
-        const cc = lrs[0]?.clips.length ?? NUM_COLS;
-        let nextCol: number;
-        if (sceneAutoMode === 'random') {
-          const nonEmpty = Array.from({ length: cc }, (_, i) => i)
-            .filter(c => lrs.some(l => l.clips[c] != null));
-          nextCol = nonEmpty.length > 0
-            ? nonEmpty[Math.floor(Math.random() * nonEmpty.length)]
-            : Math.floor(Math.random() * cc);
-        } else {
-          let candidate = (sceneAutoColRef.current + 1) % cc;
-          for (let t = 0; t < cc; t++) {
-            if (lrs.some(l => l.clips[candidate] != null)) break;
-            candidate = (candidate + 1) % cc;
-          }
-          sceneAutoColRef.current = candidate;
-          nextCol = candidate;
-        }
-        launchSceneRef.current(nextCol);
-        // Lock to bar grid from exact fire time, not real-time drift
-        nextSceneAt += barMs();
+      if (fire) {
+        advance();
+        beatCount = 0;
+        fallbackAt = now + barMs() * 1.6;
       }
 
       rafId = requestAnimationFrame(tick);
