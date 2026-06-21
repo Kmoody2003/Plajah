@@ -227,7 +227,11 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         )}
         {sourced.map(({ layer, clip }) => (
           <div key={layer.id} ref={setWrap(layer.id)} style={{ position: 'absolute', inset: 0 }}>
-            <LayerSource clip={clip} analyser={analyser} config={config} isPlaying={isPlaying} />
+            {/* Key on clip identity so swapping a clip/mode REMOUNTS a fresh source
+                (otherwise some generators keep showing their last frame on swap). */}
+            <LayerSource
+              key={`${clip.type}:${clip.sceneMode ?? clip.shaderSrc?.slice(0, 24) ?? clip.mediaUrl ?? clip.milkdropIdx ?? clip.fillColor}`}
+              clip={clip} analyser={analyser} config={config} isPlaying={isPlaying} />
           </div>
         ))}
         {/* Overlay layers (unify mode) — rendered hidden; their canvases are

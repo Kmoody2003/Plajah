@@ -24,7 +24,11 @@ export function createGL(canvas: HTMLCanvasElement | OffscreenCanvas): GL | null
     premultipliedAlpha: false,
     preserveDrawingBuffer: false,
     powerPreference: 'high-performance',
-    desynchronized: true,
+    // NOT desynchronized: on Optimus laptops a low-latency/desynchronized surface
+    // presents through the DISPLAY's GPU (the Intel iGPU), dragging the whole page
+    // off the discrete NVIDIA GPU. Keep the normal present path so high-performance
+    // actually resolves to the RTX.
+    desynchronized: false,
   };
   const gl = canvas.getContext('webgl2', attrs) as GL | null;
   return gl ?? null;
