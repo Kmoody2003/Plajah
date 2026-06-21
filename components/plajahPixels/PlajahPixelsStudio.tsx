@@ -339,6 +339,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
     // The live GPU composite canvas — captured directly for drop-free recording.
     const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    // Recording: a 2D canvas onto which we composite EVERY visible canvas in the
+    // Pixels root each frame, so Fast recording captures the FULL output (GL
+    // composite + DOM overlays), not just one layer.
+    const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const recordRafRef = useRef<number>(0);
     // Recording mode: false = Fast (GPU canvas, drop-free, composite only);
     // true = Full (screen capture, includes DOM overlays but heavier).
     const [recordFull, setRecordFull] = useState(false);
@@ -354,6 +359,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
     const stopRecording = useCallback(() => {
+        if (recordRafRef.current) { cancelAnimationFrame(recordRafRef.current); recordRafRef.current = 0; }
         const r = recRef.current; if (!r) return;
         try { r.recorder.stop(); } catch { /* */ }
         recRef.current = null; setIsRecording(false);
@@ -371,8 +377,44 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             let videoStream: MediaStream;
             let usedCanvas = false;
             const glCanvas = glCanvasRef.current;
-            if (glCanvas && (glCanvas as any).captureStream && !recordFullRef.current) {
-                videoStream = (glCanvas as any).captureStream(60);
+            const root = rootRef.current;
+            if (glCanvas && (glCanvas as any).captureStream && !recordFullRef.current && root) {
+                // FAST: composite EVERY visible canvas in the Pixels root (GL composite
+                // + DOM overlays) into a 2D record canvas, and capture that — so the
+                // recording is the full output, not just one layer. Hidden per-layer
+                // source canvases (inside [aria-hidden]) are skipped.
+                const MIX: Record<string, GlobalCompositeOperation> = {
+                    normal: 'source-over', screen: 'screen', multiply: 'multiply', overlay: 'overlay',
+                    'plus-lighter': 'lighter', lighten: 'lighten', darken: 'darken',
+                    difference: 'difference', exclusion: 'exclusion', 'color-dodge': 'color-dodge', 'hard-light': 'hard-light',
+                };
+                const rec = document.createElement('canvas');
+                rec.width = glCanvas.width || 1920;
+                rec.height = glCanvas.height || 1080;
+                recordCanvasRef.current = rec;
+                const rctx = rec.getContext('2d')!;
+                // Composite the visual depth planes only (bg → viz → fg), skipping
+                // toolbar/panel canvases and hidden per-layer sources.
+                const planes = [depthBgRef.current, depthVizRef.current, depthFgRef.current].filter(Boolean) as HTMLElement[];
+                const drawAll = () => {
+                    rctx.globalCompositeOperation = 'source-over'; rctx.globalAlpha = 1;
+                    rctx.fillStyle = '#000'; rctx.fillRect(0, 0, rec.width, rec.height);
+                    for (const plane of planes) {
+                        plane.querySelectorAll('canvas').forEach(cv => {
+                            const c = cv as HTMLCanvasElement;
+                            if (c === rec || c.width === 0 || c.height === 0) return;
+                            if (c.closest('[aria-hidden]')) return; // skip hidden per-layer sources
+                            const cs = getComputedStyle(c);
+                            if (cs.display === 'none' || cs.visibility === 'hidden') return;
+                            rctx.globalAlpha = parseFloat(cs.opacity || '1');
+                            rctx.globalCompositeOperation = MIX[cs.mixBlendMode] || 'source-over';
+                            try { rctx.drawImage(c, 0, 0, rec.width, rec.height); } catch { /* tainted/none */ }
+                        });
+                    }
+                    recordRafRef.current = requestAnimationFrame(drawAll);
+                };
+                drawAll();
+                videoStream = (rec as any).captureStream(60);
                 usedCanvas = true;
             } else {
                 videoStream = await (navigator.mediaDevices as any).getDisplayMedia({
@@ -423,6 +465,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             });
 
             const cleanupStreams = () => {
+                if (recordRafRef.current) { cancelAnimationFrame(recordRafRef.current); recordRafRef.current = 0; }
                 if (audioDestRef.current && analyserRef.current) {
                     try { analyserRef.current.disconnect(audioDestRef.current); } catch { /* */ }
                     audioDestRef.current = null;
