@@ -26,8 +26,8 @@ export class AudioTexture {
   }
 
   /** Read the analyser and upload. Safe to call with a null analyser (no-op). */
+  /** Main-thread path: read the live analyser, then process + upload. */
   update(analyser: AnalyserNode | null) {
-    const gl = this.gl;
     if (!analyser) return;
     const bins = analyser.frequencyBinCount;
     const fftN = analyser.fftSize;
@@ -35,6 +35,19 @@ export class AudioTexture {
     if (!this.wave || this.wave.length !== fftN) this.wave = new Uint8Array(fftN);
     analyser.getByteFrequencyData(this.freq);
     analyser.getByteTimeDomainData(this.wave);
+    this.process(this.freq, this.wave);
+  }
+
+  /** Worker path: process + upload from raw arrays transferred from the main
+   *  thread (a worker has no AnalyserNode). */
+  updateFromArrays(freq: Uint8Array, wave: Uint8Array) {
+    this.process(freq, wave);
+  }
+
+  private process(freq: Uint8Array, wave: Uint8Array) {
+    const gl = this.gl;
+    const bins = freq.length;
+    const fftN = wave.length;
 
     // Resample both to 512 columns; row 0 = FFT, row 1 = waveform (grayscale).
     let sum = 0, bassSum = 0, midSum = 0, trebSum = 0;
@@ -42,14 +55,14 @@ export class AudioTexture {
     for (let x = 0; x < W; x++) {
       const fi = Math.min(bins - 1, (x / W * bins) | 0);
       const wi = Math.min(fftN - 1, (x / W * fftN) | 0);
-      const fv = this.freq[fi], wv = this.wave[wi];
+      const fv = freq[fi], wv = wave[wi];
       let o = x * 4;                 // row 0
       this.pixels[o] = this.pixels[o + 1] = this.pixels[o + 2] = fv; this.pixels[o + 3] = 255;
       o = (W + x) * 4;               // row 1
       this.pixels[o] = this.pixels[o + 1] = this.pixels[o + 2] = wv; this.pixels[o + 3] = 255;
     }
     for (let i = 0; i < bins; i++) {
-      const v = this.freq[i]; sum += v;
+      const v = freq[i]; sum += v;
       if (i < bassEnd) bassSum += v; else if (i < midEnd) midSum += v; else trebSum += v;
     }
     this.bass = bassSum / Math.max(1, bassEnd) / 255;

@@ -37,6 +37,7 @@ import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
 import GLCompositorView from './components/GLCompositorView';
+import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
@@ -49,6 +50,7 @@ const DEFAULT_CONFIG: VisualizationConfig = {
     targetFrameRate: 60,
     gpuGenerators: false,
     unifyOverlays: false,
+    workerCompositor: false,
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
     colorPalette: ["#FF00CC", "#3333FF", "#00CCFF", "#FFFFFF"],
     smoothingTimeConstant: 0.8,
@@ -1814,16 +1816,21 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                   active launcher layer + the stage slicing surface into ONE
                   vsync-locked canvas — replacing the old DOM mix-blend-mode stack.
                   Falls back to the DOM LayerStack if WebGL2 is unavailable. */}
-              <GLCompositorView
-                layers={liveLayers}
-                analyser={analyserRef.current}
-                config={config}
-                isPlaying={audioState.isPlaying}
-                bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
-                gpuGenerators={config.gpuGenerators}
-                onCanvas={c => { glCanvasRef.current = c; }}
-                overlays={unify ? <>{vizOverlay}{fgOverlay}</> : undefined}
-              />
+              {config.workerCompositor ? (
+                <WorkerCompositorView key="worker" layers={liveLayers} analyser={analyserRef.current} config={config} />
+              ) : (
+                <GLCompositorView
+                  key="main"
+                  layers={liveLayers}
+                  analyser={analyserRef.current}
+                  config={config}
+                  isPlaying={audioState.isPlaying}
+                  bgSlice={config.enableSlicing ? { mediaList1: bgMedia1, mediaList2: bgMedia2 } : null}
+                  gpuGenerators={config.gpuGenerators}
+                  onCanvas={c => { glCanvasRef.current = c; }}
+                  overlays={unify ? <>{vizOverlay}{fgOverlay}</> : undefined}
+                />
+              )}
             </div>
 
             {/* Keep every launcher media clip decoded + buffered so firing a
@@ -1990,6 +1997,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                     className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${config.unifyOverlays ? 'bg-sky-600/40 border-sky-500/50' : 'bg-black/40 border-white/10 hover:bg-sky-600/30'}`}>
                     <Layers2 className="w-4 h-4 text-white/80" />
                     {config.unifyOverlays && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-sky-400 text-black leading-tight">1</span>}
+                </button>
+                {/* Studio: off-main-thread worker compositor (experimental, GPU-native scenes) */}
+                <button onClick={() => setConfig(p => ({ ...p, workerCompositor: !p.workerCompositor }))}
+                    title={`Worker compositor (off-main-thread): ${config.workerCompositor ? 'ON — GPU-generator scenes render on a worker thread (frees the main thread)' : 'OFF'} · experimental · GPU-native scenes only (no media/Milkdrop/overlays)`}
+                    className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center text-[10px] font-black tracking-widest transition-all shadow-lg ${config.workerCompositor ? 'bg-green-600/40 border-green-500/50 text-green-200' : 'bg-black/40 border-white/10 text-white/55 hover:bg-green-600/25'}`}>
+                    WK
                 </button>
                 {/* Studio: performance mode + FPS — cycles Off → Eco → Auto */}
                 <button onClick={togglePerfMode}

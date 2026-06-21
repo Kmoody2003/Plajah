@@ -68,6 +68,9 @@ export interface VisualizationConfig {
   /** Opt-in: composite overlays (text/lighting/3D/matte) into the single GL
    *  canvas so it's the full output (Fast recording includes overlays). */
   unifyOverlays?: boolean;
+  /** Opt-in (experimental): run the compositor + GPU generators on a Web Worker
+   *  (OffscreenCanvas) for off-main-thread rendering. GPU-native scenes only. */
+  workerCompositor?: boolean;
   /** Global color grade applied as a GPU post-FX pass (1 = neutral). */
   gradeBrightness?: number;
   gradeContrast?: number;
