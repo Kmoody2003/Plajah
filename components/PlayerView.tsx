@@ -446,7 +446,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setYtPlayer,
     isTVMode,
     setIsTVMode,
-    clearMedia
+    clearMedia,
+    spatialMode,
+    setSpatialMode,
+    dolbySupport,
+    isAtmosActive,
   } = useGlobalPlayerState();
   const { currentTime: globalCurrentTime, duration: globalDuration, seek } = useGlobalPlayerProgress();
 
@@ -3204,6 +3208,41 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 >
                   Paint
                 </button>
+              </div>
+
+              {/* Spatial audio mode cycle + Dolby badge */}
+              <div className="flex items-center gap-2 shrink-0">
+                {isAtmosActive && (
+                  <div
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest select-none"
+                    style={{ background: 'rgba(0,112,255,0.18)', border: '1px solid rgba(0,112,255,0.45)', color: '#60a5fa' }}
+                    title="Dolby Atmos passthrough active on this device"
+                  >
+                    <span style={{ fontStyle: 'italic', letterSpacing: '0.04em' }}>DOLBY</span>
+                    <span className="text-[7px]">ATMOS</span>
+                  </div>
+                )}
+                {dolbySupport.ec3 && !isAtmosActive && (
+                  <div
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest select-none opacity-40"
+                    style={{ border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}
+                    title="This device supports Dolby Atmos passthrough"
+                  >
+                    <span style={{ fontStyle: 'italic' }}>DOLBY</span>
+                  </div>
+                )}
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-full p-0.5">
+                  {(['off', 'orbit', 'reactive'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setSpatialMode(m)}
+                      className={`px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest transition-all ${spatialMode === m ? 'bg-indigo-500 text-white shadow' : 'text-white/30 hover:text-white'}`}
+                      title={m === 'off' ? 'Spatial audio off' : m === 'orbit' ? 'Orbit — slow 3D circle (HRTF)' : 'Reactive — bass, beat & treble drive 3D position'}
+                    >
+                      {m === 'off' ? '2D' : m === 'orbit' ? '3D' : '3D+'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Exit fullscreen */}

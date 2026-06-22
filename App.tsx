@@ -250,7 +250,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -297,6 +297,8 @@ import ArchiveItemCard from './components/ArchiveItemCard';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
+import SmartGuide from './components/SmartGuide';
+import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research on load (internal doc URLs)
@@ -435,6 +437,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+  // Smart Guide
+  const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
+  const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
+  // Account Switcher
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
+  const [hotSwitchSlot, setHotSwitchSlot] = useState<number | null>(null);
+  const hotSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insertPressedRef = useRef(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
   const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
@@ -885,6 +896,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setTimeout(() => setShowWelcomePackage(true), 1200);
         }
 
+        // Smart Guide — auto-enable for new users
+        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide);
+        setSmartGuideEnabled(p?.smartGuideEnabled ?? !p?.hasSeenSmartGuide);
+        // Load linked accounts for hot-switch
+        if (p?.linkedAccounts?.length) setLinkedAccounts(p.linkedAccounts);
+        else {
+          // Seed slot 1 with the current account if no slots yet
+          setLinkedAccounts([{
+            slot: 1, uid: u.uid, email: u.email || '', displayName: u.displayName || '',
+            photoURL: u.photoURL || undefined, provider: (u.providerData[0]?.providerId) || 'google.com', lastUsed: Date.now()
+          }]);
+        }
+
         if (u.email === 'kmoody2003@gmail.com') {
           const cloudAlbums = await fetchAllPublicAlbums();
           if (!cloudAlbums.some(a => a.type === 'BOOK')) {
@@ -1065,6 +1089,36 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [theme]);
+
+  // Insert + 1-4 hot switch handler
+  useEffect(() => {
+    if (!user) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Insert') { insertPressedRef.current = true; return; }
+      if (insertPressedRef.current && ['1','2','3','4'].includes(e.key)) {
+        e.preventDefault();
+        const slot = parseInt(e.key) as 1|2|3|4;
+        const target = linkedAccounts.find(a => a.slot === slot);
+        if (!target || target.uid === user.uid) return;
+        setHotSwitchSlot(slot);
+        if (hotSwitchTimerRef.current) clearTimeout(hotSwitchTimerRef.current);
+        hotSwitchTimerRef.current = setTimeout(() => setHotSwitchSlot(null), 2000);
+        // Trigger account switch via Google
+        loginWithGoogle().then(() => {
+          setHotSwitchSlot(null);
+        }).catch(() => setHotSwitchSlot(null));
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Insert') insertPressedRef.current = false;
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [user, linkedAccounts]);
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -2315,6 +2369,34 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} onOpenAlerts={() => setNotifDrawerTrigger({ tab: 'ALERTS', ts: Date.now() })} />
                   </div>
+                  {/* Sign Out — quick access next to notification bell */}
+                  {user && (
+                    <button
+                      onClick={() => logout()}
+                      title="Sign out"
+                      className="shrink-0 p-3 rounded-2xl transition-all border"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <LogOut size={18} className="text-white/30 hover:text-red-400 transition-colors" />
+                    </button>
+                  )}
+                  {/* Smart Guide toggle */}
+                  {user && (
+                    <button
+                      onClick={() => {
+                        const next = !smartGuideEnabled;
+                        setSmartGuideEnabled(next);
+                        updateUserProfile(user.uid, { smartGuideEnabled: next } as any).catch(() => {});
+                      }}
+                      title={smartGuideEnabled ? 'Smart Guide on — click to turn off' : 'Smart Guide off — click to enable feature hints'}
+                      className="shrink-0 p-3 rounded-2xl transition-all border"
+                      style={smartGuideEnabled
+                        ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
+                        : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <Compass size={18} className={smartGuideEnabled ? 'text-small-orange' : 'text-white/30'} />
+                    </button>
+                  )}
                   {/* Settings → User Account */}
                   <button
                     onClick={() => { if (user) setView('CREATOR'); else loginWithGoogle(); }}
@@ -2355,7 +2437,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       return `${m}:${ss.toString().padStart(2, '0')}`;
                     };
                     return (
-                      <div style={{ perspective: '1400px', borderRadius: '1.5rem', boxShadow: '0 16px 48px rgba(0,0,0,0.85), 0 4px 20px rgba(0,0,0,0.6)' }}>
+                      <div data-guide="Nano Controller" style={{ perspective: '1400px', borderRadius: '1.5rem', boxShadow: '0 16px 48px rgba(0,0,0,0.85), 0 4px 20px rgba(0,0,0,0.6)' }}>
                         <motion.div
                           animate={{ rotateY: isDockedFlipped ? 180 : 0 }}
                           transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
@@ -2592,13 +2674,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               )}
 
               <div className="pt-4 border-t border-theme space-y-4 px-4">
-                <div className={`p-4 bg-white/[0.04] border border-theme rounded-[2rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
+                <div data-guide="Profile Card" className={`p-4 bg-white/[0.04] border border-theme rounded-[2rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
                   <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
+                     <button
+                       onClick={() => user && setShowAccountSwitcher(v => !v)}
+                       title="Switch accounts"
+                       className="shrink-0 relative group/avatar transition-all"
+                     >
                      <PioneerGoldFrame active={!!userProfile?.hasSeenWelcomePackage} size="sm">
                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
                          {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
                        </div>
                      </PioneerGoldFrame>
+                     {/* Slot badge */}
+                     {linkedAccounts.length > 1 && (() => {
+                       const slot = linkedAccounts.find(a => a.uid === user?.uid)?.slot;
+                       return slot ? (
+                         <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full text-[7px] font-black text-white flex items-center justify-center" style={{ background: ['','#6B0099','#FF8C00','#0070FF','#00C878'][slot], border: '1px solid rgba(0,0,0,0.5)' }}>{slot}</span>
+                       ) : null;
+                     })()}
+                     </button>
                      <div className={`overflow-hidden ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}>
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{user?.displayName || 'Guest Artist'}</p>
                         <p className="text-[8px] font-bold text-small-orange truncate opacity-60">{user ? user.email : 'Public Instance'}</p>
@@ -3813,6 +3908,54 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         />
       )}
       {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+
+      {/* Smart Guide */}
+      {user && (
+        <SmartGuide
+          view={view}
+          enabled={smartGuideEnabled}
+          onToggle={() => {
+            const next = !smartGuideEnabled;
+            setSmartGuideEnabled(next);
+            updateUserProfile(user.uid, { smartGuideEnabled: next } as any).catch(() => {});
+          }}
+          isFirstTime={!hasSeenSmartGuide}
+          onDismissFirst={() => {
+            setHasSeenSmartGuide(true);
+            updateUserProfile(user.uid, { hasSeenSmartGuide: true, smartGuideEnabled: true } as any).catch(() => {});
+          }}
+        />
+      )}
+
+      {/* Account Switcher */}
+      <AccountSwitcher
+        isOpen={showAccountSwitcher}
+        onClose={() => setShowAccountSwitcher(false)}
+        currentUser={user}
+        linkedAccounts={linkedAccounts}
+        onSwitchAccount={async (slot) => {
+          const target = linkedAccounts.find(a => a.slot === slot);
+          if (!target || target.uid === user?.uid) return;
+          setShowAccountSwitcher(false);
+          await loginWithGoogle();
+        }}
+        onAddAccount={async () => {
+          const result = await loginWithGoogle();
+          // After sign-in, assign next free slot
+        }}
+        onSignOut={async () => {
+          setShowAccountSwitcher(false);
+          await logout();
+        }}
+        hotSwitchSlot={hotSwitchSlot}
+      />
+
+      {/* Hot Switch Overlay */}
+      <HotSwitchOverlay
+        slot={hotSwitchSlot ?? 1}
+        account={linkedAccounts.find(a => a.slot === hotSwitchSlot) as any}
+        active={hotSwitchSlot !== null}
+      />
 
       </Suspense>
             </SpatialProvider>

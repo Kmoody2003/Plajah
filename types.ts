@@ -111,6 +111,7 @@ export interface Track {
   hnsSlot1?: { url: string; title: string; uploadedAt: number };
   hnsSlot2?: { url: string; title: string; uploadedAt: number };
   isEclipsa?: boolean;
+  isAtmos?: boolean;    // Dolby Atmos / EC-3 JOC source — enables passthrough badge
   characterIds?: string[];                      // Characters featured in this song
   trackCharacterImages?: Record<string, string>; // Per-song image override (characterId → imageUrl)
   originalUrl?: string; // Preserved original URL when track has been auto-converted for browser compatibility
@@ -1140,6 +1141,11 @@ export interface UserProfile {
   adCampaigns?: ArtistAdCampaign[];
   // Right Now — real-time presence sharing (opt-in)
   presenceEnabled?: boolean;
+  // Smart Guide — contextual feature discovery assistant
+  hasSeenSmartGuide?: boolean;
+  smartGuideEnabled?: boolean;
+  // Linked accounts for hot-switching (up to 4 slots)
+  linkedAccounts?: LinkedAccount[];
 }
 
 // ── Right Now Presence ────────────────────────────────────────────────────────
@@ -2444,6 +2450,17 @@ export interface UserAlias {
   email: string;
   provider: string;
   isVerified: boolean;
+}
+
+/** A saved account slot for hot-switching between up to 4 Firebase accounts. */
+export interface LinkedAccount {
+  slot: 1 | 2 | 3 | 4;
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  provider: string;
+  lastUsed?: number;
 }
 
 export interface AdRatioConfig {

@@ -3,6 +3,7 @@ import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/backendService';
 import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } from '../services/audioFormatService';
+import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -61,6 +62,10 @@ interface GlobalPlayerContextType {
   setIsThreeDEnabled: (val: boolean) => void;
   isSpatialAudioEnabled: boolean;
   setSpatialAudioEnabled: (val: boolean) => void;
+  spatialMode: 'off' | 'orbit' | 'reactive';
+  setSpatialMode: (mode: 'off' | 'orbit' | 'reactive') => void;
+  dolbySupport: { ec3: boolean; ac4: boolean; atmos: boolean };
+  isAtmosActive: boolean;
   toggleFullScreen: () => void;
   toggleAppFullScreen: () => void;
   view: string;
@@ -128,6 +133,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const pannerInputGainRef = useRef<GainNode | null>(null);
   const spatialAnimRef = useRef<number>(0);
   const [isSpatialAudioEnabled, setIsSpatialAudioEnabledState] = useState(false);
+  const [spatialMode, setSpatialModeState] = useState<'off' | 'orbit' | 'reactive'>('off');
+  const dolbySupport = useMemo(() => detectDolbySupport(), []);
+  const [isAtmosActive, setIsAtmosActive] = useState(false);
   const contextRef = useRef<GlobalPlayerContextType | null>(null);
   const wakeLockRef = useRef<any>(null);
 
@@ -336,6 +344,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     if (isNewTrack) {
       setSpatialAudioEnabled(!!track.isEclipsa);
+      // Detect Atmos: explicit flag on track, or URL pattern suggests EC-3
+      const trackIsAtmos = !!(track.isAtmos || isLikelyAtmosUrl(track.url ?? ''));
+      setIsAtmosActive(trackIsAtmos && dolbySupport.atmos);
     }
 
     if (source !== 'VIDEO') {
@@ -867,40 +878,82 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [currentTrack, duration, currentTime]);
 
-  const setSpatialAudioEnabled = useCallback((val: boolean) => {
-    setIsSpatialAudioEnabledState(val);
+  const setSpatialMode = useCallback((mode: 'off' | 'orbit' | 'reactive') => {
+    setSpatialModeState(mode);
+    setIsSpatialAudioEnabledState(mode !== 'off');
+
     const panner = pannerRef.current;
     const bypassGain = bypassGainRef.current;
     const pannerInputGain = pannerInputGainRef.current;
     cancelAnimationFrame(spatialAnimRef.current);
-    if (val) {
-      // Route audio through HRTF panner, mute transparent bypass
-      if (bypassGain) bypassGain.gain.value = 0;
-      if (pannerInputGain) pannerInputGain.gain.value = 1;
-      if (panner) {
-        // Slowly orbit the audio source in the horizontal plane
-        let angle = 0;
-        const animate = () => {
-          angle += 0.008;
-          const radius = 3;
-          panner.positionX.value = Math.sin(angle) * radius;
-          panner.positionY.value = Math.sin(angle * 0.5) * 0.5;
-          panner.positionZ.value = Math.cos(angle) * radius;
-          spatialAnimRef.current = requestAnimationFrame(animate);
-        };
-        animate();
-      }
-    } else {
-      // Route audio through transparent bypass — panner receives no signal, zero HRTF coloring
+
+    if (mode === 'off') {
       if (bypassGain) bypassGain.gain.value = 1;
       if (pannerInputGain) pannerInputGain.gain.value = 0;
-      if (panner) {
-        panner.positionX.value = 0;
-        panner.positionY.value = 0;
-        panner.positionZ.value = -1;
-      }
+      if (panner) { panner.positionX.value = 0; panner.positionY.value = 0; panner.positionZ.value = -1; }
+      return;
+    }
+
+    // Activate panner path
+    if (bypassGain) bypassGain.gain.value = 0;
+    if (pannerInputGain) pannerInputGain.gain.value = 1;
+
+    if (!panner) return;
+
+    if (mode === 'orbit') {
+      let angle = 0;
+      const tick = () => {
+        angle += 0.008;
+        panner.positionX.value = Math.sin(angle) * 3;
+        panner.positionY.value = Math.sin(angle * 0.5) * 0.5;
+        panner.positionZ.value = Math.cos(angle) * 3;
+        spatialAnimRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } else if (mode === 'reactive') {
+      // Music-reactive HRTF: bass controls depth, treble drives rotation speed,
+      // mid lifts/lowers the source, beat pulses the source toward the listener.
+      let angle = 0;
+      let beatDecay = 0;
+      let lastBass = 0;
+      const data = new Uint8Array(2048);
+      const tick = () => {
+        const analyser = analyserRef.current;
+        if (analyser) {
+          analyser.getByteFrequencyData(data);
+          let bass = 0, mid = 0, treble = 0;
+          for (let i = 0; i < 5; i++) bass += data[i];
+          for (let i = 8; i < 24; i++) mid += data[i];
+          for (let i = 40; i < 80; i++) treble += data[i];
+          bass = (bass / 5) / 255;
+          mid = (mid / 16) / 255;
+          treble = (treble / 40) / 255;
+
+          // Beat onset — pulse source toward listener
+          if (bass > lastBass * 1.3 && bass > 0.25) beatDecay = 1.0;
+          else beatDecay = Math.max(0, beatDecay - 0.05);
+          lastBass = bass;
+
+          // Rotation speed proportional to treble energy
+          angle += 0.004 + treble * 0.014;
+          const dist = 1.2 + (1 - bass) * 2;    // bass energy pulls closer
+          const height = mid * 1.5 - 0.5;         // mid lifts the source
+          const beatPush = beatDecay * -1.8;       // beat kicks source forward
+
+          panner.positionX.value = Math.sin(angle) * dist;
+          panner.positionZ.value = Math.cos(angle) * dist + beatPush;
+          panner.positionY.value = height;
+        }
+        spatialAnimRef.current = requestAnimationFrame(tick);
+      };
+      tick();
     }
   }, []);
+
+  // Backward-compat shim — existing code calls setSpatialAudioEnabled(bool)
+  const setSpatialAudioEnabled = useCallback((val: boolean) => {
+    setSpatialMode(val ? 'orbit' : 'off');
+  }, [setSpatialMode]);
 
   // Registers a video as the active source without touching videoRef.current.
   // Safe to call from VideoPlayer's mount effect — doesn't clear the video element's src.
@@ -942,6 +995,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
+    spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
     isPlayerExpanded, setIsPlayerExpanded,
   }), [
@@ -951,6 +1005,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
+    spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
     isPlayerExpanded, setIsPlayerExpanded,
   ]);
