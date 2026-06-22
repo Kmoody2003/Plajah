@@ -98,6 +98,57 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
     return c;
   };
 
+  // ── Pre-warmed media pool (Phase 4) ──────────────────────────────────────
+  // Every launcher media clip gets a persistent, always-decoded element so firing
+  // it is an instant texture swap, not a fresh decode. crossOrigin='anonymous' is
+  // REQUIRED for the GL compositor to texture remote media (without it, cross-origin
+  // video/images taint the canvas and upload as black). Capped + LRU-evicted.
+  const mediaPool = useRef<Map<string, HTMLVideoElement | HTMLImageElement>>(new Map());
+  const POOL_CAP = 24;
+  const getWarmMedia = (url: string, type: 'video' | 'image' | undefined): HTMLVideoElement | HTMLImageElement => {
+    const pool = mediaPool.current;
+    let el = pool.get(url);
+    if (!el) {
+      if (type === 'image') {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        (img as any).decoding = 'async';
+        img.src = url;
+        el = img;
+      } else {
+        const v = document.createElement('video');
+        v.crossOrigin = 'anonymous';
+        v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+        v.src = url;
+        v.load(); // decode-ready but PAUSED; the active clip is played in the loop
+        el = v;
+      }
+      pool.set(url, el);
+      if (pool.size > POOL_CAP) {
+        const oldestKey = pool.keys().next().value as string | undefined;
+        if (oldestKey && oldestKey !== url) {
+          const old = pool.get(oldestKey);
+          if (old instanceof HTMLVideoElement) { try { old.pause(); old.removeAttribute('src'); old.load(); } catch { /* */ } }
+          pool.delete(oldestKey);
+        }
+      }
+    } else {
+      // keep recently-used at the back (LRU) so the eviction picks truly-stale ones
+      pool.delete(url); pool.set(url, el);
+    }
+    return el;
+  };
+
+  // Pre-warm ALL launcher media on any change, so every clip is decode-ready
+  // before it's fired (instant, beat-tight switching for video).
+  useEffect(() => {
+    for (const layer of layers) {
+      for (const clip of layer.clips) {
+        if (clip && clip.type === 'media' && clip.mediaUrl) getWarmMedia(clip.mediaUrl, clip.mediaType);
+      }
+    }
+  }, [layers]);
+
   // Init the compositor once. Fall back to the DOM stack if WebGL2 is missing.
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -118,6 +169,8 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
       genRef.current?.dispose(); genRef.current = null;
       audioTexRef.current?.dispose(); audioTexRef.current = null;
       compRef.current?.dispose(); compRef.current = null;
+      mediaPool.current.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });
+      mediaPool.current.clear();
     };
   }, []);
 
@@ -144,6 +197,7 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         const time = (performance.now() - startRef.current) / 1000;
 
         const inputs: LayerInput[] = [];
+        const activeMedia = new Set<string>(); // media URLs on-screen this frame
         // Bottom: stage slicing surface.
         if (bgSliceRef.current) {
           const el = pickSource(bgWrapRef.current);
@@ -168,9 +222,20 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
           }
           let element: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | null = null;
           if (clip.type === 'color') element = colorCanvasFor(layer.id, clip.fillColor || '#000');
+          else if (clip.type === 'media' && clip.mediaUrl) {
+            activeMedia.add(clip.mediaUrl);
+            const m = getWarmMedia(clip.mediaUrl, clip.mediaType); // pre-warmed pool → instant
+            if (m instanceof HTMLVideoElement && m.paused) m.play().catch(() => {});
+            element = m;
+          }
           else element = pickSource(wrapRefs.current.get(layer.id));
           if (element) inputs.push({ element, opacity, blendMode: layer.blendMode || 'normal' });
         }
+        // Pause off-screen pooled videos so only on-screen clips actually decode —
+        // keeps the pool warm without overwhelming the hardware decoders.
+        mediaPool.current.forEach((el, url) => {
+          if (el instanceof HTMLVideoElement && !el.paused && !activeMedia.has(url)) el.pause();
+        });
         // Overlay layers (unify mode): upload each overlay canvas as a top layer,
         // in DOM order (viz below fg), source-over like the CSS planes they replace.
         const host = overlayHostRef.current;
@@ -198,7 +263,7 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
   const sourced = useMemo(() => layers.map((layer) => {
     if (layer.bypassed || layer.muted || layer.activeCol == null) return null;
     const clip = layer.clips[layer.activeCol];
-    if (!clip || clip.type === 'empty' || clip.type === 'color') return null;
+    if (!clip || clip.type === 'empty' || clip.type === 'color' || clip.type === 'media') return null; // media → pre-warmed pool, no wrapper
     if (clip.type === 'generator' && clip.sceneMode?.startsWith('__fx_')) return null;
     if (useGpuGen(clip)) return null; // rendered natively on the GPU — no Canvas2D needed
     return { layer, clip };
