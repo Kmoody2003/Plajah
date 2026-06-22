@@ -8,7 +8,7 @@ import {
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
     Download, Send, Loader2, SkipBack, SkipForward,
 } from 'lucide-react';
-import { uploadVideo, createVideoPlaylist, auth } from '../../services/backendService';
+import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
 import SceneRail from './components/SceneRail';
@@ -344,6 +344,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     // composite + DOM overlays), not just one layer.
     const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const recordRafRef = useRef<number>(0);
+    const recordStartRef = useRef<number>(0);      // perf.now() at record start
+    const recordedDurationRef = useRef<number>(0); // seconds, set on stop → upload timer
     // Recording mode: false = Fast (GPU canvas, drop-free, composite only);
     // true = Full (screen capture, includes DOM overlays but heavier).
     const [recordFull, setRecordFull] = useState(false);
@@ -481,6 +483,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             };
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: mime });
+                recordedDurationRef.current = Math.max(0, (performance.now() - recordStartRef.current) / 1000);
                 cleanupStreams();
                 // Only surface the save dialog for a REAL recording. A near-empty blob
                 // means the recorder failed/stopped instantly — don't pop a save prompt.
@@ -500,6 +503,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             // instantly stopped the recording and popped the save dialog at "start".
             if (!usedCanvas) videoStream.getVideoTracks()[0]?.addEventListener('ended', () => stopRecording());
             recorder.start(100); // 100ms timeslice for reliability
+            recordStartRef.current = performance.now();
             recRef.current = { recorder, stream: combinedStream };
             setIsRecording(true);
         } catch (e) { console.warn('[Plajah Pixels] recording failed/cancelled:', e); }
@@ -529,14 +533,43 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
             const file = new File([recordedBlob], `plajah-pixels.${ext}`, { type: recordedBlob.type });
 
+            // Poster thumbnail from the live composite so the entry isn't a black
+            // void while Mux transcodes (also confirms the visual actually rendered).
+            let thumbnailFile: File | undefined;
+            try {
+                const c = glCanvasRef.current;
+                if (c && c.width > 0) {
+                    const durl = c.toDataURL('image/jpeg', 0.72);
+                    const tb = await (await fetch(durl)).blob();
+                    thumbnailFile = new File([tb], 'thumb.jpg', { type: 'image/jpeg' });
+                }
+            } catch { /* tainted canvas (cross-origin clip) — skip the poster */ }
+
             const vid = await uploadVideo(
-                { file, title: videoTitle, isPrivate: false } as any,
+                { file, title: videoTitle, isPrivate: false,
+                  duration: recordedDurationRef.current || undefined,
+                  thumbnailFile } as any,
                 (p: number) => setReelloProgress(p),
             );
 
             const displayName = auth.currentUser.displayName || 'Plajah';
             const playlistTitle = `${displayName} Plajah Pixels`;
             await createVideoPlaylist({ title: playlistTitle, videoIds: [(vid as any).id], isPublic: true } as any);
+
+            // Announce the share to the feed.
+            try {
+                await postToFeed({
+                    authorId: auth.currentUser.uid,
+                    authorName: displayName,
+                    authorPhoto: auth.currentUser.photoURL || '',
+                    type: 'VIDEO',
+                    content: `${displayName} just shared a video to Reello from Plajah Pixels`,
+                    title: videoTitle,
+                    videoId: (vid as any).id,
+                    videoUrl: (vid as any).url || undefined,
+                    shareCount: 0,
+                } as any);
+            } catch (e) { console.warn('[Plajah Pixels] feed announce failed:', e); }
 
             setReelloSuccess(true);
         } catch (err) {
