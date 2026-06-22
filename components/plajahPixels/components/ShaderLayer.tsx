@@ -50,6 +50,11 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
   const texDataRef = useRef<Uint8Array>(new Uint8Array(0));
   const frameRef = useRef(0);
   const lastRef = useRef(0);
+  // Compiled-program cache keyed by exact source. Switching back to a previously
+  // seen shader (the common case during beat-driven scene switches) then reuses
+  // the linked program instantly instead of re-running compileShader/linkProgram
+  // — which is a synchronous GPU stall and the main per-switch hitch.
+  const progCacheRef = useRef<Map<string, WebGLProgram>>(new Map());
 
   // Init GL once.
   useEffect(() => {
@@ -87,6 +92,15 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
   // (Re)compile on source change.
   useEffect(() => {
     const gl = glRef.current; if (!gl) return;
+    // Fast path: this exact source was already compiled — just point at it. No
+    // GPU stall, so a rapid scene switch back to a known shader is instant.
+    const cached = progCacheRef.current.get(source);
+    if (cached) {
+      progRef.current = cached;
+      frameRef.current = 0;
+      onError?.(null);
+      return;
+    }
     const compile = (type: number, src: string) => {
       const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(s) || 'compile error'; gl.deleteShader(s); throw new Error(log); }
@@ -98,7 +112,10 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
       const prog = gl.createProgram()!;
       gl.attachShader(prog, v); gl.attachShader(prog, f); gl.bindAttribLocation(prog, 0, 'p'); gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || 'link error');
-      if (progRef.current) gl.deleteProgram(progRef.current);
+      // Keep compiled programs cached (don't delete the previous one — it may be
+      // re-fired). Sources are bounded by the clips the user added, so the cache
+      // stays small.
+      progCacheRef.current.set(source, prog);
       progRef.current = prog;
       frameRef.current = 0;
       onError?.(null);

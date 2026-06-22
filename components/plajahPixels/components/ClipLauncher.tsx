@@ -1018,8 +1018,10 @@ const ClipLauncher: React.FC<Props> = ({
       li === layerIdx ? { ...l, activeCol: willBeActive ? colIdx : null } : l
     ));
 
-    // Track which cell is selected for the PARAMS panel
-    setSelectedCell({ li: layerIdx, ci: colIdx });
+    // Track which cell is selected for the PARAMS panel — only on a manual cell
+    // tap (forceOn=false). Automated/scene launches (forceOn) skip this so a drum
+    // fill doesn't churn the params panel + re-render every switch.
+    if (!forceOn) setSelectedCell({ li: layerIdx, ci: colIdx });
 
     if (!clip) return;
     if (layer.bypassed || layer.muted) return;
