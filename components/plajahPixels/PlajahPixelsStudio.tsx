@@ -36,6 +36,7 @@ import TextOverlay, { TEXT_FONTS, ensureFontLoaded } from './components/TextOver
 import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
+import { setRecording as setProxyRecordingGate } from './engine/core/proxyCache';
 import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
@@ -472,6 +473,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             });
 
             const cleanupStreams = () => {
+                setProxyRecordingGate(false); // resume background proxy transcodes
                 if (recordRafRef.current) { cancelAnimationFrame(recordRafRef.current); recordRafRef.current = 0; }
                 if (audioDestRef.current && analyserRef.current) {
                     try { analyserRef.current.disconnect(audioDestRef.current); } catch { /* */ }
@@ -511,6 +513,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             recordStartRef.current = performance.now();
             recRef.current = { recorder, stream: combinedStream };
             setIsRecording(true);
+            setProxyRecordingGate(true); // pause background proxy transcodes while recording
         } catch (e) { console.warn('[Plajah Pixels] recording failed/cancelled:', e); }
     }, [stopRecording]);
 

@@ -58,6 +58,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "0.460.0",
     "motion": "^12.38.0",
+    "mp4-muxer": "^5.2.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-force-graph-3d": "^1.29.1",

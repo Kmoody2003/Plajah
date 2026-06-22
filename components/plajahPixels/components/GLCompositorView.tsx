@@ -19,6 +19,7 @@ import BackgroundLayer from './BackgroundLayer';
 import { Compositor, LayerInput } from '../engine/core/compositor';
 import { AudioTexture } from '../engine/core/audioTexture';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
+import { ensureProxy } from '../engine/core/proxyCache';
 import { VisualizationConfig, BackgroundMedia } from '../types';
 import type { LauncherLayer } from './ClipLauncher';
 
@@ -104,7 +105,30 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
   // REQUIRED for the GL compositor to texture remote media (without it, cross-origin
   // video/images taint the canvas and upload as black). Capped + LRU-evicted.
   const mediaPool = useRef<Map<string, HTMLVideoElement | HTMLImageElement>>(new Map());
+  const proxyMap = useRef<Map<string, string>>(new Map());      // originalUrl → ready proxy object-URL
+  const pendingSwap = useRef<Map<string, string>>(new Map());   // proxy ready but clip mid-play → swap on next pause
   const POOL_CAP = 24;
+
+  const makePooledVideo = (src: string): HTMLVideoElement => {
+    const v = document.createElement('video');
+    v.crossOrigin = 'anonymous';
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+    v.src = src;
+    v.load(); // decode-ready but PAUSED; the active clip is played in the loop
+    return v;
+  };
+
+  // Rebuild a pooled video from its finished proxy — but only when the clip is
+  // PAUSED (idle) so the swap is invisible. If it's mid-play, defer to next pause.
+  const applyProxy = (url: string, proxyUrl: string) => {
+    const pool = mediaPool.current;
+    const cur = pool.get(url);
+    if (!(cur instanceof HTMLVideoElement) || cur.src === proxyUrl) return;
+    if (!cur.paused) { pendingSwap.current.set(url, proxyUrl); return; }
+    pool.set(url, makePooledVideo(proxyUrl));
+    try { cur.pause(); cur.removeAttribute('src'); cur.load(); } catch { /* */ }
+  };
+
   const getWarmMedia = (url: string, type: 'video' | 'image' | undefined): HTMLVideoElement | HTMLImageElement => {
     const pool = mediaPool.current;
     let el = pool.get(url);
@@ -116,12 +140,11 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         img.src = url;
         el = img;
       } else {
-        const v = document.createElement('video');
-        v.crossOrigin = 'anonymous';
-        v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
-        v.src = url;
-        v.load(); // decode-ready but PAUSED; the active clip is played in the loop
-        el = v;
+        // Prefer a ready proxy; else play the original now and kick off a background
+        // transcode that hot-swaps this entry once the playback-optimized proxy lands.
+        const ready = proxyMap.current.get(url);
+        el = makePooledVideo(ready ?? url);
+        if (!ready) ensureProxy(url, (proxyUrl) => { proxyMap.current.set(url, proxyUrl); applyProxy(url, proxyUrl); });
       }
       pool.set(url, el);
       if (pool.size > POOL_CAP) {
@@ -171,6 +194,8 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
       compRef.current?.dispose(); compRef.current = null;
       mediaPool.current.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });
       mediaPool.current.clear();
+      // proxy object-URLs are owned/memoized by proxyCache (persist across remounts), so just drop the local mirrors
+      proxyMap.current.clear(); pendingSwap.current.clear();
     };
   }, []);
 
@@ -234,7 +259,12 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         // Pause off-screen pooled videos so only on-screen clips actually decode —
         // keeps the pool warm without overwhelming the hardware decoders.
         mediaPool.current.forEach((el, url) => {
-          if (el instanceof HTMLVideoElement && !el.paused && !activeMedia.has(url)) el.pause();
+          if (el instanceof HTMLVideoElement && !el.paused && !activeMedia.has(url)) {
+            el.pause();
+            // Clip just went idle — a good moment to apply a deferred proxy swap.
+            const pending = pendingSwap.current.get(url);
+            if (pending) { pendingSwap.current.delete(url); applyProxy(url, pending); }
+          }
         });
         // Overlay layers (unify mode): upload each overlay canvas as a top layer,
         // in DOM order (viz below fg), source-over like the CSS planes they replace.
