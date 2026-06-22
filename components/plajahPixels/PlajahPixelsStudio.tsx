@@ -1280,17 +1280,17 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 </DraggablePanel>
             )}
 
-            {/* ─── Clip Launcher — Resolume-style bottom strip ─── */}
-            <AnimatePresence>
-                {showClipGrid && !uiHidden && (
+            {/* ─── Clip Launcher — Resolume-style bottom strip ───
+                ALWAYS MOUNTED. Hiding it only collapses its height — it never
+                unmounts, so the scene-automation engine keeps running and the
+                clip session is never reloaded/wiped when it's out of view. */}
                     <motion.div
                         key="clip-launcher"
-                        initial={{ height: 0 }}
-                        animate={{ height: LAUNCHER_H }}
-                        exit={{ height: 0 }}
+                        initial={false}
+                        animate={{ height: (showClipGrid && !uiHidden) ? LAUNCHER_H : 0 }}
                         transition={{ type: 'spring', damping: 32, stiffness: 260 }}
                         className="shrink-0 flex flex-col overflow-hidden"
-                        style={{ order: 2, zIndex: 10, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)' }}
+                        style={{ order: 2, zIndex: 10, background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)', pointerEvents: (showClipGrid && !uiHidden) ? 'auto' : 'none' }}
                     >
                         {/* Close handle */}
                         <button
@@ -1699,8 +1699,6 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         </div>
 
                     </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* ─── Output Area: all canvas layers + UI panels + toolbar ─── */}
             {/* order:1 = renders visually above the clip launcher (order:2) */}
