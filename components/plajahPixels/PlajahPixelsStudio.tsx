@@ -398,25 +398,30 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 // Composite the visual depth planes only (bg → viz → fg), skipping
                 // toolbar/panel canvases and hidden per-layer sources.
                 const planes = [depthBgRef.current, depthVizRef.current, depthFgRef.current].filter(Boolean) as HTMLElement[];
+                let lastDraw = 0;
                 const drawAll = () => {
-                    rctx.globalCompositeOperation = 'source-over'; rctx.globalAlpha = 1;
-                    rctx.fillStyle = '#000'; rctx.fillRect(0, 0, rec.width, rec.height);
-                    for (const plane of planes) {
-                        plane.querySelectorAll('canvas').forEach(cv => {
-                            const c = cv as HTMLCanvasElement;
-                            if (c === rec || c.width === 0 || c.height === 0) return;
-                            if (c.closest('[aria-hidden]')) return; // skip hidden per-layer sources
-                            const cs = getComputedStyle(c);
-                            if (cs.display === 'none' || cs.visibility === 'hidden') return;
-                            rctx.globalAlpha = parseFloat(cs.opacity || '1');
-                            rctx.globalCompositeOperation = MIX[cs.mixBlendMode] || 'source-over';
-                            try { rctx.drawImage(c, 0, 0, rec.width, rec.height); } catch { /* tainted/none */ }
-                        });
+                    const now = performance.now();
+                    if (now - lastDraw >= 32) {    // throttle to ~30fps — halves the per-frame readback + encode cost
+                        lastDraw = now;
+                        rctx.globalCompositeOperation = 'source-over'; rctx.globalAlpha = 1;
+                        rctx.fillStyle = '#000'; rctx.fillRect(0, 0, rec.width, rec.height);
+                        for (const plane of planes) {
+                            plane.querySelectorAll('canvas').forEach(cv => {
+                                const c = cv as HTMLCanvasElement;
+                                if (c === rec || c.width === 0 || c.height === 0) return;
+                                if (c.closest('[aria-hidden]')) return; // skip hidden per-layer sources
+                                const cs = getComputedStyle(c);
+                                if (cs.display === 'none' || cs.visibility === 'hidden') return;
+                                rctx.globalAlpha = parseFloat(cs.opacity || '1');
+                                rctx.globalCompositeOperation = MIX[cs.mixBlendMode] || 'source-over';
+                                try { rctx.drawImage(c, 0, 0, rec.width, rec.height); } catch { /* tainted/none */ }
+                            });
+                        }
                     }
                     recordRafRef.current = requestAnimationFrame(drawAll);
                 };
                 drawAll();
-                videoStream = (rec as any).captureStream(60);
+                videoStream = (rec as any).captureStream(30);
                 usedCanvas = true;
             } else {
                 videoStream = await (navigator.mediaDevices as any).getDisplayMedia({
@@ -462,7 +467,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             const chunks: Blob[] = [];
             const recorder = new MediaRecorder(combinedStream, {
                 mimeType: mime,
-                videoBitsPerSecond: 40_000_000, // ~40 Mbps — visually lossless at 1080p60
+                videoBitsPerSecond: 18_000_000, // ~18 Mbps @ 1080p30 — eases the software encoder (no NVENC on the Arc) so recording doesn't tank the live render
                 audioBitsPerSecond: 320_000,    // transparent (AAC/Opus)
             });
 
