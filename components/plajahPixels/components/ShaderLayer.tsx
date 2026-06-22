@@ -55,7 +55,7 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const gl = canvas.getContext('webgl2', { antialias: false, alpha: true, powerPreference: 'high-performance', desynchronized: true } as WebGLContextAttributes);
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: true, powerPreference: 'high-performance' } as WebGLContextAttributes);
     if (!gl) { onError?.('WebGL2 unavailable'); return; }
     glRef.current = gl;
     const quad = gl.createBuffer();

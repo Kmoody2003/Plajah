@@ -1888,7 +1888,7 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const canvas = canvasRef.current;
     if (!canvas || !analyser) return;
 
-    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true } as CanvasRenderingContext2DSettings);
+    const ctx = canvas.getContext('2d', { alpha: true } as CanvasRenderingContext2DSettings);
     if (!ctx) return;
 
     // Cap DPR at 2 — rendering this heavy 2D path at 3×/4× backing resolution on

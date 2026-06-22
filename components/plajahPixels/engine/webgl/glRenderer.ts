@@ -80,7 +80,7 @@ export class GLRenderer {
       antialias: false,
       alpha: false,
       powerPreference: 'high-performance',
-      desynchronized: true,
+      desynchronized: false,
       preserveDrawingBuffer: false,
     } as WebGLContextAttributes);
     if (!gl) { console.warn('WebGL2 unavailable'); return; }

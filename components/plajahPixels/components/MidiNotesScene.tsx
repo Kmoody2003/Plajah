@@ -45,7 +45,7 @@ const MidiNotesScene: React.FC<{ palette: string[] }> = ({ palette }) => {
 
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true } as CanvasRenderingContext2DSettings);
+    const ctx = canvas.getContext('2d', { alpha: false } as CanvasRenderingContext2DSettings);
     if (!ctx) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const resize = () => { canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr; };
