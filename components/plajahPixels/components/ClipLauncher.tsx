@@ -1197,13 +1197,14 @@ const ClipLauncher: React.FC<Props> = ({
     // Start the clock immediately — don't wait for a beat to arrive before the
     // first scene fires. Uses sceneAutoBarsRef so bar length updates live, and
     // sampler.bpm so the bar grid tracks the live tempo driver.
-    const barMs = () => (60000 / sampler.bpm) * 4 * sceneAutoBarsRef.current;
-    const beatsPerScene = () => Math.max(1, Math.round(4 * sceneAutoBarsRef.current));
-    // SAMPLE-ACCURATE: advance on the Nth *detected beat onset* (locked to the
-    // music), not a drifting BPM-derived timer. A timer is kept only as a fallback
-    // so quiet/beatless passages still progress.
-    let beatCount = 0;
-    let fallbackAt = performance.now() + barMs() * 1.6;
+    // DRUM-DRIVEN: scene switches fire on KICK/SNARE transients, with the minimum
+    // gap shrinking as drum density rises — so a fill rapid-fires switches and the
+    // groove relaxes back to ~beat pace. sceneAutoBars sets the groove spacing
+    // (beats-between-switches when drums are sparse).
+    const beatPeriod = () => 60000 / Math.max(40, sampler.bpm);
+    const grooveGap  = () => beatPeriod() * Math.max(1, sceneAutoBarsRef.current);
+    const FLOOR_MS   = 90; // hard anti-strobe minimum between switches
+    let lastSwitch = performance.now() - 10000;
 
     const advance = () => {
       const lrs = layersRef.current;
@@ -1229,21 +1230,19 @@ const ClipLauncher: React.FC<Props> = ({
 
     const tick = () => {
       const now = performance.now();
-      sampler.update(analyser, now);  // live tempo / intensity / beat detection
-      if (sampler.isBeat) beatCount++;
+      sampler.update(analyser, now);  // tempo + kick/snare transients + density
+
+      const transient = sampler.isKick || sampler.isSnare;
+      const groove = grooveGap();
+      // Drum density (fills ride high) shrinks the gap toward the floor → rapid-fire;
+      // sparse groove relaxes it back toward ~beat pace.
+      const dynamicGap = Math.max(FLOOR_MS, groove * (1 - sampler.density * 0.9));
 
       let fire = false;
-      if (beatCount >= beatsPerScene()) fire = true;            // locked to real beats
-      else if (now >= fallbackAt) fire = true;                  // beatless fallback
-      // Music govern: an intense bass hit can trigger one beat early.
-      else if (rotationMusicGovernRef.current && sampler.intensity > 0.82
-               && beatCount >= beatsPerScene() - 1) fire = true;
+      if (transient && now - lastSwitch >= dynamicGap) fire = true;   // on the drums
+      else if (now - lastSwitch >= groove * 2.5) fire = true;          // slow fallback when beatless
 
-      if (fire) {
-        advance();
-        beatCount = 0;
-        fallbackAt = now + barMs() * 1.6;
-      }
+      if (fire) { advance(); lastSwitch = now; }
 
       rafId = requestAnimationFrame(tick);
     };

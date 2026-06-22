@@ -28,6 +28,13 @@ export interface DriverState {
   midIntensity: number;
   /** True only on the frame a beat onset crossed the local rolling threshold. */
   isBeat: boolean;
+  /** True on the frame a KICK transient (~50–120 Hz) was detected. */
+  isKick: boolean;
+  /** True on the frame a SNARE transient (body ~150–350 Hz + crack ~2.5–6 kHz). */
+  isSnare: boolean;
+  /** Drum "density" 0–1 — how busy the recent transient stream is (fills ride high).
+   *  Drives the adaptive scene-switch rate: high density → rapid-fire switching. */
+  density: number;
 }
 
 export class AudioDriverSampler implements DriverState {
@@ -36,6 +43,9 @@ export class AudioDriverSampler implements DriverState {
   intensity    = 0;
   midIntensity = 0;
   isBeat       = false;
+  isKick       = false;
+  isSnare      = false;
+  density      = 0;
 
   // ── Internal detection state (verbatim from the previous inline loop) ─────
   private dataArr: Uint8Array | null = null;
@@ -45,6 +55,22 @@ export class AudioDriverSampler implements DriverState {
   // a local average avoids hard absolute thresholds that fail on quiet/loud tracks.
   private readonly energyHistory = new Float32Array(20);
   private histIdx = 0;
+
+  // ── Kick / snare transient detection (per-band rolling thresholds) ────────
+  private readonly kickHistory  = new Float32Array(16);
+  private readonly snareHistory = new Float32Array(16);
+  private kIdx = 0; private sIdx = 0;
+  private lastKick = 0; private lastSnare = 0;
+  // Recent transient timestamps (~last 1.2s) → density.
+  private readonly transientTimes: number[] = [];
+
+  /** Sum + average analyser bins covering a Hz range, normalized 0–1. */
+  private bandEnergy(data: Uint8Array, loHz: number, hiHz: number, binHz: number): number {
+    const lo = Math.max(0, Math.floor(loHz / binHz));
+    const hi = Math.min(data.length - 1, Math.ceil(hiHz / binHz));
+    let sum = 0; for (let i = lo; i <= hi; i++) sum += data[i];
+    return (sum / Math.max(1, hi - lo + 1)) / 255;
+  }
 
   /**
    * Sample the analyser once. Call from a requestAnimationFrame loop, passing
@@ -95,8 +121,39 @@ export class AudioDriverSampler implements DriverState {
       }
     }
 
+    // ── Kick / snare transients (the drivers that determine scene switches) ──
+    const sr = (analyser.context && analyser.context.sampleRate) || 48000;
+    const binHz = sr / analyser.fftSize;
+    const kick  = this.bandEnergy(dataArr, 50, 120, binHz);
+    const snareBody  = this.bandEnergy(dataArr, 150, 350, binHz);
+    const snareCrack = this.bandEnergy(dataArr, 2500, 6000, binHz);
+    const snare = snareBody * 0.5 + snareCrack * 0.5;
+
+    const kAvg = avgOf(this.kickHistory);
+    const sAvg = avgOf(this.snareHistory);
+    this.kickHistory[this.kIdx++ % this.kickHistory.length] = kick;
+    this.snareHistory[this.sIdx++ % this.snareHistory.length] = snare;
+
+    // Transients fire when a band jumps above its local rolling average, gated by
+    // an absolute floor + a short refractory so a single hit isn't double-counted.
+    const isKick  = kick  > kAvg * 1.5 && kick  > 0.16 && (now - this.lastKick)  > 70;
+    const isSnare = snare > sAvg * 1.6 && snare > 0.12 && (now - this.lastSnare) > 70;
+    if (isKick)  this.lastKick  = now;
+    if (isSnare) this.lastSnare = now;
+
+    if (isKick || isSnare) this.transientTimes.push(now);
+    while (this.transientTimes.length && now - this.transientTimes[0] > 1200) this.transientTimes.shift();
+    // ~0 at the groove (≈ a few hits/sec), → 1 during a dense fill (~8+ hits/1.2s).
+    this.density = Math.min(1, this.transientTimes.length / 8);
+
     this.intensity    = bass;
     this.midIntensity = midBass;
     this.isBeat       = isBeat;
+    this.isKick       = isKick;
+    this.isSnare      = isSnare;
   }
+}
+
+function avgOf(a: Float32Array): number {
+  let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length;
 }
