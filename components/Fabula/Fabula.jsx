@@ -574,6 +574,7 @@ export default function Fabula() {
     p.design.palette = p.design.palette || [];
     p.edits = p.edits || []; // standalone timelines — docs, music videos, any cut not bound to a scene
     p.mediaPool.forEach((a) => { a.bin = a.bin || "imports"; });
+    p.tracks = p.tracks && p.tracks.length ? p.tracks : TRACKS.map((t) => ({ ...t })); // dynamic, unlimited tracks
     return p;
   };
 
@@ -1155,6 +1156,18 @@ export default function Fabula() {
   const [mcSel, setMcSel] = useState([]);
   const [angleView, setAngleView] = useState(false);
   const vfmt = prod?.defaults?.format || { fps: 24, drop: false, w: 1920, h: 1080, label: "HD 1080p" };
+  // Dynamic, unlimited tracks (display order: video group then audio). videoTracksAsc
+  // is bottom→top for compositing (v1 base, higher numbers overlay).
+  const tracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+  const videoTracksAsc = tracks.filter((t) => t.type === "video").sort((a, b) => (parseInt(a.id.slice(1), 10) || 0) - (parseInt(b.id.slice(1), 10) || 0));
+  const addTrack = (type) => updateProd((p) => {
+    p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+    const nums = p.tracks.filter((t) => t.type === type).map((t) => parseInt(t.id.slice(1), 10) || 0);
+    const n = (nums.length ? Math.max(...nums) : 0) + 1;
+    const entry = { id: (type === "video" ? "v" : "a") + n, name: (type === "video" ? "V" : "A") + n, type };
+    if (type === "video") { const i = p.tracks.findIndex((t) => t.type === "video"); p.tracks.splice(Math.max(0, i), 0, entry); }
+    else p.tracks.push(entry);
+  });
 
   const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
   const container = activeEdit || scene; // whichever timeline is open
@@ -1187,7 +1200,7 @@ export default function Fabula() {
     const edlTc = (s) => fmtTc(s + 3600, { fps: vfmt.fps });
     let n = 0;
     const lines = [`TITLE: ${(container?.title || "FABULA SEQUENCE").toUpperCase()}`, `FCM: NON-DROP FRAME`, ``];
-    ["v1", "v2", "a1", "a2"].forEach((tid) => {
+    tracks.map((t) => t.id).forEach((tid) => {
       clips.filter((c) => c.trackId === tid).sort((a, b) => a.start - b.start).forEach((c) => {
         n++;
         const ch = tid.startsWith("v") ? "V" : tid === "a2" ? "A2" : "A";
@@ -1353,12 +1366,13 @@ export default function Fabula() {
 
   /* monitor source */
   const monitorClip = useMemo(() => {
-    for (const tid of ["v2", "v1"]) {
+    for (let i = videoTracksAsc.length - 1; i >= 0; i--) { // top-most video track down
+      const tid = videoTracksAsc[i].id;
       const c = clips.find((c) => c.trackId === tid && playhead >= c.start && playhead < c.start + c.duration);
       if (c) return c;
     }
     return null;
-  }, [clips, playhead]);
+  }, [clips, playhead, videoTracksAsc]);
   const monitorAssetRaw = monitorClip?.assetId ? prod?.mediaPool.find((a) => a.id === monitorClip.assetId) : null;
   // multicam resolves to the active angle's underlying media (+ sync offset)
   const mcAngle = monitorAssetRaw?.type === "multicam" ? monitorAssetRaw.angles[monitorClip.angle || 0] : null;
@@ -1465,10 +1479,10 @@ export default function Fabula() {
   const renderMonitor = () => (
 <section className="monitor">
                     <div className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none" }}>
-                      {["v1", "v2"].map((tid) => {
-                        const lc = clips.find((c) => c.trackId === tid && playhead >= c.start && playhead < c.start + c.duration);
+                      {videoTracksAsc.map((tr, i) => {
+                        const lc = clips.find((c) => c.trackId === tr.id && playhead >= c.start && playhead < c.start + c.duration);
                         if (!lc) return null;
-                        return <MonitorLayer key={tid} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={tid === "v2"} videoRef={tid === "v1" ? videoRef : undefined} />;
+                        return <MonitorLayer key={tr.id} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={i + 1} videoRef={i === 0 ? videoRef : undefined} />;
                       })}
                       {!monitorClip && <div className="noclip">NO CLIP AT PLAYHEAD</div>}
                       {monitorShot && monitorAsset && <span className="overlay-slug">{monitorShot.slug}</span>}
@@ -1716,7 +1730,7 @@ export default function Fabula() {
                       {/* playhead line */}
                       <div className="phline" style={{ left: 128 + playhead * pxPerSec }} />
                       {/* tracks */}
-                      {TRACKS.map((tr) => (
+                      {tracks.map((tr) => (
                         <div className={`track ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
                           <div className={`trackhead ${tr.type}`}>
                             {tr.type === "video" ? <Film size={10} /> : <Music size={10} />} {tr.name}
@@ -1746,6 +1760,10 @@ export default function Fabula() {
                           </div>
                         </div>
                       ))}
+                      <div className="track addtrackrow" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
+                        <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2486,7 +2504,7 @@ export default function Fabula() {
                   <div className="scroll" style={{ padding: 16 }}>
                     <div className="glass-card">
                       <div className="lbl">MIXER — track levels stored on this timeline, applied at render/export</div>
-                      {TRACKS.filter((tr) => tr.type === "audio").map((tr) => {
+                      {tracks.filter((tr) => tr.type === "audio").map((tr) => {
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
                         return (
                           <div className="fxrow" key={tr.id} style={{ marginBottom: 8 }}>
@@ -2586,7 +2604,7 @@ export default function Fabula() {
 }
 
 /* ---------- compositing layer: one active clip on one video track ---------- */
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, videoRef }) {
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef }) {
   const localRef = useRef(null);
   const fx = ensureFx(clip);
   // resolve media (multicam → active angle)
@@ -2627,7 +2645,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, videoRef }) {
     transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
     filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})`,
     mixBlendMode: top ? fx.blend : "normal",
-    clipPath, zIndex: top ? 2 : 1, pointerEvents: "none",
+    clipPath, zIndex: z ?? (top ? 2 : 1), pointerEvents: "none",
   };
 
   return (
