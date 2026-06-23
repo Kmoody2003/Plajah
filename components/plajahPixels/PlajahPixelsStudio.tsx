@@ -6,7 +6,7 @@ import {
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
-    Download, Send, Loader2, SkipBack, SkipForward,
+    Download, Send, Loader2, SkipBack, SkipForward, Film,
 } from 'lucide-react';
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
@@ -37,6 +37,7 @@ import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
 import { setRecording as setProxyRecordingGate } from './engine/core/proxyCache';
+import TimelineRenderPanel from './components/TimelineRenderPanel';
 import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
@@ -337,6 +338,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [showProgramOutPicker, setShowProgramOutPicker] = useState(false);
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
+    const [showRenderPanel, setShowRenderPanel] = useState(false);
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
     // The live GPU composite canvas — captured directly for drop-free recording.
     const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -2021,6 +2023,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         {recordFull ? 'Full' : 'Fast'}
                     </button>
                 )}
+                {/* Render Timeline (offline) — pick a song, render scenes to an accurate MP4 */}
+                {!isRecording && (
+                    <button onClick={() => setShowRenderPanel(true)}
+                        title="Render Timeline — offline, frame/beat/sample-accurate MP4 export"
+                        className="w-9 h-9 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg bg-black/40 hover:bg-[#FF8C00]/30">
+                        <Film className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.8)' }} />
+                    </button>
+                )}
                 {/* Program Output — quick launch (full controls in right panel when clip launcher is open) */}
                 <button
                     onClick={openProgramOut}
@@ -2282,6 +2292,9 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
 
             {/* ─── Recording Save Modal ──────────────────────────────────────────── */}
             <AnimatePresence>
+                {showRenderPanel && (
+                    <TimelineRenderPanel layers={liveLayers} config={config} onClose={() => setShowRenderPanel(false)} />
+                )}
                 {showSaveModal && recordedBlob && (
                     <motion.div
                         key="save-modal-backdrop"
