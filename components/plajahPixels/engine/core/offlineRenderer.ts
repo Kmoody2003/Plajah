@@ -20,6 +20,7 @@ import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
 import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
+import { getTitleCanvas } from './titleLayer';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 
 export interface RenderOptions {
@@ -198,6 +199,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'text' && clip.text) {
           inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
+        } else if (clip.type === 'title' && clip.text) {
+          inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'shader' && clip.shaderSrc) {
           const tex = shaderRend.render(layer.id, clip.shaderSrc, width, height, { time: lt, audio: audioTex, params: clip.params || [] });
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });

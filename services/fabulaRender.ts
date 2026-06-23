@@ -62,7 +62,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   const { clips, mediaPool, format, palette, onProgress, signal } = opts;
   const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId));
   const subtitleClips = clips.filter(c => c.kind === 'subtitle' && c.text);
-  if (!videoClips.length && !subtitleClips.length) { console.warn('[Fabula render] nothing visual to render'); return null; }
+  const titleClips = clips.filter(c => c.kind === 'title' && c.text);
+  if (!videoClips.length && !subtitleClips.length && !titleClips.length) { console.warn('[Fabula render] nothing visual to render'); return null; }
 
   // Distinct video tracks, bottom (v1) → top, numeric order (v2 before v10).
   const tracks = [...new Set(videoClips.map(c => c.trackId))].sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
@@ -93,10 +94,14 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
         });
       }
     }
-    // Subtitle clips (any subtitle track) burn in on top, screen-blended.
+    // Subtitle + title clips burn in on top, screen-blended.
     for (const c of subtitleClips) {
       if (!(t >= c.start && t < c.start + c.duration)) continue;
       out.push({ id: `sub:${c.id}`, clip: { type: 'text', text: c.text }, blendMode: 'screen', opacity: 1, time: 0 });
+    }
+    for (const c of titleClips) {
+      if (!(t >= c.start && t < c.start + c.duration)) continue;
+      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: c.text, subtitle: c.subtitle, titleStyle: c.titleStyle }, blendMode: 'screen', opacity: 1, time: 0 });
     }
     return out;
   };

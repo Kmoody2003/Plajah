@@ -4,13 +4,15 @@
 // self-describing and renderable offline without the live launcher.
 
 export interface RenderClip {
-  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'empty';
+  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'title' | 'empty';
   sceneMode?: string;                 // generator / studio mode (UPPERCASE)
   mediaUrl?: string;
   mediaType?: 'video' | 'image';
-  fillColor?: string;                 // color fill, or text color for type:'text'
+  fillColor?: string;                 // color fill, or text/accent color
   shaderSrc?: string;
-  text?: string;                      // type:'text' — caption / title string (the "text generator")
+  text?: string;                      // type:'text'/'title' — caption or title string
+  subtitle?: string;                  // type:'title' — second line under the title
+  titleStyle?: 'modern' | 'classic' | 'minimal'; // type:'title'
   params?: number[];
   opacity?: number;
 }

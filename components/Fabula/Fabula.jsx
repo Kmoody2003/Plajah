@@ -1239,9 +1239,17 @@ export default function Fabula() {
     if (editSel) { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: nc }; }
     else { const act = p.acts.find((a) => a.id === sceneSel?.actId); const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId); if (sc) sc.timeline = { ...(sc.timeline || {}), clips: nc }; }
   };
+  const updateClip = (id, patch) => { const n = clips.map((c) => (c.id === id ? { ...c, ...patch } : c)); setClips(n); commitClips(n); };
   const addSubtitle = () => {
     const sid = subTrackId();
     const clip = { id: uid(), trackId: sid, start: playhead, duration: 2.5, kind: "subtitle", text: "Subtitle", label: "Subtitle", srcIn: 0, fx: { ...SUB_FX } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id);
+  };
+  const addTitle = () => {
+    const sid = subTrackId();
+    const clip = { id: uid(), trackId: sid, start: playhead, duration: 3, kind: "title", text: "Title", subtitle: "", titleStyle: "modern", label: "Title", srcIn: 0, fx: { ...SUB_FX } };
     const nc = [...clips, clip];
     updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
@@ -1573,6 +1581,19 @@ export default function Fabula() {
                           </div>
                         ) : null;
                       })()}
+                      {(() => {
+                        const tc = clips.find((c) => c.kind === "title" && c.text && playhead >= c.start && playhead < c.start + c.duration);
+                        if (!tc) return null;
+                        const cls = tc.titleStyle || "modern";
+                        return (
+                          <div style={{ position: "absolute", left: cls === "classic" ? 0 : "12%", right: cls === "classic" ? 0 : "12%", bottom: "16%", textAlign: cls === "classic" ? "center" : "left", zIndex: 61, pointerEvents: "none" }}>
+                            <div style={{ display: "inline-block", borderLeft: cls === "modern" ? "4px solid #FF8C00" : "none", paddingLeft: cls === "modern" ? 10 : 0 }}>
+                              <div style={{ color: "#fff", fontWeight: 700, fontSize: "clamp(14px,3vw,40px)", fontFamily: cls === "classic" ? "Georgia,serif" : "system-ui,sans-serif", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>{tc.text}</div>
+                              {tc.subtitle && <div style={{ color: cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00", fontWeight: 500, fontSize: "clamp(10px,1.8vw,22px)", marginTop: 2, textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>{tc.subtitle}</div>}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {!monitorClip && <div className="noclip">NO CLIP AT PLAYHEAD</div>}
                       {monitorShot && monitorAsset && <span className="overlay-slug">{monitorShot.slug}</span>}
                       {angleView && monitorAssetRaw?.type === "multicam" && (
@@ -1618,7 +1639,24 @@ export default function Fabula() {
                             <div className="insp-div" />
                             <div className="lbl">SUBTITLE TEXT</div>
                             <textarea className="in" rows={2} value={selClip.text || ""} placeholder="Subtitle / caption line…"
-                              onChange={(e) => { const v = e.target.value; const n = clips.map((c) => c.id === selClip.id ? { ...c, text: v, label: v.slice(0, 40) } : c); setClips(n); commitClips(n); }} />
+                              onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
+                          </>
+                        )}
+                        {selClip.kind === "title" && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">TITLE</div>
+                            <input className="in" value={selClip.text || ""} placeholder="Main title…"
+                              onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
+                            <div className="lbl" style={{ marginTop: 6 }}>SUBTITLE</div>
+                            <input className="in" value={selClip.subtitle || ""} placeholder="Second line…"
+                              onChange={(e) => updateClip(selClip.id, { subtitle: e.target.value })} />
+                            <div className="lbl" style={{ marginTop: 6 }}>STYLE</div>
+                            <select className="sel" value={selClip.titleStyle || "modern"} onChange={(e) => updateClip(selClip.id, { titleStyle: e.target.value })}>
+                              <option value="modern">Modern</option>
+                              <option value="classic">Classic</option>
+                              <option value="minimal">Minimal</option>
+                            </select>
                           </>
                         )}
                         {selShot && (
@@ -1863,6 +1901,7 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
+                        <button className="minibtn" onClick={addTitle} title="Add a lower-third title at the playhead"><Type size={10} /> + TITLE</button>
                       </div>
                     </div>
                   </div>

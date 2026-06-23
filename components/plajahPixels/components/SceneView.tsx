@@ -12,6 +12,7 @@ import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/genera
 import { ShaderRenderer } from '../engine/core/shaderRenderer';
 import { AudioTexture } from '../engine/core/audioTexture';
 import { getTextCanvas } from '../engine/core/textLayer';
+import { getTitleCanvas } from '../engine/core/titleLayer';
 import type { SceneSnapshot } from '../engine/timeline/sceneTimeline';
 
 interface Props {
@@ -97,6 +98,8 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
             inputs.push({ element: colorCanvas(clip.fillColor), opacity, blendMode: layer.blendMode });
           } else if (clip.type === 'text' && clip.text) {
             inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode });
+          } else if (clip.type === 'title' && clip.text) {
+            inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor), opacity, blendMode: layer.blendMode });
           } else if (clip.type === 'shader' && clip.shaderSrc && shaderRef.current) {
             const tex = shaderRef.current.render(layer.id, clip.shaderSrc, w, h, { time: t, audio: audioTex, params: clip.params || [] });
             inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
