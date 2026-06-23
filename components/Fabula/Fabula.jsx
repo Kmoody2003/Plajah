@@ -7,6 +7,7 @@ import {
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
+import SceneView from "../plajahPixels/components/SceneView";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -2595,15 +2596,22 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, videoRef }) {
 
   return (
     <div style={style}>
-      {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted />}
-      {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
-      {asset && !asset.url && (
-        <div className="sboard">
-          <div className="sb-stripe gray" />
-          <div className="sb-head"><span className="sb-type">{asset.name}</span><span className="sb-status">OFFLINE — IMPORTED FROM {asset.imported || "NLE"} · RELINK IN INSPECTOR</span></div>
-          <div className="sb-body"><div className="noclip">MEDIA OFFLINE</div></div>
-        </div>
-      )}
+      {asset?.pixels ? (
+        // Pixels scene — render its live GL composite (the per-clip CSS fx on the
+        // wrapping div still apply to this canvas for free).
+        <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
+          playing={playing} time={playhead - clip.start + offset} className="mvid" />
+      ) : <>
+        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted />}
+        {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
+        {asset && !asset.url && (
+          <div className="sboard">
+            <div className="sb-stripe gray" />
+            <div className="sb-head"><span className="sb-type">{asset.name}</span><span className="sb-status">OFFLINE — IMPORTED FROM {asset.imported || "NLE"} · RELINK IN INSPECTOR</span></div>
+            <div className="sb-body"><div className="noclip">MEDIA OFFLINE</div></div>
+          </div>
+        )}
+      </>}
       {!asset && shot && (
         <div className="sboard">
           <div className="sb-stripe" />
