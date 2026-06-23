@@ -25,6 +25,7 @@ export interface PixelsExportPayload {
   cuts: PixelsCut[];                    // ordered cut-list from a live session (may be empty)
   totalDuration: number;               // seconds
   fps: number;
+  palette?: string[];                  // Pixels colorPalette — carried for render fidelity in Fabula
   song?: { name: string; url?: string; duration?: number };
 }
 
@@ -112,6 +113,7 @@ function buildProduction(payload: PixelsExportPayload) {
     acts: [1, 2, 3].map((n) => ({ id: uid(), number: n, title: 'ACT ' + ['I', 'II', 'III'][n - 1], scenes: [] })),
     edits: [{ id: editId, title: payload.title || 'Pixels Session', timeline: { clips, trackSettings: {} }, updatedAt: now }],
     worldCats: {}, design: {},
+    pixelsConfig: { colorPalette: payload.palette || [] }, // for Fabula's Pixels-powered render
     createdAt: now, updatedAt: now,
   };
   return { prod, editId };

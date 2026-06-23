@@ -370,6 +370,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             await exportPixelsToFabula({
                 title: platform?.title ? `${platform.title} — Pixels` : 'Pixels Session',
                 scenes, cuts, totalDuration, fps: 30,
+                palette: config.colorPalette,
             });
             window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
         } catch (e) {

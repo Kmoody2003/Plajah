@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
+import { renderFabulaToBlob } from "../../services/fabulaRender";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -461,6 +462,10 @@ export default function Fabula() {
   /* editor state */
   const [clips, setClips] = useState([]);
   const [editSel, setEditSel] = useState(null);     // standalone edit id (timelines independent of scenes)
+  const [rendering, setRendering] = useState(false); // Pixels-powered MP4 render in progress
+  const [renderPct, setRenderPct] = useState(0);
+  const [renderStage, setRenderStage] = useState("");
+  const renderAbortRef = useRef(null);
   const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|vfx|color|audio|deliver
   const [binFilter, setBinFilter] = useState("all");
   const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
@@ -1163,6 +1168,33 @@ export default function Fabula() {
     a.download = (container?.title || "fabula").replace(/\s+/g, "_").toLowerCase() + ".edl";
     a.click();
     ping("EDL exported — conform it in Resolve / Premiere / Avid");
+  };
+  // Render the timeline to a real MP4 via the Pixels offline render engine.
+  const doRenderMP4 = async () => {
+    if (rendering) { renderAbortRef.current?.abort(); return; }
+    if (!clips.length) { ping("Nothing on the timeline to render."); return; }
+    setRendering(true); setRenderPct(0); setRenderStage("Preparing");
+    renderAbortRef.current = new AbortController();
+    try {
+      const blob = await renderFabulaToBlob({
+        clips, mediaPool: prod.mediaPool || [], format: vfmt,
+        palette: prod?.pixelsConfig?.colorPalette || [],
+        title: container?.title,
+        onProgress: (p, s) => { setRenderPct(p); setRenderStage(s); },
+        signal: renderAbortRef.current.signal,
+      });
+      if (!blob) { ping("Render failed or cancelled — see console."); return; }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (container?.title || "fabula").replace(/\s+/g, "_").toLowerCase() + ".mp4";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+      ping("Rendered MP4 — Pixels engine, frame-accurate.");
+    } catch (e) {
+      console.warn("[Fabula render]", e); ping("Render error — see console.");
+    } finally {
+      setRendering(false);
+    }
   };
   const exportAll = () => {
     const head = `=== ${prod ? prod.title + " — " : ""}${container?.title || "UNTITLED"} ===\n` +
@@ -2454,11 +2486,22 @@ export default function Fabula() {
                       <div className="lbl">DELIVER — "{container.title}"</div>
                       <div className="readtxt">{vfmt.label} · {vfmt.w}×{vfmt.h} · {vfmt.fps}{vfmt.drop ? " DF" : " NDF"} fps · {prod.defaults.aspect} · {clips.length} clips · {fmtTc(seqEnd, vfmt)} runtime</div>
                       <div className="btnrow" style={{ marginTop: 10 }}>
+                        <button className="cta" onClick={doRenderMP4} style={{ background: rendering ? "#3a2a12" : undefined }}>
+                          <Film size={13} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}% — CANCEL` : "RENDER MP4 (PIXELS ENGINE)"}
+                        </button>
                         <button className="cta" onClick={exportEDL}><ListVideo size={13} /> EXPORT EDL (CMX3600)</button>
                         <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
                       </div>
+                      {rendering && (
+                        <div style={{ marginTop: 10 }}>
+                          <div className="dim small" style={{ marginBottom: 4 }}>{renderStage}…</div>
+                          <div style={{ height: 6, background: "#26263a", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${renderPct * 100}%`, background: "linear-gradient(90deg,#FF8C00,#ffb347)", transition: "width .2s" }} />
+                          </div>
+                        </div>
+                      )}
                       <div className="dim small" style={{ marginTop: 10 }}>
-                        The EDL round-trips this cut into Resolve, Premiere, or Avid for finishing. In-app media rendering (writing actual video files) belongs in the codebase render pipeline — the timeline data here is its exact input.
+                        RENDER MP4 writes a real, frame/beat/sample-accurate file via the Plajah Pixels engine — Pixels scenes render as their true composite; plain media + the soundtrack are included. The EDL still round-trips this cut into Resolve, Premiere, or Avid for finishing.
                       </div>
                     </div>
                   </div>
