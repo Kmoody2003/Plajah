@@ -237,6 +237,8 @@ interface Props {
   /** Emits the full ordered layer stack so the Studio can render it as the real
    *  composite (LayerStack). This is the source of truth for the program output. */
   onLayersChange?: (layers: LauncherLayer[]) => void;
+  /** Fired when a scene column is launched (live cut-list recording for Fabula export). */
+  onSceneLaunch?: (col: number) => void;
   /** Layers loaded from a saved project; applied whenever importToken changes. */
   importLayers?: LauncherLayer[] | null;
   importToken?: number;
@@ -871,7 +873,7 @@ const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetLayerMedia,
   bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
   onLayerShader, onShaderParamsChange, onLayerModulation, onSyncSceneAuto, onSetBlendActive, analyser,
-  rightPanel, onPowerOff, onLayersChange, importLayers, importToken,
+  rightPanel, onPowerOff, onLayersChange, onSceneLaunch, importLayers, importToken,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
 
@@ -1102,7 +1104,8 @@ const ClipLauncher: React.FC<Props> = ({
     lrs.forEach((_, li) => fireClip(li, colIdx, lrs, true));
 
     activeSceneColRef.current = colIdx;
-  }, [clearColumn, fireClip]);
+    onSceneLaunch?.(colIdx); // record the cut for the live → Fabula EDL/timeline
+  }, [clearColumn, fireClip, onSceneLaunch]);
 
   // Stable ref so automation effects always call the latest launchScene without
   // listing it as a dependency (which would restart the effect on every fire).

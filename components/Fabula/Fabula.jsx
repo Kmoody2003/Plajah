@@ -484,6 +484,16 @@ export default function Fabula() {
   useEffect(() => { (async () => {
     try { const idx = await stGet("studio:index"); setIndex(idx?.list || []); setStorageReady(true); }
     catch { setStorageReady(false); }
+    // Pixels → Fabula handoff: if a session was just exported, open that production
+    // straight into its edit (the standalone timeline). Consumed once.
+    try {
+      const h = await stGet("studio:handoff");
+      if (h?.prodId) {
+        await stDel("studio:handoff");
+        await openProduction(h.prodId);
+        if (h.editId) { setEditSel(h.editId); setSceneSel(null); setPage("edit"); }
+      }
+    } catch { /* no handoff */ }
   })(); }, []);
 
   /* ----- persistence (debounced full-production save) ----- */

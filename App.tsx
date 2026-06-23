@@ -543,6 +543,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenBible = () => setView('BIBLE');
     window.addEventListener('OPEN_BIBLE', handleOpenBible);
 
+    // Open Fabula (e.g. after a Pixels → Fabula export; Fabula reads the idb handoff on boot).
+    const handleOpenFabula = () => setView('FABULA' as AppView);
+    window.addEventListener('OPEN_FABULA', handleOpenFabula);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
@@ -551,6 +555,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
+      window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
   }, [user]);
 

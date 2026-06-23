@@ -38,6 +38,8 @@ import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
 import { setRecording as setProxyRecordingGate } from './engine/core/proxyCache';
 import TimelineRenderPanel from './components/TimelineRenderPanel';
+import { exportPixelsToFabula, PixelsScene, PixelsCut } from '../../services/fabulaBridge';
+import { snapshotFromColumn } from './engine/timeline/sceneTimeline';
 import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
@@ -339,6 +341,41 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const programOutRef = useRef<Window | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [showRenderPanel, setShowRenderPanel] = useState(false);
+
+    // ── Live cut-list (for Pixels → Fabula export) — each scene launch during a
+    //    live session is timestamped relative to the first launch. ──
+    const cutListRef = useRef<{ col: number; t: number }[]>([]);
+    const cutSessionStartRef = useRef<number>(0);
+    const handleSceneLaunch = useCallback((col: number) => {
+        const now = performance.now();
+        if (!cutSessionStartRef.current) cutSessionStartRef.current = now;
+        cutListRef.current.push({ col, t: (now - cutSessionStartRef.current) / 1000 });
+        if (cutListRef.current.length > 4000) cutListRef.current.shift(); // safety cap
+    }, []);
+
+    const exportToFabula = useCallback(async () => {
+        const layers = liveLayersRef.current;
+        const COLS = 8;
+        const scenes: PixelsScene[] = [];
+        for (let c = 0; c < COLS; c++) {
+            const has = layers.some(l => l && !l.bypassed && !l.muted && l.clips?.[c] && l.clips[c].type !== 'empty');
+            if (has) scenes.push({ key: `col-${c}`, name: `Scene ${c + 1}`, snapshot: snapshotFromColumn(layers, c, `Scene ${c + 1}`) });
+        }
+        if (!scenes.length) { console.warn('[Pixels→Fabula] no scenes to export'); return; }
+        const cuts: PixelsCut[] = cutListRef.current
+            .filter(x => scenes.some(s => s.key === `col-${x.col}`))
+            .map(x => ({ sceneKey: `col-${x.col}`, t: x.t }));
+        const totalDuration = cuts.length ? cuts[cuts.length - 1].t + 4 : scenes.length * 4;
+        try {
+            await exportPixelsToFabula({
+                title: platform?.title ? `${platform.title} — Pixels` : 'Pixels Session',
+                scenes, cuts, totalDuration, fps: 30,
+            });
+            window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
+        } catch (e) {
+            console.warn('[Pixels→Fabula] export failed', e);
+        }
+    }, [platform]);
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
     // The live GPU composite canvas — captured directly for drop-free recording.
     const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1350,6 +1387,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                                 onApply={applyLook}
                                 onPowerOff={() => setShowClipGrid(false)}
                                 onLayersChange={setLiveLayers}
+                                onSceneLaunch={handleSceneLaunch}
                                 importLayers={importLayers}
                                 importToken={importToken}
                                 /* Render bridges are NO-OPS now — the LayerStack renders every
@@ -2029,6 +2067,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                         title="Render Timeline — offline, frame/beat/sample-accurate MP4 export"
                         className="w-9 h-9 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg bg-black/40 hover:bg-[#FF8C00]/30">
                         <Film className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.8)' }} />
+                    </button>
+                )}
+                {/* Export to Fabula — send this session (scenes + live cut-list) to the editor */}
+                {!isRecording && (
+                    <button onClick={exportToFabula}
+                        title="Export to Fabula — send these scenes + the live cut-list to the video editor"
+                        className="w-9 h-9 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg bg-black/40 hover:bg-purple-500/30">
+                        <Send className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.8)' }} />
                     </button>
                 )}
                 {/* Program Output — quick launch (full controls in right panel when clip launcher is open) */}
