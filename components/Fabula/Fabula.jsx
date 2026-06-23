@@ -9,6 +9,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildCaptionClips } from "../../services/fabulaMusic";
+import { auth } from "../../services/firebase";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -135,16 +136,21 @@ async function stDel(k) { try { await idbDel(k); } catch {} }
 
 /* ---------------- Claude API + robust JSON ---------------- */
 async function callClaude(system, user, maxRetries = 2) {
+  // /api/ai/anthropic is behind authMiddleware — it 401s without a Firebase ID
+  // token, which made EVERY SLATE/AI action fail ("try again"). Attach the token.
+  let token = null;
+  try { token = await auth.currentUser?.getIdToken(); } catch { /* not signed in */ }
   for (let a = 0; a <= maxRetries; a++) {
     try {
       const res = await fetch("/api/ai/anthropic", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1000, system,
           messages: [{ role: "user", content: user }],
         }),
       });
+      if (!res.ok) throw new Error(`AI ${res.status}${res.status === 401 ? " — not signed in" : ""}`);
       const data = await res.json();
       const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
       if (!text) throw new Error("Empty response");
