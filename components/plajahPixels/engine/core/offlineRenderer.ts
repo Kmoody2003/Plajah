@@ -180,7 +180,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         const opacity = Math.max(0, Math.min(1, (layer.opacity ?? 1) * (clip.opacity ?? 1)));
         if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
           const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
-          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
           if (el instanceof HTMLVideoElement) {
@@ -188,14 +188,14 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             let st = lt;
             if (dur > 0) st = st % dur; // loop the source within the clip
             await seekVideo(el, st);
-            inputs.push({ element: el, opacity, blendMode: layer.blendMode });
+            inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });
           } else if (el instanceof HTMLImageElement) {
-            inputs.push({ element: el, opacity, blendMode: layer.blendMode });
+            inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });
           }
         } else if (clip.type === 'color' && clip.fillColor) {
-          inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode });
+          inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'text' && clip.text) {
-          inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode });
+          inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if ((clip.type === 'shader' || clip.type === 'milkdrop') && !warnedShader) {
           warnedShader = true;
           console.warn('[Pixels render] shader/milkdrop layers are skipped in this render pass (coming next).');

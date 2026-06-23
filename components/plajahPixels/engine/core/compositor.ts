@@ -36,6 +36,9 @@ uniform sampler2D uDst;   // accumulator (what's already composited)
 uniform sampler2D uSrc;   // this layer
 uniform float uOpacity;
 uniform int uMode;
+uniform vec2 uTrans;      // per-layer translate (UV fraction); 0 = none
+uniform float uScale;     // per-layer scale; 1 = none
+uniform float uRot;       // per-layer rotation (radians); 0 = none
 
 vec3 blend(int m, vec3 d, vec3 s) {
   if (m == 1) return d + s - d * s;                 // screen
@@ -52,8 +55,17 @@ vec3 blend(int m, vec3 d, vec3 s) {
 }
 
 void main() {
+  // Per-layer transform: rotate + scale about centre, then translate. Identity
+  // (uTrans=0,uScale=1,uRot=0) reduces to suv == vUv. Outside [0,1] → transparent
+  // so a moved/scaled layer reveals what's beneath it.
+  vec2 suv = vUv - 0.5;
+  float cs = cos(uRot), sn = sin(uRot);
+  suv = mat2(cs, sn, -sn, cs) * suv;
+  suv = suv / max(uScale, 1e-3);
+  suv += 0.5 - uTrans;
+  float inb = step(0.0, suv.x) * step(suv.x, 1.0) * step(0.0, suv.y) * step(suv.y, 1.0);
   vec4 dst = texture(uDst, vUv);
-  vec4 src = texture(uSrc, vUv);
+  vec4 src = texture(uSrc, clamp(suv, 0.0, 1.0)) * inb;
   float a = src.a * uOpacity;
   vec3 blended = blend(uMode, dst.rgb, src.rgb);
   outColor = vec4(mix(dst.rgb, blended, a), clamp(dst.a + a, 0.0, 1.0));
@@ -107,6 +119,8 @@ export interface LayerInput {
   element?: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement;
   opacity: number;
   blendMode: string;
+  /** Per-layer transform: translate (UV fraction), scale, rotation (radians). */
+  transform?: { x: number; y: number; scale: number; rot: number };
 }
 
 /** Camera-shake transform applied in the present pass (UV space). Identity = no shake. */
@@ -121,6 +135,7 @@ export class Compositor {
   private gradeProg: WebGLProgram;
   private uDst: WebGLUniformLocation; private uSrc: WebGLUniformLocation;
   private uOpacity: WebGLUniformLocation; private uMode: WebGLUniformLocation;
+  private uTrans: WebGLUniformLocation | null; private uScale: WebGLUniformLocation | null; private uRot: WebGLUniformLocation | null;
   private uPresentTex: WebGLUniformLocation;
   private uShake: Record<string, WebGLUniformLocation | null> = {};
   private gradeU: Record<string, WebGLUniformLocation | null> = {};
@@ -141,6 +156,9 @@ export class Compositor {
     this.uSrc = gl.getUniformLocation(this.compositeProg, 'uSrc')!;
     this.uOpacity = gl.getUniformLocation(this.compositeProg, 'uOpacity')!;
     this.uMode = gl.getUniformLocation(this.compositeProg, 'uMode')!;
+    this.uTrans = gl.getUniformLocation(this.compositeProg, 'uTrans');
+    this.uScale = gl.getUniformLocation(this.compositeProg, 'uScale');
+    this.uRot = gl.getUniformLocation(this.compositeProg, 'uRot');
     this.uPresentTex = gl.getUniformLocation(this.presentProg, 'uTex')!;
     for (const n of ['uShakeOff', 'uShakeSin', 'uShakeCos', 'uShakeScale'])
       this.uShake[n] = gl.getUniformLocation(this.presentProg, n);
@@ -193,6 +211,10 @@ export class Compositor {
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, src);
       gl.uniform1f(this.uOpacity, Math.max(0, Math.min(1, layer.opacity)));
       gl.uniform1i(this.uMode, BLEND_INDEX[layer.blendMode?.toLowerCase()] ?? 0);
+      const tf = layer.transform;
+      gl.uniform2f(this.uTrans, tf?.x ?? 0, tf?.y ?? 0);
+      gl.uniform1f(this.uScale, tf?.scale ?? 1);
+      gl.uniform1f(this.uRot, tf?.rot ?? 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       const t = this.ping; this.ping = this.pong; this.pong = t; // swap
     }

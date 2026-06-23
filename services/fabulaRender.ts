@@ -75,8 +75,12 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       const item = itemById.get(clip.assetId);
       const snap = itemToSnapshot(item, clip.label || 'clip');
       const lt = t - clip.start + (clip.srcIn || 0);
-      const clipBlend = clip.fx?.blend && clip.fx.blend !== 'normal' ? clip.fx.blend : null;
-      const clipOp = clip.fx?.op ?? 1;
+      const fx = clip.fx;
+      const clipBlend = fx?.blend && fx.blend !== 'normal' ? fx.blend : null;
+      const clipOp = fx?.op ?? 1;
+      // Fabula fx → compositor transform: x/y are % (→ UV fraction), sc scale, rot deg→rad.
+      const tf = fx ? { x: (fx.x || 0) / 100, y: (fx.y || 0) / 100, scale: fx.sc ?? 1, rot: ((fx.rot || 0) * Math.PI) / 180 } : null;
+      const hasTf = tf && (tf.x !== 0 || tf.y !== 0 || tf.scale !== 1 || tf.rot !== 0);
       for (const layer of snap.layers) {
         out.push({
           ...layer,
@@ -84,6 +88,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           blendMode: clipBlend || layer.blendMode,
           opacity: (layer.opacity ?? 1) * clipOp,
           time: lt,
+          transform: hasTf ? tf : undefined,
         });
       }
     }

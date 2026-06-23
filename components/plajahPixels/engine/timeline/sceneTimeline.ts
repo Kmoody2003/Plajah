@@ -23,6 +23,9 @@ export interface RenderLayer {
   /** Per-layer source time in seconds (for multi-track: each layer/track has its
    *  own clip clock). Used to drive generators + media seek. */
   time?: number;
+  /** Per-layer transform (translate UV fraction, scale, rotation radians) — e.g. a
+   *  Fabula clip's position/scale/rotation fx applied to its whole scene. */
+  transform?: { x: number; y: number; scale: number; rot: number };
 }
 
 /** A captured launcher column: layers bottom→top, exactly what the compositor stacks. */
