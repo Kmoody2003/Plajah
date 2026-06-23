@@ -10,6 +10,7 @@ import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
 import { auth } from "../../services/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -135,11 +136,26 @@ async function stSet(k, v) { try { await idbSet(k, v); return true; } catch { re
 async function stDel(k) { try { await idbDel(k); } catch {} }
 
 /* ---------------- Claude API + robust JSON ---------------- */
+// Firebase restores the session asynchronously on load, so auth.currentUser can be
+// momentarily null even for a signed-in user. Wait for it, then mint a token
+// (force-refresh on demand to dodge a stale-token 401).
+async function getAuthToken(forceRefresh = false) {
+  let u = auth.currentUser;
+  if (!u) {
+    u = await new Promise((res) => {
+      const unsub = onAuthStateChanged(auth, (usr) => { unsub(); res(usr); });
+      setTimeout(() => { try { unsub(); } catch {} res(auth.currentUser); }, 5000);
+    });
+  }
+  if (!u) return null;
+  try { return await u.getIdToken(forceRefresh); } catch { return null; }
+}
+
 async function callClaude(system, user, maxRetries = 2) {
-  // /api/ai/anthropic is behind authMiddleware — it 401s without a Firebase ID
-  // token, which made EVERY SLATE/AI action fail ("try again"). Attach the token.
-  let token = null;
-  try { token = await auth.currentUser?.getIdToken(); } catch { /* not signed in */ }
+  // /api/ai/anthropic is behind authMiddleware — attach a fresh Firebase ID token,
+  // and on a 401 force-refresh the token and retry (covers stale/just-restored auth).
+  let token = await getAuthToken();
+  let lastErr;
   for (let a = 0; a <= maxRetries; a++) {
     try {
       const res = await fetch("/api/ai/anthropic", {
@@ -150,13 +166,15 @@ async function callClaude(system, user, maxRetries = 2) {
           messages: [{ role: "user", content: user }],
         }),
       });
-      if (!res.ok) throw new Error(`AI ${res.status}${res.status === 401 ? " — not signed in" : ""}`);
+      if (res.status === 401) { token = await getAuthToken(true); const b = await res.json().catch(() => ({})); lastErr = new Error(`auth (${b.error || "401"})`); continue; }
+      if (!res.ok) { const b = await res.json().catch(() => ({})); lastErr = new Error(`AI ${res.status}${b.error ? ": " + b.error : ""}`); continue; }
       const data = await res.json();
       const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
-      if (!text) throw new Error("Empty response");
+      if (!text) { lastErr = new Error("empty response"); continue; }
       return text;
-    } catch (e) { if (a === maxRetries) throw e; }
+    } catch (e) { lastErr = e; }
   }
+  throw lastErr || new Error("AI request failed");
 }
 const stripTC = (s) => s.replace(/,\s*([}\]])/g, "$1");
 function balanceWalk(t) {
