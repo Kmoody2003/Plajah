@@ -9,6 +9,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
+import { getMyVideos } from "../../services/fabulaVideos";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
@@ -1122,6 +1123,24 @@ export default function Fabula() {
     else ping("This clip has no nested scene to open.");
   };
 
+  // ── On-platform video (Live recordings + uploads) ──────────────────────────
+  const [videoLoading, setVideoLoading] = useState(false);
+  const loadMyVideos = async () => {
+    setVideoLoading(true);
+    try {
+      const vids = await getMyVideos();
+      if (!vids.length) { ping("No on-platform videos found."); setVideoLoading(false); return; }
+      updateProd((p) => {
+        for (const v of vids) {
+          if (p.mediaPool.some((m) => m.videoId === v.id)) continue;
+          p.mediaPool.push({ id: uid(), videoId: v.id, name: (v.isLive ? "🔴 " : "") + v.title, type: "video", url: v.url, duration: v.duration || 0, bin: v.isLive ? "Live" : "Videos", tags: v.isLive ? ["live"] : ["video"] });
+        }
+      });
+      ping(`Loaded ${vids.length} video(s) — Live recordings + uploads.`);
+    } catch (e) { console.warn("[Fabula videos]", e); ping("Couldn't load your videos."); }
+    setVideoLoading(false);
+  };
+
   // ── On-platform music ──────────────────────────────────────────────────────
   const [musicLoading, setMusicLoading] = useState(false);
   const loadMyMusic = async () => {
@@ -1502,6 +1521,9 @@ export default function Fabula() {
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimeline(f); e.target.value = ""; }} />
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyMusic} disabled={musicLoading} title="Load your released tracks; double-click a Music item to add it with synced-lyric captions">
                       <Music size={12} /> {musicLoading ? "LOADING…" : "MY MUSIC (ON-PLATFORM)"}
+                    </button>
+                    <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyVideos} disabled={videoLoading} title="Load your on-platform videos + Live-stream recordings">
+                      <MonitorPlay size={12} /> {videoLoading ? "LOADING…" : "MY VIDEOS + LIVE"}
                     </button>
                     <div className="poollist">
                       {(prod.mediaPool || []).map((a) => (
