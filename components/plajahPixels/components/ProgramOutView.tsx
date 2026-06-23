@@ -24,6 +24,7 @@ import TextOverlay from './TextOverlay';
 import BackgroundLayer from './BackgroundLayer';
 import { VisualizationConfig, BackgroundMedia } from '../types';
 import type { LauncherLayer } from './ClipLauncher';
+import { AudioDriverSampler } from '../engine/audioDrivers';
 
 interface ProgramState {
   config: VisualizationConfig;
@@ -79,6 +80,41 @@ const ProgramOutView: React.FC = () => {
     return () => clearTimeout(raf);
   }, []);
 
+  // ── Camera shake (mirrors the studio) — CSS transform on the root, since this
+  //    projected window is a live clone, not a recorded surface. ──
+  const rootRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef<ProgramState | null>(null);
+  stateRef.current = state;
+  const shakeSamplerRef = useRef<AudioDriverSampler | null>(null);
+  const shakeAmpRef = useRef(0);
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const root = rootRef.current;
+      const cfg = stateRef.current?.config as any;
+      if (root && cfg) {
+        if (cfg.enableBassShake && analyser) {
+          const s = (shakeSamplerRef.current ??= new AudioDriverSampler());
+          s.update(analyser, performance.now());
+          const target = s.intensity * 0.4 + s.density * 0.55;
+          shakeAmpRef.current = Math.max(shakeAmpRef.current * 0.82, target);
+          if (s.isSnare) shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.9);
+          if (s.isKick)  shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.4);
+          const amp = shakeAmpRef.current * (cfg.bassShakeIntensity ?? 1);
+          if (amp > 0.01) {
+            const mag = amp * 14;
+            const dx = (Math.random() - 0.5) * mag, dy = (Math.random() - 0.5) * mag;
+            const rot = (Math.random() - 0.5) * amp * 0.85;
+            root.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${(1 + amp * 0.03).toFixed(4)})`;
+          } else if (root.style.transform) root.style.transform = '';
+        } else if (root.style.transform) { shakeAmpRef.current = 0; root.style.transform = ''; }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [analyser]);
+
   const onDoubleClick = () => {
     const el = document.documentElement;
     if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {});
@@ -101,7 +137,8 @@ const ProgramOutView: React.FC = () => {
 
   return (
     <div
-      style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none' }}
+      ref={rootRef}
+      style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none', transformOrigin: 'center center', willChange: 'transform' }}
       onDoubleClick={onDoubleClick}
     >
       {/* Stage "Mirror slicing" effect surface, mirrored from the studio. */}

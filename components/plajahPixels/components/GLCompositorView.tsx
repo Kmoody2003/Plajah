@@ -16,7 +16,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import LayerStack, { LayerSource } from './LayerStack';
 import BackgroundLayer from './BackgroundLayer';
-import { Compositor, LayerInput } from '../engine/core/compositor';
+import { Compositor, LayerInput, ShakeParams } from '../engine/core/compositor';
 import { AudioTexture } from '../engine/core/audioTexture';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
 import { ensureProxy } from '../engine/core/proxyCache';
@@ -293,42 +293,38 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
           });
         }
         const cfg = configRef.current;
+        // ── Global camera shake — computed from the drum/intensity signal and BAKED
+        //    into the present pass (uniform transform), so it lands in the recorded /
+        //    captured pixels, not just a CSS transform only the live page sees. ──
+        let shake: ShakeParams | undefined;
+        const an = analyserRef.current;
+        if (cfg.enableBassShake && an) {
+          const s = (shakeSamplerRef.current ??= new AudioDriverSampler());
+          s.update(an, performance.now());
+          const target = s.intensity * 0.4 + s.density * 0.55;         // intensity + drum-roll density
+          shakeAmpRef.current = Math.max(shakeAmpRef.current * 0.82, target); // hold-to-peak, decay
+          if (s.isSnare) shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.9); // snare = sharp kick
+          if (s.isKick)  shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.4); // kick = thump
+          const amp = shakeAmpRef.current * (cfg.bassShakeIntensity ?? 1);
+          if (amp > 0.01) {
+            const mag = amp * 14; // px
+            const ang = (Math.random() - 0.5) * amp * 0.015; // radians — slight roll for a real "camera" feel
+            shake = {
+              offX: ((Math.random() - 0.5) * mag) / w,  // px → UV
+              offY: ((Math.random() - 0.5) * mag) / h,
+              sin: Math.sin(ang), cos: Math.cos(ang),
+              scale: 1 + amp * 0.03, // overscan so translate/rotate never reveals edges
+            };
+          }
+        } else {
+          shakeAmpRef.current = 0;
+        }
         comp.render(inputs, {
           brightness: cfg.gradeBrightness ?? 1,
           contrast: cfg.gradeContrast ?? 1,
           saturation: cfg.gradeSaturation ?? 1,
           gamma: cfg.gradeGamma ?? 1,
-        });
-
-        // ── Global camera shake ────────────────────────────────────────────
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const an = analyserRef.current;
-          if (cfg.enableBassShake && an) {
-            const s = (shakeSamplerRef.current ??= new AudioDriverSampler());
-            const now = performance.now();
-            s.update(an, now);
-            // Continuous target from track intensity + drum-roll density; snare/kick add impulses.
-            const target = s.intensity * 0.4 + s.density * 0.55;
-            shakeAmpRef.current = Math.max(shakeAmpRef.current * 0.82, target); // hold-to-peak, decay
-            if (s.isSnare) shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.9); // snare = sharp kick
-            if (s.isKick)  shakeAmpRef.current = Math.min(1.6, shakeAmpRef.current + 0.4); // kick = thump
-            const amp = shakeAmpRef.current * (cfg.bassShakeIntensity ?? 1);
-            if (amp > 0.01) {
-              const mag = amp * 14; // px
-              const dx = (Math.random() - 0.5) * mag;
-              const dy = (Math.random() - 0.5) * mag;
-              const rot = (Math.random() - 0.5) * amp * 0.7; // slight roll for a real "camera" feel
-              const scale = 1 + amp * 0.03; // overscan so the translate/rotate never reveals black edges
-              canvas.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${scale.toFixed(4)})`;
-            } else if (canvas.style.transform) {
-              canvas.style.transform = '';
-            }
-          } else if (canvas.style.transform) {
-            shakeAmpRef.current = 0;
-            canvas.style.transform = '';
-          }
-        }
+        }, shake);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -381,7 +377,7 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         {overlays && <div ref={overlayHostRef} style={{ position: 'absolute', inset: 0 }}>{overlays}</div>}
       </div>
       {/* The single composited surface. */}
-      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1, display: 'block', willChange: 'transform', transformOrigin: 'center center' }} />
+      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1, display: 'block' }} />
     </div>
   );
 };

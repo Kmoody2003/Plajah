@@ -59,13 +59,23 @@ void main() {
   outColor = vec4(mix(dst.rgb, blended, a), clamp(dst.a + a, 0.0, 1.0));
 }`;
 
-// Final present (and the generic "copy a texture to the bound target") pass.
+// Final present pass — also applies the camera-shake transform, so the shake is
+// baked into the actual output pixels (captured by captureStream recording and the
+// offline render), not a CSS transform that only the live page sees. Identity by
+// default (off=0, sin=0, cos=1, scale=1) → exact passthrough.
 const PRESENT_FS = `#version 300 es
 precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 uniform sampler2D uTex;
-void main() { outColor = vec4(texture(uTex, vUv).rgb, 1.0); }`;
+uniform vec2 uShakeOff;
+uniform float uShakeSin, uShakeCos, uShakeScale;
+void main() {
+  vec2 uv = vUv - 0.5;
+  uv = mat2(uShakeCos, -uShakeSin, uShakeSin, uShakeCos) * uv; // rotate about centre
+  uv = uv / uShakeScale + 0.5 + uShakeOff;                     // overscan + translate
+  outColor = vec4(texture(uTex, clamp(uv, 0.0, 1.0)).rgb, 1.0);
+}`;
 
 // Global color grade — the first post-FX pass over the whole composite.
 const GRADE_FS = `#version 300 es
@@ -99,6 +109,10 @@ export interface LayerInput {
   blendMode: string;
 }
 
+/** Camera-shake transform applied in the present pass (UV space). Identity = no shake. */
+export interface ShakeParams { offX: number; offY: number; sin: number; cos: number; scale: number; }
+const NO_SHAKE: ShakeParams = { offX: 0, offY: 0, sin: 0, cos: 1, scale: 1 };
+
 export class Compositor {
   readonly gl: GL;
   private quad: WebGLVertexArrayObject;
@@ -108,6 +122,7 @@ export class Compositor {
   private uDst: WebGLUniformLocation; private uSrc: WebGLUniformLocation;
   private uOpacity: WebGLUniformLocation; private uMode: WebGLUniformLocation;
   private uPresentTex: WebGLUniformLocation;
+  private uShake: Record<string, WebGLUniformLocation | null> = {};
   private gradeU: Record<string, WebGLUniformLocation | null> = {};
   private ping?: RenderTarget; private pong?: RenderTarget;
   private srcTex: WebGLTexture;       // reused for element uploads
@@ -127,6 +142,8 @@ export class Compositor {
     this.uOpacity = gl.getUniformLocation(this.compositeProg, 'uOpacity')!;
     this.uMode = gl.getUniformLocation(this.compositeProg, 'uMode')!;
     this.uPresentTex = gl.getUniformLocation(this.presentProg, 'uTex')!;
+    for (const n of ['uShakeOff', 'uShakeSin', 'uShakeCos', 'uShakeScale'])
+      this.uShake[n] = gl.getUniformLocation(this.presentProg, n);
     for (const n of ['uTex', 'uBright', 'uContrast', 'uSat', 'uGamma'])
       this.gradeU[n] = gl.getUniformLocation(this.gradeProg, n);
     this.srcTex = makeSourceTexture(gl);
@@ -186,8 +203,9 @@ export class Compositor {
    *  post-FX passes and for the recorder/render-mode to read. */
   get outputTexture(): WebGLTexture | undefined { return this.ping?.tex; }
 
-  /** Present the accumulator to the canvas (one vsync-locked draw). */
-  present() {
+  /** Present the accumulator to the canvas (one vsync-locked draw), optionally with
+   *  a camera-shake transform baked into the output pixels. */
+  present(shake: ShakeParams = NO_SHAKE) {
     const gl = this.gl;
     if (!this.ping) return;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -196,6 +214,10 @@ export class Compositor {
     gl.bindVertexArray(this.quad);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.ping.tex);
     gl.uniform1i(this.uPresentTex, 0);
+    gl.uniform2f(this.uShake.uShakeOff, shake.offX, shake.offY);
+    gl.uniform1f(this.uShake.uShakeSin, shake.sin);
+    gl.uniform1f(this.uShake.uShakeCos, shake.cos);
+    gl.uniform1f(this.uShake.uShakeScale, shake.scale);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.bindVertexArray(null);
   }
@@ -220,12 +242,12 @@ export class Compositor {
     const t = this.ping; this.ping = this.pong; this.pong = t; // graded → accumulator
   }
 
-  /** One-shot: composite + (optional post-FX) + present. */
-  render(layers: LayerInput[], grade?: GradeParams) {
+  /** One-shot: composite + (optional post-FX) + present (with optional camera shake). */
+  render(layers: LayerInput[], grade?: GradeParams, shake?: ShakeParams) {
     if (this.disposed) return;
     this.composite(layers);
     if (grade && !isNeutral(grade)) this.applyGrade(grade);
-    this.present();
+    this.present(shake);
   }
 
   dispose() {

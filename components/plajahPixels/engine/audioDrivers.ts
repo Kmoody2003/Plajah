@@ -80,9 +80,19 @@ export class AudioDriverSampler implements DriverState {
     if (!this.dataArr || this.dataArr.length !== analyser.frequencyBinCount) {
       this.dataArr = new Uint8Array(analyser.frequencyBinCount);
     }
-    const dataArr = this.dataArr;
-    analyser.getByteFrequencyData(dataArr);
+    analyser.getByteFrequencyData(this.dataArr);
+    const sr = (analyser.context && analyser.context.sampleRate) || 48000;
+    this.process(this.dataArr, now, analyser.fftSize, sr);
+  }
 
+  /** Offline / worker path: feed a frequency-byte array directly (deterministic,
+   *  no AnalyserNode) so the SAME kick/snare/density detection runs in the offline
+   *  renderer and the live engine. */
+  updateFromArray(freq: Uint8Array, now: number, sampleRate = 48000): void {
+    this.process(freq, now, freq.length * 2, sampleRate);
+  }
+
+  private process(dataArr: Uint8Array, now: number, fftSize: number, sr: number): void {
     // Sub-bass energy (bins 0–4, 0–86 Hz)
     let bass = 0;
     for (let i = 0; i < 5; i++) bass += dataArr[i];
@@ -122,8 +132,7 @@ export class AudioDriverSampler implements DriverState {
     }
 
     // ── Kick / snare transients (the drivers that determine scene switches) ──
-    const sr = (analyser.context && analyser.context.sampleRate) || 48000;
-    const binHz = sr / analyser.fftSize;
+    const binHz = sr / fftSize;
     const kick  = this.bandEnergy(dataArr, 50, 120, binHz);
     const snareBody  = this.bandEnergy(dataArr, 150, 350, binHz);
     const snareCrack = this.bandEnergy(dataArr, 2500, 6000, binHz);

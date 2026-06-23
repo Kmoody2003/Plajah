@@ -13,10 +13,11 @@
 // this pass (logged) and come next; camera-shake bake-in is also a follow-up.
 
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-import { Compositor, LayerInput } from './compositor';
+import { Compositor, LayerInput, ShakeParams } from './compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
+import { AudioDriverSampler } from '../audioDrivers';
 import { SceneTimeline, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 
 export interface RenderOptions {
@@ -123,6 +124,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     saturation: config.gradeSaturation ?? 1, gamma: config.gradeGamma ?? 1,
   };
   let warnedShader = false;
+  // Camera shake — same drum/intensity model as live, but fed deterministically
+  // from the offline FFT so it bakes into the rendered file on the right beats.
+  const wantShake = !!config.enableBassShake;
+  const shakeInt = config.bassShakeIntensity ?? 1;
+  const shakeSampler = new AudioDriverSampler();
+  let shakeAmp = 0;
 
   try {
     // ── Video pass ──────────────────────────────────────────────────────────
@@ -131,7 +138,24 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       if (encErr) throw encErr;
       const t = i / fps;
 
-      if (offAudio) { const a = offAudio.sample(t); audioTex.updateFromArrays(a.freq, a.wave); }
+      let shake: ShakeParams | undefined;
+      if (offAudio) {
+        const a = offAudio.sample(t);
+        audioTex.updateFromArrays(a.freq, a.wave);
+        if (wantShake) {
+          shakeSampler.updateFromArray(a.freq, t * 1000, offAudio.sampleRate);
+          const target = shakeSampler.intensity * 0.4 + shakeSampler.density * 0.55;
+          shakeAmp = Math.max(shakeAmp * 0.82, target);
+          if (shakeSampler.isSnare) shakeAmp = Math.min(1.6, shakeAmp + 0.9);
+          if (shakeSampler.isKick)  shakeAmp = Math.min(1.6, shakeAmp + 0.4);
+          const amp = shakeAmp * shakeInt;
+          if (amp > 0.01) {
+            const mag = amp * 14;
+            const ang = (Math.random() - 0.5) * amp * 0.015;
+            shake = { offX: ((Math.random() - 0.5) * mag) / width, offY: ((Math.random() - 0.5) * mag) / height, sin: Math.sin(ang), cos: Math.cos(ang), scale: 1 + amp * 0.03 };
+          }
+        }
+      }
 
       const inputs: LayerInput[] = [];
       const block = activeBlockAt(timeline, t);
@@ -163,7 +187,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         }
       }
 
-      comp.render(inputs, grade);
+      comp.render(inputs, grade, shake);
       const frame = new VideoFrame(canvas as any, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / fps) });
       videoEnc.encode(frame, { keyFrame: i % gopFrames === 0 });
       frame.close();
