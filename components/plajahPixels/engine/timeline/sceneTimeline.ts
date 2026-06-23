@@ -20,6 +20,9 @@ export interface RenderLayer {
   clip: RenderClip;
   blendMode: string;
   opacity: number;
+  /** Per-layer source time in seconds (for multi-track: each layer/track has its
+   *  own clip clock). Used to drive generators + media seek. */
+  time?: number;
 }
 
 /** A captured launcher column: layers bottom→top, exactly what the compositor stacks. */

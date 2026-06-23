@@ -18,10 +18,15 @@ import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
 import { AudioDriverSampler } from '../audioDrivers';
-import { SceneTimeline, activeBlockAt, localTime } from '../timeline/sceneTimeline';
+import { getTextCanvas } from './textLayer';
+import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 
 export interface RenderOptions {
-  timeline: SceneTimeline;
+  timeline?: SceneTimeline;              // single-track Pixels path (activeBlockAt)
+  /** Multi-track path: return the composited layers (bottom→top) at time t, each
+   *  carrying its own `time`. Takes precedence over `timeline`. */
+  resolveLayers?: (t: number) => RenderLayer[];
+  duration?: number;                     // total seconds (required when using resolveLayers)
   audioBuffer: AudioBuffer | null;
   config: any;            // VisualizationConfig — colorPalette + grade* fields
   width: number;
@@ -71,7 +76,7 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 
 /** Render the timeline to an MP4 Blob, or null on failure / unsupported / abort. */
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
-  const { timeline, audioBuffer, config, fps, onProgress, signal } = opts;
+  const { timeline, resolveLayers, audioBuffer, config, fps, onProgress, signal } = opts;
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
@@ -79,7 +84,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   const codec = await pickVideoCodec(width, height, bitrate, fps);
   if (!codec) { console.warn('[Pixels render] WebCodecs H.264 unavailable in this browser'); return null; }
 
-  const total = Math.max(1, Math.ceil(timeline.duration * fps));
+  const durationSec = timeline?.duration ?? opts.duration ?? 0;
+  const total = Math.max(1, Math.ceil(durationSec * fps));
   const aborted = () => signal?.aborted;
 
   // GL stack (offscreen, headless) — same classes the live engine uses.
@@ -158,32 +164,41 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       }
 
       const inputs: LayerInput[] = [];
-      const block = activeBlockAt(timeline, t);
-      if (block) {
-        const lt = localTime(block, t);
-        for (const layer of block.snapshot.layers) {
-          const clip = layer.clip;
-          const opacity = Math.max(0, Math.min(1, layer.opacity * (clip.opacity ?? 1)));
-          if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
-            const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
-            inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
-          } else if (clip.type === 'media' && clip.mediaUrl) {
-            const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
-            if (el instanceof HTMLVideoElement) {
-              const dur = el.duration || 0;
-              let st = lt;
-              if (block.loop && dur > 0) st = st % dur; else st = Math.min(st, Math.max(0, dur - 1e-3));
-              await seekVideo(el, st);
-              inputs.push({ element: el, opacity, blendMode: layer.blendMode });
-            } else if (el instanceof HTMLImageElement) {
-              inputs.push({ element: el, opacity, blendMode: layer.blendMode });
-            }
-          } else if (clip.type === 'color' && clip.fillColor) {
-            inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode });
-          } else if ((clip.type === 'shader' || clip.type === 'milkdrop') && !warnedShader) {
-            warnedShader = true;
-            console.warn('[Pixels render] shader/milkdrop layers are skipped in this render pass (coming next).');
+      // Multi-track resolver wins; else the single-track Pixels timeline (activeBlockAt).
+      let layers: RenderLayer[];
+      if (resolveLayers) {
+        layers = resolveLayers(t);
+      } else if (timeline) {
+        const block = activeBlockAt(timeline, t);
+        const lt = block ? localTime(block, t) : 0;
+        layers = block ? block.snapshot.layers.map(l => ({ ...l, time: lt })) : [];
+      } else { layers = []; }
+
+      for (const layer of layers) {
+        const clip = layer.clip;
+        const lt = layer.time ?? 0;
+        const opacity = Math.max(0, Math.min(1, (layer.opacity ?? 1) * (clip.opacity ?? 1)));
+        if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
+          const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
+          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+        } else if (clip.type === 'media' && clip.mediaUrl) {
+          const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
+          if (el instanceof HTMLVideoElement) {
+            const dur = el.duration || 0;
+            let st = lt;
+            if (dur > 0) st = st % dur; // loop the source within the clip
+            await seekVideo(el, st);
+            inputs.push({ element: el, opacity, blendMode: layer.blendMode });
+          } else if (el instanceof HTMLImageElement) {
+            inputs.push({ element: el, opacity, blendMode: layer.blendMode });
           }
+        } else if (clip.type === 'color' && clip.fillColor) {
+          inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode });
+        } else if (clip.type === 'text' && clip.text) {
+          inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode });
+        } else if ((clip.type === 'shader' || clip.type === 'milkdrop') && !warnedShader) {
+          warnedShader = true;
+          console.warn('[Pixels render] shader/milkdrop layers are skipped in this render pass (coming next).');
         }
       }
 

@@ -14,7 +14,7 @@
 // all accurate here.
 
 import { renderTimeline } from '../components/plajahPixels/engine/core/offlineRenderer';
-import type { SceneTimeline, SceneSnapshot, SceneBlock } from '../components/plajahPixels/engine/timeline/sceneTimeline';
+import type { SceneSnapshot, RenderLayer } from '../components/plajahPixels/engine/timeline/sceneTimeline';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -56,24 +56,42 @@ async function decodeAudio(clips: any[], mediaPool: any[]): Promise<AudioBuffer 
   } catch { return null; }
 }
 
-/** Render the Fabula timeline to an MP4 Blob via the Pixels offline renderer. */
+/** Render the Fabula timeline to an MP4 Blob via the Pixels offline renderer. Composites
+ *  ALL video tracks (v1, v2, … unlimited; bottom→top) per frame, captions included. */
 export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob | null> {
   const { clips, mediaPool, format, palette, onProgress, signal } = opts;
-  const vClips = clips.filter(c => c.trackId === 'v1').sort((a, b) => a.start - b.start);
-  if (!vClips.length) { console.warn('[Fabula render] no V1 clips to render'); return null; }
+  const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId));
+  if (!videoClips.length) { console.warn('[Fabula render] no video clips to render'); return null; }
 
-  const blocks: SceneBlock[] = vClips.map(c => {
-    const item = mediaPool.find(m => m.id === c.assetId);
-    return {
-      id: c.id, snapshot: itemToSnapshot(item, c.label || 'clip'),
-      start: c.start, duration: c.duration, trimIn: c.srcIn || 0, loop: true,
-    };
-  });
+  // Distinct video tracks, bottom (v1) → top, numeric order (v2 before v10).
+  const tracks = [...new Set(videoClips.map(c => c.trackId))].sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
+  const itemById = new Map<string, any>(mediaPool.map(m => [m.id, m]));
+
+  const resolveLayers = (t: number): RenderLayer[] => {
+    const out: RenderLayer[] = [];
+    for (const tid of tracks) {                       // bottom → top
+      const clip = videoClips.find(c => c.trackId === tid && t >= c.start && t < c.start + c.duration);
+      if (!clip) continue;
+      const item = itemById.get(clip.assetId);
+      const snap = itemToSnapshot(item, clip.label || 'clip');
+      const lt = t - clip.start + (clip.srcIn || 0);
+      const clipBlend = clip.fx?.blend && clip.fx.blend !== 'normal' ? clip.fx.blend : null;
+      const clipOp = clip.fx?.op ?? 1;
+      for (const layer of snap.layers) {
+        out.push({
+          ...layer,
+          id: `${tid}:${layer.id}`,                    // unique per track for the generator pool
+          blendMode: clipBlend || layer.blendMode,
+          opacity: (layer.opacity ?? 1) * clipOp,
+          time: lt,
+        });
+      }
+    }
+    return out;
+  };
+
   const duration = Math.max(0, ...clips.map(c => c.start + c.duration));
-  const timeline: SceneTimeline = { blocks, duration };
-
   const audioBuffer = await decodeAudio(clips, mediaPool);
-
   const config = {
     colorPalette: palette || [],
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
@@ -81,7 +99,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   };
 
   return renderTimeline({
-    timeline, audioBuffer, config,
+    resolveLayers, duration, audioBuffer, config,
     width: format.w || 1920, height: format.h || 1080, fps: format.fps || 30,
     onProgress, signal,
   });
