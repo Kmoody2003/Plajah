@@ -1104,6 +1104,24 @@ export default function Fabula() {
     setClips(next); commitClips(next);
   };
 
+  // ── Nested clips — a Pixels scene opens into its layer-rows as video tracks ──
+  const [nested, setNested] = useState(null); // { clipLabel, snapshot } | null
+  const layerLabel = (layer) => {
+    const c = layer.clip || {};
+    if (c.type === "generator") return `GEN · ${c.sceneMode || "?"}`;
+    if (c.type === "shader") return "SHADER";
+    if (c.type === "milkdrop") return "MILKDROP";
+    if (c.type === "media") return `MEDIA · ${(c.mediaUrl || "").split("/").pop()?.slice(0, 28) || "clip"}`;
+    if (c.type === "color") return `COLOR ${c.fillColor || ""}`;
+    if (c.type === "text") return `TEXT · "${(c.text || "").slice(0, 24)}"`;
+    return (c.type || "layer").toUpperCase();
+  };
+  const openNested = (clip) => {
+    const item = prod?.mediaPool?.find((a) => a.id === clip.assetId);
+    if (item?.pixels?.layers?.length) setNested({ clipLabel: clip.label || item.name, snapshot: item.pixels });
+    else ping("This clip has no nested scene to open.");
+  };
+
   // ── On-platform music ──────────────────────────────────────────────────────
   const [musicLoading, setMusicLoading] = useState(false);
   const loadMyMusic = async () => {
@@ -1801,7 +1819,8 @@ export default function Fabula() {
                                   className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec) }}
                                   onMouseDown={(e) => onClipDown(e, c.id, "move")}
-                                  onClick={(e) => { e.stopPropagation(); setSelClipId(c.id); }}>
+                                  onClick={(e) => { e.stopPropagation(); setSelClipId(c.id); }}
+                                  onDoubleClick={(e) => { e.stopPropagation(); openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
                                   <div className="cliplabel">
                                     {c.kind === "script" && <Clapperboard size={9} />}
@@ -2629,6 +2648,36 @@ export default function Fabula() {
       {/* busy bar */}
       {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}
       {notice && <div className="toast">{notice}</div>}
+      {nested && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(6,6,10,0.94)", zIndex: 300, display: "flex", flexDirection: "column", padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <button className="minibtn" onClick={() => setNested(null)}><ChevronLeft size={12} /> BACK</button>
+            <span style={{ fontWeight: 700, letterSpacing: 1 }}>NESTED · {nested.clipLabel}</span>
+            <span className="dim small">{nested.snapshot.layers.length} layer{nested.snapshot.layers.length === 1 ? "" : "s"} → video tracks · double-click drilled in</span>
+          </div>
+          <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
+            <div style={{ width: "38%", maxWidth: 560, alignSelf: "flex-start", aspectRatio: "16/9", background: "#000", borderRadius: 8, overflow: "hidden", border: "1px solid #2a2a38" }}>
+              <SceneView snapshot={nested.snapshot} palette={prod?.pixelsConfig?.colorPalette} playing={true} />
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {nested.snapshot.layers.slice().reverse().map((layer, i) => {
+                const n = nested.snapshot.layers.length - i;
+                return (
+                  <div className="track" key={(layer.id || "l") + i} style={{ marginBottom: 4 }}>
+                    <div className="trackhead video"><Film size={10} /> V{n}</div>
+                    <div className="trackbody">
+                      <div className="clip media" style={{ position: "relative", left: 0, width: "100%" }}>
+                        <div className="cliplabel"><span>{layerLabel(layer)}</span></div>
+                        <span className="dim small" style={{ marginLeft: 8 }}>{layer.blendMode || "normal"} · {Math.round((layer.opacity ?? 1) * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── footer: resolve-style page rail ───── */}
       <footer className="ftr glass">
