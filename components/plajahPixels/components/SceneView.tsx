@@ -10,6 +10,7 @@ import React, { useEffect, useRef } from 'react';
 import { Compositor, LayerInput } from '../engine/core/compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
 import { AudioTexture } from '../engine/core/audioTexture';
+import { getTextCanvas } from '../engine/core/textLayer';
 import type { SceneSnapshot } from '../engine/timeline/sceneTimeline';
 
 interface Props {
@@ -91,6 +92,8 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
             inputs.push({ element: el, opacity, blendMode: layer.blendMode });
           } else if (clip.type === 'color' && clip.fillColor) {
             inputs.push({ element: colorCanvas(clip.fillColor), opacity, blendMode: layer.blendMode });
+          } else if (clip.type === 'text' && clip.text) {
+            inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode });
           }
           // shader / milkdrop skipped (rendered on export, not in this live preview yet)
         }

@@ -4,12 +4,13 @@
 // self-describing and renderable offline without the live launcher.
 
 export interface RenderClip {
-  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'empty';
+  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'empty';
   sceneMode?: string;                 // generator / studio mode (UPPERCASE)
   mediaUrl?: string;
   mediaType?: 'video' | 'image';
-  fillColor?: string;
+  fillColor?: string;                 // color fill, or text color for type:'text'
   shaderSrc?: string;
+  text?: string;                      // type:'text' — caption / title string (the "text generator")
   params?: number[];
   opacity?: number;
 }

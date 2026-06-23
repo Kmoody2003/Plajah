@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
+import { getMyMusicTracks, buildCaptionClips } from "../../services/fabulaMusic";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 
@@ -1078,6 +1079,38 @@ export default function Fabula() {
     setClips(next); commitClips(next);
   };
 
+  // ── On-platform music ──────────────────────────────────────────────────────
+  const [musicLoading, setMusicLoading] = useState(false);
+  const loadMyMusic = async () => {
+    setMusicLoading(true);
+    try {
+      const tracks = await getMyMusicTracks();
+      if (!tracks.length) { ping("No on-platform music found — release an album first."); setMusicLoading(false); return; }
+      updateProd((p) => {
+        for (const t of tracks) {
+          if (p.mediaPool.some((m) => m.musicTrackId === t.id)) continue;
+          p.mediaPool.push({ id: uid(), musicTrackId: t.id, name: `${t.title} — ${t.artist}`, type: "audio", url: t.url, duration: t.duration || 0, bin: "Music", tags: ["music"], musicMeta: t });
+        }
+      });
+      ping(`Loaded ${tracks.length} track(s) into the Music bin.`);
+    } catch (e) { console.warn("[Fabula music]", e); ping("Couldn't load your music."); }
+    setMusicLoading(false);
+  };
+  // Add a song to A1 and lay its synced lyrics out as animated captions on V2.
+  const addMusicWithCaptions = (item) => {
+    const start = playhead;
+    const audioClip = { id: uid(), trackId: "a1", start, duration: item.duration || item.musicMeta?.duration || 30, kind: "media", assetId: item.id, label: item.name, srcIn: 0 };
+    const { items, clips: capClips } = buildCaptionClips(item.musicMeta || {}, start);
+    const newClips = [...clips, audioClip, ...capClips];
+    updateProd((p) => {
+      for (const it of items) p.mediaPool.push(it);
+      if (editSel) { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: newClips }; }
+      else { const act = p.acts.find((a) => a.id === sceneSel?.actId); const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId); if (sc) sc.timeline = { ...(sc.timeline || {}), clips: newClips }; }
+    });
+    setClips(newClips);
+    ping(capClips.length ? `Added song + ${capClips.length} caption lines.` : "Added song to A1.");
+  };
+
   const [importFps, setImportFps] = useState(24);
   const importRef = useRef(null);
 
@@ -1394,9 +1427,12 @@ export default function Fabula() {
                     </div>
                     <input ref={importRef} type="file" accept=".edl,.xml,.fcpxml" style={{ display: "none" }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimeline(f); e.target.value = ""; }} />
+                    <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyMusic} disabled={musicLoading} title="Load your released tracks; double-click a Music item to add it with synced-lyric captions">
+                      <Music size={12} /> {musicLoading ? "LOADING…" : "MY MUSIC (ON-PLATFORM)"}
+                    </button>
                     <div className="poollist">
                       {(prod.mediaPool || []).map((a) => (
-                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => insertAssetClip(a)} title="Click: load in source viewer · Double-click: insert at playhead">
+                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""}`} key={a.id} onClick={() => { setPreviewAsset(a); setSrcPlaying(false); setSrcTc(0); }} onDoubleClick={() => (a.bin === "Music" && a.musicMeta ? addMusicWithCaptions(a) : insertAssetClip(a))} title="Click: load in source viewer · Double-click: insert (Music adds synced-lyric captions)">
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
                               onClick={(e) => e.stopPropagation()}
