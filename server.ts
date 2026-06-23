@@ -718,7 +718,15 @@ async function startServer() {
     credentials: true,
   }));
 
-  app.use(express.json({ limit: '10kb' }));
+  // Tight global JSON limit for safety — but exempt routes that legitimately carry
+  // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
+  // so they can parse with their own limit instead of being 413'd here first.
+  const tightJson = express.json({ limit: '10kb' });
+  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic']);
+  app.use((req, res, next) => {
+    if (LARGE_BODY_ROUTES.has(req.path)) return next();
+    return tightJson(req, res, next);
+  });
   app.use(cookieParser());
 
   // Per-category rate limiters
