@@ -353,30 +353,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
         if (cutListRef.current.length > 4000) cutListRef.current.shift(); // safety cap
     }, []);
 
-    const exportToFabula = useCallback(async () => {
-        const layers = liveLayersRef.current;
-        const COLS = 8;
-        const scenes: PixelsScene[] = [];
-        for (let c = 0; c < COLS; c++) {
-            const has = layers.some(l => l && !l.bypassed && !l.muted && l.clips?.[c] && l.clips[c].type !== 'empty');
-            if (has) scenes.push({ key: `col-${c}`, name: `Scene ${c + 1}`, snapshot: snapshotFromColumn(layers, c, `Scene ${c + 1}`) });
-        }
-        if (!scenes.length) { console.warn('[Pixels→Fabula] no scenes to export'); return; }
-        const cuts: PixelsCut[] = cutListRef.current
-            .filter(x => scenes.some(s => s.key === `col-${x.col}`))
-            .map(x => ({ sceneKey: `col-${x.col}`, t: x.t }));
-        const totalDuration = cuts.length ? cuts[cuts.length - 1].t + 4 : scenes.length * 4;
-        try {
-            await exportPixelsToFabula({
-                title: platform?.title ? `${platform.title} — Pixels` : 'Pixels Session',
-                scenes, cuts, totalDuration, fps: 30,
-                palette: config.colorPalette,
-            });
-            window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
-        } catch (e) {
-            console.warn('[Pixels→Fabula] export failed', e);
-        }
-    }, [platform]);
+    // exportToFabula is defined further down (after the audio-state declarations it reads).
     const recRef = useRef<{ recorder: MediaRecorder; stream: MediaStream } | null>(null);
     // The live GPU composite canvas — captured directly for drop-free recording.
     const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -923,6 +900,38 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
     const [isLiveLyricsActive, setIsLiveLyricsActive] = useState(false);
     const [audioFileName, setAudioFileName] = useState<string | undefined>(undefined);
     const audioBlobUrlRef = useRef<string | undefined>(undefined); // current audio blob URL for project save
+
+    // Export the current Pixels session (scenes + live cut-list + the loaded audio) to Fabula.
+    const exportToFabula = useCallback(async () => {
+        const layers = liveLayersRef.current;
+        const COLS = 8;
+        const scenes: PixelsScene[] = [];
+        for (let c = 0; c < COLS; c++) {
+            const has = layers.some(l => l && !l.bypassed && !l.muted && l.clips?.[c] && l.clips[c].type !== 'empty');
+            if (has) scenes.push({ key: `col-${c}`, name: `Scene ${c + 1}`, snapshot: snapshotFromColumn(layers, c, `Scene ${c + 1}`) });
+        }
+        if (!scenes.length) { console.warn('[Pixels→Fabula] no scenes to export'); return; }
+        const cuts: PixelsCut[] = cutListRef.current
+            .filter(x => scenes.some(s => s.key === `col-${x.col}`))
+            .map(x => ({ sceneKey: `col-${x.col}`, t: x.t }));
+        // Carry the session's loaded audio onto Fabula's A1 track.
+        const audioUrl = audioBlobUrlRef.current;
+        const songDur = audioState.duration || 0;
+        const song = audioUrl ? { name: audioFileName || platform?.currentTrackTitle || 'Session Audio', url: audioUrl, duration: songDur || undefined } : undefined;
+        const cutsEnd = cuts.length ? cuts[cuts.length - 1].t + 4 : scenes.length * 4;
+        const totalDuration = Math.max(cutsEnd, songDur);
+        try {
+            await exportPixelsToFabula({
+                title: platform?.title ? `${platform.title} — Pixels` : 'Pixels Session',
+                scenes, cuts, totalDuration, fps: 30,
+                palette: config.colorPalette,
+                song,
+            });
+            window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
+        } catch (e) {
+            console.warn('[Pixels→Fabula] export failed', e);
+        }
+    }, [platform, config.colorPalette, audioFileName, audioState.duration]);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [showCloudProjects, setShowCloudProjects] = useState(false);
