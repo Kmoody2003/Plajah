@@ -2,13 +2,13 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
-  Palette, Box, Cpu, Lock, Unlock, Camera, Brush,
+  Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
-import { getMyMusicTracks, buildCaptionClips } from "../../services/fabulaMusic";
+import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
 import { auth } from "../../services/firebase";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
@@ -1106,16 +1106,13 @@ export default function Fabula() {
   // Add a song to A1 and lay its synced lyrics out as animated captions on V2.
   const addMusicWithCaptions = (item) => {
     const start = playhead;
+    const sid = subTrackId();
     const audioClip = { id: uid(), trackId: "a1", start, duration: item.duration || item.musicMeta?.duration || 30, kind: "media", assetId: item.id, label: item.name, srcIn: 0 };
-    const { items, clips: capClips } = buildCaptionClips(item.musicMeta || {}, start);
-    const newClips = [...clips, audioClip, ...capClips];
-    updateProd((p) => {
-      for (const it of items) p.mediaPool.push(it);
-      if (editSel) { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: newClips }; }
-      else { const act = p.acts.find((a) => a.id === sceneSel?.actId); const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId); if (sc) sc.timeline = { ...(sc.timeline || {}), clips: newClips }; }
-    });
-    setClips(newClips);
-    ping(capClips.length ? `Added song + ${capClips.length} caption lines.` : "Added song to A1.");
+    const subClips = buildSubtitleClips(item.musicMeta || {}, start, sid);
+    const nc = [...clips, audioClip, ...subClips];
+    updateProd((p) => { if (subClips.length) ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc);
+    ping(subClips.length ? `Added song + ${subClips.length} subtitle lines.` : "Added song to A1.");
   };
 
   const [importFps, setImportFps] = useState(24);
@@ -1166,14 +1163,34 @@ export default function Fabula() {
   // is bottom→top for compositing (v1 base, higher numbers overlay).
   const tracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
   const videoTracksAsc = tracks.filter((t) => t.type === "video").sort((a, b) => (parseInt(a.id.slice(1), 10) || 0) - (parseInt(b.id.slice(1), 10) || 0));
+  const TRACK_PREFIX = { video: "v", audio: "a", subtitle: "s" };
   const addTrack = (type) => updateProd((p) => {
     p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+    const pre = TRACK_PREFIX[type] || "x";
     const nums = p.tracks.filter((t) => t.type === type).map((t) => parseInt(t.id.slice(1), 10) || 0);
     const n = (nums.length ? Math.max(...nums) : 0) + 1;
-    const entry = { id: (type === "video" ? "v" : "a") + n, name: (type === "video" ? "V" : "A") + n, type };
-    if (type === "video") { const i = p.tracks.findIndex((t) => t.type === "video"); p.tracks.splice(Math.max(0, i), 0, entry); }
+    const entry = { id: pre + n, name: pre.toUpperCase() + n + (type === "subtitle" ? " · SUBTITLES" : ""), type };
+    if (type === "subtitle") p.tracks.unshift(entry);                         // subtitles on top
+    else if (type === "video") { const i = p.tracks.findIndex((t) => t.type === "video"); p.tracks.splice(Math.max(0, i), 0, entry); }
     else p.tracks.push(entry);
   });
+  const SUB_FX = { op: 1, sc: 1, x: 0, y: 0, rot: 0, blur: 0, bri: 1, con: 1, sat: 1, blend: "screen", fadeIn: 0.1, fadeOut: 0.15, matte: { t: "none", x: 50, y: 50, w: 60, h: 60, f: 0 }, genNote: "" };
+  const subTrackId = () => (tracks.find((t) => t.type === "subtitle")?.id) || "s1";
+  const ensureSubTrack = (p, sid) => {
+    p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+    if (!p.tracks.some((t) => t.id === sid)) p.tracks.unshift({ id: sid, name: sid.toUpperCase() + " · SUBTITLES", type: "subtitle" });
+  };
+  const writeTimelineClips = (p, nc) => {
+    if (editSel) { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: nc }; }
+    else { const act = p.acts.find((a) => a.id === sceneSel?.actId); const sc = act?.scenes.find((s) => s.id === sceneSel?.sceneId); if (sc) sc.timeline = { ...(sc.timeline || {}), clips: nc }; }
+  };
+  const addSubtitle = () => {
+    const sid = subTrackId();
+    const clip = { id: uid(), trackId: sid, start: playhead, duration: 2.5, kind: "subtitle", text: "Subtitle", label: "Subtitle", srcIn: 0, fx: { ...SUB_FX } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id);
+  };
 
   const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
   const container = activeEdit || scene; // whichever timeline is open
@@ -1490,6 +1507,14 @@ export default function Fabula() {
                         if (!lc) return null;
                         return <MonitorLayer key={tr.id} clip={lc} prod={prod} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={i + 1} videoRef={i === 0 ? videoRef : undefined} />;
                       })}
+                      {(() => {
+                        const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
+                        return sc ? (
+                          <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%", textAlign: "center", padding: "0 8%", zIndex: 60, pointerEvents: "none" }}>
+                            <span style={{ color: "#fff", fontWeight: 700, fontSize: "clamp(11px,2.6vw,30px)", lineHeight: 1.25, textShadow: "0 2px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)", whiteSpace: "pre-wrap" }}>{sc.text}</span>
+                          </div>
+                        ) : null;
+                      })()}
                       {!monitorClip && <div className="noclip">NO CLIP AT PLAYHEAD</div>}
                       {monitorShot && monitorAsset && <span className="overlay-slug">{monitorShot.slug}</span>}
                       {angleView && monitorAssetRaw?.type === "multicam" && (
@@ -1530,6 +1555,14 @@ export default function Fabula() {
                         <div className="insp-row"><span className="lbl">CLIP</span><span className="insp-val">{selClip.label}</span></div>
                         <div className="insp-row"><span className="lbl">KIND</span><span className={`chip ${selClip.kind === "script" ? "amb" : selClip.kind === "voice" ? "green" : "blue"}`}>{selClip.kind.toUpperCase()}</span></div>
                         <div className="insp-row"><span className="lbl">IN / DUR</span><span className="insp-val mono">{fmtTc(selClip.start, vfmt)} · {selClip.duration.toFixed(1)}s</span></div>
+                        {selClip.kind === "subtitle" && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">SUBTITLE TEXT</div>
+                            <textarea className="in" rows={2} value={selClip.text || ""} placeholder="Subtitle / caption line…"
+                              onChange={(e) => { const v = e.target.value; const n = clips.map((c) => c.id === selClip.id ? { ...c, text: v, label: v.slice(0, 40) } : c); setClips(n); commitClips(n); }} />
+                          </>
+                        )}
                         {selShot && (
                           <>
                             <div className="insp-div" />
@@ -1739,7 +1772,7 @@ export default function Fabula() {
                       {tracks.map((tr) => (
                         <div className={`track ${tr.id === "v1" ? "primary" : ""}`} key={tr.id}>
                           <div className={`trackhead ${tr.type}`}>
-                            {tr.type === "video" ? <Film size={10} /> : <Music size={10} />} {tr.name}
+                            {tr.type === "video" ? <Film size={10} /> : tr.type === "subtitle" ? <Captions size={10} /> : <Music size={10} />} {tr.name}
                           </div>
                           <div className="trackbody">
                             {clips.filter((c) => c.trackId === tr.id).map((c) => {
@@ -1769,6 +1802,8 @@ export default function Fabula() {
                       <div className="track addtrackrow" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                         <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
                         <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
+                        <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
+                        <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                       </div>
                     </div>
                   </div>

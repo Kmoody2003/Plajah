@@ -61,7 +61,8 @@ async function decodeAudio(clips: any[], mediaPool: any[]): Promise<AudioBuffer 
 export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob | null> {
   const { clips, mediaPool, format, palette, onProgress, signal } = opts;
   const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId));
-  if (!videoClips.length) { console.warn('[Fabula render] no video clips to render'); return null; }
+  const subtitleClips = clips.filter(c => c.kind === 'subtitle' && c.text);
+  if (!videoClips.length && !subtitleClips.length) { console.warn('[Fabula render] nothing visual to render'); return null; }
 
   // Distinct video tracks, bottom (v1) → top, numeric order (v2 before v10).
   const tracks = [...new Set(videoClips.map(c => c.trackId))].sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
@@ -91,6 +92,11 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           transform: hasTf ? tf : undefined,
         });
       }
+    }
+    // Subtitle clips (any subtitle track) burn in on top, screen-blended.
+    for (const c of subtitleClips) {
+      if (!(t >= c.start && t < c.start + c.duration)) continue;
+      out.push({ id: `sub:${c.id}`, clip: { type: 'text', text: c.text }, blendMode: 'screen', opacity: 1, time: 0 });
     }
     return out;
   };
