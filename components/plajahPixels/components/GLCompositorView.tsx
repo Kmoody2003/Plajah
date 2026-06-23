@@ -60,6 +60,16 @@ function pickSource(w: HTMLElement | null | undefined): HTMLVideoElement | HTMLI
   return visible ?? canvases.find(c => c.width > 0 && c.height > 0) ?? canvases[0];
 }
 
+// The stage "Mirror slicing" surface (BackgroundLayer) renders its sliced/mirrored
+// RESULT to an output <canvas>, while its raw source <video>/<img> sit hidden in the
+// same wrapper. pickSource() would return that raw media first and bypass slicing
+// entirely — so for this surface we grab the output canvas specifically.
+function pickSliceCanvas(w: HTMLElement | null | undefined): HTMLCanvasElement | null {
+  if (!w) return null;
+  const canvases = Array.from(w.querySelectorAll('canvas')) as HTMLCanvasElement[];
+  return canvases.find(c => c.width > 0 && c.height > 0) ?? null;
+}
+
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas, overlays }) => {
@@ -225,8 +235,9 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
         const activeMedia = new Set<string>(); // media URLs on-screen this frame
         // Bottom: stage slicing surface.
         if (bgSliceRef.current) {
-          const el = pickSource(bgWrapRef.current);
-          if (el) inputs.push({ element: el, opacity: 1, blendMode: 'normal' });
+          const el = pickSliceCanvas(bgWrapRef.current); // the SLICED output canvas, not the raw source media
+          // CSS opacity on the canvas is lost when sampled as a texture → pass it as layer opacity.
+          if (el) inputs.push({ element: el, opacity: clamp01(configRef.current.backgroundOpacity ?? 1), blendMode: 'normal' });
         }
         // Launcher layers, bottom (index 0) → top.
         const ls = layersRef.current;
