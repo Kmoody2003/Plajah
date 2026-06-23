@@ -180,29 +180,79 @@ function getStripe() {
 }
 
 // Verify a Firebase ID token using Firebase Auth REST API
-async function verifyFirebaseToken(token: string): Promise<string | null> {
-  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
-  if (!apiKey) {
-    console.error('[Auth] FIREBASE_API_KEY / VITE_FIREBASE_API_KEY env var is not set — all auth will fail');
-    return null;
-  }
+// Firebase project id for ID-token claim checks — from the service account, then
+// env, then the known project (matches firebase-applet-config.json + Firestore).
+let _fbProjectId: string | null = null;
+function firebaseProjectId(): string {
+  if (_fbProjectId) return _fbProjectId;
+  try { const sa = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'); if (sa.project_id) return (_fbProjectId = sa.project_id); } catch {}
+  return (_fbProjectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474');
+}
+
+// Google's public x509 certs for Firebase ID-token (secure token) signatures.
+let _stCerts: { certs: Record<string, string>; exp: number } | null = null;
+async function secureTokenCerts(): Promise<Record<string, string>> {
+  if (_stCerts && Date.now() < _stCerts.exp) return _stCerts.certs;
+  const res = await fetch('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+  const certs = await res.json() as Record<string, string>;
+  const m = /max-age=(\d+)/.exec(res.headers.get('cache-control') || '');
+  _stCerts = { certs, exp: Date.now() + (m ? parseInt(m[1], 10) * 1000 : 3_600_000) };
+  return certs;
+}
+
+// Verify a Firebase ID token by its RS256 signature + claims — no API key needed
+// (so it survives a referrer-restricted Web API key, which rejects server-side
+// accounts:lookup). Standard checks: alg/kid, exp, iat, aud, iss, sub, signature.
+async function verifyIdTokenViaJwt(token: string): Promise<string | null> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  let header: any, payload: any;
   try {
-    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token }),
-    });
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => res.statusText);
-      console.error(`[Auth] Token verification failed: HTTP ${res.status} — ${errBody}`);
-      return null;
-    }
-    const data = await res.json() as any;
-    return data.users?.[0]?.localId ?? null;
-  } catch (err: any) {
-    console.error('[Auth] Token verification error:', err.message);
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch { return null; }
+  if (header.alg !== 'RS256' || !header.kid) return null;
+  const projectId = firebaseProjectId();
+  const now = Math.floor(Date.now() / 1000);
+  if (!(typeof payload.exp === 'number' && payload.exp > now)) return null;
+  if (!(typeof payload.iat === 'number' && payload.iat <= now + 300)) return null;
+  if (payload.aud !== projectId) return null;
+  if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
+  if (!payload.sub || typeof payload.sub !== 'string') return null;
+  try {
+    const certs = await secureTokenCerts();
+    const cert = certs[header.kid];
+    if (!cert) return null;
+    const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
+    return ok ? payload.sub : null;
+  } catch (e: any) {
+    console.error('[Auth] JWT signature verify error:', e.message);
     return null;
   }
+}
+
+async function verifyFirebaseToken(token: string): Promise<string | null> {
+  // Primary: Identity Toolkit lookup — works when FIREBASE_API_KEY is present and
+  // NOT referrer-restricted.
+  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
+  if (apiKey) {
+    try {
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      });
+      if (res.ok) {
+        const data = await res.json() as any;
+        const uid = data.users?.[0]?.localId;
+        if (uid) return uid;
+      }
+    } catch (err: any) {
+      console.error('[Auth] lookup error (falling back to JWT verify):', err.message);
+    }
+  }
+  // Fallback: verify the token signature directly (no API key).
+  return verifyIdTokenViaJwt(token);
 }
 
 async function authMiddleware(req: any, res: any, next: any) {
