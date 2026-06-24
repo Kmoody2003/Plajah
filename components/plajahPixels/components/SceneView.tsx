@@ -19,6 +19,10 @@ import type { SceneSnapshot } from '../engine/timeline/sceneTimeline';
 interface Props {
   snapshot: SceneSnapshot;
   analyser?: AnalyserNode | null;
+  /** Stored-analysis audio bytes for THIS frame — when set, drives reactivity
+   *  deterministically (e.g. the song at the timeline playhead) instead of the live
+   *  analyser, so the preview matches the render exactly. */
+  audioFrame?: { freq: Uint8Array; wave: Uint8Array } | null;
   palette?: string[];
   playing?: boolean;
   /** Local scene time in seconds. If set, generators follow it (so scrubbing shows
@@ -30,7 +34,7 @@ interface Props {
 
 const MAX_H = 1080;
 
-const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time, className, style }) => {
+const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, playing, time, className, style }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const compRef = useRef<Compositor | null>(null);
   const genRef = useRef<GeneratorRenderer | null>(null);
@@ -42,6 +46,7 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
 
   const snapRef = useRef(snapshot);   snapRef.current = snapshot;
   const analyserRef = useRef(analyser); analyserRef.current = analyser ?? null;
+  const audioFrameRef = useRef(audioFrame); audioFrameRef.current = audioFrame ?? null;
   const paletteRef = useRef(palette); paletteRef.current = palette;
   const playingRef = useRef(playing); playingRef.current = playing;
   const timeRef = useRef(time);       timeRef.current = time;
@@ -77,7 +82,8 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
         if (h > MAX_H) { w = Math.round(w * (MAX_H / h)); h = MAX_H; }
         comp.resize(w, h);
 
-        audioTex.update(analyserRef.current);
+        const af = audioFrameRef.current;
+        if (af) audioTex.updateFromArrays(af.freq, af.wave); else audioTex.update(analyserRef.current);
         const t = typeof timeRef.current === 'number' ? timeRef.current : (performance.now() - startRef.current) / 1000;
         const colors = (paletteRef.current || []).slice(0, 3).map(hexToRgb);
 

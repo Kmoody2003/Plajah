@@ -80,7 +80,15 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
     }
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous'; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
-    await new Promise<void>((res, rej) => { v.onloadeddata = () => res(); v.onerror = () => rej(new Error('video')); setTimeout(() => rej(new Error('timeout')), 8000); });
+    // Wait for the clip to be fully buffered (canplaythrough) so per-frame seeks are
+    // instant rather than stalling on range fetches — the main render-speed killer.
+    await new Promise<void>((res, rej) => {
+      let done = false; const ok = () => { if (!done) { done = true; res(); } };
+      v.oncanplaythrough = ok;
+      v.onloadeddata = () => setTimeout(ok, 1200); // fallback if canplaythrough never fires
+      v.onerror = () => { if (!done) { done = true; rej(new Error('video')); } };
+      setTimeout(ok, 12000);                       // hard cap so a stuck load can't hang the render
+    });
     return v;
   } catch { return null; }
 }
@@ -230,8 +238,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       videoEnc.encode(frame, { keyFrame: i % gopFrames === 0 });
       frame.close();
 
-      while (videoEnc.encodeQueueSize > 8) { if (aborted()) throw new Error('aborted'); await new Promise(r => setTimeout(r, 3)); }
-      if (i % 4 === 0) { onProgress?.(i / total * 0.92, 'Rendering frames'); await new Promise(r => setTimeout(r, 0)); }
+      // Let the encoder pipeline run deep before waiting (more parallelism = faster).
+      while (videoEnc.encodeQueueSize > 24) { if (aborted()) throw new Error('aborted'); await new Promise(r => setTimeout(r, 1)); }
+      // Yield to the browser only occasionally (keeps the tab alive without throttling
+      // the render to the event-loop tick) — generator/shader renders then run far
+      // faster than real time.
+      if (i % 24 === 0) { onProgress?.(i / total * 0.92, 'Rendering frames'); await new Promise(r => setTimeout(r, 0)); }
     }
     await videoEnc.flush();
     if (encErr) throw encErr;

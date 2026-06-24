@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { X, Film, Zap, Crosshair, Scissors, Trash2, Download, Loader2, Music, Play, Pause, SkipBack } from 'lucide-react';
 import { renderTimeline } from '../engine/core/offlineRenderer';
-import { getAnalysis, MusicAnalysis } from '../engine/core/musicAnalysis';
+import { getAnalysis, analysisAt, MusicAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
 import SceneView from './SceneView';
 
@@ -320,7 +320,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         {song && (
           <div style={{ width: 'min(46%, 640px)', aspectRatio: '16/9', margin: '0 auto 16px', background: '#000', borderRadius: 8, overflow: 'hidden', border: '1px solid #22222e', position: 'relative' }}>
             {previewSnapshot
-              ? <SceneView snapshot={previewSnapshot} analyser={playing ? playAnalyserRef.current : (analyser ?? null)} palette={config.colorPalette} playing={true} />
+              ? <SceneView snapshot={previewSnapshot} audioFrame={analysis ? analysisAt(analysis, playhead) : null} analyser={analyser ?? null} palette={config.colorPalette} playing={true} />
               : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 12 }}>No scene at the playhead — press play or click the timeline to scrub</div>}
             <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 10, color: '#9a9aa8', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4 }}>PREVIEW · {activeBlock ? `Scene ${activeBlock.col + 1}` : '—'} · {playhead.toFixed(1)}s</div>
             <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 10 }}>
