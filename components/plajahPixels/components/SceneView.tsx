@@ -3,14 +3,17 @@
 // (Fabula's monitor, previews, …) without dragging in the whole studio. Generators
 // render on the GPU with an injected time; media/color layers composite alongside.
 //
-// Shader/milkdrop layers are skipped here (same as the offline renderer's first
-// pass). Audio reactivity is live when an analyser is provided, else time-animated.
+// Generators, shaders, node-graphs, media/color/text/title AND milkdrop (butterchurn,
+// composited from its own canvas) all render here. Audio reactivity uses the live
+// analyser, or — when audioFrame is supplied — the stored analysis at that instant
+// (which also drives milkdrop deterministically via injection).
 
 import React, { useEffect, useRef } from 'react';
 import { Compositor, LayerInput } from '../engine/core/compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
 import { ShaderRenderer } from '../engine/core/shaderRenderer';
 import { NodeGraphRenderer } from '../engine/core/nodeGraph';
+import { createMilkdropDriver, MilkdropDriver } from '../engine/core/milkdropDriver';
 import { AudioTexture } from '../engine/core/audioTexture';
 import { getTextCanvas } from '../engine/core/textLayer';
 import { getTitleCanvas } from '../engine/core/titleLayer';
@@ -43,6 +46,12 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
   const audioTexRef = useRef<AudioTexture | null>(null);
   const startRef = useRef(0);
   const pool = useRef<Map<string, HTMLVideoElement | HTMLImageElement>>(new Map());
+  // Milkdrop (butterchurn) drivers per layer + their current preset; an AudioContext
+  // only butterchurn's analyser needs (we inject the waveform for determinism).
+  const milk = useRef<Map<string, MilkdropDriver>>(new Map());
+  const milkLoading = useRef<Set<string>>(new Set());
+  const milkPreset = useRef<Map<string, string | number>>(new Map());
+  const bcCtx = useRef<AudioContext | null>(null);
 
   const snapRef = useRef(snapshot);   snapRef.current = snapshot;
   const analyserRef = useRef(analyser); analyserRef.current = analyser ?? null;
@@ -115,8 +124,26 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
           } else if (clip.type === 'nodegraph' && clip.graph && graphRef.current) {
             const tex = graphRef.current.evaluate(clip.graph, w, h, { time: t, audio: audioTex, colors });
             if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+          } else if (clip.type === 'milkdrop') {
+            const preset = clip.milkdropName ?? clip.milkdropIdx ?? 0;
+            const d = milk.current.get(layer.id);
+            if (!d) {
+              // Lazily spin up a butterchurn driver for this layer (async, one-time).
+              if (!milkLoading.current.has(layer.id)) {
+                milkLoading.current.add(layer.id);
+                const ctx = bcCtx.current || (bcCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)());
+                createMilkdropDriver({ width: w, height: h, audioCtx: ctx, analyser: analyserRef.current }).then(drv => {
+                  milkLoading.current.delete(layer.id);
+                  if (drv) { drv.setPreset(preset); milkPreset.current.set(layer.id, preset); milk.current.set(layer.id, drv); }
+                });
+              }
+            } else {
+              if (milkPreset.current.get(layer.id) !== preset) { d.setPreset(preset, 0); milkPreset.current.set(layer.id, preset); }
+              if (d.canvas.width !== w || d.canvas.height !== h) d.resize(w, h);
+              d.renderFrame(af ? af.wave : null);   // inject stored waveform when available → deterministic
+              inputs.push({ element: d.canvas, opacity, blendMode: layer.blendMode });
+            }
           }
-          // milkdrop (butterchurn) skipped — not frame-deterministic; use a shader/generator clip for export
         }
         // pause any pooled video not on-screen this frame
         pool.current.forEach((el, url) => { if (el instanceof HTMLVideoElement && !el.paused && !active.has(url)) el.pause(); });
@@ -136,6 +163,9 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
       compRef.current?.dispose(); compRef.current = null;
       pool.current.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });
       pool.current.clear();
+      milk.current.forEach(d => { try { d.dispose(); } catch { /* */ } });
+      milk.current.clear(); milkLoading.current.clear(); milkPreset.current.clear();
+      try { bcCtx.current?.close(); } catch { /* */ } bcCtx.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

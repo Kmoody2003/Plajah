@@ -8,14 +8,15 @@
 // Because time and audio are pure functions of the frame index, the output is
 // frame/beat/sample-accurate — a traditional editor-style render, not a screen grab.
 //
-// v1 scope (matches "offline renderer first"): generator + media + color layers,
-// global color grade, and the music track. Shader/milkdrop/3D layers are skipped
-// this pass (logged) and come next; camera-shake bake-in is also a follow-up.
+// Renders generator + shader + node-graph + media + color + text/title layers, plus
+// MILKDROP (butterchurn driven deterministically from the stored waveform — see
+// milkdropDriver), the global color grade, baked-in camera shake, and the music track.
 
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { Compositor, LayerInput, ShakeParams } from './compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
+import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
 import { NodeGraphRenderer } from './nodeGraph';
 import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
@@ -125,6 +126,24 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     if (!mediaEls.has(url)) mediaEls.set(url, await loadMediaEl(url, type));
     return mediaEls.get(url) ?? null;
   };
+  // Milkdrop (butterchurn) drivers — created lazily per layer, driven deterministically
+  // from the stored waveform (no live analyser) so the export is reproducible. Each
+  // renders to its own canvas which we composite as an element layer.
+  const milkDrivers = new Map<string, MilkdropDriver | null>();
+  const milkPreset = new Map<string, string | number>();
+  let bcAudioCtx: AudioContext | null = null;
+  const getMilkdrop = async (id: string, preset: string | number): Promise<MilkdropDriver | null> => {
+    if (!milkDrivers.has(id)) {
+      bcAudioCtx = bcAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+      const d = await createMilkdropDriver({ width, height, audioCtx: bcAudioCtx, fps });
+      if (d) { d.setPreset(preset); milkPreset.set(id, preset); }
+      milkDrivers.set(id, d);
+    }
+    const d = milkDrivers.get(id) || null;
+    if (d && milkPreset.get(id) !== preset) { d.setPreset(preset, 0); milkPreset.set(id, preset); }
+    return d;
+  };
+
   const colorCanvases = new Map<string, HTMLCanvasElement>();
   const colorEl = (hex: string) => {
     let c = colorCanvases.get(hex);
@@ -150,7 +169,6 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     brightness: config.gradeBrightness ?? 1, contrast: config.gradeContrast ?? 1,
     saturation: config.gradeSaturation ?? 1, gamma: config.gradeGamma ?? 1,
   };
-  let warnedShader = false;
   // Camera shake — same drum/intensity model as live, but fed deterministically
   // from the offline FFT so it bakes into the rendered file on the right beats.
   const wantShake = !!config.enableBassShake;
@@ -227,9 +245,13 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         } else if (clip.type === 'nodegraph' && clip.graph) {
           const tex = graphRend.evaluate(clip.graph, width, height, { time: lt, audio: audioTex, colors: palette });
           if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
-        } else if (clip.type === 'milkdrop' && !warnedShader) {
-          warnedShader = true;
-          console.warn('[Pixels render] milkdrop (butterchurn) is not frame-deterministic — skipped on export; use a shader/generator clip instead.');
+        } else if (clip.type === 'milkdrop') {
+          const preset = clip.milkdropName ?? clip.milkdropIdx ?? 0;
+          const d = await getMilkdrop(layer.id, preset);
+          if (d) {
+            d.renderFrame(aud ? aud.wave : null);   // inject stored waveform → deterministic
+            inputs.push({ element: d.canvas, opacity, blendMode: layer.blendMode, transform: layer.transform });
+          }
         }
       }
 
@@ -286,5 +308,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     try { videoEnc.state !== 'closed' && videoEnc.close(); } catch { /* */ }
     gen.dispose(); shaderRend.dispose(); graphRend.dispose(); audioTex.dispose(); comp.dispose();
     mediaEls.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });
+    milkDrivers.forEach(d => { try { d?.dispose(); } catch { /* */ } });
+    try { bcAudioCtx?.close(); } catch { /* */ }
   }
 }

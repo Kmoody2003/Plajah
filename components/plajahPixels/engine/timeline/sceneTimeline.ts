@@ -12,6 +12,8 @@ export interface RenderClip {
   mediaType?: 'video' | 'image';
   fillColor?: string;                 // color fill, or text/accent color
   shaderSrc?: string;
+  milkdropIdx?: number;               // type:'milkdrop' — butterchurn preset index
+  milkdropName?: string;              // type:'milkdrop' — preset name (preferred, order-independent)
   text?: string;                      // type:'text'/'title' — caption or title string
   subtitle?: string;                  // type:'title' — second line under the title
   titleStyle?: 'modern' | 'classic' | 'minimal'; // type:'title'
@@ -91,6 +93,8 @@ export function snapshotFromColumn(layers: any[], col: number, name: string): Sc
         mediaType: clip.mediaType,
         fillColor: clip.fillColor,
         shaderSrc: clip.shaderSrc,
+        milkdropIdx: clip.milkdropIdx,
+        milkdropName: clip.milkdropName,
         params: clip.params,
         opacity: clip.opacity ?? 1,
       },
