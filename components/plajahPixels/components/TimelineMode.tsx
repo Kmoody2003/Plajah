@@ -56,6 +56,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [snap, setSnap] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const clipRef = useRef<{ col: number; duration: number } | null>(null);
   const restoredRef = useRef<string | null>(null);
   const snapRef = useRef(true); snapRef.current = snap;
@@ -228,28 +229,33 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   useEffect(() => () => { stopPlayback(); audioCtxRef.current?.close().catch(() => {}); }, [stopPlayback]);
 
   const autoCut = useCallback(() => {
-    if (!dur) { setErr('Load a track first.'); return; }
-    if (!populated.length) { setErr('Add some scenes to the launcher first.'); return; }
-    // Walk the beats; block length VARIES with the music — dense/fast sections (drum
-    // fills) cut every 1–2 beats, calmer sections hold for 3–6. Scene per block is
-    // randomly chosen (no immediate repeat), so lengths + scenes vary across the song.
-    const cuts = beats.length >= 4 ? beats : Array.from({ length: Math.max(2, Math.round(dur / 0.5)) }, (_, i) => i * 0.5);
-    const nb: Block[] = [];
-    let i = 0, lastCol = -1;
-    while (i < cuts.length) {
-      const start = cuts[i];
-      const gap = i + 1 < cuts.length ? cuts[i + 1] - cuts[i] : 0.5;
-      const per = gap < 0.34 ? 1 + (Math.random() < 0.5 ? 0 : 1) : 2 + Math.floor(Math.random() * 4);
-      const endIdx = Math.min(cuts.length, i + per);
-      const end = endIdx < cuts.length ? cuts[endIdx] : dur;
-      let col = populated[Math.floor(Math.random() * populated.length)];
-      if (populated.length > 1 && col === lastCol) col = populated[(populated.indexOf(col) + 1) % populated.length];
-      lastCol = col;
-      nb.push({ id: uid(), col, start, duration: Math.max(0.2, end - start) });
-      i = endIdx;
-    }
-    setBlocks(nb); setErr(null);
-  }, [beats, populated, dur]);
+    try {
+      if (!dur || !song) { setErr('No track loaded — load a track in the session, or pick an audio file at the top of the timeline.'); return; }
+      if (!populated.length) { setErr('No scenes found — add a clip to a launcher column first (the scene chips appear above).'); return; }
+      // Cut points: detected beats if we have enough, else a uniform ~0.5s grid so it
+      // always works. Block length VARIES with the music — dense/fast sections (drum
+      // fills) cut every 1–2 beats, calmer ones hold 3–6; the scene per block is random.
+      const cuts = beats.length >= 4 ? beats.slice() : Array.from({ length: Math.max(4, Math.floor(dur / 0.5)) }, (_, i) => (i * dur) / Math.max(4, Math.floor(dur / 0.5)));
+      const nb: Block[] = [];
+      let i = 0, lastCol = -1, guard = 0;
+      while (i < cuts.length && guard++ < 100000) {
+        const start = cuts[i];
+        const gap = i + 1 < cuts.length ? cuts[i + 1] - cuts[i] : 0.5;
+        const per = gap < 0.34 ? 1 + (Math.random() < 0.5 ? 0 : 1) : 2 + Math.floor(Math.random() * 4);
+        const endIdx = Math.min(cuts.length, i + Math.max(1, per));
+        const end = endIdx < cuts.length ? cuts[endIdx] : dur;
+        let col = populated[Math.floor(Math.random() * populated.length)];
+        if (populated.length > 1 && col === lastCol) col = populated[(populated.indexOf(col) + 1) % populated.length];
+        lastCol = col;
+        nb.push({ id: uid(), col, start, duration: Math.max(0.2, end - start) });
+        i = Math.max(i + 1, endIdx);
+      }
+      if (!nb.length) { setErr('Auto-cut produced no blocks (track too short?).'); return; }
+      setBlocks(nb); setSelectedId(null); setErr(null);
+      setFlash(`Placed ${nb.length} scene${nb.length === 1 ? '' : 's'}${beats.length >= 4 ? ' on the beats' : ' on a grid'}`);
+      setTimeout(() => setFlash(null), 2200);
+    } catch (e) { setErr('Auto-cut error: ' + ((e as Error)?.message || e)); }
+  }, [beats, populated, dur, song]);
 
   const render = async () => {
     if (!song || !blocks.length) { setErr('Add scenes to the timeline first (drag, or Auto-cut).'); return; }
@@ -310,6 +316,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         <button onClick={autoCut} style={{ ...btn, background: '#1f1f2b', color: '#FF8C00' }}><Scissors size={13} /> Auto-cut to beats</button>
         <button onClick={() => setBlocks([])} style={{ ...btn, background: '#1f1f2b', color: '#bbb' }}><Trash2 size={13} /> Clear</button>
       </div>
+
+      {(flash || err) && (
+        <div style={{ padding: '7px 18px', fontSize: 12.5, fontWeight: 600, color: err ? '#ff9090' : '#84e08a', background: err ? 'rgba(255,80,80,0.08)' : 'rgba(127,209,127,0.08)', borderBottom: '1px solid #1a1a24' }}>
+          {err ? `⚠ ${err}` : `✓ ${flash}`}
+        </div>
+      )}
 
       {/* timeline */}
       <div style={{ flex: 1, padding: 18, overflow: 'auto' }}>
