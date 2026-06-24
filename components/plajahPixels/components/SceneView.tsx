@@ -10,6 +10,7 @@ import React, { useEffect, useRef } from 'react';
 import { Compositor, LayerInput } from '../engine/core/compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from '../engine/core/generators';
 import { ShaderRenderer } from '../engine/core/shaderRenderer';
+import { NodeGraphRenderer } from '../engine/core/nodeGraph';
 import { AudioTexture } from '../engine/core/audioTexture';
 import { getTextCanvas } from '../engine/core/textLayer';
 import { getTitleCanvas } from '../engine/core/titleLayer';
@@ -34,6 +35,7 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
   const compRef = useRef<Compositor | null>(null);
   const genRef = useRef<GeneratorRenderer | null>(null);
   const shaderRef = useRef<ShaderRenderer | null>(null);
+  const graphRef = useRef<NodeGraphRenderer | null>(null);
   const audioTexRef = useRef<AudioTexture | null>(null);
   const startRef = useRef(0);
   const pool = useRef<Map<string, HTMLVideoElement | HTMLImageElement>>(new Map());
@@ -60,6 +62,7 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
       compRef.current = new Compositor(canvas);
       genRef.current = new GeneratorRenderer(compRef.current.gl);
       shaderRef.current = new ShaderRenderer(compRef.current.gl);
+      graphRef.current = new NodeGraphRenderer(compRef.current.gl);
       audioTexRef.current = new AudioTexture(compRef.current.gl);
       startRef.current = performance.now();
     } catch (e) { console.warn('[SceneView] GL init failed:', e); return; }
@@ -103,6 +106,9 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
           } else if (clip.type === 'shader' && clip.shaderSrc && shaderRef.current) {
             const tex = shaderRef.current.render(layer.id, clip.shaderSrc, w, h, { time: t, audio: audioTex, params: clip.params || [] });
             inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+          } else if (clip.type === 'nodegraph' && clip.graph && graphRef.current) {
+            const tex = graphRef.current.evaluate(clip.graph, w, h, { time: t, audio: audioTex, colors });
+            if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
           }
           // milkdrop (butterchurn) skipped — not frame-deterministic; use a shader/generator clip for export
         }
@@ -119,6 +125,7 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, palette, playing, time
       cancelAnimationFrame(raf);
       genRef.current?.dispose(); genRef.current = null;
       shaderRef.current?.dispose(); shaderRef.current = null;
+      graphRef.current?.dispose(); graphRef.current = null;
       audioTexRef.current?.dispose(); audioTexRef.current = null;
       compRef.current?.dispose(); compRef.current = null;
       pool.current.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });

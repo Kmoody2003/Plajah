@@ -16,6 +16,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { Compositor, LayerInput, ShakeParams } from './compositor';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
+import { NodeGraphRenderer } from './nodeGraph';
 import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
 import { AudioDriverSampler } from '../audioDrivers';
@@ -98,6 +99,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   comp.resize(width, height);
   const gen = new GeneratorRenderer(comp.gl);
   const shaderRend = new ShaderRenderer(comp.gl);
+  const graphRend = new NodeGraphRenderer(comp.gl);
   const audioTex = new AudioTexture(comp.gl);
   const offAudio = audioBuffer ? new OfflineAudio(audioBuffer) : null;
 
@@ -204,6 +206,9 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         } else if (clip.type === 'shader' && clip.shaderSrc) {
           const tex = shaderRend.render(layer.id, clip.shaderSrc, width, height, { time: lt, audio: audioTex, params: clip.params || [] });
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
+        } else if (clip.type === 'nodegraph' && clip.graph) {
+          const tex = graphRend.evaluate(clip.graph, width, height, { time: lt, audio: audioTex, colors: palette });
+          if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
         } else if (clip.type === 'milkdrop' && !warnedShader) {
           warnedShader = true;
           console.warn('[Pixels render] milkdrop (butterchurn) is not frame-deterministic — skipped on export; use a shader/generator clip instead.');
@@ -257,7 +262,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     return null;
   } finally {
     try { videoEnc.state !== 'closed' && videoEnc.close(); } catch { /* */ }
-    gen.dispose(); shaderRend.dispose(); audioTex.dispose(); comp.dispose();
+    gen.dispose(); shaderRend.dispose(); graphRend.dispose(); audioTex.dispose(); comp.dispose();
     mediaEls.forEach(el => { if (el instanceof HTMLVideoElement) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* */ } } });
   }
 }

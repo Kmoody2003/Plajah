@@ -3,8 +3,10 @@
 // launcher column captured as a snapshot of its layers, so a block is fully
 // self-describing and renderable offline without the live launcher.
 
+import type { NodeGraph } from '../core/nodeGraph';
+
 export interface RenderClip {
-  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'title' | 'empty';
+  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'title' | 'nodegraph' | 'empty';
   sceneMode?: string;                 // generator / studio mode (UPPERCASE)
   mediaUrl?: string;
   mediaType?: 'video' | 'image';
@@ -13,6 +15,7 @@ export interface RenderClip {
   text?: string;                      // type:'text'/'title' — caption or title string
   subtitle?: string;                  // type:'title' — second line under the title
   titleStyle?: 'modern' | 'classic' | 'minimal'; // type:'title'
+  graph?: NodeGraph;                  // type:'nodegraph' — the node-compositor graph
   params?: number[];
   opacity?: number;
 }
