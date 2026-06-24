@@ -37,7 +37,7 @@ import ProgramOutView from './components/ProgramOutView';
 import MediaPreloader from './components/MediaPreloader';
 import { makeSharedAnalyser } from './engine/sharedAnalyser';
 import { setRecording as setProxyRecordingGate } from './engine/core/proxyCache';
-import TimelineRenderPanel from './components/TimelineRenderPanel';
+import TimelineMode from './components/TimelineMode';
 import { exportPixelsToFabula, PixelsScene, PixelsCut } from '../../services/fabulaBridge';
 import { snapshotFromColumn } from './engine/timeline/sceneTimeline';
 import GLCompositorView from './components/GLCompositorView';
@@ -2074,7 +2074,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
                 {/* Render Timeline (offline) — pick a song, render scenes to an accurate MP4 */}
                 {!isRecording && (
                     <button onClick={() => setShowRenderPanel(true)}
-                        title="Render Timeline — offline, frame/beat/sample-accurate MP4 export"
+                        title="Timeline — drag scenes onto the waveform, auto-cut to the beats, render"
                         className="w-9 h-9 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center transition-all shadow-lg bg-black/40 hover:bg-[#FF8C00]/30">
                         <Film className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.8)' }} />
                     </button>
@@ -2349,7 +2349,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* ─── Recording Save Modal ──────────────────────────────────────────── */}
             <AnimatePresence>
                 {showRenderPanel && (
-                    <TimelineRenderPanel layers={liveLayers} config={config}
+                    <TimelineMode layers={liveLayers} config={config}
                         sessionAudioUrl={audioBlobUrlRef.current} sessionAudioName={audioFileName}
                         onClose={() => setShowRenderPanel(false)} />
                 )}
