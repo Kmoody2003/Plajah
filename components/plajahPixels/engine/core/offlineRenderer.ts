@@ -19,6 +19,7 @@ import { ShaderRenderer } from './shaderRenderer';
 import { NodeGraphRenderer } from './nodeGraph';
 import { AudioTexture } from './audioTexture';
 import { OfflineAudio } from './offlineAudio';
+import { MusicAnalysis, analysisAt } from './musicAnalysis';
 import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
@@ -40,6 +41,9 @@ export interface RenderOptions {
    *  frame). Generators/shaders/text are unaffected (no seeking); media timing is
    *  approximate but the render no longer stalls seconds-per-frame. */
   fast?: boolean;
+  /** Precomputed stored analysis — drives the visuals deterministically (and skips
+   *  the per-frame FFT). If absent, the song buffer is analyzed on the fly. */
+  analysis?: MusicAnalysis;
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
 }
@@ -83,7 +87,7 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 
 /** Render the timeline to an MP4 Blob, or null on failure / unsupported / abort. */
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
-  const { timeline, resolveLayers, audioBuffer, config, fps, fast, onProgress, signal } = opts;
+  const { timeline, resolveLayers, audioBuffer, config, fps, fast, analysis, onProgress, signal } = opts;
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
@@ -154,11 +158,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       const t = i / fps;
 
       let shake: ShakeParams | undefined;
-      if (offAudio) {
-        const a = offAudio.sample(t);
-        audioTex.updateFromArrays(a.freq, a.wave);
+      // Prefer the stored analysis (deterministic, no per-frame FFT); else analyze live.
+      const aud = analysis ? analysisAt(analysis, t) : (offAudio ? offAudio.sample(t) : null);
+      if (aud) {
+        audioTex.updateFromArrays(aud.freq, aud.wave);
         if (wantShake) {
-          shakeSampler.updateFromArray(a.freq, t * 1000, offAudio.sampleRate);
+          shakeSampler.updateFromArray(aud.freq, t * 1000, audioBuffer?.sampleRate || offAudio?.sampleRate || 48000);
           const target = shakeSampler.intensity * 0.4 + shakeSampler.density * 0.55;
           shakeAmp = Math.max(shakeAmp * 0.82, target);
           if (shakeSampler.isSnare) shakeAmp = Math.min(1.6, shakeAmp + 0.9);

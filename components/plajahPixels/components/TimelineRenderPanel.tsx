@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Film, Loader2, Download, Zap, Crosshair } from 'lucide-react';
 import { renderTimeline } from '../engine/core/offlineRenderer';
+import { getAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 const COLS = 8;
 
 const TimelineRenderPanel: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessionAudioName, onClose }) => {
-  const [song, setSong] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
+  const [song, setSong] = useState<{ name: string; buffer: AudioBuffer; bytes: ArrayBuffer } | null>(null);
   const [mode, setMode] = useState<'fast' | 'accurate'>('fast');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -31,9 +32,9 @@ const TimelineRenderPanel: React.FC<Props> = ({ layers, config, sessionAudioUrl,
 
   const decode = async (data: ArrayBuffer, name: string) => {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const buffer = await ctx.decodeAudioData(data);
+    const buffer = await ctx.decodeAudioData(data.slice(0)); // decode a copy; keep `data` for the content hash
     ctx.close();
-    setSong({ name, buffer });
+    setSong({ name, buffer, bytes: data });
   };
 
   // Auto-pull the session's loaded track.
@@ -77,8 +78,11 @@ const TimelineRenderPanel: React.FC<Props> = ({ layers, config, sessionAudioUrl,
         setErr('No renderable scenes found. Add clips to the launcher first.');
         setBusy(false); return;
       }
+      // Stored, deterministic analysis (computed once, OPFS-cached) drives the visuals.
+      setStage('Analyzing music…');
+      const analysis = await getAnalysis(song.bytes, song.buffer);
       const blob = await renderTimeline({
-        timeline, audioBuffer: song.buffer, config,
+        timeline, audioBuffer: song.buffer, config, analysis,
         width: 1920, height: 1080, fps: 30, fast: mode === 'fast',
         onProgress: (p, s) => { setProgress(p); setStage(s); },
         signal: abortRef.current.signal,
