@@ -63,6 +63,25 @@ function isMediaActive(): boolean {
     .some(el => !el.paused && !el.ended && el.readyState > 2);
 }
 
+// A small, non-intrusive bottom toast offering a one-click reload when a new build
+// is waiting mid-session. Plain DOM so it works regardless of React state.
+function showUpdateToast(onReload: () => void) {
+  if (document.getElementById('plajah-sw-toast')) return;
+  const bar = document.createElement('div');
+  bar.id = 'plajah-sw-toast';
+  bar.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:10px;background:#1b1b24;color:#fff;border:1px solid rgba(255,140,0,0.4);box-shadow:0 8px 30px rgba(0,0,0,.5);font:500 13px system-ui,sans-serif';
+  const msg = document.createElement('span'); msg.textContent = 'A new version of Plajah is ready.';
+  const btn = document.createElement('button'); btn.textContent = 'Reload';
+  btn.style.cssText = 'padding:6px 14px;border-radius:7px;border:none;background:linear-gradient(90deg,#FF8C00,#ffa733);color:#1a1a1a;font-weight:700;cursor:pointer';
+  btn.onclick = () => { btn.textContent = 'Updating…'; onReload(); };
+  const x = document.createElement('button'); x.textContent = '✕';
+  x.style.cssText = 'background:none;border:none;color:#888;cursor:pointer;font-size:14px;line-height:1';
+  x.title = 'Dismiss (update applies next time all tabs are closed)';
+  x.onclick = () => bar.remove();
+  bar.append(msg, btn, x);
+  (document.body || document.documentElement).appendChild(bar);
+}
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // Use 'prompt' mode so we control exactly when the update is applied.
   // autoUpdate would call location.reload() the moment any new deploy lands,
@@ -76,12 +95,18 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         setTimeout(() => updateSW(true), 0);
         return;
       }
-      // Mid-session: leave the waiting SW alone. It will activate automatically
-      // the next time the user opens a fresh tab (all old tabs closed). No
-      // interruption to whatever they are doing now.
+      // Mid-session: don't auto-reload (would interrupt a live VJ set / video), but
+      // DO surface a one-click "Reload" toast so a new deploy actually reaches the
+      // user instead of waiting until every tab is closed. They update when ready.
+      showUpdateToast(() => updateSW(true));
     },
     onOfflineReady() {
       console.log('[SW] App ready for offline use.');
+    },
+    onRegisteredSW(_swUrl: string, r: ServiceWorkerRegistration | undefined) {
+      // Browsers only check for a new SW on navigation by default; poll so a deploy
+      // that lands while the tab stays open is noticed (→ the Reload toast) within ~1 min.
+      if (r) setInterval(() => { r.update().catch(() => { /* offline */ }); }, 60_000);
     },
   });
 } else if (import.meta.env.DEV && 'serviceWorker' in navigator) {
