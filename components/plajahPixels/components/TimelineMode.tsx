@@ -5,7 +5,7 @@
 // track + scenes automatically.
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { X, Film, Zap, Crosshair, Scissors, Trash2, Download, Loader2, Music } from 'lucide-react';
+import { X, Film, Zap, Crosshair, Scissors, Trash2, Download, Loader2, Music, Play, Pause, SkipBack } from 'lucide-react';
 import { renderTimeline } from '../engine/core/offlineRenderer';
 import { getAnalysis, MusicAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
@@ -37,7 +37,7 @@ function detectBeats(a: MusicAnalysis): number[] {
     hist.push(bass); if (hist.length > 22) hist.shift();
     const avg = hist.reduce((s, v) => s + v, 0) / hist.length;
     const t = i / a.fps;
-    if (bass > avg * 1.4 && bass > 0.22 && (last < 0 || t - last > 0.22)) { beats.push(t); last = t; }
+    if (bass > avg * 1.3 && bass > 0.12 && (last < 0 || t - last > 0.2)) { beats.push(t); last = t; }
   }
   return beats;
 }
@@ -54,17 +54,33 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   const [stage, setStage] = useState('');
   const [playhead, setPlayhead] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [snap, setSnap] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const clipRef = useRef<{ col: number; duration: number } | null>(null);
   const restoredRef = useRef<string | null>(null);
+  const snapRef = useRef(true); snapRef.current = snap;
+  const beatsRef = useRef<number[]>([]);
+  const blocksRef = useRef<Block[]>([]);
+  const [playing, setPlaying] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const playAnalyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number>(0);
 
   const waveRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const dragRef = useRef<{ kind: 'palette' | 'move' | 'trim'; col?: number; id?: string; grab?: number; start?: number; duration?: number } | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const placeGhost = (clientX: number, clientY: number) => {
+    const g = ghostRef.current; if (!g) return;
+    const o = overlayRef.current?.getBoundingClientRect();
+    g.style.left = `${clientX - (o?.left || 0) + 10}px`; g.style.top = `${clientY - (o?.top || 0) + 6}px`;
+  };
 
   const dur = song?.buffer.duration || 0;
+  beatsRef.current = beats; blocksRef.current = blocks;
   const populated = layers ? Array.from({ length: COLS }, (_, c) => c).filter(c =>
     layers.some(l => l && !l.bypassed && !l.muted && l.clips?.[c] && l.clips[c].type !== 'empty')) : [];
 
@@ -116,17 +132,28 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   // Direct-DOM drag (no per-move re-render → glides). Commit to state on mouse-up.
   useEffect(() => {
     const el = (id: string) => trackRef.current?.querySelector(`[data-blk="${id}"]`) as HTMLElement | null;
+    // Snap a time to the nearest beat or another block's edge (when snapping is on).
+    const snapT = (t: number, excludeId?: string) => {
+      if (!snapRef.current || !dur) return t;
+      const thr = Math.max(0.05, dur * 0.006);
+      let best = t, bd = thr;
+      for (const bt of beatsRef.current) { const dd = Math.abs(bt - t); if (dd < bd) { best = bt; bd = dd; } }
+      for (const b of blocksRef.current) { if (b.id === excludeId) continue; for (const edge of [b.start, b.start + b.duration]) { const dd = Math.abs(edge - t); if (dd < bd) { best = edge; bd = dd; } } }
+      return best;
+    };
     const move = (e: MouseEvent) => {
       const d = dragRef.current; if (!d || !dur) return;
       const t = xToT(e.clientX);
       if (d.kind === 'move' && d.id) {
-        const start = Math.max(0, Math.min(dur - (d.duration || 0.2), t - (d.grab || 0)));
+        let start = Math.max(0, Math.min(dur - (d.duration || 0.2), t - (d.grab || 0)));
+        start = Math.max(0, Math.min(dur - (d.duration || 0.2), snapT(start, d.id)));
         d.start = start; const n = el(d.id); if (n) n.style.left = `${(start / dur) * 100}%`;
       } else if (d.kind === 'trim' && d.id) {
-        const duration = Math.max(0.2, Math.min(dur - (d.start || 0), t - (d.start || 0)));
+        let end = snapT((d.start || 0) + Math.max(0.2, t - (d.start || 0)), d.id);
+        const duration = Math.max(0.2, Math.min(dur - (d.start || 0), end - (d.start || 0)));
         d.duration = duration; const n = el(d.id); if (n) n.style.width = `${(duration / dur) * 100}%`;
       } else if (d.kind === 'palette' && ghostRef.current) {
-        const g = ghostRef.current; g.style.display = 'block'; g.style.left = `${e.clientX + 8}px`; g.style.top = `${e.clientY + 8}px`;
+        ghostRef.current.style.display = 'block'; placeGhost(e.clientX, e.clientY);
       }
     };
     const up = (e: MouseEvent) => {
@@ -171,20 +198,50 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
     try { localStorage.setItem('pixels:tl:' + song.name, JSON.stringify(blocks)); } catch { /* */ }
   }, [blocks, song]);
 
+  // Preview transport: play the song from the playhead; the preview reacts to a
+  // local analyser tapped off the actual playback, and the playhead advances.
+  const stopPlayback = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const s = sourceRef.current; if (s) { try { s.onended = null; s.stop(); } catch { /* */ } sourceRef.current = null; }
+    playAnalyserRef.current = null; setPlaying(false);
+  }, []);
+  const playFrom = useCallback((t: number) => {
+    if (!song) return;
+    stopPlayback();
+    const ctx = audioCtxRef.current || new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtxRef.current = ctx; if (ctx.state === 'suspended') ctx.resume();
+    const src = ctx.createBufferSource(); src.buffer = song.buffer;
+    const an = ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = 0.7;
+    src.connect(an); an.connect(ctx.destination);
+    const startT = Math.max(0, Math.min(t, song.buffer.duration - 0.02));
+    src.start(0, startT);
+    sourceRef.current = src; playAnalyserRef.current = an;
+    const startCtx = ctx.currentTime; setPlaying(true);
+    const tick = () => {
+      if (!sourceRef.current) return;
+      const cur = startT + (ctx.currentTime - startCtx);
+      if (cur >= song.buffer.duration) { stopPlayback(); setPlayhead(song.buffer.duration); return; }
+      setPlayhead(cur); rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [song, stopPlayback]);
+  useEffect(() => () => { stopPlayback(); audioCtxRef.current?.close().catch(() => {}); }, [stopPlayback]);
+
   const autoCut = useCallback(() => {
-    if (!beats.length) { setErr('Load a track first — analysis must finish (waveform green) so there are beats.'); return; }
+    if (!dur) { setErr('Load a track first.'); return; }
     if (!populated.length) { setErr('Add some scenes to the launcher first.'); return; }
     // Walk the beats; block length VARIES with the music — dense/fast sections (drum
     // fills) cut every 1–2 beats, calmer sections hold for 3–6. Scene per block is
     // randomly chosen (no immediate repeat), so lengths + scenes vary across the song.
+    const cuts = beats.length >= 4 ? beats : Array.from({ length: Math.max(2, Math.round(dur / 0.5)) }, (_, i) => i * 0.5);
     const nb: Block[] = [];
     let i = 0, lastCol = -1;
-    while (i < beats.length) {
-      const start = beats[i];
-      const gap = i + 1 < beats.length ? beats[i + 1] - beats[i] : 0.5;
+    while (i < cuts.length) {
+      const start = cuts[i];
+      const gap = i + 1 < cuts.length ? cuts[i + 1] - cuts[i] : 0.5;
       const per = gap < 0.34 ? 1 + (Math.random() < 0.5 ? 0 : 1) : 2 + Math.floor(Math.random() * 4);
-      const endIdx = Math.min(beats.length, i + per);
-      const end = endIdx < beats.length ? beats[endIdx] : dur;
+      const endIdx = Math.min(cuts.length, i + per);
+      const end = endIdx < cuts.length ? cuts[endIdx] : dur;
       let col = populated[Math.floor(Math.random() * populated.length)];
       if (populated.length > 1 && col === lastCol) col = populated[(populated.indexOf(col) + 1) % populated.length];
       lastCol = col;
@@ -219,8 +276,8 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   const sceneColor = (col: number) => `hsl(${(col * 47) % 360} 70% 55%)`;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0c0c12', zIndex: 9999, display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
-      <div ref={ghostRef} style={{ position: 'fixed', display: 'none', pointerEvents: 'none', zIndex: 10001, padding: '5px 10px', borderRadius: 6, background: '#FF8C00', color: '#000', fontWeight: 700, fontSize: 11, opacity: 0.9 }}>Scene</div>
+    <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: '#0c0c12', zIndex: 9999, display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+      <div ref={ghostRef} style={{ position: 'absolute', display: 'none', pointerEvents: 'none', zIndex: 10001, padding: '5px 10px', borderRadius: 6, background: '#FF8C00', color: '#000', fontWeight: 700, fontSize: 11, opacity: 0.92 }}>Scene</div>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: '1px solid #22222e' }}>
         <Film size={18} color="#FF8C00" /><span style={{ fontWeight: 700 }}>Timeline</span>
@@ -242,14 +299,15 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: '1px solid #1a1a24', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 10, color: '#8a8a98', textTransform: 'uppercase', letterSpacing: 1 }}>Scenes — drag onto the timeline</span>
         {populated.length ? populated.map(c => (
-          <div key={c} onMouseDown={(e) => { dragRef.current = { kind: 'palette', col: c }; const g = ghostRef.current; if (g) { g.textContent = `Scene ${c + 1}`; g.style.left = `${e.clientX + 8}px`; g.style.top = `${e.clientY + 8}px`; g.style.display = 'block'; } }}
+          <div key={c} onMouseDown={(e) => { dragRef.current = { kind: 'palette', col: c }; const g = ghostRef.current; if (g) { g.textContent = `Scene ${c + 1}`; g.style.display = 'block'; placeGhost(e.clientX, e.clientY); } }}
             style={{ padding: '6px 12px', borderRadius: 7, background: sceneColor(c), color: '#000', fontWeight: 700, fontSize: 12, cursor: 'grab', userSelect: 'none' }}>
             Scene {c + 1}
           </div>
         )) : <span style={{ fontSize: 11, color: '#ff8080' }}>No scenes in the launcher yet.</span>}
         <span style={{ fontSize: 10, color: '#666' }}>· click a block, Ctrl+C / Ctrl+V to copy, Del to remove · auto-saved</span>
         <div style={{ flex: 1 }} />
-        <button onClick={autoCut} disabled={!beats.length} style={{ ...btn, background: '#1f1f2b', color: '#FF8C00' }}><Scissors size={13} /> Auto-cut to beats</button>
+        <button onClick={() => setSnap(s => !s)} title="Snap blocks to the nearest beat or another block's edge" style={{ ...btn, background: snap ? 'rgba(255,140,0,0.14)' : '#1f1f2b', color: snap ? '#FF8C00' : '#bbb', border: `1px solid ${snap ? '#FF8C00' : 'transparent'}` }}><Crosshair size={13} /> Snap {snap ? 'On' : 'Off'}</button>
+        <button onClick={autoCut} style={{ ...btn, background: '#1f1f2b', color: '#FF8C00' }}><Scissors size={13} /> Auto-cut to beats</button>
         <button onClick={() => setBlocks([])} style={{ ...btn, background: '#1f1f2b', color: '#bbb' }}><Trash2 size={13} /> Clear</button>
       </div>
 
@@ -262,9 +320,13 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         {song && (
           <div style={{ width: 'min(46%, 640px)', aspectRatio: '16/9', margin: '0 auto 16px', background: '#000', borderRadius: 8, overflow: 'hidden', border: '1px solid #22222e', position: 'relative' }}>
             {previewSnapshot
-              ? <SceneView snapshot={previewSnapshot} analyser={analyser ?? null} palette={config.colorPalette} playing={true} />
-              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 12 }}>No scene at the playhead — click the timeline to scrub</div>}
+              ? <SceneView snapshot={previewSnapshot} analyser={playing ? playAnalyserRef.current : (analyser ?? null)} palette={config.colorPalette} playing={true} />
+              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 12 }}>No scene at the playhead — press play or click the timeline to scrub</div>}
             <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 10, color: '#9a9aa8', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4 }}>PREVIEW · {activeBlock ? `Scene ${activeBlock.col + 1}` : '—'} · {playhead.toFixed(1)}s</div>
+            <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 10 }}>
+              <button onClick={() => { stopPlayback(); setPlayhead(0); }} title="Back to start" style={transport}><SkipBack size={15} /></button>
+              <button onClick={() => playing ? stopPlayback() : playFrom(playhead)} title={playing ? 'Pause' : 'Play'} style={transport}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
+            </div>
           </div>
         )}
         {song && (
@@ -302,6 +364,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 };
 
 const btn: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12.5 };
+const transport: React.CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const tabStyle = (on: boolean): React.CSSProperties => ({ ...btn, background: on ? 'rgba(255,140,0,0.14)' : 'transparent', border: `1px solid ${on ? '#FF8C00' : '#2a2a38'}`, color: '#fff' });
 
 export default TimelineMode;
