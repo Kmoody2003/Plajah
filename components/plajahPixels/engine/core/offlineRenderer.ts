@@ -36,6 +36,10 @@ export interface RenderOptions {
   height: number;
   fps: number;
   bitrate?: number;
+  /** Fast mode: don't WAIT for each video seek to land (draw the nearest decoded
+   *  frame). Generators/shaders/text are unaffected (no seeking); media timing is
+   *  approximate but the render no longer stalls seconds-per-frame. */
+  fast?: boolean;
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
 }
@@ -53,7 +57,7 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
   return null;
 }
 
-function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 5000): Promise<void> {
+function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 1500): Promise<void> {
   return new Promise((resolve) => {
     let done = false;
     const finish = () => { if (done) return; done = true; v.removeEventListener('seeked', finish); clearTimeout(timer); resolve(); };
@@ -79,7 +83,7 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 
 /** Render the timeline to an MP4 Blob, or null on failure / unsupported / abort. */
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
-  const { timeline, resolveLayers, audioBuffer, config, fps, onProgress, signal } = opts;
+  const { timeline, resolveLayers, audioBuffer, config, fps, fast, onProgress, signal } = opts;
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
@@ -192,7 +196,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             const dur = el.duration || 0;
             let st = lt;
             if (dur > 0) st = st % dur; // loop the source within the clip
-            await seekVideo(el, st);
+            if (fast) { try { el.currentTime = st; } catch { /* */ } } // no wait — nearest ready frame
+            else await seekVideo(el, st);
             inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });
           } else if (el instanceof HTMLImageElement) {
             inputs.push({ element: el, opacity, blendMode: layer.blendMode, transform: layer.transform });

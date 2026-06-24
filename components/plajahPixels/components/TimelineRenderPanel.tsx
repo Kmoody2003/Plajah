@@ -1,44 +1,60 @@
-// TimelineRenderPanel — the first, minimal entry point for offline render mode.
-// Pick a song, it builds a single-track timeline from your current launcher scenes
-// (one block per populated column), and renders a frame/beat/sample-accurate MP4 via
-// the offline renderer. This is the test harness for the render core; the full
-// drag/drop waveform timeline + trim/loop + auto-slice presets come next.
+// TimelineRenderPanel — render the current session's scenes to an MP4. Pulls the
+// track loaded in the session automatically (no file-pick needed) and offers two
+// modes: FAST (media seeks aren't awaited — no per-frame stall, ~much quicker) and
+// ACCURATE (frame/beat/sample-perfect, slower). Generators / shaders / text / titles
+// / node-graphs all render; milkdrop is live-only (can't be frame-stepped).
+// The full drag-scenes-onto-the-waveform + auto-cut-to-drums timeline UI is next.
 
-import React, { useRef, useState } from 'react';
-import { X, Film, Loader2, Download } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Film, Loader2, Download, Zap, Crosshair } from 'lucide-react';
 import { renderTimeline } from '../engine/core/offlineRenderer';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
 
 interface Props {
-  layers: any[];               // live launcher layers (LauncherLayer[])
-  config: any;                 // VisualizationConfig
+  layers: any[];                 // live launcher layers
+  config: any;                   // VisualizationConfig
+  sessionAudioUrl?: string;      // the track currently loaded in the session
+  sessionAudioName?: string;
   onClose: () => void;
 }
 
-const COLS = 8; // launcher columns to scan for populated scenes
+const COLS = 8;
 
-const TimelineRenderPanel: React.FC<Props> = ({ layers, config, onClose }) => {
+const TimelineRenderPanel: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessionAudioName, onClose }) => {
   const [song, setSong] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
+  const [mode, setMode] = useState<'fast' | 'accurate'>('fast');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const loadSong = async (file: File) => {
-    setErr(null);
-    try {
-      const buf = await file.arrayBuffer();
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioBuffer = await ctx.decodeAudioData(buf);
-      ctx.close();
-      setSong({ name: file.name, buffer: audioBuffer });
-    } catch (e) {
-      setErr('Could not decode that audio file.');
-    }
+  const decode = async (data: ArrayBuffer, name: string) => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const buffer = await ctx.decodeAudioData(data);
+    ctx.close();
+    setSong({ name, buffer });
   };
 
-  // Build a single-track timeline: one equal block per launcher column that has content.
+  // Auto-pull the session's loaded track.
+  useEffect(() => {
+    if (!sessionAudioUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await (await fetch(sessionAudioUrl)).arrayBuffer();
+        if (!cancelled) await decode(data, sessionAudioName || 'Session track');
+      } catch { /* fall back to manual pick */ }
+    })();
+    return () => { cancelled = true; };
+  }, [sessionAudioUrl, sessionAudioName]);
+
+  const loadFile = async (file: File) => {
+    setErr(null);
+    try { await decode(await file.arrayBuffer(), file.name); }
+    catch { setErr('Could not decode that audio file.'); }
+  };
+
   const buildTimeline = (duration: number): SceneTimeline => {
     const populated: number[] = [];
     for (let c = 0; c < COLS; c++) {
@@ -58,12 +74,12 @@ const TimelineRenderPanel: React.FC<Props> = ({ layers, config, onClose }) => {
     try {
       const timeline = buildTimeline(song.buffer.duration);
       if (!timeline.blocks.some(b => b.snapshot.layers.length)) {
-        setErr('No renderable scenes found. Add some generator/media/color clips to the launcher first.');
+        setErr('No renderable scenes found. Add clips to the launcher first.');
         setBusy(false); return;
       }
       const blob = await renderTimeline({
         timeline, audioBuffer: song.buffer, config,
-        width: 1920, height: 1080, fps: 30,
+        width: 1920, height: 1080, fps: 30, fast: mode === 'fast',
         onProgress: (p, s) => { setProgress(p); setStage(s); },
         signal: abortRef.current.signal,
       });
@@ -81,11 +97,19 @@ const TimelineRenderPanel: React.FC<Props> = ({ layers, config, onClose }) => {
     }
   };
 
-  const cancel = () => { abortRef.current?.abort(); };
+  const cancel = () => abortRef.current?.abort();
+  const modeBtn = (m: 'fast' | 'accurate', Icon: any, label: string, sub: string) => (
+    <button onClick={() => setMode(m)} disabled={busy}
+      style={{ flex: 1, padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: busy ? 'not-allowed' : 'pointer',
+        border: `1px solid ${mode === m ? '#FF8C00' : '#2a2a38'}`, background: mode === m ? 'rgba(255,140,0,0.12)' : 'transparent', color: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: 13 }}><Icon size={14} color={mode === m ? '#FF8C00' : '#888'} /> {label}</div>
+      <div style={{ fontSize: 10.5, color: '#9a9aa8', marginTop: 3 }}>{sub}</div>
+    </button>
+  );
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ width: 520, maxWidth: '92vw', background: '#14141c', border: '1px solid #2a2a38', borderRadius: 14, padding: 22, color: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
+      <div style={{ width: 540, maxWidth: '92vw', background: '#14141c', border: '1px solid #2a2a38', borderRadius: 14, padding: 22, color: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <Film size={18} color="#FF8C00" />
@@ -94,18 +118,15 @@ const TimelineRenderPanel: React.FC<Props> = ({ layers, config, onClose }) => {
           <button onClick={onClose} disabled={busy} style={{ background: 'none', border: 'none', color: '#888', cursor: busy ? 'not-allowed' : 'pointer' }}><X size={18} /></button>
         </div>
 
-        <p style={{ fontSize: 12, color: '#9a9aa8', lineHeight: 1.5, marginBottom: 16 }}>
-          Pick a song and Pixels renders your current launcher scenes over it as a frame/beat/sample-accurate
-          MP4 — computed offline, not screen-captured. Generator, media and color layers render this pass;
-          shader/milkdrop come next.
-        </p>
+        <div style={{ display: 'flex', gap: 9, marginBottom: 14 }}>
+          {modeBtn('fast', Zap, 'Fast', 'Quick render of the whole composite. Media timing approximate.')}
+          {modeBtn('accurate', Crosshair, 'Accurate', 'Frame/beat/sample-perfect master. Slower.')}
+        </div>
 
-        <label style={{ display: 'block', marginBottom: 14 }}>
-          <span style={{ fontSize: 11, color: '#bbb', display: 'block', marginBottom: 6 }}>Song</span>
-          <input type="file" accept="audio/*" disabled={busy} onChange={e => e.target.files?.[0] && loadSong(e.target.files[0])}
-                 style={{ fontSize: 12, color: '#ccc', width: '100%' }} />
-          {song && <span style={{ fontSize: 11, color: '#7fd17f', display: 'block', marginTop: 6 }}>{song.name} · {song.buffer.duration.toFixed(1)}s</span>}
-        </label>
+        <div style={{ marginBottom: 14, fontSize: 11.5, color: '#bbb' }}>
+          <div style={{ marginBottom: 6 }}>Song {song ? <span style={{ color: '#7fd17f' }}>· {song.name} ({song.buffer.duration.toFixed(1)}s)</span> : <span style={{ color: '#9a9aa8' }}>· using the session track if loaded, or pick one:</span>}</div>
+          {!song && <input type="file" accept="audio/*" disabled={busy} onChange={e => e.target.files?.[0] && loadFile(e.target.files[0])} style={{ fontSize: 12, color: '#ccc', width: '100%' }} />}
+        </div>
 
         {busy && (
           <div style={{ margin: '14px 0' }}>
