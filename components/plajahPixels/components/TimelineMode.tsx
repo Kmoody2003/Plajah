@@ -53,12 +53,16 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
   const [playhead, setPlayhead] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const clipRef = useRef<{ col: number; duration: number } | null>(null);
+  const restoredRef = useRef<string | null>(null);
 
   const waveRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const dragRef = useRef<{ kind: 'palette' | 'move' | 'trim'; col?: number; id?: string; grab?: number } | null>(null);
+  const dragRef = useRef<{ kind: 'palette' | 'move' | 'trim'; col?: number; id?: string; grab?: number; start?: number; duration?: number } | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
 
   const dur = song?.buffer.duration || 0;
   const populated = layers ? Array.from({ length: COLS }, (_, c) => c).filter(c =>
@@ -109,28 +113,63 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   const xToT = (clientX: number) => { const r = trackRef.current!.getBoundingClientRect(); return Math.max(0, Math.min(dur, ((clientX - r.left) / r.width) * dur)); };
 
-  // Drag from palette → drop on track; or move/trim a block.
+  // Direct-DOM drag (no per-move re-render → glides). Commit to state on mouse-up.
   useEffect(() => {
+    const el = (id: string) => trackRef.current?.querySelector(`[data-blk="${id}"]`) as HTMLElement | null;
     const move = (e: MouseEvent) => {
-      const d = dragRef.current; if (!d) return;
+      const d = dragRef.current; if (!d || !dur) return;
       const t = xToT(e.clientX);
-      if (d.kind === 'move') setBlocks(bs => bs.map(b => b.id === d.id ? { ...b, start: Math.max(0, t - (d.grab || 0)) } : b));
-      else if (d.kind === 'trim') setBlocks(bs => bs.map(b => b.id === d.id ? { ...b, duration: Math.max(0.2, t - b.start) } : b));
+      if (d.kind === 'move' && d.id) {
+        const start = Math.max(0, Math.min(dur - (d.duration || 0.2), t - (d.grab || 0)));
+        d.start = start; const n = el(d.id); if (n) n.style.left = `${(start / dur) * 100}%`;
+      } else if (d.kind === 'trim' && d.id) {
+        const duration = Math.max(0.2, Math.min(dur - (d.start || 0), t - (d.start || 0)));
+        d.duration = duration; const n = el(d.id); if (n) n.style.width = `${(duration / dur) * 100}%`;
+      } else if (d.kind === 'palette' && ghostRef.current) {
+        const g = ghostRef.current; g.style.display = 'block'; g.style.left = `${e.clientX + 8}px`; g.style.top = `${e.clientY + 8}px`;
+      }
     };
     const up = (e: MouseEvent) => {
-      const d = dragRef.current; if (!d) return;
-      if (d.kind === 'palette' && trackRef.current) {
+      const d = dragRef.current; dragRef.current = null;
+      if (ghostRef.current) ghostRef.current.style.display = 'none';
+      if (!d) return;
+      if (d.kind === 'move' && d.id && d.start != null) setBlocks(bs => bs.map(b => b.id === d.id ? { ...b, start: d.start! } : b));
+      else if (d.kind === 'trim' && d.id && d.duration != null) setBlocks(bs => bs.map(b => b.id === d.id ? { ...b, duration: d.duration! } : b));
+      else if (d.kind === 'palette' && trackRef.current) {
         const r = trackRef.current.getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top - 40 && e.clientY <= r.bottom + 40) {
-          const t = xToT(e.clientX); setBlocks(bs => [...bs, { id: uid(), col: d.col!, start: t, duration: 2 }]);
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top - 70 && e.clientY <= r.bottom + 70) {
+          const nid = uid(); const t = Math.max(0, Math.min(dur - 2, xToT(e.clientX)));
+          setBlocks(bs => [...bs, { id: nid, col: d.col!, start: t, duration: 2 }]); setSelectedId(nid);
         }
       }
-      dragRef.current = null;
     };
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dur]);
+
+  // Copy / paste / delete the selected block.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'c' || e.key === 'C') && selectedId) { const b = blocks.find(x => x.id === selectedId); if (b) clipRef.current = { col: b.col, duration: b.duration }; }
+      else if (mod && (e.key === 'v' || e.key === 'V') && clipRef.current) { e.preventDefault(); const nid = uid(); const c = clipRef.current; setBlocks(bs => [...bs, { id: nid, col: c.col, start: playhead, duration: c.duration }]); setSelectedId(nid); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) { setBlocks(bs => bs.filter(x => x.id !== selectedId)); setSelectedId(null); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, blocks, playhead]);
+
+  // Auto-save the timeline per track, and restore it once when the track loads.
+  useEffect(() => {
+    if (!song || restoredRef.current === song.name) return;
+    restoredRef.current = song.name;
+    try { const s = localStorage.getItem('pixels:tl:' + song.name); if (s) { const arr = JSON.parse(s); if (Array.isArray(arr)) setBlocks(arr); } } catch { /* */ }
+  }, [song]);
+  useEffect(() => {
+    if (!song) return;
+    try { localStorage.setItem('pixels:tl:' + song.name, JSON.stringify(blocks)); } catch { /* */ }
+  }, [blocks, song]);
 
   const autoCut = useCallback(() => {
     if (!beats.length) { setErr('Load a track first — analysis must finish (waveform green) so there are beats.'); return; }
@@ -181,6 +220,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0c0c12', zIndex: 9999, display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+      <div ref={ghostRef} style={{ position: 'fixed', display: 'none', pointerEvents: 'none', zIndex: 10001, padding: '5px 10px', borderRadius: 6, background: '#FF8C00', color: '#000', fontWeight: 700, fontSize: 11, opacity: 0.9 }}>Scene</div>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: '1px solid #22222e' }}>
         <Film size={18} color="#FF8C00" /><span style={{ fontWeight: 700 }}>Timeline</span>
@@ -202,11 +242,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: '1px solid #1a1a24', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 10, color: '#8a8a98', textTransform: 'uppercase', letterSpacing: 1 }}>Scenes — drag onto the timeline</span>
         {populated.length ? populated.map(c => (
-          <div key={c} onMouseDown={() => { dragRef.current = { kind: 'palette', col: c }; }}
+          <div key={c} onMouseDown={(e) => { dragRef.current = { kind: 'palette', col: c }; const g = ghostRef.current; if (g) { g.textContent = `Scene ${c + 1}`; g.style.left = `${e.clientX + 8}px`; g.style.top = `${e.clientY + 8}px`; g.style.display = 'block'; } }}
             style={{ padding: '6px 12px', borderRadius: 7, background: sceneColor(c), color: '#000', fontWeight: 700, fontSize: 12, cursor: 'grab', userSelect: 'none' }}>
             Scene {c + 1}
           </div>
         )) : <span style={{ fontSize: 11, color: '#ff8080' }}>No scenes in the launcher yet.</span>}
+        <span style={{ fontSize: 10, color: '#666' }}>· click a block, Ctrl+C / Ctrl+V to copy, Del to remove · auto-saved</span>
         <div style={{ flex: 1 }} />
         <button onClick={autoCut} disabled={!beats.length} style={{ ...btn, background: '#1f1f2b', color: '#FF8C00' }}><Scissors size={13} /> Auto-cut to beats</button>
         <button onClick={() => setBlocks([])} style={{ ...btn, background: '#1f1f2b', color: '#bbb' }}><Trash2 size={13} /> Clear</button>
@@ -232,11 +273,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
             <canvas ref={waveRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
             {/* scene blocks */}
             {blocks.map(b => (
-              <div key={b.id} onMouseDown={(e) => { e.stopPropagation(); dragRef.current = { kind: 'move', id: b.id, grab: xToT(e.clientX) - b.start }; }}
-                style={{ position: 'absolute', top: 10, bottom: 10, left: `${(b.start / dur) * 100}%`, width: `${(b.duration / dur) * 100}%`, minWidth: 8, background: sceneColor(b.col), opacity: 0.82, borderRadius: 5, border: '1px solid rgba(0,0,0,0.4)', cursor: 'grab', overflow: 'hidden', color: '#000', fontSize: 11, fontWeight: 700, padding: '4px 6px' }}>
+              <div key={b.id} data-blk={b.id}
+                onMouseDown={(e) => { e.stopPropagation(); setSelectedId(b.id); dragRef.current = { kind: 'move', id: b.id, grab: xToT(e.clientX) - b.start, start: b.start, duration: b.duration }; }}
+                style={{ position: 'absolute', top: 10, bottom: 10, left: `${(b.start / dur) * 100}%`, width: `${(b.duration / dur) * 100}%`, minWidth: 8, background: sceneColor(b.col), opacity: selectedId === b.id ? 1 : 0.82, borderRadius: 5, border: selectedId === b.id ? '2px solid #fff' : '1px solid rgba(0,0,0,0.4)', cursor: 'grab', overflow: 'hidden', color: '#000', fontSize: 11, fontWeight: 700, padding: '4px 6px', willChange: 'left,width' }}>
                 Scene {b.col + 1}
-                <div onMouseDown={(e) => { e.stopPropagation(); dragRef.current = { kind: 'trim', id: b.id }; }}
-                  style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', background: 'rgba(0,0,0,0.35)' }} />
+                <div onMouseDown={(e) => { e.stopPropagation(); setSelectedId(b.id); dragRef.current = { kind: 'trim', id: b.id, start: b.start, duration: b.duration }; }}
+                  style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 8, cursor: 'ew-resize', background: 'rgba(0,0,0,0.35)' }} />
               </div>
             ))}
             {/* playhead */}
