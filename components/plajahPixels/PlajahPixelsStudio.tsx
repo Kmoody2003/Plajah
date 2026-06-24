@@ -2349,7 +2349,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge }> = ({ platform }) 
             {/* ─── Recording Save Modal ──────────────────────────────────────────── */}
             <AnimatePresence>
                 {showRenderPanel && (
-                    <TimelineMode layers={liveLayers} config={config}
+                    <TimelineMode layers={liveLayers} config={config} analyser={analyserRef.current}
                         sessionAudioUrl={audioBlobUrlRef.current} sessionAudioName={audioFileName}
                         onClose={() => setShowRenderPanel(false)} />
                 )}

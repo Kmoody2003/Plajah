@@ -4,19 +4,23 @@
 // result (Fast/Accurate) using the stored music analysis. Pulls the current session
 // track + scenes automatically.
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { X, Film, Zap, Crosshair, Scissors, Trash2, Download, Loader2, Music } from 'lucide-react';
 import { renderTimeline } from '../engine/core/offlineRenderer';
 import { getAnalysis, MusicAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
+import SceneView from './SceneView';
 
 interface Props {
   layers: any[];
   config: any;
+  analyser?: AnalyserNode | null;
   sessionAudioUrl?: string;
   sessionAudioName?: string;
   onClose: () => void;
 }
+
+type AnalysisState = 'none' | 'analyzing' | 'done';
 
 interface Block { id: string; col: number; start: number; duration: number; }
 const COLS = 8;
@@ -38,9 +42,10 @@ function detectBeats(a: MusicAnalysis): number[] {
   return beats;
 }
 
-const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessionAudioName, onClose }) => {
+const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioUrl, sessionAudioName, onClose }) => {
   const [song, setSong] = useState<{ name: string; buffer: AudioBuffer; bytes: ArrayBuffer } | null>(null);
   const [analysis, setAnalysis] = useState<MusicAnalysis | null>(null);
+  const [anState, setAnState] = useState<AnalysisState>('none');
   const [beats, setBeats] = useState<number[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [mode, setMode] = useState<'fast' | 'accurate'>('fast');
@@ -59,17 +64,22 @@ const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessio
   const populated = layers ? Array.from({ length: COLS }, (_, c) => c).filter(c =>
     layers.some(l => l && !l.bypassed && !l.muted && l.clips?.[c] && l.clips[c].type !== 'empty')) : [];
 
+  // The scene under the playhead → drives the live preview monitor.
+  const activeBlock = blocks.find(b => playhead >= b.start && playhead < b.start + b.duration) || null;
+  const activeCol = activeBlock ? activeBlock.col : -1;
+  const previewSnapshot = useMemo(() => (activeCol >= 0 ? snapshotFromColumn(layers, activeCol, `Scene ${activeCol + 1}`) : null), [activeCol, layers]);
+
   const decode = async (data: ArrayBuffer, name: string) => {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const buffer = await ctx.decodeAudioData(data.slice(0));
     ctx.close();
     setSong({ name, buffer, bytes: data });
-    setStage('Analyzing music…'); setBusy(true);
+    setStage('Analyzing music…'); setAnState('analyzing');
     try {
       const a = await getAnalysis(data, buffer);
-      setAnalysis(a); setBeats(detectBeats(a));
-    } catch { /* */ }
-    setBusy(false); setStage('');
+      setAnalysis(a); setBeats(detectBeats(a)); setAnState('done');
+    } catch { setAnState('none'); setErr('Music analysis failed.'); }
+    setStage('');
   };
 
   useEffect(() => {
@@ -85,14 +95,17 @@ const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessio
     const W = c.width = c.clientWidth, H = c.height = c.clientHeight;
     const ctx = c.getContext('2d')!; ctx.clearRect(0, 0, W, H);
     const data = b.getChannelData(0); const step = Math.max(1, Math.floor(data.length / W));
-    ctx.fillStyle = '#34344a';
+    // RED = not analyzed · YELLOW = analyzing · GREEN = analyzed.
+    ctx.fillStyle = anState === 'done' ? '#3f9c5e' : anState === 'analyzing' ? '#bdaa3c' : '#9c4444';
     for (let x = 0; x < W; x++) {
       let mn = 1, mx = -1; for (let i = 0; i < step; i++) { const v = data[x * step + i] || 0; if (v < mn) mn = v; if (v > mx) mx = v; }
       const y1 = (1 - mx) * H / 2, y2 = (1 - mn) * H / 2; ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
     }
-    ctx.fillStyle = 'rgba(255,140,0,0.25)';
-    for (const t of beats) { const x = (t / (dur || 1)) * W; ctx.fillRect(x, 0, 1, H); }
-  }, [song, beats, dur]);
+    if (anState === 'done') {
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      for (const t of beats) { const x = (t / (dur || 1)) * W; ctx.fillRect(x, 0, 1, H); }
+    }
+  }, [song, beats, dur, anState]);
 
   const xToT = (clientX: number) => { const r = trackRef.current!.getBoundingClientRect(); return Math.max(0, Math.min(dur, ((clientX - r.left) / r.width) * dur)); };
 
@@ -120,12 +133,24 @@ const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessio
   }, [dur]);
 
   const autoCut = useCallback(() => {
-    if (!beats.length || !populated.length) { setErr('Need a loaded track (beats) + scenes to auto-cut.'); return; }
-    // Cut at each beat, cycling through scenes; block ends at the next beat.
+    if (!beats.length) { setErr('Load a track first — analysis must finish (waveform green) so there are beats.'); return; }
+    if (!populated.length) { setErr('Add some scenes to the launcher first.'); return; }
+    // Walk the beats; block length VARIES with the music — dense/fast sections (drum
+    // fills) cut every 1–2 beats, calmer sections hold for 3–6. Scene per block is
+    // randomly chosen (no immediate repeat), so lengths + scenes vary across the song.
     const nb: Block[] = [];
-    for (let i = 0; i < beats.length; i++) {
-      const start = beats[i]; const end = i + 1 < beats.length ? beats[i + 1] : dur;
-      nb.push({ id: uid(), col: populated[i % populated.length], start, duration: Math.max(0.2, end - start) });
+    let i = 0, lastCol = -1;
+    while (i < beats.length) {
+      const start = beats[i];
+      const gap = i + 1 < beats.length ? beats[i + 1] - beats[i] : 0.5;
+      const per = gap < 0.34 ? 1 + (Math.random() < 0.5 ? 0 : 1) : 2 + Math.floor(Math.random() * 4);
+      const endIdx = Math.min(beats.length, i + per);
+      const end = endIdx < beats.length ? beats[endIdx] : dur;
+      let col = populated[Math.floor(Math.random() * populated.length)];
+      if (populated.length > 1 && col === lastCol) col = populated[(populated.indexOf(col) + 1) % populated.length];
+      lastCol = col;
+      nb.push({ id: uid(), col, start, duration: Math.max(0.2, end - start) });
+      i = endIdx;
     }
     setBlocks(nb); setErr(null);
   }, [beats, populated, dur]);
@@ -160,6 +185,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessio
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: '1px solid #22222e' }}>
         <Film size={18} color="#FF8C00" /><span style={{ fontWeight: 700 }}>Timeline</span>
         <span style={{ fontSize: 11, color: '#8a8a98' }}>{song ? `${song.name} · ${dur.toFixed(1)}s · ${beats.length} beats` : 'No track loaded'}</span>
+        {song && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#bbb' }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: anState === 'done' ? '#3f9c5e' : anState === 'analyzing' ? '#bdaa3c' : '#9c4444' }} />
+            {anState === 'done' ? 'Analyzed' : anState === 'analyzing' ? 'Analyzing…' : 'Not analyzed'}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <button onClick={() => setMode('fast')} style={tabStyle(mode === 'fast')}><Zap size={12} /> Fast</button>
         <button onClick={() => setMode('accurate')} style={tabStyle(mode === 'accurate')}><Crosshair size={12} /> Accurate</button>
@@ -187,6 +218,14 @@ const TimelineMode: React.FC<Props> = ({ layers, config, sessionAudioUrl, sessio
           <Music size={28} color="#444" /><div style={{ marginTop: 10, fontSize: 13 }}>Load a track in the session, or pick one:</div>
           <input type="file" accept="audio/*" onChange={e => e.target.files?.[0] && e.target.files[0].arrayBuffer().then(d => decode(d, e.target.files![0].name))} style={{ marginTop: 10, color: '#ccc', fontSize: 12 }} />
         </div>}
+        {song && (
+          <div style={{ width: 'min(46%, 640px)', aspectRatio: '16/9', margin: '0 auto 16px', background: '#000', borderRadius: 8, overflow: 'hidden', border: '1px solid #22222e', position: 'relative' }}>
+            {previewSnapshot
+              ? <SceneView snapshot={previewSnapshot} analyser={analyser ?? null} palette={config.colorPalette} playing={true} />
+              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 12 }}>No scene at the playhead — click the timeline to scrub</div>}
+            <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 10, color: '#9a9aa8', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4 }}>PREVIEW · {activeBlock ? `Scene ${activeBlock.col + 1}` : '—'} · {playhead.toFixed(1)}s</div>
+          </div>
+        )}
         {song && (
           <div ref={trackRef} onClick={(e) => !dragRef.current && setPlayhead(xToT(e.clientX))}
             style={{ position: 'relative', height: 160, background: '#101018', borderRadius: 8, border: '1px solid #22222e', overflow: 'hidden', cursor: 'crosshair' }}>
