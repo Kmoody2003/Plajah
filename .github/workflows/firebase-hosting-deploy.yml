@@ -14,10 +14,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 1
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git clone --depth=1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" .
+          git checkout ${{ github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -46,18 +49,19 @@ jobs:
         run: npx firebase-tools deploy --only firestore --project gen-lang-client-0665118474 --force
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
-  # SEPARATE job: a failure here (e.g. missing IAM the first time) can NOT block
-  # the hosting deploy above. One-time setup is documented in BACKEND_DEPLOY.md.
   deploy_api:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 1
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git clone --depth=1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" .
+          git checkout ${{ github.sha }}
 
       - uses: actions/setup-node@v4
         with:
