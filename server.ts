@@ -3088,6 +3088,85 @@ async function startServer() {
     const dbData = await fetchFirebaseDoc(collection, id as string);
     if (!dbData || !dbData.fields) return res.status(404).send('Not Found');
 
+    // Album embed: ALWAYS render the full player — album art + the whole track list +
+    // an audio player — whether or not a specific track was requested. (Previously a
+    // share link without a &track= resolved no media and returned "No Media Found",
+    // so album/music embeds showed nothing. This is the fix.)
+    if (type === 'album') {
+      const albumTitle = dbData.fields?.title?.stringValue || 'Album';
+      const albumArtist = dbData.fields?.artist?.stringValue || '';
+      const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
+      const tracksArr = dbData.fields?.tracks?.arrayValue?.values || [];
+      const tracks = tracksArr.map((t: any) => {
+        const f = t.mapValue?.fields || {};
+        const locked = !!f.isPaywalled?.booleanValue;            // don't expose paywalled track URLs
+        return {
+          title: f.title?.stringValue || 'Untitled',
+          artist: f.artist?.stringValue || albumArtist,
+          url: locked ? '' : (f.url?.stringValue || ''),
+          cover: f.albumCover?.stringValue || cover,
+          locked,
+        };
+      }).filter((t: any) => !!t.title);
+
+      let startIndex = 0;
+      if (track) {
+        const i = tracksArr.findIndex((t: any) => t.mapValue?.fields?.id?.stringValue === track);
+        if (i >= 0) startIndex = i;
+      }
+
+      const j = (v: any) => JSON.stringify(v).replace(/</g, '\\u003c');  // safe to embed in <script>
+      const safeAlbumTitle = htmlEscape(albumTitle);
+      const safeAlbumArtist = htmlEscape(albumArtist);
+      const safeCover = htmlEscape(cover);
+
+      return res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeAlbumTitle}</title>
+<style>
+*{box-sizing:border-box;}html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#fff;}
+.wrap{position:relative;width:100%;height:100%;display:flex;}
+.bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.22;filter:blur(46px);transform:scale(1.15);}
+.scrim{position:absolute;inset:0;background:linear-gradient(120deg,rgba(0,0,0,.92),rgba(0,0,0,.6));}
+.left{position:relative;z-index:1;flex:0 0 44%;max-width:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;padding:18px;}
+.art{width:128px;height:128px;border-radius:14px;object-fit:cover;box-shadow:0 18px 50px rgba(0,0,0,.6);background:#222;}
+.meta{text-align:center;max-width:100%;}
+.kicker{margin:0 0 3px;font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#ff8c00;}
+.title{margin:0;font-size:15px;font-weight:900;letter-spacing:-.3px;line-height:1.15;}
+.artist{margin:2px 0 0;font-size:12px;color:#bbb;}
+audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
+.right{position:relative;z-index:1;flex:1;overflow-y:auto;padding:12px 10px;border-left:1px solid rgba(255,255,255,.08);}
+.row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer;transition:background .15s;}
+.row:hover{background:rgba(255,255,255,.07);}.row.active{background:rgba(255,140,0,.16);}
+.num{font-size:11px;color:#888;width:18px;text-align:center;flex:0 0 18px;}.row.active .num{color:#ff8c00;}
+.tt{flex:1;min-width:0;}.tt b{display:block;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.tt span{font-size:10.5px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+.lock{font-size:10px;color:#777;}
+.empty{padding:18px;color:#888;font-size:12px;}
+@media (max-width:430px){.wrap{flex-direction:column;}.left{flex:0 0 auto;max-width:none;flex-direction:row;justify-content:flex-start;gap:12px;padding:12px;}.art{width:64px;height:64px;}.meta{text-align:left;}.right{border-left:none;border-top:1px solid rgba(255,255,255,.08);}}
+</style></head>
+<body>
+  <div class="wrap">
+    <div class="bg" id="bg"></div><div class="scrim"></div>
+    <div class="left">
+      <img class="art" id="art" src="${safeCover}" alt="" onerror="this.style.visibility='hidden'"/>
+      <div class="meta"><p class="kicker">Now Playing on Plajah</p><h3 class="title" id="ctitle">${safeAlbumTitle}</h3><p class="artist" id="cartist">${safeAlbumArtist}</p></div>
+      <audio id="aud" controls autoplay playsinline></audio>
+    </div>
+    <div class="right" id="list"></div>
+  </div>
+  <script>
+    var TRACKS=${j(tracks)},START=${startIndex},COVER=${j(cover)},cur=-1;
+    var aud=document.getElementById('aud'),list=document.getElementById('list'),bg=document.getElementById('bg'),art=document.getElementById('art'),ct=document.getElementById('ctitle'),ca=document.getElementById('cartist');
+    if(COVER)bg.style.backgroundImage="url('"+COVER+"')";
+    function esc(s){return String(s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function rows(){if(!TRACKS.length){list.innerHTML='<div class="empty">No tracks in this album yet.</div>';return;}list.innerHTML='';TRACKS.forEach(function(t,i){var r=document.createElement('div');r.className='row'+(i===cur?' active':'');r.innerHTML='<div class="num">'+(t.locked?'\\uD83D\\uDD12':(i+1))+'</div><div class="tt"><b>'+esc(t.title)+'</b><span>'+esc(t.artist)+'</span></div>'+(t.locked?'<div class="lock">Locked</div>':'');r.onclick=function(){if(!t.locked&&t.url)play(i);};list.appendChild(r);});}
+    function play(i){var t=TRACKS[i];if(!t||!t.url)return;cur=i;aud.src=t.url;aud.play().catch(function(){});ct.textContent=t.title;ca.textContent=t.artist||'';var c=t.cover||COVER;if(c){art.src=c;art.style.visibility='visible';bg.style.backgroundImage="url('"+c+"')";}rows();}
+    aud.addEventListener('ended',function(){for(var k=cur+1;k<TRACKS.length;k++){if(!TRACKS[k].locked&&TRACKS[k].url){play(k);return;}}});
+    rows();
+    (function(){if(TRACKS[START]&&!TRACKS[START].locked&&TRACKS[START].url){play(START);return;}for(var k=0;k<TRACKS.length;k++){if(!TRACKS[k].locked&&TRACKS[k].url){play(k);return;}}})();
+  </script>
+</body></html>`);
+    }
+
     let mediaUrl = '';
     let title = '';
     let cover = '';
@@ -3098,15 +3177,6 @@ async function startServer() {
       title = dbData.fields?.title?.stringValue || 'Video';
       cover = dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
       if (mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be')) isYoutube = true;
-    } else if (type === 'album') {
-      const tracksArray = dbData.fields?.tracks?.arrayValue?.values || [];
-      const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
-      if (trackObj) {
-        mediaUrl = trackObj.mapValue?.fields?.url?.stringValue || '';
-        title = trackObj.mapValue?.fields?.title?.stringValue || 'Track';
-      }
-      cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
-      if (!title || title === 'Track') title = (dbData.fields?.title?.stringValue || 'Album') + (title && title !== 'Track' ? ' — ' + title : '');
     } else if (type === 'feed') {
       mediaUrl = dbData.fields?.videoUrl?.stringValue || '';
       title = 'Video Post';
