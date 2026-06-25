@@ -127,6 +127,7 @@ const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView')
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
+import KidsModeBar from './components/KidsModeBar';
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
@@ -317,6 +318,9 @@ const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
+  // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
+  // child (safe content + screen-time) without a separate login.
+  const [activeChildProfile, setActiveChildProfile] = useState<UserProfile | null>(null);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -333,6 +337,13 @@ const App: React.FC = () => {
     const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; setFanRoomMatchId(d.matchId); setFanRoomMatch(d.match || null); setView('MATCH_FAN_ROOMS'); };
     window.addEventListener('plajah:open-fanroom', h);
     return () => window.removeEventListener('plajah:open-fanroom', h);
+  }, [setView]);
+
+  // Enter Kids Mode for a child — the app then behaves as that child + lands on a safe home.
+  useEffect(() => {
+    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('MOVIES_TV'); } };
+    window.addEventListener('plajah:enter-kids', h);
+    return () => window.removeEventListener('plajah:enter-kids', h);
   }, [setView]);
 
   useEffect(() => {
@@ -353,6 +364,8 @@ const App: React.FC = () => {
 const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | 'BOOK' | 'GAMES' | 'MY_ARCHIVE'>('MUSIC');
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  // The profile the app behaves as — the active child overrides the logged-in parent.
+  const effectiveProfile = activeChildProfile || userProfile;
   const profileUnsubRef = useRef<(() => void) | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -3464,7 +3477,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onVisitUser={handleVisitUser}
                 onMessage={handleMessage}
                 onSelectGame={handleSelectGame}
-                viewerProfile={userProfile}
+                viewerProfile={effectiveProfile}
               />
             )}
             {view === 'LIVE_HUB' && (
@@ -3741,7 +3754,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             />
           )}
 
-          <KidsSessionGuard profile={userProfile} />
+          <KidsSessionGuard profile={effectiveProfile} />
+          {activeChildProfile && <KidsModeBar child={activeChildProfile} onExit={() => setActiveChildProfile(null)} />}
           <GlobalPlayer
             onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 

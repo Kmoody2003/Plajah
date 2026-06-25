@@ -4536,6 +4536,65 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
   }
 };
 
+// ── Family / managed CHILD accounts ─────────────────────────────────────────
+// Child accounts are Firestore-only profiles (no separate Firebase Auth login) owned by
+// a guardian. Safe-by-default controls are applied at creation. The guardian switches
+// into a child's "kids mode" in-session (the active-profile overlay in App.tsx).
+
+/** Create a managed child profile under `guardianUid`. Returns the new profile. */
+export const createChildProfile = async (
+  guardianUid: string,
+  data: { displayName: string; birthYear?: number; photoURL?: string }
+): Promise<UserProfile | null> => {
+  try {
+    const childUid = `child_${guardianUid.slice(0, 6)}_${Math.random().toString(36).slice(2, 9)}`;
+    const profile: UserProfile = {
+      uid: childUid,
+      displayName: data.displayName || 'Kid',
+      photoURL: data.photoURL || '',
+      email: '',
+      isChild: true,
+      accountType: 'CHILD',
+      guardianUid,
+      birthYear: data.birthYear,
+      role: 'user',
+      tier: 'FREE',
+      followerCount: 0,
+      followingCount: 0,
+      createdAt: Date.now(),
+      storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
+      parentalControls: { adultFilter: true, maxMaturity: 'PG', hideAdultPosts: true, kidsMode: true },
+    } as UserProfile;
+    await setDoc(doc(db, 'users', childUid), profile);
+    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayUnion(childUid) });
+    return profile;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `users (child of ${guardianUid})`);
+    return null;
+  }
+};
+
+/** All child profiles managed by this guardian. */
+export const listChildProfiles = async (guardianUid: string): Promise<UserProfile[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('guardianUid', '==', guardianUid)));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as UserProfile);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'users (children)');
+    return [];
+  }
+};
+
+/** Remove a managed child profile + unlink it from the guardian. */
+export const deleteChildProfile = async (guardianUid: string, childUid: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'users', childUid));
+    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayRemove(childUid) });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `users/${childUid}`);
+  }
+};
+
 /**
  * Generates a private interest profile for the user based on their tags and behavior.
  * This is a simulated algorithm.

@@ -27,6 +27,7 @@ import MailingListManager from './MailingListManager';
 import FileUploader from './FileUploader';
 import FilmOnboardingWizard from './FilmOnboardingWizard';
 import FilmDistributionHub from './FilmDistributionHub';
+import FamilyAccountManager from './FamilyAccountManager';
 import FilmRightsDashboard from './FilmRightsDashboard';
 import FilmAnalyticsView from './FilmAnalyticsView';
 // Music Studio
@@ -72,7 +73,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
-    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY'
+    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY'
   >('ACCOUNT');
   const [showFilmWizard, setShowFilmWizard]   = useState(false);
   const [showBookWizard, setShowBookWizard]   = useState(false);
@@ -227,6 +228,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
         <nav className="flex-1 space-y-2">
           {[
             { id: 'ACCOUNT', label: 'Account Settings', icon: User },
+            { id: 'FAMILY', label: 'Family', icon: Baby },
             { id: 'SAFETY', label: 'Content & Safety', icon: Settings },
             { id: 'ALIASES', label: 'Emails & Aliases', icon: Mail },
             { id: 'INTERESTS', label: 'Interest Notebook', icon: Notebook },
@@ -726,6 +728,16 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   {isSaving ? 'Synchronizing Station...' : 'Go Live / Save Content'}
                 </button>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'FAMILY' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <header>
+                <h1 className="text-5xl md:text-[8rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Family</h1>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">Kid accounts, parental controls & screen-time</p>
+              </header>
+              {user?.uid && <FamilyAccountManager guardianUid={user.uid} />}
             </motion.div>
           )}
 

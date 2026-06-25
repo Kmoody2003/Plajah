@@ -679,12 +679,20 @@ service cloud.firestore {
       // (enforced at the application layer — see email privacy guards
       // in AdminDashboard, VideoTab, App.tsx, etc.).
       allow read: if true;
-      // Allow owner to update everything; others can only bump followerCount
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      // Allow owner to update everything; others can only bump followerCount.
+      // A guardian may also create + manage a CHILD profile they own (isChild +
+      // guardianUid == their uid) — Firestore-only managed sub-accounts, no separate auth.
+      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
+                      (isAuthenticated() &&
+                       request.resource.data.isChild == true &&
+                       request.resource.data.guardianUid == request.auth.uid);
       allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
                       (isAuthenticated() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1);
+                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
+                      (isAuthenticated() &&
+                       resource.data.isChild == true &&
+                       resource.data.guardianUid == request.auth.uid);
 
       // Private user data — only the account owner can read
       match /private/{docId} {
