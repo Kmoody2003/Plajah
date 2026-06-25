@@ -790,6 +790,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ADMIN_AD_DASHBOARD');
     } else if (target === 'PARTNER_DASHBOARD') {
       setView('PARTNER_DASHBOARD');
+    } else if (target === 'MOVIES_TV') {
+      setView('MOVIES_TV');
     } else if (target === 'HELP_CENTER') {
       setView('HELP_CENTER');
     } else if (target === 'BRAND_DASHBOARD') {

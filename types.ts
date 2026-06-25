@@ -68,6 +68,23 @@ export interface MovieMetadata {
   specialFeatures?: MovieSpecialFeature[];
 }
 
+/** Film/TV distribution + release choices, collected in the project uploader (folded in
+ *  from the old "Distribute New Film" wizard) and refined later in the Film Distribution
+ *  Hub. Stored on the Album as `filmDistribution`; legacy flags (isPaywalled/isAdSupported/
+ *  price/isScheduled/releaseDate/earlyAccessEnabled/isPrivate) are also set from it. */
+export interface FilmDistribution {
+  /** FREE_FAST = ad-supported FAST channel; RENTAL/PURCHASE/HYBRID/PPV = paid. */
+  model: 'FREE_FAST' | 'RENTAL' | 'PURCHASE' | 'HYBRID' | 'PPV';
+  rentalPrice?: number;
+  purchasePrice?: number;
+  rentalWindowHrs?: 24 | 48 | 72;
+  release: 'NOW' | 'SCHEDULED' | 'EARLY_ACCESS' | 'PRIVATE';
+  releaseAt?: number;            // ms — for SCHEDULED
+  fastChannel?: boolean;         // also run on the free 24/7 FAST channel
+  watchParty?: boolean;          // host a premiere watch party
+  contentRating?: string;        // G / PG / PG-13 / R / NC-17 / TV-MA …
+}
+
 export interface TVSeason {
   id: string;
   number: number;
@@ -398,6 +415,7 @@ export interface Album {
   seasons?: TVSeason[]; // For TV Series
   bookChapters?: BookChapter[];
   movieMetadata?: MovieMetadata; // Added for Movie Album type
+  filmDistribution?: FilmDistribution; // Film/TV monetization + release (uploader → Taleo)
   bookPreviewConfig?: {
     type: 'CHAPTERS' | 'PAGES';
     allowedChapterIds?: string[];

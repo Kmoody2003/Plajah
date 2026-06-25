@@ -410,6 +410,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   onCreated={(album) => {
                     setShowCreator({ active: false });
                     loadUserAlbums();
+                    // Declaring a film or TV series sends it to the Taleo experience.
+                    if (album?.type === 'VIDEO') window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'MOVIES_TV' } }));
                   }}
                   onCancel={() => setShowCreator({ active: false })}
                   onMinimize={() => setShowCreator({ active: false })}
@@ -1960,7 +1962,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           {activeTab === 'FILM_STUDIO' && profile && (
             <FilmDistributionHub
               user={profile}
-              onDistributeFilm={() => setShowFilmWizard(true)}
+              onDistributeFilm={() => setShowCreator({ active: true, type: 'VIDEO' })}
             />
           )}
 

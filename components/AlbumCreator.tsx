@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit } from '../types';
+import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
+import FilmDistributionStep, { DEFAULT_FILM_DISTRIBUTION } from './FilmDistributionStep';
 import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
@@ -52,6 +53,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [artist, setArtist] = useState(initialAlbum?.artist || '');
   const [type, setType] = useState<AssetType>(resolvedInitialType);
   const [subType, setSubType] = useState<'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
+  // Film/TV distribution + release (folded in from the old Distribute-New-Film wizard).
+  const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
@@ -224,6 +227,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // Logical steps: 0=Type 1=Format 2=Content 3=World 4=Cast 5=Details 6=Settings
   // step 1 skipped for BOOK/PHOTO/GAME; step 4 skipped unless VIDEO MOVIE/TV_SERIES
   const hasCastStep = type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES');
+  const isFilm = hasCastStep; // VIDEO + MOVIE/TV_SERIES — shows the film distribution step
   const skipStep1 = !hasSubtype(type);
   const skipStep4 = !hasCastStep;
 
@@ -633,6 +637,25 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         crew: productionCredits.map(c => `${c.name} (${c.role})`),
       };
 
+      // Map the film/TV distribution choices onto the album (legacy flags + the structured
+      // filmDistribution). Films/TV go straight to the Taleo experience on publish.
+      const filmFields: Partial<Album> = isFilm ? (() => {
+        const d = filmDist;
+        const isPaid = d.model !== 'FREE_FAST';
+        const px = d.model === 'RENTAL' ? (d.rentalPrice || 0) : (d.purchasePrice || 0);
+        return {
+          isAdSupported: d.model === 'FREE_FAST' || !!d.fastChannel,
+          isPaywalled: isPaid,
+          price: isPaid ? px : 0,
+          isPrivate: d.release === 'PRIVATE',
+          isPublic: d.release !== 'PRIVATE' && !isDraft,
+          isScheduled: d.release === 'SCHEDULED',
+          releaseDate: d.release === 'SCHEDULED' ? d.releaseAt : undefined,
+          earlyAccessEnabled: d.release === 'EARLY_ACCESS',
+          filmDistribution: d,
+        };
+      })() : {};
+
       const newAlbum: Album = {
         ...initialAlbum,
         id: albumId, title,
@@ -668,6 +691,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           windows: hnsWindows,
           trackConfigs: type === 'MUSIC' ? hnsTrackConfigs : undefined
         } : undefined,
+        ...filmFields,
       };
       const publishedAlbum = await publishToCloud(newAlbum, (text, percent) => setStatus({ text, percent }));
       onCreated(typeof publishedAlbum === 'string' ? newAlbum : publishedAlbum);
@@ -1951,7 +1975,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       </div>
 
-      {/* Pricing */}
+      {/* Film/TV distribution — folded-in Distribute-New-Film options (replaces the generic
+          price control for films; the deep tools live in the Film Distribution Hub). */}
+      {isFilm && (
+        <div className="p-5 bg-white/[0.03] border border-white/10 rounded-2xl">
+          <FilmDistributionStep value={filmDist} onChange={setFilmDist} />
+        </div>
+      )}
+
+      {/* Pricing (non-film) */}
+      {!isFilm && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Full Project Price ($)</label>
@@ -1965,6 +1998,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(parseFloat(e.target.value))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
         </div>
       </div>
+      )}
 
       <div className="space-y-3">
         <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Gallery Experience URL (Optional)</label>
