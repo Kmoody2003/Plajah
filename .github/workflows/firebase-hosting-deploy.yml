@@ -17,9 +17,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node 20 LTS for the firebase deploy: Node 24's undici keep-alive triggers
+      # "premature close" retries against Google APIs, and the retry of the non-idempotent
+      # Hosting release POST then 400s as "already the current active version" (the first
+      # POST actually succeeded). Node 20 avoids the premature-close churn.
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
