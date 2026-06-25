@@ -31,17 +31,25 @@ jobs:
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
         run: npm run build
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
-
+      # firebase-tools authenticates from a service-account key we write to disk and point
+      # GOOGLE_APPLICATION_CREDENTIALS at — the documented, reliable CI method (more robust
+      # than depending on another action's env export reaching firebase-tools).
       - name: Deploy Firebase Hosting
-        run: npx firebase-tools@15.6.0 deploy --only hosting --project gen-lang-client-0665118474 --non-interactive --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx firebase-tools@15.6.0 deploy --only hosting --project gen-lang-client-0665118474 --non-interactive --force
 
       - name: Deploy Firestore rules
         continue-on-error: true
-        run: npx firebase-tools@15.6.0 deploy --only firestore --project gen-lang-client-0665118474 --non-interactive --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx firebase-tools@15.6.0 deploy --only firestore --project gen-lang-client-0665118474 --non-interactive --force
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   deploy_api:
