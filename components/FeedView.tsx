@@ -5,6 +5,7 @@ import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, Live
 import PageHeader from './PageHeader';
 import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks } from '../services/backendService';
 import { getDailyFigure } from '../services/historyData';
+import { filterPostsForViewer } from '../services/contentSafety';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
 import { SportsCenterView } from './SportsCenterView';
@@ -80,6 +81,8 @@ interface FeedViewProps {
   onVisitUser: (uid: string) => void;
   onMessage?: (uid: string) => void;
   onSelectGame?: (game: Game) => void;
+  /** Viewer's profile — drives child-safety filtering of the feed. */
+  viewerProfile?: UserProfile | null;
 }
 
 type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED' | 'NOW' | 'PULSE';
@@ -1238,7 +1241,7 @@ const RecommendedClubsEmptyState: React.FC = () => {
   );
 };
 
-const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, onMessage, onSelectGame }) => {
+const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, onMessage, onSelectGame, viewerProfile }) => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [globalPosts, setGlobalPosts] = useState<Post[]>([]);
   const [signInAction, setSignInAction] = useState<string | null>(null);
@@ -1318,7 +1321,9 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [feedLightboxUrl, setFeedLightboxUrl] = useState<string | null>(null);
 
   // Apply δ_discovery personalization — re-sorts feedItems by score × viewer context
-  const personalizedFeedItems = useViewerDiscovery(feedItems, currentUser?.uid);
+  const discoveryFeedItems = useViewerDiscovery(feedItems, currentUser?.uid);
+  // Child-safety: hide adult-themed / age-restricted posts for child accounts.
+  const personalizedFeedItems = React.useMemo(() => filterPostsForViewer(discoveryFeedItems, viewerProfile), [discoveryFeedItems, viewerProfile]);
 
   // Compute at render scope so React always sees changes — avoids IIFE-in-JSX issues
   const displayedPosts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;

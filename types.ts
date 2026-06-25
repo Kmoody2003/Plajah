@@ -1072,7 +1072,7 @@ export interface UserProfile {
       type: 'LIVE_TALK' | 'LIVE_STREAM';
     }[];
   };
-  accountType?: 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER' | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE';
+  accountType?: 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER' | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD';
   /** Athlete-account fields (accountType === 'ATHLETE'). The sports/chain layer reads these. */
   athleteSport?: 'FOOTBALL' | 'BASKETBALL' | 'SOCCER' | 'BASEBALL' | 'VOLLEYBALL' | 'HOCKEY' | 'TRACK' | 'OTHER';
   athletePosition?: string;
@@ -1080,6 +1080,17 @@ export interface UserProfile {
   athleteSchool?: string;
   athleteState?: string;
   athleteClassYear?: number;
+
+  // ─── Family / child-safety (accountType 'PARENT' | 'CHILD') ─────────────────
+  /** True for a managed child account. Safe defaults are applied regardless of who edits. */
+  isChild?: boolean;
+  /** uid of the managing parent/guardian (set on a CHILD account). */
+  guardianUid?: string;
+  /** uids of the children a PARENT account manages. */
+  childUids?: string[];
+  birthYear?: number;
+  /** Per-account safety + screen-time settings. A child's are owned by the guardian. */
+  parentalControls?: ParentalControls;
   revenue?: UserRevenue;
   storeSettings?: StoreSettings;
   isWriter?: boolean;
@@ -1861,6 +1872,33 @@ export type ExperienceMode =
   | 'STORY_TELLER'
   | 'CONTENT_CREATOR'
   | 'SCIENCE_ENGINEER';
+
+/** Maturity ceiling, lowest → highest. The safety engine hides anything above the
+ *  viewer's ceiling. Child accounts default to 'PG'. */
+export type MaturityRating = 'G' | 'PG' | 'PG13' | 'TEEN' | 'MATURE';
+
+export interface ParentalControls {
+  /** Hide adult / explicit / NSFW / age-restricted content. ON by default for children
+   *  and not child-overridable. */
+  adultFilter: boolean;
+  /** Highest maturity the viewer may see. */
+  maxMaturity: MaturityRating;
+  /** Run the social Feed through the safety filter (hide adult-themed posts). */
+  hideAdultPosts: boolean;
+  /** Re-skin the whole experience as Kids Mode (friendlier theme, curated entry points,
+   *  adult surfaces hidden). */
+  kidsMode: boolean;
+  /** Daily screen-time cap in minutes (0 / undefined = unlimited). */
+  dailyTimeLimitMins?: number;
+  /** Allowed hours window (24h local), e.g. { start: 7, end: 20 }. */
+  allowedHours?: { start: number; end: number };
+  /** Guardian passcode (hashed) to unlock a locked session or change controls. */
+  guardianPasscodeHash?: string;
+  /** Surfaces a child may open in Kids Mode (allow-list of AppView ids). Empty = default set. */
+  allowedSurfaces?: string[];
+  updatedAt?: number;
+  updatedBy?: string;
+}
 
 export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'ATHLETE_SHOWCASE'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'

@@ -125,6 +125,7 @@ const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
+import KidsSessionGuard from './components/KidsSessionGuard';
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
@@ -3441,12 +3442,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
-              <FeedView 
-                onBack={() => setView('DASHBOARD')} 
-                currentUser={user} 
-                onVisitUser={handleVisitUser} 
+              <FeedView
+                onBack={() => setView('DASHBOARD')}
+                currentUser={user}
+                onVisitUser={handleVisitUser}
                 onMessage={handleMessage}
                 onSelectGame={handleSelectGame}
+                viewerProfile={userProfile}
               />
             )}
             {view === 'LIVE_HUB' && (
@@ -3723,6 +3725,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             />
           )}
 
+          <KidsSessionGuard profile={userProfile} />
           <GlobalPlayer
             onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 
