@@ -14,7 +14,7 @@ import {
   User, Settings, Database, Video as VideoIcon, Music, Music2, Image as ImageIcon, BookOpen,
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
-  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, DollarSign, UploadCloud, LayoutTemplate, Share2,
+  CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, DollarSign, UploadCloud, LayoutTemplate, Share2,
   Film, BarChart2, FileText, Users, Activity,
 } from 'lucide-react';
 import FediverseSettings from './FediverseSettings';
@@ -1134,7 +1134,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {(['FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER'] as const).map((type) => (
+                    {(['FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER', 'ATHLETE'] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -1165,6 +1165,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                           {type === 'STUDENT' && <Notebook size={20} />}
                           {type === 'TEACHER' && <LayoutGrid size={20} />}
                           {type === 'PARTNER' && <HeartHandshake size={20} />}
+                          {type === 'ATHLETE' && <Trophy size={20} />}
                         </div>
                         <span className="text-[10px] font-black uppercase tracking-widest">{type}</span>
                       </button>

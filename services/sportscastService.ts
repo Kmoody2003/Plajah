@@ -129,16 +129,26 @@ export async function pushHighlight(
   const timestamp = Date.now();
   await addDoc(highlightsRef(feedId), { ...event, timestamp });
 
-  // ── Chain recording (fire-and-forget, non-blocking) ───────────────────────
-  if (options?.recordOnChain && options.athleteUserId && options.gameState) {
-    const { recordHighlightOnChain } = await import('./athleteChainService');
-    recordHighlightOnChain(
-      feedId,
-      options.athleteUserId,
-      { ...event, timestamp } as HighlightEvent,
-      options.gameState,
-      options.videoIpfsCid ?? '',
-    ).catch(err => console.warn('[Sportscast] Chain record failed (non-fatal):', err));
+  // ── Verified achievement pipeline (fire-and-forget, non-blocking) ─────────
+  // Every athlete play creates a PENDING "sports-class achievement" that is only
+  // minted on-chain AFTER it's verified from game data sources — the on-platform
+  // sportscaster who logged it (authoritative) plus any corroborating parent/live
+  // streams of the same event. The achievement then permanently follows the athlete.
+  // (Replaces the old immediate fire-and-forget mint; minting now happens through the
+  // verification gate inside athleteAchievementService.)
+  if (options?.athleteUserId) {
+    import('./athleteAchievementService').then(({ createAchievementFromHighlight }) =>
+      createAchievementFromHighlight(
+        options.athleteUserId!,
+        { type: event.type, label: event.label, commentaryText: event.commentaryText },
+        {
+          sport: options.gameState?.sport || 'OTHER',
+          feedId,
+          gameLabel: options.gameState ? `${options.gameState.homeTeam} vs ${options.gameState.awayTeam}` : undefined,
+          clipUrl: options.videoIpfsCid || undefined,
+        },
+      ),
+    ).catch(err => console.warn('[Sportscast] Achievement pipeline failed (non-fatal):', err));
   }
 }
 

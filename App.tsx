@@ -124,6 +124,7 @@ const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
 const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
+const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
@@ -2917,7 +2918,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'PLAJAH_SPORTS' && (
-              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} />
+              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} />
+            )}
+
+            {view === 'ATHLETE_SHOWCASE' && (
+              <AthleteShowcaseView onBack={() => setView('PLAJAH_SPORTS')} />
             )}
 
             {view === 'PLAJAH_LABS' && (

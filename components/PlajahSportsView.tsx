@@ -476,9 +476,10 @@ const ScoreChip: React.FC<{ event: any }> = ({ event }) => {
 interface Props {
   onVisitUser?: (uid: string) => void;
   currentUser?: UserProfile | null;
+  onOpenAthletes?: () => void;
 }
 
-export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) => {
+export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, onOpenAthletes }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
   const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
   const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
@@ -699,6 +700,14 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser }) 
             >
               <BarChart2 size={12} /> Stat Cards
             </button>
+            {onOpenAthletes && (
+              <button
+                onClick={onOpenAthletes}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+              >
+                <Trophy size={12} /> Athletes
+              </button>
+            )}
             <button
               onClick={() => loadData(activeTab)}
               className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
