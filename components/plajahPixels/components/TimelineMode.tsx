@@ -267,9 +267,10 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
           const blk = makeBlock(snapshotFromColumn(layers, b.col, `Scene ${b.col + 1}`), b.start, b.duration); return blk;
         }),
       };
+      // Fast renders at 720p (2.25× fewer pixels → much quicker); Accurate masters at 1080p.
       const blob = await renderTimeline({
         timeline: tl, audioBuffer: song.buffer, analysis: analysis || undefined, config,
-        width: 1920, height: 1080, fps: 30, fast: mode === 'fast',
+        width: mode === 'fast' ? 1280 : 1920, height: mode === 'fast' ? 720 : 1080, fps: 30, fast: mode === 'fast',
         onProgress: (p, s) => { setProgress(p); setStage(s); }, signal: abortRef.current.signal,
       });
       if (!blob) { setErr('Render failed or cancelled (see console).'); setBusy(false); return; }
@@ -295,8 +296,8 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
           </span>
         )}
         <div style={{ flex: 1 }} />
-        <button onClick={() => setMode('fast')} style={tabStyle(mode === 'fast')}><Zap size={12} /> Fast</button>
-        <button onClick={() => setMode('accurate')} style={tabStyle(mode === 'accurate')}><Crosshair size={12} /> Accurate</button>
+        <button onClick={() => setMode('fast')} title="720p, GPU-accelerated — much quicker" style={tabStyle(mode === 'fast')}><Zap size={12} /> Fast 720p</button>
+        <button onClick={() => setMode('accurate')} title="1080p master, GPU-accelerated" style={tabStyle(mode === 'accurate')}><Crosshair size={12} /> Accurate 1080p</button>
         <button onClick={render} disabled={busy || !blocks.length} style={{ ...btn, background: blocks.length && !busy ? 'linear-gradient(90deg,#FF8C00,#ffa733)' : '#3a3a48', color: blocks.length && !busy ? '#1a1a1a' : '#888', fontWeight: 700 }}><Download size={14} /> Render</button>
         <button onClick={onClose} disabled={busy} style={{ ...btn, background: 'transparent', color: '#888' }}><X size={18} /></button>
       </div>

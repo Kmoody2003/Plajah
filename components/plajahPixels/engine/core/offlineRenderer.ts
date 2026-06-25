@@ -51,13 +51,21 @@ export interface RenderOptions {
 
 const VIDEO_CODECS = ['avc1.4D0033', 'avc1.4D0028', 'avc1.42E01F']; // Main 5.1 → Main 4.0 → Baseline
 
-async function pickVideoCodec(width: number, height: number, bitrate: number, fps: number): Promise<string | null> {
+interface PickedCodec { codec: string; hardwareAcceleration: 'prefer-hardware' | 'no-preference'; }
+
+async function pickVideoCodec(width: number, height: number, bitrate: number, fps: number): Promise<PickedCodec | null> {
   if (typeof VideoEncoder === 'undefined') return null;
-  for (const codec of VIDEO_CODECS) {
-    try {
-      const s = await VideoEncoder.isConfigSupported({ codec, width, height, bitrate, framerate: fps });
-      if (s.supported) return codec;
-    } catch { /* try next */ }
+  // Prefer HARDWARE encode (Intel Arc QuickSync / NVENC / VideoToolbox). Software 1080p
+  // H.264 is the render-speed killer — it's what makes a song take an hour. We also probe
+  // with latencyMode 'realtime' so the chosen config matches the throughput-optimized
+  // configure() below (the default 'quality' mode runs slow multi-pass analysis).
+  for (const hw of ['prefer-hardware', 'no-preference'] as const) {
+    for (const codec of VIDEO_CODECS) {
+      try {
+        const s = await VideoEncoder.isConfigSupported({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration: hw, latencyMode: 'realtime' });
+        if (s.supported) return { codec, hardwareAcceleration: hw };
+      } catch { /* try next */ }
+    }
   }
   return null;
 }
@@ -101,8 +109,10 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
 
-  const codec = await pickVideoCodec(width, height, bitrate, fps);
-  if (!codec) { console.warn('[Pixels render] WebCodecs H.264 unavailable in this browser'); return null; }
+  const picked = await pickVideoCodec(width, height, bitrate, fps);
+  if (!picked) { console.warn('[Pixels render] WebCodecs H.264 unavailable in this browser'); return null; }
+  const { codec, hardwareAcceleration } = picked;
+  if (hardwareAcceleration !== 'prefer-hardware') console.warn('[Pixels render] no hardware H.264 encoder — falling back to software (slower).');
 
   const durationSec = timeline?.duration ?? opts.duration ?? 0;
   const total = Math.max(1, Math.ceil(durationSec * fps));
@@ -161,7 +171,9 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
 
   let encErr: any = null;
   const videoEnc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { encErr = e; } });
-  videoEnc.configure({ codec, width, height, bitrate, framerate: fps });
+  // realtime = throughput over the default multi-pass 'quality' analysis; prefer-hardware
+  // routes to the GPU encoder. Together these are the difference between minutes and an hour.
+  videoEnc.configure({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration, latencyMode: 'realtime' });
 
   const gopFrames = Math.max(1, Math.round(fps * 2)); // keyframe every 2s
   const palette = (config.colorPalette || []).slice(0, 3).map(hexToRgb);
