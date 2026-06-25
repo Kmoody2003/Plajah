@@ -1470,6 +1470,18 @@ service cloud.firestore {
     }
 
     // ── WC Video Chat Rooms ──────────────────────────────────────────────────────
+    // Per-match World Cup fan rooms: room doc + members / chat / polls subcollections.
+    // Publicly readable; any signed-in fan can join (members), chat, seed/vote polls.
+    match /wcMatchRooms/{matchId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
+      }
+    }
+
     match /wcVideoRooms/{clubId} {
       allow read: if isAuthenticated();
       // Room doc: any authenticated user can create/update (join/leave session state)
