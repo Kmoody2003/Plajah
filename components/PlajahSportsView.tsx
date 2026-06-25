@@ -9,7 +9,7 @@ import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
 import PlajahHealthFitnessView from './PlajahHealthFitnessView';
 import {
-  Zap, Search, X, Plus, MapPin, Trophy, TrendingUp, Newspaper,
+  Zap, Search, X, Plus, MapPin, Trophy, Users, TrendingUp, Newspaper,
   ChevronRight, ChevronLeft, Star, Shield, BarChart2, Flag, Gauge,
   Radio, Gamepad2, Globe, RefreshCw, Dumbbell, Target, CircleDot,
   BookOpen, Heart, Activity,
@@ -477,9 +477,10 @@ interface Props {
   onVisitUser?: (uid: string) => void;
   currentUser?: UserProfile | null;
   onOpenAthletes?: () => void;
+  onOpenFanRooms?: () => void;
 }
 
-export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, onOpenAthletes }) => {
+export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, onOpenAthletes, onOpenFanRooms }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
   const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
   const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
@@ -706,6 +707,14 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
               >
                 <Trophy size={12} /> Athletes
+              </button>
+            )}
+            {onOpenFanRooms && (
+              <button
+                onClick={onOpenFanRooms}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+              >
+                <Users size={12} /> Fan Rooms
               </button>
             )}
             <button

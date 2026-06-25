@@ -125,6 +125,7 @@ const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
+const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
@@ -2919,11 +2920,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'PLAJAH_SPORTS' && (
-              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} />
+              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => setView('MATCH_FAN_ROOMS')} />
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (
               <AthleteShowcaseView onBack={() => setView('PLAJAH_SPORTS')} />
+            )}
+
+            {view === 'MATCH_FAN_ROOMS' && (
+              <MatchFanRoomsView currentUser={user} onBack={() => setView('PLAJAH_SPORTS')} />
             )}
 
             {view === 'PLAJAH_LABS' && (
