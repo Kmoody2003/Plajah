@@ -37,11 +37,11 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
 
       - name: Deploy Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --project gen-lang-client-0665118474 --force
+        run: npx firebase-tools@15.6.0 deploy --only hosting --project gen-lang-client-0665118474 --non-interactive --force
 
       - name: Deploy Firestore rules
         continue-on-error: true
-        run: npx firebase-tools deploy --only firestore --project gen-lang-client-0665118474 --force
+        run: npx firebase-tools@15.6.0 deploy --only firestore --project gen-lang-client-0665118474 --non-interactive --force
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   deploy_api:
