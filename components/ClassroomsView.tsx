@@ -652,6 +652,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           </div>
         </div>
 
+        {/* Demo ClassDojo-style class — behavior points, attendance, parent view */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('CLASSROOM_DOJO')}
+            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
+            style={{ border: '1px solid rgba(255,140,0,0.3)', background: 'linear-gradient(120deg, rgba(255,140,0,0.12), rgba(54,197,240,0.1))' }}
+          >
+            <span className="text-2xl">🎯</span>
+            <div className="flex-1">
+              <div className="text-sm font-black text-white flex items-center gap-2">Try the Demo Class <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">DEMO</span></div>
+              <div className="text-[11px] text-white/50">ClassDojo-style — award behavior points, take attendance, switch to the parent view.</div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Open →</span>
+          </button>
+        )}
+
         {/* Featured learning hero card */}
         {onNavigate && (
           <div className="mb-8">
