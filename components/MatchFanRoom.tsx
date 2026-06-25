@@ -35,12 +35,25 @@ function parseMatch(ev: any) {
   };
 }
 
+const norm = (s?: string) => (s || '').toUpperCase();
+function eventMatchesTeams(ev: any, home: TeamCtx, away: TeamCtx): boolean {
+  const abbrs = (ev?.competitions?.[0]?.competitors || []).map((c: any) => norm(c?.team?.abbreviation));
+  return abbrs.includes(norm(home.short)) && abbrs.includes(norm(away.short));
+}
+
 const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
   const matchId = String(match?.id || '');
   const m0 = useMemo(() => parseMatch(match), [match]);
   const [live, setLive] = useState(m0);
   const home = useMemo<TeamCtx>(() => resolveTeamCtx('home', live.home?.team || {}), [live.home]);
   const away = useMemo<TeamCtx>(() => resolveTeamCtx('away', live.away?.team || {}), [live.away]);
+  // Stable room key per fixture (team-pair) so the same match shares ONE room whether it's
+  // opened from a live ESPN card or the (static-id) schedule. Falls back to the raw id if
+  // a team can't be resolved to the WC26 roster.
+  const roomKey = useMemo(() => (home.id && away.id ? `wc_${home.id}_${away.id}` : matchId), [home.id, away.id, matchId]);
+  // The real ESPN event id (for live score + play-by-play). Resolved from the live window
+  // by id or by team match — works even when the room was opened from a synthetic match.
+  const [espnId, setEspnId] = useState<string | null>(matchId.startsWith('wc26_') ? null : matchId);
 
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [chat, setChat] = useState<RoomMessage[]>([]);
@@ -54,27 +67,29 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
   const me = members.find(x => x.uid === currentUser?.uid);
   const mySide = me?.side ?? null;
 
-  // Join + seed polls + subscribe.
+  // Join + seed polls + subscribe (keyed by the stable team-pair room key).
   useEffect(() => {
-    if (!matchId || !currentUser?.uid) return;
-    joinMatchRoom(matchId, currentUser, null).catch(() => {});
-    ensureMatchPolls(matchId, home, away, live.phase, 4).catch(() => {});
-    const u1 = subscribeMembers(matchId, setMembers);
-    const u2 = subscribeMatchChat(matchId, setChat);
-    const u3 = subscribeMatchPolls(matchId, setPolls);
+    if (!roomKey || !currentUser?.uid) return;
+    joinMatchRoom(roomKey, currentUser, null).catch(() => {});
+    ensureMatchPolls(roomKey, home, away, live.phase, 4).catch(() => {});
+    const u1 = subscribeMembers(roomKey, setMembers);
+    const u2 = subscribeMatchChat(roomKey, setChat);
+    const u3 = subscribeMatchPolls(roomKey, setPolls);
     return () => { u1(); u2(); u3(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchId, currentUser?.uid]);
+  }, [roomKey, currentUser?.uid]);
 
-  // Live poll: refresh score/status + play-by-play; goal → system msg + new poll.
+  // Live poll: refresh score/status + play-by-play; goal → system msg + new poll. Resolves
+  // the live ESPN event by id OR by team match, so it works even when this room was opened
+  // from a synthetic (schedule) match with no ESPN id.
   useEffect(() => {
-    if (!matchId) return;
     let alive = true;
     const tick = async () => {
       try {
         const events = await fetchWorldCupWindow();
-        const ev = events.find((e: any) => String(e.id) === matchId);
+        const ev = events.find((e: any) => (espnId && String(e.id) === espnId) || eventMatchesTeams(e, home, away));
         if (ev && alive) {
+          if (String(ev.id) !== espnId) setEspnId(String(ev.id));
           const next = parseMatch(ev);
           setLive(next);
           const score = `${next.homeScore}-${next.awayScore}`;
@@ -82,32 +97,32 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
             const scored = next.homeScore + next.awayScore > m0.homeScore + m0.awayScore;
             prevScore.current = score;
             if (scored) {
-              sendMatchMessage(matchId, { uid: 'system', displayName: 'Match', text: `⚽ GOAL! ${next.home?.team?.displayName || home.name} ${next.homeScore} – ${next.awayScore} ${next.away?.team?.displayName || away.name}`, side: null }).catch(() => {});
-              addNextPoll(matchId, home, away, next.phase).catch(() => {});
+              sendMatchMessage(roomKey, { uid: 'system', displayName: 'Match', text: `⚽ GOAL! ${next.home?.team?.displayName || home.name} ${next.homeScore} – ${next.awayScore} ${next.away?.team?.displayName || away.name}`, side: null }).catch(() => {});
+              addNextPoll(roomKey, home, away, next.phase).catch(() => {});
             }
           }
+          const c = await fetchSoccerSummary(String(ev.id));
+          if (alive && c?.length) setCommentary(c);
         }
-        const c = await fetchSoccerSummary(matchId);
-        if (alive && c?.length) setCommentary(c);
       } catch { /* keep prior */ }
     };
     tick();
     const id = setInterval(tick, 20_000);
     // drip a fresh poll every ~2 min to keep chatter alive
-    const pid = setInterval(() => addNextPoll(matchId, home, away, live.phase).catch(() => {}), 120_000);
+    const pid = setInterval(() => addNextPoll(roomKey, home, away, live.phase).catch(() => {}), 120_000);
     return () => { alive = false; clearInterval(id); clearInterval(pid); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchId, home.id, away.id]);
+  }, [roomKey, home.id, away.id, espnId]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat.length]);
 
-  const declare = (side: Side) => { if (currentUser?.uid) setSupportedSide(matchId, currentUser.uid, side).catch(() => {}); };
+  const declare = (side: Side) => { if (currentUser?.uid) setSupportedSide(roomKey, currentUser.uid, side).catch(() => {}); };
   const send = () => {
     const t = draft.trim(); if (!t || !currentUser?.uid) return;
-    sendMatchMessage(matchId, { uid: currentUser.uid, displayName: currentUser.displayName || 'Fan', photoURL: currentUser.photoURL || null, text: t, side: mySide }).catch(() => {});
+    sendMatchMessage(roomKey, { uid: currentUser.uid, displayName: currentUser.displayName || 'Fan', photoURL: currentUser.photoURL || null, text: t, side: mySide }).catch(() => {});
     setDraft('');
   };
-  const vote = (poll: MatchPoll, idx: number) => { if (currentUser?.uid) voteMatchPoll(matchId, poll.id, idx, currentUser.uid, mySide).catch(() => {}); };
+  const vote = (poll: MatchPoll, idx: number) => { if (currentUser?.uid) voteMatchPoll(roomKey, poll.id, idx, currentUser.uid, mySide).catch(() => {}); };
 
   const homeFans = members.filter(x => x.side === 'home').length;
   const awayFans = members.filter(x => x.side === 'away').length;

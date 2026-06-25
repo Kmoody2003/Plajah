@@ -316,6 +316,7 @@ const App: React.FC = () => {
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
+  const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -329,7 +330,7 @@ const App: React.FC = () => {
 
   // Open a specific match's fan room from anywhere (live match cards dispatch this).
   useEffect(() => {
-    const h = (e: Event) => { setFanRoomMatchId((e as CustomEvent)?.detail?.matchId); setView('MATCH_FAN_ROOMS'); };
+    const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; setFanRoomMatchId(d.matchId); setFanRoomMatch(d.match || null); setView('MATCH_FAN_ROOMS'); };
     window.addEventListener('plajah:open-fanroom', h);
     return () => window.removeEventListener('plajah:open-fanroom', h);
   }, [setView]);
@@ -2928,7 +2929,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'PLAJAH_SPORTS' && (
-              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => { setFanRoomMatchId(undefined); setView('MATCH_FAN_ROOMS'); }} />
+              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => { setFanRoomMatchId(undefined); setFanRoomMatch(null); setView('MATCH_FAN_ROOMS'); }} />
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (
@@ -2936,7 +2937,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'MATCH_FAN_ROOMS' && (
-              <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} onBack={() => setView('PLAJAH_SPORTS')} />
+              <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} initialMatch={fanRoomMatch} onBack={() => setView('PLAJAH_SPORTS')} />
             )}
 
             {view === 'PLAJAH_LABS' && (

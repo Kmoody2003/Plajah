@@ -11,18 +11,20 @@ import MatchFanRoom from './MatchFanRoom';
 interface Props {
   currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
   onBack?: () => void;
-  /** When set, jump straight into this match's room once the list loads. */
+  /** When set, jump straight into this match's room once the list loads (ESPN id). */
   initialMatchId?: string;
+  /** A ready-made (e.g. synthesized-from-schedule) match to open directly. */
+  initialMatch?: any;
 }
 
 const stateRank = (s?: string) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
 
-const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchId }) => {
+const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchId, initialMatch }) => {
   const [events, setEvents] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<any | null>(initialMatch || null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoPicked = useRef<string | null>(null);
+  const autoPicked = useRef<string | null>(initialMatch ? String(initialMatch.id) : null);
 
   const load = useCallback(async () => {
     try {
@@ -42,7 +44,12 @@ const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchI
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [load]);
 
-  // Jump straight into a requested match once it appears in the loaded list.
+  // A ready-made (synthesized) match opens directly.
+  useEffect(() => {
+    if (initialMatch && autoPicked.current !== String(initialMatch.id)) { autoPicked.current = String(initialMatch.id); setSelected(initialMatch); }
+  }, [initialMatch]);
+
+  // An ESPN match id opens once it appears in the loaded list.
   useEffect(() => {
     if (!initialMatchId || autoPicked.current === initialMatchId || !events.length) return;
     const ev = events.find(e => String(e.id) === String(initialMatchId));

@@ -77,7 +77,7 @@ interface Props {
 }
 
 // ── Match card ─────────────────────────────────────────────────────────────────
-const MatchCard: React.FC<{ match: WC26Match; onOpenRoom?: (matchId: string) => void }> = ({ match, onOpenRoom }) => {
+const MatchCard: React.FC<{ match: WC26Match; onOpenRoom?: (match: WC26Match) => void }> = ({ match, onOpenRoom }) => {
   const home = getTeam(match.homeTeamId);
   const away = getTeam(match.awayTeamId);
   if (!home || !away) return null;
@@ -140,7 +140,7 @@ const MatchCard: React.FC<{ match: WC26Match; onOpenRoom?: (matchId: string) => 
       {/* Live room button */}
       {(isLive || match.status === 'SCHEDULED') && onOpenRoom && (
         <button
-          onClick={() => onOpenRoom(match.id)}
+          onClick={() => onOpenRoom(match)}
           className={`w-full mt-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isLive
             ? 'bg-red-500 text-white hover:bg-red-400 shadow-lg shadow-red-500/20'
             : 'bg-white/5 border border-white/10 text-white/50 hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/30 hover:text-[#FF8C00]'
@@ -403,11 +403,26 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
       .finally(() => setNewsLoading(false));
   }, [tab]);
 
-  // Navigate to Live Hub pre-loaded with match context
-  const openFanRoom = useCallback((_matchId: string) => {
-    window.dispatchEvent(new CustomEvent('NAVIGATE', {
-      detail: { target: 'CLUBS' },
-    }));
+  // Open the live per-match fan room. Synthesize an ESPN-shaped event from the WC26
+  // fixture so the room renders immediately (teams, rosters, polls, chat); once the match
+  // is live, the room resolves the real ESPN event by team match and pulls score + play-by-
+  // play. Keyed by team-pair in the room itself, so it's the SAME room as the live board.
+  const openFanRoom = useCallback((match: WC26Match) => {
+    const ht = getTeam(match.homeTeamId), at = getTeam(match.awayTeamId);
+    const state = match.status === 'LIVE' ? 'in' : match.status === 'FINISHED' ? 'post' : 'pre';
+    const synth = {
+      id: `wc26_${match.id}`,
+      date: new Date(match.kickoffMs).toISOString(),
+      status: { type: { state, shortDetail: match.status === 'LIVE' ? 'Live' : match.status === 'FINISHED' ? 'FT' : '', description: '' } },
+      competitions: [{
+        venue: { fullName: match.venue || '' },
+        competitors: [
+          { homeAway: 'home', score: match.homeScore ?? 0, team: { abbreviation: ht?.shortName, displayName: ht?.name, color: (ht?.primaryColor || '').replace('#', '') } },
+          { homeAway: 'away', score: match.awayScore ?? 0, team: { abbreviation: at?.shortName, displayName: at?.name, color: (at?.primaryColor || '').replace('#', '') } },
+        ],
+      }],
+    };
+    window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { match: synth } }));
   }, []);
 
   const now = Date.now();
