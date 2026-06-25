@@ -120,6 +120,7 @@ import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
 import PlajahPlusLanding from './PlajahPlusLanding';
 import ProfileSmartCard from './ProfileSmartCard';
+import AthleteCareerCard from './AthleteCareerCard';
 import ArtistModeLanding from './ArtistModeLanding';
 import ArtistServicesTab from './ArtistServicesTab';
 import PlajahBrandConnect from './PlajahBrandConnect';
@@ -246,7 +247,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { playTrack } = useGlobalPlayerState();
-  const [activeTab, setActiveTab] = useState<'FEED' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'ATHLETE_STATS' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
   const [showAdCreator, setShowAdCreator] = useState(false);
   const [myUserAd, setMyUserAd] = useState<UserAd | null>(null);
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
@@ -1258,6 +1259,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             onSelectAlbum={onSelectAlbum}
             onNotificationNavigate={onNotificationNavigate}
             onVisitUser={onVisitUser}
+            profileAccountType={profile?.accountType}
+            athleteProfile={profile?.accountType === 'ATHLETE' ? {
+              sport: profile.athleteSport,
+              position: profile.athletePosition,
+              school: profile.athleteSchool,
+              classYear: profile.athleteClassYear,
+              state: profile.athleteState,
+            } : undefined}
+            onGoToAthleteTab={profile?.accountType === 'ATHLETE' ? () => setActiveTab('ATHLETE_STATS') : undefined}
           />
         </div>
 
@@ -1304,6 +1314,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {(() => {
           const allTabs = [
             { id: 'FEED', label: isOwnProfile ? 'Feed' : 'Their Feed' },
+            ...(profile?.accountType === 'ATHLETE' ? [{ id: 'ATHLETE_STATS', label: '🏆 Athlete' }] : []),
             { id: 'CONTENT', label: 'Creations' },
             { id: 'PODCASTS', label: 'Podcasts' },
             { id: 'WORLDS', label: 'Worlds' },
@@ -1430,8 +1441,21 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         {/* Tab Content */}
         <div className="mt-12">
           <AnimatePresence mode="wait">
-            {activeTab === 'FEED' ? (
-              <motion.div 
+            {activeTab === 'ATHLETE_STATS' ? (
+              <motion.div key="athlete-stats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <AthleteCareerCard
+                  inline
+                  athleteUserId={uid}
+                  athleteName={profile.displayName}
+                  athletePhoto={profile.photoURL || undefined}
+                  schoolName={profile.athleteSchool || 'High School'}
+                  sport={profile.athleteSport || 'OTHER'}
+                  graduatingClass={profile.athleteClassYear || new Date().getFullYear() + 1}
+                  scoutMode={!isOwnProfile}
+                />
+              </motion.div>
+            ) : activeTab === 'FEED' ? (
+              <motion.div
                 key="feed"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

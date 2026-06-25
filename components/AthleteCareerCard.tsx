@@ -38,6 +38,8 @@ interface Props {
   /** If true, shows the scout/recruiter purchase flow */
   scoutMode?: boolean;
   onClose?: () => void;
+  /** Render inline (no modal overlay) — used inside profile tabs */
+  inline?: boolean;
 }
 
 // ─── Helper: verified stat row ────────────────────────────────────────────────
@@ -113,7 +115,7 @@ const NFTTile: React.FC<{ nft: HighlightNFTMeta; onClick: () => void }> = ({ nft
 
 const AthleteCareerCard: React.FC<Props> = ({
   athleteUserId, athleteName, athletePhoto, schoolName, sport,
-  graduatingClass, scoutMode = false, onClose,
+  graduatingClass, scoutMode = false, onClose, inline = false,
 }) => {
   const [stats, setStats]       = useState<CareerStatSummary | null>(null);
   const [nfts, setNfts]         = useState<HighlightNFTMeta[]>([]);
@@ -163,13 +165,13 @@ const AthleteCareerCard: React.FC<Props> = ({
     <motion.div
       initial={{ scale: 0.97, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="fixed inset-0 z-[950] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
-      onClick={e => e.target === e.currentTarget && onClose?.()}
+      className={inline ? '' : 'fixed inset-0 z-[950] flex items-center justify-center bg-black/80 backdrop-blur-md p-4'}
+      onClick={inline ? undefined : e => e.target === e.currentTarget && onClose?.()}
     >
       <div
         ref={cardRef}
         className="w-full max-w-lg bg-[#0a0a12] border border-white/10 rounded-[2rem] overflow-hidden"
-        style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ maxHeight: inline ? 'none' : '90vh', display: 'flex', flexDirection: 'column' }}
       >
 
         {/* ── Hero ────────────────────────────────────────────────────────── */}

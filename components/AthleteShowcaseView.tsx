@@ -5,7 +5,7 @@
 // real Athlete account renders, populated with demo data so anyone can see it.
 
 import React, { useState } from 'react';
-import { ArrowLeft, ShieldCheck, BadgeCheck, Trophy, Camera, Play, ExternalLink, Clock } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, BadgeCheck, Trophy, Camera, Play, ExternalLink, Clock, UserPlus, MessageSquare, Users, CheckCircle2 } from 'lucide-react';
 import StateCard, { StateCardData } from './StateCard';
 import { DEMO_ATHLETES, DemoAthlete, DemoAchievement, DemoHighlight } from '../data/demoAthletes';
 
@@ -73,34 +73,126 @@ const AthleteShowcaseView: React.FC<{ onBack?: () => void; initialId?: string }>
 };
 
 const AthleteProfile: React.FC<{ athlete: DemoAthlete; onBack: () => void }> = ({ athlete: a, onBack }) => {
+  const [tab, setTab] = useState<'FEED' | 'ATHLETE'>('FEED');
+  const [followed, setFollowed] = useState(false);
+
+  // Demo follower counts seeded from jersey number for variety
+  const followers = 1200 + a.jersey * 47;
+  const following = 180 + a.jersey * 11;
+
   return (
-    <div style={{ minHeight: '100%', background: '#0a0a0f', color: '#fff', padding: '20px 18px 70px' }}>
-      <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-        <button onClick={onBack} style={ghostBtn}><ArrowLeft size={16} /> All athletes</button>
+    <div style={{ minHeight: '100%', background: '#0a0a0f', color: '#fff', paddingBottom: 80 }}>
+      {/* ── Profile Header ── */}
+      <div style={{ position: 'relative', height: 180, background: `linear-gradient(150deg, ${a.accent}, ${a.accent2})`, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 120, opacity: 0.12 }}>
+          {SPORT_ICON[a.sport]}
+        </div>
+        <button onClick={onBack} style={{ position: 'absolute', top: 16, left: 16, ...ghostBtn }}><ArrowLeft size={15} /> Back</button>
+        {a.isDemo && (
+          <div style={{ position: 'absolute', top: 16, right: 16, background: '#111', color: '#FFD24A', fontSize: 9, fontWeight: 900, letterSpacing: 1.5, padding: '4px 10px', borderRadius: 20, border: '1px solid rgba(255,210,74,0.4)' }}>DEMO ACCOUNT</div>
+        )}
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 360px) 1fr', gap: 28, marginTop: 16, alignItems: 'start' }}>
-          {/* left: State Card */}
-          <div style={{ position: 'sticky', top: 16 }}>
-            <StateCard data={toStateCard(a)} sportKey={a.sport} />
-            <p style={{ fontSize: 11, color: '#777', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>{a.bio}</p>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: '0 18px' }}>
+        {/* Avatar + action row */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: -44, marginBottom: 12 }}>
+          <div style={{ width: 88, height: 88, borderRadius: 22, border: '3px solid #0a0a0f', background: `linear-gradient(135deg, ${a.accent}, ${a.accent2})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 900, boxShadow: `0 0 24px ${a.accent}55` }}>
+            {a.name.charAt(0)}
           </div>
-
-          {/* right: highlights + achievements */}
-          <div>
-            {/* Highlights & game photos */}
-            <Section icon={<Camera size={16} />} title="Highlights & game photos" accent={a.accent} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 28 }}>
-              {a.highlights.map(h => <HighlightTile key={h.id} h={h} sport={a.sport} />)}
-            </div>
-
-            {/* Achievements timeline */}
-            <Section icon={<Trophy size={16} />} title="Achievements — verified & minted" accent={a.accent}
-              note="Each play is corroborated from game data sources before it's minted to the chain." />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {a.achievements.map(ac => <AchievementRow key={ac.id} a={ac} accent={a.accent} />)}
-            </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setFollowed(f => !f)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 20, border: `1px solid ${followed ? 'rgba(255,255,255,0.15)' : a.accent}`, background: followed ? 'rgba(255,255,255,0.06)' : a.accent, color: '#fff', fontSize: 11.5, fontWeight: 800, cursor: 'pointer' }}>
+              {followed ? <><Users size={13} /> Following</> : <><UserPlus size={13} /> Follow</>}
+            </button>
+            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#bbb', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+              <MessageSquare size={13} /> Message
+            </button>
           </div>
         </div>
+
+        {/* Name + handle + badges */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>{a.name}</span>
+            {a.verified && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: `${a.accent}22`, border: `1px solid ${a.accent}55`, color: a.accent, fontSize: 9.5, fontWeight: 800, borderRadius: 20, padding: '2px 8px' }}>
+                <CheckCircle2 size={11} /> Verified Athlete
+              </span>
+            )}
+          </div>
+          <div style={{ color: '#7a7a8a', fontSize: 13.5, marginTop: 2 }}>{a.handle}</div>
+        </div>
+
+        {/* Bio */}
+        <p style={{ fontSize: 13, color: '#b0b0be', lineHeight: 1.55, marginBottom: 12, maxWidth: 480 }}>{a.bio}</p>
+
+        {/* School + sport meta */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 14, fontSize: 12, color: '#8a8a96' }}>
+          <span>{SPORT_ICON[a.sport]} {a.sportLabel} · #{a.jersey}</span>
+          <span>🏫 {a.school}, {a.state}</span>
+          <span>🎓 Class of {a.classYear}</span>
+        </div>
+
+        {/* Follower stats */}
+        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+          {[
+            { label: 'Followers', value: followers.toLocaleString() },
+            { label: 'Following', value: following.toString() },
+            { label: 'Highlights', value: a.highlights.length.toString() },
+            { label: 'On-chain', value: a.achievements.filter(x => x.status === 'minted').length.toString() },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#fff' }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: '#6a6a7a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 1 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Profile tab row ── */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 24 }}>
+          {(['FEED', 'ATHLETE'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '10px 18px', fontSize: 10.5, fontWeight: 900, letterSpacing: 1.4, textTransform: 'uppercase',
+              color: tab === t ? a.accent : '#5a5a6a', background: 'transparent', border: 'none', borderBottom: `2px solid ${tab === t ? a.accent : 'transparent'}`,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              {t === 'ATHLETE' ? '🏆 Athlete' : 'Feed'}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Feed tab (demo) ── */}
+        {tab === 'FEED' && (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#4a4a5a' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>{SPORT_ICON[a.sport]}</div>
+            <p style={{ fontWeight: 800, fontSize: 14, marginBottom: 6 }}>No posts yet</p>
+            <p style={{ fontSize: 12, color: '#3a3a4a' }}>This is a demo account. A real athlete account would show their posts, clips, and updates here.</p>
+          </div>
+        )}
+
+        {/* ── Athlete Stats tab ── */}
+        {tab === 'ATHLETE' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: 28, alignItems: 'start' }}>
+            {/* left: State Card */}
+            <div style={{ position: 'sticky', top: 16 }}>
+              <StateCard data={toStateCard(a)} sportKey={a.sport} />
+            </div>
+
+            {/* right: highlights + achievements */}
+            <div>
+              <Section icon={<Camera size={16} />} title="Highlights & game photos" accent={a.accent} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 28 }}>
+                {a.highlights.map(h => <HighlightTile key={h.id} h={h} sport={a.sport} />)}
+              </div>
+              <Section icon={<Trophy size={16} />} title="Achievements — verified & minted" accent={a.accent}
+                note="Each play is corroborated from game data sources before it's minted to the chain." />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {a.achievements.map(ac => <AchievementRow key={ac.id} a={ac} accent={a.accent} />)}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

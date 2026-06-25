@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell } from 'lucide-react';
+import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell, Trophy, ChevronRight, Shield } from 'lucide-react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db, auth } from '../services/backendService';
@@ -76,15 +76,30 @@ interface ProfileSmartCardProps {
   upcomingAlbums?: Album[];
   onSelectAlbum?: (album: Album) => void;
   onNavigateHistory?: (view: 'CHORA_HISTORY' | 'TALEO_HISTORY') => void;
-  /** Navigate a Platform Pulse notification to its post/asset/activity. */
   onNotificationNavigate?: (n: any) => void;
-  /** Open a user's profile (used for missed-post pulse items). */
   onVisitUser?: (uid: string) => void;
+  /** Account type of the profile being viewed */
+  profileAccountType?: string;
+  /** Athlete-specific fields for athlete profile pulse section */
+  athleteProfile?: {
+    sport?: string;
+    position?: string;
+    school?: string;
+    classYear?: number;
+    state?: string;
+  };
+  /** Navigate to the Athlete Stats tab on the profile */
+  onGoToAthleteTab?: () => void;
 }
 
-type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg';
+type Section = 'following' | 'discover' | 'coming_soon' | 'history' | 'wywg' | 'athlete';
 
 const LAST_VISIT_KEY = 'plajah_last_visit';
+
+const SPORT_ICON: Record<string, string> = {
+  FOOTBALL: '🏈', BASKETBALL: '🏀', SOCCER: '⚽', BASEBALL: '⚾',
+  VOLLEYBALL: '🏐', HOCKEY: '🏒', TRACK: '🏃', OTHER: '🏅',
+};
 
 const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   followedIds = [],
@@ -94,11 +109,14 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   onNavigateHistory,
   onNotificationNavigate,
   onVisitUser,
+  profileAccountType,
+  athleteProfile,
+  onGoToAthleteTab,
 }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [section, setSection] = useState<Section>('coming_soon');
+  const [section, setSection] = useState<Section>(profileAccountType === 'ATHLETE' ? 'athlete' : 'coming_soon');
   const [missedNotifs, setMissedNotifs] = useState<AppNotification[]>([]);
   const [missedPosts, setMissedPosts] = useState<FeedItem[]>([]);
   const [lastVisit, setLastVisit] = useState<number>(0);
@@ -242,6 +260,7 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
   const wywgCount = isOwnProfile ? (missedNotifs.length + missedPosts.length) : (ownerPosts.length + ownerChallenges.length);
 
   const tabs: { id: Section; label: string; count?: number }[] = [
+    ...(profileAccountType === 'ATHLETE' ? [{ id: 'athlete' as Section, label: '🏆 Athlete' }] : []),
     ...(wywgCount > 0 ? [{ id: 'wywg' as Section, label: isOwnProfile ? 'Missed' : 'Activity', count: wywgCount }] : []),
     ...(relevantUpcoming.length > 0 ? [{ id: 'coming_soon' as Section, label: 'Coming Soon', count: relevantUpcoming.length }] : []),
     { id: 'following', label: 'Following' },
@@ -328,6 +347,52 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
           </div>
 
           <AnimatePresence mode="wait">
+
+            {/* ── Athlete Pulse ── */}
+            {section === 'athlete' && athleteProfile && (
+              <motion.div
+                key="athlete"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div className="rounded-2xl overflow-hidden border border-amber-500/20"
+                  style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(234,88,12,0.06) 100%)' }}>
+                  {/* Sport hero bar */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-amber-500/10">
+                    <span className="text-3xl">{SPORT_ICON[athleteProfile.sport || 'OTHER']}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-black text-sm uppercase tracking-tight truncate">
+                        {athleteProfile.position || 'Athlete'}
+                        {athleteProfile.school ? ` · ${athleteProfile.school}` : ''}
+                      </p>
+                      <p className="text-amber-400/70 text-[9px] font-bold uppercase tracking-wider mt-0.5">
+                        {athleteProfile.sport?.replace('_', ' ') || 'Sport'}
+                        {athleteProfile.classYear ? ` · Class of ${athleteProfile.classYear}` : ''}
+                        {athleteProfile.state ? ` · ${athleteProfile.state}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full shrink-0"
+                      style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      <Shield size={9} className="text-amber-400" />
+                      <span className="text-amber-400 text-[8px] font-black uppercase tracking-wider">Polygon</span>
+                    </div>
+                  </div>
+                  {/* CTA */}
+                  <button
+                    onClick={onGoToAthleteTab}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/5 transition-colors group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Trophy size={13} className="text-amber-400" />
+                      <span className="text-white/70 text-[10px] font-black uppercase tracking-wider">View verified stats, highlights & career record</span>
+                    </div>
+                    <ChevronRight size={14} className="text-amber-400/40 group-hover:text-amber-400 transition-colors" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
             {/* ── While You Were Gone ── */}
             {section === 'wywg' && (
