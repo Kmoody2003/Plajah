@@ -473,6 +473,38 @@ body.theme-phone {
   border-radius: 24px;
 }
 
+/* ── Dropdown menus (platform-wide) ─────────────────────────────────────────
+   Native <select> option popups were rendering white-on-white in dark themes.
+   color-scheme:dark tells the browser to paint the native dropdown list in dark
+   mode (matching the platform), and the explicit option colors are a hard fallback
+   for browsers that ignore color-scheme. Solid colors are required — the native
+   option list can't use rgba/transparent. */
+select {
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: #15151f;
+  color: #f5f5f7;
+}
+select option:checked,
+select option:hover {
+  background-color: #FF8C00;
+  color: #1a1a1a;
+}
+/* A few surfaces use a light card; opt those selects back into light dropdowns. */
+.theme-light select,
+.on-light select,
+select.on-light {
+  color-scheme: light;
+}
+.theme-light select option,
+.on-light select option,
+select.on-light option {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
 /* Ethereal Theme */
 .theme-ethereal {
   --bg-color: #131314;

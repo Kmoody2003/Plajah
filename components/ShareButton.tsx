@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram, Sparkles, Loader2, Download } from 'lucide-react';
+import { Share2, Link as LinkIcon, Mail, X, Facebook, Check, MessageCircle, Instagram, Sparkles, Loader2, Download, Music } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Portal from './Portal';
+import EmbedShareGuide from './EmbedShareGuide';
 import { generateShareCard } from '../src/lib/shareCard';
+
+// Show the "your link plays music" guide at most once per session.
+let _embedGuideShown = false;
 
 interface ShareButtonProps {
   title: string;
@@ -24,8 +28,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob | null } | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const shareUrl = url || window.location.href;
+  // Album/track/video links render a playable mini-player when shared — show the guide.
+  const isEmbedLink = /[?&]type=(album|video|feed)\b/.test(shareUrl) || shareUrl.includes('/embed') || shareUrl.includes('/share?');
+
+  // First time a user opens share for an embed link this session, surface the guide.
+  useEffect(() => {
+    if (isOpen && isEmbedLink && !_embedGuideShown) { _embedGuideShown = true; setShowGuide(true); }
+  }, [isOpen, isEmbedLink]);
 
   // Paint the gorgeous share card (cover + caption) when the menu opens.
   useEffect(() => {
@@ -207,6 +219,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
                 </div>
               )}
 
+              {/* Embed links render a playable mini-player when shared — quick guide. */}
+              {isEmbedLink && (
+                <button
+                  onClick={() => setShowGuide(true)}
+                  className="w-full mb-3 flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-small-orange/10 border border-small-orange/30 text-small-orange text-[10px] font-bold hover:bg-small-orange/20 transition-all"
+                >
+                  <Music size={13} /> This link plays music when shared — see how
+                </button>
+              )}
+
               {/* Post to Plajah's own feed */}
               {onPostToPlajah && (
                 <>
@@ -256,6 +278,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
         )}
       </AnimatePresence>
       </Portal>
+      {showGuide && <EmbedShareGuide title={title} imageUrl={imageUrl} onClose={() => setShowGuide(false)} />}
     </div>
   );
 };

@@ -151,13 +151,25 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 
    if (playerUrl) {
      const safePlayerUrl = htmlEscape(playerUrl);
+     // X (Twitter) renders an inline player from twitter:player; Facebook/LinkedIn render
+     // one from the og:video set — but Facebook needs secure_url + type=text/html + size,
+     // not just og:video:url, or it falls back to a static image. Provide the full set so
+     // the link shows a playable mini-player (Suno-style) wherever player embeds are honored.
      metaTags += `
     <meta name="twitter:card" content="player" />
     <meta name="twitter:player" content="${safePlayerUrl}" />
     <meta name="twitter:player:width" content="1280" />
     <meta name="twitter:player:height" content="720" />
+    <meta name="twitter:player:stream" content="${safePlayerUrl}" />
     <meta property="og:type" content="video.other" />
+    <meta property="og:video" content="${safePlayerUrl}" />
     <meta property="og:video:url" content="${safePlayerUrl}" />
+    <meta property="og:video:secure_url" content="${safePlayerUrl}" />
+    <meta property="og:video:type" content="text/html" />
+    <meta property="og:video:width" content="1280" />
+    <meta property="og:video:height" content="720" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
      `;
    } else {
      metaTags += `<meta name="twitter:card" content="summary_large_image" />`;
