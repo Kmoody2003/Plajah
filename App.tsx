@@ -315,6 +315,7 @@ const App: React.FC = () => {
     'LANDING';
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -325,6 +326,13 @@ const App: React.FC = () => {
       return nextView;
     });
   }, []);
+
+  // Open a specific match's fan room from anywhere (live match cards dispatch this).
+  useEffect(() => {
+    const h = (e: Event) => { setFanRoomMatchId((e as CustomEvent)?.detail?.matchId); setView('MATCH_FAN_ROOMS'); };
+    window.addEventListener('plajah:open-fanroom', h);
+    return () => window.removeEventListener('plajah:open-fanroom', h);
+  }, [setView]);
 
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
@@ -2920,7 +2928,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'PLAJAH_SPORTS' && (
-              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => setView('MATCH_FAN_ROOMS')} />
+              <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => { setFanRoomMatchId(undefined); setView('MATCH_FAN_ROOMS'); }} />
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (
@@ -2928,7 +2936,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'MATCH_FAN_ROOMS' && (
-              <MatchFanRoomsView currentUser={user} onBack={() => setView('PLAJAH_SPORTS')} />
+              <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} onBack={() => setView('PLAJAH_SPORTS')} />
             )}
 
             {view === 'PLAJAH_LABS' && (

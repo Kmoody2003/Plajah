@@ -11,15 +11,18 @@ import MatchFanRoom from './MatchFanRoom';
 interface Props {
   currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
   onBack?: () => void;
+  /** When set, jump straight into this match's room once the list loads. */
+  initialMatchId?: string;
 }
 
 const stateRank = (s?: string) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
 
-const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack }) => {
+const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchId }) => {
   const [events, setEvents] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoPicked = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +41,13 @@ const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack }) => {
     pollRef.current = setInterval(load, 30_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [load]);
+
+  // Jump straight into a requested match once it appears in the loaded list.
+  useEffect(() => {
+    if (!initialMatchId || autoPicked.current === initialMatchId || !events.length) return;
+    const ev = events.find(e => String(e.id) === String(initialMatchId));
+    if (ev) { autoPicked.current = initialMatchId; setSelected(ev); }
+  }, [initialMatchId, events]);
 
   if (selected) return <MatchFanRoom match={selected} currentUser={currentUser} onBack={() => setSelected(null)} />;
 

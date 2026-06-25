@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Radio, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { Trophy, Radio, ChevronDown, ChevronRight, Clock, Users } from 'lucide-react';
+
+// Open the live fan room for a specific match. A window event avoids threading a nav
+// callback through the whole World Cup component tree — App.tsx listens and routes.
+const openFanRoom = (matchId: string) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId } }));
 import { fetchWorldCupWindow, fetchSoccerSummary } from '../services/sportsService';
 import { scoreText } from '../src/lib/scoreText';
 
@@ -67,10 +71,16 @@ const LiveMatchCard: React.FC<{ event: any }> = ({ event }) => {
           </div>
         </div>
       </div>
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-red-500/15 text-[9px] font-black uppercase tracking-[0.25em] text-red-300/80 hover:bg-red-500/10 transition-colors">
-        <Radio size={11} /> Play-by-play <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex border-t border-red-500/15">
+        <button onClick={() => setOpen(o => !o)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-black uppercase tracking-[0.25em] text-red-300/80 hover:bg-red-500/10 transition-colors">
+          <Radio size={11} /> Play-by-play <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        <button onClick={() => openFanRoom(event.id)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 border-l border-red-500/15 text-[9px] font-black uppercase tracking-[0.25em] text-[#FF8C00] hover:bg-[#FF8C00]/10 transition-colors">
+          <Users size={11} /> Fan Room
+        </button>
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
@@ -95,10 +105,14 @@ const LiveMatchCard: React.FC<{ event: any }> = ({ event }) => {
 const MatchChip: React.FC<{ event: any; kind: 'result' | 'upcoming' }> = ({ event, kind }) => {
   const a = side(event, 'away'); const h = side(event, 'home');
   return (
-    <div className="shrink-0 w-[190px] rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-      <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-2 truncate">
-        {kind === 'result' ? (event.status?.type?.shortDetail || 'Full Time') : kickoff(event)}
-      </p>
+    <button onClick={() => openFanRoom(event.id)} title="Open the fan room"
+      className="group text-left shrink-0 w-[190px] rounded-2xl border border-white/8 bg-white/[0.03] p-3 hover:border-[#FF8C00]/40 hover:bg-[#FF8C00]/[0.05] transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 truncate">
+          {kind === 'result' ? (event.status?.type?.shortDetail || 'Full Time') : kickoff(event)}
+        </p>
+        <span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-[0.2em] text-[#FF8C00] opacity-0 group-hover:opacity-100 transition-opacity"><Users size={9} /> Room</span>
+      </div>
       <div className="space-y-1.5">
         {[a, h].map((s, i) => (
           <div key={i} className="flex items-center justify-between gap-2">
@@ -112,7 +126,7 @@ const MatchChip: React.FC<{ event: any; kind: 'result' | 'upcoming' }> = ({ even
           </div>
         ))}
       </div>
-    </div>
+    </button>
   );
 };
 
