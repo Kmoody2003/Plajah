@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution } from '../types';
+import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
@@ -14,6 +14,7 @@ import {
 import { useUpload } from '../contexts/UploadContext';
 import EarlyAccessManager from './EarlyAccessManager';
 import FilmDistributionStep, { DEFAULT_FILM_DISTRIBUTION } from './FilmDistributionStep';
+import FilmVersionsManager from './FilmVersionsManager';
 import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import { DEFAULT_LICENSE, type ContentLicenseId } from '../services/licensingService';
@@ -55,6 +56,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [subType, setSubType] = useState<'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
   // Film/TV distribution + release (folded in from the old Distribute-New-Film wizard).
   const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
+  const [alternateVersions, setAlternateVersions] = useState<FilmVersion[]>(initialAlbum?.alternateVersions || []);
+  const saveAsDraftRef = useRef(false);
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
@@ -553,6 +556,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
+    // "Save as draft" sets this ref; a draft is unlisted and can be resumed + refined
+    // later (before or after publishing), exactly like a music album.
+    const asDraft = saveAsDraftRef.current; saveAsDraftRef.current = false;
+    const draftMode = isDraft || asDraft;
     setIsDeploying(true);
     setStatus({ text: initialAlbum ? "Updating Cloud Index..." : "Synthesizing Metadata...", percent: 5 });
     try {
@@ -648,7 +655,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           isPaywalled: isPaid,
           price: isPaid ? px : 0,
           isPrivate: d.release === 'PRIVATE',
-          isPublic: d.release !== 'PRIVATE' && !isDraft,
+          isPublic: d.release !== 'PRIVATE' && !draftMode,
           isScheduled: d.release === 'SCHEDULED',
           releaseDate: d.release === 'SCHEDULED' ? d.releaseAt : undefined,
           earlyAccessEnabled: d.release === 'EARLY_ACCESS',
@@ -671,6 +678,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         videoPlaylists,
         seasons: type === 'VIDEO' && subType === 'TV_SERIES' ? seasons : undefined,
         movieMetadata: (type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES')) ? finalMovieMetadata : undefined,
+        alternateVersions: isFilm ? alternateVersions : undefined,
         bookChapters, bookPreviewConfig, allowPageSharing: type === 'BOOK' ? allowPageSharing : undefined, liveFeedUrl, donationGoal, tags, relatedProjectIds, trackListLabel: trackListLabel || undefined,
         gameUrl: type === 'GAME' ? gameUrl : undefined,
         gameVideoUrl: type === 'GAME' ? gameVideoUrl : undefined,
@@ -678,8 +686,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         gameFeatures: type === 'GAME' ? gameFeatures : undefined,
         createdAt: initialAlbum?.createdAt || Date.now(),
         license,
-        isPublic: !isPrivate && !isDraft,
-        isPrivate, isDraft, isScheduled, publishVideosToGallery, isSlideshowEnabled,
+        isPublic: !isPrivate && !draftMode,
+        isPrivate, isDraft: draftMode, isScheduled, publishVideosToGallery, isSlideshowEnabled,
         publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
         audiusPublishStatus: (type === 'MUSIC' && publishToAudius) ? 'pending' as const : initialAlbum?.audiusPublishStatus,
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
@@ -848,6 +856,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   if (file) { const url = await uploadFile(file, 'VIDEO'); setTracks([{ id: 'movie', title, artist, url, duration: 0 }]); }
                 }} />
               </label>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 -mt-3">Optional — you can add or swap the film file anytime, even after release.</p>
+              <div className="pt-2 border-t border-white/10">
+                <FilmVersionsManager value={alternateVersions} onChange={setAlternateVersions} onUpload={uploadFile} />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Release Year</label>
@@ -2835,9 +2847,20 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     </span>
                   </label>
                 )}
-                <button type="submit" disabled={isDeploying || !title || (!initialAlbum && !rightsConfirmed)} className="w-full py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
-                  {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
-                </button>
+                {isFilm && (
+                  <p className="text-center text-[9px] font-bold uppercase tracking-widest text-white/30 mb-3">Only a name &amp; creator are required — everything else is optional and editable anytime, before or after you publish.</p>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Save as draft — persists the project (unlisted) to resume + refine later. */}
+                  <button type="button" disabled={isDeploying || !title}
+                    onClick={() => { saveAsDraftRef.current = true; handleSubmit(new Event('submit') as unknown as React.FormEvent); }}
+                    className="sm:flex-shrink-0 px-6 py-5 bg-white/5 border border-white/15 text-white/70 font-black uppercase tracking-[0.3em] text-[11px] rounded-full transition-all hover:bg-white/10 disabled:opacity-30 active:scale-95">
+                    {isDeploying ? 'Saving…' : 'Save Draft'}
+                  </button>
+                  <button type="submit" disabled={isDeploying || !title || (isFilm && !artist.trim()) || (!initialAlbum && !isFilm && !rightsConfirmed)} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
+                    {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
+                  </button>
+                </div>
               </div>
             )}
           </div>

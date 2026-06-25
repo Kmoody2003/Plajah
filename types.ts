@@ -85,6 +85,17 @@ export interface FilmDistribution {
   contentRating?: string;        // G / PG / PG-13 / R / NC-17 / TV-MA …
 }
 
+/** An alternate cut/version of a film (extended, director's, unrated, …). The main film
+ *  is tracks[0]; these are additional selectable versions the viewer can switch between. */
+export interface FilmVersion {
+  id: string;
+  label: string;                 // "Director's Cut"
+  type: 'THEATRICAL' | 'EXTENDED' | 'DIRECTORS' | 'UNRATED' | 'ALTERNATE' | 'OTHER';
+  url: string;
+  runtimeMin?: number;
+  note?: string;
+}
+
 export interface TVSeason {
   id: string;
   number: number;
@@ -416,6 +427,7 @@ export interface Album {
   bookChapters?: BookChapter[];
   movieMetadata?: MovieMetadata; // Added for Movie Album type
   filmDistribution?: FilmDistribution; // Film/TV monetization + release (uploader → Taleo)
+  alternateVersions?: FilmVersion[]; // Extended / director's / unrated cuts (film)
   bookPreviewConfig?: {
     type: 'CHAPTERS' | 'PAGES';
     allowedChapterIds?: string[];

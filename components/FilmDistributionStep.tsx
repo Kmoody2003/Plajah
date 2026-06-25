@@ -5,9 +5,17 @@
 // The deep tools (territories, rights docs, aggregator export) stay in the Film
 // Distribution Hub; this is the create-time essentials. Controlled via value + onChange.
 
-import React from 'react';
-import { Tv, DollarSign, Calendar, Users, Radio, Lock, Zap, Clapperboard } from 'lucide-react';
+import React, { useState } from 'react';
+import { Tv, DollarSign, Calendar, Users, Radio, Lock, Zap, Clapperboard, ChevronDown, Globe, FileCheck, Send, Award } from 'lucide-react';
 import type { FilmDistribution } from '../types';
+
+// Deep distribution tools that live in the Film Distribution Hub (available after publish).
+const ADVANCED = [
+  { icon: Globe,     label: 'Territories & windows', desc: 'Region availability, rental/sale windows, promo pricing' },
+  { icon: FileCheck, label: 'Rights & docs',         desc: 'E&O insurance, chain-of-title, music licenses, captions' },
+  { icon: Send,      label: 'Aggregator export',     desc: 'Metadata for Apple TV, Amazon, Tubi, FilmHub…' },
+  { icon: Award,     label: 'Festival & premieres',  desc: 'Screenings, ticketed premieres, watch parties' },
+];
 
 export const DEFAULT_FILM_DISTRIBUTION: FilmDistribution = {
   model: 'FREE_FAST', release: 'NOW', rentalPrice: 3.99, purchasePrice: 12.99,
@@ -34,6 +42,7 @@ const RATINGS = ['NR', 'G', 'PG', 'PG-13', 'R', 'NC-17', 'TV-G', 'TV-PG', 'TV-14
 const FilmDistributionStep: React.FC<{ value: FilmDistribution; onChange: (v: FilmDistribution) => void }> = ({ value, onChange }) => {
   const v = { ...DEFAULT_FILM_DISTRIBUTION, ...value };
   const set = (patch: Partial<FilmDistribution>) => onChange({ ...v, ...patch });
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const paid = v.model !== 'FREE_FAST';
   const showRental = v.model === 'RENTAL' || v.model === 'HYBRID';
   const showBuy = v.model === 'PURCHASE' || v.model === 'HYBRID' || v.model === 'PPV';
@@ -45,6 +54,7 @@ const FilmDistributionStep: React.FC<{ value: FilmDistribution; onChange: (v: Fi
         <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-small-orange">Distribution &amp; Release</h3>
         <span className="text-[9px] text-white/30">· goes live on Taleo</span>
       </div>
+      <p className="text-[10px] text-white/35 -mt-3">All optional — sensible defaults are set. Refine any of this now, or anytime later in the Film Distribution Hub.</p>
 
       {/* Monetization model */}
       <div className="space-y-3">
@@ -130,6 +140,30 @@ const FilmDistributionStep: React.FC<{ value: FilmDistribution; onChange: (v: Fi
             {RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* Advanced (optional) — the deep tools, refined in the Film Distribution Hub after publish. */}
+      <div className="border-t border-white/10 pt-4">
+        <button type="button" onClick={() => setShowAdvanced(s => !s)}
+          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/45 hover:text-white transition-colors">
+          <ChevronDown size={13} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} /> Advanced distribution <span className="text-white/25">· optional</span>
+        </button>
+        {showAdvanced && (
+          <div className="mt-3 space-y-2">
+            <p className="text-[10px] text-white/35">These open in the <b className="text-white/60">Film Distribution Hub</b> once your film is saved or published — none are required to go live.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {ADVANCED.map(a => (
+                <div key={a.label} className="flex items-start gap-2.5 p-3 bg-white/[0.02] border border-white/10 rounded-xl">
+                  <a.icon size={15} className="text-small-orange mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-[11px] font-black">{a.label}</div>
+                    <div className="text-[9px] text-white/35">{a.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
