@@ -481,6 +481,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const [scrolled, setScrolled] = useState(false);
   const [isUIVisible, setIsUIVisible] = useState(true);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
+  // Alternate cuts (extended / director's / …). The primary payload is remembered so we
+  // can switch back; selecting an alternate just swaps the playback URL (direct file).
+  const [activeVersionId, setActiveVersionId] = useState<string>('primary');
+  const primaryPayloadRef = useRef<Video | null>(null);
   const [world, setWorld] = useState<IPWorld | null>(null);
   const [worldCharacters, setWorldCharacters] = useState<Character[]>([]);
   const [worldContent, setWorldContent] = useState<{ albums: Album[]; videos: Video[] } | null>(null);
@@ -700,12 +704,25 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     }
 
     if (payload) {
+      primaryPayloadRef.current = payload;
+      setActiveVersionId('primary');
       setActiveVideo(payload);
       setIsUIVisible(false);
       activateVideoSource(payload);
     } else {
       setIsUIVisible(true);
     }
+  };
+
+  // Switch the playing cut. 'primary' restores the main film; an alternate swaps to its
+  // uploaded file (direct URL — clears mux/embed so the player streams it directly).
+  const playVersion = (id: string, url?: string) => {
+    const base = primaryPayloadRef.current;
+    if (!base) return;
+    setActiveVersionId(id);
+    setActiveVideo(id === 'primary' || !url
+      ? base
+      : ({ ...base, url, muxPlaybackId: undefined, embedUrl: undefined, id: `${item.id}:${id}` } as Video));
   };
 
   const handleWhatIfParticipation = (branchId: string, _choiceId: string) => {
@@ -762,6 +779,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             onToggleFullscreen={toggleFullscreen}
             onWhatIfParticipation={handleWhatIfParticipation}
           />
+
+          {/* Alternate-cut switcher — only when the film has extra versions */}
+          {((item as Album).alternateVersions?.length ?? 0) > 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/10 px-1.5 py-1.5 max-w-[90vw] overflow-x-auto no-scrollbar">
+              {[{ id: 'primary', label: 'Main', url: undefined as string | undefined }, ...((item as Album).alternateVersions || []).map(v => ({ id: v.id, label: v.label, url: v.url }))].map(ver => (
+                <button key={ver.id} onClick={() => playVersion(ver.id, ver.url)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeVersionId === ver.id ? 'bg-white text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
+                  {ver.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Info button — return to detail */}
           <button
