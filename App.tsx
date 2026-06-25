@@ -127,6 +127,7 @@ const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView')
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const ClassroomDojoView = retryLazy(() => import('./components/ClassroomDojoView'));
+const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
@@ -342,7 +343,7 @@ const App: React.FC = () => {
 
   // Enter Kids Mode for a child — the app then behaves as that child + lands on a safe home.
   useEffect(() => {
-    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('MOVIES_TV'); } };
+    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('KIDS_LIBRARY'); } };
     window.addEventListener('plajah:enter-kids', h);
     return () => window.removeEventListener('plajah:enter-kids', h);
   }, [setView]);
@@ -808,6 +809,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('MOVIES_TV');
     } else if (target === 'CLASSROOM_DOJO') {
       setView('CLASSROOM_DOJO');
+    } else if (target === 'KIDS_LIBRARY') {
+      setView('KIDS_LIBRARY');
     } else if (target === 'HELP_CENTER') {
       setView('HELP_CENTER');
     } else if (target === 'BRAND_DASHBOARD') {
@@ -2960,6 +2963,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'CLASSROOM_DOJO' && (
               <ClassroomDojoView onBack={() => setView('CLASSROOMS')} />
+            )}
+
+            {view === 'KIDS_LIBRARY' && (
+              <KidsLibraryView onBack={() => setView('BOOKS')} />
             )}
 
             {view === 'PLAJAH_LABS' && (

@@ -25,6 +25,7 @@ export const KIDS_THEME: KidsTheme = {
 // Surfaces a child can reach by default in Kids Mode. Anything not here is hidden from
 // the kid's navigation (guardians can extend via parentalControls.allowedSurfaces).
 export const KIDS_DEFAULT_SURFACES = [
+  'KIDS_LIBRARY',              // the kids reading + learn-to-read home
   'BOOKS', 'BOOK_READER',      // Lorea reading library + learn-to-read tools
   'CLASSROOMS', 'CLASSROOM_DETAIL',
   'GAMES', 'GAME_PLAYER',
