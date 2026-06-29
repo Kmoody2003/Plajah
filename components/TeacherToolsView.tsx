@@ -10,10 +10,10 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
-  STANDARDS, standardById, bandFor, masteryToLevel, turboTrackFor, BAND_TO_GRADES,
+  STANDARDS, standardById, bandFor, masteryToLevel, masteryToPISABand, turboTrackFor, BAND_TO_GRADES,
   type GradeId, type Subject, type LearningStandard,
 } from '../data/educationStandards';
 import { appendRecord } from '../services/learningLedgerService';
@@ -59,8 +59,13 @@ const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ chil
   <div style={{ fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 800, color: color || T.muted, marginBottom: 8 }}>{children}</div>
 );
 const chip = (on: boolean, color = T.orange): React.CSSProperties => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: `1px solid ${on ? color : T.border}`, background: on ? `${color}22` : 'transparent', color: on ? color : T.ink });
+const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
+  <div style={{ height: 8, borderRadius: 99, background: '#000', overflow: 'hidden', border: `1px solid ${T.border}` }}>
+    <div style={{ width: `${Math.min(100, value)}%`, height: '100%', background: color }} />
+  </div>
+);
 
-type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'connect' | 'context';
+type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
@@ -99,7 +104,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -114,6 +119,8 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
           <Planner plans={plans} setPlans={setPlans} onCreateBlank={() => setTab('plan')} />
         ) : tab === 'checks' ? (
           <ChecksBuilder subject={subject} band={band} standards={standards} assignments={assignments} setAssignments={setAssignments} />
+        ) : tab === 'reports' ? (
+          <Reports />
         ) : standards.length === 0 ? (
           <div style={{ ...cardStyle, padding: 20, color: T.muted }}>No standards seeded for {subject} at this level yet. Try another subject/level.</div>
         ) : tab === 'plan' ? (
@@ -415,6 +422,92 @@ const ChecksBuilder: React.FC<{ subject: Subject; band: BandId; standards: Learn
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// ── Progress Reports (parent-ready, from the ledger) ─────────────────────────────
+const SUBJ_LABEL: Partial<Record<Subject, { label: string; color: string }>> = {
+  ELA: { label: 'Reading & Language', color: T.orange }, SCIENCE: { label: 'Science', color: T.violet }, MATH: { label: 'Mathematics', color: T.blue },
+};
+const buildReport = (studentId: string) => {
+  const student = DEMO_CLASS.students.find(s => s.id === studentId)!;
+  const items = STANDARDS.filter(s => SUBJ_LABEL[s.subject]).map(s => ({ std: s, m: cellMastery(studentId, s.id) }));
+  const subjects: Record<string, { std: LearningStandard; m: number }[]> = {};
+  items.forEach(it => { (subjects[it.std.subject] ||= []).push(it); });
+  const overall = items.length ? Math.round(items.reduce((a, x) => a + x.m, 0) / items.length) : 0;
+  const sorted = [...items].sort((a, b) => b.m - a.m);
+  return { student, subjects, overall, strengths: sorted.slice(0, 3), focus: sorted.slice(-3).reverse() };
+};
+
+const Reports: React.FC = () => {
+  const [studentId, setStudentId] = useState(DEMO_CLASS.students[0].id);
+  const r = buildReport(studentId);
+  const band = bandFor(r.overall);
+  const [comment, setComment] = useState('');
+  const defComment = `${r.student.name} is working at a ${band.label.toLowerCase()} level overall. Strongest in ${r.strengths[0]?.std.domain}. With a little focus on ${r.focus[0]?.std.domain}, ${r.student.name.split(' ')[0]} will keep climbing.`;
+  const note = comment || defComment;
+
+  const reportHTML = () => {
+    const subj = Object.entries(r.subjects).map(([s, list]) => {
+      const avg = Math.round(list.reduce((a, x) => a + x.m, 0) / list.length);
+      const rows = list.map(x => `<tr><td>${x.std.code}</td><td>${x.std.statement}</td><td style="text-align:right;font-weight:700">${x.m}%</td></tr>`).join('');
+      return `<h3>${SUBJ_LABEL[s as Subject]?.label || s} — ${avg}% (${bandFor(avg).label})</h3><table>${rows}</table>`;
+    }).join('');
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${r.student.name} — Progress Report</title>
+<style>body{font-family:-apple-system,Segoe UI,sans-serif;max-width:720px;margin:32px auto;color:#111;padding:0 16px}
+h1{margin:0;font-size:24px}.sub{color:#666;font-size:13px;margin:2px 0 16px}
+.standing{background:#f5f3ef;border-radius:10px;padding:14px 16px;margin-bottom:18px}
+h3{margin:18px 0 6px;font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}
+td{border-bottom:1px solid #eee;padding:5px 6px;vertical-align:top}
+.cols{display:flex;gap:24px;margin:12px 0}.col{flex:1}.col b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#888}
+.comment{border-left:3px solid #FF8C00;padding:8px 12px;background:#fff8ef;margin-top:18px;font-size:13px}
+.foot{margin-top:24px;color:#999;font-size:11px;border-top:1px solid #eee;padding-top:10px}</style></head>
+<body><h1>${r.student.name}</h1><div class="sub">${DEMO_CLASS.name} · ${DEMO_CLASS.teacherName} · Progress Report</div>
+<div class="standing"><b>Overall:</b> ${r.overall}% — ${band.label} · Global standing: PISA band ${masteryToPISABand(r.overall)}/6</div>
+<div class="cols"><div class="col"><b>Strengths</b><ul>${r.strengths.map(x => `<li>${x.std.domain} (${x.m}%)</li>`).join('')}</ul></div>
+<div class="col"><b>Focus areas</b><ul>${r.focus.map(x => `<li>${x.std.domain} (${x.m}%)</li>`).join('')}</ul></div></div>
+${subj}<div class="comment"><b>Teacher note:</b> ${note}</div>
+<div class="foot">Generated from ${r.student.name.split(' ')[0]}'s Plajah Learner Ledger. Standards-aligned, portable, verifiable.</div></body></html>`;
+  };
+
+  return (
+    <div>
+      <div style={{ ...cardStyle, padding: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Eyebrow>Student</Eyebrow>
+        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>{DEMO_CLASS.students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => downloadText(reportHTML(), `progress-report-${r.student.name.replace(/\W/g, '')}.html`, 'text/html')} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}><Printer size={14} /> Download report (print-ready)</button>
+        <button onClick={() => downloadText(JSON.stringify({ student: r.student.name, overall: r.overall, level: band.label, pisaBand: masteryToPISABand(r.overall), subjects: r.subjects, note }, null, 2), `progress-report-${r.student.name.replace(/\W/g, '')}.json`)} style={exportBtn(T.muted)}><FileDown size={12} /> JSON</button>
+      </div>
+
+      {/* In-app preview of the parent-facing report */}
+      <div style={{ ...cardStyle, padding: 20 }}>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>{r.student.name}</div>
+        <div style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>{DEMO_CLASS.name} · {DEMO_CLASS.teacherName} · Progress Report</div>
+        <div style={{ background: T.cardAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: band.color }}>{r.overall}%</div>
+          <div style={{ fontSize: 13, color: T.muted }}><b style={{ color: band.color }}>{band.label}</b> · Global standing <b style={{ color: T.ink }}>PISA band {masteryToPISABand(r.overall)}/6</b></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+          <div><Eyebrow color={T.green}>Strengths</Eyebrow>{r.strengths.map(x => <div key={x.std.id} style={{ fontSize: 12.5, marginBottom: 4 }}>{x.std.domain} <span style={{ color: T.green, fontWeight: 700 }}>{x.m}%</span></div>)}</div>
+          <div><Eyebrow color={T.orange}>Focus areas</Eyebrow>{r.focus.map(x => <div key={x.std.id} style={{ fontSize: 12.5, marginBottom: 4 }}>{x.std.domain} <span style={{ color: T.orange, fontWeight: 700 }}>{x.m}%</span></div>)}</div>
+        </div>
+        {Object.entries(r.subjects).map(([s, list]) => {
+          const avg = Math.round(list.reduce((a, x) => a + x.m, 0) / list.length);
+          const meta = SUBJ_LABEL[s as Subject]!; const b = bandFor(avg);
+          return (
+            <div key={s} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span style={{ fontWeight: 700 }}>{meta.label}</span><span style={{ color: b.color, fontWeight: 700 }}>{b.label} · {avg}%</span></div>
+              <Bar value={avg} color={b.color} />
+            </div>
+          );
+        })}
+        <div style={{ marginTop: 14 }}>
+          <Eyebrow>Teacher note (editable)</Eyebrow>
+          <textarea value={note} onChange={e => setComment(e.target.value)} rows={3} style={{ ...selStyle, resize: 'vertical' }} />
+        </div>
+      </div>
     </div>
   );
 };
