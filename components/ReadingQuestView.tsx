@@ -151,14 +151,17 @@ const CHORA = [
   { id: 't2', title: 'Detroit Sunrise', artist: 'K. Moody', bpm: 88, tag: 'Lo-fi' },
   { id: 't3', title: "In My Father's Hands", artist: 'Plajah Worship', bpm: 72, tag: 'Worship' },
   { id: 't4', title: 'Motor City Bounce', artist: 'Plajah Sessions', bpm: 110, tag: 'Afrobeat' },
+  { id: 't5', title: 'Sunday Stroll', artist: 'Plajah Kids', bpm: 84, tag: 'Acoustic' },
+  { id: 't6', title: 'Bright Morning', artist: 'Plajah Kids', bpm: 100, tag: 'Pop' },
+  { id: 't7', title: 'Story Time', artist: 'Plajah Kids', bpm: 76, tag: 'Lullaby' },
 ];
 type Track = typeof CHORA[number];
 
 const RHYTHM: Record<BandId, { pillar: Pillar; words: string[][] }> = {
-  prek: { pillar: 'Phonemic Awareness', words: [['c', 'a', 't'], ['s', 'u', 'n'], ['d', 'o', 'g']] },
-  g12: { pillar: 'Phonics', words: [['sh', 'i', 'p'], ['f', 'r', 'o', 'g'], ['r', 'ai', 'n']] },
-  g34: { pillar: 'Fluency', words: [['rab', 'bit'], ['pic', 'nic'], ['sun', 'set']] },
-  g57: { pillar: 'Vocabulary', words: [['ad', 'ven', 'ture'], ['cel', 'e', 'brate'], ['im', 'por', 'tant']] },
+  prek: { pillar: 'Phonemic Awareness', words: [['c', 'a', 't'], ['s', 'u', 'n'], ['d', 'o', 'g'], ['p', 'i', 'g'], ['h', 'a', 't'], ['b', 'e', 'd']] },
+  g12: { pillar: 'Phonics', words: [['sh', 'i', 'p'], ['f', 'r', 'o', 'g'], ['r', 'ai', 'n'], ['ch', 'a', 't'], ['d', 'u', 'ck'], ['t', 'r', 'ee']] },
+  g34: { pillar: 'Fluency', words: [['rab', 'bit'], ['pic', 'nic'], ['sun', 'set'], ['bas', 'ket'], ['mag', 'net'], ['gar', 'den']] },
+  g57: { pillar: 'Vocabulary', words: [['ad', 'ven', 'ture'], ['cel', 'e', 'brate'], ['im', 'por', 'tant'], ['dic', 'tion', 'ar', 'y'], ['com', 'mu', 'ni', 'ty'], ['ex', 'per', 'i', 'ment']] },
 };
 
 // Seed reading mastery per demo student (0–100 per pillar). Quests nudge these in-session.

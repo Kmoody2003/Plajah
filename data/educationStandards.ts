@@ -179,8 +179,18 @@ export interface TurboTrack {
   challenges: TurboChallenge[];  // horizontal: depth / transfer / creative enrichment
 }
 
-// Seed Turbo for early-reading (extends g1 phonics/comprehension upward + sideways).
+// Seed Turbo across reading bands — each extends grade-level standards upward (acceleration)
+// and sideways (depth / transfer / creative). turboTrackFor() keys off the band's first grade.
 export const TURBO_TRACKS: TurboTrack[] = [
+  {
+    subject: 'ELA', grade: 'prek',
+    aboveGradeStandards: ['CCSS.ELA-LITERACY.RF.K.3', 'CCSS.ELA-LITERACY.RF.1.2'],
+    challenges: [
+      { id: 'turbo-prek-depth', kind: 'depth', standardId: 'CCSS.ELA-LITERACY.RF.PK.2', title: 'Sound Hunter', prompt: 'Find five things in the room that start with the same sound, and say each one out loud.' },
+      { id: 'turbo-prek-transfer', kind: 'transfer', standardId: 'CCSS.ELA-LITERACY.RF.PK.2', title: 'Rhyme Maker', prompt: 'Make up a brand-new rhyming pair nobody taught you (real or silly) and use it in a sentence.' },
+      { id: 'turbo-prek-create', kind: 'creative', standardId: 'CCSS.ELA-LITERACY.RF.PK.2', title: 'Clap-a-Word', prompt: 'Pick your favorite long word and clap out every beat (syllable) to a Chora track.' },
+    ],
+  },
   {
     subject: 'ELA', grade: 'g1',
     aboveGradeStandards: ['CCSS.ELA-LITERACY.RF.3.3', 'CCSS.ELA-LITERACY.RL.2.1'],
@@ -188,6 +198,24 @@ export const TURBO_TRACKS: TurboTrack[] = [
       { id: 'turbo-morph-1', kind: 'depth', standardId: 'CCSS.ELA-LITERACY.RF.1.3', title: 'Word Architect', prompt: 'Build five new real words from the roots and affixes you just learned, and explain each meaning.' },
       { id: 'turbo-transfer-1', kind: 'transfer', standardId: 'CCSS.ELA-LITERACY.RL.K.1', title: 'Detective Read', prompt: 'Read a story you have never seen and predict the ending from clues — then check yourself.' },
       { id: 'turbo-create-1', kind: 'creative', standardId: 'CCSS.ELA-LITERACY.RF.1.2', title: 'Make a Rhyme Beat', prompt: 'Compose a short rhyming verse to a Chora track where every line blends the target sound.' },
+    ],
+  },
+  {
+    subject: 'ELA', grade: 'g3',
+    aboveGradeStandards: ['CCSS.ELA-LITERACY.L.4.4', 'CCSS.ELA-LITERACY.RL.4.2'],
+    challenges: [
+      { id: 'turbo-g3-depth', kind: 'depth', standardId: 'CCSS.ELA-LITERACY.RF.3.3', title: 'Root Detective', prompt: 'Pick a Greek or Latin root and list four words that share it — predict each meaning before you check.' },
+      { id: 'turbo-g3-transfer', kind: 'transfer', standardId: 'CCSS.ELA-LITERACY.RL.2.1', title: 'Two-Text Tie', prompt: 'Read two short texts on one topic and explain one thing they agree on and one they don\'t.' },
+      { id: 'turbo-g3-create', kind: 'creative', standardId: 'CCSS.ELA-LITERACY.RL.4.2', title: 'Retell It Your Way', prompt: 'Retell a story you read as a short comic, song, or scene — keep the theme but change the setting.' },
+    ],
+  },
+  {
+    subject: 'ELA', grade: 'g5',
+    aboveGradeStandards: ['CCSS.ELA-LITERACY.RL.4.2', 'CCSS.ELA-LITERACY.L.4.4'],
+    challenges: [
+      { id: 'turbo-g5-depth', kind: 'depth', standardId: 'CCSS.ELA-LITERACY.L.4.4', title: 'Shades of Meaning', prompt: 'Take one word and rank five synonyms from mildest to strongest — defend your order.' },
+      { id: 'turbo-g5-transfer', kind: 'transfer', standardId: 'CCSS.ELA-LITERACY.RL.4.2', title: 'Theme Across Stories', prompt: 'Find the same theme in a book, a song, and a film, and explain how each one shows it differently.' },
+      { id: 'turbo-g5-create', kind: 'creative', standardId: 'CCSS.ELA-LITERACY.RL.4.2', title: 'Author\'s Chair', prompt: 'Write an alternate ending that changes the theme — then explain what you changed and why.' },
     ],
   },
 ];
