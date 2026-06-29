@@ -124,9 +124,26 @@ export const STANDARDS: LearningStandard[] = [
   { id: 'NGSS.5-PS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g5', domain: 'Matter', code: '5-PS1-1', statement: 'Develop a model showing that matter is made of particles too small to see.', pillar: 'Model & Design', prerequisites: ['NGSS.2-PS1-1'] },
   { id: 'NGSS.MS-LS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g7', domain: 'Cells', code: 'MS-LS1-1', statement: 'Provide evidence that living things are made of cells.', pillar: 'Explain' },
   { id: 'NGSS.MS-PS1-2', framework: 'NGSS', subject: 'SCIENCE', grade: 'g6', domain: 'Chemical Reactions', code: 'MS-PS1-2', statement: 'Analyze data to determine whether a chemical reaction has occurred.', pillar: 'Analyze Data' },
+
+  // ── Math (Common Core) — one core standard per grade, used by MathClassroom (grades 1–8) ──
+  { id: 'CCSS.MATH.1.OA', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g1', domain: 'Operations & Algebraic Thinking', code: '1.OA', statement: 'Add and subtract within 20.' },
+  { id: 'CCSS.MATH.2.NBT', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g2', domain: 'Number & Operations in Base Ten', code: '2.NBT', statement: 'Add and subtract within 100 using place value.', prerequisites: ['CCSS.MATH.1.OA'] },
+  { id: 'CCSS.MATH.3.OA', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g3', domain: 'Operations & Algebraic Thinking', code: '3.OA', statement: 'Multiply and divide within 100 and understand fractions.', prerequisites: ['CCSS.MATH.2.NBT'] },
+  { id: 'CCSS.MATH.4.NF', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g4', domain: 'Number & Operations — Fractions', code: '4.NF', statement: 'Build, compare, and operate on fractions; multi-digit arithmetic.', prerequisites: ['CCSS.MATH.3.OA'] },
+  { id: 'CCSS.MATH.5.NF', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g5', domain: 'Number & Operations — Fractions', code: '5.NF', statement: 'Add, subtract, multiply, and divide fractions and decimals.', prerequisites: ['CCSS.MATH.4.NF'] },
+  { id: 'CCSS.MATH.6.RP', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g6', domain: 'Ratios & Proportional Relationships', code: '6.RP', statement: 'Understand ratios, unit rates, and percent.', prerequisites: ['CCSS.MATH.5.NF'] },
+  { id: 'CCSS.MATH.7.EE', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g7', domain: 'Expressions & Equations', code: '7.EE', statement: 'Solve linear equations and inequalities.', prerequisites: ['CCSS.MATH.6.RP'] },
+  { id: 'CCSS.MATH.8.EE', framework: 'CCSS_MATH', subject: 'MATH', grade: 'g8', domain: 'Expressions & Equations', code: '8.EE', statement: 'Work with linear functions, systems, and integer exponents.', prerequisites: ['CCSS.MATH.7.EE'] },
 ];
 
 export const SCIENCE_PILLARS = ['Observe & Question', 'Investigate', 'Analyze Data', 'Explain', 'Model & Design'] as const;
+
+// MathClassroom uses numeric grades (1–8) — map to the grade's core CCSS math standard.
+const MATH_DOMAIN_BY_GRADE: Record<number, string> = { 1: 'OA', 2: 'NBT', 3: 'OA', 4: 'NF', 5: 'NF', 6: 'RP', 7: 'EE', 8: 'EE' };
+export const mathStandardForGrade = (grade: number): LearningStandard | undefined => {
+  const g = Math.max(1, Math.min(8, Math.round(grade)));
+  return standardById(`CCSS.MATH.${g}.${MATH_DOMAIN_BY_GRADE[g]}`);
+};
 
 export const standardById = (id: string) => STANDARDS.find(s => s.id === id);
 export const standardsForPillar = (pillar: string, framework: FrameworkId = 'CCSS_ELA') =>

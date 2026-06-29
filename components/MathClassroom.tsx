@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { appendRecord, loadProficiency } from '../services/learningLedgerService';
+import { addPoints } from '../services/pointsService';
+import { mathStandardForGrade, bandFor } from '../data/educationStandards';
 
 interface Props {
   onBack: () => void;
@@ -506,6 +509,29 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
   const [quizProblems, setQuizProblems] = useState<MathProblem[]>([]);
   const [quizActive, setQuizActive] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
+  const [mathProf, setMathProf] = useState<Record<string, number>>({}); // standardId → mastery (signed-in)
+
+  // Load the signed-in learner's saved math proficiency for before→after ledger deltas.
+  useEffect(() => {
+    if (!user?.uid) return;
+    let alive = true;
+    loadProficiency(user.uid).then(p => { if (alive && p) setMathProf(p.byStandard || {}); });
+    return () => { alive = false; };
+  }, [user?.uid]);
+
+  // Quiz finished → show result + write the standards-aligned Learner Ledger + award real points.
+  const handleQuizComplete = (r: QuizResult) => {
+    setQuizResult(r); setQuizActive(false); setShowShare(true);
+    const score = Math.round((r.correct / r.total) * 100);
+    const std = mathStandardForGrade(r.grade);
+    if (std && user?.uid) {
+      const before = mathProf[std.id] ?? 0;
+      const after = mathProf[std.id] == null ? score : Math.round(before * 0.4 + score * 0.6); // EWMA, one quiz won't tank mastery
+      setMathProf(m => ({ ...m, [std.id]: after }));
+      appendRecord({ studentId: user.uid, standardId: std.id, framework: 'CCSS_MATH', source: 'math-classroom', masteryBefore: before, masteryAfter: after });
+      if (r.correct > 0) addPoints(user.uid, r.correct * 2, 'DAILY_ACTIVITY', 'math-classroom', `${r.grade}-${r.topic}`).catch(() => {});
+    }
+  };
   const [showShare, setShowShare] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [flashIndex, setFlashIndex] = useState(0);
@@ -707,7 +733,7 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
         {mode === 'quiz' && quizActive && (
           <QuizMode
             problems={quizProblems}
-            onComplete={(r) => { setQuizResult(r); setQuizActive(false); setShowShare(true); }}
+            onComplete={handleQuizComplete}
           />
         )}
 
@@ -718,6 +744,24 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
               <h2 className="text-3xl font-black text-white">{quizResult.correct}/{quizResult.total}</h2>
               <p className="text-white/40 text-sm mt-1">{Math.round(quizResult.correct / quizResult.total * 100)}% correct in {quizResult.timeSeconds}s</p>
             </div>
+            {(() => {
+              const pct = Math.round(quizResult.correct / quizResult.total * 100);
+              const std = mathStandardForGrade(quizResult.grade);
+              const after = std ? mathProf[std.id] : undefined;
+              return (
+                <div className="flex flex-col items-center gap-2">
+                  {std && typeof after === 'number' && (() => { const b = bandFor(after); return (
+                    <div className="text-xs font-black" style={{ color: b.color }}>{std.code} proficiency · {b.label} · {after}%</div>
+                  ); })()}
+                  {user?.uid && <div className="text-[10px] text-white/30 uppercase tracking-widest">Saved to your Learner Ledger</div>}
+                  {pct >= 90 && (
+                    <div className="mt-1 px-4 py-2 rounded-xl text-[11px] font-black" style={{ background: 'rgba(255,140,0,0.14)', color: '#FF8C00', border: '1px solid rgba(255,140,0,0.4)' }}>
+                      ⚡ Turbo — you're ready for Grade {Math.min(8, quizResult.grade + 1)}!
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div className="flex gap-3">
               <button onClick={startQuiz} className="flex items-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all">
                 <RefreshCw size={13} /> Try Again
