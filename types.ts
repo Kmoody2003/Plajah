@@ -1973,6 +1973,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'READING_QUEST'
   // Science Quest (BETA) — NGSS cartridge on the same chassis
   | 'SCIENCE_QUEST'
+  // Learner Ledger / Academic Passport — the portable record across subjects
+  | 'LEARNER_LEDGER'
   // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
   | 'AUDIO_BOOK_STUDIO'
   // Science & Engineering hub
