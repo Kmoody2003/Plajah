@@ -110,11 +110,13 @@ interface AssignmentDraft { id: string; title: string; description: string; dueI
 
 interface CreateClassModalProps {
   user: any;
+  track?: 'ACADEMIC' | 'CREATOR';
   onClose: () => void;
   onCreated: (cls: Classroom) => void;
 }
 
-const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, onClose, onCreated }) => {
+const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREATOR', onClose, onCreated }) => {
+  const academic = track === 'ACADEMIC';
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -151,7 +153,8 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, onClose, onCr
         title: form.title.trim(),
         description: form.description.trim(),
         category: form.category,
-        price: form.price,
+        track,
+        price: academic ? 0 : form.price,
         thumbnailUrl: form.thumbnailUrl.trim() || `https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop`,
         syllabus: form.syllabus.trim(),
         lessons: lessons.filter(l => l.title.trim()).map((l, i) => ({
@@ -198,8 +201,8 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, onClose, onCr
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-[var(--border-color)]">
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tightest text-[var(--text-primary)]">Create Class</h2>
-            <p className="text-[10px] text-[var(--text-primary)]/40 uppercase tracking-widest mt-0.5">Step {step} of {STEPS.length} — {STEPS[step - 1]}</p>
+            <h2 className="text-2xl font-black uppercase tracking-tightest text-[var(--text-primary)]">{academic ? 'New Academic Class' : 'New Creator Course'}</h2>
+            <p className="text-[10px] text-[var(--text-primary)]/40 uppercase tracking-widest mt-0.5">{academic ? 'Standards-aligned · K-12' : 'Creator economy · monetizable'} · Step {step} of {STEPS.length} — {STEPS[step - 1]}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-[var(--text-primary)]/40 hover:text-[var(--text-primary)] transition-colors">
             <X size={20} />
@@ -242,22 +245,24 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, onClose, onCr
                     placeholder="What will students learn? Who is it for?"
                     className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all resize-none text-sm" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className={academic ? '' : 'grid grid-cols-2 gap-4'}>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Category</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">{academic ? 'Subject' : 'Category'}</label>
                     <select value={form.category} onChange={e => setF('category', e.target.value)}
                       className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm">
                       {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Price (0 = Free)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-primary)]/40 font-bold">$</span>
-                      <input type="number" min={0} step={1} value={form.price} onChange={e => setF('price', +e.target.value)}
-                        className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl pl-8 pr-4 py-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm" />
+                  {!academic && (
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Price (0 = Free)</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-primary)]/40 font-bold">$</span>
+                        <input type="number" min={0} step={1} value={form.price} onChange={e => setF('price', +e.target.value)}
+                          className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl pl-8 pr-4 py-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Thumbnail URL</label>
@@ -398,6 +403,9 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'EXPLORE' | 'MY_CLASSES' | 'TEACHING' | 'MODULES'>('MODULES');
+  const [teachingMode, setTeachingMode] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
+  const [createTrack, setCreateTrack] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
+  const openCreate = (track: 'ACADEMIC' | 'CREATOR') => { setCreateTrack(track); setShowCreateModal(true); };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
@@ -643,8 +651,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                 className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl py-3 pl-12 pr-6 text-sm focus:outline-none focus:border-[var(--text-secondary)]/30 w-full lg:w-80 text-[var(--text-primary)]"
               />
             </div>
-            <button 
-              onClick={() => setShowCreateModal(true)}
+            <button
+              onClick={() => openCreate('CREATOR')}
               className="px-6 py-3 bg-[var(--text-primary)] text-[var(--bg-color)] rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all"
             >
               <Plus size={16} />
@@ -756,10 +764,38 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           ))}
         </div>
 
-        {/* Teaching: provision student accounts (verified teachers) */}
-        {activeTab === 'TEACHING' && user && (
-          <div className="mb-8 p-5 sm:p-6 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[2rem]">
-            <TeacherStudentsPanel user={user} />
+        {/* Teaching: two parallel tracks sharing the same classroom infrastructure */}
+        {activeTab === 'TEACHING' && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-5 p-1 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-full w-fit">
+              {([['ACADEMIC', '🎓 Teacher · Academic'], ['CREATOR', '🎨 Instructor · Creator Course']] as ['ACADEMIC' | 'CREATOR', string][]).map(([m, label]) => (
+                <button key={m} onClick={() => setTeachingMode(m)}
+                  className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${teachingMode === m ? 'bg-[var(--text-primary)] text-[var(--bg-color)]' : 'text-[var(--text-primary)] opacity-40 hover:opacity-100'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {teachingMode === 'ACADEMIC' ? (
+              <div className="space-y-4">
+                <div className="p-5 rounded-[2rem]" style={{ border: '1px solid rgba(255,140,0,0.25)', background: 'linear-gradient(120deg, rgba(255,140,0,0.08), rgba(129,102,230,0.08))' }}>
+                  <div className="text-sm font-black text-white mb-1">Academic class — standards-aligned & ledger-backed</div>
+                  <div className="text-[11px] text-white/50 leading-relaxed">For K-12 / academia. Provision student accounts, align to international standards, and every activity writes to the learner's portable ledger.</div>
+                  <button onClick={() => openCreate('ACADEMIC')} className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-small-orange text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"><Plus size={14} /> Create academic class</button>
+                </div>
+                {user && (
+                  <div className="p-5 sm:p-6 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[2rem]">
+                    <TeacherStudentsPanel user={user} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-5 rounded-[2rem]" style={{ border: '1px solid rgba(129,102,230,0.25)', background: 'linear-gradient(120deg, rgba(129,102,230,0.1), rgba(54,197,240,0.06))' }}>
+                <div className="text-sm font-black text-white mb-1">Creator course — teach your craft</div>
+                <div className="text-[11px] text-white/50 leading-relaxed">MasterClass / Skillshare-style. Share your expertise (photography, music, business…), set a price or make it free, and learners enroll directly — no student provisioning needed.</div>
+                <button onClick={() => openCreate('CREATOR')} className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"><Plus size={14} /> Create creator course</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -854,7 +890,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                     <p className="text-[10px] text-white/30 uppercase tracking-widest mb-8">Be the first to create one, or load a demo to see how it looks.</p>
                     <div className="flex flex-wrap items-center justify-center gap-4">
                       <button
-                        onClick={() => setShowCreateModal(true)}
+                        onClick={() => openCreate('CREATOR')}
                         className="flex items-center gap-2 px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
                       >
                         <Plus size={14} /> Create a Class
@@ -888,8 +924,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                   <>
                     <h3 className="text-2xl font-black uppercase tracking-tightest mb-3">No Classes Created</h3>
                     <p className="text-[10px] text-white/30 uppercase tracking-widest mb-6">Create your first class and start teaching.</p>
-                    <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-8 py-4 bg-white text-black mx-auto rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
-                      <Plus size={14} /> Create a Class
+                    <button onClick={() => openCreate(teachingMode)} className="flex items-center gap-2 px-8 py-4 bg-white text-black mx-auto rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                      <Plus size={14} /> Create a {teachingMode === 'ACADEMIC' ? 'Class' : 'Course'}
                     </button>
                   </>
                 )}
@@ -1040,6 +1076,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
         {showCreateModal && (
           <CreateClassModal
             user={user}
+            track={createTrack}
             onClose={() => setShowCreateModal(false)}
             onCreated={(cls) => {
               setClassrooms(prev => [cls, ...prev.filter(c => c.id !== cls.id)]);

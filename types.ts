@@ -1132,6 +1132,10 @@ export interface UserProfile {
   coGuardianUids?: string[];
   /** Teacher verification tier — gates the right to provision child accounts. */
   teacherVerification?: 'UNVERIFIED' | 'DOMAIN' | 'DISTRICT_SSO' | 'ADMIN_APPROVED';
+  /** Teaching designation. TEACHER = academic/K-12 (standards, ledger, student provisioning,
+   *  verification). INSTRUCTOR = creator-economy courses (MasterClass/Skillshare-style, monetized,
+   *  learners self-enroll). A user may hold both. Drives the Teaching-tab default + provisioning UI. */
+  teachingKind?: ('TEACHER' | 'INSTRUCTOR')[];
   revenue?: UserRevenue;
   storeSettings?: StoreSettings;
   isWriter?: boolean;
@@ -1818,6 +1822,13 @@ export interface Classroom {
   enrolledStudents: string[]; // UIDs
   liveSessionUrl?: string;
   category: string;
+  // Which track this class belongs to. Both share the same classroom infrastructure:
+  //   ACADEMIC — K-12/academia, run by a verified TEACHER (standards, Learner Ledger,
+  //              provisioned student accounts). CREATOR — creator-economy course (MasterClass/
+  //              Skillshare/tutoring-style) run by an INSTRUCTOR; learners self-enroll. Existing
+  //              classes (no track) are treated as CREATOR. See docs/education blueprint.
+  track?: 'ACADEMIC' | 'CREATOR';
+  gradeBand?: string; // academic only — e.g. 'g34'
 }
 
 export interface ClassroomModule {

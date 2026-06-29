@@ -69,6 +69,26 @@ At the age of digital consent (13 US-COPPA / 16 GDPR / varies), the child can be
 
 ---
 
+## 1b. Two teaching tracks — Teachers vs Instructors (one shared infrastructure)
+
+Plajah teaching runs as **two parallel tracks that share the same classroom infrastructure** (classes, lessons, assignments, enrollment, live sessions) but are catered to two different worlds:
+
+| | **Teacher · Academic track** | **Instructor · Creator track** |
+|---|---|---|
+| Who | K-12 / academia educators | Any creator teaching their craft (an artist's photography class, a producer's beat-making course, a tutor) |
+| Analog | School / district LMS | MasterClass · Skillshare · tutoring marketplaces |
+| Learners | Provisioned/managed **student accounts** (children) | Regular Plajah users who **self-enroll** |
+| Identity load | High — verified teacher, student provisioning, claim flow, COPPA/FERPA | Low — no child provisioning, no academic compliance overhead |
+| Standards & ledger | Yes — standards-aligned, writes the **Learner Ledger** | Optional — completion/skills, not academic standards |
+| Monetization | Typically free / institution-funded | First-class — set a price, the creator-economy split |
+| Verification | `teacherVerification` gates student provisioning | None required to publish a course |
+
+**Implementation:** the `Classroom` carries a `track: 'ACADEMIC' | 'CREATOR'` (existing classes default to `CREATOR`); a user's `teachingKind` records `TEACHER` and/or `INSTRUCTOR` (a person can be both). The Teaching tab presents the two as a mode switch:
+- **Academic** → the standards/ledger class creator **plus** the student-provisioning panel (verified teachers only).
+- **Creator** → the streamlined course creator (title, subject, **price**, lessons) — learners enroll directly; no provisioning.
+
+We are **not** jettisoning the creator-economy classroom — it persists in parallel and reuses the same `Classroom`/lessons/enrollment/grading plumbing, just streamlined for courses. The academic track layers standards + the ledger + managed student identity on top of that shared base.
+
 ## 2. Safeguards (the threat model — including the ones not yet thought through)
 
 Children's data is the highest-liability surface on the platform. Treated as a first-class threat model, not a checkbox.
