@@ -13,6 +13,7 @@ import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import nodeCrypto from 'node:crypto';
 import { coraRouter } from './routes/cora';
+import { learnerAuthRouter } from './routes/learnerAuth';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -4359,6 +4360,10 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
 
   // ── Cora Music Analysis ───────────────────────────────────────────────────────
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
+
+  // ── Learner identity (child username/password → custom token; provision; claim) ──
+  app.use('/api/learner-auth/login', authLimiter);
+  app.use('/api/learner-auth', express.json({ limit: '10kb' }), learnerAuthRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

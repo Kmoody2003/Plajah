@@ -707,6 +707,38 @@ service cloud.firestore {
       }
     }
 
+    // ── Education identity: SERVER-ONLY collections ──────────────────────────────
+    // These hold child password hashes, claim secrets, and FERPA access logs. They are
+    // written exclusively by the backend via the service account (which bypasses these
+    // rules); no client may ever read or write them.
+    match /learnerCredentials/{username} { allow read, write: if false; }
+    match /claimTokens/{code}            { allow read, write: if false; }
+    match /accountAudit/{eventId}        { allow read, write: if false; }
+
+    // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
+    function isGuardianOf(studentId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(studentId)) &&
+             get(/databases/$(database)/documents/users/$(studentId)).data.guardianUid == request.auth.uid;
+    }
+    match /readingProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
+    match /learnerProficiency/{studentId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow write: if isOwner(studentId);
+    }
+    match /learningLedger/{studentId}/records/{recordId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow create: if isOwner(studentId);
+      allow update, delete: if false; // append-only
+    }
+    match /competencyAssertions/{studentId}/items/{itemId} {
+      allow read: if isOwner(studentId) || isGuardianOf(studentId);
+      allow write: if isOwner(studentId);
+    }
+
     match /follows/{followId} {
       // followId is followerId_followingId
       allow read: if true;
