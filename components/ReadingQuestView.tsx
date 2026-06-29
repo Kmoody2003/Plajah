@@ -13,6 +13,8 @@ import { ArrowLeft, BookOpen, Star } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import { useClassroom, classroomStore } from '../data/classroomStore';
 import { loadReadingProgress, saveReadingProgress, awardReadingPoints } from '../services/readingQuestService';
+import { standardsForPillar, BAND_TO_GRADES, bandFor, masteryToLevel, masteryToPISABand, turboTrackFor } from '../data/educationStandards';
+import { appendRecord } from '../services/learningLedgerService';
 
 /* ---------- theme (matches ClassroomDojoView) ---------- */
 const T = {
@@ -187,8 +189,10 @@ const chip = (on: boolean): React.CSSProperties => ({ cursor: 'pointer', padding
 const primaryBtn = (ghost?: boolean): React.CSSProperties => ({ cursor: 'pointer', padding: '11px 22px', borderRadius: 10, border: ghost ? `1px solid ${T.border}` : 'none', background: ghost ? 'transparent' : T.orange, color: ghost ? T.muted : '#1a1a1a', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 });
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, color: T.ink, fontSize: 14, boxSizing: 'border-box', fontFamily: T.font };
 
-type Tab = 'play' | 'rhythm' | 'studio' | 'class';
+type Tab = 'play' | 'rhythm' | 'studio' | 'class' | 'turbo';
 const ME = '__me__'; // sentinel id for the signed-in player (real Firestore + points)
+// Pillars assessed by the three quiz games + the global-standing readout.
+const CORE_PILLARS: Pillar[] = ['Phonics', 'Vocabulary', 'Comprehension'];
 const zeroMastery = (): Record<Pillar, number> => Object.fromEntries(PILLARS.map(p => [p, 0])) as Record<Pillar, number>;
 
 /* ============================================================ */
@@ -200,6 +204,8 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
   const [worldKey, setWorldKey] = useState('storybook');
   const [studentId, setStudentId] = useState<string>(uid ? ME : DEMO_CLASS.students[0].id);
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [questStart, setQuestStart] = useState(0); // pillar mastery snapshot at quest open (ledger delta)
+  const [turboOptIn, setTurboOptIn] = useState(false);
   const [done, setDone] = useState<string[]>([]); // demo-student completions (session only)
   const [mastery, setMastery] = useState<Record<string, Record<Pillar, number>>>(() =>
     Object.fromEntries(DEMO_CLASS.students.map((s, i) => [s.id, seedMastery(i)]))
@@ -228,6 +234,8 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
   const headerPts = isMe ? myProgress.xp : demoStudent.points;
   const playerName = isMe ? 'You' : demoStudent.name;
   const players = uid ? [{ id: ME, name: 'You', color: T.orange }, ...students] : students;
+  // Turbo readiness: sustained mastery across the assessed pillars → ready to go beyond grade.
+  const turboReady = CORE_PILLARS.every(p => myMastery[p] >= 90);
 
   const bump = (pillar: Pillar, n: number) => {
     if (isMe) {
@@ -237,15 +245,36 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
     }
   };
 
-  // Quest finished. Signed-in player: persist progress + award REAL Plajah Points.
+  // Append a standards-aligned record to the signed-in learner's Learner Ledger. Maps the
+  // ReadingQuest pillar + grade band to a Common Core standard (the ledger renders it in every
+  // framework via crosswalks).
+  const recordToLedger = (pillar: Pillar, masteryBefore: number, masteryAfter: number) => {
+    if (!isMe || !uid) return;
+    const grades = BAND_TO_GRADES[band] || [];
+    const candidates = standardsForPillar(pillar);
+    const std = candidates.find(s => grades.includes(s.grade)) || candidates[0];
+    if (!std) return;
+    appendRecord({ studentId: uid, standardId: std.id, framework: std.framework, source: 'reading-quest', masteryBefore, masteryAfter });
+  };
+
+  // Snapshot pillar mastery when a quest opens, so the ledger gets a real before→after delta.
+  const launchGame = (gameId: string) => {
+    const g = GAMES.find(x => x.id === gameId);
+    if (g && isMe) setQuestStart(myProgress.mastery[g.pillar]);
+    setActiveGame(gameId);
+  };
+
+  // Quest finished. Signed-in player: persist progress + award REAL Plajah Points + ledger.
   // Demo student: award through the shared store so it lands in the ClassDojo class story.
   const completeQuest = (gameId: string) => {
+    const g = GAMES.find(x => x.id === gameId);
     if (isMe && uid) {
       const completedQuests = myProgress.completedQuests.includes(gameId) ? myProgress.completedQuests : [...myProgress.completedQuests, gameId];
       const next = { mastery: myProgress.mastery, completedQuests, xp: myProgress.xp + 3 };
       setMyProgress(next);
       saveReadingProgress(uid, next);
       awardReadingPoints(uid, 'quest', gameId);
+      if (g) recordToLedger(g.pillar, questStart, myProgress.mastery[g.pillar]);
     } else {
       setDone(d => d.includes(gameId) ? d : [...d, gameId]);
       classroomStore.award(studentId, 'reading');
@@ -255,11 +284,13 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
   const completePhoneme = (pillar: Pillar) => {
     if (isMe && uid) {
-      const nextMastery = { ...myProgress.mastery, [pillar]: Math.min(100, myProgress.mastery[pillar] + 5), Fluency: Math.min(100, myProgress.mastery.Fluency + 2) };
+      const before = myProgress.mastery[pillar];
+      const nextMastery = { ...myProgress.mastery, [pillar]: Math.min(100, before + 5), Fluency: Math.min(100, myProgress.mastery.Fluency + 2) };
       const next = { mastery: nextMastery, completedQuests: myProgress.completedQuests, xp: myProgress.xp + 2 };
       setMyProgress(next);
       saveReadingProgress(uid, next);
       awardReadingPoints(uid, 'phoneme', `phoneme-${pillar}`);
+      recordToLedger(pillar, before, nextMastery[pillar]);
     } else {
       bump(pillar, 5);
       classroomStore.award(studentId, 'phoneme');
@@ -304,14 +335,18 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '16px 0 20px', flexWrap: 'wrap' }}>
-          {([['play', 'Quests'], ['rhythm', 'Rhythm'], ['studio', 'Teacher Studio'], ['class', 'Class Progress']] as [Tab, string][]).map(([v, l]) => (
-            <button key={v} onClick={() => { setTab(v); setActiveGame(null); }}
-              style={{ cursor: 'pointer', padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>{l}</button>
-          ))}
+          {([['play', 'Quests'], ['rhythm', 'Rhythm'], ['turbo', turboReady ? '⚡ Turbo' : 'Turbo'], ['studio', 'Teacher Studio'], ['class', 'Class Progress']] as [Tab, string][]).map(([v, l]) => {
+            const isTurbo = v === 'turbo';
+            const lit = tab === v;
+            return (
+              <button key={v} onClick={() => { setTab(v); setActiveGame(null); }}
+                style={{ cursor: 'pointer', padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${lit ? T.orange : (isTurbo && turboReady ? T.orange : T.border)}`, background: lit ? T.orange : 'transparent', color: lit ? '#1a1a1a' : (isTurbo && turboReady ? T.orange : T.muted), boxShadow: isTurbo && turboReady && !lit ? `0 0 0 1px ${T.orange}` : 'none' }}>{l}</button>
+            );
+          })}
         </div>
 
         {tab === 'play' && !activeGame && (
-          <PlayHome {...{ world, worldKey, setWorldKey, band, setBand, done: doneList, myMastery, setActiveGame }} />
+          <PlayHome {...{ world, worldKey, setWorldKey, band, setBand, done: doneList, myMastery, setActiveGame: launchGame }} />
         )}
         {tab === 'play' && activeGame && (
           <GamePlay
@@ -325,6 +360,7 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
         {tab === 'rhythm' && (
           <RhythmTab band={band} setBand={setBand} isMe={isMe} onComplete={(pillar) => completePhoneme(pillar)} studentName={playerName} />
         )}
+        {tab === 'turbo' && <TurboTab band={band} myMastery={myMastery} ready={turboReady} optIn={turboOptIn} setOptIn={setTurboOptIn} />}
         {tab === 'studio' && <TeacherStudio customQuests={customQuests} setCustomQuests={setCustomQuests} />}
         {tab === 'class' && <ClassProgress students={students} mastery={mastery} />}
       </div>
@@ -390,16 +426,89 @@ const PlayHome: React.FC<any> = ({ world, worldKey, setWorldKey, band, setBand, 
         </div>
       </div>
 
-      {/* my pillars */}
+      {/* my pillars — with standards-based proficiency bands */}
       <div style={{ ...cardStyle, padding: 16 }}>
         <Eyebrow>My reading pillars</Eyebrow>
-        {PILLARS.map(p => (
-          <div key={p} style={{ marginBottom: 11 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}><span>{p}</span><span style={{ fontSize: 11, color: T.muted }}>{myMastery[p]}%</span></div>
-            <Bar value={myMastery[p]} color={myMastery[p] < 50 ? T.orange : T.green} />
-          </div>
-        ))}
+        {PILLARS.map(p => {
+          const m = myMastery[p];
+          const b = bandFor(m);
+          return (
+            <div key={p} style={{ marginBottom: 11 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
+                <span>{p}</span>
+                <span style={{ fontSize: 10.5, color: b.color, fontWeight: 700 }}>{b.label} · {m}%</span>
+              </div>
+              <Bar value={m} color={b.color} />
+            </div>
+          );
+        })}
+        {(() => {
+          const overall = Math.round(PILLARS.reduce((a, p) => a + myMastery[p], 0) / PILLARS.length);
+          const band = bandFor(overall);
+          return (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, color: T.muted }}>Global standing</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: band.color }}>
+                {band.label} · PISA band {masteryToPISABand(overall)}/6
+              </span>
+            </div>
+          );
+        })()}
       </div>
+    </div>
+  );
+};
+
+/* ---------- Turbo: acceleration + depth beyond grade level ---------- */
+const TurboTab: React.FC<{ band: BandId; myMastery: Record<Pillar, number>; ready: boolean; optIn: boolean; setOptIn: (v: boolean) => void }> = ({ band, myMastery, ready, optIn, setOptIn }) => {
+  const grade = (BAND_TO_GRADES[band] || ['g1'])[0];
+  const track = turboTrackFor('ELA', grade) || turboTrackFor('ELA', 'g1');
+  const overall = Math.round(CORE_PILLARS.reduce((a, p) => a + myMastery[p], 0) / CORE_PILLARS.length);
+  const KIND: Record<string, { label: string; color: string; icon: string }> = {
+    acceleration: { label: 'Accelerate', color: T.orange, icon: '🚀' },
+    depth: { label: 'Go Deeper', color: T.blue, icon: '🔬' },
+    transfer: { label: 'Transfer', color: T.green, icon: '🧩' },
+    creative: { label: 'Create', color: '#d957c6', icon: '🎨' },
+  };
+  return (
+    <div>
+      <div style={{ ...cardStyle, padding: 18, marginBottom: 16, borderColor: ready ? T.orange : T.border, boxShadow: ready ? `0 0 0 1px ${T.orange}` : 'none' }}>
+        <Eyebrow color={ready ? T.orange : T.muted}>⚡ Turbo · beyond grade level</Eyebrow>
+        <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 6 }}>{ready ? 'You\'re ready to go beyond' : 'Turbo unlocks at mastery'}</div>
+        <p style={{ color: T.muted, fontSize: 13.5, lineHeight: 1.5, margin: 0 }}>
+          Turbo isn't just the next grade early — it adds <b style={{ color: T.ink }}>depth, transfer, and creative</b> challenges so strong readers go further, not just faster.
+        </p>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 5, color: T.muted }}><span>Readiness (avg of core pillars)</span><span style={{ color: ready ? T.orange : T.muted, fontWeight: 700 }}>{overall}% / 90%</span></div>
+          <Bar value={Math.min(100, Math.round((overall / 90) * 100))} color={ready ? T.orange : T.muted} />
+        </div>
+        {ready && (
+          <button onClick={() => setOptIn(!optIn)} style={{ ...primaryBtn(optIn), marginTop: 14 }}>{optIn ? '✓ Turbo on' : '⚡ Turn on Turbo'}</button>
+        )}
+      </div>
+
+      {!ready && (
+        <div style={{ ...cardStyle, padding: 16, color: T.muted, fontSize: 13.5, lineHeight: 1.5 }}>
+          Keep practicing the quests — when your <b style={{ color: T.ink }}>Phonics, Vocabulary, and Comprehension</b> all reach 90%+, Turbo opens with the challenges below. Here's a preview:
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, opacity: ready ? 1 : 0.55 }}>
+        {(track?.challenges || []).map(c => {
+          const k = KIND[c.kind] || KIND.depth;
+          return (
+            <div key={c.id} style={{ ...cardStyle, padding: 16, borderColor: ready ? k.color : T.border }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 22 }}>{k.icon}</span>
+                <span style={{ fontSize: 8.5, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, color: k.color }}>{k.label}</span>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{c.title}</div>
+              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.45 }}>{c.prompt}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 12, fontSize: 11, color: T.muted }}>Above-grade standards unlocked when Turbo is on: {(track?.aboveGradeStandards || []).join(', ') || '—'}</div>
     </div>
   );
 };
