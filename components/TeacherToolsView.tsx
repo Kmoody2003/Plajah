@@ -10,15 +10,23 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
   STANDARDS, standardById, bandFor, masteryToLevel, turboTrackFor, BAND_TO_GRADES,
   type GradeId, type Subject, type LearningStandard,
 } from '../data/educationStandards';
 import { appendRecord } from '../services/learningLedgerService';
-import { INTEGRATIONS, importCASEFramework, SAMPLE_CASE, type IntegrationStatus } from '../services/interopService';
+import {
+  INTEGRATIONS, importCASEFramework, SAMPLE_CASE, type IntegrationStatus,
+  exportGradebookCSV, toGoogleClassroomCoursework, toLtiResourceLink, downloadText,
+} from '../services/interopService';
 import { ORG_TYPES, FRAMEWORK_OVERLAYS, DEFAULT_CONTEXT, type LearningContextSettings } from '../data/deploymentContexts';
+
+export interface LessonPlan {
+  id: string; title: string; subject: Subject; band: string; standardCode: string;
+  objective: string; activities: string[]; notes: string; createdAt: number;
+}
 
 const T = {
   bg: '#0a0a0f', card: '#12121a', cardAlt: '#15151f', border: '#20202c',
@@ -46,12 +54,18 @@ const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ chil
 );
 const chip = (on: boolean, color = T.orange): React.CSSProperties => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: `1px solid ${on ? color : T.border}`, background: on ? `${color}22` : 'transparent', color: on ? color : T.ink });
 
-type Tab = 'grade' | 'plan' | 'assess' | 'connect' | 'context';
+type Tab = 'grade' | 'plan' | 'planner' | 'assess' | 'connect' | 'context';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
   const [subject, setSubject] = useState<Subject>('ELA');
   const [band, setBand] = useState<BandId>('g34');
+  const [plans, setPlans] = useState<LessonPlan[]>([]);
+
+  const addPlan = (p: Omit<LessonPlan, 'id' | 'createdAt'>) => {
+    setPlans(ps => [{ ...p, id: `lp_${ps.length + 1}_${p.standardCode}`, createdAt: 1 }, ...ps]);
+    setTab('planner');
+  };
 
   const students = DEMO_CLASS.students;
   const grades = BAND_TO_GRADES[band] || [];
@@ -78,7 +92,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['plan', 'Plan from Mastery', Wand2], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -89,12 +103,14 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
           <Integrations />
         ) : tab === 'context' ? (
           <ContextSettings />
+        ) : tab === 'planner' ? (
+          <Planner plans={plans} setPlans={setPlans} onCreateBlank={() => setTab('plan')} />
         ) : standards.length === 0 ? (
           <div style={{ ...cardStyle, padding: 20, color: T.muted }}>No standards seeded for {subject} at this level yet. Try another subject/level.</div>
         ) : tab === 'plan' ? (
-          <PlanFromMastery students={students} standards={standards} subject={subject} band={band} />
+          <PlanFromMastery students={students} standards={standards} subject={subject} band={band} onSave={addPlan} />
         ) : tab === 'grade' ? (
-          <Gradebook students={students} standards={standards} />
+          <Gradebook students={students} standards={standards} subject={subject} band={band} />
         ) : (
           <AssessWork students={students} standards={standards} user={user} />
         )}
@@ -104,10 +120,22 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 };
 
 // ── 1. Gradebook ─────────────────────────────────────────────────────────────────
-const Gradebook: React.FC<{ students: { id: string; name: string; color: string }[]; standards: LearningStandard[] }> = ({ students, standards }) => {
+const Gradebook: React.FC<{ students: { id: string; name: string; color: string }[]; standards: LearningStandard[]; subject: Subject; band: BandId }> = ({ students, standards, subject, band }) => {
+  const exportCsv = () => {
+    const headers = ['Student', ...standards.map(s => s.code), 'Average'];
+    const rows = students.map(st => {
+      const cells = standards.map(s => cellMastery(st.id, s.id));
+      const avg = Math.round(cells.reduce((a, b) => a + b, 0) / cells.length);
+      return [st.name, ...cells, avg];
+    });
+    downloadText(exportGradebookCSV(headers, rows), `plajah-gradebook-${subject}-${band}.csv`, 'text/csv');
+  };
   return (
     <div style={{ ...cardStyle, padding: 16, overflowX: 'auto' }}>
-      <Eyebrow>Standards-based gradebook · mastery heatmap</Eyebrow>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Eyebrow>Standards-based gradebook · mastery heatmap</Eyebrow>
+        <button onClick={exportCsv} title="Export to CSV (import into any SIS/gradebook)" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.green, fontSize: 10, fontWeight: 800 }}><FileDown size={12} /> Export CSV</button>
+      </div>
       <div style={{ minWidth: 120 + standards.length * 90 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `160px repeat(${standards.length}, 1fr)`, gap: 6, alignItems: 'end', paddingBottom: 8 }}>
           <span />
@@ -140,7 +168,7 @@ const bandLegend = () => ['emerging', 'developing', 'proficient', 'advanced', 't
 });
 
 // ── 2. Plan from Mastery (the headline) ──────────────────────────────────────────
-const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; standards: LearningStandard[]; subject: Subject; band: BandId }> = ({ students, standards, subject, band }) => {
+const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; standards: LearningStandard[]; subject: Subject; band: BandId; onSave: (p: Omit<LessonPlan, 'id' | 'createdAt'>) => void }> = ({ students, standards, subject, band, onSave }) => {
   // Class-average mastery per standard → weakest first.
   const ranked = useMemo(() => standards.map(s => {
     const avg = Math.round(students.reduce((a, st) => a + cellMastery(st.id, s.id), 0) / students.length);
@@ -152,6 +180,10 @@ const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; stan
   const grade = (BAND_TO_GRADES[band] || ['g3'])[0] as GradeId;
   const turbo = turboTrackFor(subject, grade);
 
+  const supportAct = `Assign ${cartridge} on this skill at an easier level — rebuild the foundation with guided practice.`;
+  const onLevelAct = `Targeted ${cartridge} practice on ${target.std.code}, then a short formative check that writes to the ledger.`;
+  const turboAct = turbo ? `${turbo.challenges[0].title}: ${turbo.challenges[0].prompt}` : 'Extend with an above-grade challenge and a creative application.';
+
   // Differentiate the roster by their mastery on the target standard.
   const groups = useMemo(() => {
     const g = { support: [] as string[], onLevel: [] as string[], turbo: [] as string[] };
@@ -159,19 +191,24 @@ const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; stan
     return g;
   }, [target, students]);
 
+  const savePlan = () => onSave({ title: `${target.std.code} — gap-closer`, subject, band, standardCode: target.std.code, objective: target.std.statement, activities: [`Support — ${supportAct}`, `On-Level — ${onLevelAct}`, `Turbo — ${turboAct}`], notes: '' });
+
   return (
     <div>
       <div style={{ ...cardStyle, padding: 18, marginBottom: 16, borderColor: 'rgba(255,140,0,0.3)', background: 'linear-gradient(120deg, rgba(255,140,0,0.06), rgba(129,102,230,0.05))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}><Wand2 size={16} color={T.orange} /><Eyebrow color={T.orange}>Auto-generated · targets your class's biggest gap</Eyebrow></div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Wand2 size={16} color={T.orange} /><Eyebrow color={T.orange}>Auto-generated · targets your class's biggest gap</Eyebrow></div>
+          <button onClick={savePlan} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}><Plus size={13} /> Save as lesson plan</button>
+        </div>
         <div style={{ fontWeight: 900, fontSize: 20 }}>{target.std.statement}</div>
         <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>{target.std.framework} · {target.std.code} · class average <b style={{ color: bandFor(target.avg).color }}>{target.avg}% ({bandFor(target.avg).label})</b> — the lowest in {subject} right now.</div>
       </div>
 
       <Eyebrow>Differentiated plan · three tracks, auto-grouped</Eyebrow>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 16 }}>
-        <PlanTrack color={T.red} title="Support" who={groups.support} activity={`Assign ${cartridge} on this skill at an easier level — rebuild the foundation with guided practice.`} tag="re-teach + scaffold" />
-        <PlanTrack color={T.green} title="On-Level" who={groups.onLevel} activity={`Targeted ${cartridge} practice on ${target.std.code}, then a short formative check that writes to the ledger.`} tag="practice + check" />
-        <PlanTrack color={T.violet} title="Turbo" who={groups.turbo} activity={turbo ? `${turbo.challenges[0].title}: ${turbo.challenges[0].prompt}` : 'Extend with an above-grade challenge and a creative application.'} tag="depth + transfer" />
+        <PlanTrack color={T.red} title="Support" who={groups.support} activity={supportAct} tag="re-teach + scaffold" />
+        <PlanTrack color={T.green} title="On-Level" who={groups.onLevel} activity={onLevelAct} tag="practice + check" />
+        <PlanTrack color={T.violet} title="Turbo" who={groups.turbo} activity={turboAct} tag="depth + transfer" />
       </div>
 
       <div style={{ ...cardStyle, padding: 16 }}>
@@ -236,6 +273,56 @@ const AssessWork: React.FC<{ students: { id: string; name: string }[]; standards
   );
 };
 const selStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, color: T.ink, fontSize: 13, fontFamily: T.font, boxSizing: 'border-box' };
+
+// ── Lesson Planner (on-platform, interop-native export) ──────────────────────────
+const Planner: React.FC<{ plans: LessonPlan[]; setPlans: React.Dispatch<React.SetStateAction<LessonPlan[]>>; onCreateBlank: () => void }> = ({ plans, setPlans, onCreateBlank }) => {
+  const update = (id: string, patch: Partial<LessonPlan>) => setPlans(ps => ps.map(p => p.id === id ? { ...p, ...patch } : p));
+  const remove = (id: string) => setPlans(ps => ps.filter(p => p.id !== id));
+  const exportPlan = (p: LessonPlan, fmt: 'json' | 'gc' | 'lti') => {
+    const like = { title: p.title, objective: p.objective, standardCode: p.standardCode, activities: p.activities };
+    if (fmt === 'json') downloadText(JSON.stringify(p, null, 2), `plan-${p.standardCode}.json`);
+    else if (fmt === 'gc') downloadText(JSON.stringify(toGoogleClassroomCoursework(like), null, 2), `plan-${p.standardCode}-googleclassroom.json`);
+    else downloadText(JSON.stringify(toLtiResourceLink(like), null, 2), `plan-${p.standardCode}-lti.json`);
+  };
+
+  if (!plans.length) return (
+    <div style={{ ...cardStyle, padding: 28, textAlign: 'center', color: T.muted }}>
+      <CalendarDays size={40} style={{ opacity: 0.3 }} />
+      <div style={{ fontWeight: 800, fontSize: 17, color: T.ink, marginTop: 10 }}>No saved plans yet</div>
+      <div style={{ fontSize: 13, margin: '6px 0 16px' }}>Generate a gap-targeted plan and save it here — then export to your tools.</div>
+      <button onClick={onCreateBlank} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}><Wand2 size={14} /> Plan from mastery</button>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ marginBottom: 12, fontSize: 11.5, color: T.muted, lineHeight: 1.5 }}>Your plans are <b style={{ color: T.ink }}>interop-native</b> — export the exact payloads ed-tech tools expect. Live push to Google Classroom / LTI is one OAuth connection away (see Integrations).</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {plans.map(p => (
+          <div key={p.id} style={{ ...cardStyle, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <input value={p.title} onChange={e => update(p.id, { title: e.target.value })} style={{ ...selStyle, fontWeight: 800, fontSize: 15 }} />
+              <button onClick={() => remove(p.id)} title="Delete" style={{ cursor: 'pointer', padding: 8, borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.red, flexShrink: 0 }}><Trash2 size={14} /></button>
+            </div>
+            <div style={{ fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.muted, fontWeight: 800, marginBottom: 8 }}>{p.subject} · {p.band} · {p.standardCode}</div>
+            <div style={{ marginBottom: 8 }}><Eyebrow>Objective</Eyebrow><textarea value={p.objective} onChange={e => update(p.id, { objective: e.target.value })} rows={2} style={{ ...selStyle, resize: 'vertical' }} /></div>
+            <div style={{ marginBottom: 8 }}>
+              <Eyebrow>Activities</Eyebrow>
+              {p.activities.map((a, i) => <div key={i} style={{ fontSize: 12.5, color: T.muted, padding: '4px 0', lineHeight: 1.4 }}>• {a}</div>)}
+            </div>
+            <div style={{ marginBottom: 12 }}><Eyebrow>Notes</Eyebrow><textarea value={p.notes} onChange={e => update(p.id, { notes: e.target.value })} rows={2} placeholder="Materials, timing, reminders…" style={{ ...selStyle, resize: 'vertical' }} /></div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => exportPlan(p, 'json')} style={exportBtn(T.muted)}><FileDown size={12} /> JSON</button>
+              <button onClick={() => exportPlan(p, 'gc')} style={exportBtn(T.green)}><Send size={12} /> Google Classroom</button>
+              <button onClick={() => exportPlan(p, 'lti')} style={exportBtn(T.blue)}><Send size={12} /> LTI 1.3</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+const exportBtn = (color: string): React.CSSProperties => ({ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color, fontSize: 10.5, fontWeight: 800 });
 
 // ── 4. Integrations (Phase 5) ────────────────────────────────────────────────────
 const STATUS_META: Record<IntegrationStatus, { label: string; color: string }> = {

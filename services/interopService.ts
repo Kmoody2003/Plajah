@@ -93,6 +93,58 @@ export function parseOneRosterClasses(payload: { classes?: any[]; enrollments?: 
   return Object.values(byClass);
 }
 
+// ── Outbound: export Plajah artifacts INTO third-party tools (interop-native) ─────
+// On-platform teacher tools are built to emit standard ed-tech formats so they drop into any
+// stack. These produce the real payload shapes; the live push needs the connector's OAuth (see
+// INTEGRATIONS status), but the format is correct today and downloadable for manual import.
+
+export interface LessonPlanLike { title: string; objective: string; standardCode?: string; activities: string[]; }
+
+/** Standards-based gradebook → CSV (RFC-4180 quoting). Universally importable. */
+export function exportGradebookCSV(headers: string[], rows: (string | number)[][]): string {
+  const esc = (v: string | number) => { const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+}
+
+/** Google Classroom courseWork API payload (push requires Classroom OAuth). */
+export function toGoogleClassroomCoursework(plan: LessonPlanLike) {
+  return {
+    title: plan.title,
+    description: [plan.objective, '', ...plan.activities].join('\n'),
+    workType: 'ASSIGNMENT',
+    state: 'DRAFT',
+    maxPoints: 100,
+    ...(plan.standardCode ? { associatedWithDeveloper: { standard: plan.standardCode } } : {}),
+  };
+}
+
+/** LTI 1.3 Deep Linking resource (returned to a platform during a deep-link launch). */
+export function toLtiResourceLink(plan: LessonPlanLike) {
+  return {
+    type: 'ltiResourceLink',
+    title: plan.title,
+    text: plan.objective,
+    lineItem: { scoreMaximum: 100, label: plan.title },
+    custom: { plajah_standard: plan.standardCode || '', plajah_activities: plan.activities.join(' | ') },
+  };
+}
+
+/** OneRoster lineItem result rows for grade passback. */
+export function toOneRosterResults(rows: { studentSourcedId: string; score: number }[], lineItemSourcedId: string) {
+  return rows.map(r => ({ sourcedId: `${lineItemSourcedId}-${r.studentSourcedId}`, status: 'active', lineItem: { sourcedId: lineItemSourcedId }, student: { sourcedId: r.studentSourcedId }, score: r.score, scoreStatus: 'fully graded' }));
+}
+
+/** Trigger a browser download of any text artifact. */
+export function downloadText(text: string, filename: string, mime = 'application/json'): void {
+  try {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch { /* optional */ }
+}
+
 // ── LTI 1.3 launch (typed adapter) ───────────────────────────────────────────────
 export interface LtiLaunch { userId: string; roles: string[]; contextTitle?: string; resourceLinkId?: string; isInstructor: boolean; }
 export function parseLtiLaunch(claims: Record<string, any>): LtiLaunch {
