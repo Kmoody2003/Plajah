@@ -127,6 +127,7 @@ const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView')
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const ClassroomDojoView = retryLazy(() => import('./components/ClassroomDojoView'));
+const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
@@ -809,6 +810,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('MOVIES_TV');
     } else if (target === 'CLASSROOM_DOJO') {
       setView('CLASSROOM_DOJO');
+    } else if (target === 'READING_QUEST') {
+      setView('READING_QUEST');
     } else if (target === 'KIDS_LIBRARY') {
       setView('KIDS_LIBRARY');
     } else if (target === 'HELP_CENTER') {
@@ -2962,7 +2965,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'CLASSROOM_DOJO' && (
-              <ClassroomDojoView onBack={() => setView('CLASSROOMS')} />
+              <ClassroomDojoView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
+            )}
+
+            {view === 'READING_QUEST' && (
+              <ReadingQuestView onBack={() => setView('CLASSROOMS')} />
             )}
 
             {view === 'KIDS_LIBRARY' && (

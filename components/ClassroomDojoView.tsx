@@ -5,17 +5,16 @@
 // around without changing anything real. Clearly marked DEMO throughout.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, GraduationCap, Users, Sparkles, CalendarCheck, Baby, Star, X } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Users, Sparkles, CalendarCheck, Baby, Star, X, BookOpen } from 'lucide-react';
 import { DEMO_CLASS, DojoAward, AttendanceStatus } from '../data/demoClassroom';
+import { useClassroom, classroomStore } from '../data/classroomStore';
 
-const uid = () => `aw_${Math.random().toString(36).slice(2, 9)}`;
 const fmt = (ms: number) => { const m = Math.round((1_750_000_000_000 - ms) / 60000); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 
-const ClassroomDojoView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+const ClassroomDojoView: React.FC<{ onBack?: () => void; onOpenReadingQuest?: () => void }> = ({ onBack, onOpenReadingQuest }) => {
   const c = DEMO_CLASS;
-  const [students, setStudents] = useState(c.students);
-  const [awards, setAwards] = useState<DojoAward[]>(c.awards);
-  const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>(c.attendance);
+  // Shared, live class state — reading activities completed in Reading Quest land here too.
+  const { students, awards, attendance } = useClassroom();
   const [mode, setMode] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [awarding, setAwarding] = useState<string | null>(null); // studentId being awarded
 
@@ -23,12 +22,10 @@ const ClassroomDojoView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const studentById = useMemo(() => Object.fromEntries(students.map(s => [s.id, s])), [students]);
 
   const award = (studentId: string, behaviorId: string) => {
-    const b = behaviorById[behaviorId]; if (!b) return;
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, points: s.points + b.points } : s));
-    setAwards(prev => [{ id: uid(), studentId, behaviorId, points: b.points, at: 1_750_000_000_000 - (prev.length ? 0 : 0) - (Date.now() % 1) }, ...prev]);
+    classroomStore.award(studentId, behaviorId);
     setAwarding(null);
   };
-  const cycleAttendance = (id: string) => setAttendance(p => ({ ...p, [id]: p[id] === 'present' ? 'tardy' : p[id] === 'tardy' ? 'absent' : 'present' }));
+  const cycleAttendance = (id: string) => classroomStore.cycleAttendance(id);
 
   const child = studentById[c.parent.childId];
 
@@ -56,8 +53,15 @@ const ClassroomDojoView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </div>
         </div>
 
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 12, background: 'rgba(255,210,74,0.1)', border: '1px solid rgba(255,210,74,0.3)', color: '#FFD24A', borderRadius: 20, padding: '5px 12px', fontSize: 11.5, fontWeight: 700 }}>
-          <Sparkles size={13} /> Demo class with demo interactions — award points, take attendance, switch to the parent view. Nothing is saved.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,210,74,0.1)', border: '1px solid rgba(255,210,74,0.3)', color: '#FFD24A', borderRadius: 20, padding: '5px 12px', fontSize: 11.5, fontWeight: 700 }}>
+            <Sparkles size={13} /> Demo class with demo interactions — award points, take attendance, switch to the parent view. Nothing is saved.
+          </div>
+          {onOpenReadingQuest && (
+            <button onClick={onOpenReadingQuest} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,140,0,0.14)', border: '1px solid rgba(255,140,0,0.4)', color: '#FF8C00', borderRadius: 20, padding: '5px 13px', fontSize: 11.5, fontWeight: 800, cursor: 'pointer' }}>
+              <BookOpen size={13} /> Open Reading Quest →
+            </button>
+          )}
         </div>
 
         {mode === 'TEACHER' ? (

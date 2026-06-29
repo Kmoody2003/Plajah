@@ -1947,6 +1947,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'FILM_SCHOOL'
   // Math Classroom (BETA) — Classrooms
   | 'MATH_CLASSROOM'
+  // Reading Quest (BETA) — Classrooms, Dojo-integrated
+  | 'READING_QUEST'
   // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
   | 'AUDIO_BOOK_STUDIO'
   // Science & Engineering hub
