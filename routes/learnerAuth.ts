@@ -170,3 +170,41 @@ learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) =>
   await audit(String(cred.childUid), uid, 'access', 'password-reset');
   return res.json({ ok: true });
 });
+
+// ── Teacher verification ───────────────────────────────────────────────────────
+// Only verified teachers may provision student accounts. An institutional email domain
+// (.edu / .k12.* / .sch.* / .ac.* etc.) auto-verifies; anything else files a request for
+// admin/district-SSO review and stays unverified (no provisioning powers).
+function classifyTeacherEmail(email: string): TeacherVerification | null {
+  const domain = (email.split('@')[1] || '').toLowerCase();
+  if (!domain) return null;
+  if (/(^|\.)edu$/.test(domain)) return 'DOMAIN';                 // *.edu
+  if (/\.edu\.[a-z]{2,3}$/.test(domain)) return 'DOMAIN';         // edu.au, edu.sg, ...
+  if (/\.(k12|sch|ac)\.[a-z]{2,3}$/.test(domain)) return 'DOMAIN'; // k12.*, sch.uk, ac.uk, ...
+  if (/\.k12\./.test(domain)) return 'DOMAIN';                    // *.k12.<state>.us
+  return null;
+}
+
+learnerAuthRouter.get('/teacher-status', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in.' });
+  const u = await fsGet(USER(uid));
+  const verification = (u?.teacherVerification ?? 'UNVERIFIED') as TeacherVerification;
+  return res.json({ verification, email: u?.email || '', canProvision: canProvisionChildren(verification) });
+});
+
+learnerAuthRouter.post('/request-teacher', async (req: Request, res: Response) => {
+  if (!adminConfig.hasServiceAccount()) return res.status(503).json({ error: 'Verification is temporarily unavailable.' });
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in.' });
+  const u = await fsGet(USER(uid));
+  if (!u) return res.status(404).json({ error: 'Account not found.' });
+
+  const cls = classifyTeacherEmail(String(u.email || ''));
+  if (cls) {
+    await fsPatch(USER(uid), { teacherVerification: cls, isTeacher: true });
+    return res.json({ verification: cls, pending: false, canProvision: true });
+  }
+  await fsSet(`teacherVerificationRequests/${uid}`, { uid, email: u.email || '', requestedAt: Date.now(), status: 'PENDING' });
+  return res.json({ verification: 'UNVERIFIED', pending: true, canProvision: false });
+});

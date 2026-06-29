@@ -711,9 +711,10 @@ service cloud.firestore {
     // These hold child password hashes, claim secrets, and FERPA access logs. They are
     // written exclusively by the backend via the service account (which bypasses these
     // rules); no client may ever read or write them.
-    match /learnerCredentials/{username} { allow read, write: if false; }
-    match /claimTokens/{code}            { allow read, write: if false; }
-    match /accountAudit/{eventId}        { allow read, write: if false; }
+    match /learnerCredentials/{username}      { allow read, write: if false; }
+    match /claimTokens/{code}                 { allow read, write: if false; }
+    match /accountAudit/{eventId}             { allow read, write: if false; }
+    match /teacherVerificationRequests/{uid}  { allow read, write: if false; }
 
     // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
     function isGuardianOf(studentId) {

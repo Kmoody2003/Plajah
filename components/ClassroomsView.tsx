@@ -39,6 +39,7 @@ import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
 import ErrorBoundary from './ErrorBoundary';
+import TeacherStudentsPanel from './TeacherStudentsPanel';
 import { lazy } from 'react';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 
@@ -754,6 +755,13 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             </button>
           ))}
         </div>
+
+        {/* Teaching: provision student accounts (verified teachers) */}
+        {activeTab === 'TEACHING' && user && (
+          <div className="mb-8 p-5 sm:p-6 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[2rem]">
+            <TeacherStudentsPanel user={user} />
+          </div>
+        )}
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

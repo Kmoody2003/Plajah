@@ -53,6 +53,24 @@ export async function claimChild(claimCode: string): Promise<{ childUid: string 
   return data as { childUid: string };
 }
 
+export interface TeacherStatus { verification: string; email: string; canProvision: boolean; }
+
+/** Read the signed-in user's teacher-verification status. */
+export async function teacherStatus(): Promise<TeacherStatus> {
+  const res = await fetch('/api/learner-auth/teacher-status', { headers: await authedHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Could not load status.');
+  return data as TeacherStatus;
+}
+
+/** Request teacher verification — institutional email auto-verifies, else files for review. */
+export async function requestTeacherVerification(): Promise<{ verification: string; pending: boolean; canProvision: boolean }> {
+  const res = await fetch('/api/learner-auth/request-teacher', { method: 'POST', headers: await authedHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Could not verify your teacher account.');
+  return data;
+}
+
 /** Guardian or provisioning teacher sets a new password for a child (who has no email). */
 export async function resetChildPassword(username: string, newPassword: string): Promise<void> {
   const p = isValidChildPassword(newPassword); if (!p.ok) throw new Error(p.reason);
