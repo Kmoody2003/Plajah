@@ -1121,6 +1121,17 @@ export interface UserProfile {
   birthYear?: number;
   /** Per-account safety + screen-time settings. A child's are owned by the guardian. */
   parentalControls?: ParentalControls;
+  // ─── Learner identity & lifecycle (Education Ledger — see docs/education) ───────
+  /** Login handle for a CHILD account (the only account type with no email). */
+  username?: string;
+  /** Lifecycle of a child account: school-provisioned (walled) → parent-owned → self-owned. */
+  childState?: 'SCHOOL_PROVISIONED' | 'PARENT_OWNED' | 'SELF_OWNED' | 'ARCHIVED';
+  /** Teacher who provisioned a yet-unclaimed child account (classroom-scoped access only). */
+  provisionedByTeacherUid?: string;
+  /** Additional guardians granted scoped access beyond the primary (custody / pods). */
+  coGuardianUids?: string[];
+  /** Teacher verification tier — gates the right to provision child accounts. */
+  teacherVerification?: 'UNVERIFIED' | 'DOMAIN' | 'DISTRICT_SSO' | 'ADMIN_APPROVED';
   revenue?: UserRevenue;
   storeSettings?: StoreSettings;
   isWriter?: boolean;
