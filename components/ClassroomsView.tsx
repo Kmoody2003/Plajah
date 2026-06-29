@@ -28,6 +28,7 @@ import {
   Link2,
   X,
   CheckCircle2,
+  Wand2,
   Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -814,7 +815,10 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                 <div className="p-5 rounded-[2rem]" style={{ border: '1px solid rgba(255,140,0,0.25)', background: 'linear-gradient(120deg, rgba(255,140,0,0.08), rgba(129,102,230,0.08))' }}>
                   <div className="text-sm font-black text-white mb-1">Academic class — standards-aligned & ledger-backed</div>
                   <div className="text-[11px] text-white/50 leading-relaxed">For K-12 / academia. Provision student accounts, align to international standards, and every activity writes to the learner's portable ledger.</div>
-                  <button onClick={() => openCreate('ACADEMIC')} className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-small-orange text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"><Plus size={14} /> Create academic class</button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button onClick={() => openCreate('ACADEMIC')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-small-orange text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"><Plus size={14} /> Create academic class</button>
+                    {onNavigate && <button onClick={() => onNavigate('TEACHER_TOOLS')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"><Wand2 size={14} /> Teacher tools · plan from mastery</button>}
+                  </div>
                 </div>
                 {user && (
                   <div className="p-5 sm:p-6 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[2rem]">

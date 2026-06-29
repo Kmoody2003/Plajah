@@ -1975,6 +1975,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'SCIENCE_QUEST'
   // Learner Ledger / Academic Passport — the portable record across subjects
   | 'LEARNER_LEDGER'
+  // Teacher Tools — gradebook, plan-from-mastery, creative assessment
+  | 'TEACHER_TOOLS'
   // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
   | 'AUDIO_BOOK_STUDIO'
   // Science & Engineering hub
