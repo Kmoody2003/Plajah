@@ -42,7 +42,7 @@ async function audit(childUid: string, actorUid: string, action: string, detail?
 // A signed-in PARENT (creates their own child → immediately owned) or a VERIFIED TEACHER
 // (creates a walled, school-provisioned child → returns a claim code for the family).
 learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
-  if (!adminConfig.hasServiceAccount()) return res.status(503).json({ error: 'Server not configured for account provisioning.' });
+  if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured for account provisioning.' });
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in to create a learner account.' });
 
@@ -99,7 +99,7 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
 // ── POST /login ────────────────────────────────────────────────────────────────
 // PUBLIC + rate-limited. Username + password → Firebase custom token. No email involved.
 learnerAuthRouter.post('/login', async (req: Request, res: Response) => {
-  if (!adminConfig.hasServiceAccount()) return res.status(503).json({ error: 'Sign-in is temporarily unavailable.' });
+  if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Sign-in is temporarily unavailable.' });
   const { username, password } = req.body ?? {};
   if (!username || !password) return res.status(400).json({ error: 'Enter your username and password.' });
 
@@ -121,7 +121,7 @@ learnerAuthRouter.post('/login', async (req: Request, res: Response) => {
   }
 
   if (cred.failedAttempts) await fsPatch(CRED(String(username)), { failedAttempts: 0, lockedUntil: 0 });
-  const token = createCustomToken(String(cred.childUid));
+  const token = await createCustomToken(String(cred.childUid));
   if (!token) return res.status(500).json({ error: 'Sign-in failed. Please try again.' });
   await audit(String(cred.childUid), String(cred.childUid), 'login');
   return res.json({ token, childUid: cred.childUid });
@@ -194,7 +194,7 @@ learnerAuthRouter.get('/teacher-status', async (req: Request, res: Response) => 
 });
 
 learnerAuthRouter.post('/request-teacher', async (req: Request, res: Response) => {
-  if (!adminConfig.hasServiceAccount()) return res.status(503).json({ error: 'Verification is temporarily unavailable.' });
+  if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Verification is temporarily unavailable.' });
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in.' });
   const u = await fsGet(USER(uid));

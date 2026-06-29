@@ -21,68 +21,139 @@ function serviceAccount(): { client_email: string; private_key: string } | null 
 
 const b64url = (s: string | Buffer) => Buffer.from(s).toString('base64url');
 
-// ── OAuth access token (cloud-platform scope) for Firestore REST ─────────────────
-let _token: { token: string; exp: number } | null = null;
-export async function getAccessToken(): Promise<string | null> {
-  const sa = serviceAccount();
-  if (!sa) return null;
-  if (_token && Date.now() < _token.exp - 120_000) return _token.token;
+// ── Credentials: a service-account key (env) OR Cloud Run's runtime identity (ADC) ─
+// Locally we use GOOGLE_SERVICE_ACCOUNT_JSON. On Cloud Run there's no key file — we use the
+// metadata server for access tokens and the IAM signJwt API (as the runtime service account) to
+// mint Firebase custom tokens, so no private key is ever stored. Requires the runtime SA to have
+// roles/iam.serviceAccountTokenCreator on itself and the IAM Credentials API enabled.
+const onManagedPlatform = () => !!(process.env.K_SERVICE || process.env.GAE_SERVICE || process.env.GOOGLE_CLOUD_PROJECT);
+
+async function metadata(path: string): Promise<string | null> {
   try {
-    const now = Math.floor(Date.now() / 1000);
-    const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify({
-      iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/cloud-platform',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now, exp: now + 3600,
-    }))}`;
-    const signer = nodeCrypto.createSign('RSA-SHA256');
-    signer.update(unsigned);
-    const jwt = `${unsigned}.${signer.sign(sa.private_key).toString('base64url')}`;
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
-    });
-    const data = await res.json() as any;
-    if (!data.access_token) return null;
-    _token = { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000 };
-    return _token.token;
+    const res = await fetch(`http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/${path}`, { headers: { 'Metadata-Flavor': 'Google' } });
+    return res.ok ? await res.text() : null;
   } catch { return null; }
 }
 
-// ── Firebase custom token (SA-signed JWT) — gives a child a real auth session ─────
-export function createCustomToken(uid: string, claims?: Record<string, unknown>): string | null {
+let _signerEmail: string | null = null;
+async function signerEmail(): Promise<string | null> {
   const sa = serviceAccount();
-  if (!sa) return null;
-  const now = Math.floor(Date.now() / 1000);
-  const payload: Record<string, unknown> = {
-    iss: sa.client_email,
-    sub: sa.client_email,
-    aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
-    iat: now,
-    exp: now + 3600,
-    uid,
-  };
-  if (claims && Object.keys(claims).length) payload.claims = claims;
-  const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify(payload))}`;
-  const signer = nodeCrypto.createSign('RSA-SHA256');
-  signer.update(unsigned);
-  return `${unsigned}.${signer.sign(sa.private_key).toString('base64url')}`;
+  if (sa) return sa.client_email;
+  if (_signerEmail) return _signerEmail;
+  _signerEmail = await metadata('email');
+  return _signerEmail;
 }
 
-// ── Verify a caller's Firebase ID token → uid (identitytoolkit lookup) ────────────
-export async function verifyIdToken(idToken: string): Promise<string | null> {
-  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
-  if (!apiKey || !idToken) return null;
+// ── OAuth access token (cloud-platform scope) — SA key, else ADC metadata ─────────
+let _token: { token: string; exp: number } | null = null;
+export async function getAccessToken(): Promise<string | null> {
+  if (_token && Date.now() < _token.exp - 120_000) return _token.token;
+  const sa = serviceAccount();
+  if (sa) {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify({
+        iss: sa.client_email,
+        scope: 'https://www.googleapis.com/auth/cloud-platform',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now, exp: now + 3600,
+      }))}`;
+      const signer = nodeCrypto.createSign('RSA-SHA256');
+      signer.update(unsigned);
+      const jwt = `${unsigned}.${signer.sign(sa.private_key).toString('base64url')}`;
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+      });
+      const data = await res.json() as any;
+      if (!data.access_token) return null;
+      _token = { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000 };
+      return _token.token;
+    } catch { return null; }
+  }
+  // ADC: Cloud Run runtime service account via the metadata server.
+  const raw = await metadata('token');
+  if (!raw) return null;
   try {
-    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+    const data = JSON.parse(raw) as any;
+    if (!data.access_token) return null;
+    _token = { token: data.access_token, exp: Date.now() + (data.expires_in ?? 3600) * 1000 };
+    return data.access_token;
+  } catch { return null; }
+}
+
+// ── Firebase custom token — local SA-key signing, else IAM signJwt (ADC) ──────────
+export async function createCustomToken(uid: string, claims?: Record<string, unknown>): Promise<string | null> {
+  const now = Math.floor(Date.now() / 1000);
+  const sa = serviceAccount();
+  const email = sa?.client_email || await signerEmail();
+  if (!email) return null;
+  const payload: Record<string, unknown> = {
+    iss: email, sub: email,
+    aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
+    iat: now, exp: now + 3600, uid,
+  };
+  if (claims && Object.keys(claims).length) payload.claims = claims;
+
+  if (sa) {
+    const unsigned = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify(payload))}`;
+    const signer = nodeCrypto.createSign('RSA-SHA256');
+    signer.update(unsigned);
+    return `${unsigned}.${signer.sign(sa.private_key).toString('base64url')}`;
+  }
+  // No key file — have the runtime SA sign the custom-token JWT via the IAM Credentials API.
+  const at = await getAccessToken();
+  if (!at) return null;
+  try {
+    const res = await fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${email}:signJwt`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
+      headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: JSON.stringify(payload) }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) { console.error('[admin] signJwt failed:', res.status, (await res.text().catch(() => '')).slice(0, 180)); return null; }
     const data = await res.json() as any;
-    return data.users?.[0]?.localId ?? null;
+    return data.signedJwt || null;
+  } catch (e) { console.error('[admin] signJwt error:', e); return null; }
+}
+
+// ── Verify a caller's Firebase ID token → uid (API-key lookup, else public certs) ─
+let _certs: { keys: Record<string, string>; exp: number } | null = null;
+async function secureTokenCerts(): Promise<Record<string, string>> {
+  if (_certs && Date.now() < _certs.exp) return _certs.keys;
+  const res = await fetch('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+  const keys = await res.json() as Record<string, string>;
+  const m = /max-age=(\d+)/.exec(res.headers.get('cache-control') || '');
+  _certs = { keys, exp: Date.now() + (m ? parseInt(m[1], 10) : 3600) * 1000 };
+  return keys;
+}
+export async function verifyIdToken(idToken: string): Promise<string | null> {
+  if (!idToken) return null;
+  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
+  if (apiKey) {
+    try {
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }),
+      });
+      if (res.ok) { const data = await res.json() as any; if (data.users?.[0]?.localId) return data.users[0].localId; }
+    } catch { /* fall through to cert verification */ }
+  }
+  // Cert-based verification (no API key needed) — validates signature + standard claims.
+  try {
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return null;
+    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    if (header.alg !== 'RS256' || !header.kid) return null;
+    const now = Math.floor(Date.now() / 1000);
+    if (!(typeof payload.exp === 'number' && payload.exp > now)) return null;
+    if (payload.aud !== PROJECT_ID) return null;
+    if (payload.iss !== `https://securetoken.google.com/${PROJECT_ID}`) return null;
+    if (!payload.sub || typeof payload.sub !== 'string') return null;
+    const cert = (await secureTokenCerts())[header.kid];
+    if (!cert) return null;
+    const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
+    return ok ? payload.sub : null;
   } catch { return null; }
 }
 
@@ -187,4 +258,8 @@ export function verifyPassword(password: string, stored: string): boolean {
   } catch { return false; }
 }
 
-export const adminConfig = { PROJECT_ID, DB_ID, hasServiceAccount: () => !!serviceAccount() };
+export const adminConfig = {
+  PROJECT_ID, DB_ID,
+  hasServiceAccount: () => !!serviceAccount(),                       // literal SA key (needed by the local seeder)
+  hasCredentials: () => !!serviceAccount() || onManagedPlatform(),  // SA key OR Cloud Run ADC (for the API endpoints)
+};
