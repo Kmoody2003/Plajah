@@ -402,7 +402,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'EXPLORE' | 'MY_CLASSES' | 'TEACHING' | 'MODULES'>('MODULES');
+  const [activeTab, setActiveTab] = useState<'EXPLORE' | 'COURSES' | 'MY_CLASSES' | 'TEACHING' | 'MODULES'>('MODULES');
   const [teachingMode, setTeachingMode] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
   const [createTrack, setCreateTrack] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
   const openCreate = (track: 'ACADEMIC' | 'CREATOR') => { setCreateTrack(track); setShowCreateModal(true); };
@@ -744,8 +744,9 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
         <div className="flex items-center gap-2 mb-10 p-1 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-full w-fit">
           {[
             { id: 'MODULES', label: 'Modules', icon: Sparkles },
-            { id: 'EXPLORE', label: 'Explore Classes', icon: Globe },
-            { id: 'MY_CLASSES', label: 'My Learning', icon: GraduationCap },
+            { id: 'EXPLORE', label: 'Academic Classes', icon: GraduationCap },
+            { id: 'COURSES', label: 'Creator Courses', icon: Video },
+            { id: 'MY_CLASSES', label: 'My Learning', icon: BookOpen },
             { id: 'TEACHING', label: 'Teaching', icon: Users }
           ].map(tab => (
             <button
@@ -872,7 +873,12 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           )}
 
           {activeTab !== 'MODULES' && (() => {
-            const pool = activeTab === 'EXPLORE' ? classrooms : activeTab === 'MY_CLASSES' ? myClasses : teachingClasses;
+            const trackOf = (c: Classroom) => c.track || 'CREATOR';
+            const pool =
+              activeTab === 'EXPLORE' ? classrooms.filter(c => trackOf(c) === 'ACADEMIC') :
+              activeTab === 'COURSES' ? classrooms.filter(c => trackOf(c) === 'CREATOR') :
+              activeTab === 'MY_CLASSES' ? myClasses :
+              teachingClasses;
 
             if (loading) return (
               <div className="col-span-full flex flex-col items-center justify-center py-24">
@@ -911,12 +917,21 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                     </div>
                   </>
                 )}
+                {activeTab === 'COURSES' && (
+                  <>
+                    <h3 className="text-2xl font-black uppercase tracking-tightest mb-3">No Courses Yet</h3>
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest mb-8">MasterClass-style courses from creators. Be the first to teach your craft.</p>
+                    <button onClick={() => openCreate('CREATOR')} className="flex items-center gap-2 px-8 py-4 bg-white text-black mx-auto rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                      <Plus size={14} /> Create a Course
+                    </button>
+                  </>
+                )}
                 {activeTab === 'MY_CLASSES' && (
                   <>
                     <h3 className="text-2xl font-black uppercase tracking-tightest mb-3">Not Enrolled Yet</h3>
                     <p className="text-[10px] text-white/30 uppercase tracking-widest mb-6">Explore classes and enroll to start learning.</p>
-                    <button onClick={() => setActiveTab('EXPLORE')} className="px-8 py-4 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">
-                      Browse Classes
+                    <button onClick={() => setActiveTab('COURSES')} className="px-8 py-4 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">
+                      Browse Courses
                     </button>
                   </>
                 )}
@@ -942,8 +957,13 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                 <div className="aspect-video relative">
                   <img src={cls.thumbnailUrl || ''} className="w-full h-full object-cover" alt={cls.title} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{cls.category}</span>
+                  <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{cls.category}</span>
+                    </div>
+                    <div className="px-2.5 py-1.5 backdrop-blur-md rounded-xl border" style={trackOf(cls) === 'ACADEMIC' ? { background: 'rgba(255,140,0,0.18)', borderColor: 'rgba(255,140,0,0.4)' } : { background: 'rgba(129,102,230,0.18)', borderColor: 'rgba(129,102,230,0.4)' }}>
+                      <span className="text-[8px] font-black uppercase tracking-widest" style={{ color: trackOf(cls) === 'ACADEMIC' ? '#FF8C00' : '#a78bfa' }}>{trackOf(cls) === 'ACADEMIC' ? '🎓 Academic' : '🎨 Course'}</span>
+                    </div>
                   </div>
                   {cls.price > 0 && (
                     <div className="absolute top-4 right-4 px-3 py-1.5 bg-small-orange rounded-xl flex items-center gap-2 shadow-xl">
