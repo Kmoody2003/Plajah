@@ -2969,7 +2969,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'READING_QUEST' && (
-              <ReadingQuestView onBack={() => setView('CLASSROOMS')} />
+              <ReadingQuestView onBack={() => setView('CLASSROOMS')} user={user} />
             )}
 
             {view === 'KIDS_LIBRARY' && (

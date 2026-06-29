@@ -12,6 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BookOpen, Star } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import { useClassroom, classroomStore } from '../data/classroomStore';
+import { loadReadingProgress, saveReadingProgress, awardReadingPoints } from '../services/readingQuestService';
 
 /* ---------- theme (matches ClassroomDojoView) ---------- */
 const T = {
@@ -187,31 +188,83 @@ const primaryBtn = (ghost?: boolean): React.CSSProperties => ({ cursor: 'pointer
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, color: T.ink, fontSize: 14, boxSizing: 'border-box', fontFamily: T.font };
 
 type Tab = 'play' | 'rhythm' | 'studio' | 'class';
+const ME = '__me__'; // sentinel id for the signed-in player (real Firestore + points)
+const zeroMastery = (): Record<Pillar, number> => Object.fromEntries(PILLARS.map(p => [p, 0])) as Record<Pillar, number>;
 
 /* ============================================================ */
-const ReadingQuestView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
+  const uid: string | null = user?.uid || null;
   const { students } = useClassroom();
   const [tab, setTab] = useState<Tab>('play');
   const [band, setBand] = useState<BandId>('g12');
   const [worldKey, setWorldKey] = useState('storybook');
-  const [studentId, setStudentId] = useState(DEMO_CLASS.students[0].id);
+  const [studentId, setStudentId] = useState<string>(uid ? ME : DEMO_CLASS.students[0].id);
   const [activeGame, setActiveGame] = useState<string | null>(null);
-  const [done, setDone] = useState<string[]>([]);
+  const [done, setDone] = useState<string[]>([]); // demo-student completions (session only)
   const [mastery, setMastery] = useState<Record<string, Record<Pillar, number>>>(() =>
     Object.fromEntries(DEMO_CLASS.students.map((s, i) => [s.id, seedMastery(i)]))
   );
+  // Signed-in player's own progress — persisted to Firestore via readingQuestService.
+  const [myProgress, setMyProgress] = useState<{ mastery: Record<Pillar, number>; completedQuests: string[]; xp: number }>(
+    () => ({ mastery: zeroMastery(), completedQuests: [], xp: 0 })
+  );
   const [customQuests, setCustomQuests] = useState<any[]>([]);
 
+  // Load the signed-in user's saved progress once.
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    loadReadingProgress(uid).then(p => {
+      if (alive && p) setMyProgress({ mastery: { ...zeroMastery(), ...p.mastery }, completedQuests: p.completedQuests, xp: p.xp });
+    });
+    return () => { alive = false; };
+  }, [uid]);
+
+  const isMe = studentId === ME;
   const world = WORLDS[worldKey];
-  const student = students.find(s => s.id === studentId) || students[0];
-  const myMastery = mastery[studentId];
+  const demoStudent = students.find(s => s.id === studentId) || students[0];
+  const myMastery: Record<Pillar, number> = isMe ? myProgress.mastery : mastery[studentId];
+  const doneList = isMe ? myProgress.completedQuests : done;
+  const headerPts = isMe ? myProgress.xp : demoStudent.points;
+  const playerName = isMe ? 'You' : demoStudent.name;
+  const players = uid ? [{ id: ME, name: 'You', color: T.orange }, ...students] : students;
 
-  const bump = (pillar: Pillar, n: number) =>
-    setMastery(m => ({ ...m, [studentId]: { ...m[studentId], [pillar]: Math.min(100, m[studentId][pillar] + n), Fluency: Math.min(100, m[studentId].Fluency + Math.round(n / 3)) } }));
+  const bump = (pillar: Pillar, n: number) => {
+    if (isMe) {
+      setMyProgress(prev => ({ ...prev, mastery: { ...prev.mastery, [pillar]: Math.min(100, prev.mastery[pillar] + n), Fluency: Math.min(100, prev.mastery.Fluency + Math.round(n / 3)) } }));
+    } else {
+      setMastery(m => ({ ...m, [studentId]: { ...m[studentId], [pillar]: Math.min(100, m[studentId][pillar] + n), Fluency: Math.min(100, m[studentId].Fluency + Math.round(n / 3)) } }));
+    }
+  };
 
-  // Awarding Dojo points flows through the shared store → shows up live in the Dojo.
-  const awardReading = () => classroomStore.award(studentId, 'reading');
-  const awardPhoneme = () => classroomStore.award(studentId, 'phoneme');
+  // Quest finished. Signed-in player: persist progress + award REAL Plajah Points.
+  // Demo student: award through the shared store so it lands in the ClassDojo class story.
+  const completeQuest = (gameId: string) => {
+    if (isMe && uid) {
+      const completedQuests = myProgress.completedQuests.includes(gameId) ? myProgress.completedQuests : [...myProgress.completedQuests, gameId];
+      const next = { mastery: myProgress.mastery, completedQuests, xp: myProgress.xp + 3 };
+      setMyProgress(next);
+      saveReadingProgress(uid, next);
+      awardReadingPoints(uid, 'quest', gameId);
+    } else {
+      setDone(d => d.includes(gameId) ? d : [...d, gameId]);
+      classroomStore.award(studentId, 'reading');
+    }
+    setActiveGame(null);
+  };
+
+  const completePhoneme = (pillar: Pillar) => {
+    if (isMe && uid) {
+      const nextMastery = { ...myProgress.mastery, [pillar]: Math.min(100, myProgress.mastery[pillar] + 5), Fluency: Math.min(100, myProgress.mastery.Fluency + 2) };
+      const next = { mastery: nextMastery, completedQuests: myProgress.completedQuests, xp: myProgress.xp + 2 };
+      setMyProgress(next);
+      saveReadingProgress(uid, next);
+      awardReadingPoints(uid, 'phoneme', `phoneme-${pillar}`);
+    } else {
+      bump(pillar, 5);
+      classroomStore.award(studentId, 'phoneme');
+    }
+  };
 
   return (
     <div style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px 70px', fontFamily: T.font }}>
@@ -226,22 +279,23 @@ const ReadingQuestView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>Reading Quest</h1>
               <span style={{ background: '#111', color: T.gold, fontSize: 8.5, fontWeight: 900, letterSpacing: 1.2, padding: '3px 8px', borderRadius: 12, border: '1px solid rgba(255,210,74,0.4)' }}>BETA · DEMO</span>
             </div>
-            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{DEMO_CLASS.name} · awards points to the ClassDojo class story</p>
+            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{isMe ? 'Signed in · earns real Plajah Points, progress saved to your account' : `${DEMO_CLASS.name} · awards points to the ClassDojo class story`}</p>
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: T.orange, fontSize: 18, fontWeight: 900 }}><Star size={15} fill={T.orange} /> {student.points} pts</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: T.orange, fontSize: 18, fontWeight: 900 }}><Star size={15} fill={T.orange} /> {headerPts} pts</div>
         </div>
 
         {/* who's playing — the Dojo bridge */}
         <div style={{ ...cardStyle, padding: 12, marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: T.muted }}>Playing as</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {students.map(s => {
+            {players.map(s => {
               const on = s.id === studentId;
+              const me = s.id === ME;
               return (
                 <button key={s.id} onClick={() => setStudentId(s.id)}
                   style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 6px', borderRadius: 99, border: `1px solid ${on ? T.orange : T.border}`, background: on ? 'rgba(255,140,0,0.12)' : 'transparent', color: T.ink }}>
-                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 11 }}>{s.name.charAt(0)}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{s.name}</span>
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 11 }}>{me ? '🙂' : s.name.charAt(0)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{s.name}{me ? ' · real' : ''}</span>
                 </button>
               );
             })}
@@ -257,18 +311,19 @@ const ReadingQuestView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         </div>
 
         {tab === 'play' && !activeGame && (
-          <PlayHome {...{ world, worldKey, setWorldKey, band, setBand, done, myMastery, setActiveGame }} />
+          <PlayHome {...{ world, worldKey, setWorldKey, band, setBand, done: doneList, myMastery, setActiveGame }} />
         )}
         {tab === 'play' && activeGame && (
           <GamePlay
             world={world} band={band} game={GAMES.find(g => g.id === activeGame)!}
+            isMe={isMe}
             onCorrect={(pillar) => bump(pillar, 6)}
-            onComplete={() => { setDone(d => d.includes(activeGame) ? d : [...d, activeGame]); awardReading(); setActiveGame(null); }}
+            onComplete={() => completeQuest(activeGame)}
             back={() => setActiveGame(null)}
           />
         )}
         {tab === 'rhythm' && (
-          <RhythmTab band={band} setBand={setBand} onComplete={(pillar) => { bump(pillar, 5); awardPhoneme(); }} studentName={student.name} />
+          <RhythmTab band={band} setBand={setBand} isMe={isMe} onComplete={(pillar) => completePhoneme(pillar)} studentName={playerName} />
         )}
         {tab === 'studio' && <TeacherStudio customQuests={customQuests} setCustomQuests={setCustomQuests} />}
         {tab === 'class' && <ClassProgress students={students} mastery={mastery} />}
@@ -350,7 +405,7 @@ const PlayHome: React.FC<any> = ({ world, worldKey, setWorldKey, band, setBand, 
 };
 
 /* ---------- quiz gameplay ---------- */
-const GamePlay: React.FC<{ world: any; band: BandId; game: Game; onCorrect: (p: Pillar) => void; onComplete: () => void; back: () => void }> = ({ world, band, game, onCorrect, onComplete, back }) => {
+const GamePlay: React.FC<{ world: any; band: BandId; game: Game; isMe: boolean; onCorrect: (p: Pillar) => void; onComplete: () => void; back: () => void }> = ({ world, band, game, isMe, onCorrect, onComplete, back }) => {
   const questions = game.q[band];
   const passage = game.passage ? game.passage[band] : null;
   const [idx, setIdx] = useState(0);
@@ -373,7 +428,7 @@ const GamePlay: React.FC<{ world: any; band: BandId; game: Game; onCorrect: (p: 
         <div style={{ fontWeight: 900, fontSize: 24, margin: '8px 0' }}>Quest complete</div>
         <div style={{ color: T.muted, marginBottom: 18 }}>{game.title} · {correctCount}/{questions.length} correct</div>
         <div style={{ display: 'inline-flex', gap: 18, fontSize: 13, marginBottom: 22, color: T.muted }}>
-          <span style={{ color: T.orange, fontWeight: 800 }}>★ +3 Dojo pts</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
+          <span style={{ color: T.orange, fontWeight: 800 }}>★ +3 {isMe ? 'Plajah Points' : 'Dojo pts'}</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
         </div>
         <div>
           <button onClick={onComplete} style={primaryBtn()}>Back to map →</button>
@@ -430,7 +485,7 @@ const GamePlay: React.FC<{ world: any; band: BandId; game: Game; onCorrect: (p: 
 };
 
 /* ---------- rhythm tab + Phoneme Beat ---------- */
-const RhythmTab: React.FC<{ band: BandId; setBand: (b: BandId) => void; onComplete: (p: Pillar) => void; studentName: string }> = ({ band, setBand, onComplete, studentName }) => {
+const RhythmTab: React.FC<{ band: BandId; setBand: (b: BandId) => void; isMe: boolean; onComplete: (p: Pillar) => void; studentName: string }> = ({ band, setBand, isMe, onComplete, studentName }) => {
   const [track, setTrack] = useState<Track>(CHORA[0]);
   return (
     <div>
@@ -459,7 +514,7 @@ const RhythmTab: React.FC<{ band: BandId; setBand: (b: BandId) => void; onComple
         </div>
       </div>
 
-      <PhonemeBeat band={band} track={track} onComplete={onComplete} studentName={studentName} />
+      <PhonemeBeat band={band} track={track} isMe={isMe} onComplete={onComplete} studentName={studentName} />
 
       <div style={{ ...cardStyle, padding: 16, marginTop: 16 }}>
         <Eyebrow>More rhythm modes (same engine)</Eyebrow>
@@ -483,7 +538,7 @@ const RhythmTab: React.FC<{ band: BandId; setBand: (b: BandId) => void; onComple
   );
 };
 
-const PhonemeBeat: React.FC<{ band: BandId; track: Track; onComplete: (p: Pillar) => void; studentName: string }> = ({ band, track, onComplete, studentName }) => {
+const PhonemeBeat: React.FC<{ band: BandId; track: Track; isMe: boolean; onComplete: (p: Pillar) => void; studentName: string }> = ({ band, track, isMe, onComplete, studentName }) => {
   const words = RHYTHM[band].words;
   const pillar = RHYTHM[band].pillar;
   const bpm = track.bpm || 96;
@@ -611,7 +666,7 @@ const PhonemeBeat: React.FC<{ band: BandId; track: Track; onComplete: (p: Pillar
       {phase === 'done' && (
         <div style={{ textAlign: 'center', marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
           <div style={{ fontWeight: 900, fontSize: 22 }}>Great rhythm!</div>
-          <div style={{ color: T.muted, margin: '6px 0 16px' }}>You hit {score.hit} of {score.total} beats · <span style={{ color: T.orange }}>★ +2 Dojo pts</span></div>
+          <div style={{ color: T.muted, margin: '6px 0 16px' }}>You hit {score.hit} of {score.total} beats · <span style={{ color: T.orange }}>★ +2 {isMe ? 'Plajah Points' : 'Dojo pts'}</span></div>
           <button onClick={reset} style={primaryBtn()}>Play again</button>
         </div>
       )}
