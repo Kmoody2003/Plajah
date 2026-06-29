@@ -1971,6 +1971,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'MATH_CLASSROOM'
   // Reading Quest (BETA) — Classrooms, Dojo-integrated
   | 'READING_QUEST'
+  // Science Quest (BETA) — NGSS cartridge on the same chassis
+  | 'SCIENCE_QUEST'
   // Audio Book Studio — Lorea (MAI Voice 2 + MAI Transcribe 1.5)
   | 'AUDIO_BOOK_STUDIO'
   // Science & Engineering hub

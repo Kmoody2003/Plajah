@@ -693,6 +693,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           </button>
         )}
 
+        {/* Science Quest — NGSS cartridge on the same chassis */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('SCIENCE_QUEST')}
+            className="w-full mb-4 flex items-center gap-3 rounded-2xl px-5 py-4 text-left transition-all hover:scale-[1.005]"
+            style={{ border: '1px solid rgba(54,197,240,0.3)', background: 'linear-gradient(120deg, rgba(129,102,230,0.12), rgba(54,197,240,0.12))' }}
+          >
+            <span className="text-2xl">🔬</span>
+            <div className="flex-1">
+              <div className="text-sm font-black text-white flex items-center gap-2">Science Quest <span className="bg-black/40 text-[#FFD24A] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full">BETA</span></div>
+              <div className="text-[11px] text-white/50">Pre-K–Grade 7 NGSS science practices — observe, analyze, explain. Same engine as Reading Quest; writes the learner ledger + Turbo.</div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#36c5f0]">Play →</span>
+          </button>
+        )}
+
         {/* Featured learning hero card */}
         {onNavigate && (
           <div className="mb-8">

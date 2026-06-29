@@ -32,6 +32,7 @@ export const DEMO_BEHAVIORS: DojoBehavior[] = [
   // Reading Quest — awarded automatically when a student finishes a reading activity
   { id: 'reading', label: 'Reading Quest',    points: 3, icon: '📖', positive: true },
   { id: 'phoneme', label: 'Phoneme Beat',     points: 2, icon: '🥁', positive: true },
+  { id: 'science', label: 'Science Quest',    points: 3, icon: '🔬', positive: true },
   // needs work
   { id: 'offtask', label: 'Off Task',        points: -1, icon: '😶‍🌫️', positive: false },
   { id: 'talking', label: 'Talking Out',     points: -1, icon: '🗣️', positive: false },

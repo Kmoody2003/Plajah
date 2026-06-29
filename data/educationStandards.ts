@@ -112,7 +112,21 @@ export const STANDARDS: LearningStandard[] = [
   { id: 'UK_NC.Y1.WR.GPC', framework: 'UK_NC', subject: 'ELA', grade: 'g1', domain: 'Word Reading', code: 'Y1 WR', statement: 'Apply phonic knowledge to decode words, including digraphs.', pillar: 'Phonics' },
   { id: 'CAMBRIDGE_PRIMARY.S5.RD.VOCAB', framework: 'CAMBRIDGE_PRIMARY', subject: 'ELA', grade: 'g4', domain: 'Reading', code: 'Stage 5 Rd', statement: 'Infer word meaning from context and morphology.', pillar: 'Vocabulary' },
   { id: 'IB_PYP.UOI.NARRATIVE', framework: 'IB_PYP', subject: 'ELA', grade: 'g4', domain: 'Language — Reading', code: 'PYP', statement: 'Identify central ideas and themes in narrative texts.', pillar: 'Comprehension' },
+
+  // ── Science (NGSS) — pillar-linked to ScienceQuest's practices ──
+  { id: 'NGSS.K-LS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'k', domain: 'Living Things', code: 'K-LS1-1', statement: 'Observe what plants and animals need to survive.', pillar: 'Observe & Question' },
+  { id: 'NGSS.K-PS2-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'k', domain: 'Forces & Motion', code: 'K-PS2-1', statement: 'Investigate how pushes and pulls change the motion of an object.', pillar: 'Investigate' },
+  { id: 'NGSS.2-PS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g2', domain: 'Matter', code: '2-PS1-1', statement: 'Describe and classify materials by their observable properties.', pillar: 'Observe & Question' },
+  { id: 'NGSS.1-LS3-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g1', domain: 'Heredity', code: '1-LS3-1', statement: 'Notice that young plants and animals are like, but not exactly like, their parents.', pillar: 'Analyze Data' },
+  { id: 'NGSS.3-LS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g3', domain: 'Life Cycles', code: '3-LS1-1', statement: 'Develop a model of the life cycles of different organisms.', pillar: 'Model & Design', prerequisites: ['NGSS.K-LS1-1'] },
+  { id: 'NGSS.4-PS3-2', framework: 'NGSS', subject: 'SCIENCE', grade: 'g4', domain: 'Energy', code: '4-PS3-2', statement: 'Explain how energy is transferred by sound, light, heat, and electric currents.', pillar: 'Explain' },
+  { id: 'NGSS.4-ESS2-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g4', domain: 'Earth Systems', code: '4-ESS2-1', statement: 'Analyze observations of weathering and erosion shaping the land.', pillar: 'Analyze Data' },
+  { id: 'NGSS.5-PS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g5', domain: 'Matter', code: '5-PS1-1', statement: 'Develop a model showing that matter is made of particles too small to see.', pillar: 'Model & Design', prerequisites: ['NGSS.2-PS1-1'] },
+  { id: 'NGSS.MS-LS1-1', framework: 'NGSS', subject: 'SCIENCE', grade: 'g7', domain: 'Cells', code: 'MS-LS1-1', statement: 'Provide evidence that living things are made of cells.', pillar: 'Explain' },
+  { id: 'NGSS.MS-PS1-2', framework: 'NGSS', subject: 'SCIENCE', grade: 'g6', domain: 'Chemical Reactions', code: 'MS-PS1-2', statement: 'Analyze data to determine whether a chemical reaction has occurred.', pillar: 'Analyze Data' },
 ];
+
+export const SCIENCE_PILLARS = ['Observe & Question', 'Investigate', 'Analyze Data', 'Explain', 'Model & Design'] as const;
 
 export const standardById = (id: string) => STANDARDS.find(s => s.id === id);
 export const standardsForPillar = (pillar: string, framework: FrameworkId = 'CCSS_ELA') =>
@@ -216,6 +230,24 @@ export const TURBO_TRACKS: TurboTrack[] = [
       { id: 'turbo-g5-depth', kind: 'depth', standardId: 'CCSS.ELA-LITERACY.L.4.4', title: 'Shades of Meaning', prompt: 'Take one word and rank five synonyms from mildest to strongest — defend your order.' },
       { id: 'turbo-g5-transfer', kind: 'transfer', standardId: 'CCSS.ELA-LITERACY.RL.4.2', title: 'Theme Across Stories', prompt: 'Find the same theme in a book, a song, and a film, and explain how each one shows it differently.' },
       { id: 'turbo-g5-create', kind: 'creative', standardId: 'CCSS.ELA-LITERACY.RL.4.2', title: 'Author\'s Chair', prompt: 'Write an alternate ending that changes the theme — then explain what you changed and why.' },
+    ],
+  },
+  {
+    subject: 'SCIENCE', grade: 'g3',
+    aboveGradeStandards: ['NGSS.5-PS1-1', 'NGSS.MS-LS1-1'],
+    challenges: [
+      { id: 'turbo-sci-g3-depth', kind: 'depth', standardId: 'NGSS.3-LS1-1', title: 'System Mapper', prompt: 'Pick an ecosystem and map five ways its living and non-living parts depend on each other.' },
+      { id: 'turbo-sci-g3-transfer', kind: 'transfer', standardId: 'NGSS.4-PS3-2', title: 'Energy Detective', prompt: 'Trace the energy in something you use every day from its source all the way to its final form.' },
+      { id: 'turbo-sci-g3-create', kind: 'creative', standardId: 'NGSS.3-LS1-1', title: 'Design an Investigation', prompt: 'Write a testable question and design a fair experiment to answer it — name your variables.' },
+    ],
+  },
+  {
+    subject: 'SCIENCE', grade: 'g5',
+    aboveGradeStandards: ['NGSS.MS-PS1-2', 'NGSS.MS-LS1-1'],
+    challenges: [
+      { id: 'turbo-sci-g5-depth', kind: 'depth', standardId: 'NGSS.5-PS1-1', title: 'Particle Modeler', prompt: 'Draw a particle model that explains why a balloon shrinks in the cold — defend it with evidence.' },
+      { id: 'turbo-sci-g5-transfer', kind: 'transfer', standardId: 'NGSS.MS-PS1-2', title: 'Reaction Hunter', prompt: 'Find three chemical reactions in your kitchen and list the evidence each one really happened.' },
+      { id: 'turbo-sci-g5-create', kind: 'creative', standardId: 'NGSS.MS-LS1-1', title: 'Cell City', prompt: 'Invent a city where each building is a cell part — explain what each one does for the cell.' },
     ],
   },
 ];

@@ -26,7 +26,7 @@ import {
 } from '../data/educationStandards';
 
 export type LearningRecordSource =
-  | 'reading-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import';
+  | 'reading-quest' | 'science-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import';
 
 export interface LearningRecord {
   id: string;
