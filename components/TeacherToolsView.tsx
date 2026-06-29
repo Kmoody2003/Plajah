@@ -10,7 +10,7 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
   STANDARDS, standardById, bandFor, masteryToLevel, turboTrackFor, BAND_TO_GRADES,
@@ -19,13 +19,19 @@ import {
 import { appendRecord } from '../services/learningLedgerService';
 import {
   INTEGRATIONS, importCASEFramework, SAMPLE_CASE, type IntegrationStatus,
-  exportGradebookCSV, toGoogleClassroomCoursework, toLtiResourceLink, downloadText,
+  exportGradebookCSV, toGoogleClassroomCoursework, toLtiResourceLink, toQTIAssessment, downloadText,
+  type CheckQuestion,
 } from '../services/interopService';
 import { ORG_TYPES, FRAMEWORK_OVERLAYS, DEFAULT_CONTEXT, type LearningContextSettings } from '../data/deploymentContexts';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
   objective: string; activities: string[]; notes: string; createdAt: number;
+}
+
+export interface AssignmentCheck {
+  id: string; title: string; subject: Subject; band: string; standardCode: string;
+  points: number; questions: CheckQuestion[]; createdAt: number;
 }
 
 const T = {
@@ -54,13 +60,14 @@ const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ chil
 );
 const chip = (on: boolean, color = T.orange): React.CSSProperties => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: `1px solid ${on ? color : T.border}`, background: on ? `${color}22` : 'transparent', color: on ? color : T.ink });
 
-type Tab = 'grade' | 'plan' | 'planner' | 'assess' | 'connect' | 'context';
+type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'connect' | 'context';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
   const [subject, setSubject] = useState<Subject>('ELA');
   const [band, setBand] = useState<BandId>('g34');
   const [plans, setPlans] = useState<LessonPlan[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentCheck[]>([]);
 
   const addPlan = (p: Omit<LessonPlan, 'id' | 'createdAt'>) => {
     setPlans(ps => [{ ...p, id: `lp_${ps.length + 1}_${p.standardCode}`, createdAt: 1 }, ...ps]);
@@ -92,7 +99,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['plan', 'Plan from Mastery', Wand2], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -105,6 +112,8 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
           <ContextSettings />
         ) : tab === 'planner' ? (
           <Planner plans={plans} setPlans={setPlans} onCreateBlank={() => setTab('plan')} />
+        ) : tab === 'checks' ? (
+          <ChecksBuilder subject={subject} band={band} standards={standards} assignments={assignments} setAssignments={setAssignments} />
         ) : standards.length === 0 ? (
           <div style={{ ...cardStyle, padding: 20, color: T.muted }}>No standards seeded for {subject} at this level yet. Try another subject/level.</div>
         ) : tab === 'plan' ? (
@@ -323,6 +332,92 @@ const Planner: React.FC<{ plans: LessonPlan[]; setPlans: React.Dispatch<React.Se
   );
 };
 const exportBtn = (color: string): React.CSSProperties => ({ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color, fontSize: 10.5, fontWeight: 800 });
+
+// ── Assignment / formative-check builder (QTI-native) ────────────────────────────
+const ChecksBuilder: React.FC<{ subject: Subject; band: BandId; standards: LearningStandard[]; assignments: AssignmentCheck[]; setAssignments: React.Dispatch<React.SetStateAction<AssignmentCheck[]>> }> = ({ subject, band, standards, assignments, setAssignments }) => {
+  const [title, setTitle] = useState('Exit ticket');
+  const [standardId, setStandardId] = useState(standards[0]?.id || '');
+  const [points, setPoints] = useState(10);
+  const [questions, setQuestions] = useState<CheckQuestion[]>([{ prompt: '', options: ['', '', ''], answer: 0 }]);
+
+  const setQ = (i: number, patch: Partial<CheckQuestion>) => setQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q));
+  const setOpt = (i: number, oi: number, v: string) => setQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, options: q.options.map((o, j) => j === oi ? v : o) } : q));
+  const valid = title.trim() && questions.some(q => q.prompt.trim());
+
+  const assign = () => {
+    const std = standardById(standardId);
+    setAssignments(a => [{ id: `chk_${a.length + 1}_${standardId}`, title: title.trim(), subject, band, standardCode: std?.code || standardId, points, questions: questions.filter(q => q.prompt.trim()), createdAt: 1 }, ...a]);
+    setTitle('Exit ticket'); setQuestions([{ prompt: '', options: ['', '', ''], answer: 0 }]);
+  };
+
+  const exportCheck = (a: AssignmentCheck, fmt: 'qti' | 'gc' | 'lti' | 'json') => {
+    const std = standardById(`${a.standardCode}`);
+    const like = { title: a.title, standardCode: a.standardCode, points: a.points, questions: a.questions };
+    const planLike = { title: a.title, objective: `Formative check · ${std?.statement || a.standardCode}`, standardCode: a.standardCode, activities: a.questions.map(q => q.prompt) };
+    if (fmt === 'qti') downloadText(JSON.stringify(toQTIAssessment(like), null, 2), `check-${a.standardCode}-qti.json`);
+    else if (fmt === 'gc') downloadText(JSON.stringify(toGoogleClassroomCoursework(planLike), null, 2), `check-${a.standardCode}-googleclassroom.json`);
+    else if (fmt === 'lti') downloadText(JSON.stringify(toLtiResourceLink(planLike), null, 2), `check-${a.standardCode}-lti.json`);
+    else downloadText(JSON.stringify(a, null, 2), `check-${a.standardCode}.json`);
+  };
+
+  if (!standards.length) return <div style={{ ...cardStyle, padding: 20, color: T.muted }}>Pick a subject/level with standards to build a check.</div>;
+
+  return (
+    <div>
+      <div style={{ ...cardStyle, padding: 18, marginBottom: 14 }}>
+        <Eyebrow color={T.orange}>Build a formative check · QTI-native</Eyebrow>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div><div style={{ fontSize: 9, color: T.muted, fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Title</div><input value={title} onChange={e => setTitle(e.target.value)} style={selStyle} /></div>
+          <div><div style={{ fontSize: 9, color: T.muted, fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Standard</div><select value={standardId} onChange={e => setStandardId(e.target.value)} style={selStyle}>{standards.map(s => <option key={s.id} value={s.id}>{s.code} — {s.statement.slice(0, 36)}…</option>)}</select></div>
+          <div><div style={{ fontSize: 9, color: T.muted, fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Points</div><input type="number" min={1} value={points} onChange={e => setPoints(+e.target.value)} style={selStyle} /></div>
+        </div>
+        {questions.map((q, i) => (
+          <div key={i} style={{ ...cardStyle, padding: 12, marginBottom: 10, background: T.cardAlt }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input value={q.prompt} onChange={e => setQ(i, { prompt: e.target.value })} placeholder={`Question ${i + 1}`} style={selStyle} />
+              {questions.length > 1 && <button onClick={() => setQuestions(qs => qs.filter((_, idx) => idx !== i))} style={{ ...exportBtn(T.red), padding: '0 10px' }}>✕</button>}
+            </div>
+            {q.options.map((o, oi) => (
+              <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <button onClick={() => setQ(i, { answer: oi })} title="Mark correct" style={{ cursor: 'pointer', width: 22, height: 22, borderRadius: 99, flexShrink: 0, border: `2px solid ${q.answer === oi ? T.green : T.border}`, background: q.answer === oi ? T.green : 'transparent', color: '#0c0a08', fontSize: 12 }}>{q.answer === oi ? '✓' : ''}</button>
+                <input value={o} onChange={e => setOpt(i, oi, e.target.value)} placeholder={`Option ${oi + 1}`} style={selStyle} />
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <button onClick={() => setQuestions(qs => [...qs, { prompt: '', options: ['', '', ''], answer: 0 }])} style={{ ...exportBtn(T.muted), border: `1px dashed ${T.border}` }}><Plus size={12} /> Add question</button>
+          <button onClick={assign} disabled={!valid} style={{ cursor: valid ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: valid ? 1 : 0.4 }}><ListChecks size={14} /> Assign to {DEMO_CLASS.name.split('—')[0].trim()}</button>
+        </div>
+      </div>
+
+      {assignments.length > 0 && (
+        <div>
+          <div style={{ marginBottom: 10, fontSize: 11.5, color: T.muted, lineHeight: 1.5 }}>Assigned checks export as <b style={{ color: T.ink }}>QTI 3.0</b> (any assessment platform), Google Classroom, or LTI. Student results write back to each learner's ledger; grades pass back via LTI-AGS / OneRoster.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {assignments.map(a => (
+              <div key={a.id} style={{ ...cardStyle, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{a.title}</div>
+                    <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2 }}>{a.standardCode} · {a.questions.length} question{a.questions.length > 1 ? 's' : ''} · {a.points} pts</div>
+                  </div>
+                  <button onClick={() => setAssignments(list => list.filter(x => x.id !== a.id))} style={{ cursor: 'pointer', padding: 7, borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.red }}><Trash2 size={13} /></button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  <button onClick={() => exportCheck(a, 'qti')} style={exportBtn(T.orange)}><FileDown size={12} /> QTI 3.0</button>
+                  <button onClick={() => exportCheck(a, 'gc')} style={exportBtn(T.green)}><Send size={12} /> Google Classroom</button>
+                  <button onClick={() => exportCheck(a, 'lti')} style={exportBtn(T.blue)}><Send size={12} /> LTI 1.3</button>
+                  <button onClick={() => exportCheck(a, 'json')} style={exportBtn(T.muted)}><FileDown size={12} /> JSON</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── 4. Integrations (Phase 5) ────────────────────────────────────────────────────
 const STATUS_META: Record<IntegrationStatus, { label: string; color: string }> = {

@@ -134,6 +134,37 @@ export function toOneRosterResults(rows: { studentSourcedId: string; score: numb
   return rows.map(r => ({ sourcedId: `${lineItemSourcedId}-${r.studentSourcedId}`, status: 'active', lineItem: { sourcedId: lineItemSourcedId }, student: { sourcedId: r.studentSourcedId }, score: r.score, scoreStatus: 'fully graded' }));
 }
 
+// QTI 3.0 (Question & Test Interoperability) — the 1EdTech standard for assessments, so a
+// Plajah check imports into any QTI-aware assessment platform.
+export interface CheckQuestion { prompt: string; options: string[]; answer: number; }
+export interface AssignmentLike { title: string; standardCode?: string; points: number; questions: CheckQuestion[]; }
+
+export function toQTIAssessment(a: AssignmentLike) {
+  return {
+    type: 'qti-assessment-test',
+    identifier: `plajah-${(a.standardCode || 'check').replace(/[^a-z0-9]/gi, '')}`,
+    title: a.title,
+    'qti-outcome-declaration': { identifier: 'SCORE', baseType: 'float', normalMaximum: a.points },
+    'qti-test-part': [{
+      identifier: 'part-1', 'qti-navigation-mode': 'linear',
+      'qti-assessment-section': [{
+        identifier: 'section-1', title: a.title,
+        'qti-assessment-item': a.questions.map((q, i) => ({
+          identifier: `item-${i + 1}`, title: q.prompt.slice(0, 40),
+          ...(a.standardCode ? { 'qti-alignment': { targetCode: a.standardCode } } : {}),
+          'qti-response-declaration': { identifier: 'RESPONSE', cardinality: 'single', baseType: 'identifier', 'qti-correct-response': { value: `choice_${q.answer}` } },
+          'qti-item-body': {
+            'qti-choice-interaction': {
+              responseIdentifier: 'RESPONSE', maxChoices: 1, 'qti-prompt': q.prompt,
+              'qti-simple-choice': q.options.map((o, j) => ({ identifier: `choice_${j}`, value: o })),
+            },
+          },
+        })),
+      }],
+    }],
+  };
+}
+
 /** Trigger a browser download of any text artifact. */
 export function downloadText(text: string, filename: string, mime = 'application/json'): void {
   try {
