@@ -1,11 +1,11 @@
-// demoClassroom.ts — a labeled DEMO class so people can see the ClassDojo-style classroom
+// demoClassroom.ts — a labeled DEMO class so people can see the Class Points classroom
 // work: behavior/skill points, attendance, a class story of awards, and a parent view.
-// Fully static/bundled (no auth, no Firestore) and clearly marked DEMO. The ClassroomDojo
+// Fully static/bundled (no auth, no Firestore) and clearly marked DEMO. The Class Points
 // view seeds its interactive state from this, so visitors can try awarding points live.
 
-export interface DojoBehavior { id: string; label: string; points: number; icon: string; positive: boolean; }
-export interface DojoStudent { id: string; name: string; color: string; points: number; isDemoParentChild?: boolean; }
-export interface DojoAward { id: string; studentId: string; behaviorId: string; points: number; at: number; }
+export interface ClassBehavior { id: string; label: string; points: number; icon: string; positive: boolean; }
+export interface ClassStudent { id: string; name: string; color: string; points: number; isDemoParentChild?: boolean; }
+export interface ClassAward { id: string; studentId: string; behaviorId: string; points: number; at: number; }
 export type AttendanceStatus = 'present' | 'absent' | 'tardy';
 
 export interface DemoClass {
@@ -14,14 +14,14 @@ export interface DemoClass {
   name: string;
   teacherName: string;
   grade: string;
-  behaviors: DojoBehavior[];
-  students: DojoStudent[];
-  awards: DojoAward[];                       // the class story (seeded interactions)
+  behaviors: ClassBehavior[];
+  students: ClassStudent[];
+  awards: ClassAward[];                       // the class story (seeded interactions)
   attendance: Record<string, AttendanceStatus>;
   parent: { name: string; childId: string };
 }
 
-export const DEMO_BEHAVIORS: DojoBehavior[] = [
+export const DEMO_BEHAVIORS: ClassBehavior[] = [
   // positive
   { id: 'ontask',  label: 'On Task',         points: 1, icon: '🎯', positive: true },
   { id: 'helping', label: 'Helping Others',  points: 1, icon: '🤝', positive: true },

@@ -1,12 +1,12 @@
 // ReadingQuestView — gamified, grade-scalable reading practice that lives inside Classrooms
-// and plugs into the ClassDojo-style feature set. You play AS a student from the shared demo
-// class; finishing a quest or a Phoneme Beat round awards Dojo points through the shared
-// classroomStore, so the achievement shows up live in the Dojo class story and the parent view.
+// and plugs into the Class Points feature set. You play AS a student from the shared demo
+// class; finishing a quest or a Phoneme Beat round awards class points through the shared
+// classroomStore, so the achievement shows up live in the class story and the parent view.
 //
 // Ported from two chat-mode prototypes (reading-quest shell + rhythm/teacher-studio) onto the
-// real Plajah classroom theme (dark + orange, the Dojo's visual language). Tone.js is not a
-// dependency here, so the rhythm beat uses a tiny native WebAudio click. Clearly DEMO — the
-// reading "mastery" model is local/in-memory; only the Dojo point awards are shared.
+// real Plajah classroom theme (dark + orange, the Class Points view's visual language). Tone.js
+// is not a dependency here, so the rhythm beat uses a tiny native WebAudio click. Clearly DEMO —
+// the reading "mastery" model is local/in-memory; only the class-point awards are shared.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BookOpen, Star } from 'lucide-react';
@@ -16,7 +16,7 @@ import { loadReadingProgress, saveReadingProgress, awardReadingPoints } from '..
 import { standardsForPillar, BAND_TO_GRADES, bandFor, masteryToLevel, masteryToPISABand, turboTrackFor } from '../data/educationStandards';
 import { appendRecord } from '../services/learningLedgerService';
 
-/* ---------- theme (matches ClassroomDojoView) ---------- */
+/* ---------- theme (matches ClassPointsView) ---------- */
 const T = {
   bg: '#0a0a0f', card: '#12121a', cardAlt: '#15151f', border: '#20202c',
   ink: '#ffffff', muted: '#9a9aa6', faint: '#777777',
@@ -292,7 +292,7 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
   };
 
   // Quest finished. Signed-in player: persist progress + award REAL Plajah Points + ledger.
-  // Demo student: award through the shared store so it lands in the ClassDojo class story.
+  // Demo student: award through the shared store so it lands in the class story.
   const completeQuest = (gameId: string) => {
     const g = GAMES.find(x => x.id === gameId);
     if (isMe && uid) {
@@ -337,12 +337,12 @@ const ReadingQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
               <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>Reading Quest</h1>
               <span style={{ background: '#111', color: T.gold, fontSize: 8.5, fontWeight: 900, letterSpacing: 1.2, padding: '3px 8px', borderRadius: 12, border: '1px solid rgba(255,210,74,0.4)' }}>BETA · DEMO</span>
             </div>
-            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{isMe ? 'Signed in · earns real Plajah Points, progress saved to your account' : `${DEMO_CLASS.name} · awards points to the ClassDojo class story`}</p>
+            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{isMe ? 'Signed in · earns real Plajah Points, progress saved to your account' : `${DEMO_CLASS.name} · awards points to the class story`}</p>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: T.orange, fontSize: 18, fontWeight: 900 }}><Star size={15} fill={T.orange} /> {headerPts} pts</div>
         </div>
 
-        {/* who's playing — the Dojo bridge */}
+        {/* who's playing — the class-points bridge */}
         <div style={{ ...cardStyle, padding: 12, marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: T.muted }}>Playing as</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -564,7 +564,7 @@ const GamePlay: React.FC<{ world: any; band: BandId; game: Game; isMe: boolean; 
         <div style={{ fontWeight: 900, fontSize: 24, margin: '8px 0' }}>Quest complete</div>
         <div style={{ color: T.muted, marginBottom: 18 }}>{game.title} · {correctCount}/{questions.length} correct</div>
         <div style={{ display: 'inline-flex', gap: 18, fontSize: 13, marginBottom: 22, color: T.muted }}>
-          <span style={{ color: T.orange, fontWeight: 800 }}>★ +3 {isMe ? 'Plajah Points' : 'Dojo pts'}</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
+          <span style={{ color: T.orange, fontWeight: 800 }}>★ +3 {isMe ? 'Plajah Points' : 'Class pts'}</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
         </div>
         <div>
           <button onClick={onComplete} style={primaryBtn()}>Back to map →</button>
@@ -802,7 +802,7 @@ const PhonemeBeat: React.FC<{ band: BandId; track: Track; isMe: boolean; onCompl
       {phase === 'done' && (
         <div style={{ textAlign: 'center', marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
           <div style={{ fontWeight: 900, fontSize: 22 }}>Great rhythm!</div>
-          <div style={{ color: T.muted, margin: '6px 0 16px' }}>You hit {score.hit} of {score.total} beats · <span style={{ color: T.orange }}>★ +2 {isMe ? 'Plajah Points' : 'Dojo pts'}</span></div>
+          <div style={{ color: T.muted, margin: '6px 0 16px' }}>You hit {score.hit} of {score.total} beats · <span style={{ color: T.orange }}>★ +2 {isMe ? 'Plajah Points' : 'Class pts'}</span></div>
           <button onClick={reset} style={primaryBtn()}>Play again</button>
         </div>
       )}
@@ -956,7 +956,7 @@ const ClassProgress: React.FC<{ students: { id: string; name: string; color: str
       </div>
       <div style={{ ...cardStyle, padding: 18, overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 0.7fr', gap: 10, minWidth: 560, fontSize: 8.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.muted, paddingBottom: 10, borderBottom: `1px solid ${T.border}`, fontWeight: 800 }}>
-          <span>Student</span><span>Phonics</span><span>Vocab</span><span>Compreh.</span><span>Dojo pts</span>
+          <span>Student</span><span>Phonics</span><span>Vocab</span><span>Compreh.</span><span>Class pts</span>
         </div>
         {students.map(s => {
           const m = mastery[s.id];
@@ -975,7 +975,7 @@ const ClassProgress: React.FC<{ students: { id: string; name: string; color: str
             </div>
           );
         })}
-        <div style={{ marginTop: 14, fontSize: 10, color: T.muted, lineHeight: 1.6 }}>▲ = below 50% average reading mastery, auto-flagged for targeted practice. Dojo points update live as students finish quests.</div>
+        <div style={{ marginTop: 14, fontSize: 10, color: T.muted, lineHeight: 1.6 }}>▲ = below 50% average reading mastery, auto-flagged for targeted practice. Class points update live as students finish quests.</div>
       </div>
     </div>
   );

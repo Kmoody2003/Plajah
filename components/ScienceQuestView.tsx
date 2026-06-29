@@ -1,7 +1,7 @@
 // ScienceQuestView — the second standards-aligned cartridge on the same chassis as Reading
 // Quest: NGSS-aligned science practice that writes the Learner Ledger, shows proficiency bands +
 // a global (PISA) standing, and unlocks Turbo (depth/transfer/creative) beyond grade. Demoable
-// as any demo student (awards the ClassDojo class story) or as the signed-in learner (real
+// as any demo student (awards the class story) or as the signed-in learner (real
 // Plajah Points + Firestore ledger). Lean by design — quiz games + proficiency + Turbo.
 
 import React, { useEffect, useState } from 'react';
@@ -215,7 +215,7 @@ const ScienceQuestView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
               <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>Science Quest</h1>
               <span style={{ background: '#111', color: T.gold, fontSize: 8.5, fontWeight: 900, letterSpacing: 1.2, padding: '3px 8px', borderRadius: 12, border: '1px solid rgba(255,210,74,0.4)' }}>BETA · NGSS</span>
             </div>
-            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{isMe ? 'Signed in · earns Plajah Points + writes your ledger' : `${DEMO_CLASS.name} · awards the ClassDojo class story`}</p>
+            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{isMe ? 'Signed in · earns Plajah Points + writes your ledger' : `${DEMO_CLASS.name} · awards the class story`}</p>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: T.violet, fontSize: 18, fontWeight: 900 }}><Star size={15} fill={T.violet} /> {headerPts} pts</div>
         </div>
@@ -327,7 +327,7 @@ const GamePlay: React.FC<{ band: BandId; game: Game; isMe: boolean; onCorrect: (
       <div style={{ fontWeight: 900, fontSize: 24, margin: '8px 0' }}>Lab complete</div>
       <div style={{ color: T.muted, marginBottom: 18 }}>{game.title} · {correct}/{questions.length} correct</div>
       <div style={{ display: 'inline-flex', gap: 18, fontSize: 13, marginBottom: 22, color: T.muted }}>
-        <span style={{ color: T.violet, fontWeight: 800 }}>★ +3 {isMe ? 'Plajah Points' : 'Dojo pts'}</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
+        <span style={{ color: T.violet, fontWeight: 800 }}>★ +3 {isMe ? 'Plajah Points' : 'Class pts'}</span><span style={{ color: T.green }}>▲ {game.pillar} up</span>
       </div>
       <div><button onClick={onComplete} style={primaryBtn()}>Back to lab map →</button></div>
     </div>
@@ -414,7 +414,7 @@ const ClassProgress: React.FC<{ students: { id: string; name: string; color: str
       </div>
       <div style={{ ...cardStyle, padding: 18, overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 0.7fr', gap: 10, minWidth: 560, fontSize: 8.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.muted, paddingBottom: 10, borderBottom: `1px solid ${T.border}`, fontWeight: 800 }}>
-          <span>Student</span><span>Observe</span><span>Data</span><span>Explain</span><span>Dojo pts</span>
+          <span>Student</span><span>Observe</span><span>Data</span><span>Explain</span><span>Class pts</span>
         </div>
         {students.map(s => {
           const m = mastery[s.id];

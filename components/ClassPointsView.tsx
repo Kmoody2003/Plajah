@@ -1,4 +1,4 @@
-// ClassroomDojoView — the ClassDojo-style classroom experience, driven by a labeled DEMO
+// ClassPointsView — the Class Points classroom experience, driven by a labeled DEMO
 // class so anyone can try it: a teacher awards behavior/skill points to students (live
 // tally + class story), takes attendance, and a Parent view shows one child's week. All
 // interactions run on local state seeded from data/demoClassroom, so visitors can click
@@ -6,12 +6,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, GraduationCap, Users, Sparkles, CalendarCheck, Baby, Star, X, BookOpen } from 'lucide-react';
-import { DEMO_CLASS, DojoAward, AttendanceStatus } from '../data/demoClassroom';
+import { DEMO_CLASS, ClassAward, AttendanceStatus } from '../data/demoClassroom';
 import { useClassroom, classroomStore } from '../data/classroomStore';
 
 const fmt = (ms: number) => { const m = Math.round((1_750_000_000_000 - ms) / 60000); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 
-const ClassroomDojoView: React.FC<{ onBack?: () => void; onOpenReadingQuest?: () => void }> = ({ onBack, onOpenReadingQuest }) => {
+const ClassPointsView: React.FC<{ onBack?: () => void; onOpenReadingQuest?: () => void }> = ({ onBack, onOpenReadingQuest }) => {
   const c = DEMO_CLASS;
   // Shared, live class state — reading activities completed in Reading Quest land here too.
   const { students, awards, attendance } = useClassroom();
@@ -132,7 +132,7 @@ const ClassroomDojoView: React.FC<{ onBack?: () => void; onOpenReadingQuest?: ()
   );
 };
 
-const ParentView: React.FC<{ child: any; awards: DojoAward[]; behaviorById: Record<string, any>; attendance: AttendanceStatus; parentName: string }> = ({ child, awards, behaviorById, attendance, parentName }) => {
+const ParentView: React.FC<{ child: any; awards: ClassAward[]; behaviorById: Record<string, any>; attendance: AttendanceStatus; parentName: string }> = ({ child, awards, behaviorById, attendance, parentName }) => {
   if (!child) return null;
   const week = awards.reduce((a, x) => a + x.points, 0);
   return (
@@ -184,4 +184,4 @@ const attChip = (s: AttendanceStatus): React.CSSProperties =>
 
 const ghost: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#bbb', fontSize: 12.5, cursor: 'pointer', fontWeight: 600 };
 
-export default ClassroomDojoView;
+export default ClassPointsView;

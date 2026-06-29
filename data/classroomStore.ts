@@ -1,24 +1,24 @@
 // classroomStore.ts — a tiny shared, observable store for the DEMO classroom so the
-// ClassDojo view and Reading Quest view stay in sync. Both read/write this one singleton,
-// which means a reading activity finished in Reading Quest lands in the Dojo class story
+// Class Points view and Reading Quest view stay in sync. Both read/write this one singleton,
+// which means a reading activity finished in Reading Quest lands in the class story
 // (and bumps the student's point total) live, and vice-versa. Seeded from demoClassroom,
 // fully local/bundled — no auth, no Firestore. Clearly DEMO, nothing is persisted.
 
 import { useSyncExternalStore } from 'react';
 import {
   DEMO_CLASS,
-  DojoAward,
-  DojoStudent,
+  ClassAward,
+  ClassStudent,
   AttendanceStatus,
 } from './demoClassroom';
 
 export interface ClassroomState {
-  students: DojoStudent[];
-  awards: DojoAward[];                       // class story, newest first
+  students: ClassStudent[];
+  awards: ClassAward[];                       // class story, newest first
   attendance: Record<string, AttendanceStatus>;
 }
 
-// Demo clock anchor — ClassroomDojoView renders "x min ago" relative to this, so new
+// Demo clock anchor — ClassPointsView renders "x min ago" relative to this, so new
 // awards stamped here read as "just now" and sort to the top of the class story.
 const NOW = 1_750_000_000_000;
 const uid = () => `aw_${Math.random().toString(36).slice(2, 9)}`;

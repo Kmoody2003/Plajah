@@ -126,7 +126,7 @@ const NewstandView = retryLazy(() => import('./components/newstand/NewstandView'
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
-const ClassroomDojoView = retryLazy(() => import('./components/ClassroomDojoView'));
+const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const LearnerLedgerView = retryLazy(() => import('./components/LearnerLedgerView'));
@@ -811,8 +811,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('PARTNER_DASHBOARD');
     } else if (target === 'MOVIES_TV') {
       setView('MOVIES_TV');
-    } else if (target === 'CLASSROOM_DOJO') {
-      setView('CLASSROOM_DOJO');
+    } else if (target === 'CLASS_POINTS') {
+      setView('CLASS_POINTS');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
     } else if (target === 'SCIENCE_QUEST') {
@@ -2973,8 +2973,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} initialMatch={fanRoomMatch} onBack={() => setView('PLAJAH_SPORTS')} />
             )}
 
-            {view === 'CLASSROOM_DOJO' && (
-              <ClassroomDojoView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
+            {view === 'CLASS_POINTS' && (
+              <ClassPointsView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
             )}
 
             {view === 'READING_QUEST' && (

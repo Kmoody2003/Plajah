@@ -170,9 +170,9 @@ Best-of-breed today is fragmented: ClassDojo (behavior), Google Classroom (assig
 - Gradebook + standards-based grading (mastery view, not just %).
 - Auto-generated, differentiated lesson plans (5.1).
 - Formative checks that write straight to the ledger.
-- Attendance + behavior (already shipped in ClassroomDojo) unified with academics.
+- Attendance + behavior (already shipped in Class Points) unified with academics.
 - Portfolio of **creative artifacts** as assessable evidence (Plajah's moat — see §6).
-- Parent comms (2-way, logged) — the ClassDojo wedge, now backed by real academic data.
+- Parent comms (2-way, logged) — the classroom-comms wedge, now backed by real academic data.
 
 ---
 
@@ -220,7 +220,7 @@ Homeschool + pods are usually bolted-on afterthoughts elsewhere; here they're na
 5. **Global proficiency benchmarking for the individual.** Every student/parent sees a PISA-style "where you stand in the world" band — motivating and meaningful in a way letter grades aren't.
 6. **Process-evidence trust in the AI-cheating era.** Because the ledger is longitudinal + multimodal, Plajah trusts *trajectory + creative artifacts + process*, not one-shot tests — and can flag implausible jumps. Authentic assessment as a feature, not a policy.
 7. **Pods & homeschool as native org types**, with the ledger spanning multiple families and rotating parent-teachers.
-8. **One record unifying SEL/effort + academics.** Extend the ClassDojo behavior wedge into a growth-and-effort ledger sitting *beside* mastery — because effort/growth framing changes outcomes.
+8. **One record unifying SEL/effort + academics.** Extend the classroom behavior/effort wedge into a growth-and-effort ledger sitting *beside* mastery — because effort/growth framing changes outcomes.
 9. **A verifiable transcript for any student on Earth** — the equity play. A homeschooler, or a child in a country with weak formal credentialing, can graduate with a globally-verifiable, fraud-resistant record.
 
 ---

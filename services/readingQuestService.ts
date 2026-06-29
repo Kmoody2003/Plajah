@@ -1,7 +1,7 @@
 // readingQuestService — real-data layer for Reading Quest. When a user is signed in, their
 // reading progress (per-pillar mastery + completed quests + xp) persists to Firestore at
 // readingProgress/{uid}, and finishing an activity awards real Plajah Points via pointsService.
-// The demo class / Dojo path stays separate (in-memory classroomStore) — this only runs for the
+// The demo class / class-points path stays separate (in-memory classroomStore) — this only runs for the
 // signed-in "You" player. All Firestore writes are guarded and field-complete (no undefined,
 // which Firestore rejects) and failures are non-fatal so play never blocks on the network.
 
