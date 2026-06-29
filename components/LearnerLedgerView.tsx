@@ -9,7 +9,8 @@
 // learner or no data yet, it shows a clearly-labeled DEMO record so the concept is always visible.
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Globe2, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Globe2, Sparkles, ShieldCheck, Download } from 'lucide-react';
+import { buildCredential, downloadCredential } from '../services/credentialService';
 import {
   standardById, bandFor, masteryToLevel, masteryToPISABand, crosswalkOf,
   type Subject,
@@ -102,6 +103,11 @@ const LearnerLedgerView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBa
     .filter(c => c.std)
     .sort((a, b) => b.m - a.m);
 
+  const exportCred = async (standardId: string, mastery: number) => {
+    const cred = await buildCredential({ learnerId: uid || 'demo', learnerName: user?.displayName, standardId, mastery, issuedAtISO: new Date().toISOString() });
+    downloadCredential(cred, `plajah-credential-${standardId.replace(/[^a-z0-9]/gi, '')}.json`);
+  };
+
   const recentRecords = records.length
     ? records.map(r => ({ standardId: r.standardId, source: r.source, delta: r.delta }))
     : DEMO_RECORDS;
@@ -190,6 +196,7 @@ const LearnerLedgerView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBa
                       <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2 }}>{c.std.framework} · {c.std.code}{cross.length ? ` · also counts in ${cross.length} other framework${cross.length > 1 ? 's' : ''}` : ''}</div>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 800, color: b.color, whiteSpace: 'nowrap' }}>{b.label} · {c.m}%</span>
+                    <button onClick={() => exportCred(c.id, c.m)} title="Export as a verifiable credential (Open Badges 3.0)" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.gold, fontSize: 10, fontWeight: 800 }}><Download size={12} /> Export</button>
                   </div>
                 );
               })}

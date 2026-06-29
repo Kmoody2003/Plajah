@@ -10,13 +10,15 @@
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download } from 'lucide-react';
 import { DEMO_CLASS } from '../data/demoClassroom';
 import {
   STANDARDS, standardById, bandFor, masteryToLevel, turboTrackFor, BAND_TO_GRADES,
   type GradeId, type Subject, type LearningStandard,
 } from '../data/educationStandards';
 import { appendRecord } from '../services/learningLedgerService';
+import { INTEGRATIONS, importCASEFramework, SAMPLE_CASE, type IntegrationStatus } from '../services/interopService';
+import { ORG_TYPES, FRAMEWORK_OVERLAYS, DEFAULT_CONTEXT, type LearningContextSettings } from '../data/deploymentContexts';
 
 const T = {
   bg: '#0a0a0f', card: '#12121a', cardAlt: '#15151f', border: '#20202c',
@@ -44,7 +46,7 @@ const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ chil
 );
 const chip = (on: boolean, color = T.orange): React.CSSProperties => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: `1px solid ${on ? color : T.border}`, background: on ? `${color}22` : 'transparent', color: on ? color : T.ink });
 
-type Tab = 'grade' | 'plan' | 'assess';
+type Tab = 'grade' | 'plan' | 'assess' | 'connect' | 'context';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   const [tab, setTab] = useState<Tab>('plan');
@@ -76,14 +78,18 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* tabs */}
         <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          {([['plan', 'Plan from Mastery', Wand2], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['plan', 'Plan from Mastery', Wand2], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
           ))}
         </div>
 
-        {standards.length === 0 ? (
+        {tab === 'connect' ? (
+          <Integrations />
+        ) : tab === 'context' ? (
+          <ContextSettings />
+        ) : standards.length === 0 ? (
           <div style={{ ...cardStyle, padding: 20, color: T.muted }}>No standards seeded for {subject} at this level yet. Try another subject/level.</div>
         ) : tab === 'plan' ? (
           <PlanFromMastery students={students} standards={standards} subject={subject} band={band} />
@@ -230,5 +236,79 @@ const AssessWork: React.FC<{ students: { id: string; name: string }[]; standards
   );
 };
 const selStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, color: T.ink, fontSize: 13, fontFamily: T.font, boxSizing: 'border-box' };
+
+// ── 4. Integrations (Phase 5) ────────────────────────────────────────────────────
+const STATUS_META: Record<IntegrationStatus, { label: string; color: string }> = {
+  live: { label: 'Live', color: T.green }, scaffolded: { label: 'Adapter ready', color: T.gold }, planned: { label: 'Planned', color: T.muted },
+};
+const Integrations: React.FC = () => {
+  const [imported, setImported] = useState<{ framework: string; count: number; sample: string[] } | null>(null);
+  const runImport = () => {
+    const r = importCASEFramework(SAMPLE_CASE);
+    setImported({ framework: r.framework, count: r.count, sample: r.standards.slice(0, 3).map(s => `${s.code} — ${s.statement.slice(0, 48)}…`) });
+  };
+  return (
+    <div>
+      <div style={{ ...cardStyle, padding: 16, marginBottom: 14 }}>
+        <Eyebrow>Connect your district · sit beside the LMS, own the longitudinal record</Eyebrow>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginTop: 6 }}>
+          {INTEGRATIONS.map(it => { const sm = STATUS_META[it.status]; return (
+            <div key={it.id} style={{ ...cardStyle, padding: 13, background: T.cardAlt }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontWeight: 800, fontSize: 14 }}>{it.name}</span>
+                <span style={{ fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800, color: sm.color, border: `1px solid ${sm.color}`, borderRadius: 99, padding: '2px 7px' }}>{sm.label}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.45 }}>{it.desc}</div>
+            </div>
+          ); })}
+        </div>
+      </div>
+      <div style={{ ...cardStyle, padding: 16 }}>
+        <Eyebrow color={T.green}>CASE framework import · live</Eyebrow>
+        <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, marginBottom: 12 }}>Ingest any standards framework as machine-readable CASE data into Plajah's standards graph — this is how the ledger stays current across states and countries. Try it with a sample framework:</div>
+        <button onClick={runImport} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: 'none', background: T.green, color: '#0a0a0f', fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}><Download size={14} /> Import sample CASE framework</button>
+        {imported && (
+          <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: T.cardAlt, border: `1px solid ${T.green}` }}>
+            <div style={{ fontWeight: 800, fontSize: 13 }}>✓ Imported “{imported.framework}” — {imported.count} standards</div>
+            {imported.sample.map((s, i) => <div key={i} style={{ fontSize: 11.5, color: T.muted, marginTop: 4 }}>{s}</div>)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── 5. Learning Context (Phase 7) ────────────────────────────────────────────────
+const ContextSettings: React.FC = () => {
+  const [ctx, setCtx] = useState<LearningContextSettings>(DEFAULT_CONTEXT);
+  return (
+    <div>
+      <div style={{ ...cardStyle, padding: 16, marginBottom: 14 }}>
+        <Eyebrow>Learning context · one ledger, every setting</Eyebrow>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 6 }}>
+          {ORG_TYPES.map(o => (
+            <button key={o.id} onClick={() => setCtx(c => ({ ...c, orgType: o.id }))} style={{ ...cardStyle, cursor: 'pointer', textAlign: 'left', padding: 12, background: ctx.orgType === o.id ? 'rgba(255,140,0,0.1)' : T.cardAlt, borderColor: ctx.orgType === o.id ? T.orange : T.border }}>
+              <div style={{ fontSize: 18 }}>{o.icon}</div>
+              <div style={{ fontWeight: 800, fontSize: 13, marginTop: 3 }}>{o.label}{o.native && <span style={{ fontSize: 8, color: T.green, marginLeft: 5, fontWeight: 800 }}>NATIVE</span>}</div>
+              <div style={{ fontSize: 10.5, color: T.muted, marginTop: 2, lineHeight: 1.35 }}>{o.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ ...cardStyle, padding: 16 }}>
+        <Eyebrow>Curriculum overlay · public standards, your tradition</Eyebrow>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, marginTop: 6 }}>
+          {FRAMEWORK_OVERLAYS.map(o => (
+            <button key={o.id} onClick={() => setCtx(c => ({ ...c, overlayId: o.id }))} style={{ ...cardStyle, cursor: 'pointer', textAlign: 'left', padding: 12, background: ctx.overlayId === o.id ? 'rgba(129,102,230,0.1)' : T.cardAlt, borderColor: ctx.overlayId === o.id ? T.violet : T.border }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 16 }}>{o.icon}</span><span style={{ fontWeight: 800, fontSize: 13 }}>{o.label}</span><span style={{ fontSize: 8, color: T.muted, textTransform: 'uppercase', fontWeight: 800 }}>{o.mode}</span></div>
+              <div style={{ fontSize: 10.5, color: T.muted, marginTop: 4, lineHeight: 1.4 }}>{o.desc}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 11.5, color: T.faint, lineHeight: 1.5 }}>Homeschool & pods are <b style={{ color: T.muted }}>native</b> org types here — the learner-owned ledger spans families and rotating parent-teachers, and graduates with the student into university and work.</div>
+      </div>
+    </div>
+  );
+};
 
 export default TeacherToolsView;
