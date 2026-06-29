@@ -6,6 +6,7 @@ import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
 import EarthGlobe from './EarthGlobe';
 import Logo from './Logo';
+import SignInPrompt from './SignInPrompt';
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -115,6 +116,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
 const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   const [leftAdUser, setLeftAdUser] = useState<UserProfile | null>(null);
   const [rightAdUser, setRightAdUser] = useState<UserProfile | null>(null);
+  const [showStudent, setShowStudent] = useState(false);
   const [bgConfig, setBgConfig] = useState<LandingBgConfig>({
     mode: 'EARTH', slideshowIntervalMs: 5000, overlayOpacity: 40, assets: []
   });
@@ -293,7 +295,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
+        {/* Student sign-in — kids log in with a username + password (no email) */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.9 }}
+          onClick={() => setShowStudent(true)}
+          className="mt-5 text-[11px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors"
+        >
+          Student? Sign in with your username →
+        </motion.button>
+
       </div>
+
+      <AnimatePresence>
+        {showStudent && <SignInPrompt action="learn" initialMode="STUDENT" onClose={() => setShowStudent(false)} />}
+      </AnimatePresence>
 
       {/* Footer Info */}
       <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center gap-12 text-[10px] font-black uppercase tracking-[0.4em] text-white/20">

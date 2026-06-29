@@ -2,25 +2,43 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, LogIn, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, loginWithEmail, registerWithEmail, sendPasswordReset } from '../services/backendService';
+import { childLogin } from '../services/learnerAuthService';
+
+type Mode = 'SOCIAL' | 'EMAIL' | 'STUDENT';
+type EmailMode = 'SIGN_IN' | 'REGISTER' | 'RESET';
 
 interface SignInPromptProps {
   action?: string;
+  initialMode?: Mode;
   onClose: () => void;
 }
 
-type Mode = 'SOCIAL' | 'EMAIL';
-type EmailMode = 'SIGN_IN' | 'REGISTER' | 'RESET';
-
-const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', onClose }) => {
-  const [mode, setMode] = useState<Mode>('SOCIAL');
+const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initialMode = 'SOCIAL', onClose }) => {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [emailMode, setEmailMode] = useState<EmailMode>('SIGN_IN');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+
+  const handleStudentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password) { setError('Enter your username and password.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      await childLogin(username.trim(), password);
+      onClose();
+    } catch (e: any) {
+      setError(e.message || 'Wrong username or password.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handle = async (fn: () => Promise<any>) => {
     setLoading(true);
@@ -93,7 +111,7 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', onClos
 
         {/* Mode tabs */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-2xl mb-6">
-          {(['SOCIAL', 'EMAIL'] as Mode[]).map(m => (
+          {(['SOCIAL', 'EMAIL', 'STUDENT'] as Mode[]).map(m => (
             <button
               key={m}
               onClick={() => { setMode(m); setError(''); }}
@@ -101,13 +119,13 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', onClos
                 mode === m ? 'bg-white text-black' : 'text-white/40 hover:text-white'
               }`}
             >
-              {m === 'SOCIAL' ? 'Social Login' : 'Email'}
+              {m === 'SOCIAL' ? 'Social' : m === 'EMAIL' ? 'Email' : 'Student'}
             </button>
           ))}
         </div>
 
         <AnimatePresence mode="wait">
-          {mode === 'SOCIAL' ? (
+          {mode === 'SOCIAL' && (
             <motion.div key="social" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="flex flex-col gap-3">
               {/* Google */}
               <button
@@ -159,7 +177,8 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', onClos
                 Continue with Microsoft
               </button>
             </motion.div>
-          ) : (
+          )}
+          {mode === 'EMAIL' && (
             <motion.div key="email" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
               {resetSent ? (
                 <div className="text-center py-4">
@@ -225,6 +244,47 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', onClos
                   </div>
                 </form>
               )}
+            </motion.div>
+          )}
+          {mode === 'STUDENT' && (
+            <motion.div key="student" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
+              <form onSubmit={handleStudentSubmit} className="flex flex-col gap-3">
+                <p className="text-[11px] text-white/40 font-bold leading-relaxed">Students sign in with the username and password from a parent or teacher — no email needed.</p>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  onChange={e => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30 transition-all"
+                />
+                <div className="relative">
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 pr-11 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30 transition-all"
+                  />
+                  <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-3.5 text-white/30 hover:text-white">
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {error && (
+                  <div className="flex items-center gap-2 text-[10px] text-red-400">
+                    <AlertCircle size={12} /> {error}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 w-full py-3.5 bg-small-orange text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+                >
+                  {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <ArrowRight size={14} />}
+                  Sign In
+                </button>
+              </form>
             </motion.div>
           )}
         </AnimatePresence>
