@@ -682,11 +682,16 @@ service cloud.firestore {
       // Allow owner to update everything; others can only bump followerCount.
       // A guardian may also create + manage a CHILD profile they own (isChild +
       // guardianUid == their uid) — Firestore-only managed sub-accounts, no separate auth.
-      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
+      // teacherVerification gates the right to provision child accounts — it is a SERVER-ONLY
+      // field (set via the service account, which bypasses these rules). A client may never
+      // self-grant it on create or change it on update, or the provisioning gate is bypassable.
+      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED') ||
                       (isAuthenticated() &&
                        request.resource.data.isChild == true &&
                        request.resource.data.guardianUid == request.auth.uid);
-      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data)) ||
+      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED')) ||
                       (isAuthenticated() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
                        math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
