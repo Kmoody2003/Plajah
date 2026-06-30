@@ -770,6 +770,9 @@ service cloud.firestore {
     match /podcastLibrary/{uid} {
       allow read, write: if isAuthenticated() && uid == request.auth.uid;  // your followed-podcasts library, synced cross-device
     }
+    match /studioAds/{uid} {
+      allow read, write: if isAuthenticated() && uid == request.auth.uid;  // podcast studio ad library (reads + spots)
+    }
     match /walkiePresence/{uid} {
       allow read: if isAuthenticated();                                  // hot contacts read peer presence
       allow write: if isAuthenticated() && uid == request.auth.uid;      // own presence only
