@@ -33,6 +33,9 @@ jobs:
         env:
           VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
+          # App Check site key — without this the client sends no App Check token; if App Check
+          # enforcement is ON for Storage in the Firebase console, every upload is denied.
+          VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
         run: npm run build
 
       # Official Firebase action — bundles a known-good firebase-tools and wires the

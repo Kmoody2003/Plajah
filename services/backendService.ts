@@ -2093,9 +2093,25 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
 
   console.log(`Attempting upload to: ${sanitizedPath} (Type: ${contentType})`);
   console.log(`Current Origin: ${window.location.origin}`);
-  
+
+  // Ensure Firebase auth is restored before uploading. The app can render a user as "logged in"
+  // from a cached profile while auth.currentUser is briefly null right after load → request.auth is
+  // null in the Storage rules → storage/unauthorized (mislabeled "must be signed in"). Wait briefly
+  // for restoration; only after that is "not signed in" genuinely true.
+  if (!auth.currentUser) {
+    await new Promise<void>((res) => {
+      const unsub = onAuthStateChanged(auth, () => { unsub(); res(); });
+      setTimeout(() => { try { unsub(); } catch { /* */ } res(); }, 6000);
+    });
+  }
+  if (!auth.currentUser) {
+    const e = new Error('You must be signed in to upload. Your session may have expired — please sign in again.');
+    import('./errorReporting').then(m => m.reportError(e, { source: 'upload', context: `auth-missing · ${sanitizedPath}` })).catch(() => {});
+    throw e;
+  }
+
   const storageRef = ref(storage, sanitizedPath);
-  
+
   try {
     if (auth.currentUser) {
       await auth.currentUser.getIdToken(true);
@@ -2124,7 +2140,8 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
           if (error.message?.includes('ERR_FAILED') || error.code === 'storage/unknown') {
             reject(new Error("Network Error: The upload was blocked by the browser. This is usually a CORS issue. Please ensure you have configured CORS for your Firebase Storage bucket."));
           } else if (error.code === 'storage/unauthorized') {
-            reject(new Error("Storage Permission Denied: You must be signed in to upload."));
+            import('./errorReporting').then(m => m.reportError(error, { source: 'upload', context: `storage/unauthorized · ${sanitizedPath} · signedIn=${!!auth.currentUser} · type=${contentType}` })).catch(() => {});
+            reject(new Error("Storage permission denied. If you're signed in, please retry — your session may have just refreshed."));
           } else if (error.code === 'storage/retry-limit-exceeded') {
             reject(new Error("Upload timed out. Please check your connection and try again."));
           } else {
