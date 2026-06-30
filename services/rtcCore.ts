@@ -58,6 +58,8 @@ export interface RtcSessionConfig {
   topology: RtcTopology;
   role: RtcRole;
   media?: RtcMediaConfig;
+  /** Publish this stream instead of capturing getUserMedia (e.g. a mixed master). */
+  localStream?: MediaStream;
   displayName?: string;
   iceServers?: RTCIceServer[];
   /** Firestore root collection (default 'rtc_sessions'). */
@@ -130,9 +132,10 @@ export class RtcSession {
   async join(): Promise<void> {
     // Subscribers (broadcast viewers / stage listeners) don't capture media.
     const publishes = this.selfPublishes;
-    if (publishes && (this.cfg.media?.audio || this.cfg.media?.video)) {
+    if (publishes && (this.cfg.localStream || this.cfg.media?.audio || this.cfg.media?.video)) {
       try {
-        this.local = await navigator.mediaDevices.getUserMedia({
+        // Prefer a provided stream (e.g. a podcast mixed master) over capturing the mic/camera.
+        this.local = this.cfg.localStream ?? await navigator.mediaDevices.getUserMedia({
           audio: this.cfg.media?.audio ?? true,
           video: this.cfg.media?.video ?? true,
         });

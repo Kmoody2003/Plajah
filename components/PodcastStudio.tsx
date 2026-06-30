@@ -12,6 +12,7 @@ import { MixEngine } from '../services/podcastStudio/mixEngine';
 import { Soundboard, DEFAULT_PADS, type SoundPad } from '../services/podcastStudio/soundboard';
 import { CallLine, type StudioCaller } from '../services/podcastStudio/callLine';
 import { AdRoll, loadAdLibrary, saveAdLibrary, type AdCreative } from '../services/podcastStudio/adRoll';
+import { PodcastBroadcast } from '../services/podcastStudio/broadcast';
 
 const T = { bg: '#0b0b10', panel: '#13131c', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', violet: '#8166e6', red: '#e23b3b', green: '#5fd17f', font: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" };
 
@@ -44,6 +45,10 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
   const [linkCopied, setLinkCopied] = useState(false);
   const callInUrl = `${location.origin}/?callin=${showId}`;
   const adRollRef = useRef<AdRoll | null>(null);
+  const bcastRef = useRef<PodcastBroadcast | null>(null);
+  const [liveOn, setLiveOn] = useState(false);
+  const [listeners, setListeners] = useState(0);
+  const listenUrl = `${location.origin}/?listen=${showId}`;
   const [adLib, setAdLib] = useState<AdCreative[]>([]);
   const [teleprompter, setTeleprompter] = useState<AdCreative | null>(null);
   const [addingAd, setAddingAd] = useState(false);
@@ -67,7 +72,7 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
       if (mix.isRecording) setElapsed(Date.now() - startRef.current);
     };
     tick();
-    return () => { cancelAnimationFrame(raf); callRef.current?.dispose(); callRef.current = null; mix.dispose(); };
+    return () => { cancelAnimationFrame(raf); callRef.current?.dispose(); callRef.current = null; bcastRef.current?.dispose(); bcastRef.current = null; mix.dispose(); };
   }, []);
 
   const enableMic = async () => {
@@ -124,6 +129,16 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
     try { await cl.start(); setCallInOn(true); } catch (e) { console.warn('[studio] call-in failed', e); }
   };
   const copyLink = () => { navigator.clipboard?.writeText(callInUrl).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); }).catch(() => {}); };
+
+  const goLive = async () => {
+    if (!selfUid || !mixRef.current || bcastRef.current) return;
+    await mixRef.current.resume();
+    const b = new PodcastBroadcast(showId, selfUid, 'Host', mixRef.current.outputStream, setListeners);
+    bcastRef.current = b;
+    try { await b.start(); setLiveOn(true); } catch { bcastRef.current = null; }
+  };
+  const endLive = () => { bcastRef.current?.dispose(); bcastRef.current = null; setLiveOn(false); setListeners(0); };
+  const copyListen = () => navigator.clipboard?.writeText(listenUrl).catch(() => {});
 
   const setGain = (v: number) => { setHostGain(v); mixRef.current?.setGain('host', v); };
   const toggleHostMute = () => { const m = !hostMuted; setHostMuted(m); mixRef.current?.setMute('host', m); };
@@ -182,6 +197,21 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
               <button onClick={rollAd} disabled={adRolling} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 10, border: `1px solid ${T.violet}`, background: 'transparent', color: T.violet, cursor: 'pointer', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>
                 {adRolling ? <Loader2 size={15} className="animate-spin" /> : <Megaphone size={15} />} Roll Ad
               </button>
+              <div style={{ flex: 1 }} />
+              {!liveOn ? (
+                <button onClick={goLive} disabled={!selfUid} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10, border: 'none', cursor: selfUid ? 'pointer' : 'not-allowed', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, background: selfUid ? T.green : T.border, color: '#102015' }}>
+                  <Radio size={15} /> Go Live
+                </button>
+              ) : (
+                <>
+                  <button onClick={copyListen} title="Copy the listen link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '12px 14px', borderRadius: 10, border: `1px solid ${T.border}`, background: 'transparent', color: T.ink, cursor: 'pointer', fontWeight: 700, fontSize: 11 }}>
+                    <Radio size={13} color={T.green} /> {listeners} listening · copy link
+                  </button>
+                  <button onClick={endLive} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 10, border: `1px solid ${T.red}`, background: 'transparent', color: T.red, cursor: 'pointer', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>
+                    <Square size={14} /> End Live
+                  </button>
+                </>
+              )}
             </div>
 
             {/* soundboard */}

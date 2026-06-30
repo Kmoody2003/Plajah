@@ -130,6 +130,7 @@ const RoomView = retryLazy(() => import('./components/RoomView'));
 const PodcastStudio = retryLazy(() => import('./components/PodcastStudio'));
 const LiveTranslation = retryLazy(() => import('./components/LiveTranslation'));
 const PodcastCallIn = retryLazy(() => import('./components/PodcastCallIn'));
+const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -323,8 +324,10 @@ const App: React.FC = () => {
   const pitchParam = new URLSearchParams(window.location.search).get('view');
   const roomParam = new URLSearchParams(window.location.search).get('room');
   const callinParam = new URLSearchParams(window.location.search).get('callin');
+  const listenParam = new URLSearchParams(window.location.search).get('listen');
   const pitchInitialView: AppView =
     callinParam                   ? 'PODCAST_CALLIN'     :
+    listenParam                   ? 'PODCAST_LISTEN'     :
     roomParam                     ? 'ROOM'               :
     pitchParam === 'pitch-music'  ? 'PITCH_MUSIC'        :
     pitchParam === 'pitch-film'   ? 'PITCH_FILM'         :
@@ -338,6 +341,7 @@ const App: React.FC = () => {
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | undefined>(roomParam || undefined);
   const [callinShowId] = useState<string | undefined>(callinParam || undefined);
+  const [listenShowId] = useState<string | undefined>(listenParam || undefined);
   const [showStartRoom, setShowStartRoom] = useState(false);
   // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
   // child (safe content + screen-time) without a separate login.
@@ -3049,6 +3053,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PODCAST_CALLIN' && callinShowId && (
               <PodcastCallIn showId={callinShowId} onClose={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+            )}
+
+            {view === 'PODCAST_LISTEN' && listenShowId && (
+              <PodcastListen showId={listenShowId} onClose={() => setView(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'READING_QUEST' && (
