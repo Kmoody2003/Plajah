@@ -3,11 +3,12 @@
 // fan-room experience, generalized. On open the viewer joins (presence); on leave they're removed.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Radio, Users, Share2, Send, Clock, X, Check } from 'lucide-react';
+import { ArrowLeft, Radio, Users, Share2, Send, Clock, X, Check, Megaphone } from 'lucide-react';
 import {
   subscribeRoom, subscribeMembers, subscribeRoomChat, joinRoom, leaveRoom, sendRoomMessage, endRoom,
   isLive, minsLeft, roomShareUrl, type LiveRoom, type RoomMember, type RoomMessage,
 } from '../services/roomService';
+import { useFediverse } from '../contexts/FediverseContext';
 
 const T = {
   bg: '#0a0a0f', card: '#12121a', cardAlt: '#15151f', border: '#20202c',
@@ -21,8 +22,10 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
   const [chat, setChat] = useState<RoomMessage[]>([]);
   const [text, setText] = useState('');
   const [copied, setCopied] = useState(false);
+  const [announced, setAnnounced] = useState(false);
   const [, tick] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { accounts, crossPost, isCrossPosting } = useFediverse();
 
   useEffect(() => {
     const unsubR = subscribeRoom(roomId, setRoom);
@@ -54,6 +57,13 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
     try { await navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* */ }
   };
 
+  // Announce the room to the host's connected Mastodon / Bluesky / Threads accounts.
+  const announce = async () => {
+    if (!accounts.length) return;
+    const text = `🔴 Live now: ${room?.title || 'a room'} — join me on Plajah: ${roomShareUrl(roomId)}`;
+    try { await crossPost(text); setAnnounced(true); setTimeout(() => setAnnounced(false), 2200); } catch { /* */ }
+  };
+
   const end = async () => { await endRoom(roomId); onBack?.(); };
 
   return (
@@ -66,6 +76,11 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
           <button onClick={share} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.ink, fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
             {copied ? <><Check size={14} color={T.green} /> Copied</> : <><Share2 size={14} /> Share</>}
           </button>
+          {live && accounts.length > 0 && (
+            <button onClick={announce} disabled={isCrossPosting} title="Announce to your connected Mastodon / Bluesky / Threads" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: `1px solid ${announced ? T.green : T.violet}`, background: 'transparent', color: announced ? T.green : T.violet, fontSize: 12, cursor: isCrossPosting ? 'default' : 'pointer', fontWeight: 700, opacity: isCrossPosting ? 0.6 : 1 }}>
+              {announced ? <><Check size={14} /> Posted</> : <><Megaphone size={14} /> {isCrossPosting ? 'Posting…' : 'Announce'}</>}
+            </button>
+          )}
           {isHost && live && <button onClick={end} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${T.red}`, background: 'transparent', color: T.red, fontSize: 12, cursor: 'pointer', fontWeight: 700 }}><X size={14} /> End</button>}
         </div>
 
