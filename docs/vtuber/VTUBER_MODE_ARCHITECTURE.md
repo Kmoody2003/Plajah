@@ -151,13 +151,25 @@ Because the output is just a `MediaStream`, the switcher, live feeds, and Fabula
 
 ---
 
-## 9. Integration seams
+## 9. Integration seams (mapped to real files)
 
-*(filled from the codebase map — see the companion build doc. The output `MediaStream` / output canvas is the universal adapter:)*
+The output **canvas / `MediaStream` is the universal adapter** — every surface consumes it without knowing VTuber internals. Established patterns to reuse:
+- **MediaPipe is already CDN-loaded** in `components/plajahPixels/engine/matting/matteEngine.ts` (`@mediapipe/tasks-vision@0.10.14`, `FilesetResolver.forVisionTasks`, `ImageSegmenter.segmentForVideo`). The face tracker uses the **same dynamic-import pattern** (swap `ImageSegmenter` → `FaceLandmarker` with `outputFaceBlendshapes` + `outputFacialTransformationMatrixes`). (Self-host the WASM/models later per §7.)
+- **VRM rendering** exists in `components/AvatarViewer.tsx` (`GLTFLoader` + `VRMLoaderPlugin`, `vrm.update(delta)`, `vrm.humanoid.getBoneNode(VRMHumanBoneName.*)`, `vrm.expressionManager`). AvatarViewer is **R3F (declarative)**; the engine needs an **imperative** offscreen three renderer (`vrmRig.ts`) reusing the same load/update calls so its canvas can be composited. Avatar uploads already flow through `AvatarStudio.tsx` → `AvatarConfig` (`type:'VRM'`, `modelUrl`).
 
-- **TV Studio switcher:** add a **"VTuber" source type** — when a camera source enables VTuber, the switcher composites the engine's output stream/canvas instead of the raw camera, with a controls panel (avatar, mode, background, quality). Reuse the switcher's existing camera-source + canvas layer pipeline.
-- **Live feeds / WebRTC:** the engine's output `MediaStream` is published in place of the raw `getUserMedia` track (rtcCore/WCVideoChatRoom) — VTuber on any live room.
-- **Fabula editor:** a **per-clip "VTuber" effect** (on a camera/recording clip) and/or a **VTuber clip type** — at preview/export, the clip's frames run through the engine (or the avatar is rendered against the clip's tracking data). For recorded clips, run tracking offline frame-by-frame and bake; for the live/record path, use the realtime stream.
+**TV Studio switcher — `services/tvStudioEngine.ts`:**
+- `StudioSource` gains `vtuberProcessor?: { canvas: HTMLCanvasElement; setMode/setAvatar; dispose() }`.
+- `_drawSource(ctx, src)`: when `src.vtuberProcessor` is set, `ctx.drawImage(src.vtuberProcessor.canvas, …)` instead of `src.videoEl` — the avatar canvas replaces the raw camera in the program/preview composite.
+- A method `enableVTuber(sourceId, opts)` wires a camera source's `videoEl`/`stream` into a `VTuberEngine` and stashes its output canvas on the source. Color correction + transitions + overlays still apply on top, unchanged.
+- Output already publishes via `getProgramStream(fps)` (`canvas.captureStream`) → recording + WebRTC get VTuber for free.
+
+**Live feeds / WebRTC:** the same camera-source path feeds `rtcCore`/live components; publishing `vtuberProcessor.canvas.captureStream()`'s track in place of the raw `getUserMedia` track puts VTuber on any live room.
+
+**Fabula editor — `components/Fabula/Fabula.jsx` + `services/fabulaRender.ts`:**
+- New clip `kind: 'vtuber'` with `{ cameraSourceId | assetId, avatarId, vtuberTracking: { face, pose, hands, segmentation } }` (alongside the existing `fx` block so transforms/blend/fades still apply).
+- In `fabulaRender.ts`, `itemToSnapshot`/`resolveLayers`: a vtuber clip renders the avatar canvas as its layer. **Live/record path** uses the realtime engine; **export of a recorded clip** runs the tracker offline frame-by-frame against the source video and bakes the avatar (quality > speed). The `fx` opacity/scale/blend then composite it on the timeline exactly like any other layer.
+
+**Engine module:** `services/vtuber/{oneEuro,vrmRig,faceTracker,retarget,vtuberEngine}.ts` + `components/VTuberStage.tsx`. `createVTuberStream(inputStream, opts)` is the single entry the switcher/live/Fabula all call.
 
 ---
 

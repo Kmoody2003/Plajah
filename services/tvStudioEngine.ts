@@ -42,6 +42,8 @@ export interface StudioSource {
   lutData?: Float32Array; // 3D LUT 17x17x17 RGB
   // State
   isReady: boolean;
+  /** VTuber mode — when set, the avatar canvas is composited in place of the raw camera. */
+  vtuberProcessor?: { canvas: HTMLCanvasElement; setMode: (m: string) => void; setAvatar: (url: string) => Promise<boolean>; dispose: () => void };
 }
 
 export interface GraphicOverlay {
@@ -350,6 +352,13 @@ export class TVStudioEngine {
     }
     if (src.type === 'COLOR') {
       ctx.fillStyle = src.color ?? '#888'; ctx.fillRect(0, 0, 1920, 1080); return;
+    }
+    // VTuber: when enabled on a camera source, the avatar canvas replaces the raw camera.
+    if (src.vtuberProcessor?.canvas) {
+      ctx.filter = `brightness(${src.brightness}) contrast(${src.contrast}) saturate(${src.saturation}) hue-rotate(${src.hue}deg)`;
+      ctx.drawImage(src.vtuberProcessor.canvas, 0, 0, 1920, 1080);
+      ctx.filter = 'none';
+      return;
     }
     if (src.videoEl && src.isReady) {
       // Apply basic color correction via CSS filter simulation on offscreen
@@ -697,6 +706,22 @@ ${events}
       ...videoStream.getVideoTracks(),
       ...audioStream.getAudioTracks(),
     ]);
+  }
+
+  // ── VTuber: turn a camera source into an avatar (camera-only, no equipment) ──────
+  async enableVTuber(sourceId: string, avatarUrl: string, mode = 'AVATAR_ONLY'): Promise<boolean> {
+    const src = this.sources.get(sourceId);
+    if (!src || !src.stream) return false;
+    if (src.vtuberProcessor) src.vtuberProcessor.dispose();
+    const { createVTuberStream } = await import('./vtuber/vtuberEngine'); // lazy — keeps three out of the base bundle
+    const handle = await createVTuberStream(src.stream, { avatarUrl, mode: mode as any, width: 1920, height: 1080 });
+    src.vtuberProcessor = { canvas: handle.canvas, setMode: (m) => handle.setMode(m as any), setAvatar: handle.setAvatar, dispose: handle.dispose };
+    this.onSourcesChanged?.();
+    return true;
+  }
+  disableVTuber(sourceId: string): void {
+    const src = this.sources.get(sourceId);
+    if (src?.vtuberProcessor) { src.vtuberProcessor.dispose(); src.vtuberProcessor = undefined; this.onSourcesChanged?.(); }
   }
 
   // ── Aux Buses ─────────────────────────────────────────────────────────────
