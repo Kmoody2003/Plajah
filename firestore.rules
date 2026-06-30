@@ -745,6 +745,24 @@ service cloud.firestore {
       allow write: if isOwner(studentId);
     }
 
+    // ── Live Rooms — time-boxed presence + chat spaces (services/roomService) ──
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+      match /members/{uid} {
+        allow read: if true;
+        allow write: if isAuthenticated() && uid == request.auth.uid;
+      }
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 500;
+      }
+    }
+
     match /follows/{followId} {
       // followId is followerId_followingId
       allow read: if true;

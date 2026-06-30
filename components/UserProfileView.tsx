@@ -756,6 +756,17 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         >
           <ArrowLeft size={isMobile ? 18 : 20} />
         </button>
+
+        {/* Start a Room — own profile only */}
+        {isOwnProfile && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
+            className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#FF8C00] text-black rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl`}
+            style={{ zIndex: 30 }}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
+          </button>
+        )}
       </div>
 
       {/* Profile Info — floats up over the bleed zone */}

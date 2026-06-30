@@ -2574,6 +2574,20 @@ const toggleFavoriteTeam = async (team: string) => {
 
       {currentUser && activeTab === 'SOCIAL' && (
         <div className="mb-16 max-w-4xl mx-auto w-full">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
+            className="w-full mb-3 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-left transition-all hover:scale-[1.005]"
+            style={{ border: '1px solid rgba(255,140,0,0.35)', background: 'linear-gradient(120deg, rgba(255,140,0,0.12), rgba(129,102,230,0.1))' }}
+          >
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,140,0,0.18)' }}>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#e23b3b] animate-pulse" />
+            </span>
+            <div className="flex-1">
+              <div className="text-sm font-black text-white">Start a Room</div>
+              <div className="text-[11px] text-white/50">Go live for 15–45 min — anyone can join &amp; chat. Posts to your feed.</div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Go live →</span>
+          </button>
           <UniversalPostComposer
             currentUser={currentUser}
             placeholder="What's happening in the studio? Design a gorgeous post..."

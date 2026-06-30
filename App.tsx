@@ -126,6 +126,7 @@ const NewstandView = retryLazy(() => import('./components/newstand/NewstandView'
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
+const RoomView = retryLazy(() => import('./components/RoomView'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -309,11 +310,14 @@ import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
 import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
+import StartRoomModal from './components/StartRoomModal';
 
 const App: React.FC = () => {
-  // Check for ?view=pitch-music|pitch-film|pitch-writer|research on load (internal doc URLs)
+  // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
   const pitchParam = new URLSearchParams(window.location.search).get('view');
+  const roomParam = new URLSearchParams(window.location.search).get('room');
   const pitchInitialView: AppView =
+    roomParam                     ? 'ROOM'               :
     pitchParam === 'pitch-music'  ? 'PITCH_MUSIC'        :
     pitchParam === 'pitch-film'   ? 'PITCH_FILM'         :
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
@@ -324,6 +328,8 @@ const App: React.FC = () => {
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
+  const [currentRoomId, setCurrentRoomId] = useState<string | undefined>(roomParam || undefined);
+  const [showStartRoom, setShowStartRoom] = useState(false);
   // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
   // child (safe content + screen-time) without a separate login.
   const [activeChildProfile, setActiveChildProfile] = useState<UserProfile | null>(null);
@@ -350,6 +356,15 @@ const App: React.FC = () => {
     const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('KIDS_LIBRARY'); } };
     window.addEventListener('plajah:enter-kids', h);
     return () => window.removeEventListener('plajah:enter-kids', h);
+  }, [setView]);
+
+  // Live Rooms — open a room from anywhere (feed cards / shared links), or open the start composer.
+  useEffect(() => {
+    const open = (e: Event) => { const id = (e as CustomEvent)?.detail?.roomId; if (id) { setCurrentRoomId(id); setView('ROOM'); } };
+    const start = () => setShowStartRoom(true);
+    window.addEventListener('plajah:open-room', open);
+    window.addEventListener('plajah:start-room', start);
+    return () => { window.removeEventListener('plajah:open-room', open); window.removeEventListener('plajah:start-room', start); };
   }, [setView]);
 
   useEffect(() => {
@@ -2977,6 +2992,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <ClassPointsView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
             )}
 
+            {view === 'ROOM' && currentRoomId && (
+              <RoomView roomId={currentRoomId} user={user} onBack={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+            )}
+
             {view === 'READING_QUEST' && (
               <ReadingQuestView onBack={() => setView('CLASSROOMS')} user={user} />
             )}
@@ -3993,6 +4012,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         />
       )}
       {user && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+
+      {/* Start a Room composer (global overlay; opened via plajah:start-room) */}
+      {showStartRoom && <StartRoomModal user={user} onClose={() => setShowStartRoom(false)} />}
 
       {/* Smart Guide */}
       {user && (

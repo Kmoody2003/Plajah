@@ -14,6 +14,7 @@ import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUse
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
+import RoomBanner from './RoomBanner';
 import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
@@ -583,6 +584,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
             )}
+
+            {/* Live Room — time-boxed room attached to this post */}
+            {post.roomId && <RoomBanner roomId={post.roomId} title={post.roomTitle || post.text} endsAt={post.roomEndsAt} />}
 
           {/* Social embeds detected in post text (YouTube, TikTok, X, Instagram) */}
           {socialEmbedsFromText.length > 0 && (
