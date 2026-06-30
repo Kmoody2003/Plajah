@@ -5,7 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
-  Flame, Timer, Camera,
+  Flame, Timer, Camera, Radio,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -17,6 +17,7 @@ import {
 } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
 import VoiceRecorder from './VoiceRecorder';
+import WalkieTalkie from './WalkieTalkie';
 import {
   doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
 } from 'firebase/firestore';
@@ -163,6 +164,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [fediverseText, setFediverseText] = useState('');
   const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showWalkie, setShowWalkie] = useState(false);
 
   // Burn-after-read (self-destructing) toggle
   const [burnMode, setBurnMode]             = useState(false);
@@ -473,6 +475,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const roomName = room.type === 'PRIVATE'
     ? (profiles[room.participants.find(id => id !== uid) ?? '']?.displayName || 'Direct Message')
     : (room.name || (room.type === 'PUBLIC_LIVE' ? 'Live Channel' : 'Group Chat'));
+  const walkiePeerUid = room.type === 'PRIVATE' ? room.participants.find(id => id !== uid) : undefined;
 
   const displayedMessages = searchMode && searchQuery
     ? decryptedMessages.filter(m => m.text?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -535,6 +538,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button onClick={onStartVideo} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
             <Video size={17} />
           </button>
+          {walkiePeerUid && uid && (
+            <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              <Radio size={17} />
+            </button>
+          )}
           <button
             onClick={() => setShowCollabMenu(p => !p)}
             className={`p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
@@ -573,6 +581,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── TWO-WAY (WALKIE-TALKIE) ─────────────────────────────────── */}
+      {showWalkie && walkiePeerUid && uid && (
+        <div className="fixed right-4 top-20 z-[60]">
+          <WalkieTalkie selfUid={uid} peerUid={walkiePeerUid} peerName={roomName} onClose={() => setShowWalkie(false)} />
+        </div>
+      )}
 
       {/* ── SEARCH BAR ──────────────────────────────────────────────── */}
       <AnimatePresence>

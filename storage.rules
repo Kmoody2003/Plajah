@@ -72,6 +72,15 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // ── Two-way (walkie-talkie) transmissions ─────────────────────────────────
+    // Short audio PTT clips, evicted by the rolling 5-buffer. Audio only, ≤10 MB.
+    match /walkie/{pairId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuth()
+                   && request.resource.contentType.matches('audio/.*')
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;
