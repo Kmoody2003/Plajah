@@ -28,6 +28,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useRtcSession } from '../hooks/useRtcSession';
 import LanguageChannels from './LanguageChannels';
 import { saveSessionRecording } from '../services/liveStreamService';
+import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 
 const rtcConfig = {
   iceServers: [
@@ -759,7 +760,10 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
                        onClick={async () => {
                          if (rtc.isRecording) {
                            const blob = await rtc.stopRecording();
-                           if (blob) saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                           if (blob) {
+                             saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                             if (auth.currentUser) saveStudioEpisode({ uid: auth.currentUser.uid, blob, title: activeTalk.title, durationMs: 0 }).catch(() => {});
+                           }
                          } else {
                            rtc.startRecording({ audioOnly: true });
                          }
@@ -797,7 +801,10 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
                      // Auto-save the room as a podcast episode if it was recording.
                      if (rtc.isRecording) {
                        const blob = await rtc.stopRecording();
-                       if (blob) saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                       if (blob) {
+                         saveSessionRecording({ blob, title: `${activeTalk.title} — recording`, audioOnly: true });
+                         if (auth.currentUser) saveStudioEpisode({ uid: auth.currentUser.uid, blob, title: activeTalk.title, durationMs: 0 }).catch(() => {});
+                       }
                      }
                      cleanupAllConnections();
                      await endLiveTalk(activeTalk.id);
