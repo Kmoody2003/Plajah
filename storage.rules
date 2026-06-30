@@ -82,11 +82,12 @@ service firebase.storage {
     }
 
     // ── General uploads (UploadContext: films, videos, images, music, audio) ──
-    // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may
-    // upload recognised media within the size limit.
+    // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may upload here.
+    // NOTE: no content-type gate (browsers report .mov etc. as application/octet-stream, which the
+    // media-type check wrongly rejected) and a generous 25 GB cap (full films exceed the 2 GB limit).
     match /uploads/{allPaths=**} {
       allow read: if true;
-      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+      allow write: if isAuth() && request.resource.size < 25 * 1024 * 1024 * 1024;
     }
 
     // ── Fallback: deny everything not explicitly matched ──────────────────────
