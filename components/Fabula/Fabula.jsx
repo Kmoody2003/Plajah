@@ -5,7 +5,7 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
 } from "lucide-react";
 import * as THREE from "three";
-import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
+import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
@@ -542,6 +542,34 @@ export default function Fabula() {
       }
     } catch { /* no handoff */ }
   })(); }, []);
+
+  /* ----- recover orphaned projects: the index list can lose an entry, but each project's full
+     data survives under studio:prod:<id>. Rescan IndexedDB and merge any missing ones back in. ----- */
+  const recoverProjects = async () => {
+    try {
+      const allKeys = await idbKeys();
+      const prodKeys = (allKeys || []).filter((k) => typeof k === "string" && k.startsWith("studio:prod:"));
+      const found = [];
+      for (const k of prodKeys) {
+        const p = await stGet(k);
+        if (p && p.id) {
+          const sceneCount = (p.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
+          found.push({ id: p.id, title: p.title || "Untitled", type: p.type || "film", updated: p.updatedAt || Date.now(), sceneCount });
+        }
+      }
+      let added = 0;
+      setIndex((cur) => {
+        const byId = new Map((cur || []).map((x) => [x.id, x]));
+        for (const r of found) if (!byId.has(r.id)) { byId.set(r.id, r); added++; }
+        const next = [...byId.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+        stSet("studio:index", { list: next });
+        return next;
+      });
+      return added;
+    } catch { return 0; }
+  };
+  useEffect(() => { const t = setTimeout(() => recoverProjects(), 400); return () => clearTimeout(t); }, []);
+  const onRecover = async () => { const n = await recoverProjects(); ping(n ? `Recovered ${n} project${n > 1 ? "s" : ""}.` : "No additional projects found in storage."); };
 
   /* ----- persistence (debounced full-production save) ----- */
   useEffect(() => {
@@ -2165,6 +2193,11 @@ export default function Fabula() {
               </div>
             ))}
             {storageReady && !index.length && <div className="dim center">No productions yet — everything starts here.</div>}
+            {storageReady && (
+              <div className="center" style={{ marginTop: 12 }}>
+                <button className="minibtn" onClick={onRecover} title="Rescan this browser's storage for a project that fell off the list">↻ Recover projects from this browser</button>
+              </div>
+            )}
           </div>
         )}
 
