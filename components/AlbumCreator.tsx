@@ -1058,6 +1058,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {/* Audio/General Upload Drop Zone (non-GAME) */}
       {type !== 'GAME' && (type !== 'VIDEO' || !['MOVIE', 'TV_SERIES'].includes(subType || '')) && contentTab === 'tracks' && (
         <div className="space-y-4">
+          {subType === 'PODCAST' && (
+            <div className="flex items-center justify-between gap-4 p-5 rounded-3xl bg-gradient-to-r from-small-orange/15 to-violet-500/10 border border-small-orange/20">
+              <div>
+                <p className="text-sm font-black uppercase tracking-widest text-white">Produce live in the Studio</p>
+                <p className="text-[11px] text-white/50 mt-1">Record with mic, soundboard, callers + ad-roll — or upload a finished file below.</p>
+              </div>
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-podcast-studio'))} className="shrink-0 flex items-center gap-2 px-6 py-3 bg-small-orange text-black font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 transition-all">
+                <Mic2 size={14} /> Produce
+              </button>
+            </div>
+          )}
           <div className="relative group">
             <input type="file" multiple accept={type === 'BOOK' ? '.pdf,.epub,.txt,.cbz,.cbr,.docx,.rtf,.fb2,.html,.htm,.mobi,.azw,.azw3,.djvu' : type === 'VIDEO' ? 'video/*' : type === 'PHOTO' ? 'image/*' : AUDIO_ACCEPT} onChange={handleFolderSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full py-16 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 group-hover:bg-white/[0.04] transition-all group-hover:border-white/20">

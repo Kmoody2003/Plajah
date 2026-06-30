@@ -127,6 +127,7 @@ const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView')
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
+const PodcastStudio = retryLazy(() => import('./components/PodcastStudio'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -313,6 +314,7 @@ import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/A
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
+import { saveStudioEpisode } from './services/podcastStudio/studioService';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -374,6 +376,13 @@ const App: React.FC = () => {
     const openPods = () => { setMusicInitialTab('PODCASTS'); setView('MUSIC'); };
     window.addEventListener('plajah:open-chora-podcasts', openPods);
     return () => window.removeEventListener('plajah:open-chora-podcasts', openPods);
+  }, [setView]);
+
+  // Open the Podcast Studio (from content-upload "Produce").
+  useEffect(() => {
+    const open = () => setView('PODCAST_STUDIO');
+    window.addEventListener('plajah:open-podcast-studio', open);
+    return () => window.removeEventListener('plajah:open-podcast-studio', open);
   }, [setView]);
 
   useEffect(() => {
@@ -3008,6 +3017,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ROOM' && currentRoomId && (
               <RoomView roomId={currentRoomId} user={user} onBack={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+            )}
+
+            {view === 'PODCAST_STUDIO' && (
+              <PodcastStudio
+                selfUid={user?.uid}
+                onFinish={async (blob, durationMs) => {
+                  if (!user?.uid) return;
+                  try { await saveStudioEpisode({ uid: user.uid, blob, title: 'New Episode', durationMs }); } catch (e) { console.error('[studio] save failed', e); }
+                  setMusicInitialTab('PODCASTS'); setView('MUSIC');
+                }}
+                onClose={() => setView(user ? 'FEED' : 'DASHBOARD')}
+              />
             )}
 
             {view === 'READING_QUEST' && (
