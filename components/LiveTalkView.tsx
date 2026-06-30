@@ -26,6 +26,7 @@ import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, arrayUnion
 import { onSnapshot } from '../services/safeSnapshot';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useRtcSession } from '../hooks/useRtcSession';
+import LanguageChannels from './LanguageChannels';
 import { saveSessionRecording } from '../services/liveStreamService';
 
 const rtcConfig = {
@@ -36,7 +37,7 @@ const rtcConfig = {
 };
 
 // Sub-component to play remote audio track
-const RemoteAudioPlayer: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+const RemoteAudioPlayer: React.FC<{ stream: MediaStream; muted?: boolean }> = ({ stream, muted }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ const RemoteAudioPlayer: React.FC<{ stream: MediaStream }> = ({ stream }) => {
     }
   }, [stream]);
 
-  return <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />;
+  return <audio ref={audioRef} autoPlay playsInline muted={muted} style={{ display: 'none' }} />;
 };
 
 // Premium Speaker Avatar Component with real-time volume detection & pulsing halos
@@ -234,6 +235,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
   // Real-time audio now runs on the unified rtcCore backbone ('stage' topology:
   // speakers publish, listeners subscribe — the Clubhouse/X-Spaces model).
   const [remoteStreams, setRemoteStreams] = useState<{ [speakerUid: string]: MediaStream }>({});
+  const [langChannelActive, setLangChannelActive] = useState(false);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const [talkTab, setTalkTab] = useState<'CHAT' | 'ASSETS'>('CHAT');
@@ -722,11 +724,15 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
       <div className="flex-1 flex flex-col h-full bg-black/40">
         {/* Dynamic, hidden receiver players for all active remote speaker streams */}
         {Object.entries(remoteStreams).map(([speakerUid, stream]) => (
-          <RemoteAudioPlayer key={speakerUid} stream={stream} />
+          <RemoteAudioPlayer key={speakerUid} stream={stream} muted={langChannelActive} />
         ))}
 
         {/* Talk Header */}
         <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col gap-4">
+          {/* On-device language channels — listen in your language */}
+          <div className="px-1">
+            <LanguageChannels getStreams={() => Object.values(remoteStreams)} onActiveChange={setLangChannelActive} />
+          </div>
           <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
