@@ -40,20 +40,43 @@ function itemToSnapshot(item: any, label: string): SceneSnapshot {
   return { name: label || 'clip', layers: [] };                 // unresolved → black
 }
 
-async function decodeAudio(clips: any[], mediaPool: any[]): Promise<AudioBuffer | null> {
-  const audioClip = clips
-    .filter(c => (c.trackId === 'a1' || c.trackId === 'a2') && c.assetId)
-    .sort((a, b) => a.start - b.start)[0];
-  if (!audioClip) return null;
-  const item = mediaPool.find(m => m.id === audioClip.assetId);
-  if (!item?.url) return null;
-  try {
-    const buf = await (await fetch(item.url)).arrayBuffer();
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const ab = await ctx.decodeAudioData(buf);
-    ctx.close();
-    return ab;
-  } catch { return null; }
+// Mix ALL audio clips (any a-track) into one master buffer — placed at each clip's start with its
+// srcIn offset, duration, per-clip gain (fx.vol) and fade-in/out envelope. (Previously only the first
+// audio clip played, anchored at t=0.)
+async function mixAudio(clips: any[], mediaPool: any[], durationSec: number): Promise<AudioBuffer | null> {
+  const audioClips = clips.filter(c => /^a\d+$/.test(c.trackId) && c.assetId && !c.disabled);
+  if (!audioClips.length || durationSec <= 0) return null;
+  const SR = 48000;
+
+  // decode each unique asset once
+  const cache = new Map<string, AudioBuffer>();
+  const decodeCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  for (const c of audioClips) {
+    if (cache.has(c.assetId)) continue;
+    const item = mediaPool.find(m => m.id === c.assetId);
+    if (!item?.url) continue;
+    try { cache.set(c.assetId, await decodeCtx.decodeAudioData(await (await fetch(item.url)).arrayBuffer())); }
+    catch { /* skip undecodable */ }
+  }
+  try { decodeCtx.close(); } catch { /* */ }
+
+  const offline = new OfflineAudioContext(2, Math.ceil(durationSec * SR), SR);
+  for (const c of audioClips) {
+    const ab = cache.get(c.assetId); if (!ab) continue;
+    const start = Math.max(0, c.start || 0);
+    const offset = Math.max(0, c.srcIn || 0);
+    const dur = Math.max(0.01, Math.min(c.duration || (ab.duration - offset), ab.duration - offset));
+    const gainVal = c.fx?.vol != null ? c.fx.vol : (c.vol != null ? c.vol : 1);
+    const fi = Math.min(c.fx?.fadeIn || 0, dur), fo = Math.min(c.fx?.fadeOut || 0, dur);
+    const src = offline.createBufferSource(); src.buffer = ab;
+    const g = offline.createGain();
+    g.gain.setValueAtTime(fi > 0 ? 0.0001 : gainVal, start);
+    if (fi > 0) g.gain.linearRampToValueAtTime(gainVal, start + fi);
+    if (fo > 0) { g.gain.setValueAtTime(gainVal, Math.max(start, start + dur - fo)); g.gain.linearRampToValueAtTime(0.0001, start + dur); }
+    src.connect(g); g.connect(offline.destination);
+    try { src.start(start, offset, dur); } catch { /* out of range */ }
+  }
+  try { return await offline.startRendering(); } catch { return null; }
 }
 
 /** Render the Fabula timeline to an MP4 Blob via the Pixels offline renderer. Composites
@@ -107,7 +130,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   };
 
   const duration = Math.max(0, ...clips.map(c => c.start + c.duration));
-  const audioBuffer = await decodeAudio(clips, mediaPool);
+  const audioBuffer = await mixAudio(clips, mediaPool, duration);
   const config = {
     colorPalette: palette || [],
     gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,

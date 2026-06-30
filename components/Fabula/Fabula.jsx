@@ -13,6 +13,7 @@ import { getMyVideos } from "../../services/fabulaVideos";
 import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
+import Waveform from "./Waveform";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
@@ -2014,10 +2015,11 @@ export default function Fabula() {
                             {clips.filter((c) => c.trackId === tr.id).map((c) => {
                               const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
                               const sel = selClipId === c.id;
+                              const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (prod?.mediaPool?.find((m) => m.id === c.assetId)?.url) : null;
                               return (
                                 <div key={c.id}
                                   className={`clip ${c.kind} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""}`}
-                                  style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec) }}
+                                  style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1 }}
                                   onMouseDown={(e) => onClipDown(e, c.id, "move")}
                                   onClick={(e) => { e.stopPropagation(); setSelClipId(c.id); }}
                                   onDoubleClick={(e) => { e.stopPropagation(); openNested(c); }}>
@@ -2028,7 +2030,7 @@ export default function Fabula() {
                                     {c.kind === "media" && <Film size={9} />}
                                     <span>{c.label}</span>
                                   </div>
-                                  {c.kind === "voice" && <div className="wave">{Array.from({ length: 16 }).map((_, i) => <i key={i} style={{ height: (((i * 37) % 70) + 20) + "%" }} />)}</div>}
+                                  {wfUrl && <Waveform url={wfUrl} srcIn={c.srcIn} duration={c.duration} />}
                                   <div className="trimL" onMouseDown={(e) => onClipDown(e, c.id, "start")} />
                                   <div className="trimR" onMouseDown={(e) => onClipDown(e, c.id, "end")} />
                                 </div>
