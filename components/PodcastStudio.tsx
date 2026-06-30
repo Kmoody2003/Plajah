@@ -10,8 +10,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Circle, Square, Radio, Megaphone, PhoneCall, X, Loader2, Sliders } from 'lucide-react';
 import { MixEngine } from '../services/podcastStudio/mixEngine';
 import { Soundboard, DEFAULT_PADS, type SoundPad } from '../services/podcastStudio/soundboard';
+import { CallLine, type StudioCaller } from '../services/podcastStudio/callLine';
 
 const T = { bg: '#0b0b10', panel: '#13131c', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', violet: '#8166e6', red: '#e23b3b', green: '#5fd17f', font: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" };
+
+const miniBtn = (color: string): React.CSSProperties => ({ padding: '5px 9px', borderRadius: 7, border: `1px solid ${color}`, background: 'transparent', color, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', cursor: 'pointer' });
 
 const Meter: React.FC<{ level: number }> = ({ level }) => (
   <div style={{ height: 6, background: '#000', borderRadius: 6, overflow: 'hidden' }}>
@@ -19,7 +22,7 @@ const Meter: React.FC<{ level: number }> = ({ level }) => (
   </div>
 );
 
-const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (blob: Blob, durationMs: number) => void; onClose?: () => void }> = ({ onFinish, onClose }) => {
+const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (blob: Blob, durationMs: number) => void; onClose?: () => void }> = ({ selfUid, onFinish, onClose }) => {
   const mixRef = useRef<MixEngine | null>(null);
   const boardRef = useRef<Soundboard | null>(null);
   const startRef = useRef(0);
@@ -32,6 +35,12 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
   const [hostMuted, setHostMuted] = useState(false);
   const [hostGain, setHostGain] = useState(1);
   const [adRolling, setAdRolling] = useState(false);
+  const callRef = useRef<CallLine | null>(null);
+  const [showId] = useState(() => 'show_' + Math.random().toString(36).slice(2, 9));
+  const [callInOn, setCallInOn] = useState(false);
+  const [callers, setCallers] = useState<StudioCaller[]>([]);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const callInUrl = `${location.origin}/?callin=${showId}`;
 
   // init engine
   useEffect(() => {
@@ -49,7 +58,7 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
       if (mix.isRecording) setElapsed(Date.now() - startRef.current);
     };
     tick();
-    return () => { cancelAnimationFrame(raf); mix.dispose(); };
+    return () => { cancelAnimationFrame(raf); callRef.current?.dispose(); callRef.current = null; mix.dispose(); };
   }, []);
 
   const enableMic = async () => {
@@ -84,6 +93,14 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
     await boardRef.current?.fire({ id: 'ad_sting', label: 'Ad', builtin: 'riser' });
     setTimeout(() => { mix.duck(false); setAdRolling(false); }, 1400);
   };
+
+  const startCallIn = async () => {
+    if (!selfUid || !mixRef.current || callRef.current) return;
+    const cl = new CallLine(showId, selfUid, 'Host', mixRef.current, setCallers);
+    callRef.current = cl;
+    try { await cl.start(); setCallInOn(true); } catch (e) { console.warn('[studio] call-in failed', e); }
+  };
+  const copyLink = () => { navigator.clipboard?.writeText(callInUrl).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); }).catch(() => {}); };
 
   const setGain = (v: number) => { setHostGain(v); mixRef.current?.setGain('host', v); };
   const toggleHostMute = () => { const m = !hostMuted; setHostMuted(m); mixRef.current?.setMute('host', m); };
@@ -164,8 +181,28 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
             </div>
             <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: 2, color: T.muted, fontWeight: 800, marginBottom: 10 }}><PhoneCall size={13} /> CALLERS</div>
-              <p style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.5, margin: 0 }}>Comrex-style call-in: share a link, screen callers in cue, put them on air, and drop. Signed-in users or <b style={{ color: T.ink }}>guests</b> (name + a temporary expiring session) can call in.</p>
-              <button disabled style={{ marginTop: 10, width: '100%', padding: '9px 0', borderRadius: 9, border: `1px solid ${T.border}`, background: 'transparent', color: T.muted, fontSize: 11, fontWeight: 700, cursor: 'not-allowed' }}>Call-in link — coming next</button>
+              {!callInOn ? (
+                <>
+                  <p style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.5, margin: '0 0 10px' }}>Open a Comrex-style line: screen callers in cue, put them on air, drop. Signed-in users or <b style={{ color: T.ink }}>guests</b> (name + a temporary session) can call in.</p>
+                  <button onClick={startCallIn} disabled={!selfUid} style={{ width: '100%', padding: '10px 0', borderRadius: 9, border: 'none', background: selfUid ? T.green : T.border, color: '#102015', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', cursor: selfUid ? 'pointer' : 'not-allowed' }}>{selfUid ? 'Open call-in line' : 'Sign in to take callers'}</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={copyLink} style={{ width: '100%', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: '#0c0c12', color: linkCopied ? T.green : T.ink, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{linkCopied ? '✓ Link copied' : `Copy call-in link · /?callin=${showId.slice(-6)}`}</button>
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {callers.length === 0 && <span style={{ fontSize: 11, color: T.muted, fontStyle: 'italic' }}>No callers yet — share the link.</span>}
+                    {callers.map(c => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1a1620', border: `1px solid ${c.state === 'onair' ? T.red : T.border}`, borderRadius: 9, padding: '7px 9px' }}>
+                        <span style={{ flex: 1, fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}{c.state === 'onair' && <span style={{ color: T.red, marginLeft: 6, fontSize: 9 }}>● ON AIR</span>}</span>
+                        {c.state === 'onair'
+                          ? <button onClick={() => callRef.current?.screen(c.id)} style={miniBtn(T.muted)}>Cue</button>
+                          : <button onClick={() => callRef.current?.air(c.id)} style={miniBtn(T.red)}>Air</button>}
+                        <button onClick={() => callRef.current?.drop(c.id)} style={miniBtn(T.muted)}>Drop</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
