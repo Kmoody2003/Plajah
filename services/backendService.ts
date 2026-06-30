@@ -5928,7 +5928,7 @@ export const seedMockUsers = async () => {
 
 // Upload a video file directly to Mux (browser → Mux, skipping Firebase Storage).
 // Returns the Mux upload ID so we can poll for the playback ID afterwards.
-const uploadVideoFileMux = async (
+export const uploadVideoFileMux = async (
   file: File,
   onProgress?: (p: number) => void,
 ): Promise<string> => {
