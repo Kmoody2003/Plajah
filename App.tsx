@@ -312,6 +312,7 @@ import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
+import { initPodcastLibrarySync } from './services/podcastLibraryService';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -423,6 +424,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
   const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  // Sync the followed-podcast library to Firestore so it's available on every device.
+  useEffect(() => {
+    if (user?.uid) return initPodcastLibrarySync(user.uid);
+  }, [user?.uid]);
   const [theme, setTheme] = useState<ThemeType>('PLAJAH');
   
   // Theme Asset Cycle
