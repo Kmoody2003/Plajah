@@ -1,6 +1,13 @@
 # Plajah — Go-to-Market & Creator Acquisition Strategy
 **Updated: June 11, 2026 · Reflects actual codebase (250+ components, 30+ services). Latest reassessment in §24 (Studio, FABULA, real music transcription, infra hardening).**
 
+> ## ⬆️ GTM UPDATE — June 29, 2026 (Education vertical now LIVE in production)
+> Since this doc was written, the **entire education stack shipped and deployed**: Reading/Science/Math **Quests** (standards-aligned, K-7+), the **Learner Ledger** + portable **Academic Passport** (Open Badges 3.0 verifiable-credential export), **Class Points** (the generic, trademark-safe behavior/attendance/parent system — *renamed off "ClassDojo/Dojo" for legal reasons*), parent/child/teacher **identity & safeguards** (emailless child login via Cloud Run runtime SA), **two teaching tracks** (academic *Teacher* vs creator-economy *Instructor*), and an **8-tool Teacher Console** (Plan-from-Mastery · Planner · QTI Checks · Gradebook · Assess Work · print-ready Reports · CASE/Clever/LTI Integrations · homeschool/pod/overlay Context).
+>
+> **This reframes the GTM: education is now the spearhead** (structural teacher→class→family distribution + a portable-record wedge nobody owns), with **Sports** and the **Creator** stack as parallel fronts sharing one identity/record spine.
+>
+> 👉 **Master strategy now lives in [`PLAJAH_PLATFORM_STRATEGY_2026.md`](./PLAJAH_PLATFORM_STRATEGY_2026.md)** — education GTM, competitor-undercut pricing + cross-subsidy (Business + Pay-It-Forward "Sponsor-a-Classroom"; *don't raise Plajah+*), education monetization, Sports↔Ed cross-pollination (the Student-Athlete Ledger), Film/Taleo beyond direct sales, per-vertical marketing (grassroots + funded), bootstrapped/values-aligned funding. **The creator tactics below remain valid — now one of three fronts.**
+
 ---
 
 ## 0. What Changed From v1
