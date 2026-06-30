@@ -82,7 +82,7 @@ A pure module that maps tracker output to avatar controls, frame by frame:
 - **Hands:** 21 landmarks → finger curl per joint.
 - **Smoothing:** a **One-Euro filter** per signal (low latency + low jitter) — critical for "high quality." Blink and lip-sync get lighter smoothing; head/body get more.
 
-This is the same job the open-source **Kalidokit** (MIT) does; we either depend on it or hand-roll a tighter Plajah retargeter (no extra dep, full control). Recommend hand-rolled for blendshape→VRM (small, precise) and borrow Kalidokit's math for pose/hand solving.
+This is the same job the open-source **Kalidokit** (MIT) does; we either depend on it or hand-roll a tighter Plajah retargeter (no extra dep, full control). **DECISION — hybrid:** the **face** retargeter is hand-rolled (shipped in `services/vtuber/retarget.ts` — small, precise, no dep), and **pose/hands** use Kalidokit-style solving math (Phase 3). Best of both: tight control on the expression path that matters most, proven math for the limb IK.
 
 ---
 
@@ -180,13 +180,55 @@ The output **canvas / `MediaStream` is the universal adapter** — every surface
 3. **Body + segmentation:** Pose + ImageSegmenter → Body-Overlay + Face-Overlay modes; hands.
 4. **Live feeds:** publish the VTuber stream over WebRTC.
 5. **Fabula:** per-clip VTuber effect (realtime + baked/offline for export).
-6. **Avatar library + creator uploads** (tie to Worlds/IZU); WebGPU path; auto-tiering polish.
+6. **Avatar creation — character sheet → VTuber (§12):** 2D-puppet (local, instant) then 3D-VRM generation; tie to Worlds/IZU + Creator Passport ownership.
+7. **Hardening:** WebGPU render path, worker + OffscreenCanvas, auto-tiering polish, self-hosted MediaPipe models.
 
 ---
 
-## 11. Open decisions
-1. **Retargeter:** depend on Kalidokit (MIT, fast to ship) vs. hand-rolled Plajah retargeter (no dep, tighter). Recommend hybrid (hand-rolled face, Kalidokit-style pose math).
-2. **Worker/OffscreenCanvas** now or main-thread-first then optimize. Recommend main-thread MVP, worker in phase 3.
-3. **Avatar set** to ship (CC0 VRMs) + creator-upload pipeline + moderation.
-4. **Self-host vs CDN** for MediaPipe assets at launch (recommend self-host for local-first + offline).
-5. **Fabula export**: realtime-capture bake vs. offline per-frame re-render (quality vs. speed).
+## 11. Decisions
+1. ✅ **Retargeter — HYBRID.** Hand-rolled face retargeter (`retarget.ts`, shipped) + Kalidokit-style pose/hand math (Phase 3).
+2. ✅ **Threading — main-thread MVP**, move trackers + render to a Web Worker + OffscreenCanvas in Phase 3.
+3. ✅ **Avatars are user-generated from a character sheet** (see §12) — that is the primary creation path, not a fixed CC0 library. Still ship 1–2 CC0 VRMs as the zero-upload default + for testing; moderation on uploads/generations.
+4. **Self-host vs CDN** for MediaPipe assets at launch — lean self-host for local-first + offline (Phase: hardening).
+5. **Fabula export**: realtime-capture bake vs. offline per-frame re-render (quality vs. speed) — decide at Phase 5.
+
+---
+
+## 12. Character Sheet → VTuber (upload a drawing, get an avatar)
+
+**The creation promise:** a user uploads a **character sheet** (a drawing / reference of their character) and Plajah **builds a drivable VTuber from it** — no modeling, no hand-rigging. Two output paths, **one realtime driver** (the Phase-1 engine). Key framing: avatar **creation is a one-time bake**; avatar **driving is the local realtime engine** we already built. So the factory just needs to emit something the engine can drive.
+
+### Input
+- A single character image (portrait or full-body), **or** a multi-view sheet (front / ¾ / side / back). More views → better 3D; we accept any and quality scales with what's given.
+- Pre-process: background removal (SAM / MediaPipe ImageSegmenter), upscale, orientation-normalize.
+
+### Path A — 2D Live-Puppet (instant, fully local, works from ANY single drawing)
+Live2D-style without Live2D. The always-available default — best when the sheet is one stylized image.
+1. **Segment** the character (SAM / MediaPipe) → clean cutout + alpha.
+2. **Part decomposition:** run FaceLandmarker on the drawing (works on illustrated faces) + segmentation → isolate movable layers (L/R eyes, brows, mouth, head, hair, torso, arms); synthesize open/closed-eye + vowel mouth variants by warping the source regions.
+3. **Auto-rig a deformation mesh:** triangulate the cutout, bind vertices to the detected landmarks + part layers; define deformers (blink, vowel mouths, head yaw/pitch parallax, body lean).
+4. **Drive:** the **same MediaPipe tracker + retargeter** → warp the mesh + swap eye/mouth states in a WebGL/Canvas2D layer. Fully local, realtime, from a single drawing. Lower fidelity than 3D but immediate and universal.
+
+### Path B — 3D VRM Generation (high quality; generation is a heavier, GPU step)
+Best when the user wants a true 3D avatar (head-turn, depth, lighting, spring-bone hair).
+1. **Image → 3D mesh:** open-source single-/multi-image-to-3D. **CharacterGen** (anime-specialized, 2024) for stylized characters; **TripoSR / InstantMesh / LGM** for general. Multi-view sheets feed multi-view reconstruction.
+2. **Auto-rig → humanoid:** fit the mesh to a standard humanoid skeleton (template-fit / learned auto-rigger) and **export VRM** (humanoid bones + spring bones).
+3. **Auto-blendshapes:** synthesize the VRM expression set (aa/ih/ou/ee/oh, blink, happy/angry/sad/surprised) as morph targets from the face region.
+4. **Drive:** the resulting `.vrm` drops **straight into the existing `vtuberEngine`** — zero new realtime code; the factory just yields an `avatarUrl`.
+
+**Where the heavy AI runs:** image→3D + auto-rig need a GPU. Two options, mirroring Plajah's existing Veo/Suno/Gemini generation: (a) **local WebGPU** when the device supports it (ONNX Runtime Web / transformers.js), (b) a **server AI endpoint** otherwise. Recommendation: **Path A is the local, instant default**; **Path B is an opt-in "make it 3D"** that uses WebGPU-if-available else the server. Either way it's a one-time bake, then driving is fully local.
+
+### The seam — `VTuberAvatarFactory`
+```ts
+type AvatarDescriptor =
+  | { kind: 'VRM'; url: string; source: 'upload' | 'generated' }
+  | { kind: 'PUPPET2D'; rig: Puppet2DRig };          // layered 2D mesh + deformers
+
+buildVTuberFromSheet(image: Blob, opts): Promise<AvatarDescriptor>
+```
+The realtime engine accepts an `AvatarDescriptor`: **VRM** → the three-vrm rig we built; **PUPPET2D** → a parallel 2D-puppet driver. Both consume the **same** MediaPipe tracker + retargeter outputs, so the tracking half is shared. Avatar Studio's existing upload flow extends to accept a character sheet → routes it through the factory → stores the descriptor on the user's `AvatarConfig`.
+
+### Character-sheet phases
+A. **2D-puppet MVP (local):** sheet → segment → face-region rig → realtime warp. Delivers "upload a drawing, VTube instantly," fully on-device.
+B. **3D generation:** wire CharacterGen/TripoSR (WebGPU local or server endpoint) → mesh → auto-rig → VRM → feed the existing engine.
+C. **Polish:** multi-view sheets, better auto-blendshapes, a creator touch-up pass (re-place a layer, nudge a deformer), and tie generated avatars to **Worlds/IZU + Creator Passport** ownership.
