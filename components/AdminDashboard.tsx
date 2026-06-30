@@ -51,8 +51,10 @@ import {
   Star,
   Edit2,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  AlertTriangle
 } from 'lucide-react';
+import ErrorReportsPanel from './admin/ErrorReportsPanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SystemStats, AdConfig, Track, Album, Video, Photo, PostThemeBackground, InteractiveZone, SystemSettingsConfig, Universe, Playlist, VideoPlaylist } from '../types';
 import { 
@@ -103,7 +105,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'ERRORS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   
@@ -509,6 +511,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
           {[
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
+            { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
             { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
             { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
@@ -1183,6 +1186,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                 className="max-w-5xl"
               >
                 <AdminSportsHeroManager />
+              </motion.div>
+            )}
+
+            {activeTab === 'ERRORS' && (
+              <motion.div key="errors" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
+                <ErrorReportsPanel />
               </motion.div>
             )}
 

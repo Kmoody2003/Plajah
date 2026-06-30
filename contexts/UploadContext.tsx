@@ -1,6 +1,18 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../services/firebase';
+import { reportError } from '../services/errorReporting';
+
+// Fallback content-type by upload kind — files (esp. .mov) can arrive with an empty file.type,
+// which would default to application/octet-stream and be rejected by the Storage rules.
+const FALLBACK_CT: Record<string, string> = { VIDEO: 'video/mp4', MUSIC: 'audio/mpeg', PHOTO: 'image/jpeg', BOOK: 'application/pdf' };
+const extCt = (name: string): string => {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return ({ mov: 'video/quicktime', mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska',
+    mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', flac: 'audio/flac',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+    pdf: 'application/pdf', epub: 'application/epub+zip' } as Record<string, string>)[ext] || '';
+};
 
 export interface UploadTask {
   id: string;
@@ -41,7 +53,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return new Promise((resolve, reject) => {
       const metadata = {
-        contentType: file.type || 'application/octet-stream'
+        contentType: (file.type && file.type !== 'application/octet-stream') ? file.type : (extCt(fileName) || FALLBACK_CT[type] || 'application/octet-stream')
       };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
@@ -53,6 +65,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         },
         (error) => {
           setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'ERROR', error: error.message } : t));
+          reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType}` });
           reject(error);
         },
         async () => {

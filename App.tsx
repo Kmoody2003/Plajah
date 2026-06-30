@@ -318,6 +318,7 @@ import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
 import { saveStudioEpisode } from './services/podcastStudio/studioService';
+import { installGlobalErrorReporting } from './services/errorReporting';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -400,6 +401,9 @@ const App: React.FC = () => {
     window.addEventListener('plajah:open-live-translation', open);
     return () => window.removeEventListener('plajah:open-live-translation', open);
   }, [setView]);
+
+  // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
+  useEffect(() => { installGlobalErrorReporting(); }, []);
 
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
