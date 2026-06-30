@@ -8,8 +8,10 @@ export interface FaceFrame {
   matrix: Float32Array | null;          // 4x4 column-major facial transform (head pose)
 }
 
-const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
-const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+export const VTUBER_MP_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+export const VTUBER_FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const CDN = VTUBER_MP_CDN;
+const MODEL = VTUBER_FACE_MODEL;
 
 export class FaceTracker {
   private fl: any = null;

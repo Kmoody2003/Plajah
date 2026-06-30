@@ -57,11 +57,14 @@ export async function buildVTuberFromSheet(image: Blob, opts: BuildAvatarOptions
   return buildPuppet2D(image, opts);
 }
 
-async function buildPuppet2D(_image: Blob, opts: BuildAvatarOptions): Promise<AvatarDescriptor> {
+async function buildPuppet2D(image: Blob, opts: BuildAvatarOptions): Promise<AvatarDescriptor> {
   opts.onProgress?.('segment', 0.2);
-  // Phase A: SAM/MediaPipe segment → face-region + part decomposition → triangulated deformation
-  // mesh + open/closed-eye & vowel-mouth states → Puppet2DRig.
-  throw new VTuberFactoryError('2D live-puppet rigging lands in character-sheet Phase A.');
+  // Phase A (shipped): MediaPipe FaceLandmarker locates eyes+mouth → cut movable layers + patch
+  // the base → Puppet2DRig, driven live by the same tracker/retargeter. (Body-part segmentation
+  // via SAM + a triangulated deformation mesh are the fidelity upgrade.)
+  const { buildPuppet2DRig } = await import('./puppet2D');
+  const rig = await buildPuppet2DRig(image, opts.onProgress);
+  return { kind: 'PUPPET2D', rig };
 }
 
 async function buildVrmFromSheet(_image: Blob, opts: BuildAvatarOptions): Promise<AvatarDescriptor> {

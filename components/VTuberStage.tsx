@@ -4,8 +4,9 @@
 // the same one the TV Studio switcher and live feeds consume.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Video, Square, Sparkles, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Video, Square, Sparkles, ArrowLeft, Loader2, AlertCircle, Upload, Check } from 'lucide-react';
 import { createVTuberStream, type VTuberHandle, type VTuberMode } from '../services/vtuber/vtuberEngine';
+import { buildVTuberFromSheet, type AvatarDescriptor } from '../services/vtuber/avatarFactory';
 
 const T = {
   bg: '#0a0a0f', card: '#12121a', border: '#20202c', ink: '#fff', muted: '#9a9aa6',
@@ -21,6 +22,26 @@ const VTuberStage: React.FC<{ avatarUrl?: string; onBack?: () => void }> = ({ av
   const [status, setStatus] = useState('');
   const [mode, setMode] = useState<VTuberMode>('AVATAR_ONLY');
   const [error, setError] = useState('');
+  const [descriptor, setDescriptor] = useState<AvatarDescriptor | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [buildMsg, setBuildMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // the avatar we'll drive: a puppet built from an uploaded sheet, else the passed-in VRM
+  const avatar: AvatarDescriptor | null = descriptor ?? (avatarUrl ? { kind: 'VRM', url: avatarUrl, source: 'upload' } : null);
+
+  const onSheet = async (file: File | undefined) => {
+    if (!file) return;
+    setBuilding(true); setError(''); setBuildMsg('decoding…');
+    try {
+      const desc = await buildVTuberFromSheet(file, { path: 'PUPPET2D', onProgress: (s, p) => setBuildMsg(`${s} · ${Math.round(p * 100)}%`) });
+      setDescriptor(desc);
+      setBuildMsg('Puppet ready');
+    } catch (e: any) {
+      setError(e?.message || 'Could not build a puppet from that image.');
+      setBuildMsg('');
+    } finally { setBuilding(false); }
+  };
 
   const stop = () => {
     handleRef.current?.dispose(); handleRef.current = null;
@@ -29,12 +50,12 @@ const VTuberStage: React.FC<{ avatarUrl?: string; onBack?: () => void }> = ({ av
   };
 
   const start = async () => {
-    if (!avatarUrl) { setError('Add a VRM avatar in Avatar Studio first, then come back.'); return; }
+    if (!avatar) { setError('Upload a character sheet, or pick a VRM avatar in Avatar Studio.'); return; }
     setBusy(true); setError('');
     try {
       const cam = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
       camRef.current = cam;
-      const handle = await createVTuberStream(cam, { avatarUrl, mode, width: 1280, height: 720, onStatus: setStatus });
+      const handle = await createVTuberStream(cam, { avatar, mode, width: 1280, height: 720, onStatus: setStatus });
       handleRef.current = handle;
       if (videoRef.current) { videoRef.current.srcObject = handle.stream; await videoRef.current.play().catch(() => {}); }
       setRunning(true);
@@ -68,10 +89,22 @@ const VTuberStage: React.FC<{ avatarUrl?: string; onBack?: () => void }> = ({ av
           {!running && (
             <div style={{ textAlign: 'center', color: T.muted, padding: 24 }}>
               <Video size={40} style={{ opacity: 0.3 }} />
-              <div style={{ marginTop: 10, fontSize: 14 }}>{avatarUrl ? 'Start your camera to bring your avatar to life.' : 'Pick a VRM avatar in Avatar Studio to begin.'}</div>
+              <div style={{ marginTop: 10, fontSize: 14 }}>{avatar ? 'Start your camera to bring your avatar to life.' : 'Upload a character sheet (a drawing of your character) — we build the avatar from it.'}</div>
             </div>
           )}
         </div>
+
+        {/* Character sheet → avatar */}
+        {!running && (
+          <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => onSheet(e.target.files?.[0])} />
+            <button onClick={() => fileRef.current?.click()} disabled={building} style={{ cursor: building ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 10, border: `1px solid ${T.violet}`, background: 'rgba(129,102,230,0.12)', color: T.violet, fontSize: 12, fontWeight: 800 }}>
+              {building ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} {descriptor ? 'Use a different sheet' : 'Upload character sheet'}
+            </button>
+            {(building || buildMsg) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: descriptor && !building ? T.green : T.muted }}>{descriptor && !building && <Check size={13} />}{buildMsg}</span>}
+            {avatarUrl && !descriptor && <span style={{ fontSize: 11, color: T.muted }}>· or use your Avatar Studio VRM</span>}
+          </div>
+        )}
 
         {/* Controls */}
         <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
