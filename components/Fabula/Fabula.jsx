@@ -1991,6 +1991,15 @@ export default function Fabula() {
                           {Array.from({ length: Math.ceil((seqEnd + 22)) }).map((_, i) => (
                             <span key={i} className="tick" style={{ left: i * pxPerSec }}>{i % (zoom < 0.8 ? 5 : 2) === 0 ? "00:" + String(i).padStart(2, "0") : ""}</span>
                           ))}
+                          {markIn != null && markOut != null && markOut > markIn && (
+                            <div className="inout" style={{ left: markIn * pxPerSec, width: (markOut - markIn) * pxPerSec }} />
+                          )}
+                          {markers.map((m) => (
+                            <span key={m.id} className="mk" style={{ left: m.t * pxPerSec }} title="Click: go to marker · Double-click: remove"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); setPlayhead(m.t); }}
+                              onDoubleClick={(e) => { e.stopPropagation(); setMarkers((cur) => cur.filter((x) => x.id !== m.id)); }} />
+                          ))}
                         </div>
                       </div>
                       {/* playhead line */}
@@ -3341,6 +3350,9 @@ const CSS = `
 .trimR:hover{background:rgba(255,255,255,.4)}
 .trimL{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
 .trimL:hover{background:rgba(255,255,255,.4)}
+.mk{position:absolute;top:0;width:10px;height:13px;transform:translateX(-5px);background:#FF8C00;clip-path:polygon(0 0,100% 0,50% 100%);cursor:pointer;z-index:4}
+.mk:hover{filter:brightness(1.3)}
+.inout{position:absolute;top:0;bottom:0;background:rgba(0,200,255,.16);border-left:1px solid #00c8ff;border-right:1px solid #00c8ff;z-index:2;pointer-events:none}
 
 /* busy / toast / footer */
 .busybar{position:fixed;bottom:44px;left:0;right:0;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);
