@@ -128,6 +128,7 @@ const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcase
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
 const PodcastStudio = retryLazy(() => import('./components/PodcastStudio'));
+const LiveTranslation = retryLazy(() => import('./components/LiveTranslation'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
@@ -383,6 +384,13 @@ const App: React.FC = () => {
     const open = () => setView('PODCAST_STUDIO');
     window.addEventListener('plajah:open-podcast-studio', open);
     return () => window.removeEventListener('plajah:open-podcast-studio', open);
+  }, [setView]);
+
+  // Open Live Translation (on-device dubbing).
+  useEffect(() => {
+    const open = () => setView('LIVE_TRANSLATION');
+    window.addEventListener('plajah:open-live-translation', open);
+    return () => window.removeEventListener('plajah:open-live-translation', open);
   }, [setView]);
 
   useEffect(() => {
@@ -3029,6 +3037,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onClose={() => setView(user ? 'FEED' : 'DASHBOARD')}
               />
+            )}
+
+            {view === 'LIVE_TRANSLATION' && (
+              <LiveTranslation onBack={() => setView(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'READING_QUEST' && (
