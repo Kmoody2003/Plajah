@@ -17,19 +17,23 @@ service firebase.storage {
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
 
-    // Content-type must be a recognised media or document type
+    // Content-type must be a recognised media/document type. Browsers (esp. for .mov) often send
+    // application/octet-stream for valid media, so accept it (and a missing type) too — these paths
+    // are all auth-gated and app-controlled.
     function isAllowedContentType() {
-      return request.resource.contentType.matches('image/.*') ||
+      return request.resource.contentType == null ||
+             request.resource.contentType.matches('image/.*') ||
              request.resource.contentType.matches('audio/.*') ||
              request.resource.contentType.matches('video/.*') ||
              request.resource.contentType.matches('application/pdf') ||
              request.resource.contentType.matches('application/epub.*') ||
+             request.resource.contentType.matches('application/octet-stream') ||
              request.resource.contentType.matches('text/.*');
     }
 
-    // Maximum 2 GB for any single file
+    // Maximum 25 GB for any single file — full films exceed the old 2 GB cap.
     function withinSizeLimit() {
-      return request.resource.size < 2 * 1024 * 1024 * 1024;
+      return request.resource.size < 25 * 1024 * 1024 * 1024;
     }
 
     // ── User-scoped files ─────────────────────────────────────────────────────
