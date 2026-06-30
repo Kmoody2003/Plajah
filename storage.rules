@@ -81,6 +81,14 @@ service firebase.storage {
                    && request.resource.size < 10 * 1024 * 1024;
     }
 
+    // ── General uploads (UploadContext: films, videos, images, music, audio) ──
+    // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may
+    // upload recognised media within the size limit.
+    match /uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;
