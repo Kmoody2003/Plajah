@@ -10,6 +10,7 @@ import {
   classify, MAX_HOT, type WalkieTransmission, type WalkiePrefs,
 } from '../services/walkieTalkie/walkieService';
 import { playChirp, playRadioTransmission, getAudioContext } from '../services/walkieTalkie/radioFX';
+import { WalkieLive } from '../services/walkieTalkie/walkieLive';
 
 const C = {
   chassis: 'linear-gradient(160deg,#2a2723,#16140f)', metal: '#3a352c', edge: '#0c0b08',
@@ -25,6 +26,8 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState('');
   const [receiving, setReceiving] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
+  const liveRef = useRef<WalkieLive | null>(null);
 
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -61,8 +64,29 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
     return unsub;
   }, [pid, peerUid, prefs]);
 
+  // Hot contacts open a true live channel over WebRTC (Phase 4). Both sides must have the handset
+  // open to connect (mesh of 2); otherwise PTT falls back to the record-and-send rolling-5 path.
+  useEffect(() => {
+    if (!isHot) { liveRef.current?.dispose(); liveRef.current = null; setLiveConnected(false); return; }
+    const live = new WalkieLive(pid, selfUid, peerName || 'Plajah', {
+      onPeerPresent: (p) => setLiveConnected(p),
+      onPeerTransmitting: (on) => setReceiving(on),
+      onError: () => {},
+    });
+    liveRef.current = live;
+    live.connect().catch(() => {});
+    return () => { live.dispose(); liveRef.current = null; setLiveConnected(false); };
+  }, [isHot, pid, selfUid, peerName]);
+
   const startPTT = async () => {
     if (recording) return;
+    // LIVE channel (hot + peer present): stream the mic instead of recording/uploading.
+    if (isHot && liveConnected && liveRef.current) {
+      setRecording(true);
+      playChirp(getAudioContext(), 'start');
+      liveRef.current.setTransmitting(true);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -85,6 +109,12 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
   };
   const stopPTT = () => {
     if (!recording) return;
+    if (isHot && liveConnected && liveRef.current) {
+      setRecording(false);
+      liveRef.current.setTransmitting(false);
+      playChirp(getAudioContext(), 'end');
+      return;
+    }
     setRecording(false);
     playChirp(getAudioContext(), 'end');
     try { recRef.current?.stop(); } catch { /* */ }
@@ -116,11 +146,12 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
           <div style={{ display: 'flex', justifyContent: 'space-between', color: C.lcdInk, fontSize: 11 }}>
             <span>CH {pid.slice(-4).toUpperCase()}</span>
             <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}>
+              {liveConnected && <span style={{ color: C.lcdInk }}>● LIVE</span>}
               {isHot && <span>HOT</span>}{isPinned && <span>PIN</span>}{isBlocked && <span style={{ color: C.red }}>BLK</span>}
             </span>
           </div>
           <div style={{ marginTop: 6, color: receiving ? C.lcdInk : '#3f7a52', fontSize: 13, fontWeight: 700, minHeight: 18 }}>
-            {recording ? '◉ TRANSMITTING' : receiving ? '◀ RECEIVING' : status || (isBlocked ? 'MUTED' : 'STANDBY')}
+            {recording ? (liveConnected ? '◉ ON AIR' : '◉ TRANSMITTING') : receiving ? '◀ RECEIVING' : status || (isBlocked ? 'MUTED' : liveConnected ? 'LIVE CHANNEL' : 'STANDBY')}
           </div>
         </div>
 
