@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
-  Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions,
+  Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
@@ -10,6 +10,9 @@ import { renderFabulaToBlob } from "../../services/fabulaRender";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
 import { getMyVideos } from "../../services/fabulaVideos";
+import { useFabulaShortcuts } from "./useFabulaShortcuts";
+import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
+import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
@@ -503,6 +506,16 @@ export default function Fabula() {
   const [playing, setPlaying] = useState(false);
   const [selClipId, setSelClipId] = useState(null);
   const [zoom, setZoom] = useState(1);
+  /* edit toolset: snapping, clipboard, markers, in/out, undo history, shortcuts */
+  const [snapOn, setSnapOn] = useState(true);
+  const [clipboard, setClipboard] = useState(null);
+  const [markers, setMarkers] = useState([]);
+  const [markIn, setMarkIn] = useState(null);
+  const [markOut, setMarkOut] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [shortcutPrefs, setShortcutPrefs] = useState(() => loadShortcutPrefs());
+  const rateRef = useRef(1);
+  const histRef = useRef({ past: [], future: [] });
   const dragRef = useRef(null);
   const saveTimer = useRef(null);
   const cancelRef = useRef(false);
@@ -574,10 +587,10 @@ export default function Fabula() {
     else updateScene((sc) => { sc.timeline = { ...(sc.timeline || {}), clips: v }; });
   };
 
-  /* playback */
+  /* playback (rate-aware for JKL shuttle) */
   useEffect(() => {
     if (!playing) return;
-    const t = setInterval(() => setPlayhead((p) => p + 0.033), 33);
+    const t = setInterval(() => setPlayhead((p) => Math.max(0, p + 0.033 * rateRef.current)), 33);
     return () => clearInterval(t);
   }, [playing]);
 
@@ -1368,6 +1381,92 @@ export default function Fabula() {
     return rightId;
   };
 
+  /* ── Edit toolset ops (Resolve-parity), driven by the keyboard layer ───────── */
+  const tlFps = (prod?.defaults?.format?.fps) || 24;
+  const frameDur = 1 / tlFps;
+  const tlEnd = () => clips.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+  const getSel = () => clips.find((x) => x.id === selClipId) || null;
+
+  const applyClips = (next) => {
+    histRef.current.past.push(clips);
+    if (histRef.current.past.length > 60) histRef.current.past.shift();
+    histRef.current.future = [];
+    setClips(next); commitClips(next);
+  };
+  const undoEdit = () => { const h = histRef.current; if (!h.past.length) return; const prev = h.past.pop(); h.future.push(clips); setClips(prev); commitClips(prev); ping("Undo"); };
+  const redoEdit = () => { const h = histRef.current; if (!h.future.length) return; const nx = h.future.pop(); h.past.push(clips); setClips(nx); commitClips(nx); ping("Redo"); };
+
+  const stepFrame = (dir) => setPlayhead((p) => Math.max(0, p + dir * frameDur));
+  const jumpEdit = (dir) => {
+    const pts = Array.from(new Set([0, ...clips.flatMap((c) => [c.start, c.start + c.duration])])).sort((a, b) => a - b);
+    if (dir < 0) { const prev = [...pts].reverse().find((t) => t < playhead - 1e-3); setPlayhead(prev ?? 0); }
+    else { const nx = pts.find((t) => t > playhead + 1e-3); if (nx != null) setPlayhead(nx); }
+  };
+  const bladeAtPlayhead = () => {
+    const target = getSel() || [...clips].reverse().find((c) => playhead > c.start + 0.05 && playhead < c.start + c.duration - 0.05);
+    if (target) { const id = bladeClip(target.id, playhead); if (id) setSelClipId(id); }
+  };
+  const duplicateSel = () => { const c = getSel(); if (!c) return; const d = { ...JSON.parse(JSON.stringify(c)), id: uid(), start: c.start + c.duration }; applyClips([...clips, d]); setSelClipId(d.id); ping("Duplicated"); };
+  const copySel = () => { const c = getSel(); if (c) { setClipboard(JSON.parse(JSON.stringify(c))); ping("Copied"); } };
+  const cutSel = () => { const c = getSel(); if (!c) return; setClipboard(JSON.parse(JSON.stringify(c))); applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
+  const pasteClip = () => { if (!clipboard) return; const d = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), start: playhead }; applyClips([...clips, d]); setSelClipId(d.id); ping("Pasted"); };
+  const liftDelete = () => { const c = getSel(); if (!c) return; applyClips(clips.filter((x) => x.id !== c.id)); setSelClipId(null); };
+  const rippleDelete = () => { const c = getSel(); if (!c) return; const dur = c.duration; applyClips(clips.filter((x) => x.id !== c.id).map((x) => (x.trackId === c.trackId && x.start > c.start ? { ...x, start: Math.max(0, x.start - dur) } : x))); setSelClipId(null); };
+  const nudgeSel = (dir) => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, start: Math.max(0, x.start + dir * frameDur) } : x))); };
+  const toggleDisable = () => { const c = getSel(); if (!c) return; applyClips(clips.map((x) => (x.id === c.id ? { ...x, disabled: !x.disabled } : x))); };
+  const addMarkerAtPlayhead = () => setMarkers((m) => [...m, { id: uid(), t: playhead }]);
+  const zoomIn = () => setZoom((z) => Math.min(2, +(z + 0.2).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(0.4, +(z - 0.2).toFixed(2)));
+  const zoomFit = () => setZoom(Math.max(0.4, Math.min(2, 8 / (tlEnd() || 1))));
+  const addCrossDissolve = () => {
+    const c = getSel(); if (!c) return;
+    const same = clips.filter((x) => x.trackId === c.trackId).sort((a, b) => a.start - b.start);
+    const nextClip = same[same.findIndex((x) => x.id === c.id) + 1];
+    applyClips(clips.map((x) => {
+      if (x.id === c.id) return { ...x, fx: { ...(x.fx || FX_DEFAULTS), fadeOut: Math.max((x.fx && x.fx.fadeOut) || 0, 0.5) } };
+      if (nextClip && x.id === nextClip.id) return { ...x, fx: { ...(x.fx || FX_DEFAULTS), fadeIn: Math.max((x.fx && x.fx.fadeIn) || 0, 0.5) } };
+      return x;
+    }));
+    ping("Cross dissolve");
+  };
+
+  useFabulaShortcuts({
+    "playback.playPause": () => { rateRef.current = 1; setPlaying((p) => !p); },
+    "playback.shuttleBack": () => { rateRef.current = -2; setPlaying(true); },
+    "playback.shuttleStop": () => setPlaying(false),
+    "playback.shuttleFwd": () => { rateRef.current = 2; setPlaying(true); },
+    "playback.stepBack": () => stepFrame(-1),
+    "playback.stepFwd": () => stepFrame(1),
+    "playback.prevEdit": () => jumpEdit(-1),
+    "playback.nextEdit": () => jumpEdit(1),
+    "playback.start": () => setPlayhead(0),
+    "playback.end": () => setPlayhead(tlEnd()),
+    "marks.in": () => setMarkIn(playhead),
+    "marks.out": () => setMarkOut(playhead),
+    "marks.clearIn": () => setMarkIn(null),
+    "marks.clearOut": () => setMarkOut(null),
+    "marks.markClip": () => { const c = getSel(); if (c) { setMarkIn(c.start); setMarkOut(c.start + c.duration); } },
+    "marks.addMarker": addMarkerAtPlayhead,
+    "edit.blade": bladeAtPlayhead,
+    "edit.delete": liftDelete,
+    "edit.rippleDelete": rippleDelete,
+    "edit.duplicate": duplicateSel,
+    "edit.copy": copySel,
+    "edit.cut": cutSel,
+    "edit.paste": pasteClip,
+    "edit.undo": undoEdit,
+    "edit.redo": redoEdit,
+    "edit.nudgeLeft": () => nudgeSel(-1),
+    "edit.nudgeRight": () => nudgeSel(1),
+    "edit.toggleDisable": toggleDisable,
+    "transition.addDefault": addCrossDissolve,
+    "timeline.snapping": () => setSnapOn((s) => !s),
+    "timeline.zoomIn": zoomIn,
+    "timeline.zoomOut": zoomOut,
+    "timeline.zoomFit": zoomFit,
+    "app.openShortcuts": () => setShowShortcuts(true),
+  }, { enabled: page === "edit", prefs: shortcutPrefs });
+
   const switchAngle = (angleIdx) => {
     const target = monitorClip || selClip;
     if (!target || target.kind !== "multicam") return;
@@ -1437,7 +1536,7 @@ export default function Fabula() {
       if (c.id !== d.clipId) return c;
       if (d.mode === "move") {
         let ns = Math.max(0, d.origStart + dt);
-        if (Math.abs(ns - playhead) < 0.18) ns = playhead;
+        if (snapOn && Math.abs(ns - playhead) < 0.18) ns = playhead;
         return { ...c, start: Math.round(ns * 20) / 20 };
       }
       if (d.mode === "end") return { ...c, duration: Math.max(0.3, Math.round((d.origDur + dt) * 20) / 20) };
@@ -1902,7 +2001,10 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                         <button className="minibtn" onClick={addTitle} title="Add a lower-third title at the playhead"><Type size={10} /> + TITLE</button>
+                        <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
+                        <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                       </div>
+                      {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
                     </div>
                   </div>
                 </div>
