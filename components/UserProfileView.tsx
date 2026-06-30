@@ -113,6 +113,7 @@ import WorldBadge from './WorldBadge';
 import PodcastEpisodeList from './PodcastEpisodeList';
 import FollowedPodcastsCarousel from './FollowedPodcastsCarousel';
 import RssFeedViewer from './RssFeedViewer';
+import { getFollowedPodcasts, subscribePodcastLibrary, type FollowedPodcast } from '../services/podcastLibraryService';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
@@ -284,6 +285,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [podcastSubTab, setPodcastSubTab] = useState<'PUBLISHED' | 'SUBSCRIBED'>('PUBLISHED');
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
+  const [followedPodcasts, setFollowedPodcasts] = useState<FollowedPodcast[]>([]);
   const [podcastSubscribedIds, setPodcastSubscribedIds] = useState<Set<string>>(new Set());
   const [tabOrder, setTabOrder] = useState<string[]>(() => {
     try {
@@ -303,6 +305,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     const handleResize = () => { clearTimeout(t); t = setTimeout(() => setIsMobile(detectMobile()), 150); };
     window.addEventListener('resize', handleResize, { passive: true });
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
+  }, []);
+
+  // Followed podcasts from the directory (PodcastsView library) — kept in sync across surfaces.
+  useEffect(() => {
+    setFollowedPodcasts(getFollowedPodcasts());
+    return subscribePodcastLibrary(() => setFollowedPodcasts(getFollowedPodcasts()));
   }, []);
 
   useEffect(() => {
@@ -1561,6 +1569,27 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     </button>
                   )}
                 </div>
+
+                {/* Following — the directory podcasts the user follows (from the Chora podcast page) */}
+                {isOwnProfile && followedPodcasts.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-5">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 flex items-center gap-3"><Radio size={12} className="text-small-orange" /> Following · {followedPodcasts.length}</h4>
+                      <button onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-chora-podcasts'))} className="text-[9px] font-black uppercase tracking-widest text-small-orange hover:underline">Manage in Chora →</button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {followedPodcasts.map(pod => (
+                        <button key={pod.id} onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-chora-podcasts'))} className="group text-left">
+                          <div className="aspect-square rounded-2xl overflow-hidden mb-2 bg-white/5 border border-white/5">
+                            {pod.coverImage && <img src={pod.coverImage} loading="lazy" alt={pod.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                          </div>
+                          <h5 className="text-[11px] font-black uppercase tracking-wide truncate">{pod.title}</h5>
+                          <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest truncate">{pod.artist}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Published tab */}
                 {podcastSubTab === 'PUBLISHED' && (

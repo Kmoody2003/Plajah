@@ -368,6 +368,13 @@ const App: React.FC = () => {
     return () => { window.removeEventListener('plajah:open-room', open); window.removeEventListener('plajah:start-room', start); };
   }, [setView]);
 
+  // Open the Chora podcast directory (from the profile "Following" library).
+  useEffect(() => {
+    const openPods = () => { setMusicInitialTab('PODCASTS'); setView('MUSIC'); };
+    window.addEventListener('plajah:open-chora-podcasts', openPods);
+    return () => window.removeEventListener('plajah:open-chora-podcasts', openPods);
+  }, [setView]);
+
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
     // Preserve query string and hash so deep-links (?type=album&id=xxx) survive replaceState

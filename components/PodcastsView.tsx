@@ -4,6 +4,7 @@ import { fetchAllPublicAlbums } from '../services/backendService';
 import { Search, Rss, Mic, Play, Pause, Plus, Check, ChevronLeft, Calendar, Clock, Globe, TrendingUp, Grid, List, Radio } from 'lucide-react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { Album, Track } from '../types';
+import { getFollowedPodcasts, addFollowedPodcast, removeFollowedPodcast, subscribePodcastLibrary } from '../services/podcastLibraryService';
 
 interface ITunesPodcast {
   id: string;
@@ -96,17 +97,12 @@ export const PodcastsView: React.FC = () => {
     const { playTrack, togglePlay, currentTrack, isPlaying, theme } = useGlobalPlayerState();
 
     useEffect(() => {
-        const saved = localStorage.getItem('vibe_my_podcasts');
-        if (saved) {
-            try {
-                setMyPodcasts(JSON.parse(saved));
-            } catch (e) {
-                console.error(e);
-            }
-        }
+        setMyPodcasts(getFollowedPodcasts());
+        const unsub = subscribePodcastLibrary(() => setMyPodcasts(getFollowedPodcasts()));
         fetchTop10();
         fetchCategoryData();
         fetchNativePodcasts();
+        return unsub;
     }, []);
 
     const fetchNativePodcasts = async () => {
@@ -163,15 +159,11 @@ export const PodcastsView: React.FC = () => {
     };
 
     const savePodcast = (pod: ITunesPodcast) => {
-        const updated = [...myPodcasts, pod];
-        setMyPodcasts(updated);
-        localStorage.setItem('vibe_my_podcasts', JSON.stringify(updated));
+        setMyPodcasts(addFollowedPodcast(pod) as ITunesPodcast[]);
     };
 
     const removePodcast = (id: string) => {
-        const updated = myPodcasts.filter(p => p.id !== id);
-        setMyPodcasts(updated);
-        localStorage.setItem('vibe_my_podcasts', JSON.stringify(updated));
+        setMyPodcasts(removeFollowedPodcast(id) as ITunesPodcast[]);
     };
 
     const isFollowing = (id: string) => myPodcasts.some(p => p.id === id);
