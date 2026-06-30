@@ -4,6 +4,7 @@ import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/backendService';
 import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } from '../services/audioFormatService';
 import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
+import { saveProgress } from '../services/episodeProgressService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -20,7 +21,7 @@ interface GlobalPlayerContextType {
   audioSource: 'LIBRARY' | 'RADIO' | 'VIDEO' | null;
   repeatMode: 'OFF' | 'ONE' | 'ALL';
   setRepeatMode: (mode: 'OFF' | 'ONE' | 'ALL') => void;
-  playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO') => void;
+  playTrack: (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => void;
   playVideo: (video: Video) => void;
   setVideoElement: (el: HTMLVideoElement | null) => void;
   setYtPlayer: (player: any | null) => void;
@@ -118,6 +119,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playCountedTrackRef = useRef<string | null>(null);
+  const lastProgressSaveRef = useRef(0);
   const ytPlayerRef = useRef<any | null>(null);
   const stateRef = useRef({ repeatMode, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: null as any });
   const audioRef = useRef<HTMLAudioElement>(audioElement);
@@ -331,7 +333,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audio.volume = startVolume;
   }, []);
 
-  const playTrack = React.useCallback((track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO') => {
+  const playTrack = React.useCallback((track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => {
     let audio = audioRef.current;
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
@@ -380,6 +382,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }
         } catch (e) {
           console.error("Audio src assignment failed:", e);
+        }
+
+        // Resume: seek to the requested start position once metadata is available.
+        if (startAt && startAt > 1) {
+          const applySeek = () => { try { audio.currentTime = startAt; } catch { /* */ } };
+          if (audio.readyState >= 1) applySeek();
+          else audio.addEventListener('loadedmetadata', applySeek, { once: true });
         }
       }
 
@@ -762,20 +771,35 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const audio = audioRef.current;
 
+    const isPodcastNow = () => {
+      const tr = stateRef.current.currentTrack, al = stateRef.current.currentAlbum;
+      return !!tr && (al?.subType === 'PODCAST' || !!tr.podcastMetadata);
+    };
+    const persistProgress = () => {
+      const tr = stateRef.current.currentTrack;
+      if (tr && isPodcastNow() && audio.currentTime > 0) saveProgress(tr.id, audio.currentTime, audio.duration || 0);
+    };
+
     const onTimeUpdate = () => {
       const time = audio.currentTime;
       stateRef.current.currentTime = time;
-      
+
       setCurrentTime(prev => {
         if (Math.abs(prev - time) >= 0.05 || time === 0) {
           return time;
         }
         return prev;
       });
+
+      // Persist podcast-episode progress (throttled ~5s) so listeners can resume where they left off.
+      if (isPodcastNow() && time > 0) {
+        const now = Date.now();
+        if (now - lastProgressSaveRef.current > 5000) { lastProgressSaveRef.current = now; persistProgress(); }
+      }
     };
     const onDurationChange = () => setDuration(audio.duration);
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => { setIsPlaying(false); persistProgress(); }; // capture latest position on pause
     const onError = (e: any) => {
       if (!audio.src || audio.src === window.location.href) return;
 

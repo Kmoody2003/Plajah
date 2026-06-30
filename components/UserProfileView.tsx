@@ -110,6 +110,9 @@ import VideoTab from './VideoTab';
 import ScrollableTabRow from './ScrollableTabRow';
 import WorldManagerView from './WorldManagerView';
 import WorldBadge from './WorldBadge';
+import PodcastEpisodeList from './PodcastEpisodeList';
+import FollowedPodcastsCarousel from './FollowedPodcastsCarousel';
+import RssFeedViewer from './RssFeedViewer';
 import WorldsView from './WorldsView';
 import ShareButton from './ShareButton';
 import PayItForwardButton from './PayItForwardButton';
@@ -1053,7 +1056,14 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {profile.bio || <span className="italic text-white/25">No bio yet.</span>}
               </p>
             </div>
-            
+
+            {/* RSS feed viewer — hidden by default, expands under the bio */}
+            {profile.podcastRss?.externalFeedUrl && (
+              <div className="max-w-2xl">
+                <RssFeedViewer feedUrl={profile.podcastRss.externalFeedUrl} feedTitle={profile.podcastRss.feedTitle} />
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -1172,6 +1182,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             </div>
           );
         })()}
+
+        {/* Podcasts the user follows — most recent episodes, above Latest Releases */}
+        <FollowedPodcastsCarousel podcasts={subscribedPodcasts} onOpen={onSelectAlbum} />
 
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">
@@ -1598,6 +1611,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             </button>
                           )}
                         </div>
+                        {(album.tracks?.length || 0) > 0 && (
+                          <details onClick={e => e.stopPropagation()} className="mt-4">
+                            <summary className="cursor-pointer list-none text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Episodes ({album.tracks?.length || 0})</summary>
+                            <div className="mt-3"><PodcastEpisodeList album={album} /></div>
+                          </details>
+                        )}
                       </div>
                     ))}
                     {content.filter(a => a.subType === 'PODCAST').length === 0 && (
@@ -1647,6 +1666,12 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             </button>
                           )}
                         </div>
+                        {(album.tracks?.length || 0) > 0 && (
+                          <details onClick={e => e.stopPropagation()} className="mt-4">
+                            <summary className="cursor-pointer list-none text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Episodes ({album.tracks?.length || 0})</summary>
+                            <div className="mt-3"><PodcastEpisodeList album={album} /></div>
+                          </details>
+                        )}
                       </div>
                     ))}
                     {subscribedPodcasts.length === 0 && (
