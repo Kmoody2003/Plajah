@@ -508,6 +508,7 @@ export default function Fabula() {
   const [zoom, setZoom] = useState(1);
   /* edit toolset: snapping, clipboard, markers, in/out, undo history, shortcuts */
   const [snapOn, setSnapOn] = useState(true);
+  const [trimMode, setTrimMode] = useState("normal"); // normal | ripple | roll | slip
   const [clipboard, setClipboard] = useState(null);
   const [markers, setMarkers] = useState([]);
   const [markIn, setMarkIn] = useState(null);
@@ -1460,6 +1461,8 @@ export default function Fabula() {
     "edit.nudgeRight": () => nudgeSel(1),
     "edit.toggleDisable": toggleDisable,
     "transition.addDefault": addCrossDissolve,
+    "tool.select": () => setTrimMode("normal"),
+    "tool.trim": () => setTrimMode("ripple"),
     "timeline.snapping": () => setSnapOn((s) => !s),
     "timeline.zoomIn": zoomIn,
     "timeline.zoomOut": zoomOut,
@@ -1526,22 +1529,51 @@ export default function Fabula() {
   const onClipDown = (e, clipId, mode) => {
     e.stopPropagation();
     const c = clips.find((x) => x.id === clipId);
-    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration };
+    if (!c) return;
+    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode };
     setSelClipId(clipId);
   };
   const onTimelineMove = (e) => {
     const d = dragRef.current; if (!d) return;
     const dt = (e.clientX - d.startX) / pxPerSec;
-    setClips((cur) => cur.map((c) => {
-      if (c.id !== d.clipId) return c;
+    const snap = (v) => Math.round(v * 20) / 20;
+    setClips((cur) => {
+      const same = cur.filter((x) => x.trackId === d.trackId).sort((a, b) => a.start - b.start);
+      const nextC = same[same.findIndex((x) => x.id === d.clipId) + 1];
+      // body drag — move / slip
       if (d.mode === "move") {
+        if (d.trimMode === "slip") {
+          return cur.map((x) => (x.id === d.clipId ? { ...x, srcIn: Math.max(0, snap(d.origSrcIn + dt)) } : x)); // shift content within window
+        }
         let ns = Math.max(0, d.origStart + dt);
         if (snapOn && Math.abs(ns - playhead) < 0.18) ns = playhead;
-        return { ...c, start: Math.round(ns * 20) / 20 };
+        return cur.map((x) => (x.id === d.clipId ? { ...x, start: snap(ns) } : x));
       }
-      if (d.mode === "end") return { ...c, duration: Math.max(0.3, Math.round((d.origDur + dt) * 20) / 20) };
-      return c;
-    }));
+      // left-edge trim — changes start + duration + srcIn together
+      if (d.mode === "start") {
+        const nd = Math.max(0.3, d.origDur - dt);
+        const consumed = d.origDur - nd;            // how much trimmed off the head
+        const ns = Math.max(0, d.origStart + consumed);
+        const nSrc = Math.max(0, d.origSrcIn + consumed);
+        return cur.map((x) => {
+          if (x.id === d.clipId) return { ...x, start: snap(ns), duration: snap(nd), srcIn: snap(nSrc) };
+          if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start - consumed) };
+          return x;
+        });
+      }
+      // right-edge trim — duration (+ ripple downstream / roll the next clip)
+      if (d.mode === "end") {
+        const nd = Math.max(0.3, d.origDur + dt);
+        const delta = nd - d.origDur;
+        return cur.map((x) => {
+          if (x.id === d.clipId) return { ...x, duration: snap(nd) };
+          if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start + delta) };
+          if (d.trimMode === "roll" && nextC && x.id === nextC.id) return { ...x, start: snap(x.start + delta), duration: Math.max(0.3, snap(x.duration - delta)), srcIn: Math.max(0, snap((x.srcIn || 0) + delta)) };
+          return x;
+        });
+      }
+      return cur;
+    });
   };
   const onTimelineUp = () => { if (dragRef.current) { dragRef.current = null; commitClips(); } };
   const rulerSeek = (e) => {
@@ -1988,6 +2020,7 @@ export default function Fabula() {
                                     <span>{c.label}</span>
                                   </div>
                                   {c.kind === "voice" && <div className="wave">{Array.from({ length: 16 }).map((_, i) => <i key={i} style={{ height: (((i * 37) % 70) + 20) + "%" }} />)}</div>}
+                                  <div className="trimL" onMouseDown={(e) => onClipDown(e, c.id, "start")} />
                                   <div className="trimR" onMouseDown={(e) => onClipDown(e, c.id, "end")} />
                                 </div>
                               );
@@ -2001,6 +2034,10 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                         <button className="minibtn" onClick={addTitle} title="Add a lower-third title at the playhead"><Type size={10} /> + TITLE</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+                        {["normal", "ripple", "roll", "slip"].map((m) => (
+                          <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>
+                        ))}
                         <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                       </div>
@@ -3302,6 +3339,8 @@ const CSS = `
 .wave i{flex:1;background:var(--green);border-radius:1px}
 .trimR{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
 .trimR:hover{background:rgba(255,255,255,.4)}
+.trimL{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:rgba(255,255,255,.12);z-index:3}
+.trimL:hover{background:rgba(255,255,255,.4)}
 
 /* busy / toast / footer */
 .busybar{position:fixed;bottom:44px;left:0;right:0;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);
