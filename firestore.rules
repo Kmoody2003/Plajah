@@ -767,6 +767,10 @@ service cloud.firestore {
     match /walkiePrefs/{uid} {
       allow read, write: if isAuthenticated() && uid == request.auth.uid;
     }
+    match /walkiePresence/{uid} {
+      allow read: if isAuthenticated();                                  // hot contacts read peer presence
+      allow write: if isAuthenticated() && uid == request.auth.uid;      // own presence only
+    }
     match /walkieChannels/{pairId} {
       // pairId is the two uids sorted + joined by "__"
       allow read: if isAuthenticated() && request.auth.uid in pairId.split('__');

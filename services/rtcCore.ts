@@ -32,6 +32,7 @@ import {
   doc, collection, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot,
   serverTimestamp, getDocs,
 } from 'firebase/firestore';
+import { getIceServers } from './iceConfig';
 
 export type RtcTopology =
   | 'mesh'       // everyone publishes + subscribes (video rooms, group calls)
@@ -111,7 +112,7 @@ export class RtcSession {
       topology: config.topology,
       role: config.role,
       collectionName: config.collectionName || 'rtc_sessions',
-      iceServers: config.iceServers || DEFAULT_ICE,
+      iceServers: config.iceServers || getIceServers(),
     };
     this.events = events;
   }

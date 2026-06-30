@@ -18,7 +18,7 @@ export interface WalkieTransmission {
   createdAt: number;
   seq: number;
 }
-export interface WalkiePrefs { hotUids: string[]; pinnedFromUids: string[]; blockedFromUids: string[] }
+export interface WalkiePrefs { hotUids: string[]; pinnedFromUids: string[]; blockedFromUids: string[]; liveStandby: boolean }
 export type Relationship = 'blocked' | 'hot' | 'pinned' | 'normal';
 
 export const MAX_HOT = 3;   // up to 3 hot contacts heard live like a walkie-talkie
@@ -66,17 +66,32 @@ export function subscribeChannel(pid: string, cb: (txs: WalkieTransmission[]) =>
 }
 
 // ── Relationship prefs ──────────────────────────────────────────────────────────────
-const emptyPrefs = (): WalkiePrefs => ({ hotUids: [], pinnedFromUids: [], blockedFromUids: [] });
+const emptyPrefs = (): WalkiePrefs => ({ hotUids: [], pinnedFromUids: [], blockedFromUids: [], liveStandby: false });
 
 export async function loadPrefs(uid: string): Promise<WalkiePrefs> {
   try {
     const s = await getDoc(doc(db, 'walkiePrefs', uid));
     const d = s.data() as Partial<WalkiePrefs> | undefined;
-    return { hotUids: d?.hotUids ?? [], pinnedFromUids: d?.pinnedFromUids ?? [], blockedFromUids: d?.blockedFromUids ?? [] };
+    return { hotUids: d?.hotUids ?? [], pinnedFromUids: d?.pinnedFromUids ?? [], blockedFromUids: d?.blockedFromUids ?? [], liveStandby: d?.liveStandby ?? false };
   } catch { return emptyPrefs(); }
 }
 async function savePrefs(uid: string, prefs: WalkiePrefs): Promise<void> {
   await setDoc(doc(db, 'walkiePrefs', uid), prefs, { merge: true });
+}
+
+/** Turn the always-on hot-contact standby channel on/off. */
+export async function setLiveStandby(uid: string, on: boolean): Promise<WalkiePrefs> {
+  const p = await loadPrefs(uid);
+  const next: WalkiePrefs = { ...p, liveStandby: on };
+  await savePrefs(uid, next); return next;
+}
+
+/** Live subscription to a user's own prefs (so standby reflects hot-list changes immediately). */
+export function subscribePrefs(uid: string, cb: (p: WalkiePrefs) => void): () => void {
+  return onSnapshot(doc(db, 'walkiePrefs', uid), s => {
+    const d = s.data() as Partial<WalkiePrefs> | undefined;
+    cb({ hotUids: d?.hotUids ?? [], pinnedFromUids: d?.pinnedFromUids ?? [], blockedFromUids: d?.blockedFromUids ?? [], liveStandby: d?.liveStandby ?? false });
+  }, () => cb(emptyPrefs()));
 }
 
 /** Add/remove a hot contact (capped at MAX_HOT, most-recent kept). Adding to hot clears block. */
@@ -98,7 +113,7 @@ export async function setBlocked(uid: string, targetUid: string, on: boolean): P
   const p = await loadPrefs(uid);
   const blockedFromUids = on ? Array.from(new Set([...p.blockedFromUids, targetUid])) : p.blockedFromUids.filter(u => u !== targetUid);
   const next: WalkiePrefs = on
-    ? { hotUids: p.hotUids.filter(u => u !== targetUid), pinnedFromUids: p.pinnedFromUids.filter(u => u !== targetUid), blockedFromUids }
+    ? { ...p, hotUids: p.hotUids.filter(u => u !== targetUid), pinnedFromUids: p.pinnedFromUids.filter(u => u !== targetUid), blockedFromUids }
     : { ...p, blockedFromUids };
   await savePrefs(uid, next); return next;
 }

@@ -311,6 +311,7 @@ import SidebarSearch from './components/SidebarSearch';
 import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import StartRoomModal from './components/StartRoomModal';
+import WalkieStandby from './components/WalkieStandby';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -4063,6 +4064,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         account={linkedAccounts.find(a => a.slot === hotSwitchSlot) as any}
         active={hotSwitchSlot !== null}
       />
+
+      {/* Walkie-Talkie always-on standby HUD (renders only when Live Standby is enabled) */}
+      <WalkieStandby selfUid={user?.uid} selfName={user?.displayName ?? undefined} />
 
       </Suspense>
             </SpatialProvider>

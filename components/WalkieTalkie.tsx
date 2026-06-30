@@ -6,11 +6,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Radio, X, Pin, Ban, Zap, Play } from 'lucide-react';
 import {
-  pairId, subscribeChannel, sendTransmission, loadPrefs, setHot, setPinned, setBlocked,
+  pairId, subscribeChannel, sendTransmission, loadPrefs, setHot, setPinned, setBlocked, setLiveStandby,
   classify, MAX_HOT, type WalkieTransmission, type WalkiePrefs,
 } from '../services/walkieTalkie/walkieService';
 import { playChirp, playRadioTransmission, getAudioContext } from '../services/walkieTalkie/radioFX';
 import { WalkieLive } from '../services/walkieTalkie/walkieLive';
+import { subscribePresence, isOnline } from '../services/walkieTalkie/walkiePresence';
 
 const C = {
   chassis: 'linear-gradient(160deg,#2a2723,#16140f)', metal: '#3a352c', edge: '#0c0b08',
@@ -27,6 +28,7 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
   const [status, setStatus] = useState('');
   const [receiving, setReceiving] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
+  const [peerOnline, setPeerOnline] = useState(false);
   const liveRef = useRef<WalkieLive | null>(null);
 
   const recRef = useRef<MediaRecorder | null>(null);
@@ -42,6 +44,10 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
   const hotFull = !!prefs && prefs.hotUids.length >= MAX_HOT && !isHot;
 
   useEffect(() => { loadPrefs(selfUid).then(setPrefs); }, [selfUid]);
+  useEffect(() => subscribePresence(peerUid, p => setPeerOnline(isOnline(p))), [peerUid]);
+
+  const standbyOn = !!prefs?.liveStandby;
+  const togStandby = async () => setPrefs(await setLiveStandby(selfUid, !standbyOn));
 
   // realtime channel + auto-play hot incoming
   useEffect(() => {
@@ -157,7 +163,7 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
 
         {/* status LEDs */}
         <div style={{ display: 'flex', gap: 16, padding: '10px 4px 4px', alignItems: 'center' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 8, color: '#a89a7e' }}><i style={led(true, '#5fd17f')} /> ONLINE</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 8, color: '#a89a7e' }}><i style={led(peerOnline, '#5fd17f')} /> {peerOnline ? 'ONLINE' : 'OFFLINE'}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 8, color: '#a89a7e' }}><i style={led(receiving, C.amber)} /> RX</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 8, color: '#a89a7e' }}><i style={led(recording, C.red)} /> TX</span>
         </div>
@@ -183,6 +189,12 @@ const WalkieTalkie: React.FC<{ selfUid: string; peerUid: string; peerName?: stri
           <button onClick={togPin} title="Always receive from" style={ctrl(isPinned, '#5fd17f')}><Pin size={13} /> Pin</button>
           <button onClick={togBlock} title="Don't receive from" style={ctrl(isBlocked, C.red)}><Ban size={13} /> Block</button>
         </div>
+
+        {/* Live Standby — keep hot contacts connected in the background */}
+        <button onClick={togStandby} title="Keep your hot contacts live in the background, even with the handset closed"
+          style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0', borderRadius: 9, fontSize: 10, fontWeight: 800, letterSpacing: 1, cursor: 'pointer', border: `1px solid ${standbyOn ? C.lcdInk : '#4a4337'}`, background: standbyOn ? 'rgba(125,255,160,0.10)' : 'transparent', color: standbyOn ? C.lcdInk : '#a89a7e' }}>
+          <Radio size={12} /> LIVE STANDBY {standbyOn ? 'ON' : 'OFF'}
+        </button>
 
         {/* the rolling 5-slot reel */}
         <div style={{ marginTop: 14 }}>
