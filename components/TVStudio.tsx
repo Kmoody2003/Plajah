@@ -32,6 +32,8 @@ import {
   TVStudioEngine, StudioSource, GraphicOverlay, TransitionType,
 } from '../services/tvStudioEngine';
 import { db } from '../services/firebase';
+import { auth } from '../services/backendService';
+import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 import TVStudioLightingBoard from './TVStudioLightingBoard';
@@ -489,9 +491,15 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     const e = engineRef.current; if (!e) return;
     if (e.isRecording()) {
       const blob = e.stopRecording(); setIsRecording(false);
-      if (blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${activeProject?.title ?? 'recording'}_${Date.now()}.webm`; a.click(); }
+      if (blob) {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${activeProject?.title ?? 'recording'}_${Date.now()}.webm`; a.click();
+        // Offer to save the stream as a podcast episode (audio). Video → Reello is the visual path.
+        if (auth.currentUser && window.confirm('Save this stream as a podcast episode?')) {
+          saveStudioEpisode({ uid: auth.currentUser.uid, blob, title: activeProject?.title || 'Stream recording', durationMs: recordStart ? Date.now() - recordStart : 0 }).catch(() => {});
+        }
+      }
     } else { e.startRecording(); setIsRecording(true); setRecordStart(Date.now()); }
-  }, [activeProject]);
+  }, [activeProject, recordStart]);
 
   const handleGoLive = useCallback(() => {
     const e = engineRef.current; if (!e || !onStreamReady) return;
