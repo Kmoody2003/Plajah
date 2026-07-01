@@ -1197,6 +1197,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           });
           setIsLoading(false);
           return;
+        } else if (shareType === 'archive') {
+          // A shared archive film (Taleo) — reconstruct the item from its archive.org id.
+          import('./services/archiveContentService').then(async (m) => {
+            try { const item = await m.fetchArchiveVideoById(projectId); if (item) { setSelectedMovieItem(item); setView('MOVIE_UX'); setIsPublicView(true); document.title = `${item.title} | Plajah`; } } catch {}
+          });
+          setIsLoading(false);
+          return;
         } else if (shareType === 'comment') {
           const parentId = params.get('parent');
           if (parentId) {

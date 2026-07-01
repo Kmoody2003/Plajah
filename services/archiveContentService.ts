@@ -47,6 +47,28 @@ const viaProxy = (url: string) => `/api/proxy?url=${encodeURIComponent(url)}`;
 
 // ── Library of Congress (native loc.gov JSON API) ──────────────────────────
 // Open-access digitized books with downloadable PDFs — no IA mirror involved.
+/** Fetch a single archive.org item as an ArchiveVideo — for deep-linked film shares. */
+export const fetchArchiveVideoById = async (identifier: string): Promise<ArchiveVideo | null> => {
+  try {
+    const res = await fetch(`${INTERNET_ARCHIVE_DETAILS}/${encodeURIComponent(identifier)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const m = data?.metadata;
+    if (!m) return null;
+    const asStr = (v: any) => (Array.isArray(v) ? v[0] : v);
+    return {
+      identifier,
+      title: asStr(m.title) || identifier,
+      description: typeof m.description === 'string' ? m.description : (Array.isArray(m.description) ? m.description.join(' ') : ''),
+      mediatype: asStr(m.mediatype) || 'movies',
+      collection: Array.isArray(m.collection) ? m.collection : (m.collection ? [m.collection] : []),
+      thumbnailUrl: `https://archive.org/services/img/${identifier}`,
+      year: asStr(m.year) || asStr(m.date),
+      runtime: asStr(m.runtime),
+    };
+  } catch { return null; }
+};
+
 export const fetchLibraryOfCongressBooks = async (query = '', limit = 30): Promise<ArchiveBook[]> => {
   return cached(`loc-books:${query}:${limit}`, 1000 * 60 * 60, async () => {
     const params = new URLSearchParams({ fo: 'json', c: String(limit) });

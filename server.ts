@@ -104,7 +104,38 @@ function publicHost(req: any): string {
 const injectMetaTags = async (html: string, query: any, host: string) => {
    const { type, id, track } = query;
    if (!type || !id) return html;
-   
+
+   // Archive films (Taleo) are external archive.org items — no Firestore doc. Pull the
+   // public metadata + thumbnail directly and inject a large-image card.
+   if (type === 'archive') {
+     try {
+       const r = await fetch(`https://archive.org/metadata/${encodeURIComponent(String(id))}`);
+       const d: any = await r.json();
+       const m = d?.metadata || {};
+       const asStr = (v: any) => (Array.isArray(v) ? v[0] : v);
+       const title = asStr(m.title) || 'Film';
+       const image = `https://archive.org/services/img/${encodeURIComponent(String(id))}`;
+       const safeT = htmlEscape(title), safeD = htmlEscape(`Experience "${title}" now on Plajah`);
+       const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
+       let tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
+       return tags.replace('</head>', `
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta property="og:site_name" content="Plajah" />
+    <meta property="og:type" content="video.other" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/?type=archive&amp;id=${safeId}" />
+</head>`);
+     } catch { return html; }
+   }
+
    // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
    const collectionFor: Record<string, string> = {
      video: 'videos', album: 'albums', track: 'albums', book: 'albums',
