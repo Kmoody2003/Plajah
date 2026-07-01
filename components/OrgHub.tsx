@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2,
+  Church, Clock, Gift, Trash2, Sparkles,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles } from '../services/backendService';
 import ChurchGive from './ChurchGive';
+import SermonStudio from './SermonStudio';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -229,6 +230,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
   const [giving, setGiving] = useState(!!initialGive);
+  const [studio, setStudio] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
@@ -241,6 +243,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (giving) {
     return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
+  }
+  if (studio && isOwner) {
+    return <SermonStudio church={org} onClose={() => setStudio(false)} />;
   }
 
   return (
@@ -291,6 +296,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
                 <Church size={14} /> Plan a visit
               </span>
+              {isOwner && (
+                <button onClick={() => setStudio(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                  <Sparkles size={14} className="text-small-orange" /> Sermon Studio
+                </button>
+              )}
             </div>
 
             {org.givingFunds && org.givingFunds.length > 0 && (
