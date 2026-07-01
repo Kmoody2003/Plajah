@@ -1132,6 +1132,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setView('FEED');
           setIsLoading(false);
           return;
+        } else if (shareType === 'book') {
+          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          if (remoteAlbum) {
+            setSelectedBook(remoteAlbum); setView('BOOK_READER'); setIsPublicView(true);
+            document.title = `${remoteAlbum.title} | Plajah`;
+          }
+          setIsLoading(false);
+          return;
+        } else if (shareType === 'article') {
+          import('./services/backendService').then(async (m) => {
+            try { const a = await m.fetchArticleById(projectId); if (a) { setSelectedArticle(a); setView('ARTICLE_VIEW'); setIsPublicView(true); document.title = `${a.title} | Plajah`; } } catch {}
+          });
+          setIsLoading(false);
+          return;
+        } else if (shareType === 'game') {
+          import('./services/backendService').then(async (m) => {
+            try { const games = await m.fetchGames(); const g = games.find((x: any) => x.id === projectId); if (g) { setSelectedGame(g); setView('GAME_PLAYER'); setIsPublicView(true); document.title = `${g.title} | Plajah`; } } catch {}
+          });
+          setIsLoading(false);
+          return;
         } else if (shareType === 'comment') {
           const parentId = params.get('parent');
           if (parentId) {
@@ -1182,6 +1202,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (pathParts[1] === 'release' && pathParts[2]) {
         const releaseAlbumId = pathParts[2];
         setCountdownAlbumId(releaseAlbumId);
+        setIsLoading(false);
+        return;
+      }
+
+      // Event deep-links: /event/:eventId
+      if (pathParts[1] === 'event' && pathParts[2]) {
+        setSelectedEventId(pathParts[2]);
+        setView('EVENT_DETAIL');
         setIsLoading(false);
         return;
       }
