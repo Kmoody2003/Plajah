@@ -785,6 +785,11 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow read, delete: if isAdmin();
     }
+    match /liveFeed/{id} {
+      // Admin-only analytics/site-health collection (server-populated). It had no rule,
+      // so it fell through to default-deny — which failed the admin Analytics query.
+      allow read, write: if isAdmin();
+    }
     match /walkiePresence/{uid} {
       allow read: if isAuthenticated();                                  // hot contacts read peer presence
       allow write: if isAuthenticated() && uid == request.auth.uid;      // own presence only

@@ -184,6 +184,12 @@ function buildTimeline(
 // ── Admin Analytics ──────────────────────────────────────────────────────────
 
 export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
+  // Resilient fetch: one collection being denied or empty must NOT blank the whole
+  // dashboard. Each read degrades to an empty snapshot on failure (logged, not thrown).
+  const EMPTY = { docs: [] as any[], size: 0 };
+  const safe = async (label: string, p: Promise<any>) => {
+    try { return await p; } catch (e) { console.error(`[analytics] ${label} read failed:`, (e as Error)?.message); return EMPTY; }
+  };
   const [
     usersSnap,
     albumsSnap,
@@ -196,16 +202,16 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
     followsSnap,
     liveFeedSnap,
   ] = await Promise.all([
-    getDocs(collection(db, 'users')),
-    getDocs(query(collection(db, 'albums'), orderBy('playCount', 'desc'), limit(200))),
-    getDocs(query(collection(db, 'videos'), orderBy('playCount', 'desc'), limit(200))),
-    getDocs(query(collection(db, 'posts'), orderBy('likesCount', 'desc'), limit(200))),
-    getDocs(query(collection(db, 'articles'), orderBy('likesCount', 'desc'), limit(200))),
-    getDocs(query(collection(db, 'games'), limit(100))),
-    getDocs(query(collection(db, 'photos'), limit(200))),
-    getDocs(query(collection(db, 'worlds'), limit(100))),
-    getDocs(query(collection(db, 'follows'), limit(500))),
-    getDocs(query(collection(db, 'liveFeed'), limit(100))),
+    safe('users', getDocs(collection(db, 'users'))),
+    safe('albums', getDocs(query(collection(db, 'albums'), orderBy('playCount', 'desc'), limit(200)))),
+    safe('videos', getDocs(query(collection(db, 'videos'), orderBy('playCount', 'desc'), limit(200)))),
+    safe('posts', getDocs(query(collection(db, 'posts'), orderBy('likesCount', 'desc'), limit(200)))),
+    safe('articles', getDocs(query(collection(db, 'articles'), orderBy('likesCount', 'desc'), limit(200)))),
+    safe('games', getDocs(query(collection(db, 'games'), limit(100)))),
+    safe('photos', getDocs(query(collection(db, 'photos'), limit(200)))),
+    safe('worlds', getDocs(query(collection(db, 'worlds'), limit(100)))),
+    safe('follows', getDocs(query(collection(db, 'follows'), limit(500)))),
+    safe('liveFeed', getDocs(query(collection(db, 'liveFeed'), limit(100)))),
   ]);
 
   const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as any));
