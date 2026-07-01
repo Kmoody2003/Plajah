@@ -147,6 +147,7 @@ const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
 const BugReportButton = retryLazy(() => import('./components/BugReportButton'));
+const VideoRouterConsole = retryLazy(() => import('./components/mediaEngine/VideoRouterConsole'));
 const CreatorPaymentDashboard = retryLazy(() => import('./components/CreatorPaymentDashboard'));
 const EventCreationWizard = retryLazy(() => import('./components/EventCreationWizard'));
 const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
@@ -271,7 +272,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark } from 'lucide-react';
+import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -2211,6 +2212,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'LIVE_HUB', order: 19, isVisible: true },
                     { id: 'FABULA', order: 19.05, isVisible: true },
                     { id: 'TV_STUDIO', order: 19.1, isVisible: true },
+                    { id: 'MEDIA_ROUTER', order: 19.15, isVisible: true },
                     { id: 'POSTMAN', order: 19.5, isVisible: true },
                     { id: 'SEARCH', order: 20, isVisible: true },
                     { id: 'HELP_CENTER', order: 21, isVisible: true },
@@ -2269,6 +2271,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         FABULA: { label: 'Fabula', icon: Film },
                         TV_STUDIO: { label: 'TV Studio', icon: Clapperboard },
+                        MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv },
                         SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
                         ADMIN_AD_DASHBOARD: { label: 'Ad Platform', icon: Megaphone },
@@ -2411,7 +2414,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
@@ -2437,7 +2440,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -2498,14 +2501,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Creator Tool Bag', icon: Sparkles },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -3274,6 +3277,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
                   onCreate={() => { if (user) { setView('CREATOR'); } else { loginWithGoogle(); } }}
                 />
+              </Suspense>
+            )}
+
+            {view === 'MEDIA_ROUTER' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <VideoRouterConsole onBack={() => setView('TV_STUDIO')} />
               </Suspense>
             )}
 
