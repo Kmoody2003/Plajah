@@ -12,6 +12,7 @@ import {
   RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
+import { usePublishQueue } from '../contexts/PublishQueueContext';
 import EarlyAccessManager from './EarlyAccessManager';
 import FilmDistributionStep, { DEFAULT_FILM_DISTRIBUTION } from './FilmDistributionStep';
 import FilmVersionsManager from './FilmVersionsManager';
@@ -177,6 +178,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [newCredDept, setNewCredDept] = useState('Directing');
 
   const { uploadFile } = useUpload();
+  const { enqueue } = usePublishQueue();
 
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -677,20 +679,18 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       if (type === 'VIDEO' && subType === 'UGC') {
         const vidTrack = tracks.find(t => t.file) || tracks[0];
         if (!vidTrack?.file) { alert('Add a video file first.'); setStatus(null); return; }
-        setStatus({ text: 'Uploading to Reello…', percent: 5 });
-        const createdVideo = await uploadVideo({
-          title: title || vidTrack.title || 'Untitled',
-          description,
-          file: vidTrack.file,
-          thumbnailFile: coverFile,
-          coverImageFile: coverFile,
-          genre,
-          isRello: true,
-          isPrivate,
-          tags,
-        } as any, (p) => setStatus({ text: 'Uploading to Reello…', percent: Math.max(5, Math.round(p)) }));
-        setStatus({ text: 'Published to Reello', percent: 100 });
-        onCreated(createdVideo as any);
+        const vidFile = vidTrack.file;
+        const vidTitle = title || vidTrack.title || 'Untitled';
+        enqueue({
+          title: vidTitle,
+          kind: 'Reello',
+          run: (onProgress) => uploadVideo({
+            title: vidTitle, description, file: vidFile, thumbnailFile: coverFile, coverImageFile: coverFile,
+            genre, isRello: true, isPrivate, tags,
+          } as any, (p) => onProgress('Uploading to Reello…', Math.max(5, Math.round(p)))),
+          onDone: (created) => onCreated(created as any),
+        });
+        onCancel?.();
         return;
       }
 
@@ -732,8 +732,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         } : undefined,
         ...filmFields,
       };
-      const publishedAlbum = await publishToCloud(newAlbum, (text, percent) => setStatus({ text, percent }));
-      onCreated(typeof publishedAlbum === 'string' ? newAlbum : publishedAlbum);
+      // Publish in the background so the creator can close and multiple uploads can run at once.
+      enqueue({
+        title: title || 'Untitled',
+        kind: contentNoun,
+        run: (onProgress) => publishToCloud(newAlbum, onProgress),
+        onDone: (published) => onCreated(typeof published === 'string' ? newAlbum : published),
+      });
+      onCancel?.();
+      return;
     } catch (err: any) {
       console.error("Deployment Error:", err);
       alert(`Error: ${err?.message || "Deployment failed."}`);

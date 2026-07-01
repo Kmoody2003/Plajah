@@ -303,6 +303,8 @@ import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
+import { PublishQueueProvider } from './contexts/PublishQueueContext';
+import PublishTray from './components/PublishTray';
 import ProjectTray from './components/ProjectTray';
 
 import SpatialToggle from './components/SpatialToggle';
@@ -1616,6 +1618,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <PointsProvider>
           <AchievementProvider>
             <UploadProvider>
+              <PublishQueueProvider>
               <NotificationProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <Suspense fallback={
@@ -3976,6 +3979,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         isMinimizedCreator={isCreatorMinimized}
         onRestoreCreator={() => setIsCreatorMinimized(false)}
       />
+      <PublishTray />
       <ProjectTray
         isOpen={isProjectTrayOpen}
         onClose={() => setIsProjectTrayOpen(false)}
@@ -4137,6 +4141,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </Suspense>
             </SpatialProvider>
           </NotificationProvider>
+              </PublishQueueProvider>
         </UploadProvider>
       </AchievementProvider>
         </PointsProvider>
