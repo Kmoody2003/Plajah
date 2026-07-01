@@ -142,6 +142,7 @@ import KidsModeBar from './components/KidsModeBar';
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
+const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const CreatorPaymentDashboard = retryLazy(() => import('./components/CreatorPaymentDashboard'));
 const EventCreationWizard = retryLazy(() => import('./components/EventCreationWizard'));
 const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
@@ -890,6 +891,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('HELP_CENTER');
     } else if (target === 'BRAND_DASHBOARD') {
       setView('BRAND_DASHBOARD');
+    } else if (target === 'ORG_HUB') {
+      setView('ORG_HUB');
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
       setView('CREATOR_PAYMENTS');
@@ -3151,6 +3154,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 user={user}
                 onBack={() => setView('CREATOR')}
               />
+            )}
+
+            {view === 'ORG_HUB' && user && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <OrgHub user={user} onBack={() => setView('CREATOR')} />
+              </Suspense>
             )}
 
             {view === 'PLAJAH_BUSINESS' && (

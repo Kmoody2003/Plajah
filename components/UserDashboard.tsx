@@ -374,13 +374,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           {hasCapability(profile, 'MONETIZE') && (
             <button
               onClick={() => {
-                const event = new CustomEvent('NAVIGATE', { detail: { target: 'BRAND_DASHBOARD' } });
+                const event = new CustomEvent('NAVIGATE', { detail: { target: 'ORG_HUB' } });
                 window.dispatchEvent(event);
               }}
               className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all text-white/40 hover:text-white hover:bg-white/5"
             >
               <Building2 size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Brand Accounts</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Brands & Orgs</span>
             </button>
           )}
 
