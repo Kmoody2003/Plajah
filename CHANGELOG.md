@@ -17,6 +17,22 @@ Legend: **[MAJOR]** = new capability or big change · **[minor]** = fix/refineme
 
 ## 2026-07-01
 
+- **14:19** · `9e2d00e` · **[MAJOR]** · Health — *feat(health): per-user experience health + predictive self-healing*
+  - Technical: `healthMonitor.ts` client perf telemetry → 0-100 score; self-heals stale-build/chunk failures (SW update + controlled reload); escalates major degradation to `errorReports`; per-user snapshot to `userHealth/{uid}`. `AdminUserHealth` panel + tab.
+  - Plain: Plajah watches how well the app runs for each person, fixes small problems itself, and alerts the team to big ones.
+
+- **14:11** · `3cf15d8` · **[minor]** · Admin — *fix(analytics): missing liveFeed rule made the Analytics page error*
+  - Technical: `liveFeed` had no Firestore rule (default-deny) → failed the admin analytics `Promise.all`. Added the rule + `safe()` per-read guard.
+  - Plain: The admin analytics dashboard that showed a permissions error now loads.
+
+- **13:41** · `c7eb6eb` · **[MAJOR]** · Support — *feat(support): platform-wide bug reporting with auto-attached 5-min session trace*
+  - Technical: `sessionTrace.ts` 5-min ring buffer (privacy-safe) + `reportBug()` → `errorReports`; global `BugReportButton`; `ErrorReportsPanel` renders the session trail.
+  - Plain: A "Report a bug" button on every page auto-attaches a private log of the last 5 minutes so the team can reproduce it.
+
+- **13:31** · `b65c632` · **[MAJOR]** · Platform — *feat(changelog): master ledger + public What's New + update notification; seed demo church*
+  - Technical: `CHANGELOG.md` + `data/changelog.ts` (technical + plain-English, major/minor); `PlatformChangelog` page; `UpdateNotification` (major/minor columns); Elevate admin seed-demo-church.
+  - Plain: A plain-English "What's New" page in Help + a per-release summary of new features and improvements.
+
 - **12:40** · `c2876cc` · **[minor]** · Sharing — *fix(share): shared non-Reello videos open the full-screen PLAYER, not the browse grid*
   - Technical: Boot handler routes non-Reello videos to the `PLAYER` view (`VideoPlayer`) instead of the `VIDEOS` browse grid, which ignores `selectedVideo`.
   - Plain: Shared video links open that exact video full-screen, not the general videos page.

@@ -33,9 +33,33 @@ export interface ChangelogEntry {
  * The ledger — newest first. `APP_BUILD` is bumped whenever a release should
  * re-trigger the "what's new" notification for users.
  */
-export const APP_BUILD = '2026.07.01-04';
+export const APP_BUILD = '2026.07.01-05';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: '9e2d00e', date: '2026-07-01', time: '14:19', level: 'major', area: 'Health',
+    title: 'Plajah looks after your experience',
+    technical: 'healthMonitor.ts: client perf telemetry (load/TTFB/LCP/long-tasks/failed-requests/errors/connection/memory) → 0-100 health score; self-heals stale-build/chunk failures via SW update + controlled reload; escalates major degradation to errorReports; per-user snapshot to userHealth/{uid}. AdminUserHealth panel + tab.',
+    plain: 'Plajah now quietly watches how well the app is running for you — how fast it loads and whether anything is breaking. It fixes small problems on its own (like refreshing to the newest version) and alerts our team to bigger ones, so your experience stays smooth.',
+  },
+  {
+    id: '3cf15d8', date: '2026-07-01', time: '14:11', level: 'minor', area: 'Admin',
+    title: 'Analytics dashboard permissions fixed',
+    technical: 'The liveFeed collection had no Firestore rule (default-deny), failing the admin analytics Promise.all. Added the rule + wrapped each read in a safe guard so one failure degrades gracefully.',
+    plain: 'The admin analytics dashboard that showed a permissions error now loads correctly.',
+  },
+  {
+    id: 'c7eb6eb', date: '2026-07-01', time: '13:41', level: 'major', area: 'Support',
+    title: 'Report a bug from anywhere',
+    technical: 'sessionTrace.ts ring buffer (last 5 min: views/clicks/failed-net/console/connectivity, privacy-safe) + reportBug() → errorReports; BugReportButton mounted globally; ErrorReportsPanel shows the session trail.',
+    plain: 'A "Report a bug" button is now on every page. When you report something, it automatically attaches a private log of your last 5 minutes so our team can see exactly what happened and fix it faster — never your passwords or what you typed.',
+  },
+  {
+    id: 'b65c632', date: '2026-07-01', time: '13:31', level: 'major', area: 'Platform',
+    title: 'What\'s New — see how Plajah evolves',
+    technical: 'CHANGELOG.md + data/changelog.ts (technical + plain-English, major/minor); PlatformChangelog page (Help → What\'s New); UpdateNotification (per-build, major/minor columns); Elevate admin "seed demo church".',
+    plain: 'You can now see everything new on Plajah in plain English — a "What\'s New" page in Help and a summary each time we ship an update, split into big new features and smaller improvements.',
+  },
   {
     id: 'c2876cc', date: '2026-07-01', time: '12:40', level: 'minor', area: 'Sharing',
     title: 'Shared videos open the actual video',
