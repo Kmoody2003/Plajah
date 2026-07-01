@@ -11,6 +11,27 @@ import {
 } from './types';
 import { detectCapabilities } from './capabilities';
 import { WebcamSource, WhepSource } from './browserSources';
+import {
+  hasNativeEngine, listNativeSources, connectNativeSource, disconnectNativeSource,
+  nativeRoute, nativeProgram, nativeSync, NativeSourceInfo,
+} from './bridge';
+import { VideoSource as IVideoSource, FrameRef } from './types';
+
+/** A source acquired by the native engine (capture card / NDI / SRT). Frames arrive as
+ *  GPU texture handles, not a browser MediaStream. No-op unless a native host is present. */
+class NativeSource implements IVideoSource {
+  id: string; label: string; kind: NativeSourceInfo['kind'];
+  formats: NativeSourceInfo['formats']; latencyMs: number; clockDomain?: string;
+  tally: IVideoSource['tally'] = 'off'; stream = null; connected = false;
+  private cbs: ((f: FrameRef) => void)[] = [];
+  constructor(info: NativeSourceInfo) {
+    this.id = info.id; this.label = info.label; this.kind = info.kind;
+    this.formats = info.formats || []; this.latencyMs = info.latencyMs ?? 0; this.clockDomain = info.clockDomain;
+  }
+  async connect() { const r = await connectNativeSource(this.id); this.connected = !!r; if (r?.textureId) for (const cb of this.cbs) cb({ textureId: r.textureId }); }
+  onFrame(cb: (f: FrameRef) => void) { this.cbs.push(cb); }
+  dispose() { disconnectNativeSource(this.id); this.connected = false; this.cbs = []; }
+}
 
 export interface EngineState {
   caps: Capabilities;
@@ -101,6 +122,18 @@ export class MediaEngine {
     return src;
   }
 
+  /** Pull real native inputs (capture cards / NDI / SRT) from the native host, if any. */
+  async refreshNativeSources(): Promise<void> {
+    if (!hasNativeEngine()) return;
+    const infos = await listNativeSources();
+    const existing = new Set(this.state.router.sources.map(s => s.id));
+    const fresh = infos.filter(i => !existing.has(i.id)).map(i => new NativeSource(i));
+    if (fresh.length) {
+      this.commit({ router: { ...this.state.router, sources: [...this.state.router.sources, ...fresh] } });
+      this.recomputeSync();
+    }
+  }
+
   removeSource(id: string) {
     const src = this.state.router.sources.find(s => s.id === id);
     src?.dispose();
@@ -117,6 +150,7 @@ export class MediaEngine {
     if (this.state.router.locks[destId]) return; // destination locked
     this.commit({ router: { ...this.state.router, routes: { ...this.state.router.routes, [destId]: srcId } } });
     this.updateTally();
+    nativeRoute(destId, srcId); // mirror to the native graph (no-op in browser)
   }
 
   toggleLock(destId: string) {
@@ -152,8 +186,8 @@ export class MediaEngine {
   }
 
   // ── Sync ───────────────────────────────────────────────────────────────────
-  setMasterClock(clock: MasterClock) { this.commit({ sync: { ...this.state.sync, masterClock: clock } }); }
-  setSyncTarget(ms: number) { this.commit({ sync: { ...this.state.sync, syncTargetMs: ms } }); this.recomputeSync(); }
+  setMasterClock(clock: MasterClock) { this.commit({ sync: { ...this.state.sync, masterClock: clock } }); nativeSync(clock, this.state.sync.syncTargetMs); }
+  setSyncTarget(ms: number) { this.commit({ sync: { ...this.state.sync, syncTargetMs: ms } }); this.recomputeSync(); nativeSync(this.state.sync.masterClock, ms); }
 
   // ── Tally ──────────────────────────────────────────────────────────────────
   /** A source feeding the PGM-bound switcher input inherits program tally; PVW → preview. */
@@ -165,6 +199,7 @@ export class MediaEngine {
       s.tally = s.id === pgmSrc ? 'program' : s.id === pvwSrc ? 'preview' : 'off';
     }
     this.commit({ router: { ...router } });
+    nativeProgram(switcher.program, switcher.preview); // mirror PGM/PVW + tally to native
   }
 
   dispose() {

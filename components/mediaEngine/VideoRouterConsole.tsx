@@ -39,6 +39,7 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
   const [err, setErr] = useState('');
 
   useEffect(() => engine.subscribe(setState), [engine]);
+  useEffect(() => { engine.refreshNativeSources(); }, [engine]); // native capture/NDI when in the desktop app
   useEffect(() => () => engine.dispose(), [engine]);
 
   const { caps, router, switcher, sync } = state;
