@@ -44,6 +44,7 @@ const REACTIONS = ['❤️', '😂', '👍', '🔥', '👏', '🎉'];
 const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
   const selfId = auth.currentUser?.uid;
   const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
 
   const addFloat = useCallback((emoji: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -100,9 +101,61 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user }) => {
         <div className="flex items-center gap-3">
           <button className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white"><UserPlus size={20} /></button>
           <button className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white"><LayoutGrid size={20} /></button>
-          <button className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white"><Settings size={20} /></button>
+          <button
+            onClick={() => { rtc.refreshDevices(); setShowSettings(s => !s); }}
+            title="Camera & microphone settings"
+            className={`p-4 rounded-2xl transition-all ${showSettings ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+            <Settings size={20} />
+          </button>
         </div>
       </div>
+
+      {/* Device settings — pick + swap camera / mic live during the call */}
+      <AnimatePresence>
+        {showSettings && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowSettings(false)} className="fixed inset-0 z-40" />
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              className="absolute top-24 right-6 z-50 w-80 max-w-[92vw] bg-[#0c0c0f] border border-white/10 rounded-3xl shadow-2xl p-5 space-y-5">
+              <div className="flex items-center gap-2">
+                <Settings size={15} className="text-small-orange" />
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-white">Devices</h3>
+                <button onClick={() => rtc.refreshDevices()} title="Refresh" className="ml-auto text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Refresh</button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40"><Video size={12} /> Camera</label>
+                <select
+                  value={rtc.activeDevices.cameraId || ''}
+                  onChange={e => rtc.switchVideoDevice(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-small-orange/60 [&>option]:bg-[#0c0c0f]">
+                  {rtc.devices.cameras.length === 0 && <option value="">No camera found</option>}
+                  {rtc.devices.cameras.map((d, i) => (
+                    <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40"><Mic size={12} /> Microphone</label>
+                <select
+                  value={rtc.activeDevices.micId || ''}
+                  onChange={e => rtc.switchAudioDevice(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-small-orange/60 [&>option]:bg-[#0c0c0f]">
+                  {rtc.devices.mics.length === 0 && <option value="">No microphone found</option>}
+                  {rtc.devices.mics.map((d, i) => (
+                    <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Microphone ${i + 1}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <p className="text-[9px] font-bold text-white/30 leading-relaxed">Changes apply instantly — the call keeps running while you swap devices.</p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Connection banner */}
       {(anyConnecting || allConnected) && (

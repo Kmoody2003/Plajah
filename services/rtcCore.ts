@@ -317,8 +317,62 @@ export class RtcSession {
   /** Replace the camera (flip) without dropping any peer — hot track swap. */
   async switchCamera(facing: 'user' | 'environment') {
     const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: facing } });
-    const newTrack = next.getVideoTracks()[0];
+    await this.swapVideoTrack(next.getVideoTracks()[0]);
+  }
+
+  /** Enumerate the machine's cameras / mics / speakers so the UI can offer a
+   *  device picker. Labels are only populated once media permission is granted
+   *  (which it is, mid-call), so call this after join(). */
+  async listDevices(): Promise<{ cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] }> {
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      return {
+        cameras: all.filter(d => d.kind === 'videoinput'),
+        mics: all.filter(d => d.kind === 'audioinput'),
+        speakers: all.filter(d => d.kind === 'audiooutput'),
+      };
+    } catch { return { cameras: [], mics: [], speakers: [] }; }
+  }
+
+  /** The deviceIds currently being published (for highlighting the active pick). */
+  getActiveDevices(): { cameraId?: string; micId?: string } {
+    return {
+      cameraId: this.local?.getVideoTracks()[0]?.getSettings().deviceId,
+      micId: this.local?.getAudioTracks()[0]?.getSettings().deviceId,
+    };
+  }
+
+  /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
+  async switchVideoDevice(deviceId: string) {
+    const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: deviceId } } });
+    await this.swapVideoTrack(next.getVideoTracks()[0]);
+  }
+
+  /** Switch the MICROPHONE to a specific device mid-call — hot track swap, no peer drop. */
+  async switchAudioDevice(deviceId: string) {
+    const next = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } }, video: false });
+    const newTrack = next.getAudioTracks()[0];
+    if (!newTrack) return;
+    // Preserve the current mute state on the fresh track.
+    const old = this.local?.getAudioTracks()[0];
+    if (old) newTrack.enabled = old.enabled;
+    this.peers.forEach(({ pc }) => {
+      const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+      sender?.replaceTrack(newTrack).catch(() => {});
+    });
+    if (this.local) {
+      if (old) { this.local.removeTrack(old); old.stop(); }
+      this.local.addTrack(newTrack);
+      this.events.onLocalStream?.(this.local);
+    }
+  }
+
+  /** Shared camera hot-swap: replace the outbound video track on every peer and
+   *  in the local stream, preserving mute state and firing onLocalStream. */
+  private async swapVideoTrack(newTrack?: MediaStreamTrack) {
+    if (!newTrack) return;
     const old = this.local?.getVideoTracks()[0];
+    if (old) newTrack.enabled = old.enabled;
     this.peers.forEach(({ pc }) => {
       const sender = pc.getSenders().find(s => s.track?.kind === 'video');
       sender?.replaceTrack(newTrack).catch(() => {});

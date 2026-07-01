@@ -5530,12 +5530,23 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
     const snap = await getDocs(q);
     
     // For private chats, check if one already exists
-    if (type === 'PRIVATE') {
+    if (type === 'PRIVATE' && participants.length === 2) {
       const existing = snap.docs.find(d => {
         const p = d.data().participants as string[];
         return p.length === 2 && participants.every(uid => p.includes(uid));
       });
       if (existing) return existing.id;
+      // Deterministic id for a DM pair — concurrent creates converge on the SAME
+      // doc (setDoc/merge) instead of racing into two rooms for the same pair.
+      const dmId = 'dm_' + [...participants].sort().join('_');
+      await setDoc(doc(db, path, dmId), {
+        participants,
+        type,
+        name: name || '',
+        updatedAt: Date.now(),
+        ownerId: auth.currentUser?.uid,
+      }, { merge: true });
+      return dmId;
     }
 
     const docRef = await addDoc(collection(db, path), {
@@ -5700,11 +5711,31 @@ export const listenToMessages = (roomId: string, callback: (messages: ChatMessag
   }, (e) => handleFirestoreError(e, OperationType.LIST, `chat_rooms/${roomId}/messages`));
 };
 
+/**
+ * Collapse duplicate DM conversations. Two things cause dupes in the inbox:
+ *  1. a race in createChatRoom can create two chat_room docs for the same pair,
+ *  2. an onSnapshot listener can re-fire / re-register (React strict mode).
+ * For PRIVATE rooms we key by the SORTED participant set so the same DM pair
+ * shows once (keeping the most recently active doc); everything else keys by id.
+ */
+export const dedupeChatRooms = (rooms: ChatRoom[]): ChatRoom[] => {
+  const byKey = new Map<string, ChatRoom>();
+  for (const r of rooms) {
+    const parts = Array.isArray(r.participants) ? r.participants : [];
+    const key = r.type === 'PRIVATE' && parts.length
+      ? 'dm:' + [...parts].sort().join('|')
+      : 'id:' + r.id;
+    const existing = byKey.get(key);
+    if (!existing || (r.updatedAt || 0) > (existing.updatedAt || 0)) byKey.set(key, r);
+  }
+  return [...byKey.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+};
+
 export const listenToChatRooms = (callback: (rooms: ChatRoom[]) => void) => {
   if (!auth.currentUser) return () => {};
   const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", auth.currentUser.uid), orderBy('updatedAt', 'desc'));
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom)));
+    callback(dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom))));
   }, (e) => handleFirestoreError(e, OperationType.LIST, 'chat_rooms'));
 };
 
@@ -5713,7 +5744,7 @@ export const fetchChatRooms = async (): Promise<ChatRoom[]> => {
   const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", auth.currentUser.uid), orderBy('updatedAt', 'desc'));
   try {
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom));
+    return dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom)));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, 'chat_rooms');
     return [];

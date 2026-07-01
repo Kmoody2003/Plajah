@@ -38,6 +38,14 @@ export interface UseRtcSession {
   switchCamera: (facing: 'user' | 'environment') => void;
   toggleScreenShare: () => void;
   leave: () => void;
+  /** Available input/output devices (populated after join; refreshed on hot-plug). */
+  devices: { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] };
+  /** deviceIds currently being published (to highlight the active pick). */
+  activeDevices: { cameraId?: string; micId?: string };
+  refreshDevices: () => void;
+  /** Hot-swap camera / mic to a specific device mid-call (no peer drop). */
+  switchVideoDevice: (deviceId: string) => void;
+  switchAudioDevice: (deviceId: string) => void;
 }
 
 export function useRtcSession(
@@ -56,6 +64,8 @@ export function useRtcSession(
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [sharingScreen, setSharingScreen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [devices, setDevices] = useState<{ cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] }>({ cameras: [], mics: [], speakers: [] });
+  const [activeDevices, setActiveDevices] = useState<{ cameraId?: string; micId?: string }>({});
 
   const sessionRef = useRef<RtcSession | null>(null);
   const recorderRef = useRef<SessionRecorder | null>(null);
@@ -108,8 +118,36 @@ export function useRtcSession(
     setVideoEnabled(prev => { const next = !prev; sessionRef.current?.setVideoEnabled(next); return next; });
   }, []);
   const switchCamera = useCallback((facing: 'user' | 'environment') => {
-    sessionRef.current?.switchCamera(facing).catch(() => {});
+    sessionRef.current?.switchCamera(facing).catch(() => {}).finally(() => {
+      setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    });
   }, []);
+  const refreshDevices = useCallback(() => {
+    sessionRef.current?.listDevices().then(d => {
+      setDevices(d);
+      setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    });
+  }, []);
+  const switchVideoDevice = useCallback((deviceId: string) => {
+    sessionRef.current?.switchVideoDevice(deviceId).catch(() => {}).finally(() => {
+      setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    });
+  }, []);
+  const switchAudioDevice = useCallback((deviceId: string) => {
+    sessionRef.current?.switchAudioDevice(deviceId).catch(() => {}).finally(() => {
+      setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    });
+  }, []);
+
+  // Populate the device list once we have a local stream (labels need permission),
+  // and refresh whenever a device is plugged in / removed.
+  useEffect(() => {
+    if (!localStream) return;
+    refreshDevices();
+    const onChange = () => refreshDevices();
+    navigator.mediaDevices?.addEventListener?.('devicechange', onChange);
+    return () => navigator.mediaDevices?.removeEventListener?.('devicechange', onChange);
+  }, [localStream, refreshDevices]);
   const toggleScreenShare = useCallback(() => {
     const s = sessionRef.current;
     if (!s) return;
@@ -159,5 +197,6 @@ export function useRtcSession(
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
+    devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
   };
 }
