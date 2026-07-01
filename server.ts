@@ -134,16 +134,17 @@ async function fetchToTmp(url: string, ext: string): Promise<string | null> {
  *  downloaded locally first (a remote HTTP image can't be looped — ffmpeg stalls at frame 0). */
 async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
   const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
-  const [coverPath, audioPath] = await Promise.all([fetchToTmp(coverUrl, 'img'), fetchToTmp(audioUrl, 'mp3')]);
-  const cleanup = () => { for (const p of [coverPath, audioPath, out]) if (p) fs.unlink(p).catch(() => {}); };
-  if (!coverPath || !audioPath) { cleanup(); return { buf: null, err: `input download failed (cover:${!!coverPath} audio:${!!audioPath})` }; }
+  // Only the LOOPED image must be local (a remote HTTP image can't be looped). The audio can
+  // stream from the remote URL directly — buffering a whole track in RAM risks OOM on Cloud Run.
+  const coverPath = await fetchToTmp(coverUrl, 'img');
+  if (!coverPath) { fs.unlink(out).catch(() => {}); return { buf: null, err: 'cover download failed' }; }
 
   let stderr = '';
   const ok = await new Promise<boolean>((resolve) => {
     const args = [
       '-y',
       '-loop', '1', '-framerate', '2', '-i', coverPath,
-      '-i', audioPath,
+      '-i', audioUrl,
       '-t', '45',
       '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-r', '15',
       '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720',
@@ -159,8 +160,7 @@ async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promi
     ff.on('error', (e: any) => { clearTimeout(killer); stderr += `\nerror: ${e?.message || e}`; resolve(false); });
     ff.on('close', (code) => { clearTimeout(killer); if (code !== 0) stderr += `\n[exit ${code}]`; resolve(code === 0); });
   });
-  if (coverPath) fs.unlink(coverPath).catch(() => {});
-  if (audioPath) fs.unlink(audioPath).catch(() => {});
+  fs.unlink(coverPath).catch(() => {});
   if (!ok) { fs.unlink(out).catch(() => {}); console.error('[social-video] ffmpeg failed:', stderr.slice(-400)); return { buf: null, err: stderr.slice(-2000) }; }
   try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
   catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
@@ -3574,6 +3574,18 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.get('/social-video', async (req, res) => {
     res.removeHeader('X-Frame-Options');
     res.setHeader('Content-Security-Policy', "frame-ancestors *");
+    // ?probe=1 — confirm ffmpeg is installed + runnable (no heavy generation).
+    if (req.query.probe) {
+      const out = await new Promise<string>((resolve) => {
+        let o = '';
+        let p: ReturnType<typeof spawn>;
+        try { p = spawn('ffmpeg', ['-version']); } catch (e: any) { return resolve(`spawn threw: ${e?.message || e}`); }
+        p.stdout?.on('data', (d) => { o += d.toString(); });
+        p.on('error', (e: any) => resolve(`spawn error: ${e?.message || e}`));
+        p.on('close', () => resolve(o.slice(0, 200) || 'ran, no output'));
+      });
+      return res.type('text/plain').send(out);
+    }
     const { id, track } = req.query as any;
     if (!id) return res.status(404).send('Not Found');
     try {
