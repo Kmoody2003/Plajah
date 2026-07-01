@@ -2762,14 +2762,19 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     if (album.slideshow) finalSlideshow.push(...album.slideshow);
   }
 
-  // 4. Upload Tracks
+  // 4. Upload Tracks — label by the actual content type, not always "Track"
+  const itemNoun = album.subType === 'PODCAST' ? 'Episode'
+    : album.type === 'VIDEO' ? 'Video'
+    : album.type === 'PHOTO' ? 'Photo'
+    : album.type === 'BOOK' ? 'Chapter'
+    : 'Track';
   const finalTracks: Track[] = [];
   for (let i = 0; i < album.tracks.length; i++) {
     const track = album.tracks[i];
     const trackProgressBase = 20 + (i / album.tracks.length) * 60;
-    
+
     if (track.file) {
-      onProgress?.(`Transferring Track ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
+      onProgress?.(`Transferring ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
       const gcsPath = `albums/${album.id}/tracks/${track.id}_${track.file.name}`;
       const url = await uploadFile(gcsPath, track.file);
       finalTracks.push({ ...track, url, file: undefined });

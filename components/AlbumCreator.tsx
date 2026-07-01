@@ -234,10 +234,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const skipStep1 = !hasSubtype(type);
   const skipStep4 = !hasCastStep;
 
+  // Label content steps/upload by the actual type, not always "Tracks".
+  const contentNoun = subType === 'PODCAST' ? 'Episodes'
+    : type === 'VIDEO' ? 'Videos'
+    : type === 'PHOTO' ? 'Photos'
+    : type === 'BOOK' ? 'Chapters'
+    : 'Tracks';
   const labels = (() => {
-    if (skipStep1) return ['Type', 'Content', 'World', 'Details', 'Settings', 'Tracks'];
-    if (hasCastStep) return ['Type', 'Format', 'Content', 'World', 'Cast', 'Details', 'Settings', 'Tracks'];
-    return ['Type', 'Format', 'Content', 'World', 'Details', 'Settings', 'Tracks'];
+    if (skipStep1) return ['Type', 'Content', 'World', 'Details', 'Settings', contentNoun];
+    if (hasCastStep) return ['Type', 'Format', 'Content', 'World', 'Cast', 'Details', 'Settings', contentNoun];
+    return ['Type', 'Format', 'Content', 'World', 'Details', 'Settings', contentNoun];
   })();
 
   const toDisplay = (logical: number) => {
