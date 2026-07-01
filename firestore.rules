@@ -790,6 +790,11 @@ service cloud.firestore {
       // so it fell through to default-deny — which failed the admin Analytics query.
       allow read, write: if isAdmin();
     }
+    match /userHealth/{uid} {
+      // Per-user experience-health snapshots. Owner writes own; owner + admins read.
+      allow read: if isAdmin() || (isAuthenticated() && uid == request.auth.uid);
+      allow write: if isAuthenticated() && uid == request.auth.uid;
+    }
     match /walkiePresence/{uid} {
       allow read: if isAuthenticated();                                  // hot contacts read peer presence
       allow write: if isAuthenticated() && uid == request.auth.uid;      // own presence only

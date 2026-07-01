@@ -332,6 +332,7 @@ import { initPodcastLibrarySync } from './services/podcastLibraryService';
 import { saveStudioEpisode } from './services/podcastStudio/studioService';
 import { installGlobalErrorReporting } from './services/errorReporting';
 import { installSessionTrace, traceView } from './services/sessionTrace';
+import { installHealthMonitor } from './services/healthMonitor';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -424,7 +425,7 @@ const App: React.FC = () => {
   }, [setView]);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
-  useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); }, []);
+  useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); installHealthMonitor(); }, []);
   useEffect(() => { traceView(view); }, [view]);
 
   useEffect(() => {
