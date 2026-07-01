@@ -57,6 +57,8 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     // Church vertical
     ministries: data.ministries,
     serviceTimes: data.serviceTimes,
+    givingFunds: data.givingFunds,
+    campuses: data.campuses,
     denomination: data.denomination,
     statementOfFaith: data.statementOfFaith,
     givingUrl: data.givingUrl,
@@ -231,6 +233,11 @@ export async function createDemoChurch(): Promise<Organization | null> {
     ministries,
     serviceTimes,
     givingFunds,
+    campuses: [
+      { id: rid('cmp'), name: 'Downtown Campus', location: 'Main St', isPrimary: true },
+      { id: rid('cmp'), name: 'North Campus', location: 'Northside' },
+      { id: rid('cmp'), name: 'Online Campus', location: 'Everywhere' },
+    ],
     location: { city: 'Anytown, USA' },
     socialLinks: { website: '' },
   });

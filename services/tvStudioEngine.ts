@@ -220,6 +220,26 @@ export class TVStudioEngine {
     } catch { return null; }
   }
 
+  /** Add a source from an existing MediaStream — e.g. a REMOTE campus program feed
+   *  pulled over the platform (multi-site master control). */
+  addStreamSource(stream: MediaStream, label: string): StudioSource {
+    const id = `feed_${Date.now()}`;
+    const src = this._makeSource(id, 'CAMERA', label);
+    src.stream = stream;
+    const video = document.createElement('video');
+    video.srcObject = stream; video.autoplay = true; video.muted = true; video.playsInline = true;
+    video.onloadeddata = () => { src.isReady = true; this.onSourcesChanged?.(); };
+    video.play?.().catch(() => {});
+    src.videoEl = video;
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack) {
+      try { const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack])); msSrc.connect(src.gainNode!); } catch { /* */ }
+    }
+    this.sources.set(id, src);
+    this.onSourcesChanged?.();
+    return src;
+  }
+
   async addScreenSource(): Promise<StudioSource | null> {
     try {
       const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: { cursor: 'always' }, audio: true });

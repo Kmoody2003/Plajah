@@ -1339,6 +1339,14 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
     }
 
+    // Multi-site program-feed registry (Part 3, Phase 5): campuses publish live
+    // program outputs; master control lists them. Not sensitive (just discovery).
+    match /program_feeds/{feedId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
     match /orgMemberships/{membershipId} {
       allow read: if isAuthenticated();
       // Join yourself, OR an org admin adds/manages a member.

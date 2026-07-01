@@ -1732,6 +1732,25 @@ export interface GivingFund {
   raised?: number;        // amount given so far ($)
 }
 
+// Multi-site: a church can have several campuses; each can publish a live program
+// feed that a master-control location pulls as a switcher source.
+export interface Campus {
+  id: string;
+  name: string;
+  location?: string;
+  isPrimary?: boolean;
+}
+
+export interface ProgramFeed {
+  id: string;
+  churchId: string;
+  campusId: string;
+  campusName: string;
+  sessionId: string;      // rtc_sessions id the campus broadcasts its program on
+  status: 'LIVE' | 'ENDED';
+  startedAt: number;
+}
+
 // ─── ORGANIZATIONS (Part 2) ─────────────────────────────────────────────────
 // A first-class parallel account — a merger of a business page + a club. Brand
 // accounts are Organizations with orgType 'BRAND'; the church vertical specializes
@@ -1797,6 +1816,7 @@ export interface Organization {
   ministries?: Ministry[];
   serviceTimes?: ServiceTime[];
   givingFunds?: GivingFund[];
+  campuses?: Campus[];        // multi-site locations
   denomination?: string;
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)

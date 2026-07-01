@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
@@ -19,6 +19,7 @@ import {
 import { uploadFile, searchUserProfiles } from '../services/backendService';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
+import ChurchMasterControl from './ChurchMasterControl';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -231,6 +232,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [managing, setManaging] = useState(false);
   const [giving, setGiving] = useState(!!initialGive);
   const [studio, setStudio] = useState(false);
+  const [master, setMaster] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
@@ -246,6 +248,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (studio && isOwner) {
     return <SermonStudio church={org} onClose={() => setStudio(false)} />;
+  }
+  if (master && isOwner) {
+    return <ChurchMasterControl church={org} onClose={() => setMaster(false)} />;
   }
 
   return (
@@ -299,6 +304,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               {isOwner && (
                 <button onClick={() => setStudio(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
                   <Sparkles size={14} className="text-small-orange" /> Sermon Studio
+                </button>
+              )}
+              {isOwner && (
+                <button onClick={() => setMaster(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                  <MonitorPlay size={14} className="text-small-orange" /> Master Control
                 </button>
               )}
             </div>
@@ -412,10 +422,12 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
   const [ministries, setMinistries] = useState(org.ministries || []);
   const [services, setServices] = useState(org.serviceTimes || []);
   const [funds, setFunds] = useState(org.givingFunds || []);
+  const [campuses, setCampuses] = useState(org.campuses || []);
   const [stripeAcct, setStripeAcct] = useState(org.stripeAccountId || '');
   const [newMin, setNewMin] = useState({ name: '', meetingTime: '' });
   const [newSvc, setNewSvc] = useState({ label: '', day: '', time: '' });
   const [newFund, setNewFund] = useState({ name: '', goal: '' });
+  const [newCampus, setNewCampus] = useState({ name: '', location: '' });
   const isChurch = org.orgType === 'CHURCH';
   const busyId = () => Math.random().toString(36).slice(2, 9);
   const [busy, setBusy] = useState(false);
@@ -432,7 +444,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
         category: category.trim() || undefined, isPrivate,
         socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
         monthlyPrice: monthly ? Number(monthly) : undefined,
-        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, givingUrl: givingUrl.trim() || undefined, stripeAccountId: stripeAcct.trim() || undefined } : {}),
+        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, campuses, givingUrl: givingUrl.trim() || undefined, stripeAccountId: stripeAcct.trim() || undefined } : {}),
       };
       await updateOrganization(org.id, patch);
       onSaved({ ...org, ...patch } as Organization);
@@ -529,7 +541,23 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
             <button onClick={() => { if (newSvc.label.trim()) { setServices(ss => [...ss, { id: busyId(), label: newSvc.label.trim(), day: newSvc.day.trim(), time: newSvc.time.trim() }]); setNewSvc({ label: '', day: '', time: '' }); } }}
               className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
           </div>
-          <p className="text-[9px] text-white/30 mt-3">Ministries & service times save with "Save details" above.</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 mt-6 flex items-center gap-2"><MonitorPlay size={11} /> Campuses (multi-site)</p>
+          <div className="space-y-2 mb-3">
+            {campuses.map(c => (
+              <div key={c.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
+                <span className="flex-1 text-xs font-bold text-white">{c.name}{c.location ? <span className="text-white/30 font-medium"> · {c.location}</span> : ''}</span>
+                <button onClick={() => setCampuses(cs => cs.filter(x => x.id !== c.id))} className="text-white/30 hover:text-red-400"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={newCampus.name} onChange={e => setNewCampus(v => ({ ...v, name: e.target.value }))} placeholder="Campus name" className={field} />
+            <input value={newCampus.location} onChange={e => setNewCampus(v => ({ ...v, location: e.target.value }))} placeholder="Location" className={`${field} max-w-[40%]`} />
+            <button onClick={() => { if (newCampus.name.trim()) { setCampuses(cs => [...cs, { id: busyId(), name: newCampus.name.trim(), location: newCampus.location.trim() || undefined, isPrimary: cs.length === 0 }]); setNewCampus({ name: '', location: '' }); } }}
+              className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
+          </div>
+
+          <p className="text-[9px] text-white/30 mt-3">Ministries, service times, funds & campuses save with "Save details" above.</p>
         </section>
       )}
 
