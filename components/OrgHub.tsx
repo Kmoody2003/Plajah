@@ -28,6 +28,7 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BUSINESS',     label: 'Business',     blurb: 'A local or online business page with hours + storefront.' },
   { type: 'CHURCH',       label: 'Church',       blurb: 'A ministry with sub-groups, giving, and streaming.' },
   { type: 'NONPROFIT',    label: 'Nonprofit',    blurb: 'A cause or charity with members and fundraising.' },
+  { type: 'CULTURAL',     label: 'Cultural',     blurb: 'A museum, cultural center, or heritage institution.' },
   { type: 'LABEL',        label: 'Label',        blurb: 'A music/film label managing multiple artists.' },
   { type: 'TEAM',         label: 'Team',         blurb: 'A sports team or crew.' },
 ];

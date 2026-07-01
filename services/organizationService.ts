@@ -97,11 +97,14 @@ export async function deleteOrganization(orgId: string): Promise<void> {
 
 /** Public org directory (optionally by type), newest-active first. */
 export async function fetchPublicOrganizations(orgType?: OrgType): Promise<Organization[]> {
+  // Single equality filter only — a two-equality query (isPublic + orgType) needs a
+  // composite index (which fails silently). Filter by orgType server-side, isPublic client-side.
   const q = orgType
-    ? query(collection(db, 'organizations'), where('isPublic', '==', true), where('orgType', '==', orgType), limit(50))
-    : query(collection(db, 'organizations'), where('isPublic', '==', true), limit(50));
+    ? query(collection(db, 'organizations'), where('orgType', '==', orgType), limit(80))
+    : query(collection(db, 'organizations'), where('isPublic', '==', true), limit(80));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Organization))
+    .filter(o => o.isPublic !== false)
     .sort((a, b) => (b.followerCount || 0) - (a.followerCount || 0));
 }
 
