@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
+import { buildShareUrl } from '../services/deepLinkService';
 import { getActiveCaption } from '../src/lib/captions';
 import WorldBadge from './WorldBadge';
 import Visualizer from './Visualizer';
@@ -1222,7 +1223,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             title={t.title}
                             artist={t.artist || album.artist}
                             text={`🎵 ${t.title} — ${t.artist || album.artist} on Plajah`}
-                            url={`${window.location.origin}/share?type=album&id=${album.id}&track=${t.id}`}
+                            url={buildShareUrl('album', album.id, { track: t.id })}
                             imageUrl={album.coverImage}
                             plajahLabel="Share to Plajah feed"
                             onPostToPlajah={async () => {
@@ -2483,7 +2484,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        title={currentTrack?.title || album.title}
                        artist={album.artist}
                        text={`🎵 ${currentTrack?.title || album.title} — ${album.artist} on Plajah`}
-                       url={`${window.location.origin}/share?type=album&id=${album.id}${currentTrack?.id ? `&track=${currentTrack.id}` : ''}`}
+                       url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
                        imageUrl={album.coverImage}
                        plajahLabel="Share to Plajah feed"
                        onPostToPlajah={async () => {
@@ -2937,7 +2938,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           </div>
                           <button 
                             onClick={() => {
-                              const url = `${window.location.origin}${window.location.pathname}?id=${album.id}&track=${album.tracks[currentTrackIndex]?.id || 'album'}`;
+                              const url = buildShareUrl('album', album.id, { track: album.tracks[currentTrackIndex]?.id || 'album' });
                               navigator.clipboard.writeText(url);
                               alert('Plajah Social link copied to clipboard!');
                             }}

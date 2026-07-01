@@ -31,6 +31,7 @@ import {
 } from '../services/backendService';
 import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, saveSessionRecording } from '../services/liveStreamService';
+import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
@@ -380,12 +381,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
 
   const copyLink = () => {
-    const url = `${window.location.origin}?stream=${streamId}`;
+    const url = buildShareUrl('livestream', streamId);
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
 
   const shareStream = async () => {
-    const url = `${window.location.origin}?stream=${streamId}`;
+    const url = buildShareUrl('livestream', streamId);
     if (navigator.share) {
       await navigator.share({ title: title || 'Live Stream', url }).catch(() => {});
     } else {

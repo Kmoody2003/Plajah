@@ -318,6 +318,7 @@ import SidebarSearch from './components/SidebarSearch';
 import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
+import { buildShareUrl } from './services/deepLinkService';
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
@@ -1319,8 +1320,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const handleShareAlbum = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const url = `${window.location.origin}${window.location.pathname}?id=${id}`;
-    navigator.clipboard.writeText(url);
+    // Direct link to the album itself — not `${pathname}?id=` (which was often the
+    // homepage). buildShareUrl produces a URL the boot handler opens straight onto it.
+    navigator.clipboard.writeText(buildShareUrl('album', id));
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };

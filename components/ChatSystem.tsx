@@ -13,6 +13,7 @@ import {
   fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
 } from '../services/backendService';
 import { useCall } from '../contexts/CallContext';
+import { buildShareUrl, shareOrigin } from '../services/deepLinkService';
 import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
@@ -228,7 +229,11 @@ const InviteFriendsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [foundOnPlajah, setFoundOnPlajah] = useState<UserProfile[]>([]);
   const [inviteStep, setInviteStep] = useState<'main' | 'contacts'>('main');
 
-  const inviteLink = `${window.location.origin}?invite=${auth.currentUser?.uid ?? 'plajah'}`;
+  // Land the recipient directly on the inviter's profile (where they can message /
+  // follow) instead of the bare homepage — a direct, working invite link.
+  const inviteLink = auth.currentUser?.uid
+    ? buildShareUrl('profile', auth.currentUser.uid)
+    : shareOrigin();
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(inviteLink);

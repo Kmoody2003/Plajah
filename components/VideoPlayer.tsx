@@ -4,6 +4,7 @@ import {
   likeVideo, unlikeVideo, postVideoComment, listenToVideoComments,
   fetchUserProfile, checkIfLiked, updateVideo, auth,
 } from '../services/backendService';
+import { buildShareUrl } from '../services/deepLinkService';
 import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
@@ -598,7 +599,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   };
 
   const handleShare = () => {
-    const url = window.location.href;
+    // Direct link to THIS video — not window.location.href (the current page).
+    const url = buildShareUrl('video', video.id);
     if (navigator.share) navigator.share({ title: video.title, url }).catch(() => {});
     else { navigator.clipboard.writeText(url); }
   };
