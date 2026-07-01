@@ -1694,6 +1694,80 @@ export interface ClubMembership {
   joinedAt: number;
 }
 
+// ─── ORGANIZATIONS (Part 2) ─────────────────────────────────────────────────
+// A first-class parallel account — a merger of a business page + a club. Brand
+// accounts are Organizations with orgType 'BRAND'; the church vertical specializes
+// this same primitive (orgType 'CHURCH'), never forks it.
+
+export type OrgType = 'BRAND' | 'BUSINESS' | 'CHURCH' | 'NONPROFIT' | 'LABEL' | 'TEAM' | 'OTHER';
+export type OrgRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'MODERATOR' | 'MEMBER';
+
+export interface OrgRosterMember {
+  memberId: string;      // uid (or free id) of a person on the org's public roster
+  name: string;
+  photo?: string;
+  role?: string;         // e.g. "Lead Vocalist", "Senior Pastor"
+}
+
+export interface Organization {
+  id: string;
+  orgType: OrgType;
+  name: string;
+  handle?: string;       // unique @handle for the org page
+  tagline?: string;
+  about: string;
+  logoUrl?: string;
+  coverUrl?: string;
+  accentColor?: string;
+
+  // Ownership & staff
+  creatorId: string;
+  admins: string[];
+
+  // Community (from Club)
+  channels?: ClubChannel[];
+  isPrivate?: boolean;
+  joinProcess?: ClubJoinProcess;
+  monthlyPrice?: number;
+  yearlyPrice?: number;
+
+  // Roster + showcase (from BrandPublicPageData)
+  roster?: OrgRosterMember[];
+  featuredIds?: string[];               // album/video/post ids to feature
+  socialLinks?: { instagram?: string; twitter?: string; spotify?: string; youtube?: string; website?: string };
+
+  // Business face (from BusinessPage)
+  category?: string;
+  location?: { address?: string; city?: string; phone?: string; email?: string; website?: string };
+  hours?: { [day: string]: { open: string; close: string; closed?: boolean } };
+  isVerified?: boolean;
+
+  // Money
+  stripeAccountId?: string;
+
+  // Metrics + flags
+  followerCount?: number;
+  memberCount?: number;
+  isPublic?: boolean;
+  isDemo?: boolean;
+  tags?: string[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface OrgMembership {
+  id: string;
+  orgId: string;
+  userId: string;
+  role: OrgRole;
+  status: 'ACTIVE' | 'PENDING' | 'BANNED';
+  displayName: string;
+  photoUrl?: string;
+  title?: string;        // staff title, e.g. "Youth Pastor", "Tour Manager"
+  joinedAt: number;
+}
+
 export interface ClubPost {
   id: string;
   clubId: string;
