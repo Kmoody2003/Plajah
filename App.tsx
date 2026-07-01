@@ -1297,15 +1297,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const s = getThemeStyles();
 
   const handleCreateAlbum = async (newAlbum: Album) => {
-    if (editingAlbum) {
-      setAlbums(albums.map(a => a.id === newAlbum.id ? newAlbum : a));
-      setEditingAlbum(null);
-    } else {
-      setAlbums([newAlbum, ...albums]);
+    // Publishing runs in the BACKGROUND now (the creator closes on submit and the
+    // upload finishes in the tray). So this fires when a background job completes —
+    // surface the result QUIETLY and never hijack navigation (the user may be
+    // elsewhere). Ignore non-album results (e.g. a Reello Video, which already
+    // lives in its own collection) so we don't push a malformed album into PREVIEW.
+    const item = newAlbum as any;
+    if (!item || !item.id || !item.type || !Array.isArray(item.tracks)) {
+      if (editingAlbum) setEditingAlbum(null);
+      return;
     }
-    setShowCreator(false);
-    setSelectedAlbum(newAlbum);
-    setView('PREVIEW');
+    setAlbums(prev => prev.some(a => a.id === item.id) ? prev.map(a => a.id === item.id ? newAlbum : a) : [newAlbum, ...prev]);
+    if (editingAlbum) setEditingAlbum(null);
   };
 
   const handleDeleteAlbum = async (id: string) => {
