@@ -14,6 +14,10 @@ import { registerSW } from 'virtual:pwa-register';
 // We short-circuit here and mount only the ProgramOutView clone, lazily so it
 // never weighs on the main bundle.
 const ProgramOutView = React.lazy(() => import('./components/plajahPixels/components/ProgramOutView'));
+// Teleprompter talent window — opened by the Operator Console at ?role=prompter.
+// Its OWN minimal entry (like ProgramOut): render only the scrolling Prompter,
+// which syncs to the operator over a same-origin BroadcastChannel.
+const PrompterScreen = React.lazy(() => import('./components/teleprompter/PrompterScreen'));
 
 // ── Force the whole app onto the discrete GPU (NVIDIA), not the integrated one ──
 // A browser binds a page to ONE GPU, decided by the power-preference of its WebGL
@@ -194,8 +198,9 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-const isProgramOut =
-  new URLSearchParams(window.location.search).get('programOut') === '1';
+const search = new URLSearchParams(window.location.search);
+const isProgramOut = search.get('programOut') === '1';
+const isPrompterWindow = search.get('role') === 'prompter';
 
 if (isProgramOut) {
   // External display / video-wall clone — composite only, no platform shell.
@@ -204,6 +209,22 @@ if (isProgramOut) {
       <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
           <ProgramOutView />
+        </React.Suspense>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} else if (isPrompterWindow) {
+  // Teleprompter talent display — only the scrolling prompter; syncs to the
+  // operator over BroadcastChannel. No platform shell (a clean confidence monitor).
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
+          <PrompterScreen
+            initialScriptTitle="Waiting for script…"
+            initialScriptContent={'# [No Script Loaded]\nOpen the Operator Console and select a script to begin.'}
+            isStandalone={false}
+          />
         </React.Suspense>
       </ErrorBoundary>
     </React.StrictMode>

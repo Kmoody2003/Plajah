@@ -171,6 +171,7 @@ const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchi
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
+const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -640,6 +641,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenBible = () => setView('BIBLE');
     window.addEventListener('OPEN_BIBLE', handleOpenBible);
 
+    const handleOpenTeleprompter = () => setView('TELEPROMPTER');
+    window.addEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
+
     // Open Fabula (e.g. after a Pixels → Fabula export; Fabula reads the idb handoff on boot).
     const handleOpenFabula = () => setView('FABULA' as AppView);
     window.addEventListener('OPEN_FABULA', handleOpenFabula);
@@ -652,6 +656,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
+      window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
   }, [user]);
@@ -3672,6 +3677,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
             {view === 'PLAJAH_PIXELS' && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
+
+            {view === 'TELEPROMPTER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TeleprompterApp onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />}
             {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" />}
