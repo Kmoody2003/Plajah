@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
@@ -20,6 +20,7 @@ import { uploadFile, searchUserProfiles } from '../services/backendService';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
+import ChurchConsole from './ChurchConsole';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -233,6 +234,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [giving, setGiving] = useState(!!initialGive);
   const [studio, setStudio] = useState(false);
   const [master, setMaster] = useState(false);
+  const [showConsole, setShowConsole] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
@@ -251,6 +253,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (master && isOwner) {
     return <ChurchMasterControl church={org} onClose={() => setMaster(false)} />;
+  }
+  if (showConsole && isOwner) {
+    return <ChurchConsole church={org} onClose={() => setShowConsole(false)} />;
   }
 
   return (
@@ -309,6 +314,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               {isOwner && (
                 <button onClick={() => setMaster(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
                   <MonitorPlay size={14} className="text-small-orange" /> Master Control
+                </button>
+              )}
+              {isOwner && (
+                <button onClick={() => setShowConsole(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                  <Mail size={14} className="text-small-orange" /> Console
                 </button>
               )}
             </div>

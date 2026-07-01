@@ -1347,6 +1347,16 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated();
     }
 
+    // Church congregant records (Servant Keeper import/export). Church staff only.
+    match /congregants/{personId} {
+      allow read: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
+      allow create: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.churchId)).data.admins;
+      allow update, delete: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
+    }
+
     match /orgMemberships/{membershipId} {
       allow read: if isAuthenticated();
       // Join yourself, OR an org admin adds/manages a member.
