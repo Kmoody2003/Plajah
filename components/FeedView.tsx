@@ -28,6 +28,7 @@ import { updateUserProfile as _updatePresence } from '../services/backendService
 import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import UniversalPostComposer from './UniversalPostComposer';
+import { useActiveIdentity, IdentitySwitcher } from '../contexts/ActiveIdentityContext';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
@@ -1260,6 +1261,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composerAlbumEmbed, setComposerAlbumEmbed] = useState<Album | null>(null);
   const [globalComposerTheme, setGlobalComposerTheme] = useState<FeedItem['theme']>('STANDARD');
   const [activeTab, setActiveTab] = useState<FeedTab>('GLOBAL');
+  const { activeOrg } = useActiveIdentity();
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
   const [showNowOnboarding, setShowNowOnboarding] = useState(false);
   const [showNowBanner, setShowNowBanner] = useState(() => {
@@ -2588,6 +2590,7 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
             <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Go live →</span>
           </button>
+          <div className="mb-2"><IdentitySwitcher selfName={currentUser?.displayName} selfPhoto={currentUser?.photoURL} /></div>
           <UniversalPostComposer
             currentUser={currentUser}
             placeholder="What's happening in the studio? Design a gorgeous post..."
@@ -2612,7 +2615,8 @@ const toggleFavoriteTeam = async (team: string) => {
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                 ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
-              });
+                ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+              } as any);
             }}
             onMakeStory={() => setShowStoryCreator(true)}
           />
@@ -3058,7 +3062,8 @@ const toggleFavoriteTeam = async (team: string) => {
                   isPublic: true,
                   ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                   ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
-                });
+                  ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+                } as any);
               }}
               onMakeStory={() => setShowStoryCreator(true)}
             />

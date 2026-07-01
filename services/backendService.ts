@@ -1347,12 +1347,19 @@ export const createPost = async (post: Partial<Post>) => {
   const path = 'posts';
   const feedPath = 'feed';
   try {
+    // "Operate as org": a caller may present the post as an organization the user
+    // runs. authorId STAYS the user's uid (ownership + Storage/rules), while the
+    // displayed name/photo become the org's + authorOrgId/authorIsOrg mark it.
+    const orgId = (post as any).authorOrgId as string | undefined;
+    const authorName = post.authorName || auth.currentUser.displayName || 'Anonymous';
+    const authorPhoto = post.authorPhoto || auth.currentUser.photoURL || '';
     const postData = removeUndefined({
       ...post,
       text: post.text || '',
       authorId: auth.currentUser.uid,
-      authorName: auth.currentUser.displayName || 'Anonymous',
-      authorPhoto: auth.currentUser.photoURL || '',
+      authorName,
+      authorPhoto,
+      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
       likesCount: 0,
       commentsCount: 0,
       timestamp: Date.now(),
@@ -1365,8 +1372,9 @@ export const createPost = async (post: Partial<Post>) => {
     // Mirror to feed collection — fire-and-forget so a feed write failure can't kill the post
     addDoc(collection(db, feedPath), {
       authorId: auth.currentUser.uid,
-      authorName: auth.currentUser.displayName || 'Anonymous',
-      authorPhoto: auth.currentUser.photoURL || '',
+      authorName,
+      authorPhoto,
+      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
       type: post.media && post.media.length > 0 ? 'PICTURE' : 'NEWS',
       content: post.text || '',
       timestamp: Date.now(),

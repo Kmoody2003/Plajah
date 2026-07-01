@@ -307,6 +307,7 @@ import UploadManager from './components/UploadManager';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
 import PublishTray from './components/PublishTray';
 import { CallProvider } from './contexts/CallContext';
+import { ActiveIdentityProvider } from './contexts/ActiveIdentityContext';
 import ProjectTray from './components/ProjectTray';
 
 import SpatialToggle from './components/SpatialToggle';
@@ -1633,6 +1634,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <UploadProvider>
               <PublishQueueProvider>
               <NotificationProvider>
+                <ActiveIdentityProvider>
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <Suspense fallback={
@@ -4183,6 +4185,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </Suspense>
             </SpatialProvider>
                 </CallProvider>
+                </ActiveIdentityProvider>
           </NotificationProvider>
               </PublishQueueProvider>
         </UploadProvider>

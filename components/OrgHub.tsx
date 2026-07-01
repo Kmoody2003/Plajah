@@ -9,11 +9,12 @@ import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
 } from 'lucide-react';
-import type { Organization, OrgMembership, OrgType } from '../types';
+import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
+  addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
 } from '../services/organizationService';
-import { uploadFile } from '../services/backendService';
+import { uploadFile, searchUserProfiles } from '../services/backendService';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -34,15 +35,26 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Organization | null>(null);
+  const [legacyCount, setLegacyCount] = useState(0);
+  const [importing, setImporting] = useState(false);
 
   const loadOrgs = useCallback(async () => {
     if (!user?.uid) return;
     setLoading(true);
-    try { setOrgs(await fetchUserOrganizations(user.uid)); } catch { /* */ }
+    try {
+      setOrgs(await fetchUserOrganizations(user.uid));
+      setLegacyCount((await fetchUnmigratedBrands()).length);
+    } catch { /* */ }
     setLoading(false);
   }, [user?.uid]);
 
   useEffect(() => { loadOrgs(); }, [loadOrgs]);
+
+  const importBrands = async () => {
+    setImporting(true);
+    try { await migrateLegacyBrands(); await loadOrgs(); } catch { /* */ }
+    setImporting(false);
+  };
   useEffect(() => {
     if (initialOrgId) {
       import('../services/organizationService').then(m => m.fetchOrganization(initialOrgId)).then(o => { if (o) { setActive(o); setMode('view'); } });
@@ -61,7 +73,14 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
     <div className="min-h-full p-6 lg:p-12 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-10">
         <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14} /> Back</button>
-        <button onClick={() => setMode('create')} className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110"><Plus size={14} /> New organization</button>
+        <div className="flex items-center gap-2">
+          {legacyCount > 0 && (
+            <button onClick={importBrands} disabled={importing} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">
+              {importing ? <Loader2 size={13} className="animate-spin" /> : <Building2 size={13} />} Import {legacyCount} brand{legacyCount > 1 ? 's' : ''}
+            </button>
+          )}
+          <button onClick={() => setMode('create')} className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110"><Plus size={14} /> New organization</button>
+        </div>
       </div>
       <div className="flex items-center gap-3 mb-8">
         <div className="p-3 bg-small-orange/15 rounded-2xl"><Building2 className="text-small-orange" size={24} /></div>
@@ -191,9 +210,16 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
 );
 
 // ── Public / owner org profile ──────────────────────────────────────────────
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void }> = ({ org, isOwner, onBack }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void }> = ({ org: initialOrg, isOwner, onBack }) => {
+  const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
-  useEffect(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
+  const [managing, setManaging] = useState(false);
+  const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
+  useEffect(() => { reloadStaff(); }, [reloadStaff]);
+
+  if (managing && isOwner) {
+    return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
+  }
 
   return (
     <div className="min-h-full">
@@ -218,7 +244,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 mt-1">{org.orgType}{org.category ? ` · ${org.category}` : ''}</p>
           </div>
           {isOwner && (
-            <span className="pb-3 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30"><Pencil size={11} /> You manage this</span>
+            <button onClick={() => setManaging(true)} className="pb-2 flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"><Pencil size={11} /> Manage</button>
           )}
         </div>
 
@@ -265,6 +291,112 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         )}
         <div className="h-16" />
       </div>
+    </div>
+  );
+};
+
+// ── Owner management: edit details + staff/roles ────────────────────────────
+const ROLES: OrgRole[] = ['OWNER', 'ADMIN', 'STAFF', 'MODERATOR', 'MEMBER'];
+
+const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: () => void; onSaved: (o: Organization) => void; reloadStaff: () => void }> = ({ org, staff, onClose, onSaved, reloadStaff }) => {
+  const [name, setName] = useState(org.name);
+  const [tagline, setTagline] = useState(org.tagline || '');
+  const [about, setAbout] = useState(org.about || '');
+  const [category, setCategory] = useState(org.category || '');
+  const [website, setWebsite] = useState(org.socialLinks?.website || '');
+  const [isPrivate, setIsPrivate] = useState(!!org.isPrivate);
+  const [monthly, setMonthly] = useState<string>(org.monthlyPrice ? String(org.monthlyPrice) : '');
+  const [busy, setBusy] = useState(false);
+
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const saveDetails = async () => {
+    setBusy(true);
+    try {
+      const patch: Partial<Organization> = {
+        name: name.trim() || org.name, tagline: tagline.trim(), about: about.trim(),
+        category: category.trim() || undefined, isPrivate,
+        socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
+        monthlyPrice: monthly ? Number(monthly) : undefined,
+      };
+      await updateOrganization(org.id, patch);
+      onSaved({ ...org, ...patch } as Organization);
+    } catch { alert('Could not save.'); }
+    setBusy(false);
+  };
+
+  const doSearch = async () => {
+    if (!q.trim()) { setResults([]); return; }
+    setSearching(true);
+    try { setResults((await searchUserProfiles(q.trim())).filter((u: any) => !staff.some(s => s.userId === u.uid)).slice(0, 6)); } catch { /* */ }
+    setSearching(false);
+  };
+
+  const addStaff = async (u: any) => {
+    await addOrgMember(org.id, { userId: u.uid, displayName: u.displayName || 'Member', photoUrl: u.photoURL, role: 'STAFF' });
+    setQ(''); setResults([]); reloadStaff();
+  };
+
+  return (
+    <div className="min-h-full p-6 lg:p-12 max-w-2xl mx-auto">
+      <button onClick={onClose} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest mb-8"><ArrowLeft size={14} /> Done</button>
+      <h1 className="text-3xl font-black uppercase tracking-tight text-white mb-1">Manage {org.name}</h1>
+      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-8">Details, membership & staff</p>
+
+      <section className="space-y-4 mb-10">
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Details</h2>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" className={field} />
+        <input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Tagline" className={field} />
+        <textarea value={about} onChange={e => setAbout(e.target.value)} rows={3} placeholder="About" className={`${field} resize-none`} />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Category" className={field} />
+          <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="Website" className={field} />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <button onClick={() => setIsPrivate(p => !p)} className={`px-4 py-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${isPrivate ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50'}`}>{isPrivate ? 'Private' : 'Public'}</button>
+          <input value={monthly} onChange={e => setMonthly(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Monthly membership $ (optional)" className={field} />
+        </div>
+        <button onClick={saveDetails} disabled={busy} className="w-full py-4 bg-small-orange text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
+          {busy ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save details'}
+        </button>
+      </section>
+
+      <section>
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-3">Staff</h2>
+        <div className="flex gap-2 mb-4">
+          <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') doSearch(); }} placeholder="Search people to add…" className={field} />
+          <button onClick={doSearch} className="px-5 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">{searching ? '…' : 'Find'}</button>
+        </div>
+        {results.length > 0 && (
+          <div className="mb-4 space-y-1">
+            {results.map(u => (
+              <div key={u.uid} className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.04] border border-white/10">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0">{u.photoURL && <img src={u.photoURL} alt="" className="w-full h-full object-cover" />}</div>
+                <span className="flex-1 text-xs font-bold text-white truncate">{u.displayName}</span>
+                <button onClick={() => addStaff(u)} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-small-orange text-black hover:brightness-110">Add</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="space-y-2">
+          {staff.map(m => (
+            <div key={m.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
+              <div className="w-9 h-9 rounded-full overflow-hidden bg-white/10 shrink-0">{m.photoUrl && <img src={m.photoUrl} alt="" className="w-full h-full object-cover" />}</div>
+              <span className="flex-1 text-sm font-bold text-white truncate">{m.displayName}</span>
+              <select value={m.role} disabled={m.role === 'OWNER'} onChange={async e => { await setOrgMemberRole(m.id, e.target.value as OrgRole); reloadStaff(); }}
+                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-black text-white outline-none [&>option]:bg-[#0c0c0f] disabled:opacity-50">
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {m.role !== 'OWNER' && (
+                <button onClick={async () => { await removeOrgMember(m.id); reloadStaff(); }} className="text-white/30 hover:text-red-400 text-[9px] font-black uppercase tracking-widest">Remove</button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      <div className="h-16" />
     </div>
   );
 };

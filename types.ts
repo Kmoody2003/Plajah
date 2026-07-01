@@ -1479,9 +1479,12 @@ export interface FollowRelation {
 
 export interface Post {
   id: string;
-  authorId: string;
+  authorId: string;         // always the owning user's uid (permissions)
   authorName: string;
   authorPhoto: string;
+  /** Set when posted "as" an organization — display uses the org identity. */
+  authorIsOrg?: boolean;
+  authorOrgId?: string;
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
@@ -1751,6 +1754,9 @@ export interface Organization {
   isPublic?: boolean;
   isDemo?: boolean;
   tags?: string[];
+
+  /** If migrated from a legacy BrandAccount, its id — prevents re-migration. */
+  legacyBrandId?: string;
 
   createdAt: number;
   updatedAt: number;

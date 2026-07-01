@@ -53,6 +53,7 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     isPublic: data.isPublic ?? true,
     isDemo: data.isDemo,
     tags: data.tags,
+    legacyBrandId: data.legacyBrandId,
     createdAt: now,
     updatedAt: now,
   };
@@ -132,4 +133,62 @@ export async function joinOrganization(orgId: string, opts?: { role?: OrgRole; t
 /** Add / promote a staff member (owner/admin action). */
 export async function setOrgMemberRole(membershipId: string, role: OrgRole, title?: string): Promise<void> {
   await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ role, title }));
+}
+
+/** Owner/admin adds another user to the org's staff. */
+export async function addOrgMember(orgId: string, member: { userId: string; displayName: string; photoUrl?: string; role?: OrgRole; title?: string }): Promise<OrgMembership | null> {
+  const ref = doc(collection(db, 'orgMemberships'));
+  const m: OrgMembership = {
+    id: ref.id, orgId, userId: member.userId,
+    role: member.role || 'STAFF', status: 'ACTIVE',
+    displayName: member.displayName, photoUrl: member.photoUrl, title: member.title,
+    joinedAt: Date.now(),
+  };
+  await setDoc(ref, stripUndefined(m));
+  return m;
+}
+
+export async function removeOrgMember(membershipId: string): Promise<void> {
+  await deleteDoc(doc(db, 'orgMemberships', membershipId));
+}
+
+/** Grant/revoke edit rights by putting a member's uid in (or out of) org.admins. */
+export async function setOrgAdmin(orgId: string, uid: string, isAdmin: boolean, currentAdmins: string[]): Promise<string[]> {
+  const admins = isAdmin ? Array.from(new Set([...currentAdmins, uid])) : currentAdmins.filter(a => a !== uid);
+  await updateOrganization(orgId, { admins });
+  return admins;
+}
+
+// ── Legacy brand migration (slice 5) ────────────────────────────────────────
+// Fold the old BrandAccount records (brand_accounts collection) into real
+// Organizations. Idempotent: an org carries legacyBrandId so a brand migrates once.
+
+export async function fetchUnmigratedBrands(): Promise<Array<{ id: string; name?: string; description?: string; logoUrl?: string; coverUrl?: string }>> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'brand_accounts'), where('managers', 'array-contains', uid)));
+    const brands = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    const orgs = await fetchUserOrganizations(uid);
+    const migrated = new Set(orgs.map(o => o.legacyBrandId).filter(Boolean));
+    return brands.filter(b => !migrated.has(b.id));
+  } catch { return []; }
+}
+
+/** Create an Organization for each of the user's un-migrated legacy brands. */
+export async function migrateLegacyBrands(): Promise<Organization[]> {
+  const brands = await fetchUnmigratedBrands();
+  const created: Organization[] = [];
+  for (const b of brands) {
+    const org = await createOrganization({
+      orgType: 'BRAND',
+      name: b.name || 'Brand',
+      about: b.description || '',
+      logoUrl: b.logoUrl,
+      coverUrl: b.coverUrl,
+      legacyBrandId: b.id,
+    }).catch(() => null);
+    if (org) created.push(org);
+  }
+  return created;
 }
