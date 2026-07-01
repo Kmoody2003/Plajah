@@ -6,7 +6,17 @@ import {
   bulkDeletePhotos, addPhotosToAlbum, updateAccountType, fetchArtistMerch,
   fetchUserWorlds, createIPWorld
 } from '../services/backendService';
-import { accountFlagUpdate } from '../services/accountCapabilities';
+import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, type Capability } from '../services/accountCapabilities';
+
+// Human labels for the capabilities shown in the "your account unlocks" panel.
+const CAP_LABELS: Record<Capability, string> = {
+  CREATE_MUSIC: 'Publish music', CREATE_VIDEO: 'Publish video & film', CREATE_BOOK: 'Self-publish books',
+  CREATE_ARTICLE: 'Write articles', CREATE_PHOTO: 'Photo galleries', CREATE_GAME: 'Publish games',
+  RUN_RADIO: 'Run a radio station', LIVE_STREAM: 'Go live', SELL_MERCH: 'Sell merch', MONETIZE: 'Monetize',
+  MANAGE_BRAND: 'Manage a brand', MANAGE_ORG: 'Run an organization',
+  TEACH: 'Create classrooms', ENROLL: 'Enroll in classes', PROVISION_LEARNERS: 'Provision learners',
+  MANAGE_FAMILY: 'Manage family accounts', ATHLETE_PROFILE: 'Athlete profile', PARTNER_INTEGRATIONS: 'Partner integrations',
+};
 import StoreManager from './StoreManager';
 import RevenueDashboard from './RevenueDashboard';
 import WorldManagerView from './WorldManagerView';
@@ -227,7 +237,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
         </div>
 
         <nav className="flex-1 space-y-2">
-          {[
+          {([
             { id: 'ACCOUNT', label: 'Account Settings', icon: User },
             { id: 'FAMILY', label: 'Family', icon: Baby },
             { id: 'SAFETY', label: 'Content & Safety', icon: Settings },
@@ -236,14 +246,16 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'WORLDS', label: 'My Worlds', icon: Globe },
             { id: 'ASSETS', label: 'My Assets', icon: Database },
             { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon },
-            { id: 'BROADCAST', label: 'Broadcast Studio', icon: Tv },
+            { id: 'BROADCAST', label: 'Broadcast Studio', icon: Tv, cap: 'LIVE_STREAM' as Capability },
             { id: 'PAYMENTS', label: 'Payments & Revenue', icon: CreditCard },
             { id: 'MAILING_LIST', label: 'Mailing List', icon: Mail },
-            { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio },
+            { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio, cap: 'RUN_RADIO' as Capability },
             { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
             { id: 'THEMES', label: 'Theme Presets', icon: LayoutTemplate },
             { id: 'NETWORKS', label: 'Social Networks', icon: Share2 },
-          ].map(item => (
+          ] as { id: string; label: string; icon: any; cap?: Capability }[])
+            .filter(item => !item.cap || hasCapability(profile, item.cap))
+            .map(item => (
             <button 
               key={item.id}
               onClick={() => setActiveTab(item.id as any)}
@@ -254,7 +266,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </button>
           ))}
 
-          {profile?.accountType !== 'FAN' && (
+          {hasCapability(profile, 'SELL_MERCH') && (
             <button
               onClick={() => setActiveTab('STORE_MANAGEMENT')}
               className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'STORE_MANAGEMENT' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
@@ -265,7 +277,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           )}
 
           {/* ── Film Studio group ── */}
-          {profile?.accountType !== 'FAN' && (
+          {hasCapability(profile, 'CREATE_VIDEO') && (
             <>
               <div className="px-4 pt-4 pb-1">
                 <span className="text-[8px] font-black uppercase tracking-[0.35em] text-[#FF8C00]/60">Film Studio</span>
@@ -285,7 +297,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           )}
 
           {/* ── Music Studio group ── */}
-          {profile?.accountType !== 'FAN' && (
+          {hasCapability(profile, 'CREATE_MUSIC') && (
             <>
               <div className="px-4 pt-4 pb-1">
                 <span className="text-[8px] font-black uppercase tracking-[0.35em] text-purple-400/60">Music Studio</span>
@@ -311,7 +323,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           )}
 
           {/* ── Books Studio group ── */}
-          {profile?.accountType !== 'FAN' && (
+          {hasCapability(profile, 'CREATE_BOOK') && (
             <>
               <div className="px-4 pt-4 pb-1">
                 <span className="text-[8px] font-black uppercase tracking-[0.35em] text-amber-400/60">Books Studio</span>
@@ -331,7 +343,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
           )}
 
           {/* ── Classrooms group ── */}
-          {profile?.accountType !== 'FAN' && (
+          {hasCapability(profile, 'TEACH') && (
             <>
               <div className="px-4 pt-4 pb-1">
                 <span className="text-[8px] font-black uppercase tracking-[0.35em] text-sky-400/60">Classrooms</span>
@@ -349,8 +361,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </>
           )}
 
-          {profile?.accountType !== 'FAN' && (
-            <button 
+          {hasCapability(profile, 'MONETIZE') && (
+            <button
               onClick={() => setActiveTab('REVENUE')}
               className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'REVENUE' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
             >
@@ -359,8 +371,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </button>
           )}
 
-          {profile?.accountType !== 'FAN' && (
-            <button 
+          {hasCapability(profile, 'MONETIZE') && (
+            <button
               onClick={() => {
                 const event = new CustomEvent('NAVIGATE', { detail: { target: 'BRAND_DASHBOARD' } });
                 window.dispatchEvent(event);
@@ -372,8 +384,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </button>
           )}
 
-          {profile?.accountType !== 'FAN' && (
-            <button 
+          {hasCapability(profile, 'CREATE_VIDEO') && (
+            <button
               onClick={() => {
                 const event = new CustomEvent('NAVIGATE', { detail: { target: 'VIDEO_MANAGER' } });
                 window.dispatchEvent(event);
@@ -1109,7 +1121,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </button>
                   </div>
 
-                  {profile.accountType !== 'FAN' && (
+                  {hasCapability(profile, 'MONETIZE') && (
                     <div className="flex items-start justify-between gap-6 pt-6 border-t border-white/5">
                       <div>
                         <h3 className="text-xs font-black uppercase tracking-widest text-[#c084fc] mb-1">Artist Mode Landing Page</h3>
@@ -1185,9 +1197,29 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                       </button>
                     ))}
                   </div>
+
+                  {/* What this account type unlocks — the capability map made visible */}
+                  {profile.accountType && (
+                    <div className="mt-6 p-5 rounded-[2rem] bg-white/[0.03] border border-white/10">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles size={14} className="text-small-orange" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                          Your {ACCOUNT_TYPE_META[profile.accountType].label} account unlocks
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-white/40 mb-4">{ACCOUNT_TYPE_META[profile.accountType].blurb}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[...capabilitiesFor(profile.accountType)].map(cap => (
+                          <span key={cap} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
+                            <Check size={11} className="text-green-400" /> {CAP_LABELS[cap]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </section>
 
-                <button 
+                <button
                   type="submit"
                   disabled={isSaving}
                   className="flex items-center gap-3 px-10 py-5 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all active:scale-95 shadow-2xl disabled:opacity-50"
@@ -1198,7 +1230,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </motion.div>
           )}
 
-          {activeTab === 'STORE_MANAGEMENT' && profile.accountType !== 'FAN' && (
+          {activeTab === 'STORE_MANAGEMENT' && hasCapability(profile, 'SELL_MERCH') && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
               <header>
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Store Management</h1>
@@ -1214,7 +1246,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </motion.div>
           )}
 
-          {activeTab === 'REVENUE' && profile.accountType !== 'FAN' && (
+          {activeTab === 'REVENUE' && hasCapability(profile, 'MONETIZE') && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
               <header>
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Revenue & Money</h1>

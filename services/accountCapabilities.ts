@@ -72,7 +72,7 @@ export function capabilitiesFor(type: AccountType | undefined): Set<Capability> 
 
 /** True if the account (or bare type) unlocks a capability. */
 export function hasCapability(
-  who: Pick<UserProfile, 'accountType'> | AccountType | undefined,
+  who: Pick<UserProfile, 'accountType'> | AccountType | null | undefined,
   cap: Capability,
 ): boolean {
   const type = typeof who === 'string' ? who : who?.accountType;
