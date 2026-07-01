@@ -91,6 +91,16 @@ const fetchFirebaseDoc = async (collection: string, id: string) => {
   } catch(e) { return null; }
 };
 
+// The public-facing host. Firebase Hosting proxies to Cloud Run with the internal
+// run.app Host header, so prefer X-Forwarded-Host (the real plajah.com) and never leak
+// the run.app domain into og:url / twitter:player (a domain mismatch breaks previews).
+function publicHost(req: any): string {
+  const xfh = String(req.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
+  let h = xfh || (req.get?.('host')) || 'plajah.com';
+  if (/\.run\.app$/i.test(h)) h = (process.env.VITE_APP_URL || 'https://plajah.com').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return h;
+}
+
 const injectMetaTags = async (html: string, query: any, host: string) => {
    const { type, id, track } = query;
    if (!type || !id) return html;
@@ -158,18 +168,15 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta property="og:url" content="https://${safeHost}/?type=${safeType}&amp;id=${safeId}" />
    `;
 
+   // twitter:card = summary_large_image is the RELIABLE X card: a big thumbnail that always
+   // renders. X removed the player-card allowlist and its inline player is flaky ("this media
+   // could not be played / can't be reached"), so we do NOT emit twitter:player. Facebook &
+   // LinkedIn still get an inline player from the og:video set below (now that /embed is
+   // reachable + framable + resolves Mux). Always a large-image card on X.
+   metaTags += `\n    <meta name="twitter:card" content="summary_large_image" />`;
    if (playerUrl) {
      const safePlayerUrl = htmlEscape(playerUrl);
-     // X (Twitter) renders an inline player from twitter:player; Facebook/LinkedIn render
-     // one from the og:video set — but Facebook needs secure_url + type=text/html + size,
-     // not just og:video:url, or it falls back to a static image. Provide the full set so
-     // the link shows a playable mini-player (Suno-style) wherever player embeds are honored.
      metaTags += `
-    <meta name="twitter:card" content="player" />
-    <meta name="twitter:player" content="${safePlayerUrl}" />
-    <meta name="twitter:player:width" content="1280" />
-    <meta name="twitter:player:height" content="720" />
-    <meta name="twitter:player:stream" content="${safePlayerUrl}" />
     <meta property="og:type" content="video.other" />
     <meta property="og:video" content="${safePlayerUrl}" />
     <meta property="og:video:url" content="${safePlayerUrl}" />
@@ -178,12 +185,10 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta property="og:video:width" content="1280" />
     <meta property="og:video:height" content="720" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-     `;
+    <meta property="og:image:height" content="630" />`;
    } else {
      const ogType = (type === 'article' || type === 'book') ? 'article' : 'website';
      metaTags += `
-    <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:type" content="${ogType}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />`;
@@ -3233,6 +3238,11 @@ async function startServer() {
   });
 
   app.get('/embed', async (req, res) => {
+    // This is a PUBLIC embeddable player — it must be iframe-able cross-origin (X/Facebook/
+    // LinkedIn player cards, partner embeds). Helmet sets X-Frame-Options: SAMEORIGIN globally,
+    // which blocks that, so override it here with a permissive frame-ancestors CSP.
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Security-Policy', "frame-ancestors *");
     const { type, id, track } = req.query;
     if (!type || !id) return res.status(404).send('Not Found');
 
@@ -3334,6 +3344,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       mediaUrl = dbData.fields?.url?.stringValue || dbData.fields?.embedUrl?.stringValue || '';
       title = dbData.fields?.title?.stringValue || 'Video';
       cover = dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
+      // Mux-hosted videos have no direct `url` — build the HLS playback URL from the playback id.
+      const muxPlayback = dbData.fields?.muxPlaybackId?.stringValue;
+      if (!mediaUrl && muxPlayback) mediaUrl = `https://stream.mux.com/${muxPlayback}.m3u8`;
+      if (!cover && muxPlayback) cover = `https://image.mux.com/${muxPlayback}/thumbnail.jpg?width=1200`;
       if (mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be')) isYoutube = true;
     } else if (type === 'feed') {
       mediaUrl = dbData.fields?.videoUrl?.stringValue || '';
@@ -3344,6 +3358,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
     if (!mediaUrl) return res.status(404).send('No Media Found');
 
+    const isHls = mediaUrl.endsWith('.m3u8') || mediaUrl.includes('stream.mux.com');
     const safeMediaUrl = htmlEscape(mediaUrl);
     const safeCover = htmlEscape(cover);
     const safeTitle = htmlEscape(title);
@@ -3352,6 +3367,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         const embedLink = safeYouTubeEmbedUrl(mediaUrl);
         if (!embedLink) return res.status(400).send('Invalid YouTube URL');
         playerHtml = `<iframe src="${htmlEscape(embedLink)}" width="100%" height="100%" style="border:none" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+    } else if (isHls) {
+        // HLS (Mux): native in Safari; hls.js elsewhere. Poster shows immediately for previews.
+        playerHtml = `<video id="v" controls playsinline width="100%" height="100%" style="background:black" poster="${safeCover}"></video>
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+        <script>(function(){var v=document.getElementById('v'),src=${JSON.stringify(mediaUrl)};if(v.canPlayType('application/vnd.apple.mpegurl')){v.src=src;}else if(window.Hls&&window.Hls.isSupported()){var h=new window.Hls();h.loadSource(src);h.attachMedia(v);}else{v.src=src;}})();</script>`;
     } else if (mediaUrl.endsWith('.mp4') || mediaUrl.includes('/videos%2F') || type === 'video' || type === 'feed') {
         playerHtml = `<video src="${safeMediaUrl}" controls width="100%" height="100%" style="background:black" poster="${safeCover}"></video>`;
     } else {
@@ -3390,7 +3410,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // a shared track link renders an inline player card on social. Crawlers read
   // the meta; humans are bounced to the canonical app URL so the full app loads.
   app.get('/share', async (req, res) => {
-    const host = req.get('host') || 'plajah.com';
+    const host = publicHost(req);
     let html = '';
     try { html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); }
     catch {
