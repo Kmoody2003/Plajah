@@ -345,6 +345,14 @@ const App: React.FC = () => {
     pitchParam === 'research'     ? 'RESEARCH_MANIFESTO' :
     'LANDING';
 
+  // Is the app being opened on a shared deep link? If so, a signed-out visitor must
+  // NOT be bounced to LANDING — the deep-link handler owns the initial view.
+  const hasDeepLink = (() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (['id', 'type', 'org', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view'].some(k => sp.get(k))) return true;
+    return /^\/(profile|release|event|clubs|athlete|book)\//.test(window.location.pathname);
+  })();
+
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
@@ -1065,7 +1073,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         });
       } else {
         setUserProfile(null);
-        setViewInternal('LANDING');
+        // Don't clobber a shared deep-link view (profile/video/album/etc.) for
+        // signed-out visitors — that's how public share links reach the content.
+        if (!hasDeepLink) setViewInternal('LANDING');
       }
     });
     return () => {
