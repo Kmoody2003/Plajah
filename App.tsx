@@ -536,6 +536,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Smart Guide
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
+  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean } | null>(null);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -1075,6 +1076,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const params = new URLSearchParams(window.location.search);
       const projectId = params.get('id');
       const shareType = params.get('type');
+
+      // Deep-link: ?org={id} (&give=1) — open an organization / church page (or its giving flow)
+      const orgIdParam = params.get('org');
+      if (orgIdParam) {
+        setOrgHubInitial({ orgId: orgIdParam, give: params.get('give') === '1' });
+        setView('ORG_HUB');
+        setIsLoading(false);
+        return;
+      }
 
       // Deep-link: ?livestream={id} — opens the WebRTC viewer directly
       const lsId = params.get('livestream');
@@ -3160,7 +3170,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ORG_HUB' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => setView('CREATOR')} />
+                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} />
               </Suspense>
             )}
 

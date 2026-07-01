@@ -981,6 +981,10 @@ export interface Donation {
   amount: number;
   message?: string;
   timestamp: number;
+  // Church giving
+  churchId?: string;
+  fund?: string;
+  recurring?: boolean;
 }
 
 export interface PrivateBoard {
@@ -1720,6 +1724,14 @@ export interface ServiceTime {
   isOnline?: boolean;
 }
 
+export interface GivingFund {
+  id: string;
+  name: string;           // "General", "Missions", "Building"
+  description?: string;
+  goal?: number;          // fundraising target ($), optional
+  raised?: number;        // amount given so far ($)
+}
+
 // ─── ORGANIZATIONS (Part 2) ─────────────────────────────────────────────────
 // A first-class parallel account — a merger of a business page + a club. Brand
 // accounts are Organizations with orgType 'BRAND'; the church vertical specializes
@@ -1784,9 +1796,10 @@ export interface Organization {
   // Church vertical (orgType 'CHURCH')
   ministries?: Ministry[];
   serviceTimes?: ServiceTime[];
+  givingFunds?: GivingFund[];
   denomination?: string;
   statementOfFaith?: string;
-  givingUrl?: string;         // external giving link until Phase 2 native giving
+  givingUrl?: string;         // external giving link (fallback to native Stripe giving)
 
   createdAt: number;
   updatedAt: number;

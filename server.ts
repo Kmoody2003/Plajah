@@ -546,6 +546,23 @@ async function startServer() {
             });
           }
 
+          // ── Church giving (one-time or recurring) ─────────────────────────────
+          if (meta.type === 'church_donation') {
+            await firestoreCreate('donations', {
+              fromId: meta.uid,
+              fromName: '',
+              toId: meta.churchId,
+              churchId: meta.churchId,
+              fund: meta.fund || 'General',
+              amount: parseFloat(meta.amount || '0'),
+              recurring: meta.recurring === 'true' || mode === 'subscription',
+              message: meta.message || '',
+              stripePaymentIntentId: session.payment_intent || '',
+              stripeSubscriptionId: session.subscription || '',
+              timestamp: now,
+            });
+          }
+
           // ── Event ticket fulfillment ──────────────────────────────────────────
           if (mode === 'payment' && meta.type === 'event_ticket' && meta.eventId) {
             const orderNum = `PLJ-${Date.now().toString(36).toUpperCase().slice(-8)}`;
@@ -1459,6 +1476,49 @@ async function startServer() {
           message: message ?? '',
           isAnonymous: String(!!isAnonymous),
           backerName: '', // will be resolved from user profile
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stripe: Church Donation (one-time or recurring) ───────────────────────
+  app.post('/api/stripe/church-donation', authMiddleware, async (req: any, res) => {
+    try {
+      const stripe = getStripe();
+      const uid: string = req.uid;
+      const { churchId, churchName, amount, fund, recurring, message } = req.body;
+
+      if (!churchId || !amount || amount < 1) {
+        return res.status(400).json({ error: 'churchId and amount (min $1) required' });
+      }
+      const origin = req.headers.origin || 'https://gen-lang-client-0665118474.web.app';
+      const isSub = !!recurring;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: isSub ? 'subscription' : 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `${churchName || 'Church'} — ${fund || 'General'} Giving${isSub ? ' (monthly)' : ''}` },
+            unit_amount: Math.round(amount * 100),
+            ...(isSub ? { recurring: { interval: 'month' as const } } : {}),
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?give=success&org=${churchId}`,
+        cancel_url:  `${origin}/?give=cancelled&org=${churchId}`,
+        metadata: {
+          type: 'church_donation', uid, churchId,
+          churchName: churchName ?? '',
+          fund: fund ?? 'General',
+          amount: String(amount),
+          recurring: String(!!recurring),
+          message: message ?? '',
         },
       });
 

@@ -17,6 +17,7 @@ import {
   createDemoChurch,
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles } from '../services/backendService';
+import ChurchGive from './ChurchGive';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -30,9 +31,9 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string }
+interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean }
 
-const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
+const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive }) => {
   const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : 'list');
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +74,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
     return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} onBack={() => { setActive(null); setMode('list'); }} />;
+    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────
@@ -223,15 +224,19 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
 );
 
 // ── Public / owner org profile ──────────────────────────────────────────────
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void }> = ({ org: initialOrg, isOwner, onBack }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; initialGive?: boolean }> = ({ org: initialOrg, isOwner, onBack, initialGive }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
+  const [giving, setGiving] = useState(!!initialGive);
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
 
   if (managing && isOwner) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
+  }
+  if (giving) {
+    return <ChurchGive org={org} onClose={() => setGiving(false)} />;
   }
 
   return (
@@ -274,16 +279,34 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         {/* Church vertical — plan your visit + ministries + give */}
         {org.orgType === 'CHURCH' && (
           <>
-            {(org.givingUrl || true) && (
-              <div className="mt-6 flex flex-wrap gap-2">
-                <a href={org.givingUrl || undefined} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">
-                  <Gift size={14} /> Give
-                </a>
-                <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
-                  <Church size={14} /> Plan a visit
-                </span>
-              </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <button onClick={() => setGiving(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">
+                <Gift size={14} /> Give
+              </button>
+              <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
+                <Church size={14} /> Plan a visit
+              </span>
+            </div>
+
+            {org.givingFunds && org.givingFunds.length > 0 && (
+              <section className="mt-10">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Gift size={12} className="text-small-orange" /> Giving funds</h2>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {org.givingFunds.map(f => (
+                    <button key={f.id} onClick={() => setGiving(true)} className="text-left p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
+                      <p className="text-sm font-black text-white">{f.name}</p>
+                      {f.description && <p className="text-[11px] text-white/40 mt-0.5">{f.description}</p>}
+                      {typeof f.goal === 'number' && f.goal > 0 && (
+                        <>
+                          <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, ((f.raised || 0) / f.goal) * 100)}%` }} /></div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1.5">${(f.raised || 0).toLocaleString()} of ${f.goal.toLocaleString()}</p>
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
             )}
 
             {org.serviceTimes && org.serviceTimes.length > 0 && (
@@ -371,8 +394,10 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
   const [givingUrl, setGivingUrl] = useState(org.givingUrl || '');
   const [ministries, setMinistries] = useState(org.ministries || []);
   const [services, setServices] = useState(org.serviceTimes || []);
+  const [funds, setFunds] = useState(org.givingFunds || []);
   const [newMin, setNewMin] = useState({ name: '', meetingTime: '' });
   const [newSvc, setNewSvc] = useState({ label: '', day: '', time: '' });
+  const [newFund, setNewFund] = useState({ name: '', goal: '' });
   const isChurch = org.orgType === 'CHURCH';
   const busyId = () => Math.random().toString(36).slice(2, 9);
   const [busy, setBusy] = useState(false);
@@ -389,7 +414,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
         category: category.trim() || undefined, isPrivate,
         socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
         monthlyPrice: monthly ? Number(monthly) : undefined,
-        ...(isChurch ? { ministries, serviceTimes: services, givingUrl: givingUrl.trim() || undefined } : {}),
+        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, givingUrl: givingUrl.trim() || undefined } : {}),
       };
       await updateOrganization(org.id, patch);
       onSaved({ ...org, ...patch } as Organization);
@@ -436,7 +461,22 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
       {isChurch && (
         <section className="mb-10">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-3 flex items-center gap-2"><Church size={13} /> Church</h2>
-          <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="Giving link (https://…) — native giving comes in Phase 2" className={`${field} mb-5`} />
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Gift size={11} /> Giving funds</p>
+          <div className="space-y-2 mb-3">
+            {funds.map(f => (
+              <div key={f.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
+                <span className="flex-1 text-xs font-bold text-white">{f.name}{typeof f.goal === 'number' && f.goal > 0 ? <span className="text-white/30 font-medium"> · goal ${f.goal.toLocaleString()}</span> : ''}</span>
+                <button onClick={() => setFunds(fs => fs.filter(x => x.id !== f.id))} className="text-white/30 hover:text-red-400"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mb-4">
+            <input value={newFund.name} onChange={e => setNewFund(v => ({ ...v, name: e.target.value }))} placeholder="Fund name (e.g. Missions)" className={field} />
+            <input value={newFund.goal} onChange={e => setNewFund(v => ({ ...v, goal: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="Goal $ (opt)" className={`${field} max-w-[35%]`} />
+            <button onClick={() => { if (newFund.name.trim()) { setFunds(fs => [...fs, { id: busyId(), name: newFund.name.trim(), goal: newFund.goal ? Number(newFund.goal) : undefined, raised: 0 }]); setNewFund({ name: '', goal: '' }); } }}
+              className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
+          </div>
+          <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
 
           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>
           <div className="space-y-2 mb-3">

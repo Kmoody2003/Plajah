@@ -10,7 +10,7 @@ import {
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime } from '../types';
+import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime, GivingFund } from '../types';
 
 /** Firestore rejects `undefined` field values — strip them before every write. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -199,6 +199,11 @@ export async function createDemoChurch(): Promise<Organization | null> {
     { id: rid('svc'), label: 'Sunday Evening', day: 'Sunday', time: '6:00 PM' },
     { id: rid('svc'), label: 'Midweek Service', day: 'Wednesday', time: '7:00 PM', isOnline: true },
   ];
+  const givingFunds: GivingFund[] = [
+    { id: rid('fund'), name: 'General', description: 'Supports the everyday ministry of the church.', goal: 100000, raised: 62500 },
+    { id: rid('fund'), name: 'Missions', description: 'Local & global outreach.', goal: 40000, raised: 18200 },
+    { id: rid('fund'), name: 'Building', description: 'Facilities & expansion.', goal: 250000, raised: 91000 },
+  ];
   return createOrganization({
     orgType: 'CHURCH',
     name: 'Grace Chapel (Demo)',
@@ -210,6 +215,7 @@ export async function createDemoChurch(): Promise<Organization | null> {
     isDemo: true,
     ministries,
     serviceTimes,
+    givingFunds,
     location: { city: 'Anytown, USA' },
     socialLinks: { website: '' },
   });

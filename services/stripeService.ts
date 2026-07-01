@@ -175,6 +175,31 @@ export async function pledgeToCampaign(opts: {
   if (url) window.location.href = url;
 }
 
+// ── Church Donation (one-time or recurring) ───────────────────────────────────
+
+export async function startChurchDonation(opts: {
+  churchId: string;
+  churchName?: string;
+  amount: number;
+  fund?: string;
+  recurring?: boolean;
+  message?: string;
+  userIdToken: string;
+}): Promise<void> {
+  const res = await fetch('/api/stripe/church-donation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${opts.userIdToken}` },
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error || 'Could not start giving');
+  }
+  const { url } = await res.json();
+  if (!url) throw new Error('No checkout URL returned');
+  window.location.href = url;
+}
+
 // ── Business Order Payment ────────────────────────────────────────────────────
 
 export async function checkoutBusinessOrder(opts: {
