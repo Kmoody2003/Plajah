@@ -130,38 +130,44 @@ async function fetchToTmp(url: string, ext: string): Promise<string | null> {
   } catch { return null; }
 }
 
-/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. Inputs are
- *  downloaded locally first (a remote HTTP image can't be looped — ffmpeg stalls at frame 0). */
-async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
-  const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
-  // Only the LOOPED image must be local (a remote HTTP image can't be looped). The audio can
-  // stream from the remote URL directly — buffering a whole track in RAM risks OOM on Cloud Run.
-  const coverPath = await fetchToTmp(coverUrl, 'img');
-  if (!coverPath) { fs.unlink(out).catch(() => {}); return { buf: null, err: 'cover download failed' }; }
-
-  let stderr = '';
-  const ok = await new Promise<boolean>((resolve) => {
-    const args = [
-      '-y',
-      '-loop', '1', '-framerate', '2', '-i', coverPath,
-      '-i', audioUrl,
-      '-t', '45',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-r', '15',
-      '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720',
-      '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
-      '-movflags', '+faststart', '-shortest',
-      out,
-    ];
+/** Run ffmpeg with the given args; capture stderr + guard with a wall-clock timeout. */
+function runFfmpeg(args: string[], timeoutMs = 45000): Promise<{ ok: boolean; err: string }> {
+  return new Promise((resolve) => {
+    let stderr = '';
     let ff: ReturnType<typeof spawn>;
     try { ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] }); }
-    catch (e: any) { stderr = `spawn failed: ${e?.message || e}`; return resolve(false); }
+    catch (e: any) { return resolve({ ok: false, err: `spawn failed: ${e?.message || e}` }); }
     ff.stderr?.on('data', (d) => { stderr += d.toString(); if (stderr.length > 6000) stderr = stderr.slice(-6000); });
-    const killer = setTimeout(() => { stderr += '\n[timeout — killed]'; try { ff.kill('SIGKILL'); } catch { /* */ } }, 45000);
-    ff.on('error', (e: any) => { clearTimeout(killer); stderr += `\nerror: ${e?.message || e}`; resolve(false); });
-    ff.on('close', (code) => { clearTimeout(killer); if (code !== 0) stderr += `\n[exit ${code}]`; resolve(code === 0); });
+    const killer = setTimeout(() => { stderr += '\n[timeout — killed]'; try { ff.kill('SIGKILL'); } catch { /* */ } }, timeoutMs);
+    ff.on('error', (e: any) => { clearTimeout(killer); resolve({ ok: false, err: `${stderr}\nerror: ${e?.message || e}`.slice(-2000) }); });
+    ff.on('close', (code) => { clearTimeout(killer); resolve({ ok: code === 0, err: code === 0 ? '' : `${stderr}\n[exit ${code}]`.slice(-2000) }); });
   });
+}
+
+/** Cover image + up to 45s of audio → a small square MP4. TWO passes so a huge album cover
+ *  (real ones are 20–30 MB) doesn't OOM the instance: decode+shrink the cover to 720×720 ONCE,
+ *  then loop that tiny image over the audio. */
+async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
+  const coverPath = await fetchToTmp(coverUrl, 'img');
+  if (!coverPath) return { buf: null, err: 'cover download failed' };
+  const smallCover = path.join(os.tmpdir(), `svc_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+  const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
+  const cleanup = () => { for (const p of [coverPath, smallCover, out]) fs.unlink(p).catch(() => {}); };
+
+  // Pass 1 — decode the (possibly enormous) cover exactly once → a tiny 720×720 JPEG.
+  const shrink = await runFfmpeg(['-y', '-i', coverPath, '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720', '-frames:v', '1', smallCover], 30000);
   fs.unlink(coverPath).catch(() => {});
-  if (!ok) { fs.unlink(out).catch(() => {}); console.error('[social-video] ffmpeg failed:', stderr.slice(-400)); return { buf: null, err: stderr.slice(-2000) }; }
+  if (!shrink.ok) { cleanup(); return { buf: null, err: `cover shrink: ${shrink.err}` }; }
+
+  // Pass 2 — loop the tiny image over the audio (low memory). Audio streams from the URL.
+  const enc = await runFfmpeg([
+    '-y', '-loop', '1', '-framerate', '2', '-i', smallCover, '-i', audioUrl, '-t', '45',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-r', '15',
+    '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-movflags', '+faststart', '-shortest', out,
+  ], 45000);
+  fs.unlink(smallCover).catch(() => {});
+  if (!enc.ok) { fs.unlink(out).catch(() => {}); console.error('[social-video] ffmpeg failed:', enc.err.slice(-300)); return { buf: null, err: `encode: ${enc.err}` }; }
+
   try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
   catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
 }
