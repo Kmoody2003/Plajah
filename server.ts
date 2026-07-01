@@ -117,16 +117,33 @@ async function gcsDownload(objectPath: string): Promise<Buffer | null> {
   } catch { return null; }
 }
 
-/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. Returns the
- *  bytes plus captured ffmpeg stderr (surfaced via ?debug=1 for diagnosis). */
+/** Download a remote URL to a local temp file (ffmpeg can't reliably loop a remote image). */
+async function fetchToTmp(url: string, ext: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 100) return null;
+    const p = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`);
+    await fs.writeFile(p, buf);
+    return p;
+  } catch { return null; }
+}
+
+/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. Inputs are
+ *  downloaded locally first (a remote HTTP image can't be looped — ffmpeg stalls at frame 0). */
 async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
   const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
+  const [coverPath, audioPath] = await Promise.all([fetchToTmp(coverUrl, 'img'), fetchToTmp(audioUrl, 'mp3')]);
+  const cleanup = () => { for (const p of [coverPath, audioPath, out]) if (p) fs.unlink(p).catch(() => {}); };
+  if (!coverPath || !audioPath) { cleanup(); return { buf: null, err: `input download failed (cover:${!!coverPath} audio:${!!audioPath})` }; }
+
   let stderr = '';
   const ok = await new Promise<boolean>((resolve) => {
     const args = [
       '-y',
-      '-loop', '1', '-i', coverUrl,
-      '-i', audioUrl,
+      '-loop', '1', '-framerate', '2', '-i', coverPath,
+      '-i', audioPath,
       '-t', '45',
       '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-r', '15',
       '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720',
@@ -138,11 +155,13 @@ async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promi
     try { ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] }); }
     catch (e: any) { stderr = `spawn failed: ${e?.message || e}`; return resolve(false); }
     ff.stderr?.on('data', (d) => { stderr += d.toString(); if (stderr.length > 6000) stderr = stderr.slice(-6000); });
-    const killer = setTimeout(() => { stderr += '\n[timeout — killed]'; try { ff.kill('SIGKILL'); } catch { /* */ } }, 40000);
+    const killer = setTimeout(() => { stderr += '\n[timeout — killed]'; try { ff.kill('SIGKILL'); } catch { /* */ } }, 45000);
     ff.on('error', (e: any) => { clearTimeout(killer); stderr += `\nerror: ${e?.message || e}`; resolve(false); });
     ff.on('close', (code) => { clearTimeout(killer); if (code !== 0) stderr += `\n[exit ${code}]`; resolve(code === 0); });
   });
-  if (!ok) { try { await fs.unlink(out); } catch { /* */ } console.error('[social-video] ffmpeg failed:', stderr.slice(-500)); return { buf: null, err: stderr.slice(-2000) }; }
+  if (coverPath) fs.unlink(coverPath).catch(() => {});
+  if (audioPath) fs.unlink(audioPath).catch(() => {});
+  if (!ok) { fs.unlink(out).catch(() => {}); console.error('[social-video] ffmpeg failed:', stderr.slice(-400)); return { buf: null, err: stderr.slice(-2000) }; }
   try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
   catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
 }
