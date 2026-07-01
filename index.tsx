@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
+import { LATEST_RELEASE } from './src/releaseNotes';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
 
@@ -67,19 +68,58 @@ function isMediaActive(): boolean {
 // is waiting mid-session. Plain DOM so it works regardless of React state.
 function showUpdateToast(onReload: () => void) {
   if (document.getElementById('plajah-sw-toast')) return;
-  const bar = document.createElement('div');
-  bar.id = 'plajah-sw-toast';
-  bar.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:10px;background:#1b1b24;color:#fff;border:1px solid rgba(255,140,0,0.4);box-shadow:0 8px 30px rgba(0,0,0,.5);font:500 13px system-ui,sans-serif';
+  const card = document.createElement('div');
+  card.id = 'plajah-sw-toast';
+  card.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;flex-direction:column;gap:0;max-width:min(92vw,380px);border-radius:14px;background:#1b1b24;color:#fff;border:1px solid rgba(255,140,0,0.4);box-shadow:0 8px 30px rgba(0,0,0,.5);font:500 13px system-ui,sans-serif;overflow:hidden';
+
+  // Top row — message + Reload + dismiss
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:11px 14px';
   const msg = document.createElement('span'); msg.textContent = 'A new version of Plajah is ready.';
+  msg.style.cssText = 'flex:1;line-height:1.3';
   const btn = document.createElement('button'); btn.textContent = 'Reload';
-  btn.style.cssText = 'padding:6px 14px;border-radius:7px;border:none;background:linear-gradient(90deg,#FF8C00,#ffa733);color:#1a1a1a;font-weight:700;cursor:pointer';
+  btn.style.cssText = 'padding:6px 14px;border-radius:7px;border:none;background:linear-gradient(90deg,#FF8C00,#ffa733);color:#1a1a1a;font-weight:700;cursor:pointer;white-space:nowrap';
   btn.onclick = () => { btn.textContent = 'Updating…'; onReload(); };
   const x = document.createElement('button'); x.textContent = '✕';
   x.style.cssText = 'background:none;border:none;color:#888;cursor:pointer;font-size:14px;line-height:1';
   x.title = 'Dismiss (update applies next time all tabs are closed)';
-  x.onclick = () => bar.remove();
-  bar.append(msg, btn, x);
-  (document.body || document.documentElement).appendChild(bar);
+  x.onclick = () => card.remove();
+  row.append(msg, btn, x);
+  card.append(row);
+
+  // Expandable "What's in this update" changelog
+  const notes = LATEST_RELEASE?.highlights || [];
+  if (notes.length) {
+    const toggle = document.createElement('button');
+    toggle.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 14px;background:rgba(255,255,255,0.03);border:none;border-top:1px solid rgba(255,255,255,0.07);color:#c9c9d4;font:700 10px system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer';
+    const label = document.createElement('span');
+    label.textContent = `What’s in this update${LATEST_RELEASE?.version ? ' · ' + LATEST_RELEASE.version : ''}`;
+    const chevron = document.createElement('span'); chevron.textContent = '▾'; chevron.style.cssText = 'transition:transform .2s;color:#FF8C00';
+    toggle.append(label, chevron);
+
+    const body = document.createElement('div');
+    body.style.cssText = 'max-height:0;overflow:hidden;transition:max-height .28s ease';
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'list-style:none;margin:0;padding:4px 16px 14px;display:flex;flex-direction:column;gap:8px';
+    notes.forEach(n => {
+      const li = document.createElement('li');
+      li.style.cssText = 'display:flex;gap:8px;font:500 12px system-ui,sans-serif;color:#d6d6de;line-height:1.4';
+      const dot = document.createElement('span'); dot.textContent = '•'; dot.style.cssText = 'color:#FF8C00;font-weight:800;flex:none';
+      const txt = document.createElement('span'); txt.textContent = n;
+      li.append(dot, txt); ul.append(li);
+    });
+    body.append(ul);
+
+    let open = false;
+    toggle.onclick = () => {
+      open = !open;
+      body.style.maxHeight = open ? body.scrollHeight + 'px' : '0';
+      chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0)';
+    };
+    card.append(toggle, body);
+  }
+
+  (document.body || document.documentElement).appendChild(card);
 }
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
