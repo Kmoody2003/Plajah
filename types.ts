@@ -1697,6 +1697,29 @@ export interface ClubMembership {
   joinedAt: number;
 }
 
+// ─── CHURCH VERTICAL (Part 3) ───────────────────────────────────────────────
+// A church is an Organization with orgType 'CHURCH'. Ministries are its sub-groups
+// (youth, worship, prayer…) each with a leader + meeting time; service times drive
+// the "plan your visit" surface. Giving/streaming/sermons layer on in later phases.
+
+export interface Ministry {
+  id: string;
+  name: string;
+  description?: string;
+  leaderId?: string;
+  leaderName?: string;
+  meetingTime?: string;   // e.g. "Wednesdays 7:00 PM"
+  iconEmoji?: string;
+}
+
+export interface ServiceTime {
+  id: string;
+  label: string;          // "Sunday Worship"
+  day: string;            // "Sunday"
+  time: string;           // "10:00 AM"
+  isOnline?: boolean;
+}
+
 // ─── ORGANIZATIONS (Part 2) ─────────────────────────────────────────────────
 // A first-class parallel account — a merger of a business page + a club. Brand
 // accounts are Organizations with orgType 'BRAND'; the church vertical specializes
@@ -1757,6 +1780,13 @@ export interface Organization {
 
   /** If migrated from a legacy BrandAccount, its id — prevents re-migration. */
   legacyBrandId?: string;
+
+  // Church vertical (orgType 'CHURCH')
+  ministries?: Ministry[];
+  serviceTimes?: ServiceTime[];
+  denomination?: string;
+  statementOfFaith?: string;
+  givingUrl?: string;         // external giving link until Phase 2 native giving
 
   createdAt: number;
   updatedAt: number;

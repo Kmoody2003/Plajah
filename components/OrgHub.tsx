@@ -8,11 +8,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
+  Church, Clock, Gift, Trash2,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
+  createDemoChurch,
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles } from '../services/backendService';
 
@@ -53,6 +55,12 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
   const importBrands = async () => {
     setImporting(true);
     try { await migrateLegacyBrands(); await loadOrgs(); } catch { /* */ }
+    setImporting(false);
+  };
+
+  const spinUpDemoChurch = async () => {
+    setImporting(true);
+    try { const o = await createDemoChurch(); await loadOrgs(); if (o) { setActive(o); setMode('view'); } } catch { /* */ }
     setImporting(false);
   };
   useEffect(() => {
@@ -97,7 +105,12 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId }) => {
           <Building2 size={40} className="mx-auto text-white/15 mb-4" />
           <p className="text-white/50 font-bold mb-1">No organizations yet</p>
           <p className="text-[11px] text-white/30 mb-6">Create a brand, business, or ministry page — a parallel account with its own profile, staff, and community.</p>
-          <button onClick={() => setMode('create')} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">Create your first</button>
+          <div className="flex items-center justify-center gap-3">
+            <button onClick={() => setMode('create')} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">Create your first</button>
+            <button onClick={spinUpDemoChurch} disabled={importing} className="px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-40 flex items-center gap-2">
+              {importing ? <Loader2 size={13} className="animate-spin" /> : <Church size={13} />} Demo church
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
@@ -258,6 +271,55 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
         </div>
 
+        {/* Church vertical — plan your visit + ministries + give */}
+        {org.orgType === 'CHURCH' && (
+          <>
+            {(org.givingUrl || true) && (
+              <div className="mt-6 flex flex-wrap gap-2">
+                <a href={org.givingUrl || undefined} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">
+                  <Gift size={14} /> Give
+                </a>
+                <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
+                  <Church size={14} /> Plan a visit
+                </span>
+              </div>
+            )}
+
+            {org.serviceTimes && org.serviceTimes.length > 0 && (
+              <section className="mt-10">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Clock size={12} className="text-small-orange" /> Service times</h2>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {org.serviceTimes.map(s => (
+                    <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                      <div>
+                        <p className="text-sm font-bold text-white">{s.label}</p>
+                        <p className="text-[10px] text-white/40">{s.day} · {s.time}</p>
+                      </div>
+                      {s.isOnline && <span className="text-[8px] font-black uppercase tracking-widest text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" /> Online</span>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {org.ministries && org.ministries.length > 0 && (
+              <section className="mt-10">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Church size={12} className="text-small-orange" /> Ministries</h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {org.ministries.map(m => (
+                    <div key={m.id} className="p-4 rounded-2xl bg-white/[0.04] border border-white/10">
+                      <p className="text-sm font-black text-white flex items-center gap-2">{m.iconEmoji && <span>{m.iconEmoji}</span>}{m.name}</p>
+                      {m.description && <p className="text-[11px] text-white/40 mt-1">{m.description}</p>}
+                      {m.meetingTime && <p className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 mt-2">{m.meetingTime}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
         {/* Staff / roster */}
         {staff.length > 0 && (
           <section className="mt-10">
@@ -306,6 +368,13 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
   const [website, setWebsite] = useState(org.socialLinks?.website || '');
   const [isPrivate, setIsPrivate] = useState(!!org.isPrivate);
   const [monthly, setMonthly] = useState<string>(org.monthlyPrice ? String(org.monthlyPrice) : '');
+  const [givingUrl, setGivingUrl] = useState(org.givingUrl || '');
+  const [ministries, setMinistries] = useState(org.ministries || []);
+  const [services, setServices] = useState(org.serviceTimes || []);
+  const [newMin, setNewMin] = useState({ name: '', meetingTime: '' });
+  const [newSvc, setNewSvc] = useState({ label: '', day: '', time: '' });
+  const isChurch = org.orgType === 'CHURCH';
+  const busyId = () => Math.random().toString(36).slice(2, 9);
   const [busy, setBusy] = useState(false);
 
   const [q, setQ] = useState('');
@@ -320,6 +389,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
         category: category.trim() || undefined, isPrivate,
         socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
         monthlyPrice: monthly ? Number(monthly) : undefined,
+        ...(isChurch ? { ministries, serviceTimes: services, givingUrl: givingUrl.trim() || undefined } : {}),
       };
       await updateOrganization(org.id, patch);
       onSaved({ ...org, ...patch } as Organization);
@@ -362,6 +432,47 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
           {busy ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save details'}
         </button>
       </section>
+
+      {isChurch && (
+        <section className="mb-10">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-3 flex items-center gap-2"><Church size={13} /> Church</h2>
+          <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="Giving link (https://…) — native giving comes in Phase 2" className={`${field} mb-5`} />
+
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>
+          <div className="space-y-2 mb-3">
+            {ministries.map(m => (
+              <div key={m.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
+                <span className="flex-1 text-xs font-bold text-white">{m.name}{m.meetingTime ? <span className="text-white/30 font-medium"> · {m.meetingTime}</span> : ''}</span>
+                <button onClick={() => setMinistries(ms => ms.filter(x => x.id !== m.id))} className="text-white/30 hover:text-red-400"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mb-6">
+            <input value={newMin.name} onChange={e => setNewMin(v => ({ ...v, name: e.target.value }))} placeholder="Ministry name" className={field} />
+            <input value={newMin.meetingTime} onChange={e => setNewMin(v => ({ ...v, meetingTime: e.target.value }))} placeholder="Meets…" className={`${field} max-w-[40%]`} />
+            <button onClick={() => { if (newMin.name.trim()) { setMinistries(ms => [...ms, { id: busyId(), name: newMin.name.trim(), meetingTime: newMin.meetingTime.trim() || undefined }]); setNewMin({ name: '', meetingTime: '' }); } }}
+              className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
+          </div>
+
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Clock size={11} /> Service times</p>
+          <div className="space-y-2 mb-3">
+            {services.map(s => (
+              <div key={s.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
+                <span className="flex-1 text-xs font-bold text-white">{s.label} <span className="text-white/30 font-medium">· {s.day} {s.time}</span></span>
+                <button onClick={() => setServices(ss => ss.filter(x => x.id !== s.id))} className="text-white/30 hover:text-red-400"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={newSvc.label} onChange={e => setNewSvc(v => ({ ...v, label: e.target.value }))} placeholder="Label" className={field} />
+            <input value={newSvc.day} onChange={e => setNewSvc(v => ({ ...v, day: e.target.value }))} placeholder="Day" className={`${field} max-w-[28%]`} />
+            <input value={newSvc.time} onChange={e => setNewSvc(v => ({ ...v, time: e.target.value }))} placeholder="Time" className={`${field} max-w-[28%]`} />
+            <button onClick={() => { if (newSvc.label.trim()) { setServices(ss => [...ss, { id: busyId(), label: newSvc.label.trim(), day: newSvc.day.trim(), time: newSvc.time.trim() }]); setNewSvc({ label: '', day: '', time: '' }); } }}
+              className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
+          </div>
+          <p className="text-[9px] text-white/30 mt-3">Ministries & service times save with "Save details" above.</p>
+        </section>
+      )}
 
       <section>
         <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange mb-3">Staff</h2>

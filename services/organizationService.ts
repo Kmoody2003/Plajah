@@ -10,7 +10,7 @@ import {
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit,
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import type { Organization, OrgMembership, OrgRole, OrgType } from '../types';
+import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime } from '../types';
 
 /** Firestore rejects `undefined` field values — strip them before every write. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -54,6 +54,12 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     isDemo: data.isDemo,
     tags: data.tags,
     legacyBrandId: data.legacyBrandId,
+    // Church vertical
+    ministries: data.ministries,
+    serviceTimes: data.serviceTimes,
+    denomination: data.denomination,
+    statementOfFaith: data.statementOfFaith,
+    givingUrl: data.givingUrl,
     createdAt: now,
     updatedAt: now,
   };
@@ -173,6 +179,40 @@ export async function fetchUnmigratedBrands(): Promise<Array<{ id: string; name?
     const migrated = new Set(orgs.map(o => o.legacyBrandId).filter(Boolean));
     return brands.filter(b => !migrated.has(b.id));
   } catch { return []; }
+}
+
+// ── Church vertical helpers (Part 3) ────────────────────────────────────────
+const rid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
+
+/** Stand up a fully-structured demo church to showcase the vertical. */
+export async function createDemoChurch(): Promise<Organization | null> {
+  const ministries: Ministry[] = [
+    { id: rid('min'), name: 'Youth Ministry',   description: 'Middle & high school students.', meetingTime: 'Wednesdays 7:00 PM', iconEmoji: '🔥' },
+    { id: rid('min'), name: 'Worship',          description: 'Music & production team.',       meetingTime: 'Thursdays 6:30 PM', iconEmoji: '🎵' },
+    { id: rid('min'), name: "Women's Fellowship", description: 'Study, prayer & community.',    meetingTime: 'Tuesdays 10:00 AM', iconEmoji: '💐' },
+    { id: rid('min'), name: 'Kids / Sunday School', description: 'Nursery through 5th grade.',  meetingTime: 'Sundays 10:00 AM', iconEmoji: '🧒' },
+    { id: rid('min'), name: 'Prayer',           description: 'Intercessory prayer team.',       meetingTime: 'Daily 6:00 AM', iconEmoji: '🙏' },
+    { id: rid('min'), name: 'Outreach & Missions', description: 'Local & global service.',       meetingTime: 'Monthly', iconEmoji: '🌍' },
+  ];
+  const serviceTimes: ServiceTime[] = [
+    { id: rid('svc'), label: 'Sunday Worship', day: 'Sunday', time: '10:00 AM', isOnline: true },
+    { id: rid('svc'), label: 'Sunday Evening', day: 'Sunday', time: '6:00 PM' },
+    { id: rid('svc'), label: 'Midweek Service', day: 'Wednesday', time: '7:00 PM', isOnline: true },
+  ];
+  return createOrganization({
+    orgType: 'CHURCH',
+    name: 'Grace Chapel (Demo)',
+    tagline: 'A place to belong, believe, and become.',
+    about: 'A demo church showcasing the Plajah ministry platform — sub-ministries, staff, service times, streaming, giving, and a sacred library, all under one roof.',
+    category: 'Non-denominational',
+    denomination: 'Non-denominational',
+    statementOfFaith: 'We believe in the good news of Jesus Christ and the call to love God and neighbor.',
+    isDemo: true,
+    ministries,
+    serviceTimes,
+    location: { city: 'Anytown, USA' },
+    socialLinks: { website: '' },
+  });
 }
 
 /** Create an Organization for each of the user's un-migrated legacy brands. */
