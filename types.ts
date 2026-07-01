@@ -111,6 +111,8 @@ export interface Track {
   url: string;
   duration?: number;
   videoUrl?: string;
+  /** Whether this item is audio or video (video files can land in a track list). */
+  mediaKind?: 'AUDIO' | 'VIDEO';
   images?: string[]; 
   lyrics?: string; 
   timeCodedLyrics?: { time: number; text: string }[];

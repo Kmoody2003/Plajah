@@ -370,10 +370,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         'flac','aiff','aif','aifc','alac','ape','wv','tta','tak','shn','caf','mka','wma','ra','rm',
         'ac3','eac3','dts','dtshd','mpc','amr','gsm','iamf','mid','midi','kar','mod','xm','it','s3m',
       ]);
+      const VIDEO_EXTS = new Set(['mp4','mov','mkv','m4v','avi','wmv','mpg','mpeg','m2ts','mts','ts','3gp','ogv']);
       for (const file of fileArray) {
         const ext = file.name.toLowerCase().split('.').pop() ?? '';
         const isKnownAudio = KNOWN_AUDIO_EXTS.has(ext);
-        if (isKnownAudio || file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+        const isVideo = file.type.startsWith('video/') || (!isKnownAudio && VIDEO_EXTS.has(ext));
+        if (isKnownAudio || isVideo || file.type.startsWith('audio/')) {
           newTracks.push({
             id: Math.random().toString(36).substr(2, 9),
             title: file.name.replace(/\.[^/.]+$/, "").replace(/^\d+\s*[-_]*\s*/, ""),
@@ -383,6 +385,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             price: 0,
             isPaywalled: false,
             genre,
+            mediaKind: isVideo ? 'VIDEO' : 'AUDIO',
             ...(ext === 'iamf' && { isEclipsa: true }),
           });
         }
@@ -1205,7 +1208,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <div key={track.id} className={`flex flex-col gap-4 p-5 rounded-2xl border transition-all ${previewingId === track.id ? 'bg-green-500/5 border-green-500/20' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.05]'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[11px] font-black text-small-orange border border-white/10 shrink-0">{i + 1}</div>
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-small-orange border border-white/10 shrink-0">{track.mediaKind === 'VIDEO' ? <Film size={15} /> : <span className="text-[11px] font-black">{i + 1}</span>}</div>
+                  {track.mediaKind === 'VIDEO' && <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 text-[8px] font-black uppercase tracking-widest border border-blue-500/20"><Film size={9} /> Video</span>}
                   <div className="group/tt relative flex-1 min-w-0">
                     <input type="text" value={track.title} onChange={(e) => updateTrack(track.id, { title: e.target.value })} className="w-full min-w-0 bg-transparent text-xl font-display font-black uppercase tracking-tight text-white placeholder:text-white/25 rounded-lg pr-7 py-1 border-b border-dashed border-white/20 hover:border-white/40 focus:border-small-orange focus:outline-none transition-all" placeholder="Track title" />
                     <Pencil size={12} className="absolute right-1 top-1/2 -translate-y-1/2 text-white/25 group-hover/tt:text-small-orange group-focus-within/tt:text-small-orange pointer-events-none transition-colors" />
@@ -2718,12 +2722,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                 const isActive = i === displayStep;
                 const isDone = i < displayStep;
                 return (
-                  <div key={label} className="flex flex-col items-center gap-1.5 flex-1">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${isActive ? 'bg-white text-black scale-110' : isDone ? 'bg-green-500 text-white' : 'bg-white/10 text-white/30'}`}>
+                  <button key={label} type="button" onClick={() => { setPageDir(i < displayStep ? -1 : 1); setStep(toLogical(i)); }} title={`Go to ${label}`} className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer bg-transparent border-0">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all group-hover:scale-110 ${isActive ? 'bg-white text-black scale-110' : isDone ? 'bg-green-500 text-white' : 'bg-white/10 text-white/30 group-hover:bg-white/25 group-hover:text-white/60'}`}>
                       {isDone ? <Check size={10} /> : i + 1}
                     </div>
-                    <span className={`text-[7px] font-black uppercase tracking-wider ${isActive ? 'text-white' : isDone ? 'text-green-500' : 'text-white/20'}`}>{label}</span>
-                  </div>
+                    <span className={`text-[7px] font-black uppercase tracking-wider transition-colors ${isActive ? 'text-white' : isDone ? 'text-green-500' : 'text-white/20 group-hover:text-white/50'}`}>{label}</span>
+                  </button>
                 );
               })}
             </div>
