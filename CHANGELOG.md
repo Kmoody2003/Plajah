@@ -17,6 +17,18 @@ Legend: **[MAJOR]** = new capability or big change · **[minor]** = fix/refineme
 
 ## 2026-07-01
 
+- **14:49** · `dbdec1e` · **[minor]** · Sharing — *fix(share): strip static generic OG tags before injecting asset-specific ones*
+  - Technical: index.html ships default og tags that appear first; crawlers pick the first duplicate. Strip existing og:*/twitter:* before injecting.
+  - Plain: Fixes previews still showing the generic Plajah card even after the asset tags were added.
+
+- **14:48** · `e6e5ee4` · **[MAJOR]** · Studio — *feat(media-engine): Plajah Studio router + switcher foundation*
+  - Technical: VideoSource abstraction + capability gating + WHEP/webcam sources + router (locks/salvos/tally) + PGM/PVW switcher + soft-sync TBC; `VideoRouterConsole` + `MEDIA_ROUTER` view. Native I/O = Tauri/GStreamer next.
+  - Plain: The start of pro live production in Plajah — a video router & switcher for multi-camera streams (big for churches, schools, cultural institutions).
+
+- **14:38** · `34e448a` · **[MAJOR]** · Sharing — *feat(share): rich link previews — artwork + "Experience \"Title\" now on Plajah"*
+  - Technical: content share URLs route through `/share`; server injects asset OG/Twitter meta (title/desc/cover), humans bounce to the app. Covers video/song/album/book/article/game/post.
+  - Plain: Shared links now show the real cover/thumbnail and a proper description instead of a generic Plajah card.
+
 - **14:19** · `9e2d00e` · **[MAJOR]** · Health — *feat(health): per-user experience health + predictive self-healing*
   - Technical: `healthMonitor.ts` client perf telemetry → 0-100 score; self-heals stale-build/chunk failures (SW update + controlled reload); escalates major degradation to `errorReports`; per-user snapshot to `userHealth/{uid}`. `AdminUserHealth` panel + tab.
   - Plain: Plajah watches how well the app runs for each person, fixes small problems itself, and alerts the team to big ones.

@@ -10,6 +10,24 @@
 
 ---
 
+> ## ⬆️ GTM UPDATE — July 1, 2026 (Institutions front + production backbone + growth/trust infra)
+> A build day that adds a **fourth front** and hardens the growth + trust machinery under all of them.
+>
+> ### 🏛️ New front: **Plajah Elevate** — faith, culture & community institutions
+> A dedicated directory + home for **churches, religious organizations, cultural institutions and nonprofits** (new `CULTURAL` org type joins `CHURCH`/`NONPROFIT`), built on the existing **Organization** primitive — so each institution gets a real page with staff, ministries/programs, giving, streaming and community out of the box. This is a **distribution-shaped** front, exactly like education: an institution is a *pre-assembled audience*. A single church, temple, museum, cultural center or nonprofit onboards **its whole congregation/membership/community** — the same teacher→class→family structural loop, now clergy/curator→congregation/patrons. Ties directly to **Sponsor-a-Classroom / Pay-It-Forward** (Sponsor-a-Congregation, Sponsor-a-Cause) and the church vertical's native **Stripe giving** already shipped.
+>
+> ### 🎥 Production backbone: the **Media Engine** (Router · Switcher · TBC) — why this matters for Elevate + schools
+> Foundation shipped for a pro **video router + live switcher + virtual time-base corrector**, with a **shared UI over a native (Tauri/GStreamer) engine** and a **browser WebRTC/WHEP** subset today (real webcam + remote-guest sources; DeckLink/NDI/SRT/BRAW on the desktop app). **This is the single biggest lever for the institutions front.** Churches, schools and cultural orgs are *the* buyers of multi-camera production — weekly services, assemblies, recitals, lectures, exhibitions, streamed events — and today they either pay for vMix/ProPresenter/Resolume/Blackmagic stacks or go without. Plajah folds **teleprompter (shipped), titles/graphics, switching, streaming and giving/tickets into one place** they already have their community on. GTM motion: *"Run your Sunday service / school assembly / gallery night like a broadcast — from the same page your community already follows."* Bundle with Elevate; upsell the desktop app for capture-card/NDI multicam.
+>
+> ### 📈 Growth + trust infrastructure (compounds every front)
+> - **Rich link previews** — every shared song/video/book/post now renders an **artwork + "Experience *Title* now on Plajah"** card (posts: *"<User> is sharing this post from Plajah"*). Turns organic sharing into a real acquisition loop — links previously previewed as a generic homepage and converted poorly.
+> - **What's New / public changelog + update notifications** — plain-English release notes users actually see; a trust + retention surface, and marketing raw material.
+> - **Bug reporting (5-min session trace) + per-user health monitoring + self-healing** — reliability as a feature. Institutions and schools won't adopt a flaky "everything platform"; this is the credibility floor for institution sales, and the admin now sees per-user experience health and auto-recovers minor faults.
+>
+> **Reframed fronts:** **Education**, **Sports**, **Creator**, and now **Institutions (Elevate)** — four distribution-shaped wedges over one identity/record/giving/production spine. Elevate + the Media Engine are the highest-leverage new combination: a values-aligned, giving-native audience that *needs* production tooling and brings its whole community with it.
+
+---
+
 ## 0. What Changed From v1
 
 Beachhead segments have been updated from *Worldbuilders + Indie Film* to:

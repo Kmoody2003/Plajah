@@ -33,9 +33,21 @@ export interface ChangelogEntry {
  * The ledger — newest first. `APP_BUILD` is bumped whenever a release should
  * re-trigger the "what's new" notification for users.
  */
-export const APP_BUILD = '2026.07.01-05';
+export const APP_BUILD = '2026.07.01-06';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: 'e6e5ee4', date: '2026-07-01', time: '14:48', level: 'major', area: 'Studio',
+    title: 'Plajah Studio: video router & switcher',
+    technical: 'Media Engine foundation — VideoSource abstraction, capability gating (browser=webrtc/uvc), WHEP + webcam sources, router crosspoint engine (locks/salvos/tally), PGM/PVW switcher, soft-sync TBC. VideoRouterConsole + MEDIA_ROUTER view. Native DeckLink/NDI/BRAW = desktop app.',
+    plain: 'The start of professional live production inside Plajah — a video router and switcher to run multi-camera streams. Great for churches, schools and cultural institutions producing services, assemblies and events. Webcams and remote guests work in the browser today; capture cards and NDI come with the desktop app.',
+  },
+  {
+    id: '34e448a', date: '2026-07-01', time: '14:38', level: 'major', area: 'Sharing',
+    title: 'Shared links show a real preview',
+    technical: 'Content share URLs route through /share so the server injects asset-specific Open Graph/Twitter meta (title, "Experience … now on Plajah", cover/thumbnail) and strips the static generic tags; humans bounce to the app. Covers video/song/album/book/article/game/post.',
+    plain: 'When you share something from Plajah, the link now shows a proper preview — the actual cover or thumbnail and "Experience “Title” now on Plajah" (posts read "<Name> is sharing this post from Plajah"). No more generic Plajah link.',
+  },
   {
     id: '9e2d00e', date: '2026-07-01', time: '14:19', level: 'major', area: 'Health',
     title: 'Plajah looks after your experience',
