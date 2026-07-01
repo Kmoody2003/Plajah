@@ -191,6 +191,9 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 
    const oEmbedUrl = `https://${safeHost}/oembed?url=${encodeURIComponent(`https://${host}/?type=${type}&id=${id}`)}&format=json`;
    metaTags += `\n    <link rel="alternate" type="application/json+oembed" href="${htmlEscape(oEmbedUrl)}" title="${safeTitle || 'Plajah'}" />`;
+   // Strip the static/default OG + Twitter tags from index.html first, or the crawler sees
+   // TWO og:title/og:image (generic first) and most pick the first → generic homepage card.
+   html = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
    return html.replace('</head>', `${metaTags}\n</head>`);
 };
 
