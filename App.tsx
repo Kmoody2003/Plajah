@@ -539,6 +539,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
   const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean } | null>(null);
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
+  const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -1088,6 +1089,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (orgIdParam) {
         setOrgHubInitial({ orgId: orgIdParam, give: params.get('give') === '1' });
         setView('ORG_HUB');
+        setIsLoading(false);
+        return;
+      }
+
+      // Deep-link: ?debate={id} — open the debate directly.
+      const debateIdParam = params.get('debate');
+      if (debateIdParam) {
+        setSelectedDebateId(debateIdParam);
+        setView('DEBATE_DETAIL');
+        setIsLoading(false);
+        return;
+      }
+
+      // Deep-link: ?club={id} — open the specific club.
+      const clubIdParam = params.get('club');
+      if (clubIdParam) {
+        setClubInitialId(clubIdParam);
+        setView('CLUBS');
         setIsLoading(false);
         return;
       }
@@ -3808,7 +3827,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               </ErrorBlock>
             )}
-            {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} onCreatePitchDeck={(deck) => { setPitchDeckInitialDeck(deck); setView('PITCH_DECK_STUDIO'); }} />}
+            {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} initialClubId={clubInitialId} onCreatePitchDeck={(deck) => { setPitchDeckInitialDeck(deck); setView('PITCH_DECK_STUDIO'); }} />}
             {view === 'RELLO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
                 <RelloView onBack={handleBackToDashboard} currentUser={user} initialVideoId={relloInitialVideoId} />

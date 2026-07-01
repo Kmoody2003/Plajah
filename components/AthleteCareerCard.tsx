@@ -19,6 +19,7 @@ import {
   Share2, CheckCircle2, Clock, Users, Star, Lock, ChevronRight,
   Sparkles, TrendingUp, Award,
 } from 'lucide-react';
+import { buildShareUrl } from '../services/deepLinkService';
 import {
   getChainCareerStats, getAthleteHighlightNFTs,
   purchaseStatLicense,
@@ -454,7 +455,8 @@ const AthleteCareerCard: React.FC<Props> = ({
             <Download size={12} /> Export Card
           </button>
           <button onClick={() => {
-            const url = `${window.location.origin}/athlete/${athleteUserId}`;
+            // Land on the athlete's profile (which shows this card) — a working link.
+            const url = buildShareUrl('profile', athleteUserId);
             navigator.clipboard?.writeText(url).catch(() => {});
           }}
             className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-2xl text-white/50 text-[10px] font-black uppercase tracking-wider hover:bg-white/10 transition-colors">

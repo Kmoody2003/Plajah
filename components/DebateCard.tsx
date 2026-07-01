@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Swords, Trophy, Clock, Users, Share2, ChevronRight, AlertTriangle } from 'lucide-react';
+import { buildShareUrl } from '../services/deepLinkService';
 import { Debate } from '../types';
 import { format } from 'date-fns';
 
@@ -30,7 +31,7 @@ const DebateCard: React.FC<DebateCardProps> = ({ debate, onOpen, compact = false
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}?view=DEBATE_DETAIL&debateId=${debate.id}`;
+    const url = buildShareUrl('debate', debate.id);
     if (navigator.share) {
       navigator.share({ title: `Plajah Debate: ${debate.topic}`, url }).catch(() => {});
     } else {

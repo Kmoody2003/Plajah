@@ -10,7 +10,7 @@
 export type ShareAsset =
   | 'album' | 'track' | 'video' | 'post' | 'profile' | 'release'
   | 'room' | 'livestream' | 'callin' | 'listen'
-  | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite';
+  | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite' | 'debate';
 
 /** Canonical origin for share links — prefer the configured app domain over
  *  whatever host the user is on (e.g. localhost), so links work everywhere. */
@@ -46,6 +46,7 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     case 'article':    return `${base}/?${qs({ type: 'article', id })}`;
     case 'game':       return `${base}/?${qs({ type: 'game', id })}`;
     case 'club':       return `${base}/?${qs({ club: id })}`;
+    case 'debate':     return `${base}/?${qs({ debate: id })}`;
     case 'clubPost':   return `${base}/?${qs({ club: extra?.club, post: id })}`;
     case 'pitch':      return `${base}/?${qs({ pitch: id })}`;
     case 'event':      return `${base}/event/${encodeURIComponent(id)}`;

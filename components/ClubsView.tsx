@@ -4,7 +4,7 @@ import { Users, Shield, Star, MessageSquare, Plus, Search, Globe, Mic, Lock, X, 
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Club, ClubJoinProcess, PitchDeck } from '../types';
-import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs } from '../services/backendService';
+import { fetchPublicClubs, fetchUserClubs, createClub, seedDemoClubs, fetchClub } from '../services/backendService';
 import { useClubCoverMedia, useClubCoverSettings } from '../hooks/useClubCoverMedia';
 import ClubDetailView from './ClubDetailView';
 import { FanClubDetail, LiveScoresTicker, CoverMediaCycler } from './WorldCupFanClubs';
@@ -14,11 +14,13 @@ interface ClubsViewProps {
   onBack: () => void;
   currentUser: FirebaseUser | null;
   onCreatePitchDeck?: (deck: PitchDeck) => void;
+  /** Deep-link: open this club directly on mount (a shared club link). */
+  initialClubId?: string;
 }
 
 const CATEGORIES = ['All', 'Music', 'Art', 'Film', 'Gaming', 'Literature', 'Tech', 'Sports', 'Lifestyle', 'Charity'];
 
-const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitchDeck }) => {
+const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitchDeck, initialClubId }) => {
   const coverItems    = useClubCoverMedia();
   const coverSettings = useClubCoverSettings();
   const singleItem    = coverSettings.mode === 'single' && coverSettings.singleItemId
@@ -59,6 +61,11 @@ const ClubsView: React.FC<ClubsViewProps> = ({ onBack, currentUser, onCreatePitc
   }, [selectedCategory, currentUser]);
 
   useEffect(() => { loadClubs(); }, [loadClubs]);
+
+  // Deep-link: open a specific club directly.
+  useEffect(() => {
+    if (initialClubId) fetchClub(initialClubId).then(c => { if (c) setSelectedClub(c); }).catch(() => {});
+  }, [initialClubId]);
 
   const handleCreateClub = async () => {
     if (!createForm.name.trim() || !currentUser) return;

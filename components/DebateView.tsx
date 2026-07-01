@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DebateCountdownTimer from './DebateCountdownTimer';
 import { Debate, DebatePost, DebateVerdict, DebateSide } from '../types';
+import { buildShareUrl } from '../services/deepLinkService';
 import {
   listenDebate, listenDebatePosts, postToDebate, voteDebateSide,
   acceptDebate, declineDebate, triggerAriaJudgment,
@@ -280,7 +281,7 @@ const DebateView: React.FC<DebateViewProps> = ({ debateId, onBack }) => {
   };
 
   const handleShare = () => {
-    const url = `${window.location.origin}?view=DEBATE_DETAIL&debateId=${debateId}`;
+    const url = buildShareUrl('debate', debateId);
     if (navigator.share) {
       navigator.share({ title: `Plajah Debate: ${debate?.topic}`, url }).catch(() => {});
     } else {

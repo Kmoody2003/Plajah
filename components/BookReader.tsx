@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
+import { buildShareUrl } from '../services/deepLinkService';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -852,7 +853,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const pageRef = isEpub
         ? `epub:${epubProgress}`
         : `chapter:${currentChapterIndex}:page:${currentPageIndex}`;
-      const deepLink = `${window.location.origin}/#book/${book.id}?ref=${encodeURIComponent(pageRef)}`;
+      const deepLink = buildShareUrl('book', book.id, { ref: pageRef });
       const caption = shareCaption.trim() ||
         `📖 Reading "${book.title}"${currentChapter?.title ? ` — ${currentChapter.title}` : ''}${!isEpub ? ` — Page ${currentPageIndex + 1}` : ` at ${epubProgress}%`}`;
       await createPost({
