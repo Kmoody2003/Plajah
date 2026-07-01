@@ -873,6 +873,7 @@ async function startServer() {
   // Creates or retrieves a Stripe Express account for the creator and returns an onboarding URL.
   app.post('/api/stripe/connect/onboard', authMiddleware, express.json(), async (req: any, res) => {
     const uid: string = req.uid;
+    const orgId: string | undefined = req.body?.orgId;
     try {
       const stripe = getStripe();
       if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
@@ -891,11 +892,18 @@ async function startServer() {
         await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
       }
 
+      // Onboarding for an organization (e.g. a church) — attach the account so its
+      // giving routes there (destination charges read organizations/{id}.stripeAccountId).
+      if (orgId) {
+        await firestoreWrite('organizations', orgId, { stripeAccountId: accountId, updatedAt: Date.now() });
+      }
+
       const origin = req.headers.origin || 'https://plajah.com';
+      const returnUrl = orgId ? `${origin}?org=${orgId}&connect=success` : `${origin}?connect=success`;
       const link = await (stripe as any).accountLinks.create({
         account: accountId,
-        refresh_url: `${origin}?connect=refresh`,
-        return_url:  `${origin}?connect=success`,
+        refresh_url: orgId ? `${origin}?org=${orgId}&connect=refresh` : `${origin}?connect=refresh`,
+        return_url:  returnUrl,
         type: 'account_onboarding',
       });
 
@@ -1554,6 +1562,36 @@ async function startServer() {
       });
 
       res.json({ url: session.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Email: broadcast to a list (Resend HTTP API) ──────────────────────────
+  // Sends when RESEND_API_KEY is configured; otherwise reports configured:false
+  // (in-app + push already reached members). Same "works when keys set" pattern
+  // as the Stripe endpoints.
+  app.post('/api/email/broadcast', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const key = process.env.RESEND_API_KEY;
+      const { subject, text, html, recipients } = req.body || {};
+      if (!Array.isArray(recipients) || recipients.length === 0 || !subject) {
+        return res.status(400).json({ error: 'recipients + subject required' });
+      }
+      if (!key) return res.json({ sent: 0, configured: false });
+      const from = process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>';
+      const to = recipients.filter((e: any) => typeof e === 'string' && e.includes('@')).slice(0, 500);
+      let sent = 0;
+      for (let i = 0; i < to.length; i += 100) {
+        const batch = to.slice(i, i + 100).map((addr: string) => ({ from, to: addr, subject, ...(html ? { html } : { text: text || '' }) }));
+        const r = await fetch('https://api.resend.com/emails/batch', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(batch),
+        });
+        if (r.ok) sent += batch.length;
+      }
+      res.json({ sent, configured: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

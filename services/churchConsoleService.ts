@@ -29,6 +29,22 @@ export async function broadcastToChurch(church: Organization, msg: { title: stri
   return recipients.length;
 }
 
+/** Email a message to a list of addresses (Resend). Returns how many were sent. */
+export async function emailBroadcast(subject: string, body: string, emails: string[]): Promise<{ sent: number; configured: boolean }> {
+  const to = Array.from(new Set(emails.filter(e => e && e.includes('@'))));
+  if (!to.length) return { sent: 0, configured: true };
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch('/api/email/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ subject, text: body, recipients: to }),
+    });
+    if (!res.ok) return { sent: 0, configured: false };
+    return await res.json();
+  } catch { return { sent: 0, configured: false }; }
+}
+
 // ── People (Servant Keeper CSV import/export) ────────────────────────────────
 export interface Congregant {
   id: string;

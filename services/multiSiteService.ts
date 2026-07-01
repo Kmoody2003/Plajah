@@ -7,7 +7,8 @@
 // travels over rtcCore's broadcast topology.
 
 import { db, auth } from './firebase';
-import { doc, collection, setDoc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { doc, collection, setDoc, updateDoc, onSnapshot, getDocs, query, where } from 'firebase/firestore';
+import { fetchUserOrganizations } from './organizationService';
 import type { ProgramFeed } from '../types';
 
 const COL = 'program_feeds';
@@ -33,12 +34,30 @@ export async function endProgramFeed(feedId: string): Promise<void> {
   try { await updateDoc(doc(db, COL, feedId), { status: 'ENDED' }); } catch { /* */ }
 }
 
-/** Live subscribe to a church's program feeds (for the master-control source list). */
+/** Live subscribe to a church's program feeds (for the master-control source list).
+ *  Single-field query (churchId) + client-side LIVE filter — no composite index. */
 export function listenToProgramFeeds(churchId: string, cb: (feeds: ProgramFeed[]) => void): () => void {
-  const q = query(collection(db, COL), where('churchId', '==', churchId), where('status', '==', 'LIVE'));
+  const q = query(collection(db, COL), where('churchId', '==', churchId));
   return onSnapshot(q, snap => {
-    cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProgramFeed)).sort((a, b) => b.startedAt - a.startedAt));
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProgramFeed)).filter(f => f.status === 'LIVE').sort((a, b) => b.startedAt - a.startedAt));
   }, () => cb([]));
+}
+
+/** All LIVE campus feeds across the churches the user runs (for TV Studio sources). */
+export async function fetchLiveProgramFeedsForUser(): Promise<ProgramFeed[]> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+  try {
+    const orgs = await fetchUserOrganizations(uid);
+    const churchIds = orgs.filter(o => o.orgType === 'CHURCH').map(o => o.id);
+    if (!churchIds.length) return [];
+    const feeds: ProgramFeed[] = [];
+    for (let i = 0; i < churchIds.length; i += 10) {
+      const snap = await getDocs(query(collection(db, COL), where('churchId', 'in', churchIds.slice(i, i + 10))));
+      snap.docs.forEach(d => feeds.push({ id: d.id, ...d.data() } as ProgramFeed));
+    }
+    return feeds.filter(f => f.status === 'LIVE').sort((a, b) => b.startedAt - a.startedAt);
+  } catch { return []; }
 }
 
 /** The rtc session id a campus should broadcast its program on (stable per campus). */

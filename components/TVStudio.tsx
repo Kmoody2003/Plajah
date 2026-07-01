@@ -38,6 +38,9 @@ import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 import TVStudioLightingBoard from './TVStudioLightingBoard';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
+import { RtcSession } from '../services/rtcCore';
+import { fetchLiveProgramFeedsForUser } from '../services/multiSiteService';
+import type { ProgramFeed } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -440,6 +443,27 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   // ── Source management ──────────────────────────────────────────────────────
   const handleAddCamera  = useCallback(async () => { await engineRef.current?.addCameraSource(); }, []);
   const handleAddScreen  = useCallback(async () => { await engineRef.current?.addScreenSource(); }, []);
+
+  // ── Multi-site: pull another campus's on-platform program feed as a source ──
+  const campusSessionsRef = useRef<RtcSession[]>([]);
+  const [showCampus, setShowCampus] = useState(false);
+  const [campusFeeds, setCampusFeeds] = useState<ProgramFeed[]>([]);
+  const [loadingFeeds, setLoadingFeeds] = useState(false);
+  const openCampusPicker = useCallback(async () => {
+    setShowCampus(true); setLoadingFeeds(true);
+    try { setCampusFeeds(await fetchLiveProgramFeedsForUser()); } catch { setCampusFeeds([]); }
+    setLoadingFeeds(false);
+  }, []);
+  const handleAddCampusFeed = useCallback((feed: ProgramFeed) => {
+    setShowCampus(false);
+    const session = new RtcSession(
+      { sessionId: feed.sessionId, topology: 'broadcast', role: 'viewer' },
+      { onRemoteStream: (_id, stream) => { engineRef.current?.addStreamSource(stream, feed.campusName); } },
+    );
+    session.join().catch(() => {});
+    campusSessionsRef.current.push(session);
+  }, []);
+  useEffect(() => () => { campusSessionsRef.current.forEach(s => { try { s.leave(); } catch { /* */ } }); }, []);
   const handleAddMedia   = useCallback(() => {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'video/*,image/*,.m3u8';
@@ -653,6 +677,31 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
             onAddHotFolder={hf => setHotFolders(prev => [...prev, hf])}
           />
         )}
+        {showCampus && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[400] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowCampus(false)}>
+            <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-[#0c0c0f] border border-white/10 rounded-3xl p-6" style={{fontFamily:'system-ui'}}>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[11px] font-black uppercase tracking-widest text-white">Campus program feeds</span>
+                <button onClick={() => setShowCampus(false)} className="text-white/40 hover:text-white text-xs">✕</button>
+              </div>
+              {loadingFeeds ? (
+                <p className="text-[11px] text-white/40 py-8 text-center">Finding live campuses…</p>
+              ) : campusFeeds.length === 0 ? (
+                <p className="text-[11px] text-white/40 py-8 text-center">No campuses are live right now. A campus goes live from its church → Master Control → "This Campus Live".</p>
+              ) : (
+                <div className="space-y-2">
+                  {campusFeeds.map(f => (
+                    <button key={f.id} onClick={() => handleAddCampusFeed(f)} className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-left transition-all">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                      <span className="flex-1 text-sm font-bold text-white truncate">{f.campusName}</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-small-orange">Add as source</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* ═══════════════════════ PROJECT SETUP MODAL ════════════════════════ */}
@@ -856,6 +905,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                     <button onClick={handleAddCamera} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Camera</button>
                     <button onClick={handleAddScreen} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Screen</button>
                     <button onClick={handleAddMedia}  className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Media</button>
+                    <button onClick={openCampusPicker} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Campus</button>
                     <button onClick={()=>setShowImport(true)} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(107,0,153,0.4)',color:'#a855f7'}}>Import…</button>
                   </div>
                 </div>

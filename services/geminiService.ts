@@ -90,6 +90,25 @@ export const generateTrackLyrics = async (title: string, artist: string) => {
   }
 };
 
+/** Speech-to-text: transcribe spoken audio (e.g. a sermon) to clean text. */
+export const transcribeSpeech = async (audioBase64: string, mimeType: string): Promise<string> => {
+  const ai = getAI();
+  if (!ai) return '';
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: [
+        { inlineData: { data: audioBase64, mimeType } },
+        { text: 'Transcribe this audio to clean, readable text. Output ONLY the transcript — full sentences and paragraphs, no timestamps, no speaker labels, no commentary. Preserve any scripture references you clearly hear.' },
+      ],
+    });
+    return response.text || '';
+  } catch (error) {
+    console.error('transcribeSpeech error:', error);
+    return '';
+  }
+};
+
 export const generateTimeCodedCaptions = async (audioBase64: string, mimeType: string, title: string, artist: string) => {
   const ai = getAI();
   if (!ai) return [];

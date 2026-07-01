@@ -8,7 +8,7 @@ import { ArrowLeft, Send, Loader2, Check, Users, GraduationCap, Upload, Download
 import type { Organization } from '../types';
 import {
   broadcastToChurch, importCongregantsCSV, fetchCongregants, exportCongregantsCSV, exportGivingCSV,
-  createChurchClass, type Congregant,
+  createChurchClass, emailBroadcast, type Congregant,
 } from '../services/churchConsoleService';
 
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
@@ -22,6 +22,8 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState<number | null>(null);
+  const [alsoEmail, setAlsoEmail] = useState(false);
+  const [emailNote, setEmailNote] = useState('');
 
   // People
   const [people, setPeople] = useState<Congregant[]>([]);
@@ -39,9 +41,16 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
 
   const send = async () => {
     if (!body.trim()) return;
-    setSending(true); setSentCount(null);
-    try { setSentCount(await broadcastToChurch(church, { title: title.trim(), message: body.trim() })); setTitle(''); setBody(''); }
-    catch { alert('Could not send.'); }
+    setSending(true); setSentCount(null); setEmailNote('');
+    try {
+      const n = await broadcastToChurch(church, { title: title.trim(), message: body.trim() });
+      if (alsoEmail) {
+        const emails = (await fetchCongregants(church.id)).map(c => c.email || '').filter(Boolean);
+        const r = await emailBroadcast(title.trim() || church.name, body.trim(), emails);
+        setEmailNote(r.configured ? `Emailed ${r.sent} congregant${r.sent === 1 ? '' : 's'}` : `Email not configured — set RESEND_API_KEY to send email (${emails.length} on file)`);
+      }
+      setSentCount(n); setTitle(''); setBody('');
+    } catch { alert('Could not send.'); }
     setSending(false);
   };
 
@@ -79,13 +88,16 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
       {tab === 'messages' && (
         <div className="space-y-4">
           <p className="text-[11px] text-white/40">Push an announcement to every member — delivered in-app and as a push notification.</p>
-          {sentCount !== null && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 text-[11px] font-black uppercase tracking-widest"><Check size={14} /> Sent to {sentCount} member{sentCount === 1 ? '' : 's'}</div>}
+          {sentCount !== null && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 text-[11px] font-black uppercase tracking-widest"><Check size={14} /> Sent to {sentCount} member{sentCount === 1 ? '' : 's'}{emailNote ? ` · ${emailNote}` : ''}</div>}
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Subject" className={field} />
           <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} placeholder="Your message to the congregation…" className={`${field} resize-none`} />
+          <button onClick={() => setAlsoEmail(v => !v)} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${alsoEmail ? 'bg-small-orange/15 border-small-orange/40 text-small-orange' : 'bg-white/5 border-white/10 text-white/50'}`}>
+            <Mail size={13} /> Also email congregants {alsoEmail && <Check size={13} />}
+          </button>
           <button onClick={send} disabled={sending || !body.trim()} className="w-full py-3.5 bg-small-orange text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
             {sending ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <><Send size={16} /> Send to all members</>}
           </button>
-          <p className="text-[9px] text-white/25">Email (SMTP) delivery to non-members is the next step; in-app + push reaches every member now.</p>
+          <p className="text-[9px] text-white/25">In-app + push reaches every member instantly. Email goes to congregants with an address on file (needs RESEND_API_KEY).</p>
         </div>
       )}
 

@@ -16,7 +16,8 @@ import {
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
   createDemoChurch, fetchChurchDonations, sumDonationsByFund,
 } from '../services/organizationService';
-import { uploadFile, searchUserProfiles } from '../services/backendService';
+import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
+import { connectStripe } from '../services/stripeService';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
@@ -516,7 +517,12 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
             <button onClick={() => { if (newFund.name.trim()) { setFunds(fs => [...fs, { id: busyId(), name: newFund.name.trim(), goal: newFund.goal ? Number(newFund.goal) : undefined, raised: 0 }]); setNewFund({ name: '', goal: '' }); } }}
               className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
           </div>
-          <input value={stripeAcct} onChange={e => setStripeAcct(e.target.value.trim())} placeholder="Stripe payout account (acct_…) — giving routes here" className={`${field} mb-3`} />
+          <div className="flex items-center gap-2 mb-3">
+            <input value={stripeAcct} onChange={e => setStripeAcct(e.target.value.trim())} placeholder="Stripe payout account (acct_…)" className={field} />
+            <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
+              className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
+          </div>
+          {stripeAcct && <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected — giving routes to this account</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
 
           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>

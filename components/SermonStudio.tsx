@@ -4,12 +4,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Sparkles, Loader2, Save, BookOpen, Check, FileText } from 'lucide-react';
+import { ArrowLeft, Sparkles, Loader2, Save, BookOpen, Check, FileText, Mic } from 'lucide-react';
 import type { Organization } from '../types';
 import {
   generateSermonArticle, saveSermonArticle, fetchChurchSermonArticles, compileSermonsIntoBook,
   type SermonDraft, type SermonArticle,
 } from '../services/sermonService';
+import { transcribeSpeech } from '../services/geminiService';
 
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
@@ -23,6 +24,23 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+
+  const transcribeAudio = async (file: File) => {
+    setTranscribing(true);
+    try {
+      const base64: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(',')[1] || '');
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const text = await transcribeSpeech(base64, file.type || 'audio/mpeg');
+      if (text) setTranscript(t => (t ? t + '\n' : '') + text);
+      else alert('Could not transcribe that file. Try a shorter clip, or paste the transcript.');
+    } catch { alert('Transcription failed.'); }
+    setTranscribing(false);
+  };
 
   // Book state
   const [articles, setArticles] = useState<SermonArticle[]>([]);
@@ -83,6 +101,13 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
         <div className="space-y-5">
           {saved && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 text-[11px] font-black uppercase tracking-widest"><Check size={14} /> Saved to the church library</div>}
           <input value={hint} onChange={e => setHint(e.target.value)} placeholder="Sermon title (optional)" className={field} />
+          <div className="flex items-center gap-2">
+            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${transcribing ? 'opacity-50' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
+              {transcribing ? <Loader2 size={13} className="animate-spin" /> : <Mic size={13} className="text-small-orange" />} {transcribing ? 'Transcribing…' : 'Transcribe audio'}
+              <input type="file" accept="audio/*,video/*" className="hidden" disabled={transcribing} onChange={e => { const f = e.target.files?.[0]; if (f) transcribeAudio(f); e.target.value = ''; }} />
+            </label>
+            <span className="text-[9px] text-white/25">Aria transcribes the recording, or paste below</span>
+          </div>
           <textarea value={transcript} onChange={e => setTranscript(e.target.value)} rows={7} placeholder="Paste the sermon transcript or notes…" className={`${field} resize-none`} />
           <button onClick={generate} disabled={generating || !transcript.trim()} className="w-full py-3.5 bg-small-orange text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
             {generating ? <><Loader2 size={16} className="animate-spin" /> Aria is writing…</> : <><Sparkles size={16} /> Generate article</>}
