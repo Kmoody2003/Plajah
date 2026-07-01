@@ -225,10 +225,17 @@ service cloud.firestore {
       return hasRequiredFields(['author', 'text', 'timestamp']) &&
              (hasRequiredFields(['trackId']) || hasRequiredFields(['videoId'])) &&
              data.author is string && data.author.size() > 0 && data.author.size() < 100 &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             data.text is string && data.text.size() < 1000 &&
+             // Allow an empty-text comment when it carries media (e.g. a GIF-only
+             // reply) — otherwise the GIF write is rejected and the comment vanishes.
+             (data.text.size() > 0
+               || ('gifUrl' in data && data.gifUrl is string && data.gifUrl.size() > 0)
+               || ('imageUrl' in data && data.imageUrl is string && data.imageUrl.size() > 0)) &&
              data.timestamp is number &&
              (!('trackId' in data) || data.trackId is string) &&
-             (!('videoId' in data) || data.videoId is string);
+             (!('videoId' in data) || data.videoId is string) &&
+             (!('gifUrl' in data) || (data.gifUrl is string && data.gifUrl.size() < 2000)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000));
     }
 
     function isValidPhoto(data) {
