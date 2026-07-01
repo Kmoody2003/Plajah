@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { fetchAllVideos } from '../services/backendService';
+import { shareAsset } from '../services/deepLinkService';
 import { Video } from '../types';
 import { SCIENCE_STREAMS, ScienceStream } from './scienceStreams';
 
@@ -10,15 +11,18 @@ const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 interface RelloViewProps {
   onBack: () => void;
   currentUser: FirebaseUser | null;
+  /** Deep-link: open the feed positioned on this video (a shared Reello link). */
+  initialVideoId?: string;
 }
 
-const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
+const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideoId }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGoLive, setShowGoLive] = useState(false);
   const [showScienceBanner, setShowScienceBanner] = useState(true);
   const [activeStream, setActiveStream] = useState<ScienceStream | null>(null);
+  const [shared, setShared] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const liveStreams = SCIENCE_STREAMS.filter(s => s.isLive && s.isEmbeddable).slice(0, 5);
@@ -27,12 +31,26 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
     let cancelled = false;
     fetchAllVideos().then(all => {
       if (cancelled) return;
-      const relloVideos = all.filter(v => v.isRello === true);
+      let relloVideos = all.filter(v => v.isRello === true);
+      // A shared link → start on that video (surface it first if it isn't in the feed).
+      if (initialVideoId) {
+        const target = all.find(v => v.id === initialVideoId);
+        if (target && !relloVideos.some(v => v.id === initialVideoId)) relloVideos = [target, ...relloVideos];
+        const idx = relloVideos.findIndex(v => v.id === initialVideoId);
+        if (idx >= 0) setCurrentIndex(idx);
+      }
       setVideos(relloVideos);
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [initialVideoId]);
+
+  const shareCurrent = async () => {
+    if (!current) return;
+    await shareAsset('video', current.id, { title: current.title, text: `${current.title} on Plajah` });
+    setShared(true);
+    setTimeout(() => setShared(false), 2000);
+  };
 
   const goNext = () => setCurrentIndex(i => Math.min(i + 1, videos.length - 1));
   const goPrev = () => setCurrentIndex(i => Math.max(i - 1, 0));
@@ -198,11 +216,11 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser }) => {
               </div>
               <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Comment</span>
             </button>
-            <button className="flex flex-col items-center gap-1 text-white group">
+            <button onClick={shareCurrent} className="flex flex-col items-center gap-1 text-white group">
               <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center group-hover:bg-white/20 transition-all">
                 <Share2 size={18} />
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Share</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{shared ? 'Copied' : 'Share'}</span>
             </button>
           </div>
 

@@ -538,6 +538,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
   const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean } | null>(null);
+  const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -1107,10 +1108,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                const vids = await m.fetchAllVideos();
                const video = vids.find(v => v.id === projectId);
                if (video) {
-                 setSelectedVideo(video);
-                 setView('VIDEOS');
                  setIsPublicView(true);
                  document.title = `${video.title} | Plajah`;
+                 // Reello (UGC) videos play in the Rello feed at that video; other
+                 // videos open the standard player. Either way, land ON the asset.
+                 if (video.isRello) {
+                   setRelloInitialVideoId(video.id);
+                   setView('RELLO');
+                 } else {
+                   setSelectedVideo(video);
+                   setView('VIDEOS');
+                 }
+               } else {
+                 // Not found in the general list — still open Rello and let it fetch by id.
+                 setRelloInitialVideoId(projectId);
+                 setView('RELLO');
                }
             } catch(e) {}
           });
@@ -3771,7 +3783,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'CLUBS' && <ClubsView onBack={() => setView('DASHBOARD')} currentUser={user} onCreatePitchDeck={(deck) => { setPitchDeckInitialDeck(deck); setView('PITCH_DECK_STUDIO'); }} />}
             {view === 'RELLO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-orange-400 animate-spin" /></div>}>
-                <RelloView onBack={handleBackToDashboard} currentUser={user} />
+                <RelloView onBack={handleBackToDashboard} currentUser={user} initialVideoId={relloInitialVideoId} />
               </Suspense>
             )}
             {view === 'CHARITY' && <CharityView onBack={() => setView('DASHBOARD')} />}
