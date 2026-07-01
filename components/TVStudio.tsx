@@ -40,6 +40,7 @@ import TVStudioLightingBoard from './TVStudioLightingBoard';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
 import { RtcSession } from '../services/rtcCore';
 import { fetchLiveProgramFeedsForUser } from '../services/multiSiteService';
+import { TeleprompterCanvasSource } from './teleprompter/teleprompterCanvasSource';
 import type { ProgramFeed } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -464,6 +465,19 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     campusSessionsRef.current.push(session);
   }, []);
   useEffect(() => () => { campusSessionsRef.current.forEach(s => { try { s.leave(); } catch { /* */ } }); }, []);
+
+  // ── Teleprompter as a switcher source (mirrors the live operator over sync) ──
+  const prompterSourceRef = useRef<TeleprompterCanvasSource | null>(null);
+  const handleAddPrompter = useCallback(() => {
+    if (prompterSourceRef.current || !engineRef.current) return; // already a source
+    const src = new TeleprompterCanvasSource(1280, 720);
+    prompterSourceRef.current = src;
+    // Live confidence feed — mirrors whatever the Teleprompter operator is running
+    // (in the app or another tab) over the teleprompter_sync channel. Route it to
+    // an aux/confidence out from the switcher.
+    engineRef.current.addStreamSource(src.captureStream(30), 'Teleprompter');
+  }, []);
+  useEffect(() => () => { prompterSourceRef.current?.dispose(); }, []);
   const handleAddMedia   = useCallback(() => {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'video/*,image/*,.m3u8';
@@ -906,6 +920,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                     <button onClick={handleAddScreen} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Screen</button>
                     <button onClick={handleAddMedia}  className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Media</button>
                     <button onClick={openCampusPicker} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Campus</button>
+                    <button onClick={handleAddPrompter} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Prompter</button>
                     <button onClick={()=>setShowImport(true)} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(107,0,153,0.4)',color:'#a855f7'}}>Import…</button>
                   </div>
                 </div>

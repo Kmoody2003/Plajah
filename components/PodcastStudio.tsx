@@ -7,11 +7,12 @@
 // (brand deals / radio station) and rolls audio/copy; callers + go-live are the next phases.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Circle, Square, Radio, Megaphone, PhoneCall, X, Loader2, Sliders } from 'lucide-react';
+import { Mic, MicOff, Circle, Square, Radio, Megaphone, PhoneCall, X, Loader2, Sliders, ScrollText } from 'lucide-react';
 import { MixEngine } from '../services/podcastStudio/mixEngine';
 import { Soundboard, DEFAULT_PADS, type SoundPad } from '../services/podcastStudio/soundboard';
 import { CallLine, type StudioCaller } from '../services/podcastStudio/callLine';
 import { AdRoll, loadAdLibrary, saveAdLibrary, type AdCreative } from '../services/podcastStudio/adRoll';
+import SlimPrompter from './teleprompter/SlimPrompter';
 import { PodcastBroadcast } from '../services/podcastStudio/broadcast';
 
 const T = { bg: '#0b0b10', panel: '#13131c', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', violet: '#8166e6', red: '#e23b3b', green: '#5fd17f', font: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" };
@@ -38,6 +39,7 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
   const [hostMuted, setHostMuted] = useState(false);
   const [hostGain, setHostGain] = useState(1);
   const [adRolling, setAdRolling] = useState(false);
+  const [showAdRead, setShowAdRead] = useState(false);
   const callRef = useRef<CallLine | null>(null);
   const [showId] = useState(() => 'show_' + Math.random().toString(36).slice(2, 9));
   const [callInOn, setCallInOn] = useState(false);
@@ -197,6 +199,9 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
               <button onClick={rollAd} disabled={adRolling} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 10, border: `1px solid ${T.violet}`, background: 'transparent', color: T.violet, cursor: 'pointer', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>
                 {adRolling ? <Loader2 size={15} className="animate-spin" /> : <Megaphone size={15} />} Roll Ad
               </button>
+              <button onClick={() => setShowAdRead(v => !v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 10, border: `1px solid ${showAdRead ? T.orange : T.border}`, background: 'transparent', color: showAdRead ? T.orange : T.ink, cursor: 'pointer', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>
+                <ScrollText size={15} /> Ad Read
+              </button>
               <div style={{ flex: 1 }} />
               {!liveOn ? (
                 <button onClick={goLive} disabled={!selfUid} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10, border: 'none', cursor: selfUid ? 'pointer' : 'not-allowed', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, background: selfUid ? T.green : T.border, color: '#102015' }}>
@@ -213,6 +218,11 @@ const PodcastStudio: React.FC<{ selfUid?: string; albumId?: string; onFinish?: (
                 </>
               )}
             </div>
+
+            {/* live ad-read teleprompter */}
+            {showAdRead && (
+              <SlimPrompter title="Ad Read" onClose={() => setShowAdRead(false)} />
+            )}
 
             {/* soundboard */}
             <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14, padding: 14 }}>
