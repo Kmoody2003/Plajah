@@ -6205,6 +6205,18 @@ export const fetchAllVideos = async (): Promise<Video[]> => {
   }
 };
 
+/** Fetch a single video by id — for deep links (fetchAllVideos only returns the
+ *  recent-50, so a shared older video must be fetched directly). */
+export const fetchVideoById = async (id: string): Promise<Video | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'videos', id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Video) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `videos/${id}`);
+    return null;
+  }
+};
+
 export const checkIfLiked = async (videoId: string) => {
   if (!auth.currentUser) return false;
   const likeId = `${auth.currentUser.uid}_${videoId}`;

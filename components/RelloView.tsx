@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { fetchAllVideos } from '../services/backendService';
+import { fetchAllVideos, fetchVideoById } from '../services/backendService';
 import { shareAsset } from '../services/deepLinkService';
 import { Video } from '../types';
 import { SCIENCE_STREAMS, ScienceStream } from './scienceStreams';
@@ -29,19 +29,23 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
 
   useEffect(() => {
     let cancelled = false;
-    fetchAllVideos().then(all => {
+    (async () => {
+      const all = await fetchAllVideos();
       if (cancelled) return;
       let relloVideos = all.filter(v => v.isRello === true);
-      // A shared link → start on that video (surface it first if it isn't in the feed).
+      // A shared link → start on that video, surfacing it first. The feed is only
+      // the recent-50, so fetch the exact video by id if it isn't already there.
       if (initialVideoId) {
-        const target = all.find(v => v.id === initialVideoId);
+        let target = all.find(v => v.id === initialVideoId);
+        if (!target) { try { target = (await fetchVideoById(initialVideoId)) || undefined; } catch { /* */ } }
+        if (cancelled) return;
         if (target && !relloVideos.some(v => v.id === initialVideoId)) relloVideos = [target, ...relloVideos];
         const idx = relloVideos.findIndex(v => v.id === initialVideoId);
         if (idx >= 0) setCurrentIndex(idx);
       }
       setVideos(relloVideos);
       setLoading(false);
-    });
+    })();
     return () => { cancelled = true; };
   }, [initialVideoId]);
 

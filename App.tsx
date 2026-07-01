@@ -1134,10 +1134,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         if (shareType === 'video') {
           import('./services/backendService').then(async (m) => {
             try {
-               const vids = await m.fetchAllVideos();
-               const video = vids.find(v => v.id === projectId);
+               // Fetch the EXACT video by id (fetchAllVideos is only the recent-50).
+               const video = await m.fetchVideoById(projectId);
+               setIsPublicView(true);
                if (video) {
-                 setIsPublicView(true);
                  document.title = `${video.title} | Plajah`;
                  // Reello (UGC) videos play in the Rello feed at that video; other
                  // videos open the standard player. Either way, land ON the asset.
@@ -1149,7 +1149,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                    setView('VIDEOS');
                  }
                } else {
-                 // Not found in the general list — still open Rello and let it fetch by id.
+                 // Unknown/removed — open Rello and let it try to fetch by id.
                  setRelloInitialVideoId(projectId);
                  setView('RELLO');
                }
