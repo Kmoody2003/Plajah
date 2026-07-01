@@ -6,6 +6,7 @@ import {
   bulkDeletePhotos, addPhotosToAlbum, updateAccountType, fetchArtistMerch,
   fetchUserWorlds, createIPWorld
 } from '../services/backendService';
+import { accountFlagUpdate } from '../services/accountCapabilities';
 import StoreManager from './StoreManager';
 import RevenueDashboard from './RevenueDashboard';
 import WorldManagerView from './WorldManagerView';
@@ -1154,15 +1155,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                         type="button"
                         onClick={async () => {
                           await updateAccountType(type as any);
-                          setProfile(prev => prev ? { 
-                            ...prev, 
-                            accountType: type as any, 
-                            isArtist: type === 'ARTIST', 
-                            isBrandAdmin: type === 'BRAND', 
-                            isWriter: type === 'WRITER',
-                            isStudent: type === 'STUDENT',
-                            isTeacher: type === 'TEACHER',
-                            isPartner: type === 'PARTNER'
+                          // Mirror the SAME derived flags the backend just persisted,
+                          // so local state matches Firestore (no more drift).
+                          setProfile(prev => prev ? {
+                            ...prev,
+                            accountType: type as any,
+                            ...accountFlagUpdate(type as any),
                           } : null);
                         }}
                         className={`p-6 rounded-[2rem] border transition-all flex flex-col items-center gap-3 ${

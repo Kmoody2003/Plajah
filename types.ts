@@ -1007,6 +1007,16 @@ export interface SidebarItemConfig {
   isVisible: boolean;
 }
 
+/**
+ * The kind of account. This is the SINGLE source of truth for account identity —
+ * the legacy `isArtist`/`isBrandAdmin`/… booleans on UserProfile are derived from
+ * it (see services/accountCapabilities.ts). Persist changes via
+ * backendService.updateAccountType() so the enum and the derived flags never drift.
+ */
+export type AccountType =
+  | 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER'
+  | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD';
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -1104,7 +1114,7 @@ export interface UserProfile {
       type: 'LIVE_TALK' | 'LIVE_STREAM';
     }[];
   };
-  accountType?: 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER' | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD';
+  accountType?: AccountType;
   /** Athlete-account fields (accountType === 'ATHLETE'). The sports/chain layer reads these. */
   athleteSport?: 'FOOTBALL' | 'BASKETBALL' | 'SOCCER' | 'BASEBALL' | 'VOLLEYBALL' | 'HOCKEY' | 'TRACK' | 'OTHER';
   athletePosition?: string;
