@@ -2,10 +2,6 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../services/firebase';
 import { reportError } from '../services/errorReporting';
-import { uploadVideoFileMux, pollMuxUploadUntilReady } from '../services/backendService';
-
-// Big videos go direct-to-Mux (chunked, transcoded, HLS delivery) instead of browser→Storage.
-const MUX_VIDEO_THRESHOLD = 200 * 1024 * 1024; // 200 MB
 
 // Fallback content-type by upload kind — files (esp. .mov) can arrive with an empty file.type,
 // which would default to application/octet-stream and be rejected by the Storage rules.
@@ -44,27 +40,10 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const id = Math.random().toString(36).substring(7);
     const fileName = file.name;
 
-    // Big videos → Mux direct upload (chunked, transcoded, HLS) instead of browser→Storage.
-    if (type === 'VIDEO' && file.size > MUX_VIDEO_THRESHOLD) {
-      setTasks(prev => [...prev, { id, fileName, progress: 0, status: 'UPLOADING', type }]);
-      try {
-        const uploadId = await uploadVideoFileMux(file, (p) => setTasks(prev => prev.map(t => t.id === id ? { ...t, progress: p } : t)));
-        // upload to Mux done — wait for the asset's playback id (transcoding continues server-side).
-        setTasks(prev => prev.map(t => t.id === id ? { ...t, progress: 100 } : t));
-        const playbackId = await new Promise<string>((resolve, reject) => {
-          let done = false;
-          pollMuxUploadUntilReady(uploadId, (pid) => { done = true; resolve(pid); }, 90, 4000);
-          setTimeout(() => { if (!done) reject(new Error('Mux processing timed out — please retry.')); }, 90 * 4000 + 5000);
-        });
-        const url = `https://stream.mux.com/${playbackId}.m3u8`;
-        setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'COMPLETED', progress: 100, downloadURL: url } : t));
-        return url;
-      } catch (e: any) {
-        reportError(e, { source: 'upload-mux', context: `VIDEO Mux · ${fileName} · ${(file.size / 1e9).toFixed(2)}GB` });
-        setTasks(prev => prev.filter(t => t.id !== id)); // drop the Mux task; fall through to Storage as a backup
-      }
-    }
-
+    // Videos go through Firebase Storage (resumable, chunked) — the same reliable path as audio,
+    // now that the rules allow up to 25 GB. (Mux is async/non-blocking by nature; wiring it into this
+    // synchronous uploadFile() made film uploads hang waiting for the playback id and never resolve.
+    // Big-file Mux should use the non-blocking pattern uploadVideo already has — a separate change.)
     const storageRef = ref(storage, `uploads/${type.toLowerCase()}s/${Date.now()}_${fileName}`);
     
     const newTask: UploadTask = {
