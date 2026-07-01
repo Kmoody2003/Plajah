@@ -2433,6 +2433,11 @@ export interface CallSession {
   answer?: string; // WebRTC answer
   iceCandidates?: string[];
   timestamp: number;
+  /** The chat room the call belongs to — the callee joins this rtc session on answer. */
+  roomId?: string;
+  roomName?: string;
+  callerName?: string;
+  callerPhoto?: string;
 }
 
 export interface PayItForwardPool {

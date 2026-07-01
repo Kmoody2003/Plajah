@@ -76,6 +76,8 @@ export interface RtcDataMessage { type: string; payload?: any }
 
 export interface RtcEvents {
   onLocalStream?: (stream: MediaStream | null) => void;
+  /** The screen-share stream (for showing your own desktop feed locally). */
+  onScreenStream?: (stream: MediaStream | null) => void;
   onRemoteStream?: (peerId: string, stream: MediaStream) => void;
   onPeerLeft?: (peerId: string) => void;
   onParticipants?: (participants: RtcParticipant[]) => void;
@@ -384,16 +386,18 @@ export class RtcSession {
     }
   }
 
-  /** Start/stop screen share via hot track swap (keeps every peer connected). */
+  /** Start/stop screen share via hot track swap (keeps every peer connected).
+   *  Requests desktop audio too so it can be shared alongside the screen. */
   async startScreenShare(): Promise<boolean> {
     try {
-      this.screen = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
+      this.screen = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
       const track = this.screen!.getVideoTracks()[0];
       this.peers.forEach(({ pc }) => {
         const sender = pc.getSenders().find(s => s.track?.kind === 'video');
         sender?.replaceTrack(track).catch(() => {});
       });
       track.onended = () => this.stopScreenShare();
+      this.events.onScreenStream?.(this.screen);   // local preview of your own desktop feed
       return true;
     } catch { return false; }
   }
@@ -406,6 +410,33 @@ export class RtcSession {
     });
     this.screen?.getTracks().forEach(t => t.stop());
     this.screen = null;
+    this.events.onScreenStream?.(null);
+  }
+
+  getScreenStream() { return this.screen; }
+
+  /** Use DESKTOP / system audio as the audio source (Teams/Zoom "share system
+   *  audio") — captures getDisplayMedia audio and hot-swaps it in for the mic. */
+  async useDesktopAudio(): Promise<boolean> {
+    try {
+      const disp = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
+      const audioTrack = disp.getAudioTracks()[0];
+      if (!audioTrack) { disp.getTracks().forEach((t: MediaStreamTrack) => t.stop()); return false; }
+      // We only want the audio; drop the picker's video track.
+      disp.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
+      const old = this.local?.getAudioTracks()[0];
+      if (old) audioTrack.enabled = old.enabled;
+      this.peers.forEach(({ pc }) => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+        sender?.replaceTrack(audioTrack).catch(() => {});
+      });
+      if (this.local) {
+        if (old) { this.local.removeTrack(old); old.stop(); }
+        this.local.addTrack(audioTrack);
+        this.events.onLocalStream?.(this.local);
+      }
+      return true;
+    } catch { return false; }
   }
 
   /** Leave the session and release everything. */

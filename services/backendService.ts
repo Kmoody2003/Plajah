@@ -5802,7 +5802,11 @@ export const fetchCollabProjects = async (chatRoomId: string): Promise<CollabPro
   }
 };
 
-export const startCall = async (receiverId: string, type: CallSession['type']): Promise<string> => {
+export const startCall = async (
+  receiverId: string,
+  type: CallSession['type'],
+  meta?: { roomId?: string; roomName?: string; callerName?: string; callerPhoto?: string },
+): Promise<string> => {
   const path = 'calls';
   try {
     const docRef = await addDoc(collection(db, path), {
@@ -5810,13 +5814,37 @@ export const startCall = async (receiverId: string, type: CallSession['type']): 
       receiverId,
       type,
       status: 'RINGING',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      roomId: meta?.roomId || '',
+      roomName: meta?.roomName || '',
+      callerName: meta?.callerName || auth.currentUser?.displayName || 'Someone',
+      callerPhoto: meta?.callerPhoto || auth.currentUser?.photoURL || '',
     });
+    // Push notification so the callee is alerted even outside the app.
+    try {
+      await createNotification({
+        userId: receiverId,
+        senderId: auth.currentUser?.uid || '',
+        senderName: meta?.callerName || auth.currentUser?.displayName || 'Someone',
+        senderPhoto: meta?.callerPhoto || auth.currentUser?.photoURL || '',
+        type: 'SYSTEM',
+        title: `Incoming ${type === 'VIDEO' ? 'video' : 'voice'} call`,
+        message: `${meta?.callerName || auth.currentUser?.displayName || 'Someone'} is calling you`,
+        targetId: docRef.id,
+      } as any);
+    } catch { /* non-fatal */ }
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
     throw e;
   }
+};
+
+/** The CALLER watches its own call doc to learn when it's answered / declined / missed. */
+export const listenToCall = (callId: string, callback: (call: CallSession | null) => void) => {
+  return onSnapshot(doc(db, 'calls', callId), (snap) => {
+    callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as CallSession) : null);
+  }, (e) => handleFirestoreError(e, OperationType.LIST, `calls/${callId}`));
 };
 
 export const listenToCalls = (callback: (calls: CallSession[]) => void) => {

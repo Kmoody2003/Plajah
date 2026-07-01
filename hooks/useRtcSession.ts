@@ -46,6 +46,10 @@ export interface UseRtcSession {
   /** Hot-swap camera / mic to a specific device mid-call (no peer drop). */
   switchVideoDevice: (deviceId: string) => void;
   switchAudioDevice: (deviceId: string) => void;
+  /** Use desktop/system audio as the audio source (returns success). */
+  useDesktopAudio: () => Promise<boolean>;
+  /** Your own screen-share stream (for a local "your desktop" preview tile). */
+  screenStream: MediaStream | null;
 }
 
 export function useRtcSession(
@@ -56,6 +60,7 @@ export function useRtcSession(
   const onDataRef = useRef(opts.onData);
   onDataRef.current = opts.onData;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [participants, setParticipants] = useState<RtcParticipant[]>([]);
   const [peerStates, setPeerStates] = useState<Map<string, RTCPeerConnectionState>>(new Map());
@@ -80,6 +85,7 @@ export function useRtcSession(
     let cancelled = false;
     const session = new RtcSession(config, {
       onLocalStream: s => { if (!cancelled) setLocalStream(s); },
+      onScreenStream: s => { if (!cancelled) { setScreenStream(s); setSharingScreen(!!s); } },
       onRemoteStream: (id, stream) => {
         if (cancelled) return;
         setRemoteStreams(prev => { const n = new Map(prev); n.set(id, stream); return n; });
@@ -137,6 +143,11 @@ export function useRtcSession(
     sessionRef.current?.switchAudioDevice(deviceId).catch(() => {}).finally(() => {
       setActiveDevices(sessionRef.current?.getActiveDevices() || {});
     });
+  }, []);
+  const useDesktopAudio = useCallback(async () => {
+    const ok = await (sessionRef.current?.useDesktopAudio() ?? Promise.resolve(false));
+    setActiveDevices(sessionRef.current?.getActiveDevices() || {});
+    return ok;
   }, []);
 
   // Populate the device list once we have a local stream (labels need permission),
@@ -198,5 +209,6 @@ export function useRtcSession(
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
+    useDesktopAudio, screenStream,
   };
 }

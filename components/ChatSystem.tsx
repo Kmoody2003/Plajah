@@ -7,15 +7,14 @@ import {
   Copy, Share2, QrCode, BookUser, UserCheck, Trash2, LogOut,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChatRoom, UserProfile, CallSession } from '../types';
+import { ChatRoom, UserProfile } from '../types';
 import {
-  listenToChatRooms, auth, createChatRoom, listenToCalls,
+  listenToChatRooms, auth, createChatRoom,
   fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
 } from '../services/backendService';
+import { useCall } from '../contexts/CallContext';
 import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
-import CallInterface from './CallInterface';
-import VideoChat from './VideoChat';
 import PostmanSystem from './PostmanSystem';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -577,8 +576,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [profiles, setProfiles]             = useState<Record<string, UserProfile>>({});
   const [activeRoom, setActiveRoom]         = useState<ChatRoom | null>(null);
   const [activeCollabId, setActiveCollabId] = useState<string | null>(null);
-  const [activeCall, setActiveCall]         = useState<CallSession | null>(null);
-  const [showVideoChat, setShowVideoChat]   = useState(false);
+  const { placeCall } = useCall();
   const [sidebarTab, setSidebarTab]         = useState<SidebarTab>('ALL');
   const [searchTerm, setSearchTerm]         = useState('');
   const [mainView, setMainView]             = useState<MainView>('CHAT_LIST');
@@ -655,11 +653,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
       });
     });
 
-    const unsubCalls = listenToCalls(calls => {
-      if (calls.length && !activeCall) setActiveCall(calls[0]);
-    });
-
-    return () => { unsubRooms(); unsubCalls(); };
+    return () => { unsubRooms(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-open room from URL/prop ────────────────────────────────────────────
@@ -965,7 +959,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
               currentUserProfile={currentUserProfile}
               onBack={() => { setActiveRoom(null); setActiveCollabId(null); }}
               onOpenCollab={id => setActiveCollabId(id)}
-              onStartVideo={() => setShowVideoChat(true)}
+              onStartVideo={() => activeRoom && placeCall(activeRoom, 'VIDEO')}
             />
           </div>
         ) : (
@@ -1000,17 +994,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
         )}
       </div>
 
-      {/* ── VIDEO CHAT ───────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showVideoChat && activeRoom && (
-          <VideoChat room={activeRoom} user={auth.currentUser} onClose={() => setShowVideoChat(false)} />
-        )}
-      </AnimatePresence>
-
-      {/* ── INCOMING CALL ────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {activeCall && <CallInterface call={activeCall} onEnd={() => setActiveCall(null)} />}
-      </AnimatePresence>
+      {/* Video calls + incoming rings are handled globally by CallProvider. */}
 
       {/* ── NEW ROOM MODAL ───────────────────────────────────────────────── */}
       <AnimatePresence>
