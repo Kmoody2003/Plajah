@@ -3574,6 +3574,21 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.get('/social-video', async (req, res) => {
     res.removeHeader('X-Frame-Options');
     res.setHeader('Content-Security-Policy', "frame-ancestors *");
+    // ?probe=2 — fully synthetic encode (no downloads, no remote inputs) to isolate whether
+    // the ffmpeg ENCODE crashes the instance vs. the input handling.
+    if (req.query.probe === '2') {
+      const out = path.join(os.tmpdir(), `probe_${Date.now()}.mp4`);
+      const r = await new Promise<string>((resolve) => {
+        let e = '';
+        let p: ReturnType<typeof spawn>;
+        try { p = spawn('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=blue:s=320x320:d=3', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '3', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart', out]); }
+        catch (err: any) { return resolve(`spawn threw: ${err?.message || err}`); }
+        p.stderr?.on('data', (d) => { e += d.toString(); });
+        p.on('error', (err: any) => resolve(`spawn error: ${err?.message || err}`));
+        p.on('close', async (code) => { try { const s = (await fs.stat(out)).size; fs.unlink(out).catch(() => {}); resolve(`exit ${code}, out ${s} bytes`); } catch { resolve(`exit ${code}, NO FILE\n${e.slice(-500)}`); } });
+      });
+      return res.type('text/plain').send(r);
+    }
     // ?probe=1 — confirm ffmpeg is installed + runnable (no heavy generation).
     if (req.query.probe) {
       const out = await new Promise<string>((resolve) => {
