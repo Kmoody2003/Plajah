@@ -11,6 +11,8 @@ interface Report {
   id: string; message: string; stack?: string; source: string; context?: string;
   severity?: string; url?: string; userId?: string | null; userEmail?: string | null;
   userName?: string | null; userAgent?: string | null; createdAt: number;
+  // User-filed bug reports (source 'user-report')
+  userMessage?: string; currentView?: string; traceText?: string; viewport?: string; screen?: string;
 }
 
 const T = { panel: '#13131c', border: '#23232f', ink: '#fff', muted: '#9a9aa6', orange: '#FF8C00', red: '#e2473b', amber: '#e2a13b' };
@@ -100,11 +102,30 @@ const ErrorReportsPanel: React.FC = () => {
               <div style={{ flex: 1, fontSize: 14, fontWeight: 700, wordBreak: 'break-word' }}>{sel.message}</div>
               <button onClick={() => setSel(null)} style={{ background: 'transparent', border: 'none', color: T.muted, cursor: 'pointer' }}><X size={18} /></button>
             </div>
+            {sel.source === 'user-report' && (
+              <div style={{ marginTop: 10, display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: `${T.orange}22`, color: T.orange, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>User Report</div>
+            )}
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '90px 1fr', gap: '6px 10px', fontSize: 12 }}>
-              {[['Source', sel.source], ['Context', sel.context || '—'], ['User', sel.userEmail || sel.userName || sel.userId || 'anon'], ['UID', sel.userId || '—'], ['URL', sel.url || '—'], ['When', new Date(sel.createdAt).toLocaleString()], ['Agent', sel.userAgent || '—']].map(([k, v]) => (
+              {[
+                ['Source', sel.source],
+                ...(sel.currentView ? [['View', sel.currentView]] : []),
+                ['Context', sel.context || '—'],
+                ['User', sel.userEmail || sel.userName || sel.userId || 'anon'],
+                ['UID', sel.userId || '—'],
+                ['URL', sel.url || '—'],
+                ...(sel.viewport ? [['Viewport', `${sel.viewport}${sel.screen ? ` (screen ${sel.screen})` : ''}`]] : []),
+                ['When', new Date(sel.createdAt).toLocaleString()],
+                ['Agent', sel.userAgent || '—'],
+              ].map(([k, v]) => (
                 <React.Fragment key={k as string}><span style={{ color: T.muted, fontWeight: 700 }}>{k}</span><span style={{ wordBreak: 'break-word' }}>{v as string}</span></React.Fragment>
               ))}
             </div>
+            {sel.traceText && (
+              <>
+                <div style={{ marginTop: 14, marginBottom: 6, fontSize: 11, fontWeight: 800, color: T.muted, textTransform: 'uppercase', letterSpacing: 1 }}>Session trail — last 5 minutes</div>
+                <pre style={{ padding: 10, background: '#0c0c12', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 10.5, color: '#9fd', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 260 }}>{sel.traceText}</pre>
+              </>
+            )}
             {sel.stack && <pre style={{ marginTop: 12, padding: 10, background: '#0c0c12', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: '#cbb', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{sel.stack}</pre>}
           </div>
         </div>

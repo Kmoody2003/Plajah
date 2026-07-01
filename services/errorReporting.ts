@@ -5,6 +5,7 @@
 
 import { db, auth } from './backendService';
 import { collection, addDoc } from 'firebase/firestore';
+import { trace, getTrace, formatTrace } from './sessionTrace';
 
 export type ErrorSeverity = 'error' | 'warning';
 export interface ReportOpts { source?: string; context?: string; severity?: ErrorSeverity }
@@ -26,6 +27,8 @@ export async function reportError(err: unknown, opts: ReportOpts = {}): Promise<
     if (last && now - last < DEDUP_MS) return;
     recent.set(key, now);
     if (recent.size > 200) recent.clear();
+
+    trace('error', message); // breadcrumb: errors show in the session trace too
 
     const u = auth.currentUser;
     await addDoc(collection(db, 'errorReports'), {
@@ -54,4 +57,45 @@ export function installGlobalErrorReporting(): void {
   window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
     reportError(e.reason, { source: 'promise' });
   });
+}
+
+export interface BugReportInput {
+  /** The user's description of what went wrong. */
+  message: string;
+  /** What the user was doing / current view. */
+  currentView?: string;
+  severity?: ErrorSeverity;
+}
+
+/**
+ * A user-filed bug report. Unlike reportError this never dedups (each is
+ * intentional) and auto-attaches the last-5-minutes session trace. Lands in the
+ * same admin error store (errorReports), tagged source 'user-report'.
+ */
+export async function reportBug(input: BugReportInput): Promise<boolean> {
+  try {
+    const events = getTrace();
+    const u = auth.currentUser;
+    const scr = typeof window !== 'undefined' ? window.screen : null;
+    await addDoc(collection(db, 'errorReports'), {
+      message: `[User Report] ${String(input.message || '').slice(0, 1000)}`,
+      userMessage: String(input.message || '').slice(0, 1000),
+      source: 'user-report',
+      severity: input.severity || 'warning',
+      currentView: input.currentView || '',
+      trace: events.slice(-200),                 // structured breadcrumbs
+      traceText: formatTrace(events).slice(0, 8000), // readable transcript
+      url: typeof location !== 'undefined' ? location.href.slice(0, 500) : '',
+      viewport: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '',
+      screen: scr ? `${scr.width}x${scr.height}` : '',
+      userId: u?.uid || null,
+      userEmail: u?.email || null,
+      userName: u?.displayName || null,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : '',
+      createdAt: Date.now(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

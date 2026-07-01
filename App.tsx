@@ -146,6 +146,7 @@ const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
+const BugReportButton = retryLazy(() => import('./components/BugReportButton'));
 const CreatorPaymentDashboard = retryLazy(() => import('./components/CreatorPaymentDashboard'));
 const EventCreationWizard = retryLazy(() => import('./components/EventCreationWizard'));
 const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
@@ -330,6 +331,7 @@ import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
 import { saveStudioEpisode } from './services/podcastStudio/studioService';
 import { installGlobalErrorReporting } from './services/errorReporting';
+import { installSessionTrace, traceView } from './services/sessionTrace';
 
 const App: React.FC = () => {
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
@@ -422,7 +424,8 @@ const App: React.FC = () => {
   }, [setView]);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
-  useEffect(() => { installGlobalErrorReporting(); }, []);
+  useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); }, []);
+  useEffect(() => { traceView(view); }, [view]);
 
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
@@ -4131,6 +4134,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       <Suspense fallback={null}>
         <UpdateNotification onOpenChangelog={() => setView('PLATFORM_CHANGELOG')} />
       </Suspense>
+
+      {/* Platform-wide bug reporting — attaches the last 5 min of session activity.
+          Gated to authenticated users (incl. guests) since errorReports create is auth-only. */}
+      {view !== 'LANDING' && !!user && (
+        <Suspense fallback={null}>
+          <BugReportButton currentView={view} />
+        </Suspense>
+      )}
 
       {pifWins.map(win => (
         <PayItForwardNotification 
