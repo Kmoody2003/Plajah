@@ -12,6 +12,8 @@ import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import nodeCrypto from 'node:crypto';
+import { spawn } from 'node:child_process';
+import os from 'node:os';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
 
@@ -77,6 +79,97 @@ async function firestoreAuthHeaders(): Promise<Record<string, string>> {
   return token
     ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
     : { 'Content-Type': 'application/json' };
+}
+
+// ── Social video generation (cover + audio → MP4 for Facebook/Instagram inline play) ──
+// Meta only autoplays a direct video/mp4 in-feed, not an HTML audio player — so for music
+// shares we render a short cover+audio MP4 and point og:video at it. Cached in Cloud Storage.
+const STORAGE_BUCKET = process.env.STORAGE_BUCKET || 'gen-lang-client-0665118474.firebasestorage.app';
+
+async function gcsObjectExists(objectPath: string): Promise<boolean> {
+  const token = await getGoogleAccessToken();
+  if (!token) return false;
+  try {
+    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    return res.ok;
+  } catch { return false; }
+}
+
+async function gcsUpload(objectPath: string, data: Buffer, contentType: string): Promise<boolean> {
+  const token = await getGoogleAccessToken();
+  if (!token) return false;
+  try {
+    const url = `https://storage.googleapis.com/upload/storage/v1/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`;
+    const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType }, body: data as any });
+    return res.ok;
+  } catch { return false; }
+}
+
+async function gcsDownload(objectPath: string): Promise<Buffer | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  try {
+    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch { return null; }
+}
+
+/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. */
+async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<Buffer | null> {
+  const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
+  const ok = await new Promise<boolean>((resolve) => {
+    const args = [
+      '-y',
+      '-loop', '1', '-i', coverUrl,
+      '-i', audioUrl,
+      '-t', '45',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p',
+      '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720',
+      '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+      '-movflags', '+faststart', '-shortest',
+      out,
+    ];
+    let ff: ReturnType<typeof spawn>;
+    try { ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'ignore'] }); }
+    catch { return resolve(false); }
+    const killer = setTimeout(() => { try { ff.kill('SIGKILL'); } catch { /* */ } }, 28000);
+    ff.on('error', () => { clearTimeout(killer); resolve(false); });
+    ff.on('close', (code) => { clearTimeout(killer); resolve(code === 0); });
+  });
+  if (!ok) { try { await fs.unlink(out); } catch { /* */ } return null; }
+  try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return buf; }
+  catch { return null; }
+}
+
+const socialVideoInFlight = new Set<string>();
+/** Ensure the social MP4 exists in Storage (generate once), returning true when available. */
+async function ensureSocialVideo(objectPath: string, coverUrl: string, audioUrl: string): Promise<boolean> {
+  if (await gcsObjectExists(objectPath)) return true;
+  if (socialVideoInFlight.has(objectPath)) return false; // another request is generating it
+  socialVideoInFlight.add(objectPath);
+  try {
+    const buf = await generateSocialVideoMp4(coverUrl, audioUrl);
+    if (!buf) return false;
+    await gcsUpload(objectPath, buf, 'video/mp4');
+    return true;
+  } catch { return false; }
+  finally { socialVideoInFlight.delete(objectPath); }
+}
+
+/** Resolve an album's cover + a playable (non-paywalled) track for the social video. */
+function pickSocialTrack(fields: any, track?: string): { cover: string; audio: string; trackId: string } | null {
+  const cover = fields?.coverImage?.stringValue || fields?.coverImageUrl?.stringValue || '';
+  const arr = fields?.tracks?.arrayValue?.values || [];
+  const playable = (t: any) => !t?.mapValue?.fields?.isPaywalled?.booleanValue && t?.mapValue?.fields?.url?.stringValue;
+  let tObj = track ? arr.find((t: any) => t.mapValue?.fields?.id?.stringValue === track) : null;
+  if (!tObj || !playable(tObj)) tObj = arr.find(playable) || null;
+  const audio = tObj?.mapValue?.fields?.url?.stringValue || '';
+  const trackId = tObj?.mapValue?.fields?.id?.stringValue || 'a';
+  if (!cover || !audio) return null;
+  return { cover, audio, trackId };
 }
 
 // Simple REST fetch for Firebase DB without needing admin SDK initialized
@@ -205,7 +298,23 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    // LinkedIn still get an inline player from the og:video set below (now that /embed is
    // reachable + framable + resolves Mux). Always a large-image card on X.
    metaTags += `\n    <meta name="twitter:card" content="summary_large_image" />`;
-   if (playerUrl) {
+   const isMusic = (type === 'album' || type === 'track');
+   if (isMusic) {
+     // Music → a real cover+audio MP4 (og:video:type=video/mp4) so it plays INLINE on
+     // Facebook/Instagram, which don't autoplay HTML/audio players. Square 720×720.
+     const mp4 = htmlEscape(`https://${host}/social-video?type=album&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`);
+     metaTags += `
+    <meta property="og:type" content="video.other" />
+    <meta property="og:video" content="${mp4}" />
+    <meta property="og:video:url" content="${mp4}" />
+    <meta property="og:video:secure_url" content="${mp4}" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:video:width" content="720" />
+    <meta property="og:video:height" content="720" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />`;
+   } else if (playerUrl) {
+     // Video (Mux/direct) — HTML player for platforms that still honor og:video text/html.
      const safePlayerUrl = htmlEscape(playerUrl);
      metaTags += `
     <meta property="og:type" content="video.other" />
@@ -3435,6 +3544,42 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       </body>
       </html>
     `);
+  });
+
+  // Social video — a cover+audio MP4 for a shared album/track, so music plays INLINE on
+  // Facebook/Instagram (which only autoplay video/mp4). Generated on first hit, cached in
+  // Storage, served with Range support. og:video points here for music shares.
+  app.get('/social-video', async (req, res) => {
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Security-Policy', "frame-ancestors *");
+    const { id, track } = req.query as any;
+    if (!id) return res.status(404).send('Not Found');
+    try {
+      const dbData = await fetchFirebaseDoc('albums', String(id));
+      const picked = dbData?.fields ? pickSocialTrack(dbData.fields, track ? String(track) : undefined) : null;
+      if (!picked) return res.status(404).send('No media');
+      const objectPath = `socialVideos/${String(id)}__${track ? String(track) : picked.trackId}.mp4`;
+      const ready = await ensureSocialVideo(objectPath, picked.cover, picked.audio);
+      if (!ready) { res.setHeader('Retry-After', '5'); return res.status(503).send('Preparing preview'); }
+      const buf = await gcsDownload(objectPath);
+      if (!buf) return res.status(503).send('Unavailable');
+
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const range = req.headers.range;
+      const m = range ? /bytes=(\d+)-(\d*)/.exec(range) : null;
+      if (m) {
+        const start = parseInt(m[1], 10);
+        const end = m[2] ? Math.min(parseInt(m[2], 10), buf.length - 1) : buf.length - 1;
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${buf.length}`);
+        res.setHeader('Content-Length', String(end - start + 1));
+        return res.end(buf.subarray(start, end + 1));
+      }
+      res.setHeader('Content-Length', String(buf.length));
+      return res.end(buf);
+    } catch { return res.status(500).send('Error'); }
   });
 
   // Share landing — serves the SPA shell with OG/twitter:player meta injected so

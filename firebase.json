@@ -61,6 +61,10 @@
         "run": { "serviceId": "plajah-api", "region": "us-west1" }
       },
       {
+        "source": "/social-video",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

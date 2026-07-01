@@ -1,6 +1,10 @@
 FROM node:20-alpine
 WORKDIR /app
 
+# ffmpeg — generates cover+audio MP4s for social link previews so music plays inline on
+# Facebook/Instagram (which only autoplay direct video/mp4, not HTML/audio players).
+RUN apk add --no-cache ffmpeg
+
 # Skip Chromium download — puppeteer is a dev tool, not needed in the server runtime
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
