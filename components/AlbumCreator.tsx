@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion } from '../types';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
-import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload } from '../services/backendService';
+import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
@@ -41,7 +41,7 @@ const TYPE_OPTIONS: { id: AssetType; label: string; desc: string; icon: React.Re
 ];
 
 const MUSIC_SUBTYPES = ['ALBUM', 'SINGLE', 'EP', 'PODCAST'] as const;
-const VIDEO_SUBTYPES = ['MOVIE', 'TV_SERIES', 'PODCAST'] as const;
+const VIDEO_SUBTYPES = ['UGC', 'MOVIE', 'TV_SERIES', 'PODCAST'] as const;
 
 // Step labels are computed dynamically in the component based on type + subType.
 
@@ -53,7 +53,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [title, setTitle] = useState(initialAlbum?.title || '');
   const [artist, setArtist] = useState(initialAlbum?.artist || '');
   const [type, setType] = useState<AssetType>(resolvedInitialType);
-  const [subType, setSubType] = useState<'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
+  const [subType, setSubType] = useState<'UGC' | 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | undefined>(initialAlbum?.subType);
   // Film/TV distribution + release (folded in from the old Distribute-New-Film wizard).
   const [filmDist, setFilmDist] = useState<FilmDistribution>(initialAlbum?.filmDistribution || DEFAULT_FILM_DISTRIBUTION);
   const [alternateVersions, setAlternateVersions] = useState<FilmVersion[]>(initialAlbum?.alternateVersions || []);
@@ -672,12 +672,34 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         };
       })() : {};
 
+      // UGC / Reello video — publish a single video straight to Reello via the non-blocking Mux
+      // pipeline (uploadVideo: creates the record immediately, resolves the HLS URL in the background).
+      if (type === 'VIDEO' && subType === 'UGC') {
+        const vidTrack = tracks.find(t => t.file) || tracks[0];
+        if (!vidTrack?.file) { alert('Add a video file first.'); setStatus(null); return; }
+        setStatus({ text: 'Uploading to Reello…', percent: 5 });
+        const createdVideo = await uploadVideo({
+          title: title || vidTrack.title || 'Untitled',
+          description,
+          file: vidTrack.file,
+          thumbnailFile: coverFile,
+          coverImageFile: coverFile,
+          genre,
+          isRello: true,
+          isPrivate,
+          tags,
+        } as any, (p) => setStatus({ text: 'Uploading to Reello…', percent: Math.max(5, Math.round(p)) }));
+        setStatus({ text: 'Published to Reello', percent: 100 });
+        onCreated(createdVideo as any);
+        return;
+      }
+
       const newAlbum: Album = {
         ...initialAlbum,
         id: albumId, title,
         artist: artist || "Unknown Artist",
         type: type as Album['type'],
-        subType, genre, price, isPaywalled,
+        subType: subType as Album['subType'], genre, price, isPaywalled,
         artistBio: artistBio || `Exploring the boundaries of creativity as ${artist}.`,
         linerNotes,
         artistImage: artistImage || coverImage,
@@ -778,6 +800,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             }`}
           >
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${subType === st ? 'bg-black/10' : 'bg-white/5'}`}>
+              {st === 'UGC' && <Film size={22} />}
               {st === 'MOVIE' && <Film size={22} />}
               {st === 'TV_SERIES' && <Tv size={22} />}
               {st === 'PODCAST' && <Mic2 size={22} />}
@@ -785,7 +808,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               {st === 'SINGLE' && <Music2 size={22} />}
               {st === 'EP' && <Music2 size={22} />}
             </div>
-            <p className="text-sm font-black uppercase tracking-widest">{st.replace('_', ' ')}</p>
+            <p className="text-sm font-black uppercase tracking-widest">{st === 'UGC' ? 'Reello Video' : st.replace('_', ' ')}</p>
+            {st === 'UGC' && <p className="text-[9px] font-bold text-white/40 -mt-2">Your own video — posts to Reello</p>}
           </button>
         ))}
       </div>
