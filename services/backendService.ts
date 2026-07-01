@@ -3704,11 +3704,20 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
   }
 };
 
-export const loginWithGoogle = async (): Promise<User | null> => {
+export const loginWithGoogle = async (loginHint?: string): Promise<User | null> => {
   const provider = new GoogleAuthProvider();
+  // Always force the account chooser (so a hot-switch never silently reuses the
+  // currently-remembered Google session), and pre-select the target account when
+  // switching to a known slot — this keeps each account siloed to the right user.
+  provider.setCustomParameters(loginHint
+    ? { prompt: 'select_account', login_hint: loginHint }
+    : { prompt: 'select_account' });
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
+      // Mint a fresh token for the newly-active account immediately, so the very
+      // next Storage/Firestore call is credentialed for THIS user, not the last one.
+      try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
       await syncUserProfile(result.user);
       return result.user;
     }

@@ -1214,8 +1214,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setHotSwitchSlot(slot);
         if (hotSwitchTimerRef.current) clearTimeout(hotSwitchTimerRef.current);
         hotSwitchTimerRef.current = setTimeout(() => setHotSwitchSlot(null), 2000);
-        // Trigger account switch via Google
-        loginWithGoogle().then(() => {
+        // Trigger account switch via Google, pre-selecting this slot's account.
+        loginWithGoogle(target.email).then(() => {
           setHotSwitchSlot(null);
         }).catch(() => setHotSwitchSlot(null));
       }
@@ -3366,7 +3366,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           <div className="py-40 text-center flex flex-col items-center gap-6 opacity-40">
                             <Layers size={48} className="mb-4" />
                             <p className="text-xs font-black uppercase tracking-widest">Sign in to access your personal archive</p>
-                            <button onClick={loginWithGoogle} className="px-8 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest">Sign In</button>
+                            <button onClick={() => loginWithGoogle()} className="px-8 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest">Sign In</button>
                           </div>
                         )}
                       </div>
@@ -4117,7 +4117,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           const target = linkedAccounts.find(a => a.slot === slot);
           if (!target || target.uid === user?.uid) return;
           setShowAccountSwitcher(false);
-          await loginWithGoogle();
+          // Pre-select the target account so the switch lands on the right silo.
+          await loginWithGoogle(target.email);
         }}
         onAddAccount={async () => {
           const result = await loginWithGoogle();

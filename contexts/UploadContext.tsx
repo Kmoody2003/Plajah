@@ -1,7 +1,33 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { storage, auth } from '../services/firebase';
 import { reportError } from '../services/errorReporting';
+
+/**
+ * Guarantee a signed-in user with a FRESH id token before any Storage write.
+ *
+ * Storage rules gate `uploads/**` on `isAuth()` (request.auth != null). A
+ * STORAGE/UNAUTHORIZED here means the request went out with NO valid token —
+ * which happens when the account is mid-hot-switch (auth.currentUser briefly
+ * null) or a long upload crossed the 1-hour token expiry. This waits for the
+ * ACTIVE account and force-refreshes its token so the write is always credentialed
+ * for the right user. Returns that user's uid so the caller can pin the upload to it.
+ */
+async function ensureUploadAuth(): Promise<string> {
+  if (!auth.currentUser) {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => { unsub(); reject(new Error('You are not signed in — select your account and try again.')); }, 10000);
+      const unsub = onAuthStateChanged(auth, (u) => { if (u) { clearTimeout(timer); unsub(); resolve(); } });
+    });
+  }
+  const user = auth.currentUser;
+  if (!user) throw new Error('You are not signed in — select your account and try again.');
+  // Force-refresh: a fresh full-hour token for THIS account, so a stale/expired
+  // token from a previous account can never leak into this upload.
+  try { await user.getIdToken(true); } catch { /* the write below will surface a real auth error */ }
+  return user.uid;
+}
 
 // Fallback content-type by upload kind — files (esp. .mov) can arrive with an empty file.type,
 // which would default to application/octet-stream and be rejected by the Storage rules.
@@ -40,12 +66,16 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const id = Math.random().toString(36).substring(7);
     const fileName = file.name;
 
+    // Pin this upload to the account that STARTED it — a fresh, valid token for
+    // the active user. Fixes STORAGE/UNAUTHORIZED when accounts are hot-switched.
+    const ownerUid = await ensureUploadAuth();
+
     // Videos go through Firebase Storage (resumable, chunked) — the same reliable path as audio,
     // now that the rules allow up to 25 GB. (Mux is async/non-blocking by nature; wiring it into this
     // synchronous uploadFile() made film uploads hang waiting for the playback id and never resolve.
     // Big-file Mux should use the non-blocking pattern uploadVideo already has — a separate change.)
     const storageRef = ref(storage, `uploads/${type.toLowerCase()}s/${Date.now()}_${fileName}`);
-    
+
     const newTask: UploadTask = {
       id,
       fileName,
@@ -68,10 +98,19 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
         },
-        (error) => {
-          setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'ERROR', error: error.message } : t));
-          reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType}` });
-          reject(error);
+        (error: any) => {
+          // A mid-upload hot-switch changes the active account under the SDK — the
+          // token no longer matches, producing STORAGE/UNAUTHORIZED. Say so plainly.
+          const switched = auth.currentUser?.uid && auth.currentUser.uid !== ownerUid;
+          const isAuthErr = error?.code === 'storage/unauthorized' || /unauthorized|permission/i.test(error?.message || '');
+          const friendly = isAuthErr
+            ? (switched
+                ? 'Upload interrupted by an account switch — switch back to the account that started this upload and retry.'
+                : 'Upload was not authorized. Your sign-in may have expired — re-select your account and try again.')
+            : error?.message;
+          setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'ERROR', error: friendly } : t));
+          reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType} · owner=${ownerUid} · active=${auth.currentUser?.uid || 'none'} · switched=${!!switched}` });
+          reject(new Error(friendly || 'Upload failed'));
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);

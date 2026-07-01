@@ -251,7 +251,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-4xl"
         >
           <button
-            onClick={loginWithGoogle}
+            onClick={() => loginWithGoogle()}
             className="flex-1 group relative flex items-center justify-center gap-3 px-6 py-4 bg-white text-black rounded-2xl font-display font-light group-hover:font-black text-sm uppercase tracking-[0.1em] shadow-[0_10px_30px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all duration-300"
           >
             <LogIn size={16} className="transition-transform group-hover:scale-110" />
