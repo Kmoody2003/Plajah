@@ -8,6 +8,7 @@ import {
   listenToFollowedPosts,
   listenToGlobalPosts,
   createPost,
+  postFieldsForAssetEmbed,
   auth,
   fetchUserContent,
   fetchUserVideos,
@@ -1182,11 +1183,13 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                   return { type: att.type, url: att.url, title: att.title };
                 })
               )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
               await createPost({
                 text: data.text,
                 isPublic: true,
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                ...embedFields,
                 targetUserId: isOwnProfile ? undefined : uid,
                 targetUserName: isOwnProfile ? undefined : profileName
               });

@@ -1394,6 +1394,27 @@ export const createPost = async (post: Partial<Post>) => {
   }
 };
 
+/**
+ * Resolve a composer AssetEmbed into the post fields that render it. A shared ALBUM (Chora
+ * music) becomes a full `albumEmbed` so PostCard shows the inline MiniMusicPlayer; every
+ * platform asset also keeps a light `assetEmbed` reference so nothing is silently dropped.
+ * (The three composer onPost handlers previously ignored assetEmbed entirely — music never
+ * embedded in posts.)
+ */
+export const postFieldsForAssetEmbed = async (
+  assetEmbed?: { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string }
+): Promise<Record<string, any>> => {
+  if (!assetEmbed?.id) return {};
+  const fields: Record<string, any> = { assetEmbed };
+  if (assetEmbed.type === 'ALBUM') {
+    try {
+      const snap = await getDoc(doc(db, 'albums', assetEmbed.id));
+      if (snap.exists()) { fields.albumEmbed = { id: snap.id, ...snap.data() }; fields.autoPlayEmbed = false; }
+    } catch { /* keep the light reference card */ }
+  }
+  return fields;
+};
+
 export const updatePost = async (postId: string, updates: Partial<Post>) => {
   if (!auth.currentUser) return;
   const path = `posts/${postId}`;

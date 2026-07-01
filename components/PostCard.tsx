@@ -14,6 +14,7 @@ import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUse
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
+import { buildShareUrl } from '../services/deepLinkService';
 import RoomBanner from './RoomBanner';
 import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
@@ -612,6 +613,29 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               <MiniMusicPlayer album={post.albumEmbed} autoPlay={post.autoPlayEmbed} />
             </div>
           )}
+
+          {/* Embedded platform asset (video / world / article / etc.) — music renders as the
+              player above, so only show this card when there's no full album player. */}
+          {(post as any).assetEmbed && !post.albumEmbed && (() => {
+            const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string };
+            const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album' };
+            const asset = linkFor[ae.type];
+            const href = asset ? buildShareUrl(asset as any, ae.id) : undefined;
+            const Inner = (
+              <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-2xl hover:border-white/25 transition-all">
+                {ae.imageUrl
+                  ? <img src={ae.imageUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                  : <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><Play size={16} className="text-white/40" /></div>}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-small-orange">{ae.type} · On Plajah</p>
+                  <p className="text-sm font-black text-white truncate">{ae.title || 'Open on Plajah'}</p>
+                  {ae.subtitle && <p className="text-[11px] text-white/45 truncate">{ae.subtitle}</p>}
+                </div>
+                {href && <ChevronRight size={16} className="text-white/30 shrink-0" />}
+              </div>
+            );
+            return <div className="mt-3">{href ? <a href={href} className="block">{Inner}</a> : Inner}</div>;
+          })()}
 
           {/* Rich Media */}
           {renderMedia()}

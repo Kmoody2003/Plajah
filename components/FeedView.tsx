@@ -3,7 +3,7 @@ import { scoreText } from '../src/lib/scoreText';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
-import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks } from '../services/backendService';
+import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, postFieldsForAssetEmbed, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks } from '../services/backendService';
 import { getDailyFigure } from '../services/historyData';
 import { filterPostsForViewer } from '../services/contentSafety';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
@@ -2609,12 +2609,14 @@ const toggleFavoriteTeam = async (team: string) => {
                   return { type: att.type, url: att.url, title: att.title };
                 })
               )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+              const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
               await createPost({
                 text: data.text,
                 isPublic: true,
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                 ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
+                ...embedFields,
                 ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
               } as any);
             }}
@@ -3057,11 +3059,13 @@ const toggleFavoriteTeam = async (team: string) => {
                     return { type: att.type, url: att.url, title: att.title };
                   })
                 )).filter(Boolean) as { type: 'PHOTO' | 'VIDEO' | 'AUDIO'; url: string; title?: string }[];
+                const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
                 await createPost({
                   text: data.text,
                   isPublic: true,
                   ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                   ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                  ...embedFields,
                   ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
                 } as any);
               }}
