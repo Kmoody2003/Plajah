@@ -95,41 +95,48 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const { type, id, track } = query;
    if (!type || !id) return html;
    
-   let collection = '';
-   if (type === 'video') collection = 'videos';
-   if (type === 'album') collection = 'albums';
-   if (type === 'feed') collection = 'global_posts';
+   // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
+   const collectionFor: Record<string, string> = {
+     video: 'videos', album: 'albums', track: 'albums', book: 'albums',
+     article: 'articles', game: 'games', feed: 'global_posts', post: 'global_posts',
+   };
+   const collection = collectionFor[String(type)] || '';
    if (!collection) return html;
 
    const dbData = await fetchFirebaseDoc(collection, id);
    if (!dbData || !dbData.fields) return html;
+   const f = dbData.fields;
+   // First non-empty string field from a list of candidates (schemas vary by type).
+   const pick = (keys: string[]): string => { for (const k of keys) { const v = f?.[k]?.stringValue; if (v) return v; } return ''; };
+   const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl'];
 
    let title = '';
    let image = '';
    let desc = '';
    let playerUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
-   
-   if (type === 'video') {
-      title = dbData.fields?.title?.stringValue || 'Video';
-      image = dbData.fields?.thumbnailUrl?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
-      desc = dbData.fields?.description?.stringValue || 'Watch this video on Plajah';
-   } else if (type === 'album') {
-      title = dbData.fields?.title?.stringValue || 'Album';
-      const tracksArray = dbData.fields?.tracks?.arrayValue?.values || [];
-      const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
-      if (trackObj) {
-        title = trackObj.mapValue?.fields?.title?.stringValue + ' - ' + title;
-      }
-      image = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || '';
-      desc = dbData.fields?.description?.stringValue || 'Listen on Plajah';
-   } else if (type === 'feed') {
-      title = `${dbData.fields?.authorName?.stringValue || 'User'} on Plajah`;
-      desc = dbData.fields?.content?.stringValue || 'Check out this post';
-      image = dbData.fields?.imageUrl?.stringValue || dbData.fields?.videoThumbnail?.stringValue || '';
-      // If it's a feed with a video, we can still use player card
-      if (!dbData.fields?.videoUrl?.stringValue) {
-          playerUrl = ''; // Turn off player card if no video
-      }
+
+   if (type === 'feed' || type === 'post') {
+     // A shared post → "<User> is sharing this post from Plajah".
+     const author = pick(['authorName', 'userName', 'displayName', 'artist']) || 'Someone';
+     title = `${author} is sharing this post from Plajah`;
+     desc = pick(['content', 'text', 'caption']) || title;
+     image = pick(['imageUrl', 'videoThumbnail', 'thumbnailUrl', 'coverImageUrl']);
+     if (!f?.videoUrl?.stringValue) playerUrl = ''; // no player card unless the post has a video
+   } else {
+     // Content assets (song/track, album, book, video, article, game) →
+     // title = the asset's own name; description = Experience "Name" now on Plajah.
+     if ((type === 'album' || type === 'track') && track) {
+       const tracksArray = f?.tracks?.arrayValue?.values || [];
+       const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
+       title = trackObj?.mapValue?.fields?.title?.stringValue || pick(['title', 'name']) || 'Track';
+     } else {
+       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : 'Album';
+       title = pick(['title', 'name']) || fallback;
+     }
+     image = pick(IMG);
+     desc = `Experience "${title}" now on Plajah`;
+     // Only audio/video get an inline player card; the rest use a large-image card.
+     if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
    }
 
    const safeTitle = htmlEscape(title);
@@ -144,6 +151,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta name="twitter:title" content="${safeTitle}" />
     <meta name="twitter:description" content="${safeDesc}" />
     <meta name="twitter:image" content="${safeImage}" />
+    <meta property="og:site_name" content="Plajah" />
     <meta property="og:title" content="${safeTitle}" />
     <meta property="og:description" content="${safeDesc}" />
     <meta property="og:image" content="${safeImage}" />
@@ -173,7 +181,12 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta property="og:image:height" content="630" />
      `;
    } else {
-     metaTags += `<meta name="twitter:card" content="summary_large_image" />`;
+     const ogType = (type === 'article' || type === 'book') ? 'article' : 'website';
+     metaTags += `
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:type" content="${ogType}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />`;
    }
 
    const oEmbedUrl = `https://${safeHost}/oembed?url=${encodeURIComponent(`https://${host}/?type=${type}&id=${id}`)}&format=json`;
@@ -3383,9 +3396,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
     try { html = await injectMetaTags(html, req.query, host); } catch {}
 
-    const { type, id, track } = req.query as any;
+    const { type, id } = req.query as any;
     if (type && id) {
-      const canonical = `/?type=${encodeURIComponent(String(type))}&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`;
+      // Preserve the full original query (ref/track/video/etc.) when bouncing to the app.
+      const qsStr = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?') + 1) : '';
+      const canonical = `/?${qsStr}`;
       // Bounce real browsers to the canonical app URL; crawlers (no JS) keep the meta.
       const redirect = `<script>try{if(!/(bot|crawl|spider|facebookexternalhit|twitterbot|slackbot|discordbot|whatsapp|telegrambot|embedly|linkedinbot|pinterest|redditbot|googlebot|bingbot|applebot|skypeuripreview|vkshare|w3c_validator)/i.test(navigator.userAgent)){location.replace(${JSON.stringify(canonical)});}}catch(e){}</script>`;
       html = html.replace('</head>', `${redirect}\n</head>`);

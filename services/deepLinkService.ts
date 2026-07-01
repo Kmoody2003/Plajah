@@ -32,19 +32,22 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     return u.toString();
   };
   switch (asset) {
-    case 'album':      return `${base}/?${qs({ type: 'album', id, track: extra?.track, video: extra?.video })}`;
-    case 'track':      return `${base}/?${qs({ type: 'album', id, track: extra?.track })}`;
-    case 'video':      return `${base}/?${qs({ type: 'video', id })}`;
-    case 'post':       return `${base}/?${qs({ type: 'feed', id })}`;
+    // Content assets route through /share — the server injects rich Open Graph meta
+    // (title, "Experience … now on Plajah", cover/thumbnail) then bounces humans into
+    // the app. A plain /?type= link hits static index.html and previews as generic Plajah.
+    case 'album':      return `${base}/share?${qs({ type: 'album', id, track: extra?.track, video: extra?.video })}`;
+    case 'track':      return `${base}/share?${qs({ type: 'album', id, track: extra?.track })}`;
+    case 'video':      return `${base}/share?${qs({ type: 'video', id })}`;
+    case 'post':       return `${base}/share?${qs({ type: 'feed', id })}`;
     case 'profile':    return `${base}/profile/${encodeURIComponent(id)}`;
     case 'release':    return `${base}/release/${encodeURIComponent(id)}`;
     case 'room':       return `${base}/?${qs({ room: id })}`;
     case 'livestream': return `${base}/?${qs({ livestream: id })}`;
     case 'callin':     return `${base}/?${qs({ callin: id })}`;
     case 'listen':     return `${base}/?${qs({ listen: id })}`;
-    case 'book':       return `${base}/?${qs({ type: 'book', id, ref: extra?.ref })}`;
-    case 'article':    return `${base}/?${qs({ type: 'article', id })}`;
-    case 'game':       return `${base}/?${qs({ type: 'game', id })}`;
+    case 'book':       return `${base}/share?${qs({ type: 'book', id, ref: extra?.ref })}`;
+    case 'article':    return `${base}/share?${qs({ type: 'article', id })}`;
+    case 'game':       return `${base}/share?${qs({ type: 'game', id })}`;
     case 'club':       return `${base}/?${qs({ club: id })}`;
     case 'debate':     return `${base}/?${qs({ debate: id })}`;
     case 'clubPost':   return `${base}/?${qs({ club: extra?.club, post: id })}`;
