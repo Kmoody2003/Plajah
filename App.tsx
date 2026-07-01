@@ -1147,14 +1147,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                setIsPublicView(true);
                if (video) {
                  document.title = `${video.title} | Plajah`;
-                 // Reello (UGC) videos play in the Rello feed at that video; other
-                 // videos open the standard player. Either way, land ON the asset.
+                 // Reello (UGC) videos play in the Rello feed at that video; every
+                 // other video opens the full-screen single-video PLAYER (the VIDEOS
+                 // view is only the browse grid). Either way, land ON the asset.
                  if (video.isRello) {
                    setRelloInitialVideoId(video.id);
                    setView('RELLO');
                  } else {
                    setSelectedVideo(video);
-                   setView('VIDEOS');
+                   setView('PLAYER');
                  }
                } else {
                  // Unknown/removed — open Rello and let it try to fetch by id.
