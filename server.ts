@@ -324,6 +324,26 @@ async function firestoreCreate(collection: string, data: object) {
   return json.name?.split('/').pop() ?? null;
 }
 
+/** Read a single doc's scalar fields (Firestore REST GET). Returns null if absent. */
+async function firestoreRead(collection: string, id: string): Promise<Record<string, any> | null> {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'plajah-prod';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
+  try {
+    const res = await fetch(url, { headers: await firestoreAuthHeaders() });
+    if (!res.ok) return null;
+    const json = await res.json() as any;
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(json.fields || {}) as [string, any][]) {
+      if (v.stringValue !== undefined) out[k] = v.stringValue;
+      else if (v.integerValue !== undefined) out[k] = Number(v.integerValue);
+      else if (v.doubleValue !== undefined) out[k] = Number(v.doubleValue);
+      else if (v.booleanValue !== undefined) out[k] = v.booleanValue;
+    }
+    return out;
+  } catch { return null; }
+}
+
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
 const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
 
@@ -1498,6 +1518,16 @@ async function startServer() {
       const origin = req.headers.origin || 'https://gen-lang-client-0665118474.web.app';
       const isSub = !!recurring;
 
+      // Route the gift to the CHURCH's connected Stripe account (destination charge)
+      // when it has one — so money lands in the church's account, not the platform's.
+      const church = await firestoreRead('organizations', churchId);
+      const destAcct: string | undefined = church?.stripeAccountId || undefined;
+      const routing = destAcct
+        ? (isSub
+            ? { subscription_data: { transfer_data: { destination: destAcct } } }
+            : { payment_intent_data: { transfer_data: { destination: destAcct } } })
+        : {};
+
       const session = await stripe.checkout.sessions.create({
         mode: isSub ? 'subscription' : 'payment',
         payment_method_types: ['card'],
@@ -1510,6 +1540,7 @@ async function startServer() {
           },
           quantity: 1,
         }],
+        ...(routing as any),
         success_url: `${origin}/?give=success&org=${churchId}`,
         cancel_url:  `${origin}/?give=cancelled&org=${churchId}`,
         metadata: {

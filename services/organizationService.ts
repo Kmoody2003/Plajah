@@ -165,6 +165,21 @@ export async function setOrgAdmin(orgId: string, uid: string, isAdmin: boolean, 
   return admins;
 }
 
+/** Recorded gifts for a church (from the `donations` collection). */
+export async function fetchChurchDonations(churchId: string): Promise<Array<{ fund?: string; amount: number }>> {
+  try {
+    const snap = await getDocs(query(collection(db, 'donations'), where('churchId', '==', churchId)));
+    return snap.docs.map(d => d.data() as any).map(x => ({ fund: x.fund, amount: Number(x.amount) || 0 }));
+  } catch { return []; }
+}
+
+/** Sum recorded gifts by fund name — the live "raised" total per fund. */
+export function sumDonationsByFund(donations: Array<{ fund?: string; amount: number }>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const d of donations) { const f = d.fund || 'General'; out[f] = (out[f] || 0) + d.amount; }
+  return out;
+}
+
 // ── Legacy brand migration (slice 5) ────────────────────────────────────────
 // Fold the old BrandAccount records (brand_accounts collection) into real
 // Organizations. Idempotent: an org carries legacyBrandId so a brand migrates once.

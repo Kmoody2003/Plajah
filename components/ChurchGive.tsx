@@ -14,7 +14,7 @@ import { shareOrigin } from '../services/deepLinkService';
 
 const PRESETS = [10, 25, 50, 100, 250];
 
-const ChurchGive: React.FC<{ org: Organization; onClose: () => void }> = ({ org, onClose }) => {
+const ChurchGive: React.FC<{ org: Organization; onClose: () => void; fundGiven?: Record<string, number> }> = ({ org, onClose, fundGiven = {} }) => {
   const funds: GivingFund[] = org.givingFunds && org.givingFunds.length ? org.givingFunds : [{ id: 'general', name: 'General' }];
   const [fundId, setFundId] = useState(funds[0].id);
   const [amount, setAmount] = useState<number>(50);
@@ -61,7 +61,7 @@ const ChurchGive: React.FC<{ org: Organization; onClose: () => void }> = ({ org,
                 className={`px-4 py-3 rounded-2xl border text-left transition-all ${fundId === f.id ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>
                 <span className="text-[11px] font-black uppercase tracking-widest">{f.name}</span>
                 {typeof f.goal === 'number' && f.goal > 0 && (
-                  <div className="mt-1.5 h-1 rounded-full bg-black/20 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, ((f.raised || 0) / f.goal) * 100)}%` }} /></div>
+                  <div className="mt-1.5 h-1 rounded-full bg-black/20 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, (((f.raised || 0) + (fundGiven[f.name] || 0)) / f.goal) * 100)}%` }} /></div>
                 )}
               </button>
             ))}

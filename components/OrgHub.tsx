@@ -14,7 +14,7 @@ import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
-  createDemoChurch,
+  createDemoChurch, fetchChurchDonations, sumDonationsByFund,
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles } from '../services/backendService';
 import ChurchGive from './ChurchGive';
@@ -229,14 +229,18 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
   const [giving, setGiving] = useState(!!initialGive);
+  const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
+  useEffect(() => {
+    if (org.orgType === 'CHURCH') fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
+  }, [org.id, org.orgType]);
 
   if (managing && isOwner) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
   }
   if (giving) {
-    return <ChurchGive org={org} onClose={() => setGiving(false)} />;
+    return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
   }
 
   return (
@@ -293,18 +297,21 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <section className="mt-10">
                 <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Gift size={12} className="text-small-orange" /> Giving funds</h2>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {org.givingFunds.map(f => (
+                  {org.givingFunds.map(f => {
+                    const raised = (f.raised || 0) + (fundGiven[f.name] || 0);
+                    return (
                     <button key={f.id} onClick={() => setGiving(true)} className="text-left p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
                       <p className="text-sm font-black text-white">{f.name}</p>
                       {f.description && <p className="text-[11px] text-white/40 mt-0.5">{f.description}</p>}
                       {typeof f.goal === 'number' && f.goal > 0 && (
                         <>
-                          <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, ((f.raised || 0) / f.goal) * 100)}%` }} /></div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1.5">${(f.raised || 0).toLocaleString()} of ${f.goal.toLocaleString()}</p>
+                          <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, (raised / f.goal) * 100)}%` }} /></div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1.5">${raised.toLocaleString()} of ${f.goal.toLocaleString()}</p>
                         </>
                       )}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -395,6 +402,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
   const [ministries, setMinistries] = useState(org.ministries || []);
   const [services, setServices] = useState(org.serviceTimes || []);
   const [funds, setFunds] = useState(org.givingFunds || []);
+  const [stripeAcct, setStripeAcct] = useState(org.stripeAccountId || '');
   const [newMin, setNewMin] = useState({ name: '', meetingTime: '' });
   const [newSvc, setNewSvc] = useState({ label: '', day: '', time: '' });
   const [newFund, setNewFund] = useState({ name: '', goal: '' });
@@ -414,7 +422,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
         category: category.trim() || undefined, isPrivate,
         socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
         monthlyPrice: monthly ? Number(monthly) : undefined,
-        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, givingUrl: givingUrl.trim() || undefined } : {}),
+        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, givingUrl: givingUrl.trim() || undefined, stripeAccountId: stripeAcct.trim() || undefined } : {}),
       };
       await updateOrganization(org.id, patch);
       onSaved({ ...org, ...patch } as Organization);
@@ -476,6 +484,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
             <button onClick={() => { if (newFund.name.trim()) { setFunds(fs => [...fs, { id: busyId(), name: newFund.name.trim(), goal: newFund.goal ? Number(newFund.goal) : undefined, raised: 0 }]); setNewFund({ name: '', goal: '' }); } }}
               className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
           </div>
+          <input value={stripeAcct} onChange={e => setStripeAcct(e.target.value.trim())} placeholder="Stripe payout account (acct_…) — giving routes here" className={`${field} mb-3`} />
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
 
           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>
