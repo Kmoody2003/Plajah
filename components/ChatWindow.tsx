@@ -16,6 +16,7 @@ import {
   uploadFile,
 } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
+import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
 import {
@@ -34,6 +35,7 @@ type ExtendedMessage = ChatMessage & {
   burnAfterSeen?: boolean; // arm flag — countdown starts when recipient sees it
   burnAfter?: number;      // epoch ms set by markMessageAsSeen when recipient views
   videoNoteUrl?: string;
+  gifUrl?: string;         // GIF (Giphy) attached to the message
 };
 
 interface ChatWindowProps {
@@ -147,6 +149,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [collabProjects, setCollabProjects] = useState<CollabProject[]>([]);
   const [showCollabMenu, setShowCollabMenu] = useState(false);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showGif, setShowGif] = useState(false);
   const [userMedia, setUserMedia] = useState<Album[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -265,6 +269,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     await sendMessage(room.id, msgData);
     setInputText('');
+    setReplyTo(null);
+  };
+
+  // Send a GIF (Giphy) — carries a gifUrl the bubble renders inline.
+  const sendGif = async (url: string) => {
+    setShowGif(false);
+    await sendMessage(room.id, {
+      senderId: auth.currentUser?.uid || '',
+      senderName: auth.currentUser?.displayName || 'Anonymous',
+      senderPhoto: auth.currentUser?.photoURL || '',
+      text: '',
+      gifUrl: url,
+      type: 'IMAGE',
+      ...(replyTo ? { replyToId: replyTo.id, replyToText: replyTo.text?.slice(0, 80), replyToSender: replyTo.senderName } : {}),
+    } as any);
     setReplyTo(null);
   };
 
@@ -777,6 +796,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </div>
                   ) : msg.type === 'VOICE' && msg.voiceUrl ? (
                     <VoicePlayer src={msg.voiceUrl} />
+                  ) : (msg as any).gifUrl ? (
+                    <img src={(msg as any).gifUrl} alt="GIF" className="rounded-xl max-w-[220px] max-h-[300px] object-contain" loading="lazy" />
                   ) : msg.type === 'IMAGE' && msg.imageUrl ? (
                     <div className="space-y-2">
                       <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[260px] max-h-[340px] object-cover" loading="lazy" />
@@ -951,7 +972,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
         </AnimatePresence>
 
-        <div className="p-3">
+        <div className="p-3 relative">
+          {/* Emoji picker — same set used by the universal composer */}
+          <AnimatePresence>
+            {showEmoji && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowEmoji(false)} />
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                  className="absolute bottom-full left-3 mb-2 z-40 bg-[#141019] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-8 gap-1 w-[292px]">
+                  {['😀','😂','🥺','😍','🔥','👏','🎵','🎨','🌟','💯','🚀','❤️','🎉','👀','🤔','😎','🙏','💪','🌈','✨','😅','🥳','😭','🙌'].map(e => (
+                    <button key={e} type="button" onClick={() => { setInputText(t => t + e); setShowEmoji(false); inputRef.current?.focus(); }}
+                      className="text-xl p-1 rounded-lg hover:bg-white/10 transition-all">{e}</button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+          {/* GIF picker — shared GifStickerPicker (same as the composer) */}
+          <AnimatePresence>
+            {showGif && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowGif(false)} />
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                  className="absolute bottom-full left-3 mb-2 z-40 w-[320px] max-w-[88vw]">
+                  <GifStickerPicker onSelect={(url) => sendGif(url)} onClose={() => setShowGif(false)} />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
           {showVoiceRecorder ? (
             <VoiceRecorder onSend={handleSendVoice} onCancel={() => setShowVoiceRecorder(false)} />
           ) : (
@@ -972,6 +1020,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <button type="button" onClick={openVideoNote}
                   className="p-2 text-white/30 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all">
                   <Camera size={17} />
+                </button>
+                {/* Emoji */}
+                <button type="button" onClick={() => { setShowEmoji(v => !v); setShowGif(false); }}
+                  className={`p-2 rounded-xl transition-all ${showEmoji ? 'text-small-orange bg-white/10' : 'text-white/30 hover:text-small-orange hover:bg-white/5'}`}>
+                  <Smile size={17} />
+                </button>
+                {/* GIF */}
+                <button type="button" onClick={() => { setShowGif(v => !v); setShowEmoji(false); }}
+                  className={`px-1.5 py-1 rounded-lg text-[10px] font-black transition-all ${showGif ? 'text-small-orange bg-white/10' : 'text-white/30 hover:text-small-orange hover:bg-white/5'}`}>
+                  GIF
                 </button>
                 {/* Burn-after-read toggle */}
                 <button

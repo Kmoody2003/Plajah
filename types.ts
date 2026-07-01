@@ -2379,6 +2379,7 @@ export interface ChatMessage {
   text?: string;
   voiceUrl?: string;
   imageUrl?: string;
+  gifUrl?: string;
   mediaId?: string;
   mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO';
   timestamp: number;
