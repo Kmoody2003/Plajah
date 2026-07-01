@@ -1048,6 +1048,8 @@ export interface UserProfile {
   activeEngagementScore?: number; // For radio ranking
   membershipConfig?: ArtistMembershipConfig;
   activeMemberships?: string[]; // Artist IDs where user is a member
+  /** Canonical background slideshow. (A dead duplicate previously also lived under
+   *  uiSettings — removed; nothing read it.) */
   backgroundSlideshow?: {
     enabled: boolean;
     items: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[];
@@ -1061,10 +1063,6 @@ export interface UserProfile {
     isSpatialModeEnabled?: boolean;
     audiusEnabled?: boolean;
     syncedFolders?: { id: string; name: string }[];
-    backgroundSlideshow?: {
-      enabled: boolean;
-      items: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[];
-    };
   };
   pinnedItems?: { id: string; refId: string; type: 'POST' | 'VIDEO' | 'AUDIO' }[];
   fastChannelEnabled?: boolean;

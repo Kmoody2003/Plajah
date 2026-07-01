@@ -87,6 +87,7 @@ import {
   fetchFastChannelVideos,
   fetchAllUsers
 } from '../services/backendService';
+import { getSocialLinks } from '../services/socialLinks';
 import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
 import FastChannelManager from './FastChannelManager';
@@ -1022,6 +1023,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Social links — one consolidated row (canonical normalizer over the
+                fragmented xHandle/mastodon/bluesky/threads fields). */}
+            {getSocialLinks(profile).length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                {getSocialLinks(profile).map(s => (
+                  <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer" title={s.handle}
+                    className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* ── Action pill strip — single horizontal scroll row, above bio ── */}
             {(profile.liveStreamConfig?.isActive || profile.radioSettings?.enabled || profile.fastChannelEnabled || hasFastContent || profile.liveStreamConfig?.fastChannelUrl || (isOwnProfile && (profile.fastChannelEnabled || hasFastContent))) && (
