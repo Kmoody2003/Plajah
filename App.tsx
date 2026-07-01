@@ -576,6 +576,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const { isShrunk, setIsShrunk, setView: setGlobalView, analyser, isPlaying, isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, currentTrack, currentAlbum, pause, resume, next, prev, isMinimized, setIsMinimized, repeatMode, setRepeatMode, volume, setVolume, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, isSlideshowActive, setIsSlideshowActive, isMiniPlayerActive, setIsMiniPlayerActive, isThreeDEnabled, setIsThreeDEnabled, isSpatialAudioEnabled, setSpatialAudioEnabled } = useGlobalPlayerState();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
+  // A shared album opens in public PLAYER view where the sidebar (and its player "Controller")
+  // is hidden. The player defaults to docked-nano, which renders nothing — so a visitor could
+  // play a track but had no transport controls. Force the standard bottom mini-player bar.
+  useEffect(() => {
+    if (isPublicView && view === 'PLAYER') { setIsNanoView(false); setIsNanoDocked(false); }
+  }, [isPublicView, view, setIsNanoView, setIsNanoDocked]);
 
   useEffect(() => {
     setGlobalView(view);

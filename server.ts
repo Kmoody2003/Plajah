@@ -117,46 +117,49 @@ async function gcsDownload(objectPath: string): Promise<Buffer | null> {
   } catch { return null; }
 }
 
-/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. */
-async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<Buffer | null> {
+/** ffmpeg: loop a cover image over up to 45s of the audio → a small square MP4. Returns the
+ *  bytes plus captured ffmpeg stderr (surfaced via ?debug=1 for diagnosis). */
+async function generateSocialVideoMp4(coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
   const out = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`);
+  let stderr = '';
   const ok = await new Promise<boolean>((resolve) => {
     const args = [
       '-y',
       '-loop', '1', '-i', coverUrl,
       '-i', audioUrl,
       '-t', '45',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-r', '15',
       '-vf', 'scale=720:720:force_original_aspect_ratio=increase,crop=720:720',
       '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
       '-movflags', '+faststart', '-shortest',
       out,
     ];
     let ff: ReturnType<typeof spawn>;
-    try { ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'ignore'] }); }
-    catch { return resolve(false); }
-    const killer = setTimeout(() => { try { ff.kill('SIGKILL'); } catch { /* */ } }, 28000);
-    ff.on('error', () => { clearTimeout(killer); resolve(false); });
-    ff.on('close', (code) => { clearTimeout(killer); resolve(code === 0); });
+    try { ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] }); }
+    catch (e: any) { stderr = `spawn failed: ${e?.message || e}`; return resolve(false); }
+    ff.stderr?.on('data', (d) => { stderr += d.toString(); if (stderr.length > 6000) stderr = stderr.slice(-6000); });
+    const killer = setTimeout(() => { stderr += '\n[timeout — killed]'; try { ff.kill('SIGKILL'); } catch { /* */ } }, 40000);
+    ff.on('error', (e: any) => { clearTimeout(killer); stderr += `\nerror: ${e?.message || e}`; resolve(false); });
+    ff.on('close', (code) => { clearTimeout(killer); if (code !== 0) stderr += `\n[exit ${code}]`; resolve(code === 0); });
   });
-  if (!ok) { try { await fs.unlink(out); } catch { /* */ } return null; }
-  try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return buf; }
-  catch { return null; }
+  if (!ok) { try { await fs.unlink(out); } catch { /* */ } console.error('[social-video] ffmpeg failed:', stderr.slice(-500)); return { buf: null, err: stderr.slice(-2000) }; }
+  try { const buf = await fs.readFile(out); fs.unlink(out).catch(() => {}); return { buf, err: '' }; }
+  catch (e: any) { return { buf: null, err: `read failed: ${e?.message || e}` }; }
 }
 
 const socialVideoInFlight = new Set<string>();
-/** Ensure the social MP4 exists in Storage (generate once), returning true when available. */
-async function ensureSocialVideo(objectPath: string, coverUrl: string, audioUrl: string): Promise<boolean> {
-  if (await gcsObjectExists(objectPath)) return true;
-  if (socialVideoInFlight.has(objectPath)) return false; // another request is generating it
+/** Ensure the social MP4 (cover+audio): serve from Storage cache, else generate + cache async. */
+async function ensureSocialVideo(objectPath: string, coverUrl: string, audioUrl: string): Promise<{ buf: Buffer | null; err: string }> {
+  const cached = await gcsDownload(objectPath);
+  if (cached && cached.length > 1000) return { buf: cached, err: '' };
+  if (socialVideoInFlight.has(objectPath)) return { buf: null, err: 'generating (in-flight)' };
   socialVideoInFlight.add(objectPath);
   try {
-    const buf = await generateSocialVideoMp4(coverUrl, audioUrl);
-    if (!buf) return false;
-    await gcsUpload(objectPath, buf, 'video/mp4');
-    return true;
-  } catch { return false; }
-  finally { socialVideoInFlight.delete(objectPath); }
+    const { buf, err } = await generateSocialVideoMp4(coverUrl, audioUrl);
+    if (!buf) return { buf: null, err };
+    gcsUpload(objectPath, buf, 'video/mp4').catch(() => {}); // cache for next time; don't block serving
+    return { buf, err: '' };
+  } finally { socialVideoInFlight.delete(objectPath); }
 }
 
 /** Resolve an album's cover + a playable (non-paywalled) track for the social video. */
@@ -3559,10 +3562,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const picked = dbData?.fields ? pickSocialTrack(dbData.fields, track ? String(track) : undefined) : null;
       if (!picked) return res.status(404).send('No media');
       const objectPath = `socialVideos/${String(id)}__${track ? String(track) : picked.trackId}.mp4`;
-      const ready = await ensureSocialVideo(objectPath, picked.cover, picked.audio);
-      if (!ready) { res.setHeader('Retry-After', '5'); return res.status(503).send('Preparing preview'); }
-      const buf = await gcsDownload(objectPath);
-      if (!buf) return res.status(503).send('Unavailable');
+      const { buf, err } = await ensureSocialVideo(objectPath, picked.cover, picked.audio);
+      if (!buf) {
+        if (req.query.debug) return res.status(500).type('text/plain').send(`cover: ${picked.cover}\naudio: ${picked.audio}\n\nffmpeg err:\n${err}`);
+        res.setHeader('Retry-After', '5');
+        return res.status(503).send('Preparing preview');
+      }
 
       res.setHeader('Content-Type', 'video/mp4');
       res.setHeader('Accept-Ranges', 'bytes');
