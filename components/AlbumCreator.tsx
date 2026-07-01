@@ -4,6 +4,7 @@ import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeaso
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, uploadFile as storageUpload, uploadVideo } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
+import { probeVideo } from '../src/lib/videoQc';
 import {
   Upload, X, Image as ImageIcon, User, Sparkles, Globe, Video as VideoIcon, List, Plus, Trash2,
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
@@ -70,7 +71,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [trackListLabel, setTrackListLabel] = useState(initialAlbum?.trackListLabel || '');
   const [artistImage, setArtistImage] = useState<string | undefined>(initialAlbum?.artistImage || undefined);
   const [artistFile, setArtistFile] = useState<File | undefined>(undefined);
-  const [tracks, setTracks] = useState<Track[]>(initialAlbum?.tracks || []);
+  const [tracks, setTracks] = useState<Track[]>(() => {
+    const t = initialAlbum?.tracks || [];
+    // Recover uploaded videos on edit: a VIDEO album's tracks are videos, so
+    // backfill mediaKind (older entries never stored it) — this restores the
+    // video preview + video QC instead of treating them as audio rows.
+    if (initialAlbum?.type === 'VIDEO') {
+      return t.map(x => ({ ...x, mediaKind: x.mediaKind || ('VIDEO' as const) }));
+    }
+    return t;
+  });
   const [coverImage, setCoverImage] = useState(initialAlbum?.coverImage || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop');
   const [coverFile, setCoverFile] = useState<File | undefined>(undefined);
   const [slideshow, setSlideshow] = useState<string[]>(initialAlbum?.slideshow || []);
@@ -187,9 +197,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   type QcStatus = 'idle' | 'running' | 'pass' | 'warn' | 'fail';
-  type TrackQcResult = { status: QcStatus; duration?: number; peak?: number; rms?: number; issue?: string };
+  type TrackQcResult = { status: QcStatus; duration?: number; peak?: number; rms?: number; issue?: string; width?: number; height?: number; kind?: 'AUDIO' | 'VIDEO' };
   const [qcResults, setQcResults] = useState<Record<string, TrackQcResult>>({});
   const [isQcRunning, setIsQcRunning] = useState(false);
+  // Inline video preview (playback) in the tracks list.
+  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
 
   // Tap-to-sync
   const [tapSyncTrackId, setTapSyncTrackId] = useState<string | null>(null);
@@ -512,6 +524,17 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   }, [tapTimes, tapCurrentLine, updateTrack, closeTapSync]);
 
   const runQcForTrack = useCallback(async (track: Track): Promise<TrackQcResult> => {
+    // Video tracks get real video verification (decode a frame, catch corruption).
+    const looksVideo = track.mediaKind === 'VIDEO'
+      || (track.file && track.file.type.startsWith('video'))
+      || /\.(mp4|mov|webm|mkv|avi|m4v|hevc|ogv)(\?|$)/i.test(track.url || '');
+    if (looksVideo) {
+      const probe = await probeVideo(track.file || track.url);
+      return {
+        status: probe.status, kind: 'VIDEO', duration: probe.duration, width: probe.width, height: probe.height,
+        issue: probe.issue || (probe.status === 'pass' ? `Pass — ${(probe.duration || 0).toFixed(1)}s, ${probe.width}×${probe.height}` : undefined),
+      };
+    }
     try {
       const res = await fetch(track.url);
       const buf = await res.arrayBuffer();
@@ -567,6 +590,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
+    // ── Content-type gate ───────────────────────────────────────────────────
+    // A video must be categorized (Reello / Movie / TV / Podcast) before it can
+    // publish or propagate to the Taleo (film/TV) or Reello (UGC) surfaces.
+    if (type === 'VIDEO' && !subType) {
+      setPageDir(-1);
+      setStep(1); // subtype selection
+      alert('Choose a video content type — Reello, Movie, TV, or Podcast — before publishing.');
+      return;
+    }
     // "Save as draft" sets this ref; a draft is unlisted and can be resumed + refined
     // later (before or after publishing), exactly like a music album.
     const asDraft = saveAsDraftRef.current; saveAsDraftRef.current = false;
@@ -574,6 +606,30 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     setIsDeploying(true);
     setStatus({ text: initialAlbum ? "Updating Cloud Index..." : "Synthesizing Metadata...", percent: 5 });
     try {
+      // ── Video verification gate ──────────────────────────────────────────
+      // Auto-QC every video before it can propagate. A corrupt / unreadable /
+      // audio-only file is blocked here so it never reaches Taleo or Reello.
+      if (type === 'VIDEO') {
+        setStatus({ text: 'Verifying video…', percent: 3 });
+        const vids = tracks.filter(t => t.file || t.url);
+        for (const t of vids) {
+          const looksVideo = t.mediaKind === 'VIDEO'
+            || (t.file && t.file.type.startsWith('video'))
+            || /\.(mp4|mov|webm|mkv|avi|m4v|hevc|ogv)(\?|$)/i.test(t.url || '');
+          if (!looksVideo) continue;
+          const probe = await probeVideo(t.file || t.url);
+          setQcResults(prev => ({ ...prev, [t.id]: { status: probe.status, kind: 'VIDEO', duration: probe.duration, width: probe.width, height: probe.height, issue: probe.issue } }));
+          if (probe.status === 'fail') {
+            setIsDeploying(false);
+            setStatus(null);
+            setPageDir(-1);
+            setStep(2); // content / files step
+            alert(`Video "${t.title || 'file'}" failed verification: ${probe.issue}\n\nFix or replace it before publishing.`);
+            return;
+          }
+        }
+      }
+
       const trackNames = type === 'BOOK' ? bookChapters.map(c => c.title) : tracks.map(t => t.title);
 
       // Auto-sync captions for MUSIC tracks that have lyrics but no manual sync
@@ -836,6 +892,20 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
            'Upload your game files'}
         </p>
       </div>
+
+      {/* Uncategorized video notice — content can't publish or propagate to Taleo /
+          Reello until a content type is chosen. */}
+      {type === 'VIDEO' && !subType && (
+        <button type="button" onClick={() => { setPageDir(-1); setStep(1); }}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left bg-yellow-500/10 border border-yellow-500/30 hover:bg-yellow-500/15 transition-all">
+          <AlertTriangle size={18} className="text-yellow-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-[11px] font-black uppercase tracking-widest text-yellow-300">Not categorized yet</p>
+            <p className="text-[10px] font-bold text-white/50 mt-0.5">Choose a content type — Reello, Movie, TV, or Podcast — before this can publish. Tap to set it.</p>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-widest text-yellow-400 shrink-0">Set type →</span>
+        </button>
+      )}
 
       {/* Tab bar — only for types that support BTS videos */}
       {(type === 'MUSIC' || (type === 'VIDEO' && !['MOVIE', 'TV_SERIES'].includes(subType || ''))) && (
@@ -1247,16 +1317,30 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {/* Preview */}
-                  <button type="button" onClick={() => togglePreview(track)} title={previewingId === track.id ? 'Stop preview' : 'Preview audio'} className={`p-3 rounded-full transition-all ${previewingId === track.id ? 'text-green-400 bg-green-500/10' : 'text-white/20 hover:text-green-400 hover:bg-green-400/10'}`}>
-                    {previewingId === track.id ? <Square size={15} className="fill-green-400" /> : <Play size={15} />}
-                  </button>
+                  {/* Preview — inline video player for video tracks, audio scrub otherwise */}
+                  {track.mediaKind === 'VIDEO' ? (
+                    <button type="button" onClick={() => setPreviewVideoId(id => id === track.id ? null : track.id)} title={previewVideoId === track.id ? 'Hide preview' : 'Play video preview'} className={`p-3 rounded-full transition-all ${previewVideoId === track.id ? 'text-green-400 bg-green-500/10' : 'text-white/20 hover:text-green-400 hover:bg-green-400/10'}`}>
+                      {previewVideoId === track.id ? <Square size={15} className="fill-green-400" /> : <Play size={15} />}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => togglePreview(track)} title={previewingId === track.id ? 'Stop preview' : 'Preview audio'} className={`p-3 rounded-full transition-all ${previewingId === track.id ? 'text-green-400 bg-green-500/10' : 'text-white/20 hover:text-green-400 hover:bg-green-400/10'}`}>
+                      {previewingId === track.id ? <Square size={15} className="fill-green-400" /> : <Play size={15} />}
+                    </button>
+                  )}
+                  {/* Verify (video) */}
+                  {track.mediaKind === 'VIDEO' && (
+                    <button type="button" title="Verify video (QC)" onClick={async () => {
+                      setQcResults(prev => ({ ...prev, [track.id]: { status: 'running' } }));
+                      const r = await runQcForTrack(track);
+                      setQcResults(prev => ({ ...prev, [track.id]: r }));
+                    }} className="p-3 rounded-full text-white/20 hover:text-small-orange hover:bg-small-orange/10 transition-all"><ShieldCheck size={15} /></button>
+                  )}
                   {/* Replace file */}
-                  <label title="Replace audio file" className="p-3 rounded-full text-white/20 hover:text-small-orange hover:bg-small-orange/10 transition-all cursor-pointer">
+                  <label title="Replace file" className="p-3 rounded-full text-white/20 hover:text-small-orange hover:bg-small-orange/10 transition-all cursor-pointer">
                     <RefreshCw size={15} />
-                    <input type="file" className="hidden" accept={AUDIO_ACCEPT} onChange={(e) => {
+                    <input type="file" className="hidden" accept={track.mediaKind === 'VIDEO' ? 'video/*' : AUDIO_ACCEPT} onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) { stopPreview(); updateTrack(track.id, { file, url: URL.createObjectURL(file) }); setQcResults(prev => { const n = { ...prev }; delete n[track.id]; return n; }); }
+                      if (file) { stopPreview(); setPreviewVideoId(null); updateTrack(track.id, { file, url: URL.createObjectURL(file), mediaKind: file.type.startsWith('video') ? 'VIDEO' : track.mediaKind }); setQcResults(prev => { const n = { ...prev }; delete n[track.id]; return n; }); }
                       e.target.value = '';
                     }} />
                   </label>
@@ -1278,6 +1362,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               {qcResults[track.id]?.status === 'running' && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 text-[8px] font-black uppercase tracking-widest text-white/40">
                   <Loader2 size={10} className="animate-spin" /> Analyzing…
+                </div>
+              )}
+              {/* Inline video preview / playback */}
+              {track.mediaKind === 'VIDEO' && previewVideoId === track.id && track.url && (
+                <div className="rounded-2xl overflow-hidden border border-white/10 bg-black">
+                  <video src={track.url} controls playsInline className="w-full max-h-[42vh] bg-black" />
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2909,8 +2999,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     className="sm:flex-shrink-0 px-6 py-5 bg-white/5 border border-white/15 text-white/70 font-black uppercase tracking-[0.3em] text-[11px] rounded-full transition-all hover:bg-white/10 disabled:opacity-30 active:scale-95">
                     {isDeploying ? 'Saving…' : 'Save Draft'}
                   </button>
-                  <button type="submit" disabled={isDeploying || !title || (isFilm && !artist.trim()) || (!initialAlbum && !isFilm && !rightsConfirmed)} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
-                    {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
+                  <button type="submit" disabled={isDeploying || !title || (type === 'VIDEO' && !subType) || (isFilm && !artist.trim()) || (!initialAlbum && !isFilm && !rightsConfirmed)} title={type === 'VIDEO' && !subType ? 'Choose a video content type first' : undefined} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
+                    {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (type === 'VIDEO' && !subType) ? 'Set Content Type First' : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
                   </button>
                 </div>
               </div>
