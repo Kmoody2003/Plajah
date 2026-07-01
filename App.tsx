@@ -317,6 +317,7 @@ import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
 import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
+import { loadRoster, upsertAccount } from './services/accountRoster';
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
@@ -1010,15 +1011,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // Smart Guide — auto-enable for new users
         setHasSeenSmartGuide(!!p?.hasSeenSmartGuide);
         setSmartGuideEnabled(p?.smartGuideEnabled ?? !p?.hasSeenSmartGuide);
-        // Load linked accounts for hot-switch
-        if (p?.linkedAccounts?.length) setLinkedAccounts(p.linkedAccounts);
-        else {
-          // Seed slot 1 with the current account if no slots yet
-          setLinkedAccounts([{
-            slot: 1, uid: u.uid, email: u.email || '', displayName: u.displayName || '',
-            photoURL: u.photoURL || undefined, provider: (u.providerData[0]?.providerId) || 'google.com', lastUsed: Date.now()
-          }]);
+        // Load linked accounts for hot-switch. The DEVICE roster (localStorage) is
+        // the source of truth so saved slots survive account switches; seed it from
+        // the profile's list on first run, then upsert the now-active account.
+        if (!loadRoster().length && p?.linkedAccounts?.length) {
+          p.linkedAccounts.forEach(a => upsertAccount(a as any));
         }
+        const roster = upsertAccount({
+          uid: u.uid, email: u.email, displayName: u.displayName,
+          photoURL: u.photoURL, provider: u.providerData[0]?.providerId || 'google.com',
+        });
+        setLinkedAccounts(roster);
+        updateUserProfile(u.uid, { linkedAccounts: roster } as any).catch(() => {});
 
         if (u.email === 'kmoody2003@gmail.com') {
           const cloudAlbums = await fetchAllPublicAlbums();
@@ -2478,7 +2482,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
-                <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
+                <div className={`flex items-center gap-1.5 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
+                  {/* Chat — jump to messages; incoming calls ring as a card near here */}
+                  {user && (
+                    <button
+                      onClick={() => setView('CHAT')}
+                      title="Chat"
+                      className="relative shrink-0 p-2.5 rounded-2xl transition-all border"
+                      style={view === 'CHAT'
+                        ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
+                        : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <MessageSquare size={16} className={view === 'CHAT' ? 'text-small-orange' : 'text-white/40'} />
+                    </button>
+                  )}
                   <div className="flex-1">
                     <NotificationCenter onNavigate={handleNotificationNavigate} onOpenAlerts={() => setNotifDrawerTrigger({ tab: 'ALERTS', ts: Date.now() })} />
                   </div>
@@ -2487,10 +2504,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     <button
                       onClick={() => logout()}
                       title="Sign out"
-                      className="shrink-0 p-3 rounded-2xl transition-all border"
+                      className="shrink-0 p-2.5 rounded-2xl transition-all border"
                       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
-                      <LogOut size={18} className="text-white/30 hover:text-red-400 transition-colors" />
+                      <LogOut size={16} className="text-white/30 hover:text-red-400 transition-colors" />
                     </button>
                   )}
                   {/* Smart Guide toggle */}
@@ -2502,35 +2519,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         updateUserProfile(user.uid, { smartGuideEnabled: next } as any).catch(() => {});
                       }}
                       title={smartGuideEnabled ? 'Smart Guide on — click to turn off' : 'Smart Guide off — click to enable feature hints'}
-                      className="shrink-0 p-3 rounded-2xl transition-all border"
+                      className="shrink-0 p-2.5 rounded-2xl transition-all border"
                       style={smartGuideEnabled
                         ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
                         : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
-                      <Compass size={18} className={smartGuideEnabled ? 'text-small-orange' : 'text-white/30'} />
+                      <Compass size={16} className={smartGuideEnabled ? 'text-small-orange' : 'text-white/30'} />
                     </button>
                   )}
                   {/* Settings → User Account */}
                   <button
                     onClick={() => { if (user) setView('CREATOR'); else loginWithGoogle(); }}
                     title="Settings"
-                    className="shrink-0 p-3 rounded-2xl transition-all border"
+                    className="shrink-0 p-2.5 rounded-2xl transition-all border"
                     style={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid))
                       ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.35)' }
                       : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    <Settings size={18} className={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid)) ? 'text-small-orange' : 'text-white/40'} />
+                    <Settings size={16} className={(view === 'USER_PROFILE' && (!viewedUserId || viewedUserId === user?.uid)) ? 'text-small-orange' : 'text-white/40'} />
                   </button>
                   {/* Project Tray toggle */}
                   <button
                     onClick={() => setIsProjectTrayOpen(v => !v)}
                     title="My Projects"
-                    className="relative shrink-0 p-3 rounded-2xl transition-all border"
+                    className="relative shrink-0 p-2.5 rounded-2xl transition-all border"
                     style={isProjectTrayOpen || isCreatorMinimized
                       ? { background: 'linear-gradient(135deg,rgba(107,0,153,0.35),rgba(255,140,0,0.25))', border: '1px solid rgba(255,140,0,0.3)' }
                       : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    <Layers size={18} className={isProjectTrayOpen || isCreatorMinimized ? 'text-orange-300' : 'text-white/40'} />
+                    <Layers size={16} className={isProjectTrayOpen || isCreatorMinimized ? 'text-orange-300' : 'text-white/40'} />
                     {isCreatorMinimized && (
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-400 ring-2 ring-[#0a0a0a]" />
                     )}
@@ -4121,8 +4138,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           await loginWithGoogle(target.email);
         }}
         onAddAccount={async () => {
+          // Force the account chooser so a genuinely different account is added.
           const result = await loginWithGoogle();
-          // After sign-in, assign next free slot
+          if (result) {
+            const roster = upsertAccount({
+              uid: result.uid, email: result.email, displayName: result.displayName,
+              photoURL: result.photoURL, provider: result.providerData[0]?.providerId || 'google.com',
+            });
+            setLinkedAccounts(roster);
+            updateUserProfile(result.uid, { linkedAccounts: roster } as any).catch(() => {});
+          }
         }}
         onSignOut={async () => {
           setShowAccountSwitcher(false);

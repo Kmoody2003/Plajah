@@ -8,20 +8,31 @@
 // There is a single <VideoChat> mount here, so a call persists across navigation.
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Phone, PhoneOff, Video as VideoIcon, User } from 'lucide-react';
+import { Phone, PhoneOff, Video as VideoIcon, User, Voicemail, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, CallSession } from '../types';
 import {
   auth, startCall, listenToCalls, updateCallStatus, listenToCall, fetchChatRooms, fetchUserProfile,
+  sendMessage, uploadFile, createNotification,
 } from '../services/backendService';
 import VideoChat, { CallContact } from '../components/VideoChat';
+import VoiceRecorder from '../components/VoiceRecorder';
+
+interface CallPeer { uid?: string; name?: string; photo?: string }
 
 interface ActiveCall {
   room: ChatRoom;
   isCaller: boolean;
   ringingName?: string;
+  peer?: CallPeer;
   /** call docs this side created (caller), so we can cancel them on hang-up. */
   callIds: string[];
+}
+
+/** A call the caller placed that went unanswered — offer to leave a voice message. */
+interface MissedCall {
+  room: ChatRoom;
+  peer?: CallPeer;
 }
 
 interface CallContextType {
@@ -64,36 +75,83 @@ function useRingtone(active: boolean) {
   }, [active]);
 }
 
+// Compact incoming-call card — floats bottom-left near the chat icon (WhatsApp/
+// Discord style) instead of taking over the whole screen. z-[330] sits above the
+// PublishTray (320) and other bottom-left widgets.
 const IncomingRing: React.FC<{ call: CallSession; onAccept: () => void; onDecline: () => void }> = ({ call, onAccept, onDecline }) => {
   useRingtone(true);
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-6">
-      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-sm bg-[#0c0c0f] border border-white/10 rounded-[2.5rem] shadow-2xl p-8 text-center">
-        <div className="relative w-28 h-28 mx-auto mb-6">
-          <div className="absolute inset-0 bg-small-orange/25 rounded-full blur-2xl animate-pulse" />
-          <div className="relative w-28 h-28 rounded-full border-4 border-white/10 overflow-hidden">
-            {call.callerPhoto
-              ? <img src={call.callerPhoto} alt="" className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-white/5 flex items-center justify-center"><User size={40} className="text-white/30" /></div>}
+    <motion.div
+      initial={{ opacity: 0, x: -24, y: 8 }} animate={{ opacity: 1, x: 0, y: 0 }} exit={{ opacity: 0, x: -24 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+      className="fixed bottom-6 left-6 z-[330] w-[300px] max-w-[86vw]">
+      <div className="bg-[#0c0c0f]/95 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] shadow-[0_24px_64px_rgba(0,0,0,0.7)] p-4">
+        <div className="flex items-center gap-3">
+          <div className="relative w-14 h-14 shrink-0">
+            <div className="absolute inset-0 bg-small-orange/25 rounded-full blur-lg animate-pulse" />
+            <div className="relative w-14 h-14 rounded-full border-2 border-white/10 overflow-hidden">
+              {call.callerPhoto
+                ? <img src={call.callerPhoto} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full bg-white/5 flex items-center justify-center"><User size={24} className="text-white/30" /></div>}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black uppercase tracking-tight text-white truncate">{call.callerName || 'Someone'}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-small-orange mt-0.5 flex items-center gap-1">
+              <VideoIcon size={10} /> Incoming {call.type === 'VIDEO' ? 'video' : 'voice'} call…
+            </p>
           </div>
         </div>
-        <h2 className="text-2xl font-black uppercase tracking-tightest text-white leading-none">{call.callerName || 'Someone'}</h2>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-small-orange mt-2 flex items-center justify-center gap-1.5">
-          <VideoIcon size={12} /> Incoming {call.type === 'VIDEO' ? 'video' : 'voice'} call
-        </p>
-        <div className="flex items-center justify-center gap-8 mt-8">
-          <button onClick={onDecline} className="flex flex-col items-center gap-2 group">
-            <span className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center group-hover:bg-red-600 transition-all shadow-xl"><PhoneOff size={26} className="text-white" /></span>
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Decline</span>
+        <div className="flex items-center gap-2 mt-4">
+          <button onClick={onDecline} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-500/90 hover:bg-red-500 rounded-2xl transition-all">
+            <PhoneOff size={16} className="text-white" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Decline</span>
           </button>
-          <button onClick={onAccept} className="flex flex-col items-center gap-2 group">
-            <span className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center group-hover:bg-green-600 transition-all shadow-xl animate-bounce"><Phone size={26} className="text-white" /></span>
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Accept</span>
+          <button onClick={onAccept} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 rounded-2xl transition-all animate-pulse">
+            <Phone size={16} className="text-white" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Accept</span>
           </button>
         </div>
-      </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Shown to the CALLER when a call goes unanswered — record a voice message that
+// drops into the conversation, WhatsApp-style.
+const MissedCallCard: React.FC<{ missed: MissedCall; onSend: (blob: Blob) => Promise<void>; onDismiss: () => void }> = ({ missed, onSend, onDismiss }) => {
+  const [sending, setSending] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+      className="fixed bottom-6 left-6 z-[330] w-[320px] max-w-[86vw]">
+      <div className="bg-[#0c0c0f]/95 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] shadow-[0_24px_64px_rgba(0,0,0,0.7)] p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full border-2 border-white/10 overflow-hidden shrink-0">
+            {missed.peer?.photo
+              ? <img src={missed.peer.photo} alt="" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-white/5 flex items-center justify-center"><User size={20} className="text-white/30" /></div>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-black uppercase tracking-tight text-white truncate">{missed.peer?.name || 'No answer'}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 mt-0.5 flex items-center gap-1"><Voicemail size={10} /> Leave a voice message</p>
+          </div>
+          {!sending && (
+            <button onClick={onDismiss} className="text-white/30 hover:text-white shrink-0"><X size={16} /></button>
+          )}
+        </div>
+        <div className="mt-3">
+          {sending ? (
+            <p className="text-center text-[10px] font-black uppercase tracking-widest text-small-orange py-3">Sending…</p>
+          ) : (
+            <VoiceRecorder
+              onSend={async (blob) => { setSending(true); await onSend(blob); }}
+              onCancel={onDismiss}
+            />
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 };
@@ -101,9 +159,12 @@ const IncomingRing: React.FC<{ call: CallSession; onAccept: () => void; onDeclin
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [incoming, setIncoming] = useState<CallSession | null>(null);
   const [active, setActive] = useState<ActiveCall | null>(null);
+  const [missed, setMissed] = useState<MissedCall | null>(null);
   const [contacts, setContacts] = useState<CallContact[]>([]);
   const activeRef = useRef<ActiveCall | null>(null);
   activeRef.current = active;
+  // Set when the caller hangs up themselves, so we don't also show the missed card.
+  const hungUpRef = useRef(false);
 
   const uid = auth.currentUser?.uid;
 
@@ -152,8 +213,36 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try { callIds.push(await startCall(r, type, meta)); } catch { /* keep ringing the rest */ }
     }
     const first = contacts.find(c => c.uid === receivers[0]);
-    setActive({ room, isCaller: true, ringingName: receivers.length === 1 ? (first?.displayName || 'them') : undefined, callIds });
+    const peer: CallPeer = { uid: receivers[0], name: first?.displayName || room.name || 'them', photo: first?.photoURL };
+    hungUpRef.current = false;
+    setMissed(null);
+    setActive({ room, isCaller: true, ringingName: receivers.length === 1 ? (first?.displayName || 'them') : undefined, peer, callIds });
   }, [contacts]);
+
+  // Caller side: detect a no-answer (declined or 30s timeout with nobody connected)
+  // for a 1:1 call, and offer to leave a voice message.
+  useEffect(() => {
+    if (!active?.isCaller || active.callIds.length !== 1) return; // group calls don't get a VM prompt
+    const callId = active.callIds[0];
+    let answered = false, done = false;
+    const toMissed = () => {
+      if (done) return; done = true;
+      if (!answered && !hungUpRef.current) {
+        const a = activeRef.current;
+        setActive(null);
+        if (a) setMissed({ room: a.room, peer: a.peer });
+      }
+    };
+    const unsub = listenToCall(callId, (call) => {
+      if (!call) return;
+      if (call.status === 'CONNECTED') { answered = true; }
+      else if ((call.status === 'ENDED' || call.status === 'MISSED')) { toMissed(); }
+    });
+    const timer = setTimeout(() => {
+      if (!answered && !hungUpRef.current) { updateCallStatus(callId, 'MISSED').catch(() => {}); toMissed(); }
+    }, 30000);
+    return () => { try { unsub?.(); } catch {} clearTimeout(timer); };
+  }, [active]);
 
   const inviteToCall = useCallback((room: ChatRoom, userId: string) => {
     startCall(userId, 'VIDEO', {
@@ -183,9 +272,37 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const endActive = useCallback(() => {
     const a = activeRef.current;
+    hungUpRef.current = true; // user chose to hang up — don't show the missed-call VM card
     if (a) a.callIds.forEach(id => updateCallStatus(id, 'ENDED').catch(() => {}));
     setActive(null);
   }, []);
+
+  // Send the recorded missed-call voice message into the conversation.
+  const sendMissedVoice = useCallback(async (blob: Blob) => {
+    const m = missed;
+    if (!m) return;
+    try {
+      const url = await uploadFile(`chat/${m.room.id}/voice/${Date.now()}_missedcall.webm`, blob);
+      await sendMessage(m.room.id, {
+        senderId: auth.currentUser?.uid || '',
+        senderName: auth.currentUser?.displayName || 'You',
+        senderPhoto: auth.currentUser?.photoURL || '',
+        voiceUrl: url,
+        type: 'VOICE',
+      } as any);
+      if (m.peer?.uid) {
+        createNotification({
+          userId: m.peer.uid,
+          senderId: auth.currentUser?.uid || '',
+          senderName: auth.currentUser?.displayName || 'Someone',
+          senderPhoto: auth.currentUser?.photoURL || '',
+          type: 'MESSAGE', title: 'Voice message', message: 'Left you a voice message after a missed call',
+          link: 'CHAT', targetId: m.room.id,
+        } as any).catch(() => {});
+      }
+    } catch { /* surfaced by uploadFile's own reporting */ }
+    setMissed(null);
+  }, [missed]);
 
   return (
     <CallContext.Provider value={{ placeCall, inCall: !!active }}>
@@ -193,6 +310,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       <AnimatePresence>
         {incoming && !active && (
           <IncomingRing call={incoming} onAccept={acceptIncoming} onDecline={declineIncoming} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {missed && !active && !incoming && (
+          <MissedCallCard missed={missed} onSend={sendMissedVoice} onDismiss={() => setMissed(null)} />
         )}
       </AnimatePresence>
       <AnimatePresence>
