@@ -33,9 +33,21 @@ export interface ChangelogEntry {
  * The ledger — newest first. `APP_BUILD` is bumped whenever a release should
  * re-trigger the "what's new" notification for users.
  */
-export const APP_BUILD = '2026.07.01-06';
+export const APP_BUILD = '2026.07.01-07';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: '195cffe', date: '2026-07-01', time: '15:22', level: 'minor', area: 'Sharing',
+    title: 'Films get shareable previews too',
+    technical: 'Film (Taleo/archive.org) deep-linking: new "archive" share type → /share?type=archive&id=<identifier>; fetchArchiveVideoById rebuilds the item on boot; server injects OG from the archive.org metadata API; wired the movie Share button.',
+    plain: 'Sharing a film now opens that exact film and shows a real preview card (poster + "Experience “Title” now on Plajah") — same as songs, videos and books.',
+  },
+  {
+    id: '8e1f99f', date: '2026-07-01', time: '15:13', level: 'minor', area: 'Sharing',
+    title: 'X (Twitter) previews & embeds fixed',
+    technical: 'X inline player card ("can\'t be reached") → reliable summary_large_image; /embed made cross-origin framable (removed X-Frame-Options, CSP frame-ancestors) + resolves Mux to HLS (hls.js); publicHost() uses X-Forwarded-Host so meta URLs are plajah.com, not the run.app host.',
+    plain: 'Links shared on X now show a proper preview instead of "this media could not be played", and the embeddable player works on other sites too.',
+  },
   {
     id: 'e6e5ee4', date: '2026-07-01', time: '14:48', level: 'major', area: 'Studio',
     title: 'Plajah Studio: video router & switcher',

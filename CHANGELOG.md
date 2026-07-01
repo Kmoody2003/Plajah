@@ -17,6 +17,18 @@ Legend: **[MAJOR]** = new capability or big change · **[minor]** = fix/refineme
 
 ## 2026-07-01
 
+- **15:29** · `7a0545e` · **[minor]** · Studio — *feat(media-engine): native bridge + build blueprint*
+  - Technical: `mediaEngine/bridge.ts` (Tauri/native invoke contract — capabilities/list_sources/connect/route/program/sync, no-op in browser), `NativeSource` + `refreshNativeSources` mirrors, `NATIVE_MEDIA_ENGINE.md` build plan.
+  - Plain: Groundwork so the Router/Switcher can drive real capture cards & NDI once the desktop app exists.
+
+- **15:22** · `195cffe` · **[minor]** · Sharing — *feat(share): film (Taleo) deep-linking + rich previews*
+  - Technical: `archive` share type + `fetchArchiveVideoById` + `?type=archive` boot + server OG from archive.org metadata; wired the movie Share button.
+  - Plain: Films now deep-link and preview like everything else.
+
+- **15:13** · `8e1f99f` · **[minor]** · Sharing — *fix(share): X preview "can't be reached" + iframes*
+  - Technical: X → `summary_large_image` (dropped the flaky player card); `/embed` framable (no X-Frame-Options, CSP frame-ancestors) + Mux→HLS; `publicHost()` uses X-Forwarded-Host (plajah.com not run.app).
+  - Plain: X link previews and cross-site embeds work now.
+
 - **14:49** · `dbdec1e` · **[minor]** · Sharing — *fix(share): strip static generic OG tags before injecting asset-specific ones*
   - Technical: index.html ships default og tags that appear first; crawlers pick the first duplicate. Strip existing og:*/twitter:* before injecting.
   - Plain: Fixes previews still showing the generic Plajah card even after the asset tags were added.
