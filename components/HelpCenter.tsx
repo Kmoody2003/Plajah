@@ -516,9 +516,11 @@ const helpSections: HelpSection[] = [
 interface HelpCenterProps {
   onBack: () => void;
   onDeleteAccount?: () => void;
+  /** Open the plain-English "What's New" / platform history page. */
+  onOpenChangelog?: () => void;
 }
 
-const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount }) => {
+const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpenChangelog }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickPolicy, setQuickPolicy] = useState<string | null>(null);
@@ -540,6 +542,14 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount }) => {
             <ArrowLeft size={20} />
           </button>
           <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[#ff8c00] bg-white/5 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">Support Portal</span>
+          {onOpenChangelog && (
+            <button
+              onClick={onOpenChangelog}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-white/70 hover:text-white bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 px-4 py-2 rounded-full border border-[#8B5CF6]/30 backdrop-blur-md transition-all"
+            >
+              <Sparkles size={13} className="text-[#C4B5FD]" /> What's New
+            </button>
+          )}
         </div>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
           <div className="max-w-3xl">

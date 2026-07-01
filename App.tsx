@@ -144,6 +144,8 @@ const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
+const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
+const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
 const CreatorPaymentDashboard = retryLazy(() => import('./components/CreatorPaymentDashboard'));
 const EventCreationWizard = retryLazy(() => import('./components/EventCreationWizard'));
 const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
@@ -3264,8 +3266,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <PlajahElevate
                   isSignedIn={!!user}
+                  isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
                   onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
                   onCreate={() => { if (user) { setView('CREATOR'); } else { loginWithGoogle(); } }}
+                />
+              </Suspense>
+            )}
+
+            {view === 'PLATFORM_CHANGELOG' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PlatformChangelog
+                  onBack={() => setView('HELP_CENTER')}
+                  showTechnical={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
                 />
               </Suspense>
             )}
@@ -3626,7 +3638,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <TicketScanner eventId={scannerEventId} onBack={() => setScannerEventId(null)} />
             )}
             {view === 'HELP_CENTER' && (
-              <HelpCenter onBack={() => setView('DASHBOARD')} />
+              <HelpCenter onBack={() => setView('DASHBOARD')} onOpenChangelog={() => setView('PLATFORM_CHANGELOG')} />
             )}
             {view === 'ADMIN_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminDashboard 
@@ -4108,12 +4120,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </div>
       )}
       {isPIFModalOpen && (
-        <PayItForwardModal 
-          isOpen={isPIFModalOpen} 
-          onClose={() => setIsPIFModalOpen(false)} 
+        <PayItForwardModal
+          isOpen={isPIFModalOpen}
+          onClose={() => setIsPIFModalOpen(false)}
           userProfile={userProfile}
         />
       )}
+
+      {/* What's-new notification — shows once per new build, splits major/minor */}
+      <Suspense fallback={null}>
+        <UpdateNotification onOpenChangelog={() => setView('PLATFORM_CHANGELOG')} />
+      </Suspense>
 
       {pifWins.map(win => (
         <PayItForwardNotification 

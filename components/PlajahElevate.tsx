@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight } from 'lucide-react';
-import { fetchPublicOrganizations } from '../services/organizationService';
+import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight, Wand2 } from 'lucide-react';
+import { fetchPublicOrganizations, createDemoChurch } from '../services/organizationService';
 import { Organization, OrgType } from '../types';
 
 interface PlajahElevateProps {
@@ -9,6 +9,8 @@ interface PlajahElevateProps {
   /** List / create a new institution (start the org onboarding flow). */
   onCreate: () => void;
   isSignedIn: boolean;
+  /** Admins can seed the demo church directly from here. */
+  isAdmin?: boolean;
 }
 
 /** A category in the directory — maps a human section to an OrgType. */
@@ -81,24 +83,32 @@ const OrgCard: React.FC<{ org: Organization; accent: string; onOpen: () => void 
   );
 };
 
-const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSignedIn }) => {
+const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSignedIn, isAdmin }) => {
   const [orgsByType, setOrgsByType] = useState<Record<string, Organization[]>>({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string>('all');
+  const [seeding, setSeeding] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const results = await Promise.all(SECTIONS.map(s => fetchPublicOrganizations(s.orgType).catch(() => [] as Organization[])));
-      if (cancelled) return;
-      const map: Record<string, Organization[]> = {};
-      SECTIONS.forEach((s, i) => { map[s.key] = results[i]; });
-      setOrgsByType(map);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const load = async () => {
+    const results = await Promise.all(SECTIONS.map(s => fetchPublicOrganizations(s.orgType).catch(() => [] as Organization[])));
+    const map: Record<string, Organization[]> = {};
+    SECTIONS.forEach((s, i) => { map[s.key] = results[i]; });
+    setOrgsByType(map);
+    setLoading(false);
+  };
+
+  useEffect(() => { let cancelled = false; (async () => { if (!cancelled) await load(); })(); return () => { cancelled = true; }; }, []);
+
+  const handleSeedChurch = async () => {
+    setSeeding(true);
+    try {
+      const org = await createDemoChurch();
+      await load();
+      if (org) onOpenOrg(org.id);
+    } catch { /* surfaced as empty */ }
+    finally { setSeeding(false); }
+  };
 
   const visibleSections = activeSection === 'all' ? SECTIONS : SECTIONS.filter(s => s.key === activeSection);
 
@@ -152,6 +162,16 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
             >
               <Plus size={14} /> {isSignedIn ? 'List your institution' : 'Sign in to list'}
             </button>
+            {isAdmin && (
+              <button
+                onClick={handleSeedChurch}
+                disabled={seeding}
+                title="Create the Grace Chapel (Demo) church"
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 hover:text-white font-black text-[11px] uppercase tracking-widest transition-all shrink-0 disabled:opacity-50"
+              >
+                <Wand2 size={14} /> {seeding ? 'Seeding…' : 'Seed demo church'}
+              </button>
+            )}
           </div>
 
           {/* Section pills */}
