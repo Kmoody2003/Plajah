@@ -92,7 +92,7 @@ const LEAGUES: Partial<Record<Exclude<LeagueTab, 'ESPORTS'>, { sport: string; le
   NCAA: { sport: 'basketball', league: 'mens-college-basketball' },
   WNBA: { sport: 'basketball', league: 'wnba' },
   // Soccer — ESPN endpoints for news/scores; TSDB handles teams/standings
-  FIFA: { sport: 'soccer',     league: 'eng.1' },  // Premier League as global soccer feed
+  FIFA: { sport: 'soccer',     league: 'fifa.world' },  // FIFA World Cup 2026
   MLS:  { sport: 'soccer',     league: 'usa.1' },
 };
 
@@ -254,10 +254,10 @@ async function resolveEspnTeamId(tab: string, teamId: string, fullName?: string)
 
 // ── TheSportsDB Soccer Config ────────────────────────────────────────────────
 // TheSportsDB free tier key = "3" (already set in TSDB const below)
-// FIFA tab shows top-flight global soccer (Premier League + Champions League)
+// FIFA tab shows the FIFA World Cup 2026 (teams/standings/news via ESPN fifa.world)
 // MLS tab shows Major League Soccer exclusively
 const TSDB_SOCCER: Record<string, { leagueId: string; leagueName: string; espnNews: string }> = {
-  FIFA: { leagueId: '4328', leagueName: 'English Premier League', espnNews: 'soccer/eng.1' },
+  FIFA: { leagueId: '4429', leagueName: 'FIFA World Cup', espnNews: 'soccer/fifa.world' },
   MLS:  { leagueId: '4346', leagueName: 'Major League Soccer',    espnNews: 'soccer/usa.1' },
 };
 
@@ -791,6 +791,108 @@ async function fetchFifaWorldCupScores(): Promise<any[]> {
   return fetchSoccerScoresFromTSDB('FIFA');
 }
 
+/** FIFA tab teams — the 48 World Cup nations from ESPN (badges, colours), not
+ *  Premier League clubs. Returns the SportsTeam shape the grid renders. */
+async function fetchFifaWorldCupTeams(): Promise<SportsTeam[]> {
+  const key = 'espn:fifa.world:teams';
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+  const data = await safeFetch(`${ESPN}/soccer/fifa.world/teams?limit=99`);
+  const raw: any[] = data?.sports?.[0]?.leagues?.[0]?.teams ?? [];
+  if (raw.length === 0) return [];
+  const teams: SportsTeam[] = raw.map(({ team: t }: any) => ({
+    id:           String(t.id),
+    name:         t.displayName || t.name || '',
+    abbreviation: t.abbreviation || (t.displayName || '').substring(0, 3).toUpperCase(),
+    location:     t.location || t.displayName || '',
+    nickname:     t.name || t.displayName || '',
+    logo:         t.logos?.[0]?.href || '',
+    color:        t.color ? `#${t.color}` : '#1a1a1a',
+    altColor:     t.alternateColor ? `#${t.alternateColor}` : '#ffffff',
+    record:       '',
+  }));
+  teams.sort((a, b) => a.name.localeCompare(b.name));
+  toCache(key, teams);
+  return teams;
+}
+
+/** FIFA tab standings — the live World Cup group tables from ESPN, normalised to
+ *  the stat names the standings renderer already understands. */
+async function fetchFifaWorldCupStandings(): Promise<any[]> {
+  const key = 'espn:fifa.world:standings';
+  const c = fromCache(key, TTL.standings);
+  if (c !== null) return c;
+  const data = await safeFetch(`https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings`);
+  const children: any[] = data?.children ?? [];
+  if (children.length === 0) return [];
+  const stat = (row: any, name: string) =>
+    row.stats?.find((s: any) => s.name === name)?.value ?? 0;
+  const groups = children.map((g: any) => {
+    const entries = (g.standings?.entries ?? []).map((row: any) => ({
+      team: {
+        id:           row.team?.id,
+        displayName:  row.team?.displayName,
+        abbreviation: row.team?.abbreviation || (row.team?.displayName || '').substring(0, 3).toUpperCase(),
+        logos:        row.team?.logos ?? [],
+      },
+      stats: [
+        { name: 'wins',              value: stat(row, 'wins'),             displayValue: String(stat(row, 'wins')) },
+        { name: 'losses',            value: stat(row, 'losses'),           displayValue: String(stat(row, 'losses')) },
+        { name: 'ties',              value: stat(row, 'ties'),             displayValue: String(stat(row, 'ties')) },
+        { name: 'points',            value: stat(row, 'points'),           displayValue: String(stat(row, 'points')) },
+        { name: 'goalsFor',          value: stat(row, 'pointsFor'),        displayValue: String(stat(row, 'pointsFor')) },
+        { name: 'goalsAgainst',      value: stat(row, 'pointsAgainst'),    displayValue: String(stat(row, 'pointsAgainst')) },
+        { name: 'pointDifferential', value: stat(row, 'pointDifferential'),displayValue: String(stat(row, 'pointDifferential')) },
+        { name: 'gamesPlayed',       value: stat(row, 'gamesPlayed'),      displayValue: String(stat(row, 'gamesPlayed')) },
+        { name: 'rank',              value: stat(row, 'rank'),             displayValue: String(stat(row, 'rank')) },
+      ],
+    }));
+    return { name: g.name || 'Group', standings: { entries } };
+  });
+  toCache(key, groups);
+  return groups;
+}
+
+/** FIFA national-team detail — ESPN team info + Wikipedia history, so clicking a
+ *  World Cup nation shows that nation, not a Premier League club. */
+async function fetchFifaWorldCupRichTeamPage(
+  espnId: string,
+  fullName: string,
+  cacheKey: string,
+): Promise<RichTeamPage | null> {
+  const [teamRes, wikiRes] = await Promise.allSettled([
+    safeFetch(`${ESPN}/soccer/fifa.world/teams/${espnId}`),
+    fetchWikiSummary(`${fullName} national football team`),
+  ]);
+  const t = teamRes.status === 'fulfilled' ? (teamRes.value?.team ?? null) : null;
+  const wikiText = wikiRes.status === 'fulfilled' ? wikiRes.value : '';
+
+  const rich: RichTeamPage = {
+    team: t ? {
+      id:               String(t.id),
+      displayName:      t.displayName || fullName,
+      shortDisplayName: t.shortDisplayName || t.name || fullName,
+      abbreviation:     t.abbreviation || (t.displayName || fullName).substring(0, 3).toUpperCase(),
+      logos:            t.logos ?? [],
+      color:            t.color || '1a1a1a',
+      alternateColor:   t.alternateColor || 'ffffff',
+      record:           { items: [] },
+    } : null,
+    news:        [],
+    roster:      [],
+    recentGames: [],
+    description: wikiText || '',
+    founded:     '',
+    city:        t?.location || '',
+    stadium:     '',
+    fanart:      '',
+    badge:       t?.logos?.[0]?.href || '',
+    legends:     [],
+  };
+  toCache(cacheKey, rich);
+  return rich;
+}
+
 /** World Cup events across a window (recent results + live + upcoming) in one
  *  call, via ESPN's date-range scoreboard. Falls back to today's board. */
 export async function fetchWorldCupWindow(daysBack = 3, daysFwd = 4): Promise<any[]> {
@@ -899,8 +1001,12 @@ export interface TeamPageData {
 export async function fetchLeagueTeams(tab: string): Promise<SportsTeam[]> {
   if (getSpecialtySportCfg(tab)) return [];
   const stored = await readSportsKnowledge<SportsTeam[]>('sports_league_teams', makeSportsDocId(tab), TTL.teams);
-  // Soccer tabs use TheSportsDB (richer metadata, no ESPN key needed)
-  if (tab === 'FIFA' || tab === 'MLS') {
+  // FIFA tab = the 48 World Cup nations from ESPN; MLS still via TheSportsDB
+  if (tab === 'FIFA') {
+    const teams = await fetchFifaWorldCupTeams();
+    return teams.length ? teams : (stored?.data || []);
+  }
+  if (tab === 'MLS') {
     const teams = await fetchSoccerTeamsFromTSDB(tab);
     return teams.length ? teams : (stored?.data || []);
   }
@@ -995,7 +1101,8 @@ export async function fetchLeagueScores(tab: string): Promise<any[]> {
 export async function fetchLeagueStandings(tab: string): Promise<any[]> {
   if (getSpecialtySportCfg(tab)) return [];
   const stored = await readSportsKnowledge<any[]>('sports_league_standings', makeSportsDocId(tab, new Date().getFullYear()), TTL.standings);
-  if (tab === 'FIFA' || tab === 'MLS') return fetchSoccerStandingsFromTSDB(tab);
+  if (tab === 'FIFA') return fetchFifaWorldCupStandings();
+  if (tab === 'MLS') return fetchSoccerStandingsFromTSDB(tab);
 
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
@@ -1160,7 +1267,7 @@ const TSDB_LEAGUE_NAME: Record<string, string> = {
   NHL:  'NHL',
   MLB:  'MLB',
   NCAA: 'NCAAB',
-  FIFA: 'English Premier League',
+  FIFA: 'FIFA World Cup',
   MLS:  'Major League Soccer',
 };
 
@@ -2064,8 +2171,11 @@ export async function fetchRichTeamPage(
 
   const fullName = location ? `${location} ${nickname}`.trim() : nickname;
 
-  // FIFA/MLS teams have TheSportsDB IDs — bypass ESPN entirely
-  if (tab === 'FIFA' || tab === 'MLS') {
+  // FIFA teams are World Cup nations (ESPN ids); MLS teams have TheSportsDB IDs
+  if (tab === 'FIFA') {
+    return fetchFifaWorldCupRichTeamPage(teamId, fullName, key);
+  }
+  if (tab === 'MLS') {
     return fetchSoccerRichTeamPage(teamId, fullName, nickname, location, key);
   }
 

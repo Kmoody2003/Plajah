@@ -231,14 +231,36 @@ const MLS: StaticTeamData[] = [
   { id:'mls_van', espnId:'9720', tsdbId:'8191', league:'MLS', name:'Vancouver Whitecaps FC', location:'Vancouver', nickname:'Whitecaps', abbreviation:'VAN', logo:`${ESPN}/soccer/500/9720.png`, color:'#00245D', altColor:'#9DC4E0', officialWebsite:'https://www.whitecapsfc.com', stadium:'BC Place', city:'Vancouver, BC', founded:'1974', description:'The Whitecaps play at BC Place in one of Canada\'s most scenic cities and have been a fixture in MLS since 2011 with a passionate Pacific Northwest fanbase.' },
 ];
 
+// FIFA tab = the World Cup, not the Premier League. Marquee nations render
+// instantly; the full 48-team field is hydrated live from ESPN's fifa.world feed.
+const wc = (espnId: string, name: string, abbr: string, color: string, city: string, desc: string): StaticTeamData => ({
+  id: `wc_${abbr.toLowerCase()}`, espnId, league: 'FIFA', name, location: name, nickname: name, abbreviation: abbr,
+  logo: `${ESPN}/soccer/500/${espnId}.png`, color: `#${color}`, altColor: '#ffffff',
+  officialWebsite: 'https://www.fifa.com', stadium: '', city, founded: '', conference: 'FIFA World Cup 2026', description: desc,
+});
+const WC_NATIONS: StaticTeamData[] = [
+  wc('660', 'United States', 'USA', 'd42339', 'USA · Co-host', 'Co-hosts of 2026 with home advantage and their most talented generation yet, led by the European-based golden core.'),
+  wc('203', 'Mexico', 'MEX', '006847', 'Mexico · Co-host', 'Co-hosts opening the tournament at the iconic Estadio Azteca, chasing a deep run on home soil for the first time since 1986.'),
+  wc('206', 'Canada', 'CAN', 'ed2224', 'Canada · Co-host', 'Co-hosts on the rise with Alphonso Davies and Jonathan David leading a golden generation of Canadian talent.'),
+  wc('202', 'Argentina', 'ARG', '74acdf', 'Argentina', 'Reigning world champions led by Lionel Messi, defending the title they won in Qatar 2022.'),
+  wc('205', 'Brazil', 'BRA', 'fee000', 'Brazil', 'The record five-time world champions, forever the benchmark of flair and chasing a sixth star.'),
+  wc('478', 'France', 'FRA', '000080', 'France', '2018 champions and 2022 finalists, a powerhouse packed with elite attacking talent.'),
+  wc('448', 'England', 'ENG', 'cf081f', 'England', 'Perennial contenders with a deep, youthful squad hunting a first World Cup since 1966.'),
+  wc('164', 'Spain', 'ESP', 'c60b1e', 'Spain', '2010 champions playing a new-generation possession game led by their teenage stars.'),
+  wc('481', 'Germany', 'GER', '000000', 'Germany', 'Four-time world champions rebuilding toward another deep run on North American soil.'),
+  wc('482', 'Portugal', 'POR', 'da291c', 'Portugal', 'A golden generation blending Cristiano Ronaldo\'s experience with elite young talent.'),
+  wc('449', 'Netherlands', 'NED', 'fb5d00', 'Netherlands', 'Three-time finalists with a tactically astute, technically gifted squad.'),
+  wc('459', 'Belgium', 'BEL', 'e30613', 'Belgium', 'The last of the golden generation looking to finally deliver on their talent.'),
+];
+
 export const ALL_TEAMS: StaticTeamData[] = [
-  ...NBA, ...NFL, ...NHL, ...MLB, ...NCAA, ...EPL, ...MLS,
+  ...NBA, ...NFL, ...NHL, ...MLB, ...NCAA, ...EPL, ...MLS, ...WC_NATIONS,
 ];
 
 export function getLeagueStaticTeams(league: string): StaticTeamData[] {
   const map: Record<string, StaticTeamData[]> = {
     NBA, NFL, NHL, MLB, NCAA,
-    FIFA: EPL,
+    FIFA: WC_NATIONS,
     MLS,
   };
   return map[league] ?? [];
