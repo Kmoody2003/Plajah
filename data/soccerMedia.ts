@@ -50,11 +50,12 @@ export const GAMES: GameEntry[] = [
   { title: 'Google "World Cup" mini-games', kind: 'Browser', free: true, blurb: 'Search-engine easter-egg kickabouts and penalty games — free, no install.', url: 'https://www.google.com/search?q=play+soccer+game' },
 ];
 
-export interface Playlist { title: string; blurb: string; url: string; }
-// Timeless football-atmosphere playlists (search links open in YouTube/your app).
+export interface Playlist { title: string; blurb: string; url: string; playlistId?: string; }
+// Timeless football-atmosphere playlists — embeddable YouTube playlist IDs
+// (oEmbed-verified) so they play inline; `url` is the open-on-YouTube fallback.
 export const ANTHEM_PLAYLISTS: Playlist[] = [
-  { title: 'Greatest Stadium Anthems', blurb: 'You\'ll Never Walk Alone, Seven Nation Army, Freed from Desire — the songs terraces sing.', url: yt('greatest football stadium anthems playlist') },
-  { title: 'Official World Cup Songs', blurb: 'Waka Waka, La Copa de la Vida, Wavin\' Flag — every tournament\'s anthem in one place.', url: yt('official World Cup songs playlist all years') },
-  { title: 'Walkout & Warm-up Bangers', blurb: 'The tunnel playlist — what players hear before they take the pitch.', url: yt('football warm up walkout songs playlist') },
-  { title: 'Samba & Terrace Drums', blurb: 'Brazilian batucada and the percussion that powers the world\'s great ends.', url: yt('samba football terrace drums batucada') },
+  { title: 'Greatest Stadium Anthems', blurb: 'You\'ll Never Walk Alone, Seven Nation Army, Freed from Desire — the songs terraces sing.', playlistId: 'PLplnxyMWBRx39dv_BrGAMqiJClFOMhVfQ', url: yt('greatest football stadium anthems playlist') },
+  { title: 'Official World Cup Songs', blurb: 'Waka Waka, La Copa de la Vida, Wavin\' Flag — every tournament\'s anthem in one place.', playlistId: 'PLxA687tYuMWiyXAnp3Q6h3danVtI66l0C', url: yt('official World Cup songs playlist all years') },
+  { title: 'Walkout & Warm-up Bangers', blurb: 'The tunnel playlist — what players hear before they take the pitch.', playlistId: 'PLyiAq87WKZqUQs10jbWcrorbgupt3rRn3', url: yt('football warm up walkout songs playlist') },
+  { title: 'Samba & Terrace Drums', blurb: 'Brazilian batucada and the percussion that powers the world\'s great ends.', playlistId: 'PLZfvs4SCZV87HJjFKXWETxddNtvhmzXZA', url: yt('samba football terrace drums batucada') },
 ];

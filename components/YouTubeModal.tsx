@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { X, ExternalLink } from 'lucide-react';
 
 interface Props {
-  videoId: string;
+  videoId?: string;       // single video
+  playlistId?: string;    // OR a playlist (plays as a queue)
   title?: string;
   fallbackUrl?: string;   // "watch on YouTube" (search or watch url)
   onClose: () => void;
@@ -13,14 +14,18 @@ interface Props {
 // that allows framing — search & watch pages send X-Frame-Options: SAMEORIGIN).
 // If a video has embedding disabled or is region-locked, the iframe shows YouTube's
 // own "Watch on YouTube" button, and we surface a fallback link too.
-const YouTubeModal: React.FC<Props> = ({ videoId, title, fallbackUrl, onClose }) => {
+const YouTubeModal: React.FC<Props> = ({ videoId, playlistId, title, fallbackUrl, onClose }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const watchUrl = fallbackUrl || `https://www.youtube.com/watch?v=${videoId}`;
+  const src = playlistId
+    ? `https://www.youtube-nocookie.com/embed/videoseries?list=${playlistId}&autoplay=1&rel=0`
+    : `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+  const watchUrl = fallbackUrl
+    || (playlistId ? `https://www.youtube.com/playlist?list=${playlistId}` : `https://www.youtube.com/watch?v=${videoId}`);
 
   return (
     <motion.div
@@ -41,7 +46,7 @@ const YouTubeModal: React.FC<Props> = ({ videoId, title, fallbackUrl, onClose })
         </div>
         <div className="relative rounded-2xl overflow-hidden border border-white/12 bg-black" style={{ aspectRatio: '16 / 9' }}>
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
+            src={src}
             title={title || 'YouTube video'}
             className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

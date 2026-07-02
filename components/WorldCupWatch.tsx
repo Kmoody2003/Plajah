@@ -17,7 +17,7 @@ const FreeBadge: React.FC<{ free: boolean }> = ({ free }) => (
 
 const WorldCupWatch: React.FC = () => {
   const [section, setSection] = useState<Section>('docs');
-  const [play, setPlay] = useState<{ videoId: string; title: string; url: string } | null>(null);
+  const [play, setPlay] = useState<{ videoId?: string; playlistId?: string; title: string; url: string } | null>(null);
 
   // Per-nation matchday playlists from each team's popular artists + anthem.
   const nationPlaylists = useMemo(() =>
@@ -134,6 +134,7 @@ const WorldCupWatch: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {ANTHEM_PLAYLISTS.map((p, i) => (
                 <a key={i} href={p.url} target="_blank" rel="noreferrer"
+                  onClick={e => { if (p.playlistId) { e.preventDefault(); setPlay({ playlistId: p.playlistId, title: p.title, url: p.url }); } }}
                   className="group rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:border-[#FF8C00]/30 transition-all block">
                   <h4 className="text-sm font-black uppercase tracking-tight flex items-center gap-1.5"><Play size={12} className="text-[#FF8C00]" />{p.title}</h4>
                   <p className="text-[12px] text-white/50 leading-relaxed mt-1.5">{p.blurb}</p>
@@ -155,7 +156,16 @@ const WorldCupWatch: React.FC = () => {
                     </div>
                     <p className="text-[11px] text-white/45 mt-1.5 line-clamp-1">{n.artists.join(' · ')}</p>
                     <div className="flex gap-2 mt-2.5">
-                      <a href={n.url} target="_blank" rel="noreferrer" className="flex-1 text-center px-3 py-1.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/30 text-[8px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/25">▶ Mix</a>
+                      <a href={n.url} target="_blank" rel="noreferrer"
+                        onClick={async e => {
+                          // Resolve the nation's artist mix to an embeddable video (needs the
+                          // API key); play inline if found, else open YouTube.
+                          e.preventDefault();
+                          const id = await resolveVideoId(queryFromYouTubeUrl(n.url));
+                          if (id) setPlay({ videoId: id, title: `${n.name} — Matchday Mix`, url: n.url });
+                          else window.open(n.url, '_blank', 'noopener');
+                        }}
+                        className="flex-1 text-center px-3 py-1.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/30 text-[8px] font-black uppercase tracking-widest text-[#FF8C00] hover:bg-[#FF8C00]/25">▶ Mix</a>
                       {n.anthemUrl && <a href={n.anthemUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/50 hover:text-white">Anthem</a>}
                     </div>
                   </div>
@@ -167,7 +177,7 @@ const WorldCupWatch: React.FC = () => {
       )}
 
       <AnimatePresence>
-        {play && <YouTubeModal videoId={play.videoId} title={play.title} fallbackUrl={play.url} onClose={() => setPlay(null)} />}
+        {play && <YouTubeModal videoId={play.videoId} playlistId={play.playlistId} title={play.title} fallbackUrl={play.url} onClose={() => setPlay(null)} />}
       </AnimatePresence>
     </div>
   );
