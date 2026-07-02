@@ -37,7 +37,7 @@ const LEAGUES = [
   { id: 'NFL',     label: 'NFL',        icon: Shield,   color: '#013369' },
   { id: 'MLB',     label: 'MLB',        icon: Flag,     color: '#002D72' },
   { id: 'NHL',     label: 'NHL',        icon: Zap,      color: '#00539B' },
-  { id: 'FIFA',    label: 'Football',   icon: Globe,    color: '#39B54A' },
+  { id: 'FIFA',    label: 'FIFA',       icon: Globe,    color: '#39B54A' },
   { id: 'MLS',     label: 'MLS',        icon: Globe,    color: '#00245D' },
   { id: 'NCAA',    label: 'NCAA',       icon: Trophy,   color: '#00539B' },
   { id: 'WNBA',    label: 'WNBA',       icon: Trophy,   color: '#F57C00' },
