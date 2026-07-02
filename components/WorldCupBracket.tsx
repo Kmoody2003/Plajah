@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { motion } from 'motion/react';
 import { WC26_MATCHES, WC26_TEAMS, getTeam, ROUND_LABELS, type WC26Round } from '../data/worldCup2026';
+import { fetchLiveResults, resultForTeams, type LiveResult } from '../services/worldCupDepth';
 
 // The WC 2026 knockout rounds in visual order
 const KNOCKOUT_ROUNDS: WC26Round[] = ['R32', 'R16', 'QF', 'SF', 'FINAL', '3RD'];
@@ -21,13 +22,20 @@ interface BracketMatch {
   status?: string;
 }
 
-function getMatchesByRound(round: WC26Round): BracketMatch[] {
+function getMatchesByRound(round: WC26Round, results: LiveResult[] = []): BracketMatch[] {
   const real = WC26_MATCHES.filter(m => m.round === round).sort((a, b) => a.kickoffMs - b.kickoffMs);
   if (real.length > 0) {
     return real.map(m => {
-      const home = m.homeScore !== undefined ? { teamId: m.homeTeamId, score: m.homeScore, winner: m.homeScore! > m.awayScore! } : { teamId: m.homeTeamId };
-      const away = m.awayScore !== undefined ? { teamId: m.awayTeamId, score: m.awayScore, winner: m.awayScore! > m.homeScore! } : { teamId: m.awayTeamId };
-      return { matchId: m.id, home, away, venue: m.venue, city: m.city, kickoffMs: m.kickoffMs, status: m.status };
+      // Overlay live ESPN scores when both teams are known.
+      let hs = m.homeScore, as = m.awayScore, status = m.status;
+      const ht = getTeam(m.homeTeamId), at = getTeam(m.awayTeamId);
+      if (ht && at && results.length) {
+        const r = resultForTeams(results, ht.name, at.name);
+        if (r) { hs = r.homeScore; as = r.awayScore; status = (r.finished ? 'FINISHED' : r.state === 'in' ? 'LIVE' : status) as typeof status; }
+      }
+      const home = hs !== undefined ? { teamId: m.homeTeamId, score: hs, winner: hs! > as! } : { teamId: m.homeTeamId };
+      const away = as !== undefined ? { teamId: m.awayTeamId, score: as, winner: as! > hs! } : { teamId: m.awayTeamId };
+      return { matchId: m.id, home, away, venue: m.venue, city: m.city, kickoffMs: m.kickoffMs, status };
     });
   }
   // Placeholder slots
@@ -156,12 +164,20 @@ const ChampionDisplay: React.FC<{ matches: BracketMatch[] }> = ({ matches }) => 
 
 // ── Main bracket ──────────────────────────────────────────────────────────────
 const WorldCupBracket: React.FC = () => {
+  const [results, setResults] = useState<LiveResult[]>([]);
+  useEffect(() => {
+    let a = true;
+    const load = () => fetchLiveResults().then(r => { if (a) setResults(r || []); }).catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { a = false; clearInterval(id); };
+  }, []);
   const rounds = useMemo(() =>
     KNOCKOUT_ROUNDS.reduce<Record<WC26Round, BracketMatch[]>>((acc, r) => {
-      acc[r] = getMatchesByRound(r);
+      acc[r] = getMatchesByRound(r, results);
       return acc;
     }, {} as any),
-    []
+    [results]
   );
 
   const totalSet = KNOCKOUT_ROUNDS.reduce((n, r) => {
