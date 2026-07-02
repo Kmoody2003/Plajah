@@ -8,6 +8,7 @@ import {
   ROUND_LABELS, type WC26Match, type WC26Group,
 } from '../data/worldCup2026';
 import WorldCupCountryHub from './WorldCupCountryHub';
+import { fetchGroupStandings, StandingRow } from '../services/worldCupDepth';
 import { fetchAndParseRss, type ParsedPodcastFeed } from '../services/podcastRssImporter';
 import { auth, syncImportedEpisodes } from '../services/backendService';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
@@ -154,27 +155,49 @@ const MatchCard: React.FC<{ match: WC26Match; onOpenRoom?: (match: WC26Match) =>
 };
 
 // ── Group table ────────────────────────────────────────────────────────────────
+const gtNorm = (s: string) => (s || '').toLowerCase().replace(/[^a-z]/g, '');
+const flagForName = (name: string): string => {
+  const n = gtNorm(name);
+  const t = WC26_TEAMS.find(x => gtNorm(x.name) === n) || WC26_TEAMS.find(x => n.length > 3 && (gtNorm(x.name).includes(n) || n.includes(gtNorm(x.name))));
+  return t?.flag || '🏳️';
+};
+
 const GroupTable: React.FC<{ group: WC26Group }> = ({ group }) => {
   const teams = getTeamsByGroup(group);
+  const [rows, setRows] = useState<StandingRow[]>([]);
+  useEffect(() => {
+    let a = true;
+    fetchGroupStandings().then(m => { if (a) setRows((m && m[group]) || []); }).catch(() => {});
+    return () => { a = false; };
+  }, [group]);
+
+  const live = rows.length > 0;
+  const display = live
+    ? rows.map((r, i) => ({ key: r.team + i, name: r.team, flag: flagForName(r.team), logo: r.logo, p: r.p, w: r.w, d: r.d, l: r.l, pts: r.pts, adv: (r.rank || i + 1) <= 2 }))
+    : teams.map(t => ({ key: t.id, name: t.name, flag: t.flag, logo: undefined as string | undefined, p: 0, w: 0, d: 0, l: 0, pts: 0, adv: false }));
+
   return (
     <div className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
       <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
         <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Group</span>
         <span className="text-sm font-black text-white">{group}</span>
+        {live && <span className="ml-auto flex items-center gap-1 text-[7px] font-black uppercase tracking-widest text-[#39B54A]"><span className="w-1 h-1 rounded-full bg-[#39B54A] animate-pulse" /> Live</span>}
+      </div>
+      <div className="flex items-center gap-3 px-4 py-1.5 border-b border-white/5">
+        <span className="w-4" />
+        <span className="flex-1 text-[7px] font-black uppercase tracking-widest text-white/25">Team</span>
+        <div className="flex items-center gap-2.5 text-[8px] font-black text-white/25 tabular-nums">
+          <span className="w-3.5 text-center">P</span><span className="w-3.5 text-center">W</span><span className="w-3.5 text-center">D</span><span className="w-3.5 text-center">L</span><span className="w-5 text-center text-white/40">Pts</span>
+        </div>
       </div>
       <div className="divide-y divide-white/5">
-        {teams.map(team => (
-          <div key={team.id} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="text-lg leading-none">{team.flag}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-white truncate">{team.name}</p>
-              <p className="text-[8px] text-white/30 uppercase tracking-wider">{team.confederation}</p>
-            </div>
-            <div className="flex items-center gap-3 text-[9px] font-bold text-white/30">
-              <span>P</span><span>W</span><span>D</span><span>L</span><span className="text-white/50">Pts</span>
-            </div>
-            <div className="flex items-center gap-3 text-[9px] font-black text-white">
-              <span>0</span><span>0</span><span>0</span><span>0</span><span className="text-[#FF8C00]">0</span>
+        {display.map((row, i) => (
+          <div key={row.key} className="flex items-center gap-3 px-4 py-2" style={row.adv ? { background: 'rgba(57,181,74,0.06)' } : undefined}>
+            <span className="w-4 text-[9px] font-black tabular-nums" style={{ color: row.adv ? '#39B54A' : 'rgba(255,255,255,0.35)' }}>{i + 1}</span>
+            {row.logo ? <img src={row.logo} alt="" className="w-4 h-4 object-contain" /> : <span className="text-base leading-none">{row.flag}</span>}
+            <p className="flex-1 text-[10px] font-black text-white truncate">{row.name}</p>
+            <div className="flex items-center gap-2.5 text-[9px] font-black tabular-nums">
+              <span className="w-3.5 text-center text-white/55">{row.p}</span><span className="w-3.5 text-center text-white/55">{row.w}</span><span className="w-3.5 text-center text-white/55">{row.d}</span><span className="w-3.5 text-center text-white/55">{row.l}</span><span className="w-5 text-center text-[#FF8C00]">{row.pts}</span>
             </div>
           </div>
         ))}

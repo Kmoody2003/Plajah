@@ -6,11 +6,18 @@ const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world';
 
 const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z]/g, '');
 const cache = new Map<string, { t: number; v: any }>();
+const inflight = new Map<string, Promise<any>>();
 async function memo<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const c = cache.get(key);
   if (c && Date.now() - c.t < ttlMs) return c.v as T;
-  try { const v = await fn(); cache.set(key, { t: Date.now(), v }); return v; }
-  catch { return (c?.v as T) ?? (null as any); }
+  if (inflight.has(key)) return inflight.get(key) as Promise<T>; // dedupe concurrent callers (e.g. 12 group tables)
+  const p = (async () => {
+    try { const v = await fn(); cache.set(key, { t: Date.now(), v }); return v; }
+    catch { return (c?.v as T) ?? (null as any); }
+    finally { inflight.delete(key); }
+  })();
+  inflight.set(key, p);
+  return p;
 }
 const j = async (url: string) => { const r = await fetch(url); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
 
@@ -86,6 +93,38 @@ export interface MatchDetail {
   events: MatchEvent[];
   reports: GameReport[];
   status?: string;
+}
+
+// ── Group standings (live) ───────────────────────────────────────────────────
+export interface StandingRow {
+  team: string; abbr?: string; logo?: string;
+  p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number;
+  rank: number; advanced?: boolean;
+}
+
+/** Live World Cup group standings keyed by group letter (A–L). */
+export async function fetchGroupStandings(): Promise<Record<string, StandingRow[]>> {
+  return memo('wc:standings', 300_000, async () => {
+    const d = await j(`https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings`);
+    const out: Record<string, StandingRow[]> = {};
+    for (const g of d?.children || []) {
+      const letter = String(g.abbreviation || g.name || '').replace(/group\s*/i, '').trim().toUpperCase();
+      if (!letter) continue;
+      const rows: StandingRow[] = (g?.standings?.entries || []).map((e: any) => {
+        const s: Record<string, string> = {};
+        for (const st of e.stats || []) s[st.name] = st.displayValue ?? String(st.value ?? '');
+        const num = (k: string) => parseInt(s[k] || '0', 10) || 0;
+        return {
+          team: e.team?.displayName || e.team?.name || '', abbr: e.team?.abbreviation, logo: e.team?.logos?.[0]?.href,
+          p: num('gamesPlayed'), w: num('wins'), d: num('ties'), l: num('losses'),
+          gf: num('pointsFor'), ga: num('pointsAgainst'), gd: num('pointDifferential'),
+          pts: num('points'), rank: num('rank'), advanced: s['advanced'] === '1' || s['advanced'] === 'true',
+        };
+      }).sort((a: StandingRow, b: StandingRow) => (a.rank || 99) - (b.rank || 99));
+      out[letter] = rows;
+    }
+    return out;
+  });
 }
 
 export async function fetchMatchDetail(eventId: string): Promise<MatchDetail | null> {
