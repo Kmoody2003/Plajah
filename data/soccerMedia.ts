@@ -7,25 +7,25 @@ const yt = (q: string) => `https://www.youtube.com/results?search_query=${encode
 
 export interface DocEntry {
   title: string; year?: string; length?: string; blurb: string;
-  free: boolean; where: string; url: string;
+  free: boolean; where: string; url: string; videoId?: string;
 }
 export const DOCUMENTARIES: DocEntry[] = [
   { title: 'FIFA World Cup Official Film: Mexico 1970', year: '1970', length: '~1h', free: true, where: 'YouTube (FIFA)',
-    blurb: 'Pelé\'s masterpiece Brazil side, shot in glorious colour — the tournament many call the greatest ever.', url: yt('1970 World Cup official film FIFA Brazil') },
+    blurb: 'Pelé\'s masterpiece Brazil side, shot in glorious colour — the tournament many call the greatest ever.', url: yt('1970 World Cup official film FIFA Brazil'), videoId: '4WfyCsxM1sw' },
   { title: 'FIFA World Cup Official Film: Mexico 1986', year: '1986', length: '~1h30', free: true, where: 'YouTube (FIFA)',
-    blurb: 'Maradona carries Argentina to glory — the Hand of God and Goal of the Century in one tournament.', url: yt('1986 World Cup official film Hero Maradona') },
+    blurb: 'Maradona carries Argentina to glory — the Hand of God and Goal of the Century in one tournament.', url: yt('1986 World Cup official film Hero Maradona'), videoId: '3eDZV-p9DiI' },
   { title: 'FIFA World Cup Official Film: Italia 1990', year: '1990', length: '~1h30', free: true, where: 'YouTube (FIFA)',
     blurb: 'Nessun Dorma, Gazza\'s tears and Roger Milla\'s dance — the tournament that reinvented football\'s image.', url: yt('1990 World Cup official film Italia') },
   { title: 'The Two Escobars', year: '2010', length: '1h40', free: false, where: 'ESPN 30 for 30',
     blurb: 'How Colombian football, Pablo Escobar and the murder of Andrés Escobar became fatally intertwined.', url: yt('The Two Escobars 30 for 30 full documentary') },
   { title: 'Diego Maradona', year: '2019', length: '2h10', free: false, where: 'Streaming / rent',
-    blurb: 'Asif Kapadia\'s archive-only portrait of the rise and fall of the most human of geniuses.', url: yt('Diego Maradona 2019 documentary Kapadia trailer') },
+    blurb: 'Asif Kapadia\'s archive-only portrait of the rise and fall of the most human of geniuses.', url: yt('Diego Maradona 2019 documentary Kapadia trailer'), videoId: 'Pmm7r4ynyIQ' },
   { title: 'Pelé', year: '2021', length: '1h48', free: false, where: 'Netflix',
-    blurb: 'The King in his own words — how a 17-year-old changed a nation and a sport forever.', url: yt('Pele Netflix documentary trailer') },
+    blurb: 'The King in his own words — how a 17-year-old changed a nation and a sport forever.', url: yt('Pele Netflix documentary trailer'), videoId: 'KMyUnyxVB9Q' },
   { title: 'All or Nothing / Behind-the-scenes series', year: '—', length: 'Series', free: false, where: 'Prime / streaming',
     blurb: 'Fly-on-the-wall access inside elite national teams and clubs across a full campaign.', url: yt('All or Nothing football documentary series') },
   { title: 'The Game of Their Lives (Korea 1966)', year: '2002', length: '1h20', free: true, where: 'Archive / YouTube',
-    blurb: 'North Korea\'s astonishing run to the 1966 quarter-finals, told through the surviving players.', url: yt('The Game of Their Lives 1966 North Korea documentary') },
+    blurb: 'North Korea\'s astonishing run to the 1966 quarter-finals, told through the surviving players.', url: yt('The Game of Their Lives 1966 North Korea documentary'), videoId: 'Cga_q9vShFQ' },
 ];
 
 export interface MovieEntry { title: string; year: string; blurb: string; url: string; }

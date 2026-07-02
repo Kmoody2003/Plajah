@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Film, Clapperboard, Gamepad2, Music, Play, ExternalLink, Gift } from 'lucide-react';
 import { DOCUMENTARIES, MOVIES, GAMES, ANTHEM_PLAYLISTS } from '../data/soccerMedia';
 import { WC26_TEAMS } from '../data/worldCup2026';
+import YouTubeModal from './YouTubeModal';
+import { resolveVideoId, queryFromYouTubeUrl } from '../services/youtubeService';
 
 type Section = 'docs' | 'movies' | 'games' | 'playlists';
 const yt = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
@@ -15,6 +17,7 @@ const FreeBadge: React.FC<{ free: boolean }> = ({ free }) => (
 
 const WorldCupWatch: React.FC = () => {
   const [section, setSection] = useState<Section>('docs');
+  const [play, setPlay] = useState<{ videoId: string; title: string; url: string } | null>(null);
 
   // Per-nation matchday playlists from each team's popular artists + anthem.
   const nationPlaylists = useMemo(() =>
@@ -61,12 +64,14 @@ const WorldCupWatch: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {DOCUMENTARIES.map((d, i) => (
             <motion.a key={i} href={d.url} target="_blank" rel="noreferrer"
+              onClick={e => { if (d.videoId) { e.preventDefault(); setPlay({ videoId: d.videoId, title: d.title, url: d.url }); } }}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
               className="group rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:border-white/20 hover:bg-white/[0.06] transition-all block">
               <div className="flex items-center gap-2 mb-2">
                 <FreeBadge free={d.free} />
                 {d.year && <span className="text-[8px] font-black text-white/30">{d.year}</span>}
                 {d.length && <span className="text-[8px] text-white/25">· {d.length}</span>}
+                {d.videoId && <span className="text-[7px] font-black uppercase text-red-400/80">▶ Plays here</span>}
                 <span className="ml-auto text-[8px] font-bold text-white/30">{d.where}</span>
               </div>
               <h4 className="text-sm font-black uppercase tracking-tight group-hover:text-[#FF8C00] transition-colors flex items-center gap-1.5"><Play size={12} className="shrink-0" />{d.title}</h4>
@@ -81,6 +86,14 @@ const WorldCupWatch: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {MOVIES.map((m, i) => (
             <motion.a key={i} href={m.url} target="_blank" rel="noreferrer"
+              onClick={async e => {
+                // Resolve the trailer to an embeddable id (needs the API key); play
+                // inline if found, otherwise fall back to opening YouTube.
+                e.preventDefault();
+                const id = await resolveVideoId(queryFromYouTubeUrl(m.url));
+                if (id) setPlay({ videoId: id, title: m.title, url: m.url });
+                else window.open(m.url, '_blank', 'noopener');
+              }}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
               className="group rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:border-white/20 hover:bg-white/[0.06] transition-all block">
               <div className="flex items-center justify-between mb-1.5">
@@ -152,6 +165,10 @@ const WorldCupWatch: React.FC = () => {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {play && <YouTubeModal videoId={play.videoId} title={play.title} fallbackUrl={play.url} onClose={() => setPlay(null)} />}
+      </AnimatePresence>
     </div>
   );
 };

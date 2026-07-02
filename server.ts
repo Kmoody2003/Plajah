@@ -1310,6 +1310,33 @@ async function startServer() {
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
+  // ── YouTube highlight resolver ─────────────────────────────────────────────
+  // Turns a search query into the top *embeddable* video id via the YouTube Data
+  // API v3, so dynamic highlights (per-match, movie trailers, etc.) can play in an
+  // inline iframe instead of opening a new tab. Requires YOUTUBE_API_KEY in the
+  // Cloud Run environment (store it in Secret Manager, never in the client). The
+  // key stays server-side; the browser only ever calls this endpoint. Cached in
+  // memory for 24h because Data API search costs 100 quota units/call (default
+  // quota 10,000/day ≈ 100 searches/day uncached).
+  const _ytCache = new Map<string, { t: number; id: string | null }>();
+  app.get('/api/yt-search', async (req: any, res) => {
+    const q = String(req.query.q || '').slice(0, 120).trim();
+    if (!q) return res.status(400).json({ videoId: null, error: 'missing q' });
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return res.json({ videoId: null, reason: 'no-api-key' }); // graceful: client falls back to YouTube
+    const hit = _ytCache.get(q);
+    if (hit && Date.now() - hit.t < 24 * 3600_000) return res.json({ videoId: hit.id, cached: true });
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=none&maxResults=1&q=${encodeURIComponent(q)}&key=${apiKey}`;
+      const r = await fetch(url);
+      const d: any = await r.json();
+      if (!r.ok) return res.status(502).json({ videoId: null, error: d?.error?.message || 'youtube api error' });
+      const id = d?.items?.[0]?.id?.videoId || null;
+      _ytCache.set(q, { t: Date.now(), id });
+      res.json({ videoId: id });
+    } catch (e: any) { res.status(500).json({ videoId: null, error: e.message }); }
+  });
+
   app.get('/api/events/creator/:uid', authMiddleware, async (req: any, res) => {
     if (req.uid !== req.params.uid) return res.status(403).json({ error: 'Forbidden' });
     try {

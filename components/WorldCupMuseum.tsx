@@ -6,6 +6,7 @@ import { ICONIC_MOMENTS, WC_RECORDS, GOAT_SLUGS, type IconicMoment } from '../da
 import { WC26_TEAMS } from '../data/worldCup2026';
 
 const HallOfLegends = lazy(() => import('./sports/WorldCupHallOfLegends'));
+import YouTubeModal from './YouTubeModal';
 
 // ── shared Wikipedia summary (photo + bio), cached across the session ─────────
 const wikiCache = new Map<string, Promise<{ thumb: string; extract: string }>>();
@@ -88,11 +89,10 @@ const LegendModal: React.FC<{ legend: Legend; onClose: () => void }> = ({ legend
   );
 };
 
-const MomentCard: React.FC<{ moment: IconicMoment }> = ({ moment }) => {
+const MomentCard: React.FC<{ moment: IconicMoment; onPlay: (m: IconicMoment) => void }> = ({ moment, onPlay }) => {
   const { thumb } = useWiki(moment.wikiSlug);
-  return (
-    <a href={moment.youtube} target="_blank" rel="noreferrer"
-      className="group rounded-[1.4rem] overflow-hidden border border-white/8 bg-white/[0.03] hover:border-white/25 transition-all block">
+  const cls = "group rounded-[1.4rem] overflow-hidden border border-white/8 bg-white/[0.03] hover:border-white/25 transition-all block w-full text-left";
+  const body = (<>
       <div className="aspect-video bg-white/5 relative overflow-hidden">
         {thumb && <img src={thumb} alt={moment.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
@@ -107,14 +107,17 @@ const MomentCard: React.FC<{ moment: IconicMoment }> = ({ moment }) => {
         <p className="text-[8px] font-bold uppercase tracking-widest text-[#FFD24A] mt-1">{moment.who}</p>
         <p className="text-[11px] text-white/45 leading-relaxed mt-2">{moment.blurb}</p>
       </div>
-    </a>
-  );
+    </>);
+  return moment.videoId
+    ? <button onClick={() => onPlay(moment)} className={cls}>{body}</button>
+    : <a href={moment.youtube} target="_blank" rel="noreferrer" className={cls}>{body}</a>;
 };
 
 const WorldCupMuseum: React.FC = () => {
   const [section, setSection] = useState<Section>('legends');
   const [nation, setNation] = useState<string>('Greatest of All Time');
   const [openLegend, setOpenLegend] = useState<Legend | null>(null);
+  const [playMoment, setPlayMoment] = useState<IconicMoment | null>(null);
 
   const nations = useMemo(() => ['Greatest of All Time', ...Array.from(new Set(ALL_LEGENDS.map(l => l.nation))).sort()], []);
   const legends = useMemo(() => {
@@ -175,7 +178,7 @@ const WorldCupMuseum: React.FC = () => {
       {/* MOMENTS */}
       {section === 'moments' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {ICONIC_MOMENTS.map(m => <MomentCard key={m.id} moment={m} />)}
+          {ICONIC_MOMENTS.map(m => <MomentCard key={m.id} moment={m} onPlay={setPlayMoment} />)}
         </div>
       )}
 
@@ -205,6 +208,7 @@ const WorldCupMuseum: React.FC = () => {
 
       <AnimatePresence>
         {openLegend && <LegendModal legend={openLegend} onClose={() => setOpenLegend(null)} />}
+        {playMoment?.videoId && <YouTubeModal videoId={playMoment.videoId} title={playMoment.title} fallbackUrl={playMoment.youtube} onClose={() => setPlayMoment(null)} />}
       </AnimatePresence>
     </div>
   );
