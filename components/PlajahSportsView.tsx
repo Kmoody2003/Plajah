@@ -5,6 +5,7 @@ import { SportsCenterView } from './SportsCenterView';
 import WorldCupHub from './WorldCupHub';
 import WorldCupTopBoard from './WorldCupTopBoard';
 import WorldCupVictory from './WorldCupVictory';
+import WorldCupCarousel from './WorldCupCarousel';
 import { SportsIntelligenceSection } from './SportsIntelligenceSection';
 import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
@@ -732,6 +733,11 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
         {/* ── VICTORY ENGINE — celebrate wins the moment they happen / on return ── */}
         <WorldCupVictory
+          onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
+        />
+
+        {/* ── DYNAMIC CUP CAROUSEL — live matches + real headline photos, auto-rotating ── */}
+        <WorldCupCarousel
           onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
         />
 
