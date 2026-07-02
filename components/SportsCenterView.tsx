@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
+import { createPortal } from 'react-dom';
 import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import RacerProfileView from './sports/RacerProfileView';
@@ -198,11 +199,13 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   // Bring the freshly-opened card into view automatically.
   const detailRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!(selectedPlayer || selectedTeam || selectedOrg || selectedEsportsPlayer)) return;
+    // Team/org/esports still render inline (they replace the column); scroll them
+    // into view. The player detail is now a centered overlay, so it's excluded.
+    if (!(selectedTeam || selectedOrg || selectedEsportsPlayer)) return;
     const raf = requestAnimationFrame(() =>
       detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     return () => cancelAnimationFrame(raf);
-  }, [selectedPlayer, selectedTeam, selectedOrg, selectedEsportsPlayer]);
+  }, [selectedTeam, selectedOrg, selectedEsportsPlayer]);
 
   // â"€â"€â"€ RACING â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (isRacing) return <RacingCenterView tab={selectedSportsTab} />;
@@ -228,8 +231,11 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
 
   // â"€â"€â"€ PLAYER PROFILE MODAL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (selectedPlayer) {
-    return (
-      <motion.div ref={detailRef} style={{ scrollMarginTop: 72 }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    return createPortal(
+      <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm overflow-y-auto p-3 sm:p-6"
+        onClick={() => { setSelectedPlayer(null); setPlayerProfile(null); }}>
+      <motion.div onClick={e => e.stopPropagation()} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto my-1 sm:my-4 space-y-6 rounded-3xl border border-white/10 bg-[#0b0b0f] p-4 sm:p-6 shadow-2xl">
         <div className="flex items-center gap-3">
           <button onClick={() => { setSelectedPlayer(null); setPlayerProfile(null); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
@@ -412,6 +418,8 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
           </div>
         )}
       </motion.div>
+      </div>,
+      document.body
     );
   }
 

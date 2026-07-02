@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
@@ -25,15 +26,6 @@ type CountryTab = 'community' | 'roster' | 'music' | 'debates' | 'matches';
 const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   const [activeTab, setActiveTab] = useState<CountryTab>('roster');
   const [selectedPlayer, setSelectedPlayer] = useState<RosterPlayer | null>(null);
-  // The player profile replaces the view at the top; bring it into view so the
-  // user isn't left staring at their old scroll position down the roster.
-  const playerViewRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!selectedPlayer) return;
-    const raf = requestAnimationFrame(() =>
-      playerViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    return () => cancelAnimationFrame(raf);
-  }, [selectedPlayer]);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   useEffect(() => { let a = true; fetchSquadByName(team.name).then(s => { if (a) setSquad(s || []); }).catch(() => {}); return () => { a = false; }; }, [team.name]);
   const [groupTable, setGroupTable] = useState<StandingRow[]>([]);
@@ -114,16 +106,20 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
 
   // Show player profile view
   if (selectedPlayer) {
-    return (
-      <div ref={playerViewRef} style={{ scrollMarginTop: 72 }}>
-        <WorldCupPlayerProfile
-          player={selectedPlayer}
-          team={team}
-          livePhoto={selectedPlayer.photo}
-          live={selectedPlayer.live}
-          onBack={() => setSelectedPlayer(null)}
-        />
-      </div>
+    return createPortal(
+      <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm overflow-y-auto p-3 sm:p-6"
+        onClick={() => setSelectedPlayer(null)}>
+        <div onClick={e => e.stopPropagation()} className="max-w-2xl mx-auto my-1 sm:my-4 rounded-3xl border border-white/10 bg-[#0b0b0f] p-4 sm:p-5 shadow-2xl">
+          <WorldCupPlayerProfile
+            player={selectedPlayer}
+            team={team}
+            livePhoto={selectedPlayer.photo}
+            live={selectedPlayer.live}
+            onBack={() => setSelectedPlayer(null)}
+          />
+        </div>
+      </div>,
+      document.body
     );
   }
 
