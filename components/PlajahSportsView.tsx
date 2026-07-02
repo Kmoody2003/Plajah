@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
 import WorldCupHub from './WorldCupHub';
 import WorldCupTopBoard from './WorldCupTopBoard';
+import WorldCupVictory from './WorldCupVictory';
 import { SportsIntelligenceSection } from './SportsIntelligenceSection';
 import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
@@ -728,6 +729,11 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
       </div>
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-5 lg:px-10 py-6 space-y-6 sm:space-y-8">
+
+        {/* ── VICTORY ENGINE — celebrate wins the moment they happen / on return ── */}
+        <WorldCupVictory
+          onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
+        />
 
         {/* ── WORLD CUP SHOWCASE — always top, always first ─────────────────── */}
         <div className="space-y-4">
