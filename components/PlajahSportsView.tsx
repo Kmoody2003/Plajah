@@ -6,6 +6,7 @@ import WorldCupHub from './WorldCupHub';
 import WorldCupTopBoard from './WorldCupTopBoard';
 import WorldCupVictory from './WorldCupVictory';
 import WorldCupCarousel from './WorldCupCarousel';
+import WorldCupMatchDetail from './WorldCupMatchDetail';
 import { SportsIntelligenceSection } from './SportsIntelligenceSection';
 import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
@@ -486,6 +487,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
   const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
   const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
+  // Match Centre modal — opened via the 'plajah:open-wc-match' event from any WC surface.
+  const [wcMatch, setWcMatch]         = useState<{ id: string; title?: string } | null>(null);
+  useEffect(() => {
+    const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; if (d.id) setWcMatch({ id: String(d.id), title: d.title }); };
+    window.addEventListener('plajah:open-wc-match', h);
+    return () => window.removeEventListener('plajah:open-wc-match', h);
+  }, []);
   const [favoriteTeams, setFavTeams]  = useState<any[]>([]);
   const [headlines, setHeadlines]     = useState<Article[]>([]);
   const [liveScores, setLiveScores]   = useState<any[]>([]);
@@ -1355,6 +1363,16 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── World Cup Match Centre — lineups, formations, timeline, multi-source reports ── */}
+      {wcMatch && (
+        <WorldCupMatchDetail
+          eventId={wcMatch.id}
+          title={wcMatch.title}
+          onClose={() => setWcMatch(null)}
+          onOpenFanRoom={() => { window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId: wcMatch.id } })); setWcMatch(null); }}
+        />
+      )}
     </div>
   );
 };

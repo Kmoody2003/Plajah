@@ -102,7 +102,7 @@ const WorldCupCarousel: React.FC<Props> = ({ onOpenFanRoom }) => {
   const go = (d: number) => setIdx(i => (i + d + slides.length) % slides.length);
   const open = () => {
     if (s.kind === 'news' && s.href) window.open(s.href, '_blank', 'noopener');
-    else if (s.kind === 'live' && s.event && onOpenFanRoom) onOpenFanRoom(String(s.event.id), s.event);
+    else if (s.kind === 'live' && s.event) window.dispatchEvent(new CustomEvent('plajah:open-wc-match', { detail: { id: String(s.event.id), title: s.title } }));
   };
 
   return (
@@ -140,7 +140,7 @@ const WorldCupCarousel: React.FC<Props> = ({ onOpenFanRoom }) => {
             </motion.h2>
             {s.sub && <p className="text-white/60 text-xs sm:text-sm mt-2.5 line-clamp-2 max-w-xl leading-relaxed">{s.sub}</p>}
             <div className="mt-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/80">
-              {s.kind === 'live' ? <><Users size={13} /> Join the fan room</> : <><ExternalLink size={12} /> Read the story</>}
+              {s.kind === 'live' ? <><Users size={13} /> Match centre · lineups · fan room</> : <><ExternalLink size={12} /> Read the story</>}
             </div>
           </div>
         </motion.button>

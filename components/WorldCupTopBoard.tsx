@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Radio, ChevronDown, ChevronRight, Clock, Users } from 'lucide-react';
+import { Trophy, Radio, ChevronDown, ChevronRight, Clock, Users, Shirt } from 'lucide-react';
 
 // Open the live fan room for a specific match. A window event avoids threading a nav
 // callback through the whole World Cup component tree — App.tsx listens and routes.
 const openFanRoom = (matchId: string) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId } }));
+const openMatch = (id: string, title?: string) => window.dispatchEvent(new CustomEvent('plajah:open-wc-match', { detail: { id, title } }));
 import { fetchWorldCupWindow, fetchSoccerSummary } from '../services/sportsService';
 import { scoreText } from '../src/lib/scoreText';
 
@@ -76,6 +77,10 @@ const LiveMatchCard: React.FC<{ event: any }> = ({ event }) => {
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-black uppercase tracking-[0.25em] text-red-300/80 hover:bg-red-500/10 transition-colors">
           <Radio size={11} /> Play-by-play <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
+        <button onClick={() => openMatch(event.id)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 border-l border-red-500/15 text-[9px] font-black uppercase tracking-[0.25em] text-white/70 hover:bg-white/10 transition-colors">
+          <Shirt size={11} /> Lineups
+        </button>
         <button onClick={() => openFanRoom(event.id)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 border-l border-red-500/15 text-[9px] font-black uppercase tracking-[0.25em] text-[#FF8C00] hover:bg-[#FF8C00]/10 transition-colors">
           <Users size={11} /> Fan Room
@@ -105,13 +110,13 @@ const LiveMatchCard: React.FC<{ event: any }> = ({ event }) => {
 const MatchChip: React.FC<{ event: any; kind: 'result' | 'upcoming' }> = ({ event, kind }) => {
   const a = side(event, 'away'); const h = side(event, 'home');
   return (
-    <button onClick={() => openFanRoom(event.id)} title="Open the fan room"
+    <button onClick={() => openMatch(event.id)} title="Match centre — lineups, timeline & reports"
       className="group text-left shrink-0 w-[190px] rounded-2xl border border-white/8 bg-white/[0.03] p-3 hover:border-[#FF8C00]/40 hover:bg-[#FF8C00]/[0.05] transition-colors">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 truncate">
           {kind === 'result' ? (event.status?.type?.shortDetail || 'Full Time') : kickoff(event)}
         </p>
-        <span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-[0.2em] text-[#FF8C00] opacity-0 group-hover:opacity-100 transition-opacity"><Users size={9} /> Room</span>
+        <span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-[0.2em] text-[#FF8C00] opacity-0 group-hover:opacity-100 transition-opacity"><Shirt size={9} /> Centre</span>
       </div>
       <div className="space-y-1.5">
         {[a, h].map((s, i) => (
