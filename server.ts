@@ -4529,7 +4529,10 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       let replyText = '';
       let toolCalls: any[] = [];
       let usedSearch = false;
+      const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+      let replyError = false;
 
+      try {
       if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
         // ── Microsoft MAI (primary) ──────────────────────────────────────────────
         const maiRes = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
@@ -4607,11 +4610,11 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
           }
         }
 
-      } else {
+      } else if (geminiKey) {
         // ── Fallback: Google Gemini Flash ────────────────────────────────────────
-        console.warn('[Aria] MAI_API_KEY or MAI_ENDPOINT not set — falling back to Gemini. Add MAI_API_KEY to .env.local.');
+        console.warn('[Aria] MAI not configured — using Gemini fallback.');
         const { GoogleGenAI } = await import('@google/genai');
-        const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '' });
+        const genai = new GoogleGenAI({ apiKey: geminiKey });
         const geminiHistory = chatHistory.slice(1, -1).map(m => ({
           role: m.role === 'user' ? 'user' as const : 'model' as const,
           parts: [{ text: m.content }],
@@ -4626,6 +4629,21 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         replyText = geminiRes.text || '';
         usedSearch = !!(geminiRes as any).candidates?.[0]?.groundingMetadata?.webSearchQueries?.length;
         if (usedSearch) toolCalls.push({ name: 'search_web', label: 'Searched the web', status: 'done' });
+      } else {
+        // No AI provider configured at all — respond with a clear, visible message
+        // instead of silently failing so the user knows what's wrong.
+        replyText = "⚠️ Aria isn't fully set up yet — no AI provider key is configured on the server (GOOGLE_AI_API_KEY or MAI_API_KEY). Your message was received, but I can't reply until an administrator adds a key.";
+        replyError = true;
+      }
+      } catch (llmErr: any) {
+        console.error('[Aria] LLM call failed:', llmErr?.message);
+        replyText = "I'm having trouble reaching my AI service right now — please try again in a moment.";
+        replyError = true;
+      }
+      // Never leave the user staring at silence — always surface *something*.
+      if (!replyText.trim()) {
+        replyText = "I couldn't generate a response just now. Please try again.";
+        replyError = true;
       }
 
       // ── Parse build outputs ──
@@ -4667,6 +4685,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
               timestamp: { integerValue: String(now) },
               ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
               ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
+              ...( extra.error ? { error: { booleanValue: true } } : {} ),
               ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
             },
           }),
@@ -4674,7 +4693,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       };
 
       await persistMsg('user', message);
-      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined });
+      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError });
 
       // ── Update daily usage counters ──
       const newDaily = dailyMessages + 1;

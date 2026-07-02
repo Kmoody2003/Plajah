@@ -330,6 +330,31 @@ const PlajahAgent: React.FC<Props> = ({
     return () => window.removeEventListener('OPEN_ARIA', handler as EventListener);
   }, []);
 
+  // Dismiss with Escape or by clicking/tapping outside the panel, so the chat is
+  // never "stuck open" — in addition to the header close button.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current && !panelRef.current.contains(t)) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    // Defer attaching the outside-click listener so the click that opened Aria
+    // doesn't immediately close it.
+    const id = window.setTimeout(() => {
+      document.addEventListener('mousedown', onDown);
+      document.addEventListener('touchstart', onDown, { passive: true });
+    }, 0);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.clearTimeout(id);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [isOpen, onClose]);
+
   const canSend = !!input.trim() && !isThinking && (tierCfg.dailyMessages === -1 || usage.dailyMessages < tierCfg.dailyMessages);
 
   const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -407,6 +432,7 @@ const PlajahAgent: React.FC<Props> = ({
           animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
           exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+          ref={panelRef}
           className="fixed z-[300] flex flex-col"
           style={isMobile ? {
             bottom: isPlayerExpanded ? '320px' : '90px',
