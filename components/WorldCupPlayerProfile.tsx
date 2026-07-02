@@ -92,13 +92,17 @@ interface Props {
   player: WC26Player;
   team: WC26Team;
   onBack: () => void;
+  /** Real ESPN headshot from the live squad (preferred over the Wikipedia lookup). */
+  livePhoto?: string;
+  /** Live squad bio (age/DOB/height/position/citizenship) when available. */
+  live?: { posName?: string; age?: number; dob?: string; height?: string; weight?: string; citizenship?: string };
 }
 
 type ProfileTab = 'stats' | 'gallery' | 'news';
 
-const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack }) => {
+const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhoto, live }) => {
   const [tab, setTab] = useState<ProfileTab>('stats');
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(livePhoto || null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
@@ -108,8 +112,9 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack }) => {
   const primaryColor  = team.primaryColor;
   const secondaryColor = team.secondaryColor;
 
-  // Load Wikipedia photo — try explicit slug first, fall back to name search
+  // Prefer the real ESPN headshot; otherwise look one up on Wikipedia.
   useEffect(() => {
+    if (livePhoto) { setPhotoUrl(livePhoto); return; }
     setPhotoUrl(null);
     const slug = player.wikiSlug ?? player.name.replace(/ /g, '_');
     fetchWikiPhoto(slug).then(url => {
@@ -121,7 +126,7 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack }) => {
         });
       }
     });
-  }, [player.id, player.wikiSlug, player.name]);
+  }, [player.id, player.wikiSlug, player.name, livePhoto]);
 
   // Subscribe to follow state
   useEffect(() => {
@@ -212,7 +217,15 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack }) => {
                 <span className="text-white/20">·</span>
                 <span className="text-[8px] font-black text-white/50">{team.flag} {team.name}</span>
               </div>
-              <p className="text-[9px] text-white/40 mt-1">Age {player.age} · {player.club}</p>
+              <p className="text-[9px] text-white/40 mt-1">Age {live?.age ?? player.age} · {live?.posName || player.club}</p>
+              {live && (live.height || live.citizenship) && (
+                <p className="text-[8px] text-white/30 mt-1 flex items-center gap-1.5 flex-wrap">
+                  {live.height && <span>{live.height}</span>}
+                  {live.height && live.citizenship && <span className="text-white/15">·</span>}
+                  {live.citizenship && <span>{live.citizenship}</span>}
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#39B54A]/15 text-[#7CFC98] text-[7px] font-black uppercase tracking-widest">Live squad</span>
+                </p>
+              )}
             </div>
           </div>
 

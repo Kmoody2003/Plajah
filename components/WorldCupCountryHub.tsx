@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
-import { WC26Player, getPlayersByTeam, getPositionColor, getPositionLabel } from '../data/worldCupPlayers';
+import { WC26Player, WC26Position, getPlayersByTeam, getPositionColor, getPositionLabel } from '../data/worldCupPlayers';
+import { fetchSquadByName, SquadPlayer } from '../services/worldCupDepth';
+
+type RosterPlayer = WC26Player & { photo?: string; live?: SquadPlayer };
+const normName = (s: string) => (s || '').toLowerCase().replace(/[^a-z]/g, '');
 import { Post, UserProfile } from '../types';
 import { auth, listenToGlobalPosts, createPost, uploadFile } from '../services/backendService';
 import PostCard from './PostCard';
@@ -20,8 +24,27 @@ type CountryTab = 'community' | 'roster' | 'music' | 'debates' | 'matches';
 
 const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   const [activeTab, setActiveTab] = useState<CountryTab>('roster');
-  const [selectedPlayer, setSelectedPlayer] = useState<WC26Player | null>(null);
-  const players = getPlayersByTeam(team.id);
+  const [selectedPlayer, setSelectedPlayer] = useState<RosterPlayer | null>(null);
+  const [squad, setSquad] = useState<SquadPlayer[]>([]);
+  useEffect(() => { let a = true; fetchSquadByName(team.name).then(s => { if (a) setSquad(s || []); }).catch(() => {}); return () => { a = false; }; }, [team.name]);
+  // Live squad (real headshots/positions/ages from ESPN) merged over the projected roster.
+  const players = useMemo<RosterPlayer[]>(() => {
+    const base = getPlayersByTeam(team.id);
+    const byName = new Map(squad.map(s => [normName(s.name), s] as const));
+    const used = new Set(base.map(p => normName(p.name)));
+    const merged: RosterPlayer[] = base.map(p => {
+      const s = byName.get(normName(p.name));
+      return { ...p, number: s?.jersey ? (parseInt(String(s.jersey), 10) || p.number) : p.number, photo: s?.headshot, live: s };
+    });
+    const extra: RosterPlayer[] = squad.filter(s => !used.has(normName(s.name))).map(s => ({
+      id: 'live_' + s.id, teamId: team.id, name: s.name, number: s.jersey ? (parseInt(String(s.jersey), 10) || 0) : 0,
+      position: s.group as WC26Position, age: s.age || 0, club: s.citizenship || '', caps: 0, goals: 0, assists: 0,
+      bio: `${s.name} is part of ${team.name}'s squad at the FIFA World Cup 2026.`, photo: s.headshot, live: s,
+    } as RosterPlayer));
+    const all = [...merged, ...extra];
+    return all.length ? all : (base as RosterPlayer[]);
+  }, [team.id, team.name, squad]);
+  const isLiveSquad = squad.length > 0;
   const [posts, setPosts] = useState<Post[]>([]);
   const [debateTopics] = useState([
     `Will ${team.name} make it out of Group ${team.group}?`,
@@ -82,6 +105,8 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
       <WorldCupPlayerProfile
         player={selectedPlayer}
         team={team}
+        livePhoto={selectedPlayer.photo}
+        live={selectedPlayer.live}
         onBack={() => setSelectedPlayer(null)}
       />
     );
@@ -171,7 +196,7 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
       {activeTab === 'roster' && (
         <div className="space-y-4">
           <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">
-            {team.name} · Projected Squad · {players.length} Players
+            {team.name} · {isLiveSquad ? 'Live Squad' : 'Projected Squad'} · {players.length} Players
           </p>
 
           {/* Position groups */}
@@ -195,13 +220,17 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
                       onClick={() => setSelectedPlayer(player)}
                       className="flex items-center gap-3 p-3 rounded-2xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15 transition-all text-left group"
                     >
-                      {/* Jersey number */}
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-sm"
-                        style={{ background: `${team.primaryColor}22`, color: team.primaryColor }}
-                      >
-                        {player.number}
-                      </div>
+                      {/* Player headshot (live) or jersey number */}
+                      {player.photo ? (
+                        <div className="relative w-10 h-10 shrink-0">
+                          <img src={player.photo} alt="" loading="lazy" className="w-10 h-10 rounded-xl object-cover object-top bg-white/10" onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+                          {!!player.number && <span className="absolute -bottom-1 -right-1 text-[8px] font-black px-1 rounded" style={{ background: team.primaryColor, color: '#000' }}>{player.number}</span>}
+                        </div>
+                      ) : (
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-sm" style={{ background: `${team.primaryColor}22`, color: team.primaryColor }}>
+                          {player.number}
+                        </div>
+                      )}
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -209,12 +238,21 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
                           {player.isCaptain && <span className="text-[7px] px-1 rounded bg-white/10 text-white/50 shrink-0">C</span>}
                           {player.isKeyPlayer && <span style={{ color: team.primaryColor }} className="text-[10px] shrink-0">★</span>}
                         </div>
-                        <p className="text-[8px] text-white/35 truncate mt-0.5">{player.club}</p>
+                        <p className="text-[8px] text-white/35 truncate mt-0.5">{player.live?.posName || player.club}</p>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <p className="text-xs font-black text-white">{player.goals}</p>
-                        <p className="text-[7px] text-white/25">goals</p>
+                        {player.live ? (
+                          <>
+                            <p className="text-xs font-black text-white">{player.live.age ?? '–'}</p>
+                            <p className="text-[7px] text-white/25">years</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs font-black text-white">{player.goals}</p>
+                            <p className="text-[7px] text-white/25">goals</p>
+                          </>
+                        )}
                       </div>
                     </motion.button>
                   ))}
