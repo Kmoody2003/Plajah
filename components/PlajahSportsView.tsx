@@ -7,6 +7,7 @@ import WorldCupTopBoard from './WorldCupTopBoard';
 import WorldCupVictory from './WorldCupVictory';
 import WorldCupCarousel from './WorldCupCarousel';
 import WorldCupMatchDetail from './WorldCupMatchDetail';
+import WorldCupBuzz from './WorldCupBuzz';
 import { SportsIntelligenceSection } from './SportsIntelligenceSection';
 import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
@@ -487,6 +488,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
   const [activeTab, setActiveTab]     = useState<string>('WORLD_CUP');
   const [wcOpenTab, setWcOpenTab]     = useState<string | undefined>(undefined);
+  // Open the full World Cup Hub AND scroll to it — the tab-switch alone happened below the
+  // fold, so "Open full experience" felt like it did nothing.
+  const hubRef = useRef<HTMLDivElement>(null);
+  const openHub = (tab?: string) => {
+    setActiveTab('WORLD_CUP'); if (tab) setWcOpenTab(tab);
+    setTimeout(() => hubRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+  };
   // Match Centre modal — opened via the 'plajah:open-wc-match' event from any WC surface.
   const [wcMatch, setWcMatch]         = useState<{ id: string; title?: string } | null>(null);
   useEffect(() => {
@@ -768,7 +776,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
           <motion.button
             className="relative w-full overflow-hidden rounded-3xl text-left group"
             style={{ background: 'linear-gradient(135deg, #010E04 0%, #001122 50%, #010A03 100%)', border: '1px solid rgba(57,181,74,0.18)' }}
-            onClick={() => { setActiveTab('WORLD_CUP'); setWcOpenTab('clubs'); }}
+            onClick={() => openHub('clubs')}
             whileHover={{ scale: 1.003 }}
             transition={{ duration: 0.2 }}
           >
@@ -812,7 +820,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
               <motion.button
                 key={card.tab}
                 className="group relative text-left overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 hover:border-white/[0.12] transition-all"
-                onClick={() => { setActiveTab('WORLD_CUP'); setWcOpenTab(card.tab); }}
+                onClick={() => openHub(card.tab)}
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ duration: 0.15 }}
               >
@@ -830,14 +838,17 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
           <button
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-white/[0.06] text-white/25 text-[9px] font-black uppercase tracking-widest hover:text-white/50 hover:border-white/12 transition-all"
-            onClick={() => setActiveTab('WORLD_CUP')}
+            onClick={() => openHub()}
           >
             Open Full World Cup Hub <ChevronRight size={11} />
           </button>
         </div>
 
         {/* ── WORLD CUP LIVE SCORES / FIXTURES ─────────────────────────────── */}
-        <WorldCupTopBoard onOpenFull={() => setActiveTab('WORLD_CUP')} />
+        <WorldCupTopBoard onOpenFull={() => openHub()} />
+
+        {/* ── HIGHLIGHTS & SOCIAL BUZZ (YouTube + X) ────────────────────────── */}
+        <WorldCupBuzz />
 
         {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
         <SportsIntelligenceSection
@@ -963,10 +974,12 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
           <div className="space-y-6 lg:space-y-8 min-w-0">
             {/* World Cup Hub */}
             {activeTab === 'WORLD_CUP' && (
-              <WorldCupHub
-                currentUser={currentUser ?? null}
-                initialTab={wcOpenTab as any}
-              />
+              <div ref={hubRef} style={{ scrollMarginTop: 80 }}>
+                <WorldCupHub
+                  currentUser={currentUser ?? null}
+                  initialTab={wcOpenTab as any}
+                />
+              </div>
             )}
 
             {/* Health & Fitness hub tabs */}
