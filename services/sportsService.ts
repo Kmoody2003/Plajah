@@ -1,5 +1,7 @@
 // ESPN public API – no key required.  All responses are cached in-memory.
 import { findStaticTeam } from '../data/leagueTeams';
+import { fetchTeamSquad, type SquadPlayer } from './worldCupDepth';
+import { legendsForNation } from '../data/soccerLegends';
 import {
   makeSportsDocId,
   readSportsKnowledge,
@@ -853,19 +855,87 @@ async function fetchFifaWorldCupStandings(): Promise<any[]> {
   return groups;
 }
 
-/** FIFA national-team detail — ESPN team info + Wikipedia history, so clicking a
- *  World Cup nation shows that nation, not a Premier League club. */
+// ---------- FIFA World Cup nation depth (roster / schedule / legends) --------
+
+/** Wikipedia thumbnail for a page slug (photos for legends etc.). */
+async function fetchWikiThumb(slug: string): Promise<string> {
+  const key = `wikithumb:${slug}`;
+  const c = fromCache(key, TTL.teams);
+  if (c !== null) return c;
+  const data = await safeFetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`);
+  const thumb = data?.originalimage?.source || data?.thumbnail?.source || '';
+  toCache(key, thumb);
+  return thumb;
+}
+
+/** Map a live ESPN World Cup squad into the roster shape TeamPageView renders. */
+function squadToRoster(squad: SquadPlayer[]): { group: string; athletes: any[] }[] {
+  const groups: { key: string; label: string }[] = [
+    { key: 'GK', label: 'Goalkeepers' }, { key: 'DEF', label: 'Defenders' },
+    { key: 'MID', label: 'Midfielders' }, { key: 'FWD', label: 'Forwards' },
+  ];
+  return groups.map(g => ({
+    group: g.label,
+    athletes: squad.filter(p => p.group === g.key).map(p => ({
+      id: p.id,
+      fullName: p.name,
+      displayName: p.name,
+      jersey: p.jersey,
+      headshot: p.headshot ? { href: p.headshot } : undefined,
+      position: { displayName: p.posName, abbreviation: p.posAbbr },
+      age: p.age,
+      injured: p.injured,
+    })),
+  })).filter(g => g.athletes.length > 0);
+}
+
+/** All World Cup fixtures involving one nation (ESPN event shape), newest last. */
+async function fetchWorldCupTeamEvents(espnId: string): Promise<any[]> {
+  const key = `wc:teamevents:${espnId}`;
+  const c = fromCache(key, TTL.scores);
+  if (c !== null) return c;
+  const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const end = new Date(); end.setDate(end.getDate() + 7);
+  const data = await safeFetch(`${ESPN}/soccer/fifa.world/scoreboard?dates=20260611-${fmt(end)}`);
+  const events: any[] = (data?.events ?? []).filter((ev: any) =>
+    (ev?.competitions?.[0]?.competitors ?? []).some((cmp: any) => String(cmp?.team?.id) === String(espnId)),
+  );
+  toCache(key, events);
+  return events;
+}
+
+/** Curated national-team legends, hydrated with Wikipedia photos. */
+async function fetchNationLegends(nationName: string): Promise<LegendPlayer[]> {
+  const seeds = legendsForNation(nationName);
+  if (!seeds.length) return [];
+  const thumbs = await Promise.all(seeds.map(s => fetchWikiThumb(s.wikiSlug).catch(() => '')));
+  return seeds.map((s, i) => ({
+    id:          s.wikiSlug,
+    name:        s.name,
+    position:    s.position,
+    nationality: nationName,
+    birthDate:   `${s.born}-07-01`,
+    description: s.honors,
+    thumb:       thumbs[i] || '',
+  }));
+}
+
+/** FIFA national-team detail — real ESPN squad + schedule + curated legends +
+ *  Wikipedia history, so clicking a World Cup nation is a full fan page. */
 async function fetchFifaWorldCupRichTeamPage(
   espnId: string,
   fullName: string,
   cacheKey: string,
 ): Promise<RichTeamPage | null> {
-  const [teamRes, wikiRes] = await Promise.allSettled([
-    safeFetch(`${ESPN}/soccer/fifa.world/teams/${espnId}`),
-    fetchWikiSummary(`${fullName} national football team`),
+  const [teamRes, wikiRes, squad, events, legends] = await Promise.all([
+    safeFetch(`${ESPN}/soccer/fifa.world/teams/${espnId}`).catch(() => null),
+    fetchWikiSummary(`${fullName} national football team`).catch(() => ''),
+    fetchTeamSquad(espnId).catch(() => [] as SquadPlayer[]),
+    fetchWorldCupTeamEvents(espnId).catch(() => [] as any[]),
+    fetchNationLegends(fullName).catch(() => [] as LegendPlayer[]),
   ]);
-  const t = teamRes.status === 'fulfilled' ? (teamRes.value?.team ?? null) : null;
-  const wikiText = wikiRes.status === 'fulfilled' ? wikiRes.value : '';
+  const t = teamRes?.team ?? null;
+  const wikiText = wikiRes || '';
 
   const rich: RichTeamPage = {
     team: t ? {
@@ -879,15 +949,15 @@ async function fetchFifaWorldCupRichTeamPage(
       record:           { items: [] },
     } : null,
     news:        [],
-    roster:      [],
-    recentGames: [],
+    roster:      squadToRoster(squad),
+    recentGames: events,
     description: wikiText || '',
     founded:     '',
     city:        t?.location || '',
     stadium:     '',
     fanart:      '',
     badge:       t?.logos?.[0]?.href || '',
-    legends:     [],
+    legends,
   };
   toCache(cacheKey, rich);
   return rich;
@@ -1777,6 +1847,23 @@ export async function fetchPlayerProfile(tab: string, athleteId: string): Promis
   const key = `player:${tab}:${athleteId}`;
   const c = fromCache(key, TTL.roster);
   if (c !== null) return c;
+
+  // FIFA legends carry a Wikipedia slug (non-numeric id), not an ESPN athlete id —
+  // synthesize a profile from the Wikipedia summary (photo + biography).
+  if (tab === 'FIFA' && !/^\d+$/.test(athleteId)) {
+    const wiki = await safeFetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${athleteId}`);
+    const legendProfile = wiki ? {
+      id:          athleteId,
+      displayName: wiki.title || athleteId.replace(/_/g, ' '),
+      fullName:    wiki.title || athleteId.replace(/_/g, ' '),
+      headshot:    wiki.originalimage?.source || wiki.thumbnail?.source
+        ? { href: wiki.originalimage?.source || wiki.thumbnail?.source } : undefined,
+      position:    {},
+      notes:       wiki.extract || '',
+    } : null;
+    toCache(key, legendProfile);
+    return legendProfile;
+  }
   const stored = await readSportsKnowledge<any>('sports_player_profiles', makeSportsDocId(tab, athleteId), TTL.roster);
 
   // Bio from the common v3 athlete endpoint; current-season stats from the core
@@ -1901,6 +1988,9 @@ export async function fetchPlayerCareer(tab: string, athleteId: string): Promise
 // ─── TEAM FULL SCHEDULE ─────────────────────────────────────────────────────
 
 export async function fetchTeamFullSchedule(tab: string, teamId: string): Promise<any[]> {
+  // FIFA nations have no ESPN team-schedule endpoint — build it from the
+  // tournament scoreboard filtered to this nation (real fixtures + results).
+  if (tab === 'FIFA') return fetchWorldCupTeamEvents(teamId);
   const cfg = getLeagueCfg(tab);
   if (!cfg) return [];
   const resolvedTeamId = await resolveEspnTeamId(tab, teamId);
