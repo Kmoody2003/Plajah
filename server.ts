@@ -4741,6 +4741,36 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
     }
   });
 
+  // ── Aria health check ─────────────────────────────────────────────────────────
+  // Unauthenticated diagnostic: reports which AI provider is configured and, for
+  // Gemini, actually pings the model so we can confirm the key works end-to-end.
+  // No secrets are returned. Result cached 60s so it can't be used to burn quota.
+  let _ariaHealth: { t: number; v: any } | null = null;
+  app.get('/api/agent/health', async (_req, res) => {
+    if (_ariaHealth && Date.now() - _ariaHealth.t < 60_000) return res.json({ ..._ariaHealth.v, cached: true });
+    const mai = !!(process.env.MAI_API_KEY && !(process.env.MAI_ENDPOINT || '').includes('TODO'));
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+    let out: any;
+    if (mai) {
+      out = { provider: 'mai', configured: true, ok: true, note: 'MAI configured (not test-pinged)' };
+    } else if (!geminiKey) {
+      out = { provider: 'none', configured: false, ok: false, note: 'No GOOGLE_AI_API_KEY or MAI_API_KEY set' };
+    } else {
+      try {
+        const { GoogleGenAI } = await import('@google/genai');
+        const genai = new GoogleGenAI({ apiKey: geminiKey });
+        const chat = genai.chats.create({ model: 'gemini-2.0-flash', config: { maxOutputTokens: 8 } });
+        const r = await chat.sendMessage({ message: [{ text: 'Reply with the single word: ok' }] });
+        const txt = (r.text || '').trim();
+        out = { provider: 'gemini', configured: true, ok: !!txt, sample: txt.slice(0, 40) };
+      } catch (e: any) {
+        out = { provider: 'gemini', configured: true, ok: false, error: String(e?.message || e).slice(0, 240) };
+      }
+    }
+    _ariaHealth = { t: Date.now(), v: out };
+    res.json(out);
+  });
+
   // ── END MUSE AGENT ────────────────────────────────────────────────────────────
 
   // ── Podcast RSS Proxy ─────────────────────────────────────────────────────────
