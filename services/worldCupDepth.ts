@@ -133,6 +133,40 @@ export function resultForTeams(results: LiveResult[], homeName: string, awayName
   return null;
 }
 
+// ── Highlights / video clips (official ESPN, embeddable HLS) ─────────────────
+export interface WcVideo { id: string; headline: string; description?: string; duration: number; thumbnail?: string; hls?: string; web?: string; }
+
+/** Official ESPN video clips (analysis + highlights) from recent matches — playable HLS. */
+export async function fetchWcVideos(): Promise<WcVideo[]> {
+  return memo('wc:videos', 300_000, async () => {
+    const sb = await j(`${BASE}/scoreboard`);
+    const ids = (sb?.events || [])
+      .filter((e: any) => ['post', 'in'].includes(e?.status?.type?.state))
+      .sort((a: any, b: any) => +new Date(b.date) - +new Date(a.date))
+      .slice(0, 5).map((e: any) => String(e.id));
+    const summaries = await Promise.all(ids.map(id => j(`${BASE}/summary?event=${id}`).catch(() => null)));
+    const out: WcVideo[] = [];
+    const seen = new Set<string>();
+    const now = Date.now();
+    for (const d of summaries) {
+      for (const v of (d?.videos || [])) {
+        const id = String(v?.id || '');
+        if (!id || seen.has(id)) continue;
+        const embargo = v?.timeRestrictions?.embargoDate ? +new Date(v.timeRestrictions.embargoDate) : 0;
+        if (embargo && embargo > now) continue; // not yet released
+        seen.add(id);
+        out.push({
+          id, headline: v.headline || '', description: v.description, duration: v.duration || 0,
+          thumbnail: v.thumbnail || v.images?.[0]?.url,
+          hls: v?.links?.source?.HLS?.href || v?.links?.source?.href,
+          web: v?.links?.web?.href,
+        });
+      }
+    }
+    return out.slice(0, 18);
+  });
+}
+
 // ── Group standings (live) ───────────────────────────────────────────────────
 export interface StandingRow {
   team: string; abbr?: string; logo?: string;

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Youtube, MessageCircle, ExternalLink, Play, Radio } from 'lucide-react';
+import { Youtube, MessageCircle, ExternalLink, Play, Radio, X, Clapperboard } from 'lucide-react';
 import { fetchWorldCupWindow } from '../services/sportsService';
 import { matchWcTeam } from '../services/worldCupVictory';
+import { fetchWcVideos, WcVideo } from '../services/worldCupDepth';
+import Hls from 'hls.js';
 
-// FIFA's official YouTube channel (uploads) — legal, always-current highlights during the Cup.
-const FIFA_UPLOADS = 'UUpcTrCXblq78GZrTUTLWeBw';
 const ytSearch = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
 interface HL { id: string; a: string; b: string; flagA?: string; flagB?: string; logoA?: string; logoB?: string; score?: string; when: number; }
@@ -30,8 +30,47 @@ const HighlightCard: React.FC<{ h: HL }> = ({ h }) => (
   </a>
 );
 
+// Official ESPN clip card + inline HLS player (real, embeddable — replaces the blocked FIFA embed).
+const EspnClip: React.FC<{ v: WcVideo; onPlay: () => void }> = ({ v, onPlay }) => (
+  <button onClick={onPlay} className="group shrink-0 w-[240px] rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#FF8C00]/40 transition-all text-left">
+    <div className="relative h-32 bg-black">
+      {v.thumbnail && <img src={v.thumbnail} alt="" loading="lazy" className="w-full h-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/15 group-hover:bg-black/40 transition-colors">
+        <div className="w-11 h-11 rounded-full bg-white/90 flex items-center justify-center"><Play size={18} className="text-black fill-black ml-0.5" /></div>
+      </div>
+      {v.duration > 0 && <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] font-black tabular-nums">{Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, '0')}</span>}
+    </div>
+    <div className="p-2.5"><p className="text-[11px] font-bold text-white leading-snug line-clamp-2">{v.headline}</p><p className="text-[8px] font-black uppercase tracking-widest text-[#FF8C00] mt-1 flex items-center gap-1"><Clapperboard size={9} /> ESPN · Watch</p></div>
+  </button>
+);
+
+const ClipPlayer: React.FC<{ clip: WcVideo; onClose: () => void }> = ({ clip, onClose }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current; if (!v || !clip.hls) return;
+    if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = clip.hls; v.play().catch(() => {}); return; }
+    if (Hls.isSupported()) { const h = new Hls(); h.loadSource(clip.hls); h.attachMedia(v); v.play?.().catch(() => {}); return () => h.destroy(); }
+    v.src = clip.hls;
+  }, [clip.hls]);
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-3xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2 gap-3">
+          <p className="text-[12px] font-black text-white truncate">{clip.headline}</p>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white shrink-0"><X size={15} /></button>
+        </div>
+        <video ref={ref} controls autoPlay playsInline poster={clip.thumbnail} className="w-full rounded-2xl bg-black aspect-video" />
+        {clip.web && <a href={clip.web} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white"><ExternalLink size={10} /> Open on ESPN</a>}
+      </div>
+    </div>
+  );
+};
+
 const WorldCupBuzz: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
+  const [videos, setVideos] = useState<WcVideo[]>([]);
+  const [playing, setPlaying] = useState<WcVideo | null>(null);
+  useEffect(() => { let a = true; fetchWcVideos().then(v => { if (a) setVideos(v || []); }).catch(() => {}); return () => { a = false; }; }, []);
   const xRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,18 +129,18 @@ const WorldCupBuzz: React.FC = () => {
         ) : (
           <p className="text-[11px] text-white/35">Highlights appear here as matches finish.</p>
         )}
-        {/* Official FIFA feed */}
-        <div className="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black aspect-video max-h-[340px]">
-          <iframe
-            title="FIFA World Cup on YouTube"
-            src={`https://www.youtube-nocookie.com/embed/videoseries?list=${FIFA_UPLOADS}&rel=0&modestbranding=1`}
-            className="w-full h-full border-none"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            loading="lazy"
-          />
-        </div>
+        {/* Official ESPN clips — playable inline (the FIFA YouTube channel blocks embedding). */}
+        {videos.length > 0 && (
+          <div className="mt-3">
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-2">Official clips · ESPN</p>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1" style={{ scrollbarWidth: 'none' }}>
+              {videos.map(v => <EspnClip key={v.id} v={v} onPlay={() => (v.hls ? setPlaying(v) : window.open(v.web, '_blank', 'noopener'))} />)}
+            </div>
+          </div>
+        )}
       </div>
+
+      {playing && <ClipPlayer clip={playing} onClose={() => setPlaying(null)} />}
 
       {/* ── Social buzz (X) ────────────────────────────────────────────────── */}
       <div>
