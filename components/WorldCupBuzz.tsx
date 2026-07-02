@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
+import { createPortal } from 'react-dom';
 import { Youtube, MessageCircle, ExternalLink, Play, Radio, X, Clapperboard, Loader2 } from 'lucide-react';
 import { fetchWorldCupWindow } from '../services/sportsService';
 import { matchWcTeam } from '../services/worldCupVictory';
@@ -70,7 +71,7 @@ const ClipPlayer: React.FC<{ clip: WcVideo; onClose: () => void }> = ({ clip, on
     if (Hls.isSupported()) { const h = new Hls(); h.loadSource(clip.hls); h.attachMedia(v); v.play?.().catch(() => {}); return () => h.destroy(); }
     v.src = clip.hls;
   }, [clip.hls]);
-  return (
+  const overlay = (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-3xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2 gap-3">
@@ -82,6 +83,7 @@ const ClipPlayer: React.FC<{ clip: WcVideo; onClose: () => void }> = ({ clip, on
       </div>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 };
 
 const WorldCupBuzz: React.FC = () => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Star, Film, Award, Landmark, X, ExternalLink, Play } from 'lucide-react';
 import { ALL_LEGENDS, type Legend } from '../data/soccerLegends';
@@ -58,7 +59,7 @@ const LegendCard: React.FC<{ legend: Legend; onOpen: () => void }> = ({ legend, 
 
 const LegendModal: React.FC<{ legend: Legend; onClose: () => void }> = ({ legend, onClose }) => {
   const { thumb, extract } = useWiki(legend.wikiSlug);
-  return (
+  const overlay = (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -87,6 +88,7 @@ const LegendModal: React.FC<{ legend: Legend; onClose: () => void }> = ({ legend
       </motion.div>
     </motion.div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 };
 
 const MomentCard: React.FC<{ moment: IconicMoment; onPlay: (m: IconicMoment) => void }> = ({ moment, onPlay }) => {

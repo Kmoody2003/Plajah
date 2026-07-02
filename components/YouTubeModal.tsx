@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { X, ExternalLink } from 'lucide-react';
 
@@ -27,7 +28,7 @@ const YouTubeModal: React.FC<Props> = ({ videoId, playlistId, title, fallbackUrl
   const watchUrl = fallbackUrl
     || (playlistId ? `https://www.youtube.com/playlist?list=${playlistId}` : `https://www.youtube.com/watch?v=${videoId}`);
 
-  return (
+  const overlay = (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[130] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
@@ -63,6 +64,11 @@ const YouTubeModal: React.FC<Props> = ({ videoId, playlistId, title, fallbackUrl
       </motion.div>
     </motion.div>
   );
+
+  // Portal to <body> so `position: fixed` centres on the viewport even when an
+  // ancestor has a transform (the WC hub's animated containers) — otherwise the
+  // modal anchors to that ancestor and opens above the user's scroll position.
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 };
 
 export default YouTubeModal;
