@@ -3,7 +3,7 @@
 // Stored under Firestore: wcPicks/{userId}
 
 import { db } from './backendService';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, orderBy, limit as fbLimit, getDocs } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 
 export type MatchResult = 'H' | 'D' | 'A'; // Home win / Draw / Away win
@@ -78,6 +78,33 @@ export async function saveTournamentPicks(userId: string, data: {
 }): Promise<void> {
   const ref = doc(db, 'wcPicks', userId);
   await setDoc(ref, { userId, ...data, updatedAt: Date.now() }, { merge: true });
+}
+
+// ── Leaderboard ────────────────────────────────────────────────────────────────
+export interface LeaderboardEntry { userId: string; displayName?: string; photoUrl?: string; totalPoints: number; }
+
+/** Persist the user's live-computed points + identity so the leaderboard can rank them. */
+export async function saveComputedPoints(userId: string, totalPoints: number, displayName?: string, photoUrl?: string): Promise<void> {
+  try {
+    await setDoc(doc(db, 'wcPicks', userId), {
+      userId, totalPoints,
+      ...(displayName ? { displayName } : {}),
+      ...(photoUrl ? { photoUrl } : {}),
+      pointsUpdatedAt: Date.now(),
+    }, { merge: true });
+  } catch { /* best-effort */ }
+}
+
+/** Top players by points (authenticated read per rules). */
+export async function fetchLeaderboard(topN = 50): Promise<LeaderboardEntry[]> {
+  try {
+    const q = query(collection(db, 'wcPicks'), orderBy('totalPoints', 'desc'), fbLimit(topN));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => {
+      const x = d.data() as any;
+      return { userId: d.id, displayName: x.displayName, photoUrl: x.photoUrl, totalPoints: x.totalPoints || 0 } as LeaderboardEntry;
+    }).filter(e => e.totalPoints > 0);
+  } catch { return []; }
 }
 
 // ── Scoring helper (run server-side or after results are posted) ───────────────

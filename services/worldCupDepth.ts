@@ -95,6 +95,44 @@ export interface MatchDetail {
   status?: string;
 }
 
+// ── Live results overlay (for Pick'em grading + bracket hydration) ───────────
+export interface LiveResult { a: string; sa: number; b: string; sb: number; state: string; finished: boolean; }
+
+/** All World Cup match results in the tournament window (group start → now). */
+export async function fetchLiveResults(): Promise<LiveResult[]> {
+  return memo('wc:results', 60_000, async () => {
+    const now = new Date();
+    const fmt = (dt: Date) => `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+    const end = new Date(now.getTime() + 2 * 86_400_000);
+    const d = await j(`${BASE}/scoreboard?dates=20260611-${fmt(end)}`);
+    const out: LiveResult[] = [];
+    for (const ev of d?.events || []) {
+      const cs = ev.competitions?.[0]?.competitors || [];
+      if (cs.length < 2) continue;
+      const [ca, cb] = cs;
+      const state = ev?.status?.type?.state || 'pre';
+      out.push({
+        a: ca?.team?.displayName || ca?.team?.name || '', sa: parseInt(ca?.score ?? '', 10) || 0,
+        b: cb?.team?.displayName || cb?.team?.name || '', sb: parseInt(cb?.score ?? '', 10) || 0,
+        state, finished: state === 'post',
+      });
+    }
+    return out;
+  });
+}
+
+/** Resolve a fixture's live score by its two team names (order-independent). */
+export function resultForTeams(results: LiveResult[], homeName: string, awayName: string): { homeScore: number; awayScore: number; state: string; finished: boolean } | null {
+  const h = norm(homeName), a = norm(awayName);
+  const hit = (x: string, y: string) => x.length > 3 && y.length > 3 && (x === y || x.includes(y) || y.includes(x));
+  for (const r of results) {
+    const ra = norm(r.a), rb = norm(r.b);
+    if (hit(ra, h) && hit(rb, a)) return { homeScore: r.sa, awayScore: r.sb, state: r.state, finished: r.finished };
+    if (hit(ra, a) && hit(rb, h)) return { homeScore: r.sb, awayScore: r.sa, state: r.state, finished: r.finished };
+  }
+  return null;
+}
+
 // ── Group standings (live) ───────────────────────────────────────────────────
 export interface StandingRow {
   team: string; abbr?: string; logo?: string;

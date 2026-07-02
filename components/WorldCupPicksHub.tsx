@@ -17,9 +17,10 @@ import { WC26_MATCHES, WC26_TEAMS, getTeam, ROUND_LABELS, type WC26Round } from 
 import { WC26_PLAYERS } from '../data/worldCupPlayers';
 import { auth } from '../services/backendService';
 import {
-  subscribeToPicks, saveMatchPick, saveTournamentPicks,
-  POINTS, type PicksDoc, type MatchResult,
+  subscribeToPicks, saveMatchPick, saveTournamentPicks, saveComputedPoints, fetchLeaderboard,
+  POINTS, type PicksDoc, type MatchResult, type LeaderboardEntry,
 } from '../services/picksService';
+import { fetchLiveResults, resultForTeams } from '../services/worldCupDepth';
 import { UserProfile } from '../types';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -273,22 +274,43 @@ const TournamentPicksPanel: React.FC<{
   );
 };
 
-// ── Leaderboard placeholder ────────────────────────────────────────────────────
-const LeaderboardTeaser: React.FC = () => (
-  <div className="p-5 rounded-2xl bg-gradient-to-br from-[#FF8C00]/10 to-transparent border border-[#FF8C00]/20 text-center space-y-2">
-    <Trophy size={28} className="text-[#FF8C00] mx-auto" />
-    <p className="text-sm font-black text-white">Global Leaderboard</p>
-    <p className="text-[9px] text-white/40 leading-relaxed">
-      Compete against Plajah users worldwide.<br />
-      Leaderboard unlocks after Match Day 1.
-    </p>
-    <div className="flex items-center justify-center gap-2 pt-1">
-      {['🇧🇷', '🇫🇷', '🇦🇷', '🏆', '🇩🇪'].map((e, i) => (
-        <span key={i} className="text-xl">{e}</span>
+// ── Live leaderboard ────────────────────────────────────────────────────────────
+const Leaderboard: React.FC<{ meUid?: string }> = ({ meUid }) => {
+  const [rows, setRows] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let a = true;
+    fetchLeaderboard(50).then(r => { if (a) { setRows(r); setLoading(false); } }).catch(() => { if (a) setLoading(false); });
+    return () => { a = false; };
+  }, []);
+
+  if (loading) return <div className="py-12 text-center"><div className="w-7 h-7 border-2 border-[#FF8C00]/30 border-t-[#FF8C00] rounded-full animate-spin mx-auto" /></div>;
+  if (!rows.length) return (
+    <div className="p-6 rounded-2xl bg-gradient-to-br from-[#FF8C00]/10 to-transparent border border-[#FF8C00]/20 text-center space-y-2">
+      <Trophy size={28} className="text-[#FF8C00] mx-auto" />
+      <p className="text-sm font-black text-white">Be the first on the board</p>
+      <p className="text-[9px] text-white/40 leading-relaxed">Make your picks and rack up points as matches finish. The global leaderboard fills in as scores come in.</p>
+    </div>
+  );
+  const medal = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 mb-3">
+        <Trophy size={15} className="text-[#FF8C00]" />
+        <p className="text-sm font-black uppercase tracking-tight text-white">Global Leaderboard</p>
+        <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-white/30">{rows.length} players</span>
+      </div>
+      {rows.map((r, i) => (
+        <div key={r.userId} className={`flex items-center gap-3 px-3 py-2 rounded-xl border ${r.userId === meUid ? 'bg-[#FF8C00]/10 border-[#FF8C00]/30' : 'bg-white/[0.03] border-white/8'}`}>
+          <span className="w-7 text-center text-sm font-black tabular-nums" style={{ color: i < 3 ? '#FF8C00' : 'rgba(255,255,255,0.4)' }}>{medal(i)}</span>
+          {r.photoUrl ? <img src={r.photoUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-black text-white/50">{(r.displayName || '?')[0]}</div>}
+          <span className="flex-1 text-[12px] font-black text-white truncate">{r.displayName || 'Player'}{r.userId === meUid && <span className="ml-1.5 text-[7px] font-black uppercase tracking-widest text-[#FF8C00]">You</span>}</span>
+          <span className="text-sm font-black text-[#FF8C00] tabular-nums">{r.totalPoints}<span className="text-[8px] text-white/30 ml-0.5">pts</span></span>
+        </div>
       ))}
     </div>
-  </div>
-);
+  );
+};
 
 // ── Main component ─────────────────────────────────────────────────────────────
 type PicksTab = 'matches' | 'tournament' | 'board';
@@ -309,15 +331,42 @@ const WorldCupPicksHub: React.FC<Props> = ({ currentUser }) => {
     return subscribeToPicks(uid, setPicks);
   }, [uid]);
 
-  const myPts = useMemo(() => totalUserPoints(picks, WC26_MATCHES), [picks]);
+  // Live results overlay — real ESPN scores mapped onto the fixtures so picks actually grade.
+  const [results, setResults] = useState<any[]>([]);
+  useEffect(() => {
+    let a = true;
+    const load = () => fetchLiveResults().then(r => { if (a) setResults(r || []); }).catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { a = false; clearInterval(id); };
+  }, []);
+  const hydratedMatches = useMemo(() => WC26_MATCHES.map(m => {
+    const home = getTeam(m.homeTeamId), away = getTeam(m.awayTeamId);
+    if (!home || !away) return m;
+    const r = resultForTeams(results, home.name, away.name);
+    if (!r) return m;
+    return { ...m, status: (r.finished ? 'FINISHED' : r.state === 'in' ? 'LIVE' : m.status) as typeof m.status, homeScore: r.homeScore, awayScore: r.awayScore };
+  }), [results]);
+
+  const myPts = useMemo(() => totalUserPoints(picks, hydratedMatches), [picks, hydratedMatches]);
   const now   = Date.now();
 
+  // Persist live-computed points + identity for the leaderboard (only once we have picks).
+  const lastWrittenPts = React.useRef<number>(-1);
+  useEffect(() => {
+    if (!uid || !picks) return;
+    const hasPicks = Object.keys(picks.matchPicks ?? {}).length > 0 || !!picks.champion;
+    if (!hasPicks || lastWrittenPts.current === myPts) return;
+    lastWrittenPts.current = myPts;
+    saveComputedPoints(uid, myPts, currentUser?.displayName || auth.currentUser?.displayName || 'Player', currentUser?.photoURL || auth.currentUser?.photoURL || '');
+  }, [uid, myPts, picks, currentUser]);
+
   const filteredMatches = useMemo(() => {
-    const base = WC26_MATCHES.filter(m => m.round !== 'GROUP' || true); // all matches
+    const base = hydratedMatches;
     if (filter === 'upcoming') return base.filter(m => m.kickoffMs > now - 3600_000 * 2 && m.status !== 'FINISHED').slice(0, 12);
     if (filter === 'finished') return base.filter(m => m.status === 'FINISHED');
     return base.slice(0, 30);
-  }, [filter, now]);
+  }, [filter, now, hydratedMatches]);
 
   const handleMatchPick = useCallback(async (matchId: string, result: MatchResult, hs?: number, as_?: number) => {
     if (!uid) return;
@@ -360,7 +409,7 @@ const WorldCupPicksHub: React.FC<Props> = ({ currentUser }) => {
           </div>
           <p className="text-[9px] text-white/30 mt-1">
             {picks ? Object.keys(picks.matchPicks ?? {}).length : 0} picks made ·&nbsp;
-            {WC26_MATCHES.filter(m => m.status === 'FINISHED').length} matches decided
+            {hydratedMatches.filter(m => m.status === 'FINISHED').length} matches decided
           </p>
 
           {/* Points legend */}
@@ -476,7 +525,7 @@ const WorldCupPicksHub: React.FC<Props> = ({ currentUser }) => {
           {/* LEADERBOARD */}
           {tab === 'board' && (
             <div className="space-y-4">
-              <LeaderboardTeaser />
+              <Leaderboard meUid={uid} />
 
               {/* Personal history */}
               <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/8">
