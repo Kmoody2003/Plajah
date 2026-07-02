@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
@@ -25,6 +25,15 @@ type CountryTab = 'community' | 'roster' | 'music' | 'debates' | 'matches';
 const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   const [activeTab, setActiveTab] = useState<CountryTab>('roster');
   const [selectedPlayer, setSelectedPlayer] = useState<RosterPlayer | null>(null);
+  // The player profile replaces the view at the top; bring it into view so the
+  // user isn't left staring at their old scroll position down the roster.
+  const playerViewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedPlayer) return;
+    const raf = requestAnimationFrame(() =>
+      playerViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return () => cancelAnimationFrame(raf);
+  }, [selectedPlayer]);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   useEffect(() => { let a = true; fetchSquadByName(team.name).then(s => { if (a) setSquad(s || []); }).catch(() => {}); return () => { a = false; }; }, [team.name]);
   const [groupTable, setGroupTable] = useState<StandingRow[]>([]);
@@ -106,13 +115,15 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   // Show player profile view
   if (selectedPlayer) {
     return (
-      <WorldCupPlayerProfile
-        player={selectedPlayer}
-        team={team}
-        livePhoto={selectedPlayer.photo}
-        live={selectedPlayer.live}
-        onBack={() => setSelectedPlayer(null)}
-      />
+      <div ref={playerViewRef} style={{ scrollMarginTop: 72 }}>
+        <WorldCupPlayerProfile
+          player={selectedPlayer}
+          team={team}
+          livePhoto={selectedPlayer.photo}
+          live={selectedPlayer.live}
+          onBack={() => setSelectedPlayer(null)}
+        />
+      </div>
     );
   }
 

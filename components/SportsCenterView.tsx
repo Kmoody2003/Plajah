@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { motion, AnimatePresence } from 'motion/react';
 import RacerProfileView from './sports/RacerProfileView';
@@ -193,6 +193,17 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
       .catch(() => {});
   }, [selectedPlayer, selectedSportsTab]);
 
+  // Detail views (player/team/org) replace the whole column at the top, so when
+  // opened from a scrolled-down roster the user is left staring at empty space.
+  // Bring the freshly-opened card into view automatically.
+  const detailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!(selectedPlayer || selectedTeam || selectedOrg || selectedEsportsPlayer)) return;
+    const raf = requestAnimationFrame(() =>
+      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return () => cancelAnimationFrame(raf);
+  }, [selectedPlayer, selectedTeam, selectedOrg, selectedEsportsPlayer]);
+
   // â"€â"€â"€ RACING â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (isRacing) return <RacingCenterView tab={selectedSportsTab} />;
   if (!isLeague) return null;
@@ -218,7 +229,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   // â"€â"€â"€ PLAYER PROFILE MODAL â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (selectedPlayer) {
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <motion.div ref={detailRef} style={{ scrollMarginTop: 72 }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <div className="flex items-center gap-3">
           <button onClick={() => { setSelectedPlayer(null); setPlayerProfile(null); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
@@ -409,18 +420,20 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     const staticData = findStaticTeam(selectedSportsTab, selectedTeam.name)
       ?? findStaticTeam(selectedSportsTab, selectedTeam.abbreviation);
     return (
-      <ErrorBoundary key={selectedTeam.id}>
-        <TeamPageView
-          team={selectedTeam}
-          tab={selectedSportsTab}
-          staticData={staticData}
-          pinnedIds={pinnedIds}
-          onBack={() => setSelectedTeam(null)}
-          onTogglePin={togglePin}
-          onSelectPlayer={(p) => { setSelectedPlayer(p); setPlayerProfile(null); }}
-          leagueNews={news}
-        />
-      </ErrorBoundary>
+      <div ref={detailRef} style={{ scrollMarginTop: 72 }}>
+        <ErrorBoundary key={selectedTeam.id}>
+          <TeamPageView
+            team={selectedTeam}
+            tab={selectedSportsTab}
+            staticData={staticData}
+            pinnedIds={pinnedIds}
+            onBack={() => setSelectedTeam(null)}
+            onTogglePin={togglePin}
+            onSelectPlayer={(p) => { setSelectedPlayer(p); setPlayerProfile(null); }}
+            leagueNews={news}
+          />
+        </ErrorBoundary>
+      </div>
     );
   }
 
@@ -429,7 +442,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
     const p = selectedEsportsPlayer;
     const orgEntry = p.orgId ? ESPORTS_ORGS.find(o => o.id === p.orgId) : null;
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <motion.div ref={detailRef} style={{ scrollMarginTop: 72 }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <div className="flex items-center gap-3">
           <button onClick={() => setSelectedEsportsPlayer(null)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all">
@@ -522,7 +535,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab }) => {
   if (selectedOrg) {
     const org = selectedOrg;
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <motion.div ref={detailRef} style={{ scrollMarginTop: 72 }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         {/* Back + Pin */}
         <div className="flex items-center gap-3">
           <button onClick={() => { setSelectedOrg(null); }}
