@@ -22,6 +22,7 @@ const WorldCupPicksHub          = lazy(() => import('./WorldCupPicksHub'));
 const WorldCupHistoryHub        = lazy(() => import('./WorldCupHistoryHub'));
 const WorldCupFanClubs          = lazy(() => import('./WorldCupFanClubs'));
 const WorldCupStadiums          = lazy(() => import('./WorldCupStadiums'));
+const WorldCupScheduleLive      = lazy(() => import('./WorldCupScheduleLive'));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-24">
@@ -789,30 +790,9 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
 
           {/* SCHEDULE */}
           {tab === 'schedule' && (
-            <div className="space-y-3">
-              {live.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-red-400 mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> Live
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {live.map(m => <MatchCard key={m.id} match={m} onOpenRoom={openFanRoom} />)}
-                  </div>
-                </div>
-              )}
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 flex items-center gap-2">
-                <Clock size={10} /> Upcoming
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {upcoming.map(m => <MatchCard key={m.id} match={m} onOpenRoom={openFanRoom} />)}
-              </div>
-              {upcoming.length === 0 && (
-                <div className="py-16 text-center">
-                  <Trophy size={32} className="text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/30">No upcoming matches</p>
-                </div>
-              )}
-            </div>
+            <Suspense fallback={<TabLoader />}>
+              <WorldCupScheduleLive />
+            </Suspense>
           )}
 
           {/* COUNTRIES */}
