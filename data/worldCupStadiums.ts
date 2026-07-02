@@ -20,6 +20,8 @@ export interface WCStadium {
   role?: string;             // notable WC role (Final, Opening Match, etc.)
   accent: string;
   blurb: string;
+  modelUrl?: string;         // optional GLTF/GLB — a true-to-life model drops in here,
+                             // otherwise the parametric architectural render is used
 }
 
 export const WC_STADIUMS: WCStadium[] = [
