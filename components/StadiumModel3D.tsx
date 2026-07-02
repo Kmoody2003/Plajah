@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, Suspense } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, SoftShadows, Center, Bounds, useGLTF } from '@react-three/drei';
+import { OrbitControls, ContactShadows, SoftShadows, useGLTF } from '@react-three/drei';
 import type { WCStadium } from '../data/worldCupStadiums';
 
 // Parametric, procedurally-generated stadiums rendered at architectural-render
@@ -185,18 +185,39 @@ function Roof({ type, accent }: { type: WCStadium['roof']; accent: string }) {
   );
 }
 
-// ── A real GLTF model, auto-fit ──────────────────────────────────────────────
-function LoadedModel({ url }: { url: string }) {
+// Blender-built archetype models (scripts/blender/build_stadiums.py) keyed by roof.
+const ROOF_MODEL: Record<WCStadium['roof'], string> = {
+  Open: 'open', Canopy: 'canopy', Retractable: 'retractable', Fixed: 'fixed',
+};
+const modelUrlFor = (s: WCStadium) =>
+  s.modelUrl ?? `/models/stadiums/stadium_${ROOF_MODEL[s.roof] ?? 'fixed'}.glb`;
+
+// ── A real GLTF model, seats tinted to the nation's accent, fit to frame ──────
+function LoadedModel({ url, accent }: { url: string; accent: string }) {
   const { scene } = useGLTF(url);
-  const cloned = useMemo(() => scene.clone(true), [scene]);
-  return (
-    <Bounds fit clip observe margin={1.1}>
-      <Center>
-        <primitive object={cloned} />
-      </Center>
-    </Bounds>
-  );
+  const { node, scale, y } = useMemo(() => {
+    const c = scene.clone(true);
+    const col = hexToColor(accent);
+    c.traverse((o: any) => {
+      if (!o.isMesh) return;
+      o.castShadow = true; o.receiveShadow = true;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const mapped = mats.map((m: any) => {
+        if (m?.name === 'Seats') { const cl = m.clone(); cl.color = col.clone(); return cl; }
+        return m;
+      });
+      o.material = Array.isArray(o.material) ? mapped : mapped[0];
+    });
+    // Deterministic fit: scale the metre-scale model to a fixed frame radius.
+    const box = new THREE.Box3().setFromObject(c);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const maxXZ = Math.max(size.x, size.z) || 1;
+    const scl = 52 / maxXZ;                       // → ~±26 units, matches the camera
+    return { node: c, scale: scl, y: -box.min.y * scl };
+  }, [scene, accent]);
+  return <primitive object={node} scale={scale} position={[0, y, 0]} />;
 }
+useGLTF.preload('/models/stadiums/stadium_fixed.glb');
 
 function ProceduralStadium({ s }: { s: WCStadium }) {
   const twoTier = s.capacity >= 68000;
@@ -224,9 +245,9 @@ function Scene({ s }: { s: WCStadium }) {
       />
       <directionalLight position={[-16, 12, -12]} intensity={0.4} color="#88aaff" />
       <group ref={grp}>
-        {s.modelUrl
-          ? <Suspense fallback={<ProceduralStadium s={s} />}><LoadedModel url={s.modelUrl} /></Suspense>
-          : <ProceduralStadium s={s} />}
+        <Suspense fallback={<ProceduralStadium s={s} />}>
+          <LoadedModel url={modelUrlFor(s)} accent={s.accent} />
+        </Suspense>
       </group>
       <ContactShadows position={[0, -0.05, 0]} scale={70} far={20} blur={2.6} opacity={0.5} resolution={512} />
     </>
