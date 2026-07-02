@@ -41,10 +41,38 @@ export async function espnTeamId(name: string): Promise<string | null> {
 
 // ── Squads (living rosters w/ bios) ──────────────────────────────────────────
 export type PosGroup = 'GK' | 'DEF' | 'MID' | 'FWD';
+export interface SquadStats {
+  appearances?: number; goals?: number; assists?: number;
+  yellowCards?: number; redCards?: number; shots?: number; shotsOnTarget?: number;
+}
 export interface SquadPlayer {
   id: string; name: string; jersey?: string; posAbbr: string; posName: string; group: PosGroup;
   age?: number; dob?: string; height?: string; weight?: string; headshot?: string;
   citizenship?: string; club?: string; slug?: string; injured?: boolean;
+  espnUrl?: string; stats?: SquadStats;
+}
+
+/** Parse ESPN's statistics.splits.categories into flat World Cup stats. */
+function parseSquadStats(statistics: any): SquadStats | undefined {
+  const cats = statistics?.splits?.categories;
+  if (!Array.isArray(cats)) return undefined;
+  const get = (cat: string, stat: string): number | undefined => {
+    const c = cats.find((x: any) => x.name === cat);
+    const s = c?.stats?.find((y: any) => y.name === stat);
+    if (!s) return undefined;
+    const n = parseInt(s.displayValue ?? String(s.value ?? ''), 10);
+    return isNaN(n) ? undefined : n;
+  };
+  const out: SquadStats = {
+    appearances: get('general', 'appearances'),
+    goals: get('offensive', 'totalGoals'),
+    assists: get('offensive', 'goalAssists'),
+    yellowCards: get('general', 'yellowCards'),
+    redCards: get('general', 'redCards'),
+    shots: get('offensive', 'totalShots'),
+    shotsOnTarget: get('offensive', 'shotsOnTarget'),
+  };
+  return Object.values(out).some(v => v !== undefined) ? out : undefined;
 }
 
 function posGroup(abbr: string, name: string): PosGroup {
@@ -70,6 +98,8 @@ export async function fetchTeamSquad(espnId: string): Promise<SquadPlayer[]> {
         age: a.age, dob: a.dateOfBirth, height: a.displayHeight, weight: a.displayWeight,
         headshot: a.headshot?.href, citizenship: a.citizenship, slug: a.slug,
         injured: Array.isArray(a.injuries) && a.injuries.length > 0,
+        espnUrl: a.links?.find((l: any) => /playercard|stats|player/i.test((l.rel || []).join(' ')))?.href || a.links?.[0]?.href,
+        stats: parseSquadStats(a.statistics),
       };
     });
     const order: PosGroup[] = ['GK', 'DEF', 'MID', 'FWD'];

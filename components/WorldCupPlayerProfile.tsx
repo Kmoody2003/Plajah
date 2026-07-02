@@ -8,15 +8,17 @@ import { db } from '../services/backendService';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 
-// ── Wikipedia photo lookup via Wikimedia REST API ─────────────────────────────
-async function fetchWikiPhoto(slug: string): Promise<string | null> {
+// ── Wikipedia lookup (photo + bio extract) via Wikimedia REST API ─────────────
+async function fetchWikiSummary(slug: string): Promise<{ photo: string | null; extract: string | null }> {
   try {
     const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`);
-    if (!res.ok) return null;
+    if (!res.ok) return { photo: null, extract: null };
     const data = await res.json();
-    return data.thumbnail?.source ?? data.originalimage?.source ?? null;
+    const raw = typeof data.extract === 'string' ? data.extract.trim() : '';
+    const extract = raw.length > 40 && !/\bmay refer to\b/i.test(raw) ? raw : null; // skip disambiguation stubs
+    return { photo: data.thumbnail?.source ?? data.originalimage?.source ?? null, extract };
   } catch {
-    return null;
+    return { photo: null, extract: null };
   }
 }
 
@@ -94,8 +96,11 @@ interface Props {
   onBack: () => void;
   /** Real ESPN headshot from the live squad (preferred over the Wikipedia lookup). */
   livePhoto?: string;
-  /** Live squad bio (age/DOB/height/position/citizenship) when available. */
-  live?: { posName?: string; age?: number; dob?: string; height?: string; weight?: string; citizenship?: string };
+  /** Live squad bio + tournament stats (from the ESPN squad) when available. */
+  live?: {
+    posName?: string; age?: number; dob?: string; height?: string; weight?: string; citizenship?: string; espnUrl?: string;
+    stats?: { appearances?: number; goals?: number; assists?: number; yellowCards?: number; redCards?: number; shots?: number; shotsOnTarget?: number };
+  };
 }
 
 type ProfileTab = 'stats' | 'gallery' | 'news';
@@ -103,6 +108,8 @@ type ProfileTab = 'stats' | 'gallery' | 'news';
 const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhoto, live }) => {
   const [tab, setTab] = useState<ProfileTab>('stats');
   const [photoUrl, setPhotoUrl] = useState<string | null>(livePhoto || null);
+  const [wikiBio, setWikiBio] = useState<string | null>(null);
+  const s = live?.stats;
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
@@ -112,19 +119,18 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhot
   const primaryColor  = team.primaryColor;
   const secondaryColor = team.secondaryColor;
 
-  // Prefer the real ESPN headshot; otherwise look one up on Wikipedia.
+  // Prefer the real ESPN headshot; pull a real bio (+ photo fallback) from Wikipedia.
   useEffect(() => {
-    if (livePhoto) { setPhotoUrl(livePhoto); return; }
-    setPhotoUrl(null);
+    setPhotoUrl(livePhoto || null);
+    setWikiBio(null);
     const slug = player.wikiSlug ?? player.name.replace(/ /g, '_');
-    fetchWikiPhoto(slug).then(url => {
-      if (url) { setPhotoUrl(url); return; }
-      // Second attempt: append "(footballer)" disambiguation
-      if (!player.wikiSlug) {
-        fetchWikiPhoto(`${player.name.replace(/ /g, '_')}_(footballer)`).then(u => {
-          if (u) setPhotoUrl(u);
-        });
-      }
+    const apply = (r: { photo: string | null; extract: string | null }) => {
+      if (r.extract) setWikiBio(r.extract);
+      if (!livePhoto && r.photo) setPhotoUrl(r.photo);
+    };
+    fetchWikiSummary(slug).then(r => {
+      apply(r);
+      if (!r.extract && !player.wikiSlug) fetchWikiSummary(`${player.name.replace(/ /g, '_')}_(footballer)`).then(apply);
     });
   }, [player.id, player.wikiSlug, player.name, livePhoto]);
 
@@ -231,10 +237,10 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhot
 
           {/* Quick stats strip */}
           <div className="flex items-center gap-3 mt-5 overflow-x-auto pb-1 scrollbar-none">
-            <StatPill label="Caps" value={player.caps} color={primaryColor} />
-            <StatPill label="Goals" value={player.goals} color="#FF8C00" />
-            <StatPill label="Assists" value={player.assists} color="#10B981" />
-            <StatPill label="Age" value={player.age} color={secondaryColor} />
+            <StatPill label={s ? 'Apps' : 'Caps'} value={s?.appearances ?? player.caps} color={primaryColor} />
+            <StatPill label="Goals" value={s?.goals ?? player.goals} color="#FF8C00" />
+            <StatPill label="Assists" value={s?.assists ?? player.assists} color="#10B981" />
+            <StatPill label="Age" value={live?.age ?? player.age} color={secondaryColor} />
           </div>
 
           {/* Follow button */}
@@ -263,7 +269,8 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhot
 
       {/* ── Bio ── */}
       <div className="px-1">
-        <p className="text-sm text-white/60 leading-relaxed">{player.bio}</p>
+        <p className="text-sm text-white/60 leading-relaxed">{wikiBio || player.bio}</p>
+        {wikiBio && <p className="text-[8px] text-white/20 mt-1.5">via Wikipedia</p>}
       </div>
 
       {/* ── Key Player badge ── */}
@@ -334,17 +341,31 @@ const WorldCupPlayerProfile: React.FC<Props> = ({ player, team, onBack, livePhot
                 </p>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   {[
-                    { label: 'Matches', value: '—' },
-                    { label: 'Goals',   value: '—' },
-                    { label: 'Assists', value: '—' },
-                  ].map(s => (
-                    <div key={s.label}>
-                      <p className="text-lg font-black text-white">{s.value}</p>
-                      <p className="text-[7px] font-black uppercase tracking-wider text-white/25">{s.label}</p>
+                    { label: 'Matches', value: s?.appearances ?? '—' },
+                    { label: 'Goals',   value: s?.goals ?? '—' },
+                    { label: 'Assists', value: s?.assists ?? '—' },
+                  ].map(row => (
+                    <div key={row.label}>
+                      <p className="text-lg font-black text-white">{row.value}</p>
+                      <p className="text-[7px] font-black uppercase tracking-wider text-white/25">{row.label}</p>
                     </div>
                   ))}
                 </div>
-                <p className="text-[8px] text-center text-white/20 mt-3">Updates live during the tournament</p>
+                {s && (s.shots !== undefined || s.yellowCards !== undefined) && (
+                  <div className="grid grid-cols-3 gap-3 text-center mt-3 pt-3 border-t border-white/8">
+                    {[
+                      { label: 'Shots', value: s.shots ?? '—' },
+                      { label: 'Shots OT', value: s.shotsOnTarget ?? '—' },
+                      { label: 'Cards', value: `${s.yellowCards ?? 0}🟨 ${s.redCards ?? 0}🟥` },
+                    ].map(row => (
+                      <div key={row.label}>
+                        <p className="text-sm font-black text-white">{row.value}</p>
+                        <p className="text-[7px] font-black uppercase tracking-wider text-white/25">{row.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[8px] text-center text-white/20 mt-3">{s ? 'Live tournament stats · ESPN' : 'Updates live during the tournament'}</p>
               </div>
             </div>
           )}
