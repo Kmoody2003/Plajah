@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
 import { WC26Player, WC26Position, getPlayersByTeam, getPositionColor, getPositionLabel } from '../data/worldCupPlayers';
-import { fetchSquadByName, SquadPlayer } from '../services/worldCupDepth';
+import { fetchSquadByName, SquadPlayer, fetchGroupStandings, StandingRow } from '../services/worldCupDepth';
 
 type RosterPlayer = WC26Player & { photo?: string; live?: SquadPlayer };
 const normName = (s: string) => (s || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -27,6 +27,10 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<RosterPlayer | null>(null);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   useEffect(() => { let a = true; fetchSquadByName(team.name).then(s => { if (a) setSquad(s || []); }).catch(() => {}); return () => { a = false; }; }, [team.name]);
+  const [groupTable, setGroupTable] = useState<StandingRow[]>([]);
+  useEffect(() => { let a = true; fetchGroupStandings().then(m => { if (a) setGroupTable((m && m[team.group]) || []); }).catch(() => {}); return () => { a = false; }; }, [team.group]);
+  const nn = (x: string) => (x || '').toLowerCase().replace(/[^a-z]/g, '');
+  const myRow = groupTable.find(r => nn(r.team) === nn(team.name) || (nn(r.team).length > 3 && (nn(r.team).includes(nn(team.name)) || nn(team.name).includes(nn(r.team)))));
   // Live squad (real headshots/positions/ages from ESPN) merged over the projected roster.
   const players = useMemo<RosterPlayer[]>(() => {
     const base = getPlayersByTeam(team.id);
@@ -374,6 +378,34 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
       {/* ── Matches tab ── */}
       {activeTab === 'matches' && (
         <div className="space-y-3">
+          {/* Live group standing */}
+          {groupTable.length > 0 && (
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Group {team.group}</span>
+                {myRow && <span className="ml-auto text-[9px] font-black" style={{ color: (myRow.rank || 9) <= 2 ? '#39B54A' : 'rgba(255,255,255,0.5)' }}>{myRow.rank ? `#${myRow.rank}` : ''} · {myRow.pts} pts{(myRow.rank || 9) <= 2 ? ' · Advancing' : ''}</span>}
+              </div>
+              <div className="flex items-center gap-3 px-4 py-1.5 border-b border-white/5 text-[8px] font-black uppercase tracking-widest text-white/25 tabular-nums">
+                <span className="w-4" /><span className="flex-1">Team</span>
+                <span className="w-3.5 text-center">P</span><span className="w-3.5 text-center">W</span><span className="w-3.5 text-center">D</span><span className="w-3.5 text-center">L</span><span className="w-5 text-center text-white/40">Pts</span>
+              </div>
+              <div className="divide-y divide-white/5">
+                {groupTable.map((r, i) => {
+                  const isMe = myRow && r.team === myRow.team;
+                  return (
+                    <div key={r.team + i} className="flex items-center gap-3 px-4 py-2" style={isMe ? { background: `${team.primaryColor}22` } : (r.rank || i + 1) <= 2 ? { background: 'rgba(57,181,74,0.05)' } : undefined}>
+                      <span className="w-4 text-[9px] font-black tabular-nums" style={{ color: (r.rank || i + 1) <= 2 ? '#39B54A' : 'rgba(255,255,255,0.35)' }}>{i + 1}</span>
+                      {r.logo ? <img src={r.logo} alt="" className="w-4 h-4 object-contain" /> : null}
+                      <span className="flex-1 text-[10px] font-black text-white truncate">{r.team}</span>
+                      <div className="flex items-center gap-3 text-[9px] font-black tabular-nums">
+                        <span className="w-3.5 text-center text-white/55">{r.p}</span><span className="w-3.5 text-center text-white/55">{r.w}</span><span className="w-3.5 text-center text-white/55">{r.d}</span><span className="w-3.5 text-center text-white/55">{r.l}</span><span className="w-5 text-center text-[#FF8C00]">{r.pts}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">{team.name} Schedule</p>
           {countryMatches.length === 0 ? (
             <div className="py-12 text-center">
