@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Calendar, Globe, Headphones, Lock, MapPin, Clock, Mic2, GitBranch, Target, Play, Pause, Download, ChevronDown, ChevronUp, Check, Loader2, History, Users, Newspaper, ExternalLink, AlertCircle } from 'lucide-react';
+import { Trophy, Calendar, Globe, Headphones, Lock, MapPin, Clock, Mic2, GitBranch, Target, Play, Pause, Download, ChevronDown, ChevronUp, Check, Loader2, History, Users, Newspaper, ExternalLink, AlertCircle, Landmark, GraduationCap } from 'lucide-react';
 import { fetchWorldCupNews } from '../services/sportsService';
 import {
   WC26_TEAMS, WC26_MATCHES, WC26_GROUPS, WC26_PODCASTS,
@@ -23,6 +23,8 @@ const WorldCupHistoryHub        = lazy(() => import('./WorldCupHistoryHub'));
 const WorldCupFanClubs          = lazy(() => import('./WorldCupFanClubs'));
 const WorldCupStadiums          = lazy(() => import('./WorldCupStadiums'));
 const WorldCupScheduleLive      = lazy(() => import('./WorldCupScheduleLive'));
+const WorldCupMuseum            = lazy(() => import('./WorldCupMuseum'));
+const WorldCupLearn             = lazy(() => import('./WorldCupLearn'));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-24">
@@ -72,7 +74,7 @@ const WcHubAnthemBanner: React.FC = () => {
 // ── Feature flag — flip to true when prediction market is ready to ship ───────
 const PREDICTIONS_LIVE = false;
 
-type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'stadiums' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'predictions';
+type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'stadiums' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'museum' | 'learn' | 'predictions';
 
 interface Props {
   currentUser: UserProfile | null;
@@ -469,6 +471,8 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
     { id: 'podcast',     label: 'Podcast',   icon: Headphones },
     { id: 'clubs',       label: 'Fan Clubs', icon: Users },
     { id: 'history',     label: 'History',   icon: History },
+    { id: 'museum',      label: 'Museum',    icon: Landmark },
+    { id: 'learn',       label: 'Learn',     icon: GraduationCap },
     { id: 'predictions', label: 'Predict',   icon: Lock, hidden: !PREDICTIONS_LIVE },
   ];
 
@@ -861,6 +865,20 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
           {tab === 'history' && (
             <Suspense fallback={<TabLoader />}>
               <WorldCupHistoryHub />
+            </Suspense>
+          )}
+
+          {/* MUSEUM — Halls of Legends, iconic moments, records, trophy room */}
+          {tab === 'museum' && (
+            <Suspense fallback={<TabLoader />}>
+              <WorldCupMuseum />
+            </Suspense>
+          )}
+
+          {/* LEARN — New to Soccer: rules, positions, culture, quiz */}
+          {tab === 'learn' && (
+            <Suspense fallback={<TabLoader />}>
+              <WorldCupLearn />
             </Suspense>
           )}
 

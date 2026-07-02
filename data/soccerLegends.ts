@@ -177,6 +177,15 @@ export const SOCCER_LEGENDS: Record<string, LegendSeed[]> = {
   ],
 };
 
+export interface Legend extends LegendSeed { nation: string; }
+
+/** Every curated legend, flattened with their nation — for the Museum gallery. */
+export const ALL_LEGENDS: Legend[] = Object.entries(SOCCER_LEGENDS)
+  .flatMap(([nation, list]) => list.map(l => ({
+    ...l,
+    nation: nation.replace(/\b\w/g, c => c.toUpperCase()),
+  })));
+
 /** Curated legends for a nation by (flexible) name match. */
 export function legendsForNation(name: string): LegendSeed[] {
   const n = norm(name);
