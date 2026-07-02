@@ -1,34 +1,52 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Youtube, MessageCircle, ExternalLink, Play, Radio, X, Clapperboard } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
+import { Youtube, MessageCircle, ExternalLink, Play, Radio, X, Clapperboard, Loader2 } from 'lucide-react';
 import { fetchWorldCupWindow } from '../services/sportsService';
 import { matchWcTeam } from '../services/worldCupVictory';
 import { fetchWcVideos, WcVideo } from '../services/worldCupDepth';
+import { resolveVideoId } from '../services/youtubeService';
+import YouTubeModal from './YouTubeModal';
 import Hls from 'hls.js';
 
 const ytSearch = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
 interface HL { id: string; a: string; b: string; flagA?: string; flagB?: string; logoA?: string; logoB?: string; score?: string; when: number; }
 
-const HighlightCard: React.FC<{ h: HL }> = ({ h }) => (
-  <a
-    href={ytSearch(`${h.a} vs ${h.b} highlights FIFA World Cup 2026`)}
-    target="_blank" rel="noopener noreferrer"
-    className="group shrink-0 w-[220px] rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#FF0000]/40 transition-all"
-  >
-    <div className="relative h-24 flex items-center justify-center gap-3" style={{ background: 'linear-gradient(135deg,#1a1a1a,#0a0a0a)' }}>
-      {h.logoA ? <img src={h.logoA} alt="" className="w-9 h-9 object-contain" /> : <span className="text-2xl">{h.flagA}</span>}
-      <span className="text-[9px] font-black text-white/40">VS</span>
-      {h.logoB ? <img src={h.logoB} alt="" className="w-9 h-9 object-contain" /> : <span className="text-2xl">{h.flagB}</span>}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-        <div className="w-10 h-10 rounded-full bg-[#FF0000] flex items-center justify-center"><Play size={16} className="text-white fill-white ml-0.5" /></div>
+const HighlightCard: React.FC<{ h: HL; onPlay: (m: { videoId: string; title: string; url: string }) => void }> = ({ h, onPlay }) => {
+  const [loading, setLoading] = useState(false);
+  const q = `${h.a} vs ${h.b} highlights FIFA World Cup 2026`;
+  const url = ytSearch(q);
+  const click = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    // Resolve the match highlight to an embeddable video (server holds the API
+    // key); play inline if found, otherwise fall back to opening YouTube.
+    const id = await resolveVideoId(q);
+    setLoading(false);
+    if (id) onPlay({ videoId: id, title: `${h.a} v ${h.b} — Highlights`, url });
+    else window.open(url, '_blank', 'noopener');
+  };
+  return (
+    <a href={url} onClick={click} target="_blank" rel="noopener noreferrer"
+      className="group shrink-0 w-[220px] rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#FF0000]/40 transition-all">
+      <div className="relative h-24 flex items-center justify-center gap-3" style={{ background: 'linear-gradient(135deg,#1a1a1a,#0a0a0a)' }}>
+        {h.logoA ? <img src={h.logoA} alt="" className="w-9 h-9 object-contain" /> : <span className="text-2xl">{h.flagA}</span>}
+        <span className="text-[9px] font-black text-white/40">VS</span>
+        {h.logoB ? <img src={h.logoB} alt="" className="w-9 h-9 object-contain" /> : <span className="text-2xl">{h.flagB}</span>}
+        <div className={`absolute inset-0 flex items-center justify-center transition-opacity bg-black/40 ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+          <div className="w-10 h-10 rounded-full bg-[#FF0000] flex items-center justify-center">
+            {loading ? <Loader2 size={16} className="text-white animate-spin" /> : <Play size={16} className="text-white fill-white ml-0.5" />}
+          </div>
+        </div>
       </div>
-    </div>
-    <div className="p-2.5">
-      <p className="text-[11px] font-black text-white truncate">{h.a} <span className="text-white/40">v</span> {h.b}</p>
-      <p className="text-[8px] font-black uppercase tracking-widest text-[#FF0000] mt-0.5 flex items-center gap-1"><Youtube size={9} /> Watch highlights</p>
-    </div>
-  </a>
-);
+      <div className="p-2.5">
+        <p className="text-[11px] font-black text-white truncate">{h.a} <span className="text-white/40">v</span> {h.b}</p>
+        <p className="text-[8px] font-black uppercase tracking-widest text-[#FF0000] mt-0.5 flex items-center gap-1"><Youtube size={9} /> Watch highlights</p>
+      </div>
+    </a>
+  );
+};
 
 // Official ESPN clip card + inline HLS player (real, embeddable — replaces the blocked FIFA embed).
 const EspnClip: React.FC<{ v: WcVideo; onPlay: () => void }> = ({ v, onPlay }) => (
@@ -70,6 +88,7 @@ const WorldCupBuzz: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [videos, setVideos] = useState<WcVideo[]>([]);
   const [playing, setPlaying] = useState<WcVideo | null>(null);
+  const [ytModal, setYtModal] = useState<{ videoId: string; title: string; url: string } | null>(null);
   useEffect(() => { let a = true; fetchWcVideos().then(v => { if (a) setVideos(v || []); }).catch(() => {}); return () => { a = false; }; }, []);
   const xRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +143,7 @@ const WorldCupBuzz: React.FC = () => {
         </div>
         {highlights.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1" style={{ scrollbarWidth: 'none' }}>
-            {highlights.map(h => <HighlightCard key={h.id} h={h} />)}
+            {highlights.map(h => <HighlightCard key={h.id} h={h} onPlay={setYtModal} />)}
           </div>
         ) : (
           <p className="text-[11px] text-white/35">Highlights appear here as matches finish.</p>
@@ -141,6 +160,9 @@ const WorldCupBuzz: React.FC = () => {
       </div>
 
       {playing && <ClipPlayer clip={playing} onClose={() => setPlaying(null)} />}
+      <AnimatePresence>
+        {ytModal && <YouTubeModal videoId={ytModal.videoId} title={ytModal.title} fallbackUrl={ytModal.url} onClose={() => setYtModal(null)} />}
+      </AnimatePresence>
 
       {/* ── Social buzz (X) ────────────────────────────────────────────────── */}
       <div>
