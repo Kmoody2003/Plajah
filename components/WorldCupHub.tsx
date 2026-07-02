@@ -21,6 +21,7 @@ const WorldCupBracket           = lazy(() => import('./WorldCupBracket'));
 const WorldCupPicksHub          = lazy(() => import('./WorldCupPicksHub'));
 const WorldCupHistoryHub        = lazy(() => import('./WorldCupHistoryHub'));
 const WorldCupFanClubs          = lazy(() => import('./WorldCupFanClubs'));
+const WorldCupStadiums          = lazy(() => import('./WorldCupStadiums'));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-24">
@@ -70,7 +71,7 @@ const WcHubAnthemBanner: React.FC = () => {
 // ── Feature flag — flip to true when prediction market is ready to ship ───────
 const PREDICTIONS_LIVE = false;
 
-type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'predictions';
+type HubTab = 'news' | 'groups' | 'schedule' | 'countries' | 'stadiums' | 'bracket' | 'picks' | 'podcast' | 'clubs' | 'history' | 'predictions';
 
 interface Props {
   currentUser: UserProfile | null;
@@ -461,6 +462,7 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
     { id: 'groups',      label: 'Groups',    icon: Trophy },
     { id: 'schedule',    label: 'Schedule',  icon: Calendar },
     { id: 'countries',   label: 'Countries', icon: Globe },
+    { id: 'stadiums',    label: 'Stadiums',  icon: MapPin },
     { id: 'bracket',     label: 'Bracket',   icon: GitBranch },
     { id: 'picks',       label: 'Picks',     icon: Target },
     { id: 'podcast',     label: 'Podcast',   icon: Headphones },
@@ -829,6 +831,13 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* STADIUMS */}
+          {tab === 'stadiums' && (
+            <Suspense fallback={<TabLoader />}>
+              <WorldCupStadiums />
+            </Suspense>
           )}
 
           {/* BRACKET */}
