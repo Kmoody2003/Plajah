@@ -5,12 +5,14 @@ import {
   TrendingUp, Newspaper, Globe, Microscope, Calculator,
   Cpu, Leaf, Star, ChevronRight, Search, Users, Brain,
   Binary, Dna, Network, Gauge, Telescope, ExternalLink, Radio,
-  Landmark, Building2,
+  Landmark, Building2, Amphora,
 } from 'lucide-react';
 import { UserProfile, AppView } from '../types';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 import LabsDisciplineView from './LabsDisciplineView';
 const ArchitectureDisciplineView = React.lazy(() => import('./ArchitectureDisciplineView'));
+const WorldHistoryDisciplineView = React.lazy(() => import('./WorldHistoryDisciplineView'));
+const ArchaeologyDisciplineView = React.lazy(() => import('./ArchaeologyDisciplineView'));
 import LabsNotebook from './LabsNotebook';
 import LabsCitationManager from './LabsCitationManager';
 import LabsFormulaEditor from './LabsFormulaEditor';
@@ -39,6 +41,7 @@ const DISCIPLINES = [
   { id: 'networks',    label: 'Networks',          icon: Network,     color: '#74C0FC', desc: 'Systems & protocols' },
   { id: 'history',     label: 'World History',     icon: Landmark,    color: '#E8590C', desc: 'Civilizations & eras' },
   { id: 'architecture',label: 'Architecture',      icon: Building2,   color: '#B08968', desc: 'The built environment' },
+  { id: 'archaeology', label: 'Archaeology',       icon: Amphora,     color: '#D4A017', desc: 'Sites, artifacts & digs' },
 ];
 
 const PLATFORM_CONNECTIONS = [
@@ -93,11 +96,25 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   type LabsTool = 'notebook' | 'citations' | 'formula' | 'grants' | 'teams' | null;
   const [openTool, setOpenTool] = useState<LabsTool>(null);
 
-  // Architecture gets its own rich, bespoke studio (not the generic chassis)
+  // History, Architecture & Archaeology get their own rich, bespoke studios
   if (openDiscipline === 'architecture') {
     return (
       <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
         <ArchitectureDisciplineView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
+      </React.Suspense>
+    );
+  }
+  if (openDiscipline === 'history') {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
+        <WorldHistoryDisciplineView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
+      </React.Suspense>
+    );
+  }
+  if (openDiscipline === 'archaeology') {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
+        <ArchaeologyDisciplineView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
       </React.Suspense>
     );
   }

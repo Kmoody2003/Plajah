@@ -45,6 +45,8 @@ import { lazy } from 'react';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
 const ArchitectureDisciplineView = lazy(() => import('./ArchitectureDisciplineView'));
+const WorldHistoryDisciplineView = lazy(() => import('./WorldHistoryDisciplineView'));
+const ArchaeologyDisciplineView = lazy(() => import('./ArchaeologyDisciplineView'));
 
 interface ClassroomsViewProps {
   onBack: () => void;
@@ -520,6 +522,13 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
       coverArt: 'https://images.unsplash.com/photo-1487958449943-2429e8be8625?q=80&w=1000&auto=format&fit=crop',
       createdAt: 0, isActive: true,
     };
+    const archaeologyDefault: ClassroomModule = {
+      id: 'default_archaeology', name: 'Archaeology',
+      description: 'The people, sites and methods of archaeology — plus a vast artifact gallery live from the world’s open-access museum and field-data collections, and the tools & APIs of the field.',
+      url: 'ARCHAEOLOGY',
+      coverArt: 'https://images.unsplash.com/photo-1608730973372-9b3f9a3f9b0a?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
 
     // Check if defaults already exist in data to avoid duplicates if admin added it manually
     const finalModules = [...data];
@@ -528,6 +537,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     if (!data.some(m => m.url === 'HUMAN_BODY')) finalModules.unshift(humanBodyDefault);
     if (!data.some(m => m.url === 'WORLD_HISTORY')) finalModules.unshift(worldHistoryDefault);
     if (!data.some(m => m.url === 'ARCHITECTURE')) finalModules.unshift(architectureDefault);
+    if (!data.some(m => m.url === 'ARCHAEOLOGY')) finalModules.unshift(archaeologyDefault);
     if (!data.some(m => m.url === 'SPORT_NBA')) finalModules.push(nbaDefault);
     if (!data.some(m => m.url === 'SPORT_NFL')) finalModules.push(nflDefault);
     if (!data.some(m => m.url === 'SPORT_MLB')) finalModules.push(mlbDefault);
@@ -651,7 +661,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8590C] animate-pulse">Opening the Archives...</p>
           </div>
         }>
-          <LabsDisciplineView disciplineId="history" onBack={() => setSelectedModule(null)} currentUser={user} />
+          <WorldHistoryDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (selectedModule === 'ARCHAEOLOGY') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-[#D4A017]/20 border-t-[#D4A017] rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4A017] animate-pulse">Excavating the Record...</p>
+          </div>
+        }>
+          <ArchaeologyDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );
