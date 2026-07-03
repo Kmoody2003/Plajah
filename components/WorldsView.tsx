@@ -32,6 +32,9 @@ interface WorldsViewProps {
   artistUid: string;
   onSelectAlbum?: (album: Album) => void;
   onSelectVideo?: (video: Video) => void;
+  /** One-shot deep-open: land on this world (and open this character's entry). */
+  focus?: { worldId: string; characterId?: string } | null;
+  onFocusConsumed?: () => void;
 }
 
 // ── World Background ──────────────────────────────────────────────────────────
@@ -266,7 +269,7 @@ function EventDetailPanel({ event, characters, onClose }: { event: TimelineEvent
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile, artistUid, onSelectAlbum, onSelectVideo }) => {
+const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile, artistUid, onSelectAlbum, onSelectVideo, focus, onFocusConsumed }) => {
   const [worlds, setWorlds] = useState<IPWorld[]>([]);
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -311,6 +314,23 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
   useEffect(() => {
     if (selectedWorld && viewMode === 'DETAIL') loadWorldContent(selectedWorld.id);
   }, [selectedWorld, viewMode, isPreviewMode, isOwner]);
+
+  // One-shot deep-open from a "go to this character's world entry" click.
+  const focusHandled = useRef(false);
+  useEffect(() => { focusHandled.current = false; }, [focus?.worldId, focus?.characterId]);
+  useEffect(() => {
+    if (focusHandled.current || !focus?.worldId || !worlds.length) return;
+    const w = worlds.find(x => x.id === focus.worldId);
+    if (!w) return;
+    setSelectedWorld(w);
+    setViewMode('DETAIL');
+    if (!focus.characterId) { focusHandled.current = true; onFocusConsumed?.(); }
+  }, [worlds, focus]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (focusHandled.current || !focus?.characterId || !characters.length) return;
+    const c = characters.find(x => x.id === focus.characterId);
+    if (c) { setSelectedCharacter(c); focusHandled.current = true; onFocusConsumed?.(); }
+  }, [characters, focus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadWorldContent = async (worldId: string) => {
     try {

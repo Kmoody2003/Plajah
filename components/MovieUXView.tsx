@@ -30,7 +30,7 @@ interface MovieUXViewProps {
   item: Video | Album;
   onBack: () => void;
   onVisitUser: (uid: string) => void;
-  onNavigateToWorld?: (worldId: string) => void;
+  onNavigateToWorld?: (worldId: string, characterId?: string) => void;
   onOpenItem?: (item: Video | Album) => void;
   currentUser: any;
 }
@@ -992,7 +992,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                         {/* Card */}
                         <motion.div
                           whileHover={{ y: -4 }}
-                          onClick={() => setActiveCharacter(char)}
+                          onClick={() => { const wid = (item as any).worldId; if (onNavigateToWorld && wid) onNavigateToWorld(wid, char.id); else setActiveCharacter(char); }}
                           className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.08] hover:border-[#D0BCFF]/35 rounded-2xl p-4 flex flex-col items-center text-center gap-3 cursor-pointer transition-colors"
                         >
                           <div

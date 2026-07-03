@@ -500,6 +500,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedWorld, setSelectedWorld] = useState<IPWorld | null>(null);
+  const [worldFocus, setWorldFocus] = useState<{ worldId: string; characterId?: string } | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDockedFlipped, setIsDockedFlipped] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<'og' | 'grouped' | 'pinned'>(() =>
@@ -3890,7 +3891,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 }}
                 onPurchase={handlePurchase}
                 onVisitUser={handleVisitUser}
-                onNavigateToWorld={(worldId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setView('WORLDS'); }}
+                onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                 isPublic={isPublicView}
                 isPreview={view === 'PREVIEW'}
                 user={user}
@@ -3905,7 +3906,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     handleBackToDashboard();
                   }}
                   onVisitUser={handleVisitUser}
-                  onNavigateToWorld={(worldId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setView('WORLDS'); }}
+                  onNavigateToWorld={(worldId, characterId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                   onOpenItem={(it) => { setSelectedMovieItem(it); try { window.scrollTo({ top: 0 }); } catch {} }}
                   currentUser={user}
                 />
@@ -3953,7 +3954,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <DebateView debateId={selectedDebateId} onBack={() => setView('DASHBOARD')} />
               </Suspense>
             )}
-            {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} />}
+            {view === 'WORLDS' && <WorldsView onNavigate={setView} onEdit={(world) => { setSelectedWorld(world); setView('WORLD_MANAGER'); }} userProfile={userProfile} artistUid={viewedUserId || user?.uid || ''} focus={worldFocus} onFocusConsumed={() => setWorldFocus(null)} />}
             {view === 'WORLD_MANAGER' && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <ErrorBoundary>

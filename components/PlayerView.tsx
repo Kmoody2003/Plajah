@@ -331,7 +331,7 @@ interface PlayerViewProps {
   onUpdate?: (album: Album) => void;
   onPurchase?: (item: any, isAlbum: boolean) => void;
   onVisitUser?: (uid: string) => void;
-  onNavigateToWorld?: (worldId: string) => void;
+  onNavigateToWorld?: (worldId: string, characterId?: string) => void;
   isPublic?: boolean;
   isPreview?: boolean;
   user: FirebaseUser | null;
@@ -1533,17 +1533,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </h4>
                   <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
                     {worldCharacters.slice(0, 8).map(char => (
-                      <div key={char.id} className="flex flex-col items-center gap-1.5 shrink-0 w-14">
-                        <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 bg-white/5">
+                      <button key={char.id} type="button"
+                        onClick={() => { if (onNavigateToWorld && album.worldId) onNavigateToWorld(album.worldId, char.id); }}
+                        className="flex flex-col items-center gap-1.5 shrink-0 w-14 group"
+                        title={`${char.name} — open in world`}>
+                        <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 group-hover:border-small-orange/50 bg-white/5 transition-colors">
                           <img
                             src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                             alt={char.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                           />
                         </div>
-                        <p className="text-[8px] font-black text-white/40 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
-                      </div>
+                        <p className="text-[8px] font-black text-white/40 group-hover:text-white/70 uppercase tracking-wide truncate w-full text-center transition-colors">{char.name}</p>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1827,12 +1830,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <p className="text-[8px] font-black uppercase tracking-widest text-white/20">Featured Characters</p>
                             <div className="flex flex-wrap gap-2">
                               {worldCharacters.slice(0, 6).map(char => (
-                                <div key={char.id} className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-2.5 py-1.5">
+                                <button key={char.id} type="button"
+                                  onClick={() => { if (onNavigateToWorld && album.worldId) onNavigateToWorld(album.worldId, char.id); }}
+                                  className="flex items-center gap-2 bg-white/5 border border-white/8 hover:border-small-orange/40 rounded-xl px-2.5 py-1.5 transition-colors" title={`${char.name} — open in world`}>
                                   <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
                                     <img src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`} className="w-full h-full object-cover" />
                                   </div>
                                   <p className="text-[9px] font-black text-white/60 uppercase tracking-wide">{char.name}</p>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -1843,10 +1848,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                               {[...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).slice(0, 8).map((content, i) => {
                                 const thumb = (content as any).coverImage || (content as any).thumbnailUrl;
+                                const open = () => {
+                                  if ((content as any).tracks?.length) { playTrack((content as any).tracks[0], content as Album, 'LIBRARY'); setCurrentTrackIndex(0); }
+                                  else { setActiveVideoId((content as any).id); playVideo(content as any); }
+                                };
                                 return (
                                   <div key={(content as any).id || i} className="shrink-0 w-12">
-                                    <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/8 mb-1">
-                                      {thumb ? <img src={thumb} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Music2 size={12} className="text-white/15" /></div>}
+                                    <div className="w-12 h-16 mb-1">
+                                      <HoverPreviewThumb poster={thumb} title={content.title} preview={previewSourceFor(content)}
+                                        accent="#FF8C00" aspectClass="h-full" roundClass="rounded-lg" hideCaption
+                                        fallbackIcon={<Music2 size={12} className="text-white/15" />} onClick={open} />
                                     </div>
                                     <p className="text-[6px] font-black text-white/30 truncate uppercase">{content.title}</p>
                                   </div>
