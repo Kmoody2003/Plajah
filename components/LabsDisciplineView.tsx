@@ -512,11 +512,11 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
 
   const displayedPapers = searchActive ? searchResults : (data?.papers ?? []);
 
-  const disciplinePosts = globalPosts.filter(p => {
-    if (p.tags?.includes(disciplineId)) return true;
-    const text = (p.text || '').toLowerCase();
-    return meta.keywords.some(k => text.includes(k.toLowerCase())) || text.includes(meta.label.toLowerCase());
-  });
+  // A discipline's feed is its own dedicated feed — only posts explicitly
+  // published to this discipline (tagged with its id by the composer below).
+  // We intentionally do NOT keyword-match the global social feed, which pulled
+  // in unrelated older posts (e.g. any post mentioning "building").
+  const disciplinePosts = globalPosts.filter(p => p.tags?.includes(disciplineId));
 
   const ALL_CONTENT_TABS: { key: ContentTab; label: string; icon: React.ElementType; count?: number }[] = [
     { key: 'papers',        label: 'Papers',         icon: FileText,      count: displayedPapers.length },
