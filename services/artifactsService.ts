@@ -277,14 +277,22 @@ async function searchSmithsonian3D(query: string, limit: number, signal?: AbortS
   } catch { return []; }
 }
 
-/** Search only artifacts that have a 3D scan (currently Smithsonian Open Access 3D). */
+/** Search only artifacts that have an interactive 3D scan — Smithsonian Open
+ *  Access 3D + Europeana 3D objects, interleaved so both are represented. */
 export async function fetchArtifacts3D(query: string, opts: { limit?: number; signal?: AbortSignal } = {}): Promise<Artifact[]> {
-  const key = `3d|${(query || '').toLowerCase()}|${opts.limit ?? 30}`;
+  const limit = opts.limit ?? 30;
+  const key = `3d|${(query || '').toLowerCase()}|${limit}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const out = await searchSmithsonian3D(query, opts.limit ?? 30, opts.signal);
-  if (out.length) cache.set(key, out);
-  return out;
+  const per = Math.ceil(limit / 2);
+  const settled = await Promise.allSettled([
+    searchSmithsonian3D(query, per, opts.signal),
+    searchEuropeana3D(query, per, opts.signal),
+  ]);
+  const lists = settled.map(s => (s.status === 'fulfilled' ? s.value : []));
+  const merged = interleave(lists).slice(0, limit);
+  if (merged.length) cache.set(key, merged);
+  return merged;
 }
 
 // ── Europeana (58M+ items from Europe's museums, libraries & archives) ────────
@@ -312,6 +320,36 @@ async function searchEuropeana(query: string, limit: number, signal?: AbortSigna
         sourceUrl: i.guid || (i.edmIsShownAt?.[0]) || `https://www.europeana.eu/item${i.id}`,
         provenance: i.country?.[0] || undefined,
       }));
+  } catch { return []; }
+}
+
+// Europeana 3D objects (TYPE:3D) — models from Europe's museums, libraries & archives.
+async function searchEuropeana3D(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+  if (!EUROPEANA_KEY) return [];
+  try {
+    const q = query && query.trim() ? query.trim() : '*';
+    const url = `https://api.europeana.eu/record/v2/search.json?wskey=${EUROPEANA_KEY}` +
+      `&query=${encodeURIComponent(q)}&rows=${limit}&media=true&thumbnail=true&qf=TYPE:3D&reusability=open&profile=rich`;
+    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: any[] = data?.items ?? [];
+    return items.map((i: any): Artifact => {
+      const model = i.edmIsShownBy?.[0] || i.edmIsShownAt?.[0] || i.guid;
+      return {
+        id: `europeana3d-${i.id}`,
+        title: (i.title?.[0]) || (i.dcTitleLangAware && Object.values(i.dcTitleLangAware)[0]?.[0]) || 'Untitled',
+        culture: i.dataProvider?.[0] || i.dcCreator?.[0] || 'Europeana',
+        date: i.year?.[0] || '',
+        medium: '3D model',
+        imageUrl: i.edmPreview?.[0] || model,
+        thumbUrl: i.edmPreview?.[0] || model,
+        source: 'europeana',
+        sourceUrl: i.guid || (i.edmIsShownAt?.[0]) || `https://www.europeana.eu/item${i.id}`,
+        provenance: i.country?.[0] || undefined,
+        model3dUrl: model,
+      };
+    }).filter(a => a.model3dUrl);
   } catch { return []; }
 }
 

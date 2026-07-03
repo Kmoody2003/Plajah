@@ -162,7 +162,7 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
           {only3d ? (
             <>
               <p className="text-[11px] font-black uppercase tracking-widest text-white/30">No 3D scans here yet</p>
-              <p className="text-[10px] text-white/15 mt-1">Interactive 3D scans stream from Smithsonian Open Access — try another collection or search term.</p>
+              <p className="text-[10px] text-white/15 mt-1">Interactive 3D scans stream from Smithsonian Open Access &amp; Europeana — try another collection or search term.</p>
             </>
           ) : (
             <>
