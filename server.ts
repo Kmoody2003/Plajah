@@ -4622,7 +4622,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         const geminiTools = webSearchAllowed ? [{ googleSearch: {} }] : undefined;
         const chat = genai.chats.create({
           model: 'gemini-2.5-flash',
-          config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8 },
+          config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8, thinkingConfig: { thinkingBudget: 0 } },
           history: geminiHistory,
         });
         const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
@@ -4759,7 +4759,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       try {
         const { GoogleGenAI } = await import('@google/genai');
         const genai = new GoogleGenAI({ apiKey: geminiKey });
-        const chat = genai.chats.create({ model: 'gemini-2.5-flash', config: { maxOutputTokens: 8 } });
+        const chat = genai.chats.create({ model: 'gemini-2.5-flash', config: { maxOutputTokens: 64, thinkingConfig: { thinkingBudget: 0 } } });
         const r = await chat.sendMessage({ message: [{ text: 'Reply with the single word: ok' }] });
         const txt = (r.text || '').trim();
         out = { provider: 'gemini', configured: true, ok: !!txt, model: 'gemini-2.5-flash', sample: txt.slice(0, 40) };
