@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
+import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { getDoc, doc } from 'firebase/firestore';
@@ -30,6 +31,7 @@ interface MovieUXViewProps {
   onBack: () => void;
   onVisitUser: (uid: string) => void;
   onNavigateToWorld?: (worldId: string) => void;
+  onOpenItem?: (item: Video | Album) => void;
   currentUser: any;
 }
 
@@ -470,7 +472,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 };
 
 // ─── MovieUXView ───────────────────────────────────────────────────────────────
-const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, currentUser }) => {
+const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, currentUser }) => {
   const {
     activateVideoSource,
     setVideoElement,
@@ -1103,37 +1105,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {([...worldVideos, ...worldAlbums] as any[]).slice(0, 8).map(content => {
-                      const thumb = content.coverImage || content.coverImageUrl || content.thumbnailUrl;
-                      return (
-                        <motion.div
-                          key={content.id}
-                          whileHover={{ y: -5, scale: 1.02 }}
-                          className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08] cursor-pointer shadow-lg"
-                        >
-                          {thumb && (
-                            <img
-                              src={thumb}
-                              alt={content.title}
-                              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center">
-                              <Play size={16} fill="white" className="text-white ml-0.5" />
-                            </div>
-                          </div>
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-[11px] font-black text-white leading-tight line-clamp-2">{content.title}</p>
-                            <p className="text-[9px] text-white/40 uppercase tracking-widest mt-1">
-                              {content.subType || content.type || 'Content'}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                    {([...worldVideos, ...worldAlbums] as any[]).slice(0, 8).map(content => (
+                      <HoverPreviewThumb
+                        key={content.id}
+                        poster={content.coverImage || content.coverImageUrl || content.thumbnailUrl}
+                        title={content.title}
+                        subtitle={content.subType || content.type || (content.tracks ? 'Album' : 'Content')}
+                        preview={previewSourceFor(content)}
+                        accent="#FFB68D"
+                        fallbackIcon={<Film size={18} className="text-white/20" />}
+                        onClick={() => onOpenItem?.(content)}
+                      />
+                    ))}
                   </div>
                 </section>
               )}

@@ -3906,6 +3906,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   }}
                   onVisitUser={handleVisitUser}
                   onNavigateToWorld={(worldId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setView('WORLDS'); }}
+                  onOpenItem={(it) => { setSelectedMovieItem(it); try { window.scrollTo({ top: 0 }); } catch {} }}
                   currentUser={user}
                 />
               </ErrorBlock>

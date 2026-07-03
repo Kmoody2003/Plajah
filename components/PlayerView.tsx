@@ -34,6 +34,7 @@ import CommentSection from './CommentSection';
 import The411 from './The411';
 import { LyricItem, TimeCodedLyrics } from './LyricItem';
 import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
+import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import PlajahPlusButton from './PlajahPlusButton';
 
 type RepeatMode = 'NONE' | 'ONE' | 'ALL';
@@ -1557,12 +1558,24 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       .slice(0, 10)
                       .map((content, i) => {
                         const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                        const open = () => {
+                          if ((content as any).tracks?.length) { playTrack((content as any).tracks[0], content as Album, 'LIBRARY'); setCurrentTrackIndex(0); }
+                          else { setActiveVideoId((content as any).id); playVideo(content as any); }
+                        };
                         return (
                           <div key={(content as any).id || i} className="shrink-0 w-14">
-                            <div className="w-14 h-[4.5rem] rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1.5">
-                              {thumb
-                                ? <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center"><Music2 size={14} className="text-white/15" /></div>}
+                            <div className="w-14 h-[4.5rem] mb-1.5">
+                              <HoverPreviewThumb
+                                poster={thumb}
+                                title={content.title}
+                                preview={previewSourceFor(content)}
+                                accent="#FF8C00"
+                                aspectClass="h-full"
+                                roundClass="rounded-xl"
+                                hideCaption
+                                fallbackIcon={<Music2 size={14} className="text-white/15" />}
+                                onClick={open}
+                              />
                             </div>
                             <p className="text-[7px] font-black text-white/35 truncate uppercase tracking-wide">{content.title}</p>
                           </div>
