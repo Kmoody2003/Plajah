@@ -44,6 +44,7 @@ import TeacherStudentsPanel from './TeacherStudentsPanel';
 import { lazy } from 'react';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
+const ArchitectureDisciplineView = lazy(() => import('./ArchitectureDisciplineView'));
 
 interface ClassroomsViewProps {
   onBack: () => void;
@@ -626,17 +627,31 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     );
   }
 
-  if (selectedModule === 'WORLD_HISTORY' || selectedModule === 'ARCHITECTURE') {
-    const disciplineId = selectedModule === 'WORLD_HISTORY' ? 'history' : 'architecture';
+  if (selectedModule === 'ARCHITECTURE') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-[#B08968]/20 border-t-[#B08968] rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#B08968] animate-pulse">Unrolling the Blueprints...</p>
+          </div>
+        }>
+          <ArchitectureDisciplineView onBack={() => setSelectedModule(null)} currentUser={user} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (selectedModule === 'WORLD_HISTORY') {
     return (
       <ErrorBoundary>
         <Suspense fallback={
           <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 border-2 border-[#E8590C]/20 border-t-[#E8590C] rounded-full animate-spin mb-4" />
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8590C] animate-pulse">{disciplineId === 'history' ? 'Opening the Archives...' : 'Unrolling the Blueprints...'}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8590C] animate-pulse">Opening the Archives...</p>
           </div>
         }>
-          <LabsDisciplineView disciplineId={disciplineId} onBack={() => setSelectedModule(null)} currentUser={user} />
+          <LabsDisciplineView disciplineId="history" onBack={() => setSelectedModule(null)} currentUser={user} />
         </Suspense>
       </ErrorBoundary>
     );

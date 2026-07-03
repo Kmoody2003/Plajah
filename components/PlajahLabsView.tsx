@@ -10,6 +10,7 @@ import {
 import { UserProfile, AppView } from '../types';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 import LabsDisciplineView from './LabsDisciplineView';
+const ArchitectureDisciplineView = React.lazy(() => import('./ArchitectureDisciplineView'));
 import LabsNotebook from './LabsNotebook';
 import LabsCitationManager from './LabsCitationManager';
 import LabsFormulaEditor from './LabsFormulaEditor';
@@ -91,6 +92,15 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
   const [openDiscipline, setOpenDiscipline] = useState<LabsDisciplineId | null>(null);
   type LabsTool = 'notebook' | 'citations' | 'formula' | 'grants' | 'teams' | null;
   const [openTool, setOpenTool] = useState<LabsTool>(null);
+
+  // Architecture gets its own rich, bespoke studio (not the generic chassis)
+  if (openDiscipline === 'architecture') {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30 text-sm">Loading the studio…</div>}>
+        <ArchitectureDisciplineView onBack={() => setOpenDiscipline(null)} currentUser={currentUser} />
+      </React.Suspense>
+    );
+  }
 
   // Discipline view
   if (openDiscipline) {
