@@ -7,6 +7,7 @@ import {
   type Artifact, type ArtifactCollection, type ArtifactSource,
 } from '../services/artifactsService';
 import AssetActions from './AssetActions';
+import Model3DViewer from './Model3DViewer';
 
 // A reusable, live artifact wall over the free/keyless museum & archaeology APIs.
 // Shared by the Archaeology and World History studios. Give it a set of curated
@@ -40,6 +41,7 @@ const ArtifactCard: React.FC<{ a: Artifact; accent: string; onOpen: () => void }
 );
 
 const ArtifactModal: React.FC<{ a: Artifact; accent: string; discipline?: string; onClose: () => void }> = ({ a, accent, discipline, onClose }) => {
+  const [view3D, setView3D] = useState(false);
   const overlay = (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -63,9 +65,9 @@ const ArtifactModal: React.FC<{ a: Artifact; accent: string; discipline?: string
               View at museum <ExternalLink size={11} />
             </a>
             {a.model3dUrl && (
-              <a href={a.model3dUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: `${accent}55`, color: accent }}>
-                3D model <Boxes size={11} />
-              </a>
+              <button onClick={() => setView3D(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all" style={{ borderColor: `${accent}55`, color: accent, background: `${accent}12` }}>
+                View in 3D <Boxes size={11} />
+              </button>
             )}
           </div>
           <div className="mt-4 pt-4 border-t border-white/8">
@@ -84,7 +86,17 @@ const ArtifactModal: React.FC<{ a: Artifact; accent: string; discipline?: string
       </motion.div>
     </motion.div>
   );
-  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
+  const body = typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
+  return (
+    <>
+      {body}
+      <AnimatePresence>
+        {view3D && a.model3dUrl && (
+          <Model3DViewer url={a.model3dUrl} title={a.title} accent={accent} onClose={() => setView3D(false)} />
+        )}
+      </AnimatePresence>
+    </>
+  );
 };
 
 const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sources, intro, discipline }) => {
