@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, X, ExternalLink, Play, Landmark } from 'lucide-react';
+import AssetActions from './AssetActions';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MuseumHall — a reusable "hall of greats" engine.
@@ -49,6 +50,8 @@ export interface MuseumHallProps {
   figures: MuseumFigure[];
   accent?: string;               // theme accent colour
   icon?: React.ComponentType<{ size?: number; className?: string }>;
+  /** Discipline label (e.g. 'Archaeology') used to tag shares/notebook/interests. */
+  shareDiscipline?: string;
 }
 
 // ── Wikipedia summary (portrait + extract), cached across the session ─────────
@@ -100,7 +103,7 @@ const FigureCard: React.FC<{ figure: MuseumFigure; accent: string; onOpen: () =>
 };
 
 // ── Figure detail modal ─────────────────────────────────────────────────────
-const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; onClose: () => void; onPlayDoc: (videoId: string, title: string) => void }> = ({ figure, accent, onClose, onPlayDoc }) => {
+const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; shareDiscipline?: string; onClose: () => void; onPlayDoc: (videoId: string, title: string) => void }> = ({ figure, accent, shareDiscipline, onClose, onPlayDoc }) => {
   const { thumb, extract } = useWiki(figure.wikiSlug, figure.imageUrl);
   const overlay = (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -178,6 +181,19 @@ const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; onClose: () 
             className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
             Full biography <ExternalLink size={11} />
           </a>
+
+          <div className="mt-4 pt-4 border-t border-white/8">
+            <AssetActions accent={accent} asset={{
+              kind: 'figure',
+              title: figure.name,
+              subtitle: [figure.role, figure.era, figure.nationality].filter(Boolean).join(' · '),
+              description: figure.tagline || extract?.slice(0, 240),
+              imageUrl: thumb || figure.imageUrl,
+              sourceUrl: `https://en.wikipedia.org/wiki/${figure.wikiSlug}`,
+              discipline: shareDiscipline,
+              interests: [figure.era, figure.role].filter(Boolean) as string[],
+            }} />
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -205,7 +221,7 @@ const DocModal: React.FC<{ videoId: string; title: string; onClose: () => void }
 };
 
 // ── The museum ────────────────────────────────────────────────────────────────
-const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, figures, accent = DEFAULT_ACCENT, icon: Icon = Landmark }) => {
+const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, figures, accent = DEFAULT_ACCENT, icon: Icon = Landmark, shareDiscipline }) => {
   const [activeHall, setActiveHall] = useState<string>(halls[0]?.id ?? 'all');
   const [open, setOpen] = useState<MuseumFigure | null>(null);
   const [doc, setDoc] = useState<{ videoId: string; title: string } | null>(null);
@@ -253,7 +269,7 @@ const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, f
       )}
 
       <AnimatePresence>
-        {open && <FigureModal figure={open} accent={accent} onClose={() => setOpen(null)} onPlayDoc={(videoId, title) => setDoc({ videoId, title })} />}
+        {open && <FigureModal figure={open} accent={accent} shareDiscipline={shareDiscipline} onClose={() => setOpen(null)} onPlayDoc={(videoId, title) => setDoc({ videoId, title })} />}
         {doc && <DocModal videoId={doc.videoId} title={doc.title} onClose={() => setDoc(null)} />}
       </AnimatePresence>
     </div>

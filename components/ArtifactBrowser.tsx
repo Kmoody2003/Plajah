@@ -6,6 +6,7 @@ import {
   searchArtifacts, fetchArtifactsByCollection,
   type Artifact, type ArtifactCollection, type ArtifactSource,
 } from '../services/artifactsService';
+import AssetActions from './AssetActions';
 
 // A reusable, live artifact wall over the free/keyless museum & archaeology APIs.
 // Shared by the Archaeology and World History studios. Give it a set of curated
@@ -16,6 +17,8 @@ interface Props {
   accent?: string;
   sources?: ArtifactSource[];
   intro?: string;
+  /** Discipline label used to tag shares/notebook/interests (e.g. 'Archaeology'). */
+  discipline?: string;
 }
 
 const ArtifactCard: React.FC<{ a: Artifact; accent: string; onOpen: () => void }> = ({ a, accent, onOpen }) => (
@@ -32,7 +35,7 @@ const ArtifactCard: React.FC<{ a: Artifact; accent: string; onOpen: () => void }
   </button>
 );
 
-const ArtifactModal: React.FC<{ a: Artifact; accent: string; onClose: () => void }> = ({ a, accent, onClose }) => {
+const ArtifactModal: React.FC<{ a: Artifact; accent: string; discipline?: string; onClose: () => void }> = ({ a, accent, discipline, onClose }) => {
   const overlay = (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -61,6 +64,18 @@ const ArtifactModal: React.FC<{ a: Artifact; accent: string; onClose: () => void
               </a>
             )}
           </div>
+          <div className="mt-4 pt-4 border-t border-white/8">
+            <AssetActions accent={accent} asset={{
+              kind: 'artifact',
+              title: a.title,
+              subtitle: [a.culture, a.date].filter(Boolean).join(' · '),
+              description: [a.medium, a.provenance].filter(Boolean).join(' — '),
+              imageUrl: a.thumbUrl || a.imageUrl,
+              sourceUrl: a.sourceUrl,
+              discipline,
+              interests: [a.culture].filter(Boolean) as string[],
+            }} />
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -68,7 +83,7 @@ const ArtifactModal: React.FC<{ a: Artifact; accent: string; onClose: () => void
   return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 };
 
-const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sources, intro }) => {
+const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sources, intro, discipline }) => {
   const [active, setActive] = useState<string>(collections[0]?.id ?? '');
   const [items, setItems] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,7 +150,7 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
       </div>
 
       <AnimatePresence>
-        {open && <ArtifactModal a={open} accent={accent} onClose={() => setOpen(null)} />}
+        {open && <ArtifactModal a={open} accent={accent} discipline={discipline} onClose={() => setOpen(null)} />}
       </AnimatePresence>
     </div>
   );

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
 import ArtifactBrowser from './ArtifactBrowser';
+import AssetActions from './AssetActions';
 import {
   ARCHAEOLOGIST_HALLS, ARCHAEOLOGIST_FIGURES,
   ARCH_SITES, DATING_METHODS, FIELD_METHODS,
@@ -91,6 +92,15 @@ const SiteModal: React.FC<{ site: ArchSite; onClose: () => void }> = ({ site, on
             className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
             Read more <ExternalLink size={11} />
           </a>
+          <div className="mt-4 pt-4 border-t border-white/8">
+            <AssetActions accent={ACCENT} asset={{
+              kind: 'site', title: site.name,
+              subtitle: [site.period, site.region].filter(Boolean).join(' · '),
+              description: site.blurb, imageUrl: d.thumb,
+              sourceUrl: `https://en.wikipedia.org/wiki/${site.wikiSlug}`,
+              discipline: 'Archaeology', interests: [site.period].filter(Boolean) as string[],
+            }} />
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -206,7 +216,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
         {tab === 'archaeologists' && (
           <MuseumHall eyebrow="The Archaeologists" title="Masters of the Human Past"
             intro="The people who invented the discipline — enrich each with a live biography and portrait."
-            halls={ARCHAEOLOGIST_HALLS} figures={ARCHAEOLOGIST_FIGURES} accent={ACCENT} icon={Landmark} />
+            halls={ARCHAEOLOGIST_HALLS} figures={ARCHAEOLOGIST_FIGURES} accent={ACCENT} icon={Landmark} shareDiscipline="Archaeology" />
         )}
 
         {/* SITES */}
@@ -223,6 +233,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
             accent={ACCENT}
             sources={['met', 'artic', 'cleveland', 'smithsonian', 'europeana']}
             intro="Browse tens of thousands of objects, live from the world's open-access collections — The Met, Art Institute of Chicago, Cleveland, the Smithsonian and Europeana."
+            discipline="Archaeology"
           />
         )}
 

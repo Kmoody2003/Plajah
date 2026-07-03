@@ -48,6 +48,7 @@ const TaleoFilmMuseum: React.FC<Props> = ({ onBack }) => {
           figures={FILM_MUSEUM_FIGURES}
           accent={ACCENT}
           icon={Clapperboard}
+          shareDiscipline="Cinema"
         />
       </div>
     </div>

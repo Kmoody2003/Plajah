@@ -7,6 +7,7 @@ import {
   Cpu, Globe, Star, ChevronRight, Grid3x3,
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
+import AssetActions from './AssetActions';
 import {
   ARCHITECT_HALLS, ARCHITECT_FIGURES,
   ARCH_STYLES, ARCH_HISTORY, ARCH_FORMULAS, ARCH_CODES,
@@ -129,6 +130,15 @@ const StyleModal: React.FC<{ style: ArchStyle; onClose: () => void }> = ({ style
             className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
             Read more <ExternalLink size={11} />
           </a>
+          <div className="mt-4 pt-4 border-t border-white/8">
+            <AssetActions accent={ACCENT} asset={{
+              kind: 'style', title: style.name,
+              subtitle: [style.era, style.region].filter(Boolean).join(' · '),
+              description: style.blurb, imageUrl: d.thumb,
+              sourceUrl: `https://en.wikipedia.org/wiki/${style.wikiSlug}`,
+              discipline: 'Architecture', interests: [style.era].filter(Boolean) as string[],
+            }} />
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -266,7 +276,7 @@ const ArchitectureDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
         {tab === 'architects' && (
           <MuseumHall eyebrow="The Architects" title="Masters of the Built World"
             intro="The people who shaped how we live — enrich each with a live biography and portrait."
-            halls={ARCHITECT_HALLS} figures={ARCHITECT_FIGURES} accent={ACCENT} icon={Landmark} />
+            halls={ARCHITECT_HALLS} figures={ARCHITECT_FIGURES} accent={ACCENT} icon={Landmark} shareDiscipline="Architecture" />
         )}
 
         {/* STYLES */}

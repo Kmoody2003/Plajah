@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
 import ArtifactBrowser from './ArtifactBrowser';
+import AssetActions from './AssetActions';
 import {
   HISTORY_FIGURE_HALLS, HISTORY_FIGURES,
   CIVILIZATIONS, HISTORY_ERAS, PRIMARY_SOURCES, ARTIFACT_COLLECTIONS,
@@ -88,6 +89,15 @@ const CivModal: React.FC<{ civ: Civilization; onClose: () => void }> = ({ civ, o
             className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
             Read more <ExternalLink size={11} />
           </a>
+          <div className="mt-4 pt-4 border-t border-white/8">
+            <AssetActions accent={ACCENT} asset={{
+              kind: 'civilization', title: civ.name,
+              subtitle: [civ.span, civ.region].filter(Boolean).join(' · '),
+              description: civ.blurb, imageUrl: d.thumb,
+              sourceUrl: `https://en.wikipedia.org/wiki/${civ.wikiSlug}`,
+              discipline: 'World History', interests: [civ.region].filter(Boolean) as string[],
+            }} />
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -196,7 +206,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
         {tab === 'figures' && (
           <MuseumHall eyebrow="The Makers of History" title="Figures Who Shaped the World"
             intro="The rulers, thinkers, explorers and revolutionaries who changed the course of human events — enrich each with a live biography and portrait."
-            halls={HISTORY_FIGURE_HALLS} figures={HISTORY_FIGURES} accent={ACCENT} icon={Landmark} />
+            halls={HISTORY_FIGURE_HALLS} figures={HISTORY_FIGURES} accent={ACCENT} icon={Landmark} shareDiscipline="World History" />
         )}
 
         {/* CIVILIZATIONS */}
@@ -234,7 +244,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
 
         {/* ARTIFACTS */}
         {tab === 'artifacts' && (
-          <ArtifactBrowser collections={ARTIFACT_COLLECTIONS} accent={ACCENT}
+          <ArtifactBrowser collections={ARTIFACT_COLLECTIONS} accent={ACCENT} discipline="World History"
             intro="A live wall of objects from the world’s great museums. Browse a civilisation or free-search the collections of the Met and beyond." />
         )}
 

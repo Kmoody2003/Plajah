@@ -134,6 +134,7 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 figures={CONSERVATORY_FIGURES}
                 accent={ACCENT}
                 icon={Music}
+                shareDiscipline="Music"
               />
             </motion.div>
           ) : (

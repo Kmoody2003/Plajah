@@ -286,6 +286,7 @@ const ArtGalleryView: React.FC<ArtGalleryViewProps> = ({ onBack }) => {
             figures={ART_MASTER_FIGURES}
             accent={GOLD}
             icon={Palette}
+            shareDiscipline="Art"
           />
         )}
       </div>
