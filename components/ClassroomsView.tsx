@@ -43,6 +43,7 @@ import ErrorBoundary from './ErrorBoundary';
 import TeacherStudentsPanel from './TeacherStudentsPanel';
 import { lazy } from 'react';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
+const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
 
 interface ClassroomsViewProps {
   onBack: () => void;
@@ -504,11 +505,28 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
       createdAt: 0, isActive: true,
     };
 
+    const worldHistoryDefault: ClassroomModule = {
+      id: 'default_world_history', name: 'World History',
+      description: 'From the first civilizations to the modern world — eras, empires, revolutions, primary sources, and free peer-reviewed textbooks.',
+      url: 'WORLD_HISTORY',
+      coverArt: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+    const architectureDefault: ClassroomModule = {
+      id: 'default_architecture', name: 'Architecture & the Built World',
+      description: 'Building design, structural engineering, codes and specs, live seismic data, and research across the full gamut of the built environment.',
+      url: 'ARCHITECTURE',
+      coverArt: 'https://images.unsplash.com/photo-1487958449943-2429e8be8625?q=80&w=1000&auto=format&fit=crop',
+      createdAt: 0, isActive: true,
+    };
+
     // Check if defaults already exist in data to avoid duplicates if admin added it manually
     const finalModules = [...data];
     if (!data.some(m => m.url === 'SOLAR_SYSTEM')) finalModules.unshift(solarSystemDefault);
     if (!data.some(m => m.url === 'PLANT_BIOLOGY')) finalModules.unshift(plantBiologyDefault);
     if (!data.some(m => m.url === 'HUMAN_BODY')) finalModules.unshift(humanBodyDefault);
+    if (!data.some(m => m.url === 'WORLD_HISTORY')) finalModules.unshift(worldHistoryDefault);
+    if (!data.some(m => m.url === 'ARCHITECTURE')) finalModules.unshift(architectureDefault);
     if (!data.some(m => m.url === 'SPORT_NBA')) finalModules.push(nbaDefault);
     if (!data.some(m => m.url === 'SPORT_NFL')) finalModules.push(nflDefault);
     if (!data.some(m => m.url === 'SPORT_MLB')) finalModules.push(mlbDefault);
@@ -608,6 +626,22 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     );
   }
 
+  if (selectedModule === 'WORLD_HISTORY' || selectedModule === 'ARCHITECTURE') {
+    const disciplineId = selectedModule === 'WORLD_HISTORY' ? 'history' : 'architecture';
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-[#E8590C]/20 border-t-[#E8590C] rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8590C] animate-pulse">{disciplineId === 'history' ? 'Opening the Archives...' : 'Unrolling the Blueprints...'}</p>
+          </div>
+        }>
+          <LabsDisciplineView disciplineId={disciplineId} onBack={() => setSelectedModule(null)} currentUser={user} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   const SPORT_MODULE_MAP: Record<string, 'NBA' | 'NFL' | 'MLB' | 'NHL' | 'FIFA' | 'MLS'> = {
     SPORT_NBA: 'NBA', SPORT_NFL: 'NFL', SPORT_MLB: 'MLB',
     SPORT_NHL: 'NHL', SPORT_FIFA: 'FIFA', SPORT_MLS: 'MLS',
@@ -638,7 +672,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
               <ArrowLeft size={20} />
             </button>
             <div>
-              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Classrooms</PageHeader>
+              <PageHeader textClassName="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Plajah Academia</PageHeader>
               <p className="text-[10px] font-bold text-[var(--text-primary)] opacity-40 uppercase tracking-widest">Virtual Learning Sanctuary</p>
             </div>
           </div>

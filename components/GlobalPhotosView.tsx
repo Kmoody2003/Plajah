@@ -15,7 +15,8 @@ import {
   QrCode,
   Wand2,
   Layers,
-  Upload
+  Upload,
+  Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile } from '../services/backendService';
@@ -29,9 +30,11 @@ import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/pho
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
   initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO';
+  /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
+  onOpenArtMuseum?: () => void;
 }
 
-const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL' }) => {
+const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
   const { isSpatialMode } = useSpatial();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO'>(initialMode);
@@ -131,6 +134,16 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 {tab.label}
               </button>
             ))}
+            {onOpenArtMuseum && (
+              <button
+                onClick={onOpenArtMuseum}
+                className="px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[#C9A55C] hover:bg-[#C9A55C]/15 border border-[#C9A55C]/30"
+                title="The masters, art history & open-access museum collections"
+              >
+                <Landmark size={13} />
+                The Masters
+              </button>
+            )}
           </div>
         </div>
       </header>

@@ -12,7 +12,7 @@ export type LabsDisciplineId =
   | 'astronomy' | 'physics' | 'chemistry' | 'biology' | 'cs'
   | 'engineering' | 'mathematics' | 'neuroscience' | 'earth'
   | 'data' | 'environment' | 'medicine' | 'networks'
-  | 'archaeology' | 'linguistics';
+  | 'archaeology' | 'linguistics' | 'history' | 'architecture';
 
 export interface DisciplineConfig {
   arXivCategory: string;       // primary arXiv category code
@@ -41,6 +41,8 @@ export const DISCIPLINE_CONFIG: Record<LabsDisciplineId, DisciplineConfig> = {
   networks:     { arXivCategory: 'cs.NI',       arXivQuery: 'network protocol distributed system' },
   archaeology:  { arXivCategory: 'physics.hist-ph', arXivQuery: 'archaeology dating anthropology stratigraphy' },
   linguistics:  { arXivCategory: 'cs.CL',       arXivQuery: 'linguistics language morphology syntax', hfTasks: ['translation', 'text-classification', 'token-classification'] },
+  history:      { arXivCategory: 'physics.hist-ph', arXivQuery: 'history civilization empire ancient society', openStaxSubject: 'history' },
+  architecture: { arXivCategory: 'cs.CE',       arXivQuery: 'structural engineering building design seismic construction', usgs: true },
 };
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -437,6 +439,33 @@ export const OPENSTAX_BOOKS: OpenStaxBook[] = [
     pdfLink: 'https://assets.openstax.org/oscms-prodcms/media/documents/Microbiology-OP.pdf',
     epubUrl: 'https://assets.openstax.org/oscms-prodcms/media/documents/Microbiology.epub',
     studentsCount: '1.4M+', source: 'openstax',
+  },
+  {
+    id: 'world-history-v1', title: 'World History, Volume 1: to 1500', subject: 'history',
+    authors: ['A. Kordas', 'R. Lynch', 'B. Nelson', 'J. Tatlock'],
+    description: 'Global history from the earliest civilizations to 1500 — Mesopotamia, Egypt, classical Greece and Rome, the Islamic world, African empires, dynastic China, and the medieval world.',
+    cover: 'https://assets.openstax.org/oscms-prodcms/media/documents/World_History_volume_1_WebCard.svg',
+    link: 'https://openstax.org/books/world-history-volume-1/pages/1-introduction',
+    pdfLink: 'https://assets.openstax.org/oscms-prodcms/media/documents/World_History_Volume_1-WEB.pdf',
+    studentsCount: '300K+', source: 'openstax',
+  },
+  {
+    id: 'world-history-v2', title: 'World History, Volume 2: from 1400', subject: 'history',
+    authors: ['A. Kordas', 'R. Lynch', 'B. Nelson', 'J. Tatlock'],
+    description: 'The age of exploration through the modern era — global exchange, revolutions, industrialization, imperialism, the world wars, decolonization, and the contemporary world.',
+    cover: 'https://assets.openstax.org/oscms-prodcms/media/documents/World_History_volume_2_WebCard_uh6dUHf.svg',
+    link: 'https://openstax.org/books/world-history-volume-2/pages/1-introduction',
+    pdfLink: 'https://assets.openstax.org/oscms-prodcms/media/documents/World_History_Volume_2-WEB.pdf',
+    studentsCount: '300K+', source: 'openstax',
+  },
+  {
+    id: 'us-history', title: 'U.S. History', subject: 'history',
+    authors: ['P. S. Corbett', 'V. Janssen', 'J. Lund'],
+    description: 'American history from pre-Columbian societies through the twenty-first century, built around political, social, and cultural developments.',
+    cover: 'https://assets.openstax.org/oscms-prodcms/media/documents/US_history.svg',
+    link: 'https://openstax.org/books/us-history/pages/1-introduction',
+    pdfLink: 'https://assets.openstax.org/oscms-prodcms/media/documents/US_History_-_WEB.pdf',
+    studentsCount: '1M+', source: 'openstax',
   },
   {
     id: 'calculus-v1', title: 'Calculus Volume 1', subject: 'mathematics',

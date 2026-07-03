@@ -25,6 +25,8 @@ import ScrollableTabRow from './ScrollableTabRow';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { fetchPublicClubs } from '../services/backendService';
 import type { Club } from '../types';
+import TaleoFilmMuseum from './TaleoFilmMuseum';
+import { Landmark } from 'lucide-react';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -32,7 +34,7 @@ interface MoviesTVViewProps {
   onNavigate?: (view: 'WORLDS' | 'USER_PROFILE' | 'TALEO_HISTORY' | 'FILM_SCHOOL') => void;
 }
 
-type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE' | 'LIBRARY';
+type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE' | 'LIBRARY' | 'MUSEUM' | 'CLUBS';
 
 const TaleoTabNav: React.FC<{
   currentSubView: SubView;
@@ -45,6 +47,8 @@ const TaleoTabNav: React.FC<{
         { id: 'HOME',     icon: Home,        label: 'Home'     },
         { id: 'MOVIES',   icon: Film,        label: 'Movies'   },
         { id: 'TV',       icon: Monitor,     label: 'TV'       },
+        { id: 'MUSEUM',   icon: Landmark,    label: 'Museum'   },
+        { id: 'CLUBS',    icon: Users,       label: 'Clubs'    },
         { id: 'UNIVERSE', icon: Globe,       label: 'Universe' },
         { id: 'EXPLORE',  icon: ExploreIcon, label: 'Explore'  },
         { id: 'LIBRARY',  icon: Library,     label: 'Library'  },
@@ -818,6 +822,81 @@ const LibraryView: React.FC<{
   </div>
 );
 
+// ── FilmClubsView ──────────────────────────────────────────────────────────────
+// A simple browse listing of film clubs. Reuses the clubs fetched by loadContent
+// via fetchPublicClubs('Film') — no new backend imports.
+const FilmClubsView: React.FC<{
+  clubs: Club[];
+  loading: boolean;
+}> = ({ clubs, loading }) => (
+  <div className="pt-4 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
+    <div className="mb-8 pt-8">
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Fan Communities</p>
+      <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
+        Film <span className="text-[#D0BCFF]">Clubs</span>
+      </h2>
+      <p className="mt-4 text-white/40 max-w-lg text-sm leading-relaxed">
+        Join a community around the films, genres, and eras you love — watch parties, weekly picks, and discussion.
+      </p>
+    </div>
+
+    {loading ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/8">
+            <div className="aspect-[3/2] bg-white/5 animate-pulse" />
+            <div className="p-4 space-y-2">
+              <div className="h-3 w-2/3 bg-white/5 rounded-full animate-pulse" />
+              <div className="h-2 w-full bg-white/5 rounded-full animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : clubs.length > 0 ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {clubs.map(club => (
+          <motion.div
+            key={club.id}
+            whileHover={{ y: -4, scale: 1.01 }}
+            className="group cursor-pointer rounded-2xl overflow-hidden bg-white/[0.03] border border-white/8 hover:border-[#D0BCFF]/40 transition-all"
+          >
+            <div className="aspect-[3/2] relative overflow-hidden">
+              {club.coverImage ? (
+                <img src={club.coverImage} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt={club.name} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
+                  <Users size={32} className="text-white/15" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-4 right-4 flex items-center gap-2">
+                {club.iconImage && (
+                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 shrink-0 border border-white/10">
+                    <img src={club.iconImage} className="w-full h-full object-cover" alt="" />
+                  </div>
+                )}
+                <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF]">{club.memberCount || 0} members</p>
+              </div>
+            </div>
+            <div className="p-4">
+              <h4 className="text-sm font-black uppercase tracking-tight text-white group-hover:text-[#D0BCFF] transition-colors truncate">{club.name}</h4>
+              {club.description && (
+                <p className="text-[11px] text-white/40 mt-1.5 line-clamp-2 leading-relaxed">{club.description}</p>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    ) : (
+      <div className="py-24 text-center border-2 border-dashed border-white/8 rounded-3xl max-w-lg">
+        <Users className="text-white/10 mx-auto mb-4" size={48} />
+        <p className="text-white/30 font-black text-lg uppercase tracking-widest mb-2">No film clubs yet</p>
+        <p className="text-white/20 text-xs uppercase tracking-widest">Clubs are created from a film's page — open a film and start one.</p>
+      </div>
+    )}
+  </div>
+);
+
 // ── MoviesTVView ───────────────────────────────────────────────────────────────
 const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNavigate }) => {
   const [movies, setMovies] = useState<ArchiveVideo[]>([]);
@@ -1198,6 +1277,18 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
             <div className="pt-16">
               {tabNavEl}
               <LibraryView movies={movies} localContent={localContent} onSelectArchiveItem={handleSelectArchiveItem} onSelectMovie={onSelectMovie} />
+            </div>
+          )}
+          {currentSubView === 'MUSEUM' && (
+            <div className="pt-16">
+              {tabNavEl}
+              <TaleoFilmMuseum onBack={() => setCurrentSubView('HOME')} />
+            </div>
+          )}
+          {currentSubView === 'CLUBS' && (
+            <div className="pt-16">
+              {tabNavEl}
+              <FilmClubsView clubs={filmClubs} loading={isLoading} />
             </div>
           )}
           {currentSubView === 'ALLY_VIEW' && activeAllyUrl && (

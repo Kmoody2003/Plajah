@@ -5,6 +5,7 @@ import {
   TrendingUp, Newspaper, Globe, Microscope, Calculator,
   Cpu, Leaf, Star, ChevronRight, Search, Users, Brain,
   Binary, Dna, Network, Gauge, Telescope, ExternalLink, Radio,
+  Landmark, Building2,
 } from 'lucide-react';
 import { UserProfile, AppView } from '../types';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
@@ -35,11 +36,13 @@ const DISCIPLINES = [
   { id: 'data',        label: 'Data Science',      icon: TrendingUp,  color: '#63E6BE', desc: 'ML & analytics' },
   { id: 'environment', label: 'Environment',       icon: Leaf,        color: '#8BCE89', desc: 'Ecology & climate' },
   { id: 'networks',    label: 'Networks',          icon: Network,     color: '#74C0FC', desc: 'Systems & protocols' },
+  { id: 'history',     label: 'World History',     icon: Landmark,    color: '#E8590C', desc: 'Civilizations & eras' },
+  { id: 'architecture',label: 'Architecture',      icon: Building2,   color: '#B08968', desc: 'The built environment' },
 ];
 
 const PLATFORM_CONNECTIONS = [
   { id: 'BOOKS' as AppView,      icon: BookOpen,      label: 'Science Bookshelf',   desc: 'Textbooks, papers & journals',    color: '#D2691E' },
-  { id: 'CLASSROOMS' as AppView, icon: GraduationCap, label: 'STEM Classrooms',     desc: 'Expert-led courses & tutorials',  color: '#1DB954' },
+  { id: 'CLASSROOMS' as AppView, icon: GraduationCap, label: 'Plajah Academia',     desc: 'Expert-led courses & tutorials',  color: '#1DB954' },
   { id: 'DISCUSSION' as AppView, icon: MessageCircle, label: 'Academic Forums',     desc: 'Peer review & open discussion',   color: '#748FFC' },
   { id: 'ARTICLES' as AppView,   icon: Newspaper,     label: 'Research Articles',   desc: 'Papers, preprints & discoveries', color: '#00B4D8' },
 ];
@@ -54,7 +57,7 @@ const TOOLS = [
     cta: 'Browse Research',
   },
   {
-    title: 'STEM Classrooms',
+    title: 'Plajah Academia',
     desc: 'Learn from engineers, scientists, and academics. From beginner courses to advanced postgraduate material.',
     icon: GraduationCap,
     color: '#1DB954',
@@ -77,6 +80,7 @@ const DISC_ID_MAP: Record<string, LabsDisciplineId> = {
   mathematics: 'mathematics', neuroscience: 'neuroscience', earth: 'earth',
   data: 'data', environment: 'environment', medicine: 'medicine',
   networks: 'networks', archaeology: 'archaeology', linguistics: 'linguistics',
+  history: 'history', architecture: 'architecture',
 };
 
 const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate }) => {

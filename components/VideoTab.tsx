@@ -9,6 +9,7 @@ import {
   fetchUserClubs, createClubPost,
 } from '../services/backendService';
 import { captureVideoFrame } from '../src/lib/videoUtils';
+import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
 import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
@@ -450,6 +451,32 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [activeLiveStream, setActiveLiveStream] = useState<{ streamId: string; title: string; ownerName: string } | null>(null);
+
+  // Continue Watching shelf — resume in-progress videos.
+  const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getContinueWatching('VIDEO')
+      .then(entries => { if (alive) setContinueWatching(entries); })
+      .catch(() => { if (alive) setContinueWatching([]); });
+    return () => { alive = false; };
+  }, [currentUser?.uid]);
+
+  // Open a Continue Watching card: prefer the loaded Video object; fall back to a
+  // minimal Video shape so the player can still resume by id.
+  const openWatchEntry = (entry: WatchEntry) => {
+    const full = videos.find(v => v.id === entry.id);
+    if (full) { handlePlay(full); return; }
+    handlePlay({
+      id: entry.id,
+      title: entry.title || 'Video',
+      url: '',
+      ownerId: '',
+      thumbnailUrl: entry.thumbnailUrl,
+      worldId: entry.worldId,
+      timestamp: entry.updatedAt,
+    } as Video);
+  };
 
   // Share to Club
   const [shareToClubVideo, setShareToClubVideo] = useState<Video | Album | null>(null);
@@ -893,6 +920,50 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     onVisitUser={uid => onVisitUser?.(uid)}
                   />
                 </div>
+              )}
+
+              {/* Continue Watching shelf — resume in-progress videos */}
+              {!searchTerm && continueWatching.length > 0 && (
+                <section className="mb-10">
+                  <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5">
+                    <Clock className="text-small-orange" size={16} /> Continue Watching
+                  </h2>
+                  <div className="flex gap-4 overflow-x-auto pb-3 custom-scrollbar snap-x -mx-1 px-1">
+                    {continueWatching.map(entry => {
+                      const pct = entry.durationSec > 0
+                        ? Math.min(100, Math.max(0, (entry.positionSec / entry.durationSec) * 100))
+                        : 0;
+                      return (
+                        <button
+                          key={entry.id}
+                          onClick={() => openWatchEntry(entry)}
+                          className="shrink-0 snap-start w-56 text-left group"
+                        >
+                          <div className="relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 aspect-video mb-2">
+                            {entry.thumbnailUrl
+                              ? <img src={entry.thumbnailUrl} alt={entry.title || ''} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              : <div className="w-full h-full flex items-center justify-center text-white/20"><Play size={22} /></div>}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-full bg-white/0 group-hover:bg-white/20 border-2 border-white/0 group-hover:border-white/60 flex items-center justify-center transition-all scale-75 group-hover:scale-100">
+                                <Play fill="white" size={15} className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </div>
+                            {/* Progress bar */}
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                              <div className="h-full bg-small-orange" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-white leading-tight line-clamp-2 group-hover:text-small-orange transition-colors">
+                            {entry.title || 'Untitled'}
+                          </h3>
+                          {entry.ownerName && (
+                            <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate mt-0.5">{entry.ownerName}</p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               )}
 
               {/* Search results — shown instead of discover when query is active */}

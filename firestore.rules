@@ -711,6 +711,12 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Watch / listen history + Continue Watching (services/watchHistoryService).
+      // Private to the owner; localStorage is the offline fallback.
+      match /watchHistory/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Fediverse accounts (Mastodon, Bluesky, Threads) — server writes on
       // behalf of the user using their Firebase ID token. Credentials are
       // AES-256-GCM encrypted at rest; the raw token never leaves the server.

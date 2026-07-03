@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { fetchAllVideos, fetchVideoById } from '../services/backendService';
+import { fetchAllVideos, fetchVideoById, fetchVideosByInterests, fetchFollowedVideos } from '../services/backendService';
 import { shareAsset } from '../services/deepLinkService';
+import { blendRelloFeed } from '../services/relloFeedService';
+import { recordProgress } from '../services/watchHistoryService';
 import { Video } from '../types';
 import { SCIENCE_STREAMS, ScienceStream } from './scienceStreams';
 
@@ -32,7 +34,29 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     (async () => {
       const all = await fetchAllVideos();
       if (cancelled) return;
-      let relloVideos = all.filter(v => v.isRello === true);
+      const recentRello = all.filter(v => v.isRello === true);
+      let relloVideos = recentRello;
+
+      // Personalize the initial order: blend interest-scored + followed-creator
+      // Reello shorts with trending/fresh. Falls back to the flat recent list when
+      // signed out or when the personalization calls fail/return empty.
+      const uid = currentUser?.uid;
+      if (uid) {
+        try {
+          const [interested, followed] = await Promise.all([
+            fetchVideosByInterests(uid).catch(() => [] as Video[]),
+            fetchFollowedVideos(uid).catch(() => [] as Video[]),
+          ]);
+          if (cancelled) return;
+          const onlyRello = (vs: Video[]) => vs.filter(v => v.isRello === true);
+          const blended = blendRelloFeed({
+            interestVideos: onlyRello(interested),
+            followedVideos: onlyRello(followed),
+            recentVideos: recentRello,
+          });
+          if (blended.length > 0) relloVideos = blended;
+        } catch { /* keep flat recent list */ }
+      }
       // A shared link → start on that video, surfacing it first. The feed is only
       // the recent-50, so fetch the exact video by id if it isn't already there.
       if (initialVideoId) {
@@ -47,7 +71,42 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [initialVideoId]);
+  }, [initialVideoId, currentUser?.uid]);
+
+  // Record watch progress for the currently-playing Reello short (throttled ~5s
+  // + on pause + on unmount / index change).
+  const current = videos[currentIndex] ?? null;
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !current) return;
+    let last = 0;
+    const record = () => {
+      const dur = el.duration;
+      const pos = el.currentTime;
+      if (!(dur > 0) || isNaN(dur) || !(pos > 0) || isNaN(pos)) return;
+      recordProgress({
+        id: current.id,
+        kind: 'RELLO',
+        title: current.title,
+        thumbnailUrl: current.thumbnailUrl || current.coverImageUrl || undefined,
+        ownerName: current.artist || undefined,
+        positionSec: pos,
+        durationSec: dur,
+        worldId: current.worldId,
+      }).catch(() => {});
+    };
+    const onTime = () => {
+      const now = Date.now();
+      if (now - last >= 5000) { last = now; record(); }
+    };
+    el.addEventListener('timeupdate', onTime);
+    el.addEventListener('pause', record);
+    return () => {
+      el.removeEventListener('timeupdate', onTime);
+      el.removeEventListener('pause', record);
+      record();
+    };
+  }, [current?.id]);
 
   const shareCurrent = async () => {
     if (!current) return;
@@ -58,8 +117,6 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
 
   const goNext = () => setCurrentIndex(i => Math.min(i + 1, videos.length - 1));
   const goPrev = () => setCurrentIndex(i => Math.max(i - 1, 0));
-
-  const current = videos[currentIndex] ?? null;
 
   return (
     <div className="w-full h-screen bg-black overflow-hidden relative flex items-center justify-center">

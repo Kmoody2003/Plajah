@@ -2903,7 +2903,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {isOwnProfile ? (
                   <PhotoManager profile={profile} onUpdate={setProfile} />
                 ) : (
-                  <PhotoGallery uid={uid} isOwner={isOwnProfile} />
+                  <PhotoGallery uid={uid} isOwner={isOwnProfile} onOpenArtGallery={onNavigate ? () => onNavigate('ART_GALLERY') : undefined} />
                 )}
               </motion.div>
             ) : activeTab === 'LIVE_TV' ? (

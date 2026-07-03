@@ -7,6 +7,7 @@ import {
   FileText, Database, Package, Users, Clock,
   Telescope, FlaskConical, Dna, Binary, Atom, Calculator,
   AlertCircle, TrendingUp, Microscope, Leaf, MessageSquare,
+  Landmark, Building2,
 } from 'lucide-react';
 import { motion as m } from 'motion/react';
 import {
@@ -50,6 +51,8 @@ const DISC_META: Record<LabsDisciplineId, DisciplineMeta> = {
   networks:     { label: 'Networks',         color: '#74C0FC', secondaryColor: '#339AF0', description: 'Distributed systems, protocols, graph theory, and network science', icon: Zap, keywords: ['protocol', 'distributed', 'graph', 'topology'] },
   archaeology:  { label: 'Archaeology',      color: '#D4A017', secondaryColor: '#A07800', description: 'Human origins, material culture, dating methods, and ancient societies', icon: Globe, keywords: ['excavation', 'dating', 'ancient', 'anthropology'] },
   linguistics:  { label: 'Linguistics',      color: '#94D82D', secondaryColor: '#74B816', description: 'Language structure, semantics, computational linguistics, and NLP', icon: Binary, keywords: ['syntax', 'morphology', 'NLP', 'language'] },
+  history:      { label: 'World History',    color: '#E8590C', secondaryColor: '#A63E08', description: 'Civilizations, empires, revolutions, and the forces that shaped the modern world', icon: Landmark, keywords: ['civilization', 'empire', 'revolution', 'ancient'] },
+  architecture: { label: 'Architecture',     color: '#B08968', secondaryColor: '#8A6A4F', description: 'Building design, structural engineering, construction, codes, and the built environment', icon: Building2, keywords: ['structural', 'building', 'urbanism', 'construction'] },
 };
 
 // ── Source badge ──────────────────────────────────────────────────────────────

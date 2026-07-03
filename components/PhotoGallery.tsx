@@ -1,16 +1,70 @@
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Image, Play, Pause, Music, Plus, X, ChevronLeft, ChevronRight, Maximize2, Sparkles, Layout, Globe } from 'lucide-react';
+import { Image, Play, Pause, Music, Plus, X, ChevronLeft, ChevronRight, Maximize2, Sparkles, Layout, Globe, Palette, Aperture } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Photo, Track } from '../types';
 import { fetchUserPhotos, uploadPhoto, fetchRadioTracks, fetchUserWorldPhotos } from '../services/backendService';
+import { fetchExif, type ExifData } from '../services/exifService';
 
 interface PhotoGalleryProps {
   uid: string;
   isOwner: boolean;
+  /**
+   * Navigate to the digital Art Gallery / The Masters museum.
+   * Wire in App.tsx to `setView('ART_GALLERY')` — see INTEGRATION SPEC.
+   */
+  onOpenArtGallery?: () => void;
 }
 
-const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
+// ── EXIF chip strip for the lightbox ─────────────────────────────────────────
+const ExifStrip: React.FC<{ photo: Photo }> = ({ photo }) => {
+  const [exif, setExif] = useState<ExifData | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setExif(null);
+    setChecked(false);
+    if (!photo.url) { setChecked(true); return; }
+    fetchExif(photo.url).then(d => { if (alive) { setExif(d); setChecked(true); } });
+    return () => { alive = false; };
+  }, [photo.url]);
+
+  // Metadata we always have on the Photo record, shown as a fallback / supplement.
+  const stored: [string, string][] = [];
+  if (photo.tags?.length) stored.push(['Tags', photo.tags.slice(0, 4).join(' · ')]);
+  stored.push(['Added', new Date(photo.timestamp).toLocaleDateString()]);
+
+  const fields: [string, string][] = [];
+  if (exif) {
+    if (exif.camera) fields.push(['Camera', exif.camera]);
+    if (exif.lens) fields.push(['Lens', exif.lens]);
+    if (exif.focalLength) fields.push(['Focal', exif.focalLength]);
+    if (exif.aperture) fields.push(['Aperture', exif.aperture]);
+    if (exif.shutter) fields.push(['Shutter', exif.shutter]);
+    if (exif.iso) fields.push(['ISO', exif.iso.replace('ISO ', '')]);
+    if (exif.dimensions) fields.push(['Size', exif.dimensions]);
+    if (exif.dateTaken) fields.push(['Taken', exif.dateTaken]);
+  }
+  const rows = fields.length ? fields : stored;
+
+  return (
+    <div className="pointer-events-auto max-w-[92vw] mx-auto flex flex-wrap items-center justify-center gap-2">
+      <span className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.3em] text-white/40">
+        <Aperture size={11} /> {fields.length ? 'EXIF' : 'Details'}
+      </span>
+      {!checked ? (
+        <span className="text-[9px] font-bold uppercase tracking-widest text-white/25">Reading metadata…</span>
+      ) : rows.map(([k, v]) => (
+        <span key={k} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[9px] font-bold text-white/70">
+          <span className="text-white/35">{k}</span> {v}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGallery }) => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [worldPhotos, setWorldPhotos] = useState<Photo[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | 'FROM_WORLDS'>('ALL');
@@ -136,6 +190,15 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {onOpenArtGallery && (
+            <button
+              onClick={onOpenArtGallery}
+              className="px-6 py-3 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-white/10 transition-all"
+              title="Explore the digital art museum and The Masters"
+            >
+              <Palette size={14} className="text-[#C9A55C]" /> Art Gallery · The Masters
+            </button>
+          )}
           {isOwner && (
             <label className="px-6 py-3 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-white/10 transition-all cursor-pointer">
               <Plus size={14} /> Upload Photo
@@ -269,13 +332,15 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner }) => {
               </button>
             )}
 
-            {/* Caption (fades in at bottom on hover) */}
-            {(lightboxPhoto.title || lightboxPhoto.description) && (
-              <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent text-center pointer-events-none">
-                {lightboxPhoto.title && <p className="font-black text-lg uppercase tracking-tight">{lightboxPhoto.title}</p>}
-                {lightboxPhoto.description && <p className="text-white/50 text-sm mt-1">{lightboxPhoto.description}</p>}
-              </div>
-            )}
+            {/* Caption + EXIF (fades in at bottom) */}
+            <div
+              className="absolute bottom-0 inset-x-0 p-6 pt-16 bg-gradient-to-t from-black/85 via-black/40 to-transparent text-center pointer-events-none space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {lightboxPhoto.title && <p className="font-black text-lg uppercase tracking-tight">{lightboxPhoto.title}</p>}
+              {lightboxPhoto.description && <p className="text-white/50 text-sm">{lightboxPhoto.description}</p>}
+              <ExifStrip photo={lightboxPhoto} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>, document.body)}

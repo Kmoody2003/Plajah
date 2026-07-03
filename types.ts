@@ -2122,6 +2122,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'CHORA_HISTORY' | 'TALEO_HISTORY'
   // Music Theory Studio — Chora
   | 'MUSIC_THEORY'
+  // Chora Conservatory — music museum (composers/musicians) + music history
+  | 'CHORA_CONSERVATORY'
   // Film School — Taleo
   | 'FILM_SCHOOL'
   // Math Classroom (BETA) — Classrooms

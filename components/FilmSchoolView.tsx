@@ -147,6 +147,36 @@ const FILM_MODULES: FilmModule[] = [
       },
     ],
   },
+  {
+    id: 'acting-and-the-craft',
+    title: 'Acting & the Craft',
+    subtitle: 'Technique lineages, scene study, and the audition',
+    emoji: '🎭',
+    duration: '16 min',
+    category: 'Acting',
+    sections: [
+      {
+        heading: 'Technique Lineages',
+        body: 'Modern screen acting descends from Konstantin Stanislavski\'s "system" — the pursuit of truthful behavior under imaginary circumstances through given circumstances, objectives, and emotional memory. In America his ideas branched. Lee Strasberg\'s Method (the Actors Studio) intensified affective/emotional memory — mining the actor\'s own past to fuel the scene. Stella Adler rejected that, insisting instead on the imagination and specificity of the given circumstances. Sanford Meisner distilled it further into "living truthfully under imaginary circumstances," building his technique on the Repetition Exercise to pull attention off oneself and onto the partner. David Mamet and William H. Macy\'s Practical Aesthetics reframed the whole thing as analysis and action — no wallowing, just play the action.',
+        callout: 'Stanislavski is the root; Method, Meisner, Adler, and Practical Aesthetics are the branches.',
+      },
+      {
+        heading: 'Scene-Study Fundamentals',
+        body: 'Every scene is a negotiation. Before the actor speaks a line they must know: What does my character want in this scene (the objective)? What am I willing to do to get it (the actions/tactics)? Who is stopping me (the obstacle)? Actors break a script into "beats" — units of action that shift when a tactic changes. The verb is everything: "to seduce," "to warn," "to shame" — an active, playable verb that acts on the other person. Amateurs play emotions ("be sad"); professionals play actions and let emotion arrive as a byproduct. Listening — actually receiving what the partner does — is the entire game. As Meisner said, acting is "the reality of doing."',
+        callout: 'Play the action, not the emotion. Emotion is the result, never the goal.',
+      },
+      {
+        heading: 'Audition Craft',
+        body: 'The audition is a separate skill from acting. The reader is usually flat and off-camera, so the actor must supply the whole scene\'s life alone. Make a strong, specific choice in the first ten seconds — casting directors decide fast. Own your mistakes: never apologize or restart unless invited; stay in it. Frame your eyeline just off the lens, not into it. For self-tapes: clean audio, even light, plain background, and a slate that\'s warm but brief. Know your sides cold enough to lift your eyes off the page. And detach from the outcome — you are auditioning for the room as much as the role; your job is to give a clear, alive read and leave.',
+        callout: 'Make a bold choice in the first ten seconds. Indecision reads as fear.',
+      },
+      {
+        heading: 'Voice & Movement',
+        body: 'The body is the instrument, and it must be tuned. Voice work — breath support from the diaphragm, resonance, articulation, and release of tension — lets an actor be heard and stay truthful under pressure; the lineages here run through Kristin Linklater ("freeing the natural voice") and Cicely Berry at the RSC. Movement disciplines give the body a vocabulary: Rudolf Laban\'s effort system (weight, space, time, flow) helps an actor find how a character walks, gestures, and occupies space; the Alexander Technique undoes habitual tension; Michael Chekhov\'s Psychological Gesture externalizes a character\'s inner drive into a single physical shape. Great physical transformation — posture, rhythm, center of gravity — often communicates character faster than any line of dialogue.',
+        callout: 'Character lives in the body: how they breathe, stand, and take up space.',
+      },
+    ],
+  },
 ];
 
 // ── Script Vault ───────────────────────────────────────────────────────────────
@@ -371,7 +401,7 @@ const ModuleDetail: React.FC<{ module: FilmModule; onClose: () => void }> = ({ m
 // ── Main component ─────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.FC<any>> = {
   Story: BookOpen, Writing: Pen, Characters: Users,
-  Direction: Clapperboard, Cinematography: Camera,
+  Direction: Clapperboard, Cinematography: Camera, Acting: Star,
 };
 
 const FilmSchoolView: React.FC<Props> = ({ onBack }) => {

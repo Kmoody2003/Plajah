@@ -33,6 +33,7 @@ import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
 const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
+const ChoraConservatory = lazy(() => import('./ChoraConservatory'));
 
 // ── World Cup Anthem Banner ────────────────────────────────────────────────────
 const WcAnthemBanner: React.FC<{ onOpenPlaylist: () => void }> = ({ onOpenPlaylist }) => {
@@ -223,6 +224,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const [selectedAudiusArtist, setSelectedAudiusArtist] = useState<AudiusArtist | null>(null);
   const [selectedAudiusAlbum, setSelectedAudiusAlbum]   = useState<AudiusAlbum | null>(null);
+  const [showConservatory, setShowConservatory] = useState(false);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
 
   const [personalPlaylists, setPersonalPlaylists] = useState<Playlist[]>([]);
@@ -839,6 +841,19 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     );
   }
 
+  // ── Chora Conservatory overlay ─────────────────────────────────────────────
+  if (showConservatory) {
+    return (
+      <Suspense fallback={
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#E0A458]/30 border-t-[#E0A458] rounded-full animate-spin" />
+        </div>
+      }>
+        <ChoraConservatory onBack={() => setShowConservatory(false)} />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative">
       {bgAlbums.length > 0 && (
@@ -873,7 +888,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               {(['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); }}
+                  onClick={() => { setActiveTab(tab); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setShowConservatory(false); }}
                   className={`text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all pb-1 border-b-2 shrink-0 ${activeTab === tab ? 'text-small-orange border-small-orange' : s.tabInactive}`}
                 >
                   {tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ')}
@@ -905,12 +920,38 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             </div>
           </nav>
 
-          {/* History Moments + Music Theory Studio — below tab bar, always visible */}
-          {onNavigate && (
+          {/* Conservatory + History Moments + Music Theory Studio — below tab bar */}
+          {(onNavigate || true) && (
             <div className="flex gap-4 px-4 sm:px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
+              {/* Chora Conservatory — music museum + history */}
+              <button
+                onClick={() => setShowConservatory(true)}
+                className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                style={{ border: '1px solid rgba(224,164,88,0.4)' }}
+              >
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
+                  alt="Conservatory"
+                  className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
+                  style={{ filter: 'brightness(0.45) saturate(1.3) sepia(0.25)' }}
+                />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(224,164,88,0.35) 0%, transparent 45%, rgba(0,0,0,0.85) 100%)' }} />
+                <div className="relative h-full flex flex-col justify-between p-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#E0A458' }} />
+                    <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#E0A458' }}>The Museum</span>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(224,164,88,0.85)' }}>Bach to Coltrane to Aretha</p>
+                    <h3 className="text-base font-black text-white leading-tight">The Conservatory</h3>
+                    <p className="text-[9px] text-white/50 mt-0.5">Masters &amp; a history of music →</p>
+                  </div>
+                </div>
+              </button>
+
               {/* History Moments */}
               <button
-                onClick={() => onNavigate('CHORA_HISTORY')}
+                onClick={() => onNavigate?.('CHORA_HISTORY')}
                 className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
                 style={{ border: '1px solid rgba(167,139,250,0.35)' }}
               >
@@ -936,7 +977,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
               {/* Music Theory Studio */}
               <button
-                onClick={() => onNavigate('MUSIC_THEORY')}
+                onClick={() => onNavigate?.('MUSIC_THEORY')}
                 className="shrink-0 relative w-64 h-36 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
                 style={{ border: '1px solid rgba(99,102,241,0.35)' }}
               >

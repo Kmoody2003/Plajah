@@ -54,6 +54,8 @@ const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
 const GamesView = retryLazy(() => import('./components/GamesView'));
 const MusicView = retryLazy(() => import('./components/MusicView'));
+const ArtGalleryView = retryLazy(() => import('./components/ArtGalleryView'));
+const ChoraConservatory = retryLazy(() => import('./components/ChoraConservatory'));
 const PrivateBoardsView = retryLazy(() => import('./components/PrivateBoardsView'));
 const AdminAdDashboard = retryLazy(() => import('./components/AdminAdDashboard'));
 const ChatSystem = retryLazy(() => import('./components/ChatSystem'));
@@ -2273,7 +2275,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark },
                         SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
                         STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag },
-                        CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
+                        CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
                         GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                         PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart },
@@ -2317,7 +2319,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         PLAJAH_ELEVATE: "The directory for churches, religious organizations, cultural institutions, and nonprofits.",
                         SANCTUARY_HUB: "Support your favorite creators with exclusive memberships, private content, and more.",
                         STORE_HUB: "Shop merch, collectibles, and digital goods from artists across the platform.",
-                        CLASSROOMS: "Learn new skills from experts in our interactive classrooms.",
+                        CLASSROOMS: "Plajah Academia — world history, architecture, interactive modules, and expert-led classes.",
                         PPV_EVENTS: "Join live pay-per-view events and exclusive broadcasts.",
                         GLOBAL_PHOTOS: "Explore photos, art gallery views, event albums, imports, portfolios, and spatial media.",
                         PAY_IT_FORWARD: "Support the community through our unique giving platform.",
@@ -2422,7 +2424,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
-                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
+                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                       GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
@@ -2509,7 +2511,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
-                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Classrooms', icon: GraduationCap },
+                      STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                       GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
@@ -3088,7 +3090,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'CLUBS', icon: Users, label: 'Clubs' },
                         { id: 'CHAT', icon: MessageSquare, label: 'Chat' },
                         { id: 'FEED', icon: Rss, label: 'Social' },
-                        { id: 'CLASSROOMS', icon: GraduationCap, label: 'Classes' },
+                        { id: 'CLASSROOMS', icon: GraduationCap, label: 'Academia' },
                         { id: 'GLOBAL_PHOTOS', icon: Camera, label: 'Photos' },
                         { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
@@ -3747,6 +3749,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {/* ── Chora Conservatory — music museum + history ── */}
+            {view === 'CHORA_CONSERVATORY' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <ChoraConservatory onBack={() => setView('MUSIC')} />
+              </Suspense>
+            )}
+
             {/* ── Film & TV School ── */}
             {view === 'FILM_SCHOOL' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
@@ -3814,8 +3823,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
             {view === 'CLASSROOMS' && <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />}
-            {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" />}
-            {view === 'ART_GALLERY' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="GALLERY" />}
+            {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" onOpenArtMuseum={() => setView('ART_GALLERY')} />}
+            {view === 'ART_GALLERY' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
+                <ArtGalleryView onBack={() => setView('GLOBAL_PHOTOS')} currentUser={user} />
+              </Suspense>
+            )}
             {view === 'EVENT_PHOTO_POOL' && selectedPoolId && (
               <EventPhotoPoolView 
                 poolId={selectedPoolId} 
@@ -4087,7 +4100,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               let defaultType: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' = 'MUSIC';
             if (view === 'VIDEOS') defaultType = 'VIDEO';
             else if (view === 'BOOKS') defaultType = 'BOOK';
-            else if (view === 'GLOBAL_PHOTOS' || view === 'ART_GALLERY') defaultType = 'PHOTO';
+            else if (view === 'GLOBAL_PHOTOS') defaultType = 'PHOTO';
             setEditingAlbum({ type: defaultType } as any);
             setShowCreator(true);
           }}

@@ -5,6 +5,7 @@ import {
   fetchUserProfile, checkIfLiked, updateVideo, auth,
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
+import { recordProgress, getResumePosition } from '../services/watchHistoryService';
 import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
@@ -576,6 +577,65 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     }
   }, [isMuted, volume]);
 
+  // ── Watch history: throttled progress recording + resume ──────────────────
+  const lastRecordRef = useRef(0);
+  const resumeAppliedRef = useRef(false);
+  const [resumeHint, setResumeHint] = useState<number | null>(null);
+
+  const doRecord = useCallback(() => {
+    if (!video?.id) return;
+    if (!(duration > 0) || isNaN(duration)) return;      // guard NaN / 0 duration
+    if (!(currentTime > 0) || isNaN(currentTime)) return;
+    recordProgress({
+      id: video.id,
+      kind: 'VIDEO',
+      title: video.title,
+      thumbnailUrl: video.thumbnailUrl || video.coverImageUrl || undefined,
+      ownerName: ownerProfile?.displayName || video.artist || undefined,
+      positionSec: currentTime,
+      durationSec: duration,
+      worldId: video.worldId,
+    }).catch(() => { /* non-fatal */ });
+  }, [video?.id, video?.title, video?.thumbnailUrl, video?.coverImageUrl, video?.artist, video?.worldId, ownerProfile?.displayName, currentTime, duration]);
+
+  // Throttle to ~once per 5s while playing.
+  useEffect(() => {
+    if (!isPlaying) return;
+    const now = Date.now();
+    if (now - lastRecordRef.current >= 5000) {
+      lastRecordRef.current = now;
+      doRecord();
+    }
+  }, [currentTime, isPlaying, doRecord]);
+
+  // Record on pause.
+  useEffect(() => {
+    if (!isPlaying) doRecord();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying]);
+
+  // Record a final position on unmount.
+  useEffect(() => {
+    return () => { doRecord(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Resume from last position once the duration is known (skip if near the end).
+  useEffect(() => {
+    if (resumeAppliedRef.current) return;
+    if (!video?.id || !(duration > 0) || isNaN(duration)) return;
+    resumeAppliedRef.current = true;
+    const pos = getResumePosition(video.id);
+    if (pos > 3 && pos < duration - 15) {
+      seek(pos);
+      setResumeHint(pos);
+      setTimeout(() => setResumeHint(null), 5000);
+    }
+  }, [video?.id, duration, seek]);
+
+  // Reset resume guard when the video changes.
+  useEffect(() => { resumeAppliedRef.current = false; setResumeHint(null); }, [video?.id]);
+
   const togglePlay = useCallback(() => {
     const el = localVideoRef.current;
     if (el) {
@@ -829,6 +889,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                     {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                   </button>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Resume-from toast */}
+          <AnimatePresence>
+            {resumeHint !== null && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-black/70 backdrop-blur-md rounded-full text-white pointer-events-none"
+              >
+                <span className="text-[9px] font-black uppercase tracking-widest">Resumed from {fmt(resumeHint)}</span>
               </motion.div>
             )}
           </AnimatePresence>
