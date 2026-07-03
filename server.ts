@@ -2237,6 +2237,60 @@ async function startServer() {
     }
   });
 
+  // ── Audio → time-coded captions (Chora "Sync Lyrics") ───────────────────────
+  // Server-side Gemini transcription so the API key never ships in the client
+  // bundle (the old client-side path silently no-op'd in prod because the key
+  // wasn't baked in). The client sends the track's audio URL; we fetch it and
+  // transcribe with timestamps. Logged-in + rate-limited.
+  app.post('/api/ai/captions', apiLimiter, authMiddleware, async (req: any, res) => {
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
+    if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
+    const { audioUrl, title, artist } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string };
+    if (!audioUrl || !/^https?:\/\//.test(audioUrl)) return res.status(400).json({ error: 'audioUrl required' });
+    try {
+      const aRes = await fetch(audioUrl, { signal: AbortSignal.timeout(25000) });
+      if (!aRes.ok) return res.status(502).json({ error: `audio fetch ${aRes.status}` });
+      const mimeType = (aRes.headers.get('content-type') || 'audio/mpeg').split(';')[0];
+      const buf = Buffer.from(await aRes.arrayBuffer());
+      if (buf.length > 22 * 1024 * 1024) return res.status(413).json({ error: 'audio too large to transcribe' });
+      const audioBase64 = buf.toString('base64');
+
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const genai = new GoogleGenAI({ apiKey: geminiKey });
+      const response = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { inlineData: { data: audioBase64, mimeType } },
+          { text: `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
+
+Rules:
+- Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
+- Cover every section: intro, verses, pre-chorus, chorus, bridge, outro, and any spoken parts.
+- For purely instrumental gaps longer than 3 seconds with no vocals, add an "(instrumental)" entry with the correct start time.
+- Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
+- Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
+- Sort all entries by ascending time.
+- The last entry must be close to the actual end of the audio — do not stop early.` },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
+          },
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      });
+      let captions: any[] = [];
+      try { captions = JSON.parse((response as any).text || '[]'); } catch { captions = []; }
+      captions = Array.isArray(captions) ? captions.filter(c => typeof c?.time === 'number' && typeof c?.text === 'string') : [];
+      res.json({ captions });
+    } catch (err: any) {
+      console.error('[AI] captions failed:', err?.message || err);
+      res.status(502).json({ error: 'caption generation failed' });
+    }
+  });
+
   // ── Manager Suite: publish due scheduled posts (cron) ───────────────────────
   // Robust, browser-independent publisher. A scheduler (Cloud Scheduler, cron,
   // or any uptime pinger) hits this every minute:

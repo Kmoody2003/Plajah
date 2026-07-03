@@ -8,10 +8,9 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
-import { generateTimeCodedCaptions } from '../services/geminiService';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -736,42 +735,31 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   const handleGenerateCaptions = async () => {
     if (!currentTrack.url || isGeneratingCaptions) return;
-    
+
     setIsGeneratingCaptions(true);
     try {
-      // 1. Fetch audio as blob
-      const response = await fetch(currentTrack.url);
-      const blob = await response.blob();
-      
-      // 2. Convert to base64
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
+      // Server-side Gemini transcription: send the audio URL (the server fetches
+      // it and returns time-coded captions), so the API key stays off the client.
+      const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+      const res = await fetch('/api/ai/captions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ audioUrl: currentTrack.url, title: currentTrack.title, artist: album.artist }),
       });
-      reader.readAsDataURL(blob);
-      const base64 = await base64Promise;
-      
-      // 3. Generate captions
-      const captions = await generateTimeCodedCaptions(base64, blob.type, currentTrack.title, album.artist);
-      
-      if (captions && captions.length > 0) {
-        // 4. Update album locally and in cloud
+      if (!res.ok) throw new Error(`captions ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+      const captions = data?.captions;
+
+      if (Array.isArray(captions) && captions.length > 0) {
         const updatedTracks = [...album.tracks];
-        updatedTracks[currentTrackIndex] = {
-          ...currentTrack,
-          timeCodedLyrics: captions
-        };
-        
+        updatedTracks[currentTrackIndex] = { ...currentTrack, timeCodedLyrics: captions };
         const updatedAlbum = { ...album, tracks: updatedTracks };
-        
         if (!isPreview) {
           await updateAlbum(album.id, { tracks: updatedTracks });
         }
-        
         onUpdate?.(updatedAlbum);
+      } else {
+        console.warn('Caption generation returned no lines.');
       }
     } catch (error) {
       console.error("Failed to generate captions:", error);
