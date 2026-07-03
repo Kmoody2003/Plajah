@@ -27,6 +27,7 @@ import { fetchPublicClubs } from '../services/backendService';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
 import { Landmark } from 'lucide-react';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -125,7 +126,7 @@ const PosterCard: React.FC<{
   <motion.div whileHover={{ y: -5 }} onClick={onPlay} className={`group cursor-pointer ${width}`}>
     <div className={`aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border transition-all duration-300 ${accentBorder ? 'border-[#D0BCFF]/20 group-hover:border-[#D0BCFF]/50' : 'border-white/8 group-hover:border-white/20'}`}>
       {image ? (
-        <img src={image} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
+        <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <Film size={28} className="text-white/10" />
@@ -429,7 +430,10 @@ const HomeView: React.FC<{
                 >
                   {(currentWorld as any).headerImage || (currentWorld as any).coverImage ? (
                     <img
-                      src={(currentWorld as any).headerImage || (currentWorld as any).coverImage}
+                      src={thumb((currentWorld as any).headerImage || (currentWorld as any).coverImage, THUMB.large) || undefined}
+                      loading="lazy"
+                      decoding="async"
+                      onError={onThumbError((currentWorld as any).headerImage || (currentWorld as any).coverImage)}
                       className="w-full h-full object-cover"
                       alt={currentWorld.name}
                     />
@@ -484,7 +488,7 @@ const HomeView: React.FC<{
                   >
                     <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border border-white/8 group-hover:border-[#D0BCFF]/40 transition-all duration-300">
                       {image ? (
-                        <img src={image} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={v.title} />
+                        <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={v.title} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Film size={28} className="text-white/10" />
@@ -519,7 +523,9 @@ const HomeView: React.FC<{
                 <div key={char.id} className="w-44 flex-shrink-0">
                   <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-white/5 border border-white/8 mb-3 relative">
                     <img
-                      src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=2A2040&color=D0BCFF&size=400`}
+                      src={thumb(char.imageUrl, THUMB.card) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=2A2040&color=D0BCFF&size=400`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                       alt={char.name}
                       onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=2A2040&color=D0BCFF`; }}
@@ -580,7 +586,7 @@ const HomeView: React.FC<{
                   className="group cursor-pointer relative aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/8 hover:border-white/20 transition-all"
                 >
                   {m.thumbnailUrl && (
-                    <img src={m.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-600" alt={m.title} />
+                    <img src={thumb(m.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(m.thumbnailUrl)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-600" alt={m.title} />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -633,7 +639,7 @@ const HomeView: React.FC<{
                 >
                   <div className="aspect-[3/2] rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[#D0BCFF]/40 transition-all relative mb-3">
                     {club.coverImage ? (
-                      <img src={club.coverImage} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={club.name} />
+                      <img src={thumb(club.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={club.name} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
                         <Users size={28} className="text-white/20" />
@@ -643,7 +649,7 @@ const HomeView: React.FC<{
                     <div className="absolute bottom-2 left-3 right-3 flex items-center gap-2">
                       {club.iconImage && (
                         <div className="w-6 h-6 rounded-lg overflow-hidden bg-white/10 shrink-0 border border-white/10">
-                          <img src={club.iconImage} className="w-full h-full object-cover" alt="" />
+                          <img src={thumb(club.iconImage, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.iconImage)} className="w-full h-full object-cover" alt="" />
                         </div>
                       )}
                       <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF] truncate">{club.memberCount || 0} members</p>
@@ -672,7 +678,7 @@ const HomeView: React.FC<{
                   onClick={() => onSelectCuratedPlaylist(pl)}
                 >
                   {pl.thumbnailUrl && (
-                    <img src={pl.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={pl.title} />
+                    <img src={thumb(pl.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(pl.thumbnailUrl)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={pl.title} />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -803,7 +809,7 @@ const LibraryView: React.FC<{
             className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/8 hover:border-[#D0BCFF]/30 transition-all cursor-pointer"
             onClick={() => onSelectMovie(video)}
           >
-            <img src={video.coverImage || undefined} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
+            <img src={thumb(video.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
             <div className="absolute bottom-0 p-4 w-full">
               <h4 className="text-sm font-black truncate uppercase tracking-tight">{video.title}</h4>
@@ -862,7 +868,7 @@ const FilmClubsView: React.FC<{
           >
             <div className="aspect-[3/2] relative overflow-hidden">
               {club.coverImage ? (
-                <img src={club.coverImage} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt={club.name} />
+                <img src={thumb(club.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt={club.name} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
                   <Users size={32} className="text-white/15" />
@@ -872,7 +878,7 @@ const FilmClubsView: React.FC<{
               <div className="absolute bottom-3 left-4 right-4 flex items-center gap-2">
                 {club.iconImage && (
                   <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 shrink-0 border border-white/10">
-                    <img src={club.iconImage} className="w-full h-full object-cover" alt="" />
+                    <img src={thumb(club.iconImage, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.iconImage)} className="w-full h-full object-cover" alt="" />
                   </div>
                 )}
                 <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF]">{club.memberCount || 0} members</p>
@@ -1168,7 +1174,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                     >
                       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-white/20 transition-all relative">
                         {item.thumbnailUrl ? (
-                          <img src={item.thumbnailUrl} loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={item.title} />
+                          <img src={thumb(item.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(item.thumbnailUrl)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={item.title} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Film size={32} className="text-white/10" />

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Volume2, Music2, Disc3 } from 'lucide-react';
 import { Album, UserProfile } from '../types';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface AlbumAdBillboardProps {
   album: Album;
@@ -144,7 +145,10 @@ const AlbumAdBillboard: React.FC<AlbumAdBillboardProps> = ({
         >
           {album.coverImage ? (
             <img
-              src={album.coverImage}
+              src={thumb(album.coverImage, THUMB.card) || undefined}
+              onError={onThumbError(album.coverImage)}
+              loading="lazy"
+              decoding="async"
               alt={album.title}
               className="w-full h-full object-cover transition-transform duration-700 group-hover/thumb:scale-105"
             />

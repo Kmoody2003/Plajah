@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { scoreText } from '../src/lib/scoreText';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
@@ -159,7 +160,7 @@ const LiveTalkDiscovery: React.FC<{
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-3">
                       <div className="relative">
-                         <img loading="lazy" decoding="async" src={talk.hostPhoto || null} className="w-12 h-12 rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                         <img loading="lazy" decoding="async" src={thumb(talk.hostPhoto, THUMB.micro) || null} onError={onThumbError(talk.hostPhoto)} className="w-12 h-12 rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-black border border-white/10 rounded-full flex items-center justify-center">
                             <Mic size={10} className="text-primary" />
                          </div>
@@ -260,7 +261,7 @@ const UserHoverCard: React.FC<{
     <div className="absolute bottom-full left-0 mb-4 w-64 bg-theme-card/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-3xl z-[100] animate-in fade-in slide-in-from-bottom-2">
       <div className="flex items-center gap-4 mb-6">
         <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-white/5">
-          <img src={userPhoto || `https://picsum.photos/seed/${userId}/100/100`} alt={userName} className="w-full h-full object-cover" loading="lazy" />
+          <img src={thumb(userPhoto, THUMB.micro) || `https://picsum.photos/seed/${userId}/100/100`} onError={onThumbError(userPhoto)} decoding="async" alt={userName} className="w-full h-full object-cover" loading="lazy" />
         </div>
         <div className="min-w-0">
           <h4 className="font-black text-sm uppercase tracking-tight truncate text-white">{userName}</h4>
@@ -944,9 +945,10 @@ const FeedItemComponent: React.FC<{
             onMouseLeave={() => setHoveredUserId(null)}
           >
             {item.authorPhoto ? (
-              <img loading="lazy" decoding="async" 
-                src={item.authorPhoto || null} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110" 
+              <img loading="lazy" decoding="async"
+                src={thumb(item.authorPhoto, THUMB.card) || null}
+                onError={onThumbError(item.authorPhoto)}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -1228,7 +1230,7 @@ const RecommendedClubsEmptyState: React.FC = () => {
             {clubs.map((club: any) => (
               <div key={club.id} className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-left hover:bg-white/5 transition-colors cursor-pointer">
                 {club.bannerImage && (
-                  <img src={club.bannerImage} alt="" className="w-full h-16 object-cover rounded-xl mb-3"/>
+                  <img src={thumb(club.bannerImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.bannerImage)} alt="" className="w-full h-16 object-cover rounded-xl mb-3"/>
                 )}
                 <div className="font-bold text-sm truncate">{club.name}</div>
                 <div className="text-xs text-white/30 mt-1 line-clamp-2">{club.description}</div>
@@ -2498,7 +2500,7 @@ const toggleFavoriteTeam = async (team: string) => {
                           <div className="flex items-center justify-between">
                              <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center font-black text-xs text-small-orange overflow-hidden">
-                                  <img loading="lazy" decoding="async" src={item.authorPhoto || null} className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={thumb(item.authorPhoto, THUMB.micro) || null} onError={onThumbError(item.authorPhoto)} className="w-full h-full object-cover" />
                                </div>
                                <div>
                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">{item.authorName}</h4>
@@ -2558,7 +2560,7 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10">
-              <img loading="lazy" decoding="async" src={suggestedArtist.photoURL || `https://picsum.photos/seed/${suggestedArtist.uid}/100/100`} alt={suggestedArtist.displayName} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={thumb(suggestedArtist.photoURL, THUMB.micro) || `https://picsum.photos/seed/${suggestedArtist.uid}/100/100`} onError={onThumbError(suggestedArtist.photoURL)} alt={suggestedArtist.displayName} className="w-full h-full object-cover" />
             </div>
             <div>
               <h3 className="font-bold text-lg">{suggestedArtist.displayName}</h3>
@@ -2761,7 +2763,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-small-orange/30 transition-all group text-left"
                     >
                       {featuredMusic.coverImage
-                        ? <img src={featuredMusic.coverImage} alt={featuredMusic.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        ? <img src={thumb(featuredMusic.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredMusic.coverImage)} alt={featuredMusic.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         : <div className="absolute inset-0 bg-white/5" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                       <div className="absolute top-2.5 left-2.5">
@@ -2784,7 +2786,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-cyan-400/30 transition-all group text-left"
                     >
                       {featuredFilm.coverImage
-                        ? <img src={featuredFilm.coverImage} alt={featuredFilm.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        ? <img src={thumb(featuredFilm.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredFilm.coverImage)} alt={featuredFilm.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         : <div className="absolute inset-0 bg-white/5" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                       <div className="absolute top-2.5 left-2.5">
@@ -2807,7 +2809,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-emerald-400/30 transition-all group text-left"
                     >
                       {featuredBook.coverImage
-                        ? <img src={featuredBook.coverImage} alt={featuredBook.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        ? <img src={thumb(featuredBook.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredBook.coverImage)} alt={featuredBook.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         : <div className="absolute inset-0 bg-white/5" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                       <div className="absolute top-2.5 left-2.5">
@@ -2832,7 +2834,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     {musicFigure.imageUrl && (
                       <>
                         <img src={musicFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
-                        <img src={musicFigure.imageUrl} alt={musicFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                        <img src={thumb(musicFigure.imageUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(musicFigure.imageUrl)} alt={musicFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
                       </>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
@@ -2857,7 +2859,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     {filmFigure.imageUrl && (
                       <>
                         <img src={filmFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
-                        <img src={filmFigure.imageUrl} alt={filmFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                        <img src={thumb(filmFigure.imageUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(filmFigure.imageUrl)} alt={filmFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
                       </>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
@@ -2919,7 +2921,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     className="flex-shrink-0 flex items-center gap-2.5 bg-red-500/10 border border-red-500/20 hover:border-red-500/40 rounded-2xl px-3.5 py-2 transition-all group"
                   >
                     <div className="relative shrink-0">
-                      <img src={talk.hostPhoto || undefined} alt={talk.hostName} className="w-7 h-7 rounded-full object-cover ring-1 ring-red-500/40" />
+                      <img src={thumb(talk.hostPhoto, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(talk.hostPhoto)} alt={talk.hostName} className="w-7 h-7 rounded-full object-cover ring-1 ring-red-500/40" />
                       <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
                     </div>
                     <div className="text-left min-w-0">
@@ -2950,7 +2952,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: pod } }))}
                     className="flex-shrink-0 flex items-center gap-2.5 bg-white/[0.04] border border-white/8 hover:border-white/20 rounded-2xl px-3 py-2 transition-all group"
                   >
-                    <img src={pod.coverImage || undefined} alt={pod.title} className="w-8 h-8 rounded-xl object-cover shrink-0" />
+                    <img src={thumb(pod.coverImage, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(pod.coverImage)} alt={pod.title} className="w-8 h-8 rounded-xl object-cover shrink-0" />
                     <div className="text-left min-w-0">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white truncate max-w-[110px] group-hover:text-small-orange transition-colors">{pod.title}</p>
                       <p className="text-[8px] text-white/35 font-bold">{pod.tracks?.length ?? 0} ep</p>
@@ -3116,7 +3118,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     >
                       {m.type === 'VIDEO'
                         ? <video src={m.url} className="w-full h-full object-cover" muted />
-                        : <img src={m.url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" loading="lazy" alt="" />}
+                        : <img src={thumb(m.url, THUMB.card) || undefined} onError={onThumbError(m.url)} decoding="async" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" loading="lazy" alt="" />}
                     </div>
                   ))}
                   {displayedPosts.flatMap(p => p.media || []).filter(m => m.type === 'PHOTO' || m.type === 'VIDEO').length === 0 && (

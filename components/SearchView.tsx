@@ -5,6 +5,7 @@ import { searchUsers, searchLiveChannels, followUser, unfollowUser, isFollowing,
 import { Search, UserPlus, UserMinus, ArrowLeft, User, Tv, Play, Music, Film, LayoutGrid } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import WorldBadge from './WorldBadge';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface SearchViewProps {
   onBack: () => void;
@@ -56,7 +57,7 @@ const LatestCreation: React.FC<{ uid: string }> = ({ uid }) => {
     <div className="mt-4 p-2 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
       <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 shrink-0">
         {latestItem.cover ? (
-          <img src={latestItem.cover} alt={latestItem.title} className="w-full h-full object-cover" />
+          <img src={thumb(latestItem.cover, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(latestItem.cover)} alt={latestItem.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><LayoutGrid size={16} className="text-white/20" /></div>
         )}
@@ -195,7 +196,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
                 <div className="relative z-10">
                   <div className="flex items-start gap-5 cursor-pointer mb-4" onClick={() => onVisitUser(user.uid)}>
                     <div className="w-16 h-16 rounded-full bg-white/10 overflow-hidden flex items-center justify-center ring-2 ring-white/10 shrink-0">
-                      {user.photoURL ? <img src={user.photoURL || null} alt={user.displayName} className="w-full h-full object-cover" /> : <User size={24} className="text-white/20" />}
+                      {user.photoURL ? <img src={thumb(user.photoURL, THUMB.micro) || null} loading="lazy" decoding="async" onError={onThumbError(user.photoURL)} alt={user.displayName} className="w-full h-full object-cover" /> : <User size={24} className="text-white/20" />}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="font-display font-black text-xl uppercase tracking-tight truncate hover:text-small-orange transition-colors">{user.displayName}</h3>
@@ -235,7 +236,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
             {videoResults.slice(0, activeTab === 'ALL' ? 8 : 999).map(v => (
               <div key={v.id} className="group cursor-pointer" onClick={() => {/* handled by VideoPlayer */}}>
                 <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/5 ring-1 ring-white/5 mb-2">
-                  <img loading="lazy" src={v.thumbnailUrl || `https://picsum.photos/seed/${v.id}/640/360`} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img loading="lazy" decoding="async" src={thumb(v.thumbnailUrl, THUMB.card) || `https://picsum.photos/seed/${v.id}/640/360`} onError={onThumbError(v.thumbnailUrl)} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                     <Play fill="white" size={22} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
@@ -262,7 +263,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
             {musicResults.slice(0, activeTab === 'ALL' ? 12 : 999).map(a => (
               <div key={a.id} className="group cursor-pointer">
                 <div className="relative aspect-square rounded-2xl overflow-hidden bg-white/5 ring-1 ring-white/5 mb-2">
-                  <img loading="lazy" src={a.coverImage || `https://picsum.photos/seed/${a.id}/400/400`} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img loading="lazy" decoding="async" src={thumb(a.coverImage, THUMB.card) || `https://picsum.photos/seed/${a.id}/400/400`} onError={onThumbError(a.coverImage)} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                     <Play fill="white" size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>

@@ -12,6 +12,7 @@ import {
   fetchAudiusRelatedArtists, getAudiusStreamUrl,
 } from '../services/audiusService';
 import type { ArchiveTrack } from '../services/archiveContentService';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface Props {
   artist: AudiusArtist;
@@ -120,7 +121,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
           <div className="w-40 h-40 lg:w-56 lg:h-56 rounded-3xl overflow-hidden shrink-0 shadow-2xl"
             style={{ boxShadow: `0 0 0 4px ${PURPLE.border}` }}>
             {artist.profilePicture ? (
-              <img src={artist.profilePicture} className="w-full h-full object-cover" alt={artist.name} />
+              <img src={thumb(artist.profilePicture, THUMB.large) || undefined} onError={onThumbError(artist.profilePicture)} loading="lazy" decoding="async" className="w-full h-full object-cover" alt={artist.name} />
             ) : (
               <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                 <Music2 size={56} style={{ color: PURPLE.text }} />
@@ -257,7 +258,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                           {/* Artwork */}
                           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/10">
                             {track.thumbnailUrl ? (
-                              <img src={track.thumbnailUrl} className="w-full h-full object-cover" alt="" loading="lazy" />
+                              <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(track.thumbnailUrl)} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                                 <Music2 size={14} style={{ color: PURPLE.text }} />
@@ -294,7 +295,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                         <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative border"
                           style={{ borderColor: PURPLE.border }}>
                           {album.artworkUrl ? (
-                            <img src={album.artworkUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" loading="lazy" />
+                            <img src={thumb(album.artworkUrl, THUMB.card) || undefined} onError={onThumbError(album.artworkUrl)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" loading="lazy" decoding="async" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                               <Disc3 size={32} style={{ color: PURPLE.text }} />
@@ -329,7 +330,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                         <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative border"
                           style={{ borderColor: PURPLE.border }}>
                           {pl.artworkUrl ? (
-                            <img src={pl.artworkUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" loading="lazy" />
+                            <img src={thumb(pl.artworkUrl, THUMB.card) || undefined} onError={onThumbError(pl.artworkUrl)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" loading="lazy" decoding="async" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                               <List size={32} style={{ color: PURPLE.text }} />
@@ -370,7 +371,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                   <div className="aspect-square rounded-2xl overflow-hidden mb-2 mx-auto w-full max-w-[100px] border"
                     style={{ borderColor: PURPLE.border }}>
                     {r.profilePicture ? (
-                      <img src={r.profilePicture} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" loading="lazy" />
+                      <img src={thumb(r.profilePicture, THUMB.small) || undefined} onError={onThumbError(r.profilePicture)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                         <Music2 size={24} style={{ color: PURPLE.text }} />

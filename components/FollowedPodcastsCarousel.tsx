@@ -7,6 +7,7 @@ import { Headphones, Play, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-r
 import type { Album, Track } from '../types';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import { getProgress, progressFraction, isResumable, resumeTime, clearProgress, fmtTime } from '../services/episodeProgressService';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 const latestEpisode = (album: Album): Track | null => {
   const eps = album.tracks || [];
@@ -49,7 +50,7 @@ const FollowedPodcastsCarousel: React.FC<{ podcasts: Album[]; onOpen?: (album: A
             <div key={album.id} className="snap-start shrink-0 w-[260px] p-4 bg-white/[0.03] border border-white/5 rounded-3xl hover:bg-white/[0.06] transition-colors">
               <button onClick={() => onOpen?.(album)} className="block w-full text-left">
                 <div className="aspect-square rounded-2xl overflow-hidden mb-3 bg-white/5">
-                  {album.coverImage && <img src={album.coverImage} loading="lazy" alt={album.title} className="w-full h-full object-cover" />}
+                  {album.coverImage && <img src={thumb(album.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} alt={album.title} className="w-full h-full object-cover" />}
                 </div>
                 <h4 className="text-xs font-black uppercase tracking-widest text-white truncate">{album.title}</h4>
               </button>

@@ -707,7 +707,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               style={{ background: '#0d0d14', border: '1px solid rgba(255,255,255,0.1)' }}
             >
               <div className="flex items-center gap-3 mb-2">
-                {externalTrackPicker.thumbnailUrl && <img src={externalTrackPicker.thumbnailUrl} className="w-10 h-10 rounded-xl object-cover shrink-0" />}
+                {externalTrackPicker.thumbnailUrl && <img src={thumb(externalTrackPicker.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(externalTrackPicker.thumbnailUrl)} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover shrink-0" />}
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-widest truncate">{externalTrackPicker.title}</p>
                   <p className="text-[9px] text-white/40 uppercase tracking-widest truncate">{externalTrackPicker.artist}</p>
@@ -723,7 +723,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     style={{ border: '1px solid rgba(255,255,255,0.06)' }}
                   >
                     {pl.coverImage || pl.coverUrl
-                      ? <img src={pl.coverImage ?? pl.coverUrl} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                      ? <img src={thumb(pl.coverImage ?? pl.coverUrl, THUMB.micro) || undefined} onError={onThumbError(pl.coverImage ?? pl.coverUrl)} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover shrink-0" />
                       : <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,140,0,0.15)' }}><ListMusic size={12} className="text-small-orange" /></div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-widest truncate">{pl.title}</p>
@@ -771,7 +771,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
         <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-end p-5 sm:p-8 md:p-12 bg-white/[0.03] rounded-3xl md:rounded-[3rem] border border-white/5">
           <div className="w-40 h-40 sm:w-52 sm:h-52 md:w-64 md:h-64 rounded-3xl md:rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl shrink-0 bg-black">
-            <img src={artistTracks[0]?.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-50" loading="lazy" decoding="async" />
+            <img src={thumb(artistTracks[0]?.thumbnailUrl, THUMB.large) || undefined} onError={onThumbError(artistTracks[0]?.thumbnailUrl)} className="w-full h-full object-cover opacity-50" loading="lazy" decoding="async" />
           </div>
           <div className="text-center md:text-left">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
@@ -1130,7 +1130,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}
                           onClick={() => handlePlayAudiusPlaylist(pl)}>
                           <div className="aspect-square rounded-xl overflow-hidden mb-3 relative">
-                            {pl.artworkUrl ? <img src={pl.artworkUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.3)' }}><ListMusic size={24} style={{ color: '#a855f7' }} /></div>}
+                            {pl.artworkUrl ? <img src={thumb(pl.artworkUrl, THUMB.card) || undefined} onError={onThumbError(pl.artworkUrl)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.3)' }}><ListMusic size={24} style={{ color: '#a855f7' }} /></div>}
                             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
                               <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={14} fill="currentColor" className="text-purple-100 ml-0.5" /></div>
                             </div>
@@ -1258,7 +1258,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {/* Cover + info */}
                         <div className="flex gap-3 items-start">
                           <img
-                            src={upcomingAlbums[pulseIdx].coverImage}
+                            src={thumb(upcomingAlbums[pulseIdx].coverImage, THUMB.small) || undefined}
+                            onError={onThumbError(upcomingAlbums[pulseIdx].coverImage)}
+                            loading="lazy"
+                            decoding="async"
                             className="w-16 h-16 rounded-xl object-cover shrink-0 shadow-xl group-hover:scale-105 transition-transform duration-300"
                           />
                           <div className="flex-1 min-w-0">
@@ -1293,7 +1296,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         onClick={() => onSelectAlbum(upcomingAlbums[sponsoredIdx])}
                       >
                         <img
-                          src={upcomingAlbums[sponsoredIdx].coverImage}
+                          src={thumb(upcomingAlbums[sponsoredIdx].coverImage, THUMB.card) || undefined}
+                          onError={onThumbError(upcomingAlbums[sponsoredIdx].coverImage)}
+                          loading="lazy"
+                          decoding="async"
                           className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700"
                         />
                         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, transparent 25%, rgba(0,0,0,0.88) 100%)' }} />
@@ -1341,7 +1347,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <div className="space-y-4">
                     {artists.slice(5, 10).map((artist) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
-                        <img src={artist.photoURL || `https://picsum.photos/seed/${artist.uid}/200/200`} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" loading="lazy" decoding="async" />
+                        <img src={thumb(artist.photoURL, THUMB.micro) || `https://picsum.photos/seed/${artist.uid}/200/200`} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" loading="lazy" decoding="async" />
                         <div>
                           <h4 className="text-xs font-black uppercase tracking-widest group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                           <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">New Artist</span>
@@ -1359,7 +1365,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {getSortedArtists().slice(0, 3).map((artist, idx) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
                         <span className="text-lg font-black text-white/20">{idx + 1}</span>
-                        <img src={artist.photoURL || undefined} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
+                        <img src={thumb(artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                         <div className="flex-1 truncate">
                           <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h5>
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</span>
@@ -1373,7 +1379,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {albums.flatMap(a => a.tracks || []).slice(0, 5).map((track, idx) => (
                        <div key={track.id} className="flex items-center gap-4 group">
                          <span className="text-lg font-black text-white/20 cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')}>{idx + 1}</span>
-                         <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')} />
+                         <img src={thumb(track.images?.[0] || track.albumCover, THUMB.micro) || undefined} onError={onThumbError(track.images?.[0] || track.albumCover)} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')} />
                          <div className="flex-1 truncate cursor-pointer" onClick={() => playTrack(track, albums.find(a => a.tracks?.some(t => t.id === track.id)) || null, 'LIBRARY')}>
                            <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{track.title}</h5>
                            <div className="flex items-center gap-2">
@@ -1462,7 +1468,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
-                            <img src={artist.photoURL || undefined} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                            <img src={thumb(artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                          </div>
                          <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
                          <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Recommended</span>
@@ -1557,7 +1563,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                   onClick={() => onSelectAlbum({ id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', subType: 'PLAYLIST', createdAt: pl.timestamp, isPublic: false } as any)}
                                 >
                                   {pl.coverUrl || pl.coverImage
-                                    ? <img src={(pl.coverUrl || pl.coverImage) ?? undefined} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                                    ? <img src={thumb(pl.coverUrl || pl.coverImage, THUMB.small) || undefined} onError={onThumbError(pl.coverUrl || pl.coverImage)} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                                     : <ListMusic size={18} className="text-white/20" />
                                   }
                                 </div>
@@ -1610,7 +1616,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                       (pl.tracks || []).map((track, idx) => (
                                         <div key={track.id} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.03] transition-colors group border-b border-white/[0.03] last:border-0">
                                           <span className="text-sm font-black text-white/10 w-6 text-center shrink-0">{idx + 1}</span>
-                                          <img src={track.images?.[0] || track.albumCover || undefined} className="w-10 h-10 rounded-xl object-cover border border-white/5 shrink-0" loading="lazy" decoding="async" />
+                                          <img src={thumb(track.images?.[0] || track.albumCover, THUMB.micro) || undefined} onError={onThumbError(track.images?.[0] || track.albumCover)} className="w-10 h-10 rounded-xl object-cover border border-white/5 shrink-0" loading="lazy" decoding="async" />
                                           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => playTrack(track, { id: pl.id, ownerId: pl.ownerId, title: pl.title, artist: 'My Playlist', coverImage: pl.coverUrl || pl.coverImage || '', tracks: pl.tracks || [], type: 'MUSIC', createdAt: pl.timestamp } as any, 'LIBRARY')}>
                                             <h5 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{track.title}</h5>
                                             <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
@@ -1653,7 +1659,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             >
                               <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-black/40 flex items-center justify-center group-hover:scale-[1.02] transition-transform">
                                 {pl.coverImage
-                                  ? <img src={pl.coverImage ?? undefined} className="w-full h-full object-cover rounded-xl" loading="lazy" decoding="async" />
+                                  ? <img src={thumb(pl.coverImage, THUMB.card) || undefined} onError={onThumbError(pl.coverImage)} className="w-full h-full object-cover rounded-xl" loading="lazy" decoding="async" />
                                   : <ListMusic size={48} className="text-white/10 group-hover:text-small-orange transition-colors" />
                                 }
                               </div>
@@ -1688,7 +1694,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {[...artists].sort((a, b) => (b.followerCount || 0) - (a.followerCount || 0)).slice(0, 10).map((artist, idx) => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
                             <span className="text-2xl font-black text-white/10 w-8 text-center shrink-0">#{idx + 1}</span>
-                            <img src={artist.photoURL || undefined} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
+                            <img src={thumb(artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                               <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{(artist.followerCount || 0).toLocaleString()} Fans</p>
@@ -1706,7 +1712,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {getSortedArtists().map(artist => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
-                              <img src={artist.photoURL || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
+                              <img src={thumb(artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <User size={32} className="text-white" />
                               </div>
@@ -1733,7 +1739,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                               <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 relative"
                                 style={{ border: '1px solid rgba(168,85,247,0.2)' }}>
                                 {artist.profilePicture
-                                  ? <img src={artist.profilePicture} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                                  ? <img src={thumb(artist.profilePicture, THUMB.card) || undefined} onError={onThumbError(artist.profilePicture)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
                                   : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.2)' }}><User size={32} style={{ color: '#a855f7' }} /></div>}
                                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
                                   <Play size={28} style={{ color: '#a855f7' }} />
@@ -1805,7 +1811,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           {trendingAlbums.map((album, idx) => (
                             <div key={album.id} onClick={() => onSelectAlbum(album)} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
                               <span className={`text-2xl font-black w-8 text-center shrink-0 ${idx < 3 ? 'text-small-orange' : 'text-white/10'}`}>#{idx + 1}</span>
-                              <img src={album.coverImage || undefined} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
+                              <img src={thumb(album.coverImage, THUMB.small) || undefined} onError={onThumbError(album.coverImage)} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
                                 <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest truncate">{album.artist}</p>
@@ -1856,7 +1862,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                               <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl relative"
                                 style={{ border: '1px solid rgba(168,85,247,0.2)' }}>
                                 {pl.artworkUrl
-                                  ? <img src={pl.artworkUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                                  ? <img src={thumb(pl.artworkUrl, THUMB.card) || undefined} onError={onThumbError(pl.artworkUrl)} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" decoding="async" />
                                   : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(126,34,206,0.2)' }}><ListMusic size={40} style={{ color: '#a855f7' }} /></div>}
                                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
                                   <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={20} fill="currentColor" className="text-purple-100 ml-1" /></div>
@@ -1905,7 +1911,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                 {genreAlbums.map((album, idx) => (
                                   <div key={album.id} onClick={() => onSelectAlbum(album)} className="min-w-[150px] group cursor-pointer relative">
                                     <div className="aspect-square rounded-2xl overflow-hidden mb-3 border border-white/10 shadow-xl relative">
-                                      <img src={album.coverImage || undefined} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                                      <img src={thumb(album.coverImage, THUMB.card) || undefined} onError={onThumbError(album.coverImage)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                                       {idx === 0 && (album.playCount || 0) > 0 && (
                                         <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-small-orange text-black rounded-full">
                                           <Flame size={8} /><span className="text-[7px] font-black uppercase">#1</span>

@@ -8,6 +8,7 @@ import {
   Disc, Mic2, Monitor, Usb, AlertCircle, CheckCircle, Lightbulb
 } from 'lucide-react';
 import SmartLightingPanel from './SmartLightingPanel';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -358,7 +359,7 @@ const JogWheel: React.FC<{
           {/* Album art center disc */}
           <div className="absolute inset-[30%] rounded-full overflow-hidden border-2 border-black">
             {coverImage ? (
-              <img src={coverImage} alt="" className="w-full h-full object-cover" />
+              <img src={thumb(coverImage, THUMB.small) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(coverImage)} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center">
                 <Disc size={20} className="text-white/20" />
@@ -976,7 +977,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             onClick={() => { /* open library */ }}
           >
             {deck.track?.albumCover || album.coverImage ? (
-              <img src={deck.track?.albumCover || album.coverImage} alt="" className="w-full h-full object-cover" />
+              <img src={thumb(deck.track?.albumCover || album.coverImage, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(deck.track?.albumCover || album.coverImage)} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center">
                 <Music2 size={12} className="text-white/20" />
@@ -1363,7 +1364,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             >
               <div className="w-6 h-6 rounded overflow-hidden shrink-0">
                 {track.albumCover
-                  ? <img src={track.albumCover} alt="" className="w-full h-full object-cover" />
+                  ? <img src={thumb(track.albumCover, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(track.albumCover)} className="w-full h-full object-cover" />
                   : <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center"><Music2 size={8} className="text-white/20" /></div>
                 }
               </div>

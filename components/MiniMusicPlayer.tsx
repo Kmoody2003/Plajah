@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves } from 'lucide-react';
 import { Album, Track } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface MiniMusicPlayerProps {
   album: Album;
@@ -108,9 +109,12 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
       <div className="flex items-center gap-4">
         {/* Album Art */}
         <div className="relative w-16 h-16 flex-shrink-0">
-          <img 
-            src={album.coverImage} 
-            alt={album.title} 
+          <img
+            src={thumb(album.coverImage, THUMB.small) || undefined}
+            alt={album.title}
+            loading="lazy"
+            decoding="async"
+            onError={onThumbError(album.coverImage)}
             className={`w-full h-full object-cover rounded-2xl shadow-lg transition-transform duration-1000 ${isPlaying ? 'animate-spin-slow' : ''}`}
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">

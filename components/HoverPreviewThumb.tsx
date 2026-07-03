@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Play, Volume2 } from 'lucide-react';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 // Reusable poster thumbnail that, on hover, plays a short muted preview of the
 // asset (first N seconds) — video for videos, audio for music — and navigates on
@@ -123,7 +124,7 @@ const HoverPreviewThumb: React.FC<Props> = ({
       style={{ ['--accent' as any]: accent }}
     >
       {poster
-        ? <img src={poster} alt={title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        ? <img src={thumb(poster, THUMB.card) || undefined} alt={title} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={onThumbError(poster)} />
         : <div className="absolute inset-0 flex items-center justify-center text-white/20">{fallbackIcon}</div>}
 
       {isVideo && (

@@ -16,6 +16,7 @@ import {
   incrementPlaylistPlays,
   fetchMySharedPlaylists,
 } from '../services/backendService';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 // ─── Tag config ────────────────────────────────────────────────────────────────
 export const PLAYLIST_TAGS = [
@@ -61,10 +62,12 @@ const PlaylistCard: React.FC<CardProps> = ({ playlist, onLike, onPlay, liked }) 
       {/* Cover */}
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={cover}
+          src={thumb(playlist.coverUrl || playlist.coverImage, THUMB.card) || cover}
           alt={playlist.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          decoding="async"
+          onError={onThumbError(playlist.coverUrl || playlist.coverImage || cover)}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
@@ -106,7 +109,7 @@ const PlaylistCard: React.FC<CardProps> = ({ playlist, onLike, onPlay, liked }) 
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 shrink-0">
             {playlist.authorPhoto
-              ? <img src={playlist.authorPhoto} alt="" className="w-full h-full object-cover" />
+              ? <img src={thumb(playlist.authorPhoto, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(playlist.authorPhoto)} className="w-full h-full object-cover" />
               : <span className="w-full h-full flex items-center justify-center text-[7px] font-black text-white/40">{playlist.authorName?.[0] ?? '?'}</span>
             }
           </div>
@@ -158,7 +161,7 @@ const TrackListModal: React.FC<{
       >
         {/* Header */}
         <div className="relative h-32 overflow-hidden">
-          <img src={cover} alt="" className="w-full h-full object-cover opacity-60" />
+          <img src={thumb(playlist.coverUrl || playlist.coverImage, THUMB.card) || cover} alt="" loading="lazy" decoding="async" onError={onThumbError(playlist.coverUrl || playlist.coverImage || cover)} className="w-full h-full object-cover opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d0d] via-black/40 to-transparent" />
           <div className="absolute bottom-4 left-5 right-12">
             <h3 className="font-black text-white text-sm">{playlist.title}</h3>
@@ -187,7 +190,7 @@ const TrackListModal: React.FC<{
                   <span className="text-[8px] font-black text-white/20 w-5 text-center shrink-0">{i + 1}</span>
                   <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/5 shrink-0">
                     {t.albumCover ? (
-                      <img src={t.albumCover} alt="" className="w-full h-full object-cover" />
+                      <img src={thumb(t.albumCover, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(t.albumCover)} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center"><Music2 size={10} className="text-white/20" /></div>
                     )}
@@ -269,7 +272,7 @@ const ShareModal: React.FC<{
               >
                 <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/5 shrink-0">
                   {pl.coverUrl || pl.coverImage
-                    ? <img src={pl.coverUrl ?? pl.coverImage} alt="" className="w-full h-full object-cover" />
+                    ? <img src={thumb(pl.coverUrl ?? pl.coverImage, THUMB.micro) || undefined} alt="" loading="lazy" decoding="async" onError={onThumbError(pl.coverUrl ?? pl.coverImage)} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><Music2 size={12} className="text-white/20" /></div>
                   }
                 </div>

@@ -3,6 +3,7 @@ import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/Globa
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
 import Logo from './Logo';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
@@ -809,7 +810,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     onClick={() => playTrack(track, currentAlbum!, 'LIBRARY')}
                     className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${track.id === currentTrack?.id ? 'border-small-orange shadow-[0_0_10px_rgba(255,140,0,0.5)]' : 'border-transparent opacity-50'}`}
                   >
-                    <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
+                    <img src={thumb(track.albumCover || currentAlbum?.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(track.albumCover || currentAlbum?.coverImage)} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -983,7 +984,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                               className={`flex flex-col gap-1.5 w-20 shrink-0 p-2 rounded-2xl transition-all ${track.id === currentTrack?.id ? 'bg-white/10 ring-1 ring-small-orange/40' : 'bg-white/5'}`}
                             >
                               <div className="w-16 h-16 rounded-lg overflow-hidden shadow-lg shrink-0">
-                                <img src={track.albumCover || currentAlbum?.coverImage || undefined} className="w-full h-full object-cover" />
+                                <img src={thumb(track.albumCover || currentAlbum?.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(track.albumCover || currentAlbum?.coverImage)} className="w-full h-full object-cover" />
                               </div>
                               <p className={`text-[7px] font-black uppercase truncate ${track.id === currentTrack?.id ? 'text-small-orange' : 'text-white/70'}`}>{track.title}</p>
                             </button>

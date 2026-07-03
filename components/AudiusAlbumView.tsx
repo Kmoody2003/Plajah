@@ -9,6 +9,7 @@ import {
 } from '../services/audiusService';
 import type { ArchiveTrack } from '../services/archiveContentService';
 import { getAllBreakdowns, type StoredBreakdown } from './TrackBreakdownModal';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface Props {
   album: AudiusAlbum;
@@ -132,7 +133,7 @@ const BreakdownResultsPanel: React.FC<{
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
             <div className="w-8 h-8 rounded-xl overflow-hidden border border-white/10 shrink-0">
               {track.thumbnailUrl
-                ? <img src={track.thumbnailUrl} className="w-full h-full object-cover" alt="" loading="lazy" />
+                ? <img src={thumb(track.thumbnailUrl, THUMB.micro) || undefined} onError={onThumbError(track.thumbnailUrl)} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
                 : <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}><Music2 size={12} style={{ color: PURPLE.text }} /></div>
               }
             </div>
@@ -197,7 +198,7 @@ const BreakdownResultsPanel: React.FC<{
               >
                 <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/10 shrink-0">
                   {track.thumbnailUrl
-                    ? <img src={track.thumbnailUrl} className="w-full h-full object-cover" alt="" loading="lazy" />
+                    ? <img src={thumb(track.thumbnailUrl, THUMB.micro) || undefined} onError={onThumbError(track.thumbnailUrl)} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
                     : <div className="w-full h-full" style={{ background: PURPLE.bg }} />
                   }
                 </div>
@@ -316,7 +317,7 @@ const AudiusAlbumView: React.FC<Props> = ({ album, onBack, onViewArtist }) => {
           <div className="w-44 h-44 lg:w-60 lg:h-60 rounded-3xl overflow-hidden shrink-0 shadow-[0_40px_80px_rgba(0,0,0,0.6)]"
             style={{ boxShadow: `0 0 0 1px ${PURPLE.border}` }}>
             {album.artworkUrl ? (
-              <img src={album.artworkUrl} className="w-full h-full object-cover" alt={album.title} />
+              <img src={thumb(album.artworkUrl, THUMB.large) || undefined} onError={onThumbError(album.artworkUrl)} loading="lazy" decoding="async" className="w-full h-full object-cover" alt={album.title} />
             ) : (
               <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                 <Disc3 size={60} style={{ color: PURPLE.text }} />
@@ -343,7 +344,7 @@ const AudiusAlbumView: React.FC<Props> = ({ album, onBack, onViewArtist }) => {
               >
                 <div className="w-7 h-7 rounded-full overflow-hidden border border-white/20">
                   {artist.profilePicture ? (
-                    <img src={artist.profilePicture} className="w-full h-full object-cover" alt="" />
+                    <img src={thumb(artist.profilePicture, THUMB.micro) || undefined} onError={onThumbError(artist.profilePicture)} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="" />
                   ) : (
                     <div className="w-full h-full" style={{ background: PURPLE.bg }} />
                   )}
@@ -500,7 +501,7 @@ const AudiusAlbumView: React.FC<Props> = ({ album, onBack, onViewArtist }) => {
                           className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/10"
                         >
                           {track.thumbnailUrl ? (
-                            <img src={track.thumbnailUrl} className="w-full h-full object-cover" alt="" loading="lazy" />
+                            <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} onError={onThumbError(track.thumbnailUrl)} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center" style={{ background: PURPLE.bg }}>
                               <Music2 size={14} style={{ color: PURPLE.text }} />

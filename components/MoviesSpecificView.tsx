@@ -4,6 +4,7 @@ import { ArchiveVideo } from '../services/archiveContentService';
 import { Album } from '../types';
 import { Play, TrendingUp, Sparkles, Eye, Star, Zap, Film, ArrowLeft } from 'lucide-react';
 import ScrollableTabRow from './ScrollableTabRow';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface MoviesSpecificViewProps {
   movies: ArchiveVideo[];
@@ -36,7 +37,7 @@ const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: strin
     >
       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border border-white/8 group-hover:border-white/20 transition-all duration-300">
         {cover ? (
-          <img src={cover} className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105" alt={item.title} />
+          <img src={thumb(cover, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(cover)} className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105" alt={item.title} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Film size={28} className="text-white/10" />

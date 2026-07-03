@@ -27,6 +27,7 @@ import SignInPrompt from './SignInPrompt';
 import StoriesBar from './StoriesBar';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import WorldBadge from './WorldBadge';
+import { thumb as thumbUrl, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface VideoTabProps {
   profile: UserProfile | null;
@@ -164,7 +165,7 @@ const VideoCard: React.FC<{
       <div className="flex gap-3">
         {showChannel && (
           <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-0.5 overflow-hidden ring-1 ring-white/10">
-            <img loading="lazy" decoding="async" src={(video as any).ownerPhoto || `https://picsum.photos/seed/${(video as any).ownerId}/64/64`} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={thumbUrl((video as any).ownerPhoto, THUMB.micro) || `https://picsum.photos/seed/${(video as any).ownerId}/64/64`} onError={onThumbError((video as any).ownerPhoto)} alt="" className="w-full h-full object-cover" />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -381,7 +382,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed
       {/* Static preview — no iframe, no audio */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-black via-zinc-900 to-black">
         {feed.ownerPhoto ? (
-          <img src={feed.ownerPhoto} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-red-500/50" />
+          <img src={thumbUrl(feed.ownerPhoto, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(feed.ownerPhoto)} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-red-500/50" />
         ) : (
           <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
             <Radio size={24} className="text-white/30" />
@@ -941,7 +942,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         >
                           <div className="relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 aspect-video mb-2">
                             {entry.thumbnailUrl
-                              ? <img src={entry.thumbnailUrl} alt={entry.title || ''} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              ? <img src={thumbUrl(entry.thumbnailUrl, THUMB.card) || undefined} alt={entry.title || ''} loading="lazy" decoding="async" onError={onThumbError(entry.thumbnailUrl)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                               : <div className="w-full h-full flex items-center justify-center text-white/20"><Play size={22} /></div>}
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                               <div className="w-10 h-10 rounded-full bg-white/0 group-hover:bg-white/20 border-2 border-white/0 group-hover:border-white/60 flex items-center justify-center transition-all scale-75 group-hover:scale-100">
@@ -1006,8 +1007,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     onClick={() => handlePlay(heroItem)}
                   >
                     <img
-                      src={thumb}
+                      src={thumbUrl(thumb, THUMB.large)}
                       alt={heroItem.title}
+                      loading="lazy"
+                      decoding="async"
+                      onError={onThumbError(thumb)}
                       className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
@@ -1065,7 +1069,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl overflow-hidden bg-white/10 shrink-0">
                             {club.iconImage
-                              ? <img src={club.iconImage} className="w-full h-full object-cover" alt="" loading="lazy" />
+                              ? <img src={thumbUrl(club.iconImage, THUMB.micro) || undefined} decoding="async" onError={onThumbError(club.iconImage)} className="w-full h-full object-cover" alt="" loading="lazy" />
                               : <div className="w-full h-full flex items-center justify-center"><Users size={14} className="text-white/20" /></div>}
                           </div>
                           <div className="min-w-0">
@@ -1134,7 +1138,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       {/* Header */}
                       <div className="flex items-start gap-4 sm:gap-6">
                         <div className="w-28 h-40 rounded-2xl overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/10">
-                          <img loading="lazy" decoding="async" src={selectedMovie.coverImage} alt={selectedMovie.title} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={thumbUrl(selectedMovie.coverImage, THUMB.card) || undefined} onError={onThumbError(selectedMovie.coverImage)} alt={selectedMovie.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} Â· {selectedMovie.movieMetadata?.releaseYear}</p>
@@ -1154,7 +1158,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             {movieCharacters.map(char => (
                               <div key={char.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
                                 <div className="w-10 h-10 rounded-xl bg-white/10 overflow-hidden">
-                                  {char.imageUrl ? <img loading="lazy" decoding="async" src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20 text-lg font-black">{char.name[0]}</div>}
+                                  {char.imageUrl ? <img loading="lazy" decoding="async" src={thumbUrl(char.imageUrl, THUMB.micro) || undefined} onError={onThumbError(char.imageUrl)} alt={char.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20 text-lg font-black">{char.name[0]}</div>}
                                 </div>
                                 <p className="text-xs font-black uppercase tracking-tight text-white leading-tight">{char.name}</p>
                                 {char.role && <p className="text-[8px] font-bold uppercase tracking-widest text-white/30">{char.role}</p>}
@@ -1225,7 +1229,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-4 sm:p-8 lg:p-12">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 items-center">
                       <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl group cursor-pointer" onClick={() => handlePlay(interestVideos[0])}>
-                        <img src={interestVideos[0].thumbnailUrl || `https://picsum.photos/seed/${interestVideos[0].id}/1280/720`} className="w-full h-full object-cover" alt="" loading="lazy" />
+                        <img src={thumbUrl(interestVideos[0].thumbnailUrl, THUMB.large) || `https://picsum.photos/seed/${interestVideos[0].id}/1280/720`} onError={onThumbError(interestVideos[0].thumbnailUrl)} decoding="async" className="w-full h-full object-cover" alt="" loading="lazy" />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex items-center justify-center">
                           <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl">
                             <Play fill="white" size={24} className="ml-1" />
@@ -1318,7 +1322,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               <div className="relative flex justify-center py-4">
                 <div className="relative overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ width: 380, height: 680, background: '#000' }}>
                   <div className="absolute inset-0" style={{ backgroundImage: `url(${thumb})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(40px) brightness(0.25)', transform: 'scale(1.15)' }} />
-                  <img src={thumb} className="absolute inset-0 w-full h-full object-contain z-[1]" alt={short?.title} />
+                  <img src={thumbUrl(thumb, THUMB.large)} loading="lazy" decoding="async" onError={onThumbError(thumb)} className="absolute inset-0 w-full h-full object-contain z-[1]" alt={short?.title} />
                   <div className="absolute inset-0 z-[2]" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 50%, rgba(0,0,0,0.25) 100%)' }} />
                   <button className="absolute inset-0 z-[3] flex items-center justify-center" onClick={() => handlePlay(short)}>
                     <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/50 flex items-center justify-center shadow-2xl hover:bg-white/30 transition-all">
@@ -1385,7 +1389,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <button key={p.uid} onClick={() => onVisitUser?.(p.uid)} className="flex flex-col items-center gap-2 group">
                           <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-small-orange/60 transition-all">
                             {p.photoURL
-                              ? <img loading="lazy" decoding="async" src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                              ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" />
                               : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
                           </div>
                           <span className="text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors max-w-[60px] truncate">{p.displayName}</span>
@@ -1418,7 +1422,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             <div className="flex items-center gap-3 mb-4">
                               <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10">
                                 {p.photoURL
-                                  ? <img loading="lazy" decoding="async" src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" />
+                                  ? <img loading="lazy" decoding="async" src={thumbUrl(p.photoURL, THUMB.micro) || undefined} onError={onThumbError(p.photoURL)} alt={p.displayName} className="w-full h-full object-cover" />
                                   : <div className="w-full h-full flex items-center justify-center text-white/40 text-lg font-black">{p.displayName?.[0]}</div>}
                               </div>
                               <div className="min-w-0">
@@ -1960,7 +1964,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     const thumb = (shareToClubVideo as any).muxPlaybackId
                       ? `https://image.mux.com/${(shareToClubVideo as any).muxPlaybackId}/thumbnail.png?width=300&height=169&time=5`
                       : (shareToClubVideo as any).thumbnailUrl || (shareToClubVideo as any).coverImage || '';
-                    return thumb ? <img src={thumb} className="w-full h-full object-cover" alt="" /> : null;
+                    return thumb ? <img src={thumbUrl(thumb, THUMB.micro)} loading="lazy" decoding="async" onError={onThumbError(thumb)} className="w-full h-full object-cover" alt="" /> : null;
                   })()}
                 </div>
                 <div className="min-w-0">
@@ -1993,7 +1997,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                           }`}
                         >
                           <div className="w-8 h-8 rounded-lg bg-white/10 overflow-hidden shrink-0">
-                            {club.iconImage && <img src={club.iconImage} className="w-full h-full object-cover" alt="" />}
+                            {club.iconImage && <img src={thumbUrl(club.iconImage, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.iconImage)} className="w-full h-full object-cover" alt="" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-black text-white truncate">{club.name}</p>

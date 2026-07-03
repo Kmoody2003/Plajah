@@ -36,6 +36,7 @@ import { LyricItem, TimeCodedLyrics } from './LyricItem';
 import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import PlajahPlusButton from './PlajahPlusButton';
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 type RepeatMode = 'NONE' | 'ONE' | 'ALL';
 
@@ -1027,8 +1028,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           ) : (
             <div className="w-full h-full relative text-left block">
               <img
-                src={(currentTrack?.images?.[0]) || album.coverImage}
+                src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
                 alt={currentTrack?.title || album.title}
+                loading="lazy"
+                decoding="async"
+                onError={onThumbError((currentTrack?.images?.[0]) || album.coverImage)}
                 className="w-full h-full object-cover opacity-80"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
@@ -1396,8 +1400,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               <div key={cid} className="flex flex-col items-center gap-1 shrink-0 w-11">
                                 <div className="w-9 h-9 rounded-full overflow-hidden border border-[#D0BCFF]/30 bg-white/5">
                                   <img
-                                    src={imgSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                    src={thumb(imgSrc, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                                     alt={char.name}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                     onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                                   />
@@ -1477,7 +1483,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     onClick={() => { setActiveVideoId(video.id); playVideo(video); }}
                     className={`relative aspect-video rounded-xl overflow-hidden border transition-all ${activeVideoId === video.id ? 'border-white' : 'border-white/10'}`}
                   >
-                    <img src={video.thumbnailUrl || album.coverImage || undefined} className="w-full h-full object-cover opacity-60" />
+                    <img src={thumb(video.thumbnailUrl || album.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.thumbnailUrl || album.coverImage)} className="w-full h-full object-cover opacity-60" />
                     <div className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/80 to-transparent">
                       <span className="text-[8px] font-black uppercase tracking-widest truncate">{video.title}</span>
                     </div>
@@ -1500,7 +1506,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {activeHUD === 'INFO' && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center gap-4 flex-wrap">
-                <img src={album.artistImage || album.coverImage || undefined} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
+                <img src={thumb(album.artistImage || album.coverImage, THUMB.small) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
                 <div>
                   <h3 className="text-lg font-black uppercase tracking-tight">{album.artist}</h3>
                   <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest">Archive Identity</p>
@@ -1539,8 +1545,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         title={`${char.name} — open in world`}>
                         <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 group-hover:border-small-orange/50 bg-white/5 transition-colors">
                           <img
-                            src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                            src={thumb(char.imageUrl, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                             alt={char.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                           />
@@ -1834,7 +1842,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onClick={() => { if (onNavigateToWorld && album.worldId) onNavigateToWorld(album.worldId, char.id); }}
                                   className="flex items-center gap-2 bg-white/5 border border-white/8 hover:border-small-orange/40 rounded-xl px-2.5 py-1.5 transition-colors" title={`${char.name} — open in world`}>
                                   <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
-                                    <img src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`} className="w-full h-full object-cover" />
+                                    <img src={thumb(char.imageUrl, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`} loading="lazy" decoding="async" onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }} className="w-full h-full object-cover" />
                                   </div>
                                   <p className="text-[9px] font-black text-white/60 uppercase tracking-wide">{char.name}</p>
                                 </button>
@@ -1870,7 +1878,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'ABOUT' && (
                       <div className="space-y-4">
-                        <img src={album.artistImage || album.coverImage} className="w-full aspect-square object-cover rounded-2xl mb-4" />
+                        <img src={thumb(album.artistImage || album.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-full aspect-square object-cover rounded-2xl mb-4" />
                         <h3 className="text-2xl font-display font-black uppercase">{album.artist}</h3>
                         <p className="text-xs font-medium italic text-white/40 leading-relaxed">{album.artistBio}</p>
                       </div>
@@ -1879,7 +1887,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <div className="grid grid-cols-1 gap-4">
                         {album.musicVideos?.map(v => (
                           <button key={v.id} onClick={() => { setActiveVideoId(v.id); playVideo(v); }} className={`relative aspect-video rounded-2xl overflow-hidden border transition-all ${activeVideoId === v.id ? 'border-white' : 'border-white/10 hover:border-white/30'}`}>
-                            <img src={v.thumbnailUrl || album.coverImage} className="w-full h-full object-cover opacity-40 hover:opacity-100" />
+                            <img src={thumb(v.thumbnailUrl || album.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(v.thumbnailUrl || album.coverImage)} className="w-full h-full object-cover opacity-40 hover:opacity-100" />
                             <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black/80 to-transparent">
                               <span className="text-[10px] font-black uppercase tracking-widest text-white truncate">{v.title}</span>
                             </div>
@@ -2105,8 +2113,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              {/* Bottom: album art thumbnail + track info */}
              <div className="absolute bottom-0 left-0 right-0 z-20 p-5 flex items-end gap-4">
                <img
-                 src={album.coverImage || undefined}
+                 src={thumb(album.coverImage, THUMB.small) || undefined}
                  alt={album.title}
+                 loading="lazy"
+                 decoding="async"
+                 onError={onThumbError(album.coverImage)}
                  className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-xl shrink-0"
                />
                <div className="flex-1 min-w-0 pb-1">
@@ -2141,7 +2152,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  transition={{ duration: 0.6, type: 'spring', damping: 20 }}
                  className="relative w-full max-w-[340px] aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group"
                >
-                 <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                 <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
                  {/* WorldBadge floating over cover art */}
@@ -2217,8 +2228,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        <div key={char.id} className="flex flex-col items-center gap-1.5 shrink-0 w-12">
                          <div className="w-10 h-10 rounded-full overflow-hidden border border-[#D0BCFF]/25 bg-white/5 shadow-lg">
                            <img
-                             src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                             src={thumb(char.imageUrl, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                              alt={char.name}
+                             loading="lazy"
+                             decoding="async"
                              className="w-full h-full object-cover"
                              onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                            />
@@ -2244,12 +2257,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        .filter(c => c.id !== album.id)
                        .slice(0, 10)
                        .map((content, i) => {
-                         const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                         const coverThumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
                          return (
                            <div key={(content as any).id || i} className="shrink-0 w-12">
                              <div className="w-12 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1 shadow-md">
-                               {thumb
-                                 ? <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
+                               {coverThumb
+                                 ? <img src={thumb(coverThumb, THUMB.small) || undefined} onError={onThumbError(coverThumb)} loading="lazy" decoding="async" alt={content.title} className="w-full h-full object-cover" />
                                  : <div className="w-full h-full flex items-center justify-center"><Music2 size={13} className="text-white/15" /></div>}
                              </div>
                              <p className="text-[7px] font-black text-white/35 truncate uppercase tracking-wide">{content.title}</p>
@@ -2506,8 +2519,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               className="flex items-center gap-4 px-5 py-3 bg-black/50 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-xl"
             >
               <img
-                src={album.coverImage || undefined}
+                src={thumb(album.coverImage, THUMB.small) || undefined}
                 alt={album.title}
+                loading="lazy"
+                decoding="async"
+                onError={onThumbError(album.coverImage)}
                 className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-lg shrink-0 cursor-pointer hover:scale-105 transition-all"
                 onClick={() => { setIsVisualizerLayout(false); }}
                 title="Back to album art"
@@ -2607,7 +2623,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               {activeHUD === 'ABOUT' && (
                <div className="flex-1 bg-black/80 backdrop-blur-3xl p-8 lg:p-16 rounded-[3rem] animate-in zoom-in-95 duration-700 flex flex-col lg:flex-row gap-10 overflow-y-auto shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.3)]">
                   <div className="lg:w-1/3 shrink-0">
-                    <img src={album.artistImage || album.coverImage || undefined} alt={album.artist} className="w-full aspect-square object-cover rounded-[2rem] shadow-2xl ring-1 ring-white/10" />
+                    <img src={thumb(album.artistImage || album.coverImage, THUMB.large) || undefined} alt={album.artist} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-full aspect-square object-cover rounded-[2rem] shadow-2xl ring-1 ring-white/10" />
                   </div>
                   <div className="flex-1 space-y-8">
                     <div>
@@ -2863,8 +2879,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                             <div key={cid} className="flex flex-col items-center gap-1 shrink-0 w-11">
                                               <div className="w-9 h-9 rounded-full overflow-hidden border border-[#D0BCFF]/30 bg-white/5">
                                                 <img
-                                                  src={imgSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                                  src={thumb(imgSrc, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                                                   alt={char.name}
+                                                  loading="lazy"
+                                                  decoding="async"
                                                   className="w-full h-full object-cover"
                                                   onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                                                 />
@@ -2990,7 +3008,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   className="w-full h-full"
                                 >
                                   {video.thumbnailUrl ? (
-                                    <img src={video.thumbnailUrl || undefined} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                                    <img src={thumb(video.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.thumbnailUrl)} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                   ) : (
                                     <div className="w-full h-full bg-white/5 flex items-center justify-center">
                                       <VideoIcon size={24} className="text-white/10" />
@@ -3093,8 +3111,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   <div key={char.id} className="flex items-center gap-2.5 bg-white/5 border border-white/8 rounded-xl px-3 py-2">
                                     <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
                                       <img
-                                        src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
+                                        src={thumb(char.imageUrl, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
                                         alt={char.name}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover"
                                         onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
                                       />
@@ -3132,12 +3152,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   .filter(c => c.id !== album.id)
                                   .slice(0, 10)
                                   .map((content, i) => {
-                                    const thumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
+                                    const coverThumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
                                     return (
                                       <div key={(content as any).id || i} className="shrink-0 w-[4.5rem]">
                                         <div className="w-[4.5rem] h-24 rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1.5">
-                                          {thumb ? (
-                                            <img src={thumb} alt={content.title} className="w-full h-full object-cover" />
+                                          {coverThumb ? (
+                                            <img src={thumb(coverThumb, THUMB.small) || undefined} onError={onThumbError(coverThumb)} loading="lazy" decoding="async" alt={content.title} className="w-full h-full object-cover" />
                                           ) : (
                                             <div className="w-full h-full flex items-center justify-center">
                                               <Music2 size={16} className="text-white/15" />
@@ -3253,7 +3273,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 onClick={() => { setIsVisualizerFullscreen(false); setIsVisualizerLayout(true); }}
                 title="Back to stage"
               >
-                <img src={album.coverImage || undefined} alt={album.title} className="w-full h-full object-cover" />
+                <img src={thumb(album.coverImage, THUMB.small) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover" />
               </div>
 
               {/* Track info */}
