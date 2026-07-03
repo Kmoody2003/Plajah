@@ -717,6 +717,12 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Research notebook (services/notebookService) — synced across devices.
+      // Private to the owner; localStorage is the offline cache.
+      match /notebook/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Fediverse accounts (Mastodon, Bluesky, Threads) — server writes on
       // behalf of the user using their Firebase ID token. Credentials are
       // AES-256-GCM encrypted at rest; the raw token never leaves the server.

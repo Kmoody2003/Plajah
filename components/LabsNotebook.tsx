@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { loadNotebook, putEntry as syncPutEntry, deleteEntry as syncDeleteEntry } from '../services/notebookService';
 import {
   ArrowLeft, Plus, Trash2, Download, Share2, Tag, Calendar,
   ChevronRight, FlaskConical, BookOpen, Microscope, Brain,
@@ -265,7 +266,11 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
   );
 
   useEffect(() => {
+    let alive = true;
+    // Paint the local cache instantly, then merge in the account's synced entries.
     try { const s = localStorage.getItem(storageKey); if (s) setEntries(JSON.parse(s)); } catch {}
+    loadNotebook(storageKey).then(merged => { if (alive) setEntries(merged as NotebookEntry[]); }).catch(() => {});
+    return () => { alive = false; };
   }, [storageKey]);
 
   const save = (updated: NotebookEntry[]) => {
@@ -280,6 +285,7 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
       experiment: type === 'EXPERIMENT' ? { hypothesis: '', method: '', results: '', conclusion: '', confidence: 'MEDIUM' } : undefined,
     };
     const updated = [entry, ...entries]; save(updated); setSelectedId(entry.id);
+    syncPutEntry(storageKey, entry);
   };
 
   // Create pre-filled LINK entry from initialEntry prop (once per mount)
@@ -300,11 +306,12 @@ const LabsNotebook: React.FC<Props> = ({ currentUser, onBack, context = 'labs', 
     setEntries(updated);
     localStorage.setItem(storageKey, JSON.stringify(updated));
     setSelectedId(entry.id);
+    syncPutEntry(storageKey, entry);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateEntry = (entry: NotebookEntry) => save(entries.map(e => e.id === entry.id ? entry : e));
-  const deleteEntry = (id: string) => { save(entries.filter(e => e.id !== id)); setSelectedId(null); };
+  const updateEntry = (entry: NotebookEntry) => { save(entries.map(e => e.id === entry.id ? entry : e)); syncPutEntry(storageKey, entry); };
+  const deleteEntry = (id: string) => { save(entries.filter(e => e.id !== id)); setSelectedId(null); syncDeleteEntry(storageKey, id); };
 
   const handleShare = (entry: NotebookEntry) => {
     navigator.clipboard.writeText(entryToMarkdown(entry));

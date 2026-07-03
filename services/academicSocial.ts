@@ -9,6 +9,7 @@ import { db, auth } from './firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { createPost } from './backendService';
 import { shareOrigin } from './deepLinkService';
+import { putEntry as syncNotebookEntry } from './notebookService';
 
 export interface AcademicAsset {
   kind: string;            // 'artifact' | 'figure' | 'style' | 'site' | 'civilization' | 'era'
@@ -43,6 +44,8 @@ export function saveToNotebook(asset: AcademicAsset): boolean {
       updatedAt: now,
     };
     localStorage.setItem(key, JSON.stringify([entry, ...existing].slice(0, 500)));
+    // Sync to the account so saved items follow the user across devices.
+    void syncNotebookEntry(key, entry);
     return true;
   } catch { return false; }
 }
