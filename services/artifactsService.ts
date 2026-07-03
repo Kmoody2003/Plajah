@@ -231,6 +231,62 @@ async function searchSmithsonian(query: string, limit: number, signal?: AbortSig
   } catch { return []; }
 }
 
+// Smithsonian 3D scans — CC0 3D models (3d.si.edu). Same key/enable rule as above.
+async function searchSmithsonian3D(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+  if (!smithsonianEnabled()) return [];
+  try {
+    const q = query && query.trim() ? `${query} AND online_media_type:"3D Images"` : 'online_media_type:"3D Images"';
+    const url = `https://api.si.edu/openaccess/api/v1.0/search?api_key=${SMITHSONIAN_KEY}&q=${encodeURIComponent(q)}&rows=${limit * 2}`;
+    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const ids: string[] = (data?.response?.rows ?? []).map((r: any) => r.id).filter(Boolean);
+    const out: Artifact[] = [];
+    for (const id of ids) {
+      if (out.length >= limit) break;
+      try {
+        const cRes = await fetch(`https://api.si.edu/openaccess/api/v1.0/content/${encodeURIComponent(id)}?api_key=${SMITHSONIAN_KEY}`, { signal: AbortSignal.timeout(7000) });
+        if (!cRes.ok) continue;
+        const cd = await cRes.json();
+        const resp = cd?.response ?? {};
+        const c = resp.content ?? {};
+        const dnr = c.descriptiveNonRepeating ?? {};
+        const media: any[] = dnr?.online_media?.media ?? [];
+        const m3d = media.find(m => /3d/i.test(m?.type || ''));
+        const model = m3d ? (smImage(m3d).full || m3d.content || m3d.viewerUrl) : null;
+        if (!model) continue;
+        const imgMedia = media.find(m => m?.type === 'Images') || m3d;
+        const { thumb } = smImage(imgMedia);
+        const idx = c.indexedStructured ?? {};
+        out.push({
+          id: `smithsonian3d-${id}`,
+          title: resp.title || dnr?.title?.content || 'Untitled',
+          culture: idx.culture?.[0] || idx.name?.[0] || 'Smithsonian',
+          date: idx.date?.[0] || '',
+          medium: idx.object_type?.[0] || '3D scan',
+          imageUrl: (thumb || model) as string,
+          thumbUrl: (thumb || model) as string,
+          source: 'smithsonian',
+          sourceUrl: dnr?.record_link || dnr?.guid || 'https://3d.si.edu',
+          provenance: idx.place?.[0] || undefined,
+          model3dUrl: model as string,
+        });
+      } catch { /* skip */ }
+    }
+    return out;
+  } catch { return []; }
+}
+
+/** Search only artifacts that have a 3D scan (currently Smithsonian Open Access 3D). */
+export async function fetchArtifacts3D(query: string, opts: { limit?: number; signal?: AbortSignal } = {}): Promise<Artifact[]> {
+  const key = `3d|${(query || '').toLowerCase()}|${opts.limit ?? 30}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const out = await searchSmithsonian3D(query, opts.limit ?? 30, opts.signal);
+  if (out.length) cache.set(key, out);
+  return out;
+}
+
 // ── Europeana (58M+ items from Europe's museums, libraries & archives) ────────
 // Requires a free wskey (api.europeana.eu). Skips itself when no key is set.
 async function searchEuropeana(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {

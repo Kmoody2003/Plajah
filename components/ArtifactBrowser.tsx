@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ExternalLink, Search, Boxes, RefreshCw, Landmark } from 'lucide-react';
 import {
-  searchArtifacts, fetchArtifactsByCollection,
+  searchArtifacts, fetchArtifactsByCollection, fetchArtifacts3D,
   type Artifact, type ArtifactCollection, type ArtifactSource,
 } from '../services/artifactsService';
 import AssetActions from './AssetActions';
@@ -27,6 +27,10 @@ const ArtifactCard: React.FC<{ a: Artifact; accent: string; onOpen: () => void }
     <div className="aspect-square bg-black/40 relative overflow-hidden">
       <img src={a.thumbUrl} alt={a.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      {a.model3dUrl && (
+        <span className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/70 border border-white/15 text-[7px] font-black uppercase tracking-widest"
+          style={{ color: accent }}><Boxes size={9} /> 3D</span>
+      )}
     </div>
     <div className="p-2.5">
       <p className="text-[11px] font-bold text-white leading-tight line-clamp-1">{a.title}</p>
@@ -88,13 +92,19 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
   const [items, setItems] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
+  const [only3d, setOnly3d] = useState(false);
   const [open, setOpen] = useState<Artifact | null>(null);
 
-  const load = useCallback(async (collectionId: string, query?: string) => {
+  const load = useCallback(async (collectionId: string, query?: string, threeD?: boolean) => {
     setLoading(true);
     setItems([]);
     try {
-      if (query && query.trim()) {
+      const term = (query && query.trim())
+        ? query.trim()
+        : (collections.find(x => x.id === collectionId) ?? collections[0])?.query ?? '';
+      if (threeD) {
+        setItems(await fetchArtifacts3D(term, { limit: 36 }));
+      } else if (query && query.trim()) {
         setItems(await searchArtifacts(query.trim(), { sources, limit: 36 }));
       } else {
         const c = collections.find(x => x.id === collectionId) ?? collections[0];
@@ -103,18 +113,27 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
     } finally { setLoading(false); }
   }, [collections, sources]);
 
-  useEffect(() => { if (active) load(active); }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (active) load(active, q || undefined, only3d); }, [active, only3d]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
       {intro && <p className="text-[12px] text-white/45 leading-relaxed">{intro}</p>}
 
-      {/* Search */}
-      <form onSubmit={e => { e.preventDefault(); load(active, q); }} className="relative max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" size={16} />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search artifacts — 'bronze', 'Maya', 'amphora'…"
-          className="w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-white/25" />
-      </form>
+      {/* Search + 3D filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <form onSubmit={e => { e.preventDefault(); load(active, q, only3d); }} className="relative flex-1 min-w-[220px] max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" size={16} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search artifacts — 'bronze', 'Maya', 'amphora'…"
+            className="w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-white/25" />
+        </form>
+        <button onClick={() => setOnly3d(v => !v)} title="Show only artifacts with an interactive 3D scan"
+          className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border"
+          style={only3d
+            ? { background: accent, color: '#000', borderColor: 'transparent' }
+            : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.55)' }}>
+          <Boxes size={13} /> 3D Scans
+        </button>
+      </div>
 
       {/* Collection chips */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
@@ -139,9 +158,18 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
 
       {!loading && items.length === 0 && (
         <div className="py-16 text-center rounded-3xl border border-white/8 bg-white/[0.02]">
-          <Landmark size={30} className="mx-auto text-white/10 mb-3" />
-          <p className="text-[11px] font-black uppercase tracking-widest text-white/30">No objects found — try another search or collection</p>
-          <p className="text-[10px] text-white/15 mt-1">Live from The Met, Art Institute of Chicago, Cleveland, the Smithsonian & Europeana</p>
+          {only3d ? <Boxes size={30} className="mx-auto text-white/10 mb-3" style={{ color: `${accent}55` }} /> : <Landmark size={30} className="mx-auto text-white/10 mb-3" />}
+          {only3d ? (
+            <>
+              <p className="text-[11px] font-black uppercase tracking-widest text-white/30">No 3D scans here yet</p>
+              <p className="text-[10px] text-white/15 mt-1">Interactive 3D scans stream from Smithsonian Open Access — try another collection or search term.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-black uppercase tracking-widest text-white/30">No objects found — try another search or collection</p>
+              <p className="text-[10px] text-white/15 mt-1">Live from The Met, Art Institute of Chicago, Cleveland, the Smithsonian & Europeana</p>
+            </>
+          )}
         </div>
       )}
 
