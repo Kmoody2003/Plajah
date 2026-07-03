@@ -697,7 +697,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           className="appearance-none bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[8px] font-black uppercase tracking-widest text-white/50 hover:text-white/80 pl-5 pr-2 py-1 cursor-pointer focus:outline-none transition-all"
         >
           <option value="" className="bg-black text-white normal-case">Translate…</option>
-          {LYRIC_LANGS.map(l => <option key={l.code} value={l.code} className="bg-black text-white normal-case">{l.label}</option>)}
+          <optgroup label="Modern" className="bg-black text-white normal-case">
+            {LYRIC_LANGS.filter(l => l.group === 'modern').map(l => <option key={l.code} value={l.code} className="bg-black text-white normal-case">{l.label}</option>)}
+          </optgroup>
+          <optgroup label="Ancient / Classical" className="bg-black text-white normal-case">
+            {LYRIC_LANGS.filter(l => l.group === 'ancient').map(l => <option key={l.code} value={l.code} className="bg-black text-white normal-case">{l.label}</option>)}
+          </optgroup>
         </select>
       </div>
       {lyricTxLoading && <RefreshCw size={10} className="animate-spin text-small-orange" />}

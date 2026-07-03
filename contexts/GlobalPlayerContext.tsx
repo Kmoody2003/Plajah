@@ -747,6 +747,32 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => clearInterval(interval);
   }, [isPlaying, audioSource, currentVideo, onEnded]);
 
+  // Smooth, stall-proof clock for AUDIO playback (music/podcasts).
+  // The browser's `timeupdate` event fires irregularly and can stall for seconds
+  // under main-thread load (this player runs several rAF audio visualizers), which
+  // froze synced lyrics mid-song and then jumped them out of sync. Driving the
+  // clock from requestAnimationFrame against audio.currentTime keeps the lyrics and
+  // scrubber progressing continuously. (Video/Radio use the YouTube poll above.)
+  useEffect(() => {
+    if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    let raf = 0;
+    let lastUpdate = 0;
+    const tick = (now: number) => {
+      const audio = audioRef.current;
+      if (audio && !audio.paused && !audio.ended) {
+        const t = audio.currentTime;
+        stateRef.current.currentTime = t;              // exact, every frame
+        if (now - lastUpdate >= 60) {                  // ~16fps state updates: smooth + cheap
+          lastUpdate = now;
+          setCurrentTime(prev => (Math.abs(prev - t) >= 0.03 ? t : prev));
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPlaying, audioSource]);
+
   useEffect(() => {
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', resume);
