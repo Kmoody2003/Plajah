@@ -4621,7 +4621,7 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
         }));
         const geminiTools = webSearchAllowed ? [{ googleSearch: {} }] : undefined;
         const chat = genai.chats.create({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash',
           config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8 },
           history: geminiHistory,
         });
@@ -4759,12 +4759,24 @@ TONE: Creative, concise, inspiring. Never sycophantic. Be direct. If the user's 
       try {
         const { GoogleGenAI } = await import('@google/genai');
         const genai = new GoogleGenAI({ apiKey: geminiKey });
-        const chat = genai.chats.create({ model: 'gemini-2.0-flash', config: { maxOutputTokens: 8 } });
+        const chat = genai.chats.create({ model: 'gemini-2.5-flash', config: { maxOutputTokens: 8 } });
         const r = await chat.sendMessage({ message: [{ text: 'Reply with the single word: ok' }] });
         const txt = (r.text || '').trim();
-        out = { provider: 'gemini', configured: true, ok: !!txt, sample: txt.slice(0, 40) };
+        out = { provider: 'gemini', configured: true, ok: !!txt, model: 'gemini-2.5-flash', sample: txt.slice(0, 40) };
       } catch (e: any) {
-        out = { provider: 'gemini', configured: true, ok: false, error: String(e?.message || e).slice(0, 240) };
+        // On failure, list the models this key can actually use so we pick a valid one.
+        let availableModels: string[] = [];
+        try {
+          const lm = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}&pageSize=100`);
+          if (lm.ok) {
+            const d = await lm.json();
+            availableModels = (d.models || [])
+              .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent') && /flash|pro/i.test(m.name))
+              .map((m: any) => m.name.replace(/^models\//, ''))
+              .slice(0, 12);
+          }
+        } catch {}
+        out = { provider: 'gemini', configured: true, ok: false, error: String(e?.message || e).slice(0, 200), availableModels };
       }
     }
     _ariaHealth = { t: Date.now(), v: out };
