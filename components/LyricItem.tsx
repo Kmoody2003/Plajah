@@ -8,25 +8,36 @@ interface LyricItemProps {
   isPast: boolean;
   isResyncMode: boolean;
   onClick: () => void;
+  translation?: string;
 }
 
-export const LyricItem = React.memo(React.forwardRef<HTMLParagraphElement, LyricItemProps>(
-  ({ line, isActive, isPast, isResyncMode, onClick }, ref) => (
-    <motion.p
+export const LyricItem = React.memo(React.forwardRef<HTMLDivElement, LyricItemProps>(
+  ({ line, isActive, isPast, isResyncMode, onClick, translation }, ref) => (
+    <motion.div
       ref={ref}
       animate={{
         opacity: isActive ? 1 : isPast ? 0.45 : 0.18,
         scale: isActive ? 1.05 : 1,
         x: isActive ? 10 : 0,
-        color: isResyncMode ? (isActive ? '#FF8C00' : '#ffffff') : isActive ? '#FF8C00' : '#ffffff',
       }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className={`text-2xl lg:text-3xl font-display font-black uppercase tracking-tight leading-tight select-none ${isResyncMode ? 'cursor-crosshair hover:opacity-80' : 'cursor-pointer'}`}
+      className={isResyncMode ? 'cursor-crosshair hover:opacity-80' : 'cursor-pointer'}
       onClick={onClick}
     >
-      {isResyncMode && <span className="inline-block w-2 h-2 rounded-full bg-small-orange/40 mr-2 align-middle" />}
-      {line.text}
-    </motion.p>
+      <p
+        className="text-2xl lg:text-3xl font-display font-black uppercase tracking-tight leading-tight select-none"
+        style={{ color: isActive ? '#FF8C00' : '#ffffff' }}
+      >
+        {isResyncMode && <span className="inline-block w-2 h-2 rounded-full bg-small-orange/40 mr-2 align-middle" />}
+        {line.text}
+      </p>
+      {translation && (
+        <p className="mt-1 text-lg lg:text-xl font-medium italic tracking-tight leading-snug select-none"
+          style={{ color: isActive ? 'rgba(255,140,0,0.72)' : 'rgba(255,255,255,0.5)' }}>
+          {translation}
+        </p>
+      )}
+    </motion.div>
   )
 ));
 
@@ -41,9 +52,11 @@ export const TimeCodedLyrics: React.FC<{
   offset?: number;
   isResyncMode?: boolean;
   onResync?: (line: { time: number; text: string }) => void;
-}> = React.memo(({ tracks, currentTime, seek, paintMode, offset = 0, isResyncMode = false, onResync }) => {
+  /** Optional map of original line text → translated text, for side-by-side display. */
+  translations?: Record<string, string>;
+}> = React.memo(({ tracks, currentTime, seek, paintMode, offset = 0, isResyncMode = false, onResync, translations }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const lineRefs    = useRef<(HTMLParagraphElement | null)[]>([]);
+  const lineRefs    = useRef<(HTMLElement | null)[]>([]);
   const translateYRef = useRef(0);
   const innerRef    = useRef<HTMLDivElement>(null);
 
@@ -136,23 +149,32 @@ export const TimeCodedLyrics: React.FC<{
         }}
         className={paintMode ? 'space-y-7 py-4 pl-3' : 'space-y-6 py-4'}
       >
-        {sortedTracks.map((line, idx) =>
-          paintMode ? (
-            <motion.p
+        {sortedTracks.map((line, idx) => {
+          const translation = translations?.[line.text];
+          return paintMode ? (
+            <motion.div
               key={idx}
               ref={el => { lineRefs.current[idx] = el; }}
               animate={{
                 opacity: idx === activeIndex ? 1 : idx < activeIndex ? 0.10 : 0.20,
                 scale:   idx === activeIndex ? 1.12 : 0.95,
                 x:       idx === activeIndex ? 0 : -10,
-                color:   idx === activeIndex ? '#FF8C00' : '#ffffff',
               }}
               transition={{ duration: 0.40, ease: 'easeOut' }}
-              className={`text-3xl lg:text-4xl xl:text-5xl font-display font-black uppercase leading-tight tracking-tight select-none drop-shadow-[0_0_28px_rgba(255,140,0,0.35)] ${isResyncMode ? 'cursor-crosshair' : 'cursor-pointer'}`}
+              className={isResyncMode ? 'cursor-crosshair' : 'cursor-pointer'}
               onClick={() => handleLineClick(line)}
             >
-              {line.text}
-            </motion.p>
+              <p className="text-3xl lg:text-4xl xl:text-5xl font-display font-black uppercase leading-tight tracking-tight select-none drop-shadow-[0_0_28px_rgba(255,140,0,0.35)]"
+                style={{ color: idx === activeIndex ? '#FF8C00' : '#ffffff' }}>
+                {line.text}
+              </p>
+              {translation && (
+                <p className="mt-1.5 text-xl lg:text-2xl font-medium italic tracking-tight leading-snug select-none"
+                  style={{ color: idx === activeIndex ? 'rgba(255,140,0,0.72)' : 'rgba(255,255,255,0.55)' }}>
+                  {translation}
+                </p>
+              )}
+            </motion.div>
           ) : (
             <LyricItem
               key={idx}
@@ -162,9 +184,10 @@ export const TimeCodedLyrics: React.FC<{
               isPast={idx < activeIndex}
               isResyncMode={isResyncMode}
               onClick={() => handleLineClick(line)}
+              translation={translation}
             />
-          )
-        )}
+          );
+        })}
       </div>
     </div>
   );

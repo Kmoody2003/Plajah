@@ -21,7 +21,8 @@ import {
   Instagram, Youtube, Mail,
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
-  SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus
+  SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
+  Languages, RefreshCw
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -32,6 +33,7 @@ import GlobalPhotosView from './GlobalPhotosView';
 import CommentSection from './CommentSection';
 import The411 from './The411';
 import { LyricItem, TimeCodedLyrics } from './LyricItem';
+import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
 import PlajahPlusButton from './PlajahPlusButton';
 
 type RepeatMode = 'NONE' | 'ONE' | 'ALL';
@@ -466,6 +468,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isGeneratingCaptions, setIsGeneratingCaptions] = useState(false);
   const [lyricsOffset, setLyricsOffset] = useState(0);
   const [isResyncMode, setIsResyncMode] = useState(false);
+  // Lyric auto-translation (Chora): detected source language + original→translated map.
+  const [lyricLang, setLyricLang] = useState<string>('');            // '' = off
+  const [lyricTx, setLyricTx] = useState<{ source: string; map: Record<string, string> } | null>(null);
+  const [lyricTxLoading, setLyricTxLoading] = useState(false);
+  const [lyricTxError, setLyricTxError] = useState<string | null>(null);
+  const lyricTxCache = useRef<Record<string, { source: string; map: Record<string, string> }>>({});
   const [corsError, setCorsError] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   
@@ -637,7 +645,68 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   useEffect(() => {
     setLyricsOffset(0);
     setIsResyncMode(false);
+    setLyricTxError(null);
   }, [currentTrackIndex]);
+
+  // Auto-(re)translate whenever a target language is chosen or the track changes.
+  useEffect(() => {
+    if (!lyricLang) { setLyricTx(null); return; }
+    const t = currentTrack;
+    if (!t?.timeCodedLyrics?.length) { setLyricTx(null); return; }
+    runLyricTranslation(t.timeCodedLyrics, lyricLang, t.id || String(currentTrackIndex));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lyricLang, currentTrack?.id]);
+
+  // Translate the current track's synced lyrics into the chosen language.
+  // Detects the source language automatically; caches per (track + language).
+  const runLyricTranslation = useCallback(async (lines: { time: number; text: string }[], langCode: string, trackKey: string) => {
+    setLyricTxError(null);
+    if (!langCode) { setLyricTx(null); return; }
+    const cacheKey = `${trackKey}|${langCode}`;
+    const cached = lyricTxCache.current[cacheKey];
+    if (cached) { setLyricTx(cached); return; }
+    const label = LYRIC_LANGS.find(l => l.code === langCode)?.label || 'English';
+    // Unique, order-preserving line texts → fewer tokens; map back by text.
+    const uniqueTexts = Array.from(new Set(lines.map(l => l.text).filter(t => t && t.trim())));
+    if (!uniqueTexts.length) { setLyricTx(null); return; }
+    setLyricTxLoading(true);
+    try {
+      const { sourceLanguage, translations } = await translateLyrics(uniqueTexts, label);
+      const map: Record<string, string> = {};
+      uniqueTexts.forEach((t, i) => { if (translations[i]) map[t] = translations[i]; });
+      const result = { source: sourceLanguage, map };
+      lyricTxCache.current[cacheKey] = result;
+      setLyricTx(result);
+    } catch (e: any) {
+      setLyricTxError(e?.message || 'Translation failed.');
+      setLyricTx(null);
+    } finally {
+      setLyricTxLoading(false);
+    }
+  }, []);
+
+  // Compact translate control shown in the synced-lyrics header.
+  const renderLyricTranslate = () => (
+    <div className="flex items-center gap-1.5 mr-1">
+      <div className="relative flex items-center">
+        <Languages size={10} className="absolute left-1.5 text-white/30 pointer-events-none" />
+        <select
+          value={lyricLang}
+          onChange={e => { setLyricLang(e.target.value); setLyricTxError(null); }}
+          title="Translate lyrics"
+          className="appearance-none bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[8px] font-black uppercase tracking-widest text-white/50 hover:text-white/80 pl-5 pr-2 py-1 cursor-pointer focus:outline-none transition-all"
+        >
+          <option value="" className="bg-black text-white normal-case">Translate…</option>
+          {LYRIC_LANGS.map(l => <option key={l.code} value={l.code} className="bg-black text-white normal-case">{l.label}</option>)}
+        </select>
+      </div>
+      {lyricTxLoading && <RefreshCw size={10} className="animate-spin text-small-orange" />}
+      {!lyricTxLoading && lyricTx && lyricLang && (
+        <span className="text-[7px] font-black uppercase tracking-widest text-small-orange/70" title={`Detected source: ${lyricTx.source}`}>{lyricTx.source} →</span>
+      )}
+      {lyricTxError && <span className="text-[8px] font-black text-red-400/80 cursor-help" title={lyricTxError}>!</span>}
+    </div>
+  );
 
   useEffect(() => {
     setCorsError(false);
@@ -1353,6 +1422,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        <button onClick={() => setIsResyncMode(false)} className="text-[8px] font-black uppercase tracking-widest text-small-orange animate-pulse px-2 py-1 bg-small-orange/10 rounded">Cancel</button>
                      ) : (
                        <>
+                         {renderLyricTranslate()}
                          <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
                          <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
                          <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
@@ -1374,6 +1444,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      offset={lyricsOffset}
                      isResyncMode={isResyncMode}
                      onResync={handleResync}
+                     translations={lyricTx?.map}
                    />
                  ) : currentTrack?.lyrics ? (
                    <div className="space-y-6 opacity-60">
@@ -2566,6 +2637,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                 <button onClick={() => setIsResyncMode(false)} className="text-[8px] font-black uppercase tracking-widest text-small-orange animate-pulse px-2 py-1 bg-small-orange/10 rounded">Cancel</button>
                               ) : (
                                 <>
+                                  {renderLyricTranslate()}
                                   <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
                                   <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
                                   <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
@@ -2589,6 +2661,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   offset={lyricsOffset}
                                   isResyncMode={isResyncMode}
                                   onResync={handleResync}
+                                  translations={lyricTx?.map}
                                 />
                               );
                             } else if (track?.lyrics) {
