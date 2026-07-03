@@ -126,7 +126,7 @@ const ArtifactBrowser: React.FC<Props> = ({ collections, accent = '#C9A55C', sou
         <div className="py-16 text-center rounded-3xl border border-white/8 bg-white/[0.02]">
           <Landmark size={30} className="mx-auto text-white/10 mb-3" />
           <p className="text-[11px] font-black uppercase tracking-widest text-white/30">No objects found — try another search or collection</p>
-          <p className="text-[10px] text-white/15 mt-1">Live from The Met, Art Institute of Chicago & Cleveland Museum of Art</p>
+          <p className="text-[10px] text-white/15 mt-1">Live from The Met, Art Institute of Chicago, Cleveland, the Smithsonian & Europeana</p>
         </div>
       )}
 

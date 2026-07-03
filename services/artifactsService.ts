@@ -14,7 +14,15 @@
  * can't hang the grid. Results cached in a Map for the session.
  */
 
-export type ArtifactSource = 'met' | 'artic' | 'cleveland' | 'opencontext';
+export type ArtifactSource = 'met' | 'artic' | 'cleveland' | 'opencontext' | 'smithsonian' | 'europeana';
+
+// Free API keys. Both sources stay dormant (return []) until a key is set — the
+// browser already works on the four keyless sources above. Smithsonian needs a
+// REAL api.data.gov key (the shared DEMO_KEY 429s under its per-object fetches);
+// Europeana needs a free wskey. Set VITE_SMITHSONIAN_KEY / VITE_EUROPEANA_KEY in
+// the build env (see .env.example).
+const SMITHSONIAN_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SMITHSONIAN_KEY) || 'DEMO_KEY';
+const EUROPEANA_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_EUROPEANA_KEY) || '';
 
 export interface Artifact {
   id: string;                 // `${source}-${sourceId}`
@@ -166,6 +174,91 @@ async function searchOpenContext(query: string, limit: number, signal?: AbortSig
   } catch { return []; }
 }
 
+// ── Smithsonian Open Access (api.si.edu — 3M+ CC0 objects, incl. 3D) ──────────
+// The search endpoint returns only summary rows, so images require a per-object
+// content fetch (like the Met). That volume needs a real api.data.gov key — the
+// shared DEMO_KEY 429s almost immediately — so this source stays dormant until
+// VITE_SMITHSONIAN_KEY is set to a real key (get one free at api.data.gov/signup).
+const smithsonianEnabled = () => !!SMITHSONIAN_KEY && SMITHSONIAN_KEY !== 'DEMO_KEY';
+
+function smImage(m: any): { full?: string; thumb?: string } {
+  if (!m) return {};
+  const full = m.content || m.resources?.[0]?.url || m.idsId && `https://ids.si.edu/ids/deliveryService?id=${m.idsId}` || m.thumbnail;
+  return { full, thumb: m.thumbnail || full };
+}
+
+async function searchSmithsonian(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+  if (!smithsonianEnabled()) return [];
+  try {
+    const url = `https://api.si.edu/openaccess/api/v1.0/search?api_key=${SMITHSONIAN_KEY}` +
+      `&q=${encodeURIComponent(`${query} AND online_media_type:"Images"`)}&rows=${limit * 3}`;
+    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const ids: string[] = (data?.response?.rows ?? []).map((r: any) => r.id).filter(Boolean);
+    const out: Artifact[] = [];
+    for (const id of ids) {
+      if (out.length >= limit) break;
+      try {
+        const cRes = await fetch(`https://api.si.edu/openaccess/api/v1.0/content/${encodeURIComponent(id)}?api_key=${SMITHSONIAN_KEY}`, { signal: AbortSignal.timeout(7000) });
+        if (!cRes.ok) continue;
+        const cd = await cRes.json();
+        const resp = cd?.response ?? {};
+        const c = resp.content ?? {};
+        const dnr = c.descriptiveNonRepeating ?? {};
+        const media: any[] = dnr?.online_media?.media ?? [];
+        const img = media.find(m => m?.type === 'Images') || media[0];
+        const { full, thumb } = smImage(img);
+        if (!full && !thumb) continue;
+        const idx = c.indexedStructured ?? {};
+        const media3d = media.find(m => m?.type === '3D Images' || m?.type === '3D');
+        out.push({
+          id: `smithsonian-${id}`,
+          title: resp.title || dnr?.title?.content || 'Untitled',
+          culture: idx.culture?.[0] || idx.name?.[0] || 'Smithsonian',
+          date: idx.date?.[0] || '',
+          medium: idx.object_type?.[0] || '',
+          imageUrl: (full || thumb) as string,
+          thumbUrl: (thumb || full) as string,
+          source: 'smithsonian',
+          sourceUrl: dnr?.record_link || dnr?.guid || 'https://www.si.edu',
+          provenance: idx.place?.[0] || undefined,
+          model3dUrl: media3d ? smImage(media3d).full : undefined,
+        });
+      } catch { /* skip */ }
+    }
+    return out;
+  } catch { return []; }
+}
+
+// ── Europeana (58M+ items from Europe's museums, libraries & archives) ────────
+// Requires a free wskey (api.europeana.eu). Skips itself when no key is set.
+async function searchEuropeana(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+  if (!EUROPEANA_KEY) return [];
+  try {
+    const url = `https://api.europeana.eu/record/v2/search.json?wskey=${EUROPEANA_KEY}` +
+      `&query=${encodeURIComponent(query)}&rows=${limit}&media=true&thumbnail=true&qf=TYPE:IMAGE&reusability=open&profile=rich`;
+    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: any[] = data?.items ?? [];
+    return items
+      .filter(i => i?.edmPreview?.[0] || i?.edmIsShownBy?.[0])
+      .map((i: any): Artifact => ({
+        id: `europeana-${i.id}`,
+        title: (i.title?.[0]) || (i.dcTitleLangAware && Object.values(i.dcTitleLangAware)[0]?.[0]) || 'Untitled',
+        culture: i.dataProvider?.[0] || i.dcCreator?.[0] || 'Europeana',
+        date: i.year?.[0] || '',
+        medium: i.type || '',
+        imageUrl: i.edmIsShownBy?.[0] || i.edmPreview?.[0],
+        thumbUrl: i.edmPreview?.[0] || i.edmIsShownBy?.[0],
+        source: 'europeana',
+        sourceUrl: i.guid || (i.edmIsShownAt?.[0]) || `https://www.europeana.eu/item${i.id}`,
+        provenance: i.country?.[0] || undefined,
+      }));
+  } catch { return []; }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 export interface SearchArtifactsOpts {
   limit?: number;
@@ -184,7 +277,7 @@ function interleave(lists: Artifact[][]): Artifact[] {
 /** Search artifacts across the keyless museum/archaeology sources. Never throws. */
 export async function searchArtifacts(query: string, opts: SearchArtifactsOpts = {}): Promise<Artifact[]> {
   const limit = opts.limit ?? 30;
-  const sources = opts.sources ?? ['met', 'artic', 'cleveland'];
+  const sources = opts.sources ?? ['met', 'artic', 'cleveland', 'smithsonian', 'europeana'];
   const key = `${query.toLowerCase()}|${limit}|${sources.join(',')}|${opts.metDepartmentId ?? ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -195,6 +288,8 @@ export async function searchArtifacts(query: string, opts: SearchArtifactsOpts =
   if (sources.includes('artic')) tasks.push(searchArtic(query, per, opts.signal));
   if (sources.includes('cleveland')) tasks.push(searchCleveland(query, per, opts.signal));
   if (sources.includes('opencontext')) tasks.push(searchOpenContext(query, per, opts.signal));
+  if (sources.includes('smithsonian')) tasks.push(searchSmithsonian(query, per, opts.signal));
+  if (sources.includes('europeana')) tasks.push(searchEuropeana(query, per, opts.signal));
 
   const settled = await Promise.allSettled(tasks);
   const lists = settled.map(s => (s.status === 'fulfilled' ? s.value : []));

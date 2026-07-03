@@ -221,8 +221,8 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
           <ArtifactBrowser
             collections={ARTIFACT_COLLECTIONS}
             accent={ACCENT}
-            sources={['met', 'artic', 'cleveland']}
-            intro="Browse tens of thousands of objects, live from the world's open-access collections."
+            sources={['met', 'artic', 'cleveland', 'smithsonian', 'europeana']}
+            intro="Browse tens of thousands of objects, live from the world's open-access collections — The Met, Art Institute of Chicago, Cleveland, the Smithsonian and Europeana."
           />
         )}
 
