@@ -36,6 +36,11 @@ jobs:
           # App Check site key — without this the client sends no App Check token; if App Check
           # enforcement is ON for Storage in the Firebase console, every upload is denied.
           VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
+          # Open-access artifact browsers (Archaeology + World History). Optional — the
+          # browser works on keyless sources without these; they light up the Smithsonian
+          # and Europeana sources when the secrets are set.
+          VITE_SMITHSONIAN_KEY: ${{ secrets.VITE_SMITHSONIAN_KEY }}
+          VITE_EUROPEANA_KEY: ${{ secrets.VITE_EUROPEANA_KEY }}
         run: npm run build
 
       # Official Firebase action — bundles a known-good firebase-tools and wires the
@@ -85,6 +90,9 @@ jobs:
         env:
           VITE_MUX_TOKEN_ID: ${{ secrets.VITE_MUX_TOKEN_ID }}
           VITE_MUX_TOKEN_SECRET: ${{ secrets.VITE_MUX_TOKEN_SECRET }}
+          VITE_APPCHECK_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}
+          VITE_SMITHSONIAN_KEY: ${{ secrets.VITE_SMITHSONIAN_KEY }}
+          VITE_EUROPEANA_KEY: ${{ secrets.VITE_EUROPEANA_KEY }}
         run: npm run build
 
       - name: Authenticate to Google Cloud
