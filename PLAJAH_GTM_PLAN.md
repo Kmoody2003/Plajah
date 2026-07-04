@@ -28,6 +28,25 @@
 
 ---
 
+> ## ⬆️ GTM UPDATE — July 3, 2026 (Fifth front: **Knowledge & Cultural Heritage** — Plajah as a living museum + world academy)
+> A build day that turns the Education front into something far larger: a **destination for the whole of human art, music, film, architecture, science and history** — museum-grade, cited, and assembled mostly from the world's **free, open-access** record. This is a **fifth distribution front** and the strongest differentiation Plajah has ever had, at near-zero content cost.
+>
+> ### 🏛️ Plajah Academia (renamed from Classrooms) + a museum-grade knowledge spine
+> "Classrooms" became **Plajah Academia**, and three subjects shipped as full **Labs-model discipline studios** — **World History**, **Architecture**, **Archaeology** — each with a figure encyclopedia, styles/eras/civilizations, primary-source + textbook libraries, live research, field tools, and a dedicated discussion feed. Architecture ships a real **structural-formula repository (KaTeX)** + building codes and a **"Simulate" studio** (working beam/column/section/load calculators, an upload-and-inspect **3D model viewer**, and a simulation-engine connector directory). Archaeology ships the platform's **Artifact Browser**: tens of thousands of objects streamed live from **The Met, Art Institute of Chicago, Cleveland Museum, Open Context, the Smithsonian and Europeana**, with a **3D-scan filter** and an **on-platform 3D viewer**.
+>
+> ### 🖼️ Museums across every creative vertical (one reusable engine)
+> A single **Museum engine** (live Wikipedia bios + portraits, curated craft notes) now powers the **Taleo Film Museum** (directors/writers/cinematographers/composers), the **Chora Conservatory** (composers/musicians + a music-history curriculum), an **Art & Photography masters gallery** over the Met + Art Institute open APIs (IIIF deep-zoom), and every discipline's figure hall. Taleo also gained an **Acting & the Craft** film-school department and a **Film Clubs** tab; Chora gained **auto-translated lyrics** — auto-detect → 30+ languages *including ancient ones* (Latin, Koine Greek, Biblical Hebrew, Aramaic, Syriac, Sanskrit…) — a **synced-lyrics stutter fix**, and **server-side auto-caption** transcription.
+>
+> ### 🔁 The social layer, infused into learning (the acquisition loop)
+> Every item — an artifact, an architect, a Van Gogh, a Zaha Hadid building, a historical figure — can be **saved to your research notebook, added to your interests, posted to your Plajah timeline, or shared out to X / Facebook / WhatsApp / LinkedIn / Reddit**. The **notebook now syncs to your account** across devices. Sharing a museum object *is* an acquisition loop — a rich, credible cultural link back to Plajah — and it extends the teacher→class→family structural distribution to **curator/educator→learners→their networks**.
+>
+> ### 🔒 Stack hardening under all fronts (keys off the client, faster everywhere)
+> All AI moved **server-side** (Anthropic + Gemini proxies) so keys never ship in the browser — this fixed **auto-captions and every client-side Gemini feature** (album metadata/liner notes, lyric generation, sermon transcription, content-safety moderation, module insights) that had been silently dark in production. A platform-wide **thumbnail-resize pass** (CDN WebP, ~10–100× smaller) removed the biggest load-time drag, especially in Chora.
+>
+> **Why it reframes the GTM:** near-**zero content cost** (it's the open record), a moat **no competitor assembles** (nobody puts the Met + Smithsonian + Europeana + OpenStax + arXiv + Wikipedia + working structural tools inside one *social* learning destination), and a set of **new segments** the original beachheads didn't cover — lifelong learners, homeschoolers, museum/heritage enthusiasts, arts/film/music educators, and working professionals (architects, engineers, archaeologists). It **deepens Education** into "learn *and experience* anything," and it hands **Institutions (Elevate)** — especially museums, cultural centers and schools — a native reason to live here. **Fronts are now: Education (incl. Knowledge/Heritage), Sports, Creator, Institutions — over one identity/record/social/AI spine.** Full build detail in **§25**.
+
+---
+
 ## 0. What Changed From v1
 
 Beachhead segments have been updated from *Worldbuilders + Indie Film* to:
@@ -1613,3 +1632,101 @@ The defining economic fact: **idle operating cost is low-hundreds/month, and the
 ---
 
 *Updated June 11, 2026. Reflects Plajah Studio (Manager Suite) + network adapters, FABULA pillar + Worlds bridge, the real music transcription stack (YIN → polyphonic DSP → Basic Pitch → MusicXML → Lorea scores), the Firestore Enterprise migration + App Check + OAuth/COOP + SPA-shadowing + crash-proofing fixes, and the Newsstand/Chora mobile passes. All prior sections remain intact for history.*
+
+---
+
+## 25. Feature Sprint — July 3, 2026 (Knowledge & Cultural Heritage front + stack hardening)
+
+**One-line thesis:** Plajah became a **living museum + world academy** — a *social* front-end for humanity's open cultural and scientific record — while moving all AI server-side and taking a platform-wide performance pass. New **fifth front (Knowledge & Cultural Heritage)**, new segments, near-zero content cost, uncontested moat.
+
+### The development-stack change (why this is bigger than a feature list)
+
+Today added three durable capabilities to the stack that make every future vertical cheaper and stronger:
+
+1. **An open-access data spine.** Plajah now renders the world's free cultural + scientific record live: **The Met, Art Institute of Chicago, Cleveland Museum, Smithsonian Open Access, Europeana, Open Context** (art + archaeology), **OpenStax** (CC-BY textbooks), **Wikipedia REST** (bios/portraits), **arXiv** (research), **USGS** (live seismic), and **Library of Congress / Chronicling America / DPLA** (primary sources). Most are keyless or free-key; content cost is effectively zero and the sourcing is credible and cited.
+2. **A reusable engine toolkit.** `MuseumHall` (biography museum), `ArtifactBrowser` (multi-museum object wall), `Model3DViewer` (on-platform 3D), `AssetActions` (the save/interest/share social layer), `HoverPreviewThumb` (live thumbnail previews), account-synced `notebookService`, and the shared watch/continue-watching model. New verticals now assemble from parts instead of from scratch.
+3. **A secure, server-side AI spine.** Anthropic **and** Gemini now run behind auth-gated, rate-limited server proxies (`/api/ai/anthropic`, `/api/ai/gemini`, `/api/ai/captions`). API keys never ship to the browser. This both hardened security and *restored features that were silently broken in production*.
+
+Plus a **CDN image pipeline** (resized WebP thumbnails) and the **Labs discipline model extended into the humanities** (the same chassis now spans STEM + History + Architecture + Archaeology).
+
+---
+
+### Feature 1 — Plajah Academia + three museum-grade discipline studios (History · Architecture · Archaeology)
+
+**What was built:** Renamed Classrooms → **Plajah Academia**. Shipped **World History**, **Architecture**, and **Archaeology** as full Labs-model studios: figure encyclopedias, styles/eras/civilizations (live Wikipedia), primary-source + open-textbook libraries (OpenStax), live research (arXiv), a dedicated per-discipline feed, and — for Architecture — a **KaTeX structural-formula repository** + building-code references and a **"Simulate" studio** (real beam/cantilever/section-property/Euler-buckling/ASCE-7 load calculators, an upload-and-inspect **3D model viewer** on three.js, and a simulation-engine connector directory). Archaeology ships dating & field methods, a tools/APIs directory, and the Artifact Browser (Feature 3).
+
+**Unique feature + opportunity:** No consumer platform offers museum-grade, tool-equipped subject studios inside a *social* product. This is a genuinely uncontested segment set: **lifelong learners, homeschoolers, and — crucially — working professionals** (a structural engineer who wants span formulas + a 3D model + live seismic data in one place; an archaeologist who wants Open Context + the Met's antiquities + dating methods).
+
+**GTM angle / new pitch (educator or professional):**
+> *"It's not a course library. It's a studio: read the masters, browse the real artifacts, run the actual calculations, and pull the live data — History, Architecture and Archaeology, each a place a professional would actually work, not just watch videos."*
+
+**New segments:** homeschool/pod networks, arts & humanities teachers, architecture/engineering students and practitioners, museum-education programs.
+
+---
+
+### Feature 2 — The Museum engine: museums across Taleo, Chora, and Art (one reusable component)
+
+**What was built:** `MuseumHall` — a "hall of greats" engine (curated seed + **live Wikipedia** portrait/bio enrichment, detail modals). It powers the **Taleo Film Museum** (directors, writers, producers, cinematographers, editors, composers), the **Chora Conservatory** (composers/musicians + a 9-era music-history curriculum), an **Art & Photography masters gallery**, and every discipline's figure hall. Taleo also gained an **Acting & the Craft** film-school department and a **Film Clubs** tab.
+
+**Unique feature + opportunity:** Taleo, Chora and the Art gallery stop being *just* players and stores — they become **appreciation destinations** (the reason cinephiles, music students and art lovers *come and stay*, not only buy). This is the "film school / conservatory / museum as the draw, content alongside" thesis, and it's now shipped across all three verticals from one component.
+
+**GTM angle:** deepens the Creator front's stickiness and opens **film/music/art education** channels (the June-sprint "music educator" and "intellectual creator" vectors now have museum-grade homes). Every figure page is share-ready cultural content.
+
+---
+
+### Feature 3 — The open-access Artifact Browser + on-platform 3D viewer
+
+**What was built:** A live artifact wall over **The Met, Art Institute of Chicago, Cleveland Museum, Open Context, Smithsonian Open Access, and Europeana** — browse by collection or free-search tens of thousands of public-domain/CC0 objects, full-metadata lightbox, a **"3D Scans" filter**, and an **on-platform 3D viewer** (embeds the museum's 3D model in-app with an exit-to-gallery, not a new tab).
+
+**Unique feature + opportunity:** This is a **moat competitors don't assemble**. Nobody puts six of the world's great open collections into one browsable, shareable, on-platform experience — and does it at ~zero content cost. It's PR-worthy on its own ("browse the Smithsonian's 3D scans and the Met's antiquities in one place, then post one to your feed").
+
+**GTM angle / pitch:**
+> *"Every object in the world's open museums — The Met, the Smithsonian, Europeana, Cleveland, the Art Institute — in one wall you can search, view in 3D, and share. Free, cited, on-platform."*
+
+**Institutions tie-in:** a direct hook for **museums and cultural centers (Elevate)** — the platform already speaks their language and hosts their kind of content.
+
+---
+
+### Feature 4 — The academic social layer + account-synced notebook
+
+**What was built:** `AssetActions` on every academic item (figures, artifacts, styles, sites, civilizations): **Save to notebook · Add to interests · Post to your Plajah timeline · Share out** (X / Facebook / WhatsApp / LinkedIn / Reddit / native). The research **notebook now syncs to the user's account** in Firestore (localStorage kept as an offline cache), so it follows them across devices.
+
+**Unique feature + opportunity:** This is the **acquisition loop for the Knowledge front**. Learning content that's *only* consumed is a dead end; learning content that's **saved, collected and shared** becomes both a retention surface (my notebook, my interests) and organic distribution (a shared Van Gogh or a shared Göbekli Tepe artifact is a credible, clickable link back to Plajah). It also feeds the recommendation graph (interests) and the timeline (posts), tying Education into the core social product.
+
+**GTM angle:** turns passive study into a viral, personal collection — the "Pinterest-meets-museum-meets-notebook, on a platform that also pays creators" story.
+
+---
+
+### Feature 5 — Chora as a whole music experience (Conservatory · translation · reliability)
+
+**What was built:** The **Conservatory** (music museum + history curriculum); **auto-translated synced lyrics** — auto-detects the source language and shows the translation line-by-line beside the original, across 30+ languages **including ancient ones** (Latin, Koine Greek, Biblical Hebrew, Aramaic, Syriac, Coptic, Sanskrit, Classical Chinese, Old English…); a root-cause **fix to the synced-lyrics stutter** (the clock now runs on requestAnimationFrame, so lyrics never freeze-and-jump); and **server-side auto-caption** transcription (Sync Lyrics) with the output cap raised so long songs transcribe end-to-end.
+
+**Unique feature + opportunity:** "understand any song, in any language, alive or ancient" is a differentiator no streaming service offers — and it lands squarely on the **music-educator and language-learner** segments. Ancient-language translation is genuinely novel (imagine a Latin or Aramaic hymn rendered line-by-line as it plays).
+
+**GTM angle / pitch (music learner):**
+> *"Play any song and read it translated line-by-line — even Latin or Aramaic — with the theory breakdown a tap away. Chora isn't a player; it's a music education you listen to."*
+
+---
+
+### Feature 6 — Stack hardening: server-side AI + platform performance
+
+**What was built:** All client-side Gemini features moved behind a **server proxy** (`/api/ai/gemini`) using the server key, plus a dedicated **`/api/ai/captions`** transcription endpoint — so keys never ship in the client bundle. This **fixed a class of production bugs**: auto-captions, album auto-metadata/liner-notes, lyric generation, sermon transcription, module insights, and **content-safety moderation** had all been silently returning empty in production (no client key in the CI build). Separately, a platform-wide **thumbnail-resize pass** routes ~100 grid/list/player images through a CDN WebP resizer (a 538 KB cover → a 54 KB thumbnail; ~10–100× smaller), with full-resolution originals reserved for full-screen backgrounds.
+
+**GTM / trust angle:** two of the fronts most sensitive to reliability — **Education** and **Institutions** — just got a credibility upgrade. **Content-safety was quietly non-functional in production and is now restored** (a real trust/safety fix, important for child/education accounts). And the perf pass removes the single most common "feels slow" complaint, especially in the image-heavy music UI. Reliability and speed are, as §13 notes, the credibility floor for institution and school sales.
+
+---
+
+### Blindspots (honest)
+
+- **AI now depends on Cloud Run + the server keys.** The security win (keys off client) means captions/translation/insights require the API service to be healthy and `GOOGLE_AI_API_KEY` / `ANTHROPIC_API_KEY` present in the Cloud Run env. Mitigation: all calls degrade gracefully (fallbacks / empty rather than crashes), but the failure mode moved from "client key missing" to "server misconfigured."
+- **Third-party open APIs are a dependency.** The museum/data spine is only as available as The Met, Smithsonian, Europeana, Wikipedia, arXiv, etc. Each fetch is non-throwing and cached, and the browser degrades to fewer sources — but a broad outage thins the experience. Two sources (Smithsonian, Europeana) require free keys to activate.
+- **In-app 3D embedding depends on each museum's framing policy.** Some hosts block iframing (X-Frame-Options); those fall back to a clear "open source" action rather than embedding inline.
+- **New segments ≠ new revenue yet.** Lifelong learners, museum enthusiasts and humanities students deepen the *Education* front's differentiation and PR, but (like Plajah Labs in §11) their direct monetization is soft; the value is retention, credibility, distribution and press — routed through the existing Plajah+ / Sanctuary / education monetization, not a new paywall.
+
+### Economic note
+
+Consistent with the platform's cost profile: the Knowledge front is **near-zero marginal content cost** (open APIs + client-rendered tools + Wikipedia enrichment), the reusable engines make each additional vertical cheap, and the only new recurring cost is server-side AI inference (already budgeted for Aria/captions). This is a rare combination — *maximally differentiated content with almost no content-acquisition cost* — and it strengthens the "runs for ~$100/mo idle, differentiates like a museum" story for the investor framing in §24.9.
+
+---
+
+*Updated July 3, 2026. Reflects the Knowledge & Cultural Heritage front (Plajah Academia + History/Architecture/Archaeology studios), the reusable Museum engine across Taleo/Chora/Art, the open-access Artifact Browser + on-platform 3D viewer, the academic social layer + account-synced notebook, Chora's Conservatory / ancient-language translation / lyric-sync fixes, and the stack hardening (server-side Anthropic + Gemini proxies, content-safety restoration, platform-wide thumbnail performance). All prior sections remain intact for history.*
