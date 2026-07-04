@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DollarSign, TrendingUp, Users, ShoppingBag, Radio, Wallet,
   ArrowUpRight, ArrowDownRight, CreditCard, Bitcoin, Shield,
@@ -6,7 +6,7 @@ import {
   Film, Ticket, Play, Star,
 } from 'lucide-react';
 import { UserRevenue, UserProfile } from '../types';
-import { updateCryptoWallet } from '../services/backendService';
+import { updateCryptoWallet, fetchCreatorEarnings } from '../services/backendService';
 import { motion } from 'motion/react';
 
 interface RevenueDashboardProps {
@@ -21,6 +21,17 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
     ethereum: '',
     solana: ''
   });
+
+  // Real pending payout balance from Stripe earnings (0 until money actually clears).
+  const [pendingCents, setPendingCents] = useState(0);
+  useEffect(() => {
+    let live = true;
+    fetchCreatorEarnings('1y')
+      .then(e => { if (live) setPendingCents(e?.pendingCents ?? 0); })
+      .catch(() => { if (live) setPendingCents(0); });
+    return () => { live = false; };
+  }, []);
+  const pendingUsd = (pendingCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
   const revenue = profile.revenue || {
     donations: 0,
@@ -214,15 +225,18 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
             <div className="pt-6">
               <div className="flex items-center justify-between mb-4 px-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Next Payout</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Estimated: April 20, 2026</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{pendingCents > 0 ? 'Automatic via Stripe' : '—'}</span>
               </div>
               <div className="p-8 bg-small-orange/10 border border-small-orange/20 rounded-[2.5rem]">
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-[10px] font-black text-small-orange uppercase tracking-widest mb-1">Pending Balance</p>
-                    <h5 className="text-4xl font-black uppercase tracking-tightest">$1,240.50</h5>
+                    <h5 className="text-4xl font-black uppercase tracking-tightest">{pendingUsd}</h5>
                   </div>
-                  <button className="px-8 py-4 bg-small-orange text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
+                  <button
+                    disabled={pendingCents <= 0}
+                    className="px-8 py-4 bg-small-orange text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl disabled:opacity-40 disabled:hover:scale-100"
+                  >
                     Request Early Payout
                   </button>
                 </div>
