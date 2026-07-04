@@ -1640,6 +1640,28 @@ export const listenToGlobalPosts = (callback: (posts: Post[]) => void) => {
 };
 
 /**
+ * A business/organization's own feed. Posts made "as" the org (createPost with
+ * authorOrgId) live in the shared `posts` collection; an org page surfaces its
+ * feed by filtering to its id. Client-side sort avoids a composite index.
+ */
+export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void) => {
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
+};
+
+/** Post as a business/organization the caller runs (appears on the org's feed + globally). */
+export const createOrgPost = async (
+  orgId: string, orgName: string, orgPhoto: string, post: Partial<Post>,
+): Promise<string | undefined> =>
+  createPost({ ...post, authorOrgId: orgId, authorName: orgName, authorPhoto: orgPhoto } as any);
+
+/**
  * Genre-based FOR_YOU feed — no ML needed.
  * Strategy: query posts where genre matches any of the user's preferred genres.
  * Falls back to recency if no preferences are set.

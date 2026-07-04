@@ -1444,6 +1444,67 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // SANCTUARY (Patreon / Kickstarter / GoFundMe hybrid)
+    // ===============================================================
+
+    // Sanctuary identity — one per account (doc id == ownerId).
+    match /sanctuaries/{ownerId} {
+      allow read: if true;   // discoverable; PRIVATE gating is enforced in-app
+      allow create, delete: if isOwner(ownerId) || isAdmin();
+      allow update: if isOwner(ownerId) || isAdmin() ||
+        // Crowdfunding contributions may bump only the campaign totals.
+        (isAuthenticated() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['campaign', 'updatedAt']));
+    }
+
+    // Membership tiers — owned by the creator.
+    match /sanctuaryTiers/{tierId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin() ||
+        // Member joins/leaves adjust the count only.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])));
+    }
+
+    // A fan's membership record.
+    match /sanctuaryMemberships/{membershipId} {
+      allow read: if isAuthenticated() && (
+        resource.data.memberId == request.auth.uid ||
+        resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.memberId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.memberId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.memberId == request.auth.uid || isAdmin());
+    }
+
+    // Exclusive content (tier-gated or à la carte).
+    match /sanctuaryContent/{contentId} {
+      allow read: if isAuthenticated();  // access to the URL is gated in-app / server-side
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin() ||
+        // Like/comment counters.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
+      allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+    }
+
+    // The sanctuary's gated feed.
+    match /sanctuaryPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid || isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']));
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // À la carte purchases — a buyer's private receipts.
+    match /sanctuaryPurchases/{purchaseId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ===============================================================
     // DISCUSSION (Reddit-style forum)
     // ===============================================================
 

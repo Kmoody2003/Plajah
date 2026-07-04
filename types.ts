@@ -3456,15 +3456,35 @@ export interface SanctuaryMembership {
   stripeSubscriptionId?: string;
 }
 
+// Everything a creator can lock inside a Sanctuary. Far beyond the original
+// media types — secret playlists, remixes, whole films, deleted scenes, BTS,
+// games, papers, private conversations, collaborations and live streams.
+export type SanctuaryContentKind =
+  | 'VIDEO' | 'AUDIO' | 'POST' | 'ARTICLE' | 'LIVE' | 'DOWNLOAD'
+  | 'PLAYLIST' | 'REMIX' | 'BOOK' | 'FILM' | 'DELETED_SCENE' | 'BTS'
+  | 'GAME' | 'WHITEPAPER' | 'RESEARCH' | 'CONVERSATION' | 'COLLAB' | 'LIVESTREAM';
+
+// How a member gains access to a single item, independent of the sanctuary's
+// overall model — this is what makes content (and chats) à la carte.
+export type SanctuaryAccessType =
+  | 'FREE'      // open to anyone (a public teaser / lead magnet)
+  | 'TIER'      // unlocked by membership in one of requiredTierIds
+  | 'ONE_TIME'; // buy this single item once (à la carte), no membership needed
+
 export interface SanctuaryExclusiveContent {
   id: string;
   creatorId: string;
+  sanctuaryId?: string;       // owner id (== creatorId); explicit for querying
   title: string;
   description?: string;
-  type: 'VIDEO' | 'AUDIO' | 'POST' | 'ARTICLE' | 'LIVE' | 'DOWNLOAD';
+  type: SanctuaryContentKind;
   contentUrl?: string;
   thumbnailUrl?: string;
-  requiredTierIds: string[];  // Must be member of at least one of these tiers
+  previewUrl?: string;        // free teaser (clip / excerpt) shown before unlock
+  mediaAssetId?: string;      // link to an existing album / film / book / playlist
+  accessType?: SanctuaryAccessType;  // default 'TIER'
+  requiredTierIds: string[];  // for TIER: member of at least one of these tiers
+  oneTimePrice?: number;      // for ONE_TIME: à la carte unlock price (USD)
   isPublicPreview: boolean;
   publishedAt: number;
   likesCount: number;
@@ -3478,6 +3498,93 @@ export interface SanctuaryCreatorConfig {
   coverImageUrl?: string;
   totalMembers: number;
   monthlyRevenue: number;
+}
+
+// ── SANCTUARY (Patreon / Kickstarter / GoFundMe hybrid) ─────────────────────────
+// A Sanctuary is a first-class, distinct-from-a-Club space any account can run —
+// a user OR an organization. One per account by default (doc id == ownerId), it
+// carries identity, an access model, an optional crowdfunding campaign, and its
+// own gated feed. Tiers / memberships / exclusive content remain keyed by the
+// owner (creatorId == ownerId).
+
+export type SanctuaryVisibility = 'PUBLIC' | 'PRIVATE'; // PRIVATE = hidden, invite/member only
+export type SanctuaryAccessModel = 'FREE' | 'PAID' | 'MIXED'; // the sanctuary's overall posture
+export type SanctuaryOwnerType = 'USER' | 'ORG';
+
+export interface SanctuaryCampaign {
+  isActive: boolean;
+  title: string;
+  story?: string;
+  goalAmount: number;      // Kickstarter/GoFundMe target (USD)
+  raisedAmount: number;
+  backerCount: number;
+  deadline?: number;       // optional funding deadline (ms)
+  allOrNothing?: boolean;  // Kickstarter-style vs GoFundMe keep-what-you-raise
+}
+
+export interface Sanctuary {
+  id: string;              // == ownerId (uid or orgId)
+  ownerId: string;
+  ownerType: SanctuaryOwnerType;
+  ownerName: string;
+  ownerPhoto?: string;
+  name: string;            // the sanctuary's own name ("The Vault", "Backstage"…)
+  handle?: string;         // unique @handle
+  tagline?: string;
+  about?: string;
+  bannerUrl?: string;
+  avatarUrl?: string;
+  accentColor?: string;    // creator accent (layered over the sanctuary skin)
+  visibility: SanctuaryVisibility;
+  accessModel: SanctuaryAccessModel;
+  welcomeMessage?: string;
+  campaign?: SanctuaryCampaign;
+  memberCount: number;
+  contentCount?: number;
+  isEnabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// The gated social feed inside a Sanctuary. Public-preview posts are visible to
+// anyone (teasers); member/tier/one-time posts require access.
+export interface SanctuaryPost {
+  id: string;
+  sanctuaryId: string;     // owner id
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  content: string;
+  attachments?: Array<{ type: string; url: string; title?: string; thumbnailUrl?: string; assetId?: string }>;
+  accessType: SanctuaryAccessType;   // FREE teaser vs TIER vs ONE_TIME
+  requiredTierIds?: string[];
+  oneTimePrice?: number;
+  isPinned?: boolean;
+  likes: string[];
+  commentCount: number;
+  timestamp: number;
+}
+
+// An à la carte unlock — a one-time purchase of a single content item or post.
+export interface SanctuaryPurchase {
+  id: string;
+  sanctuaryId: string;
+  buyerId: string;
+  itemId: string;          // content or post id
+  itemType: 'CONTENT' | 'POST' | 'CHAT';
+  amount: number;          // USD paid
+  purchasedAt: number;
+}
+
+// A portable gate any platform asset can carry so it can be locked behind a
+// Sanctuary — a secret track, a whole film, a research paper, a private chat.
+export interface SanctuaryGate {
+  sanctuaryId: string;        // owning sanctuary (ownerId)
+  accessType: SanctuaryAccessType;
+  requiredTierIds?: string[]; // for TIER
+  oneTimePrice?: number;      // for ONE_TIME
+  previewUrl?: string;        // optional free teaser
+  label?: string;             // e.g. "Members only", "Backstage tier"
 }
 
 // ── STORE & E-COMMERCE ────────────────────────────────────────────────────────

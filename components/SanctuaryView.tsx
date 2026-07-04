@@ -37,6 +37,19 @@ const CONTENT_TYPE_ICONS: Record<SanctuaryExclusiveContent['type'], React.FC<any
   ARTICLE: FileText,
   LIVE: Radio,
   DOWNLOAD: Download,
+  // Expanded Sanctuary content kinds (Patreon/Kickstarter hybrid).
+  PLAYLIST: Music,
+  REMIX: Music,
+  BOOK: FileText,
+  FILM: Video,
+  DELETED_SCENE: Video,
+  BTS: Video,
+  GAME: FileText,
+  WHITEPAPER: FileText,
+  RESEARCH: FileText,
+  CONVERSATION: FileText,
+  COLLAB: Music,
+  LIVESTREAM: Radio,
 };
 
 // ── Tier Card ─────────────────────────────────────────────────────────────────

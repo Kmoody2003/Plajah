@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Search, Check, Hash, Users, Landmark } from 'lucide-react';
+import { X, Search, Check, Hash, Users, Landmark, Gem, Building2 } from 'lucide-react';
 import { auth } from '../services/firebase';
-import { createPost, createClubPost, fetchUserClubs } from '../services/backendService';
+import { createPost, createClubPost, createOrgPost, fetchUserClubs } from '../services/backendService';
+import { createSanctuaryPost, fetchUserSanctuaries } from '../services/sanctuaryService';
+import { fetchUserOrganizations } from '../services/organizationService';
+import { fetchMyBusinessPages } from '../services/businessService';
 import { Club } from '../types';
 import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer';
 import {
@@ -46,7 +49,16 @@ function resolveDisciplineId(name?: string): string | null {
 
 type ExtraTarget =
   | { kind: 'discipline'; id: string; label: string }
-  | { kind: 'club'; id: string; label: string };
+  | { kind: 'club'; id: string; label: string }
+  | { kind: 'sanctuary'; id: string; label: string }
+  | { kind: 'business'; id: string; label: string; photo?: string };
+
+const KIND_ICON: Record<string, React.ReactNode> = {
+  club: <Users size={12} className="text-white/40 shrink-0" />,
+  sanctuary: <Gem size={12} className="text-[#C9A55C] shrink-0" />,
+  business: <Building2 size={12} className="text-white/40 shrink-0" />,
+  discipline: <Hash size={12} className="text-white/40 shrink-0" />,
+};
 
 interface Props {
   asset: AcademicAsset;
@@ -60,6 +72,8 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
   const [primary, setPrimary] = useState<'discipline' | 'social'>(disciplineId ? 'discipline' : 'social');
   const [extra, setExtra] = useState<ExtraTarget[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [sanctuaries, setSanctuaries] = useState<{ id: string; label: string }[]>([]);
+  const [businesses, setBusinesses] = useState<{ id: string; label: string; photo?: string }[]>([]);
   const [query, setQuery] = useState('');
   const [dropOpen, setDropOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -72,7 +86,19 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (uid) fetchUserClubs(uid).then(setClubs).catch(() => {});
+    if (!uid) return;
+    fetchUserClubs(uid).then(setClubs).catch(() => {});
+    fetchUserSanctuaries(uid)
+      .then(list => setSanctuaries(list.map(s => ({ id: s.id, label: s.name }))))
+      .catch(() => {});
+    // Businesses + orgs both post via authorOrgId, so they share the 'business' kind.
+    Promise.all([
+      fetchUserOrganizations(uid).then(os => os.map(o => ({ id: o.id, label: o.name, photo: o.logoUrl }))).catch(() => []),
+      fetchMyBusinessPages().then(bs => bs.map(b => ({ id: b.id, label: b.businessName, photo: b.logoUrl }))).catch(() => []),
+    ]).then(([orgs, biz]) => {
+      const seen = new Set<string>();
+      setBusinesses([...orgs, ...biz].filter(b => (seen.has(b.id) ? false : (seen.add(b.id), true))));
+    });
   }, []);
 
   // Combined, searchable destination list (disciplines + the user's clubs),
@@ -84,11 +110,13 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
       .filter(d => !(primary === 'discipline' && d.id === disciplineId))
       .map(d => ({ kind: 'discipline' as const, id: d.id, label: d.label }));
     const clubOpts: ExtraTarget[] = clubs.map(c => ({ kind: 'club' as const, id: c.id, label: c.name }));
-    return [...discs, ...clubOpts]
+    const sancOpts: ExtraTarget[] = sanctuaries.map(s => ({ kind: 'sanctuary' as const, id: s.id, label: s.label }));
+    const bizOpts: ExtraTarget[] = businesses.map(b => ({ kind: 'business' as const, id: b.id, label: b.label, photo: b.photo }));
+    return [...sancOpts, ...clubOpts, ...bizOpts, ...discs]
       .filter(o => !chosen.has(`${o.kind}:${o.id}`))
       .filter(o => !q || o.label.toLowerCase().includes(q))
       .slice(0, 40);
-  }, [query, extra, clubs, primary, disciplineId]);
+  }, [query, extra, clubs, sanctuaries, businesses, primary, disciplineId]);
 
   const addTarget = (t: ExtraTarget) => { setExtra(prev => [...prev, t]); setQuery(''); };
   const removeTarget = (t: ExtraTarget) => setExtra(prev => prev.filter(e => !(e.kind === t.kind && e.id === t.id)));
@@ -119,22 +147,33 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
       ...(media.length ? { media } : {}),
     } as any);
 
+    // Shared attachment shape for club / sanctuary feeds.
+    const feedAttachments = (data.attachments || []).map(a => ({
+      type: a.type,
+      url: a.url,
+      title: a.title,
+      thumbnailUrl: (a as any).thumbnail,
+    }));
+    const attachments = feedAttachments.length ? feedAttachments : undefined;
+
     // Cross-post to selected clubs (separate collection / feed).
     const clubTargets = extra.filter(e => e.kind === 'club');
-    if (clubTargets.length) {
-      const clubAttachments = (data.attachments || []).map(a => ({
-        type: a.type,
-        url: a.url,
-        title: a.title,
-        thumbnailUrl: (a as any).thumbnail,
-      }));
-      await Promise.all(clubTargets.map(c => createClubPost({
-        clubId: c.id,
-        content: data.text,
-        type: 'POST',
-        attachments: clubAttachments.length ? clubAttachments : undefined,
-      })));
-    }
+    await Promise.all(clubTargets.map(c => createClubPost({
+      clubId: c.id, content: data.text, type: 'POST', attachments,
+    })));
+
+    // Post into selected sanctuaries. Academic shares default to a FREE teaser so
+    // they surface to everyone; the creator can re-gate from inside the sanctuary.
+    const sanctuaryTargets = extra.filter(e => e.kind === 'sanctuary');
+    await Promise.all(sanctuaryTargets.map(s => createSanctuaryPost({
+      sanctuaryId: s.id, content: data.text, accessType: 'FREE', attachments,
+    })));
+
+    // Post as selected businesses / organizations (their feed = posts by authorOrgId).
+    const businessTargets = extra.filter(e => e.kind === 'business') as Extract<ExtraTarget, { kind: 'business' }>[];
+    await Promise.all(businessTargets.map(b => createOrgPost(
+      b.id, b.label, b.photo || '', { text: data.text, isPublic: true, ...(media.length ? { media } : {}) },
+    )));
 
     setDone(true);
     onPosted?.();
@@ -178,7 +217,7 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
             value={query}
             onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
             onFocus={() => setDropOpen(true)}
-            placeholder="Also share to a discipline, club…"
+            placeholder="Also share to a sanctuary, club, business, discipline…"
             className="flex-1 bg-transparent text-[12px] font-medium outline-none placeholder:text-white/25 min-w-0"
           />
         </div>
@@ -196,7 +235,7 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
                   onClick={() => addTarget(o)}
                   className="w-full flex items-center gap-2.5 text-left px-2.5 py-2 rounded-xl hover:bg-white/[0.06] transition-all"
                 >
-                  {o.kind === 'club' ? <Users size={12} className="text-white/40 shrink-0" /> : <Hash size={12} className="text-white/40 shrink-0" />}
+                  {KIND_ICON[o.kind]}
                   <span className="text-[12px] font-bold text-white/80 truncate flex-1">{o.label}</span>
                   <span className="text-[8px] font-black uppercase tracking-widest text-white/25">{o.kind}</span>
                 </button>
@@ -209,8 +248,10 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
       {extra.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {extra.map(t => (
-            <span key={`${t.kind}:${t.id}`} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-white/70">
-              {t.kind === 'club' ? <Users size={10} /> : <Hash size={10} />}
+            <span key={`${t.kind}:${t.id}`} className={`flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border text-[10px] font-bold ${
+              t.kind === 'sanctuary' ? 'bg-[#C9A55C]/12 border-[#C9A55C]/35 text-[#E7D6AE]' : 'bg-white/[0.06] border-white/10 text-white/70'
+            }`}>
+              <span className="[&_svg]:w-2.5 [&_svg]:h-2.5">{KIND_ICON[t.kind]}</span>
               {t.label}
               <button type="button" onClick={() => removeTarget(t)} className="w-4 h-4 rounded-full hover:bg-white/15 flex items-center justify-center">
                 <X size={9} />

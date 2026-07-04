@@ -3,8 +3,12 @@ import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import type {
   SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent,
-  SanctuaryCreatorConfig,
+  SanctuaryCreatorConfig, Sanctuary, SanctuaryPost, SanctuaryPurchase,
+  SanctuaryGate, SanctuaryAccessType,
 } from '../types';
+
+const stripUndefined = <T extends Record<string, any>>(o: T): T =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
 // ── TIERS ─────────────────────────────────────────────────────────────────────
 
@@ -175,3 +179,206 @@ export const likeExclusiveContent = async (contentId: string): Promise<void> => 
 export const deleteExclusiveContent = async (contentId: string): Promise<void> => {
   await deleteDoc(doc(db, 'sanctuaryContent', contentId));
 };
+
+// ── SANCTUARY IDENTITY (one per account; doc id == ownerId) ─────────────────────
+
+export const fetchSanctuary = async (ownerId: string): Promise<Sanctuary | null> => {
+  const snap = await getDoc(doc(db, 'sanctuaries', ownerId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Sanctuary) : null;
+};
+
+export const listenToSanctuary = (ownerId: string, callback: (s: Sanctuary | null) => void) =>
+  onSnapshot(doc(db, 'sanctuaries', ownerId),
+    snap => callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as Sanctuary) : null),
+    err => console.warn('[sanctuary] identity listener:', err.message),
+  );
+
+/** Create or update the caller's Sanctuary. Doc id is the owner id so every
+ *  account has at most one — a standard, discoverable space. */
+export const createOrUpdateSanctuary = async (
+  data: Partial<Sanctuary> & { ownerId?: string },
+): Promise<Sanctuary> => {
+  if (!auth.currentUser) throw new Error('Not authenticated');
+  const ownerId = data.ownerId || auth.currentUser.uid;
+  const ref = doc(db, 'sanctuaries', ownerId);
+  const existing = await getDoc(ref);
+  const now = Date.now();
+  if (existing.exists()) {
+    const updates = stripUndefined({ ...data, id: ownerId, ownerId, updatedAt: now });
+    await updateDoc(ref, updates);
+    return { ...(existing.data() as Sanctuary), ...updates } as Sanctuary;
+  }
+  const full: Sanctuary = stripUndefined({
+    id: ownerId,
+    ownerId,
+    ownerType: data.ownerType || 'USER',
+    ownerName: data.ownerName || auth.currentUser.displayName || 'Creator',
+    ownerPhoto: data.ownerPhoto || auth.currentUser.photoURL || '',
+    name: data.name || `${auth.currentUser.displayName || 'My'} Sanctuary`,
+    handle: data.handle,
+    tagline: data.tagline,
+    about: data.about,
+    bannerUrl: data.bannerUrl,
+    avatarUrl: data.avatarUrl,
+    accentColor: data.accentColor,
+    visibility: data.visibility || 'PUBLIC',
+    accessModel: data.accessModel || 'MIXED',
+    welcomeMessage: data.welcomeMessage,
+    campaign: data.campaign,
+    memberCount: 0,
+    contentCount: 0,
+    isEnabled: data.isEnabled ?? true,
+    createdAt: now,
+    updatedAt: now,
+  }) as Sanctuary;
+  await setDoc(ref, full);
+  return full;
+};
+
+/** The sanctuaries a user owns. One-per-account today, so this returns [it] or []. */
+export const fetchUserSanctuaries = async (uid: string): Promise<Sanctuary[]> => {
+  const s = await fetchSanctuary(uid);
+  return s ? [s] : [];
+};
+
+/** Public sanctuaries for the discovery hub. */
+export const fetchPublicSanctuaries = async (max = 40): Promise<Sanctuary[]> => {
+  try {
+    const q = query(
+      collection(db, 'sanctuaries'),
+      where('visibility', '==', 'PUBLIC'),
+      where('isEnabled', '==', true),
+      limit(max),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Sanctuary));
+  } catch (e) {
+    console.warn('[sanctuary] fetchPublicSanctuaries:', (e as Error).message);
+    return [];
+  }
+};
+
+// ── SANCTUARY FEED (gated posts) ────────────────────────────────────────────────
+
+export const createSanctuaryPost = async (
+  post: Partial<SanctuaryPost> & { sanctuaryId: string },
+): Promise<SanctuaryPost | null> => {
+  if (!auth.currentUser) return null;
+  const ref = doc(collection(db, 'sanctuaryPosts'));
+  const full: SanctuaryPost = stripUndefined({
+    id: ref.id,
+    sanctuaryId: post.sanctuaryId,
+    authorId: auth.currentUser.uid,
+    authorName: auth.currentUser.displayName || 'Creator',
+    authorPhoto: auth.currentUser.photoURL || '',
+    content: post.content || '',
+    attachments: post.attachments,
+    accessType: post.accessType || 'TIER',
+    requiredTierIds: post.requiredTierIds,
+    oneTimePrice: post.oneTimePrice,
+    isPinned: post.isPinned ?? false,
+    likes: [],
+    commentCount: 0,
+    timestamp: Date.now(),
+  }) as SanctuaryPost;
+  await setDoc(ref, full);
+  return full;
+};
+
+export const listenToSanctuaryPosts = (sanctuaryId: string, callback: (posts: SanctuaryPost[]) => void) => {
+  const q = query(collection(db, 'sanctuaryPosts'), where('sanctuaryId', '==', sanctuaryId), limit(100));
+  return onSnapshot(q,
+    snap => {
+      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPost));
+      posts.sort((a, b) => ((b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)) || (b.timestamp - a.timestamp));
+      callback(posts);
+    },
+    err => console.warn('[sanctuary] posts listener:', err.message),
+  );
+};
+
+export const deleteSanctuaryPost = async (postId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'sanctuaryPosts', postId));
+};
+
+export const likeSanctuaryPost = async (postId: string, liked: boolean): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'sanctuaryPosts', postId), {
+    likes: liked ? arrayUnion(auth.currentUser.uid) : arrayRemove(auth.currentUser.uid),
+  });
+};
+
+// ── À LA CARTE (one-time unlocks of a single item) ──────────────────────────────
+
+export const unlockContent = async (
+  sanctuaryId: string, itemId: string, amount: number,
+  itemType: 'CONTENT' | 'POST' | 'CHAT' = 'CONTENT',
+): Promise<SanctuaryPurchase | null> => {
+  if (!auth.currentUser) return null;
+  const ref = doc(collection(db, 'sanctuaryPurchases'));
+  const purchase: SanctuaryPurchase = {
+    id: ref.id,
+    sanctuaryId,
+    buyerId: auth.currentUser.uid,
+    itemId,
+    itemType,
+    amount,
+    purchasedAt: Date.now(),
+  };
+  await setDoc(ref, purchase);
+  return purchase;
+};
+
+export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryPurchase[]> => {
+  if (!auth.currentUser) return [];
+  const clauses = [where('buyerId', '==', auth.currentUser.uid)];
+  if (sanctuaryId) clauses.push(where('sanctuaryId', '==', sanctuaryId));
+  const snap = await getDocs(query(collection(db, 'sanctuaryPurchases'), ...clauses));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPurchase));
+};
+
+// ── CROWDFUNDING CAMPAIGN (Kickstarter / GoFundMe) ──────────────────────────────
+
+export const contributeToCampaign = async (sanctuaryId: string, amount: number): Promise<void> => {
+  if (!auth.currentUser || amount <= 0) return;
+  await updateDoc(doc(db, 'sanctuaries', sanctuaryId), {
+    'campaign.raisedAmount': increment(amount),
+    'campaign.backerCount': increment(1),
+    updatedAt: Date.now(),
+  });
+};
+
+// ── ACCESS CHECK (pure; usable anywhere a gate applies) ─────────────────────────
+
+interface AccessCtx {
+  isOwner?: boolean;
+  membership?: SanctuaryMembership | null;   // the viewer's active membership in this sanctuary
+  purchasedItemIds?: Set<string> | string[]; // items the viewer already unlocked à la carte
+}
+
+/** Does the viewer have access to a gated item? Owners always do; otherwise it
+ *  depends on the access type: FREE → yes, TIER → active membership in a required
+ *  tier, ONE_TIME → a recorded purchase of this item. */
+export const hasAccess = (
+  gate: { accessType?: SanctuaryAccessType; requiredTierIds?: string[]; isPublicPreview?: boolean },
+  itemId: string,
+  ctx: AccessCtx = {},
+): boolean => {
+  if (ctx.isOwner) return true;
+  const type = gate.accessType || (gate.isPublicPreview ? 'FREE' : 'TIER');
+  if (type === 'FREE' || gate.isPublicPreview) return true;
+  if (type === 'ONE_TIME') {
+    const owned = ctx.purchasedItemIds instanceof Set
+      ? ctx.purchasedItemIds
+      : new Set(ctx.purchasedItemIds || []);
+    return owned.has(itemId);
+  }
+  // TIER
+  if (!ctx.membership || ctx.membership.status !== 'ACTIVE') return false;
+  const required = gate.requiredTierIds || [];
+  return required.length === 0 || required.includes(ctx.membership.tierId);
+};
+
+/** Convenience for a portable SanctuaryGate carried by any platform asset. */
+export const hasSanctuaryAccess = (gate: SanctuaryGate, itemId: string, ctx: AccessCtx = {}): boolean =>
+  hasAccess({ accessType: gate.accessType, requiredTierIds: gate.requiredTierIds }, itemId, ctx);
