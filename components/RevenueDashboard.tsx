@@ -6,7 +6,7 @@ import {
   Film, Ticket, Play, Star,
 } from 'lucide-react';
 import { UserRevenue, UserProfile } from '../types';
-import { updateCryptoWallet, fetchCreatorEarnings } from '../services/backendService';
+import { updateCryptoWallet, fetchCreatorEarnings, startCreatorConnectOnboarding, fetchConnectStatus, openStripeDashboard } from '../services/backendService';
 import { motion } from 'motion/react';
 
 interface RevenueDashboardProps {
@@ -32,6 +32,24 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
     return () => { live = false; };
   }, []);
   const pendingUsd = (pendingCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+  // Real Stripe Connect status (was hardcoded to a fake "Connected & Active").
+  const [connect, setConnect] = useState<{ connected?: boolean; chargesEnabled?: boolean; requiresAction?: boolean } | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const refreshConnect = () => fetchConnectStatus().then(setConnect).catch(() => setConnect({ connected: false }));
+  useEffect(() => { refreshConnect(); }, []);
+  const isConnected = !!connect?.connected && !!connect?.chargesEnabled;
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const { url } = await startCreatorConnectOnboarding();
+      if (!url) throw new Error('Stripe did not return an onboarding link. Make sure Connect is enabled and your API key has Connect permissions.');
+      window.location.href = url; // same-tab redirect — window.open after await is popup-blocked
+    } catch (e: any) {
+      alert(e?.message || 'Could not start Stripe onboarding.');
+      setConnecting(false);
+    }
+  };
 
   const revenue = profile.revenue || {
     donations: 0,
@@ -201,12 +219,22 @@ const RevenueDashboard: React.FC<RevenueDashboardProps> = ({ profile, onUpdate }
                 </div>
                 <div>
                   <p className="text-sm font-black uppercase tracking-widest">Stripe Connect</p>
-                  <p className="text-[10px] text-green-400 font-bold uppercase">Connected & Active</p>
+                  <p className={`text-[10px] font-bold uppercase ${isConnected ? 'text-green-400' : connect?.requiresAction ? 'text-amber-400' : 'text-white/30'}`}>
+                    {isConnected ? 'Connected & Active' : connect?.requiresAction ? 'Setup incomplete' : connect === null ? 'Checking…' : 'Not connected — required to get paid'}
+                  </p>
                 </div>
               </div>
-              <button className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all">
-                <ExternalLink size={18} />
-              </button>
+              {isConnected ? (
+                <button onClick={() => openStripeDashboard().catch(() => {})} title="Open your Stripe dashboard"
+                  className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all">
+                  <ExternalLink size={18} />
+                </button>
+              ) : (
+                <button onClick={handleConnect} disabled={connecting}
+                  className="px-6 py-3 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50">
+                  {connecting ? 'Opening Stripe…' : connect?.requiresAction ? 'Complete Setup' : 'Connect with Stripe'}
+                </button>
+              )}
             </div>
 
             <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 flex items-center justify-between opacity-50">

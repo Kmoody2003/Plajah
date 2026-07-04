@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight, Wand2 } from 'lucide-react';
 import { fetchPublicOrganizations, createDemoChurch } from '../services/organizationService';
-import { auth } from '../services/firebase';
 import { Organization, OrgType } from '../types';
 
 interface PlajahElevateProps {
@@ -100,22 +99,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
   };
 
   useEffect(() => { let cancelled = false; (async () => { if (!cancelled) await load(); })(); return () => { cancelled = true; }; }, []);
-
-  // Turn the demo church on automatically — the first signed-in visitor seeds
-  // Grace Chapel once if the directory has no demo church yet (createDemoChurch is
-  // idempotent, so it never duplicates). Read is public, so once any one user
-  // seeds it, it shows for everyone including guests.
-  const autoSeededRef = useRef(false);
-  useEffect(() => {
-    if (loading || autoSeededRef.current) return;
-    if (!auth.currentUser) return; // must be signed in to write
-    const churches = orgsByType['spiritual'] || [];
-    if (churches.some(o => o.isDemo)) return;
-    autoSeededRef.current = true;
-    createDemoChurch()
-      .then(org => { if (org) load(); else autoSeededRef.current = false; })
-      .catch(() => { autoSeededRef.current = false; }); // let a transient failure retry
-  }, [loading, orgsByType]);
 
   const handleSeedChurch = async () => {
     setSeeding(true);

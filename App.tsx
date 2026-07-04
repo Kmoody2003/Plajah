@@ -2613,7 +2613,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
-                <div className={`flex items-center gap-1.5 ${isSidebarCollapsed ? 'justify-center flex-col' : ''}`}>
+                <div className={`flex items-center justify-center gap-1.5 ${isSidebarCollapsed ? 'flex-col' : ''}`}>
                   {/* Chat — jump to messages; incoming calls ring as a card near here */}
                   {user && (
                     <button
@@ -2627,7 +2627,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       <MessageSquare size={16} className={view === 'CHAT' ? 'text-small-orange' : 'text-white/40'} />
                     </button>
                   )}
-                  <div className="flex-1">
+                  <div className="shrink-0">
                     <NotificationCenter onNavigate={handleNotificationNavigate} onOpenAlerts={() => setNotifDrawerTrigger({ tab: 'ALERTS', ts: Date.now() })} />
                   </div>
                   {/* Sign Out — quick access next to notification bell */}
