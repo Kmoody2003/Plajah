@@ -4,7 +4,7 @@ import { db, auth } from './firebase';
 import type {
   SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent,
   SanctuaryCreatorConfig, Sanctuary, SanctuaryPost, SanctuaryPurchase,
-  SanctuaryGate, SanctuaryAccessType,
+  SanctuaryGate, SanctuaryAccessType, SanctuaryChatMessage,
 } from '../types';
 
 const stripUndefined = <T extends Record<string, any>>(o: T): T =>
@@ -335,6 +335,42 @@ export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryP
   if (sanctuaryId) clauses.push(where('sanctuaryId', '==', sanctuaryId));
   const snap = await getDocs(query(collection(db, 'sanctuaryPurchases'), ...clauses));
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPurchase));
+};
+
+// ── MEMBER CHAT (open lounge or à la carte paid channel) ────────────────────────
+
+export const sendSanctuaryChat = async (
+  sanctuaryId: string, content: string, channelId?: string,
+): Promise<void> => {
+  if (!auth.currentUser || !content.trim()) return;
+  const ref = doc(collection(db, 'sanctuaryChat'));
+  const msg: SanctuaryChatMessage = stripUndefined({
+    id: ref.id,
+    sanctuaryId,
+    channelId,
+    senderId: auth.currentUser.uid,
+    senderName: auth.currentUser.displayName || 'Member',
+    senderPhoto: auth.currentUser.photoURL || '',
+    content: content.trim(),
+    timestamp: Date.now(),
+  }) as SanctuaryChatMessage;
+  await setDoc(ref, msg);
+};
+
+export const listenToSanctuaryChat = (
+  sanctuaryId: string, callback: (msgs: SanctuaryChatMessage[]) => void, channelId?: string,
+) => {
+  const q = query(collection(db, 'sanctuaryChat'), where('sanctuaryId', '==', sanctuaryId), limit(200));
+  return onSnapshot(q,
+    snap => {
+      const msgs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as SanctuaryChatMessage))
+        .filter(m => (channelId ? m.channelId === channelId : !m.channelId))
+        .sort((a, b) => a.timestamp - b.timestamp);
+      callback(msgs);
+    },
+    err => console.warn('[sanctuary] chat listener:', err.message),
+  );
 };
 
 // ── CROWDFUNDING CAMPAIGN (Kickstarter / GoFundMe) ──────────────────────────────

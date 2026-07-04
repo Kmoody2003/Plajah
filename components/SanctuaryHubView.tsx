@@ -8,6 +8,7 @@ import {
 import { UserProfile, SanctuaryTier } from '../types';
 import { searchUsers } from '../services/backendService';
 import { fetchCreatorTiers } from '../services/sanctuaryService';
+import { SANCTUARY_THEME, SanctuaryBadge } from './sanctuary/SanctuaryIdentity';
 
 interface SanctuaryHubViewProps {
   onBack?: () => void;
@@ -65,16 +66,15 @@ const CreatorCard: React.FC<{ data: CreatorCardData; onClick: () => void }> = ({
       <div className="h-28 relative overflow-hidden">
         <div
           className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
-          style={{
-            background: lowestTier?.color
-              ? `linear-gradient(135deg, ${lowestTier.color}66 0%, #000 100%)`
-              : 'linear-gradient(135deg, #7c3aed55 0%, #000 100%)',
-          }}
+          style={{ background: SANCTUARY_THEME.heroGradient }}
         />
         {profile.photoURL && (
           <img src={profile.photoURL} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity" />
         )}
+        <div className="absolute inset-0" style={{ background: SANCTUARY_THEME.goldSheen }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+
+        <div className="absolute top-3 left-3"><SanctuaryBadge size="sm" /></div>
 
         {/* Member count badge */}
         {totalMembers > 0 && (
@@ -119,10 +119,11 @@ const CreatorCard: React.FC<{ data: CreatorCardData; onClick: () => void }> = ({
         )}
 
         <button
-          className="w-full py-2.5 rounded-xl bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600/40 hover:border-purple-400/50 flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-purple-300 transition-all"
+          className="w-full py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all hover:brightness-110"
+          style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}
           onClick={onClick}
         >
-          <Shield size={11} /> View Sanctuary <ArrowRight size={10} />
+          <Shield size={11} /> Enter Sanctuary <ArrowRight size={10} />
         </button>
       </div>
     </motion.div>

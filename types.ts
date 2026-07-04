@@ -3565,6 +3565,19 @@ export interface SanctuaryPost {
   timestamp: number;
 }
 
+// Member chat inside a Sanctuary. A channel can be open to all members or gated
+// (à la carte paid chat) — access is decided by the same SanctuaryAccessType rules.
+export interface SanctuaryChatMessage {
+  id: string;
+  sanctuaryId: string;
+  channelId?: string;      // undefined = the main members lounge
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  content: string;
+  timestamp: number;
+}
+
 // An à la carte unlock — a one-time purchase of a single content item or post.
 export interface SanctuaryPurchase {
   id: string;

@@ -4,7 +4,7 @@ import {
   Shield, Star, Crown, Zap, Check, Lock, Unlock, Users, MessageSquare,
   Play, Music, FileText, Video, Download, Heart, ChevronRight, Plus,
   Edit3, Trash2, X, Globe, Eye, EyeOff, Calendar, ChevronLeft,
-  Sparkles, Trophy, Gift, Radio, Presentation,
+  Sparkles, Trophy, Gift, Radio, Presentation, Gem,
 } from 'lucide-react';
 import { auth } from '../services/backendService';
 import {
@@ -13,10 +13,16 @@ import {
   listenToExclusiveContent, publishExclusiveContent,
   deleteExclusiveContent, fetchCreatorMembers,
   saveSanctuaryTier, updateSanctuaryTier, deleteSanctuaryTier,
+  listenToSanctuary, createOrUpdateSanctuary, contributeToCampaign,
+  fetchMyPurchases, hasAccess,
 } from '../services/sanctuaryService';
-import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, PitchDeck } from '../types';
+import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, Sanctuary, PitchDeck } from '../types';
 import { UserProfile } from '../types';
 import { generateSanctuaryDeck } from '../services/pitchDeckTemplates';
+import { SANCTUARY_THEME, SanctuaryBadge } from './sanctuary/SanctuaryIdentity';
+import SanctuaryFeed from './sanctuary/SanctuaryFeed';
+import SanctuaryChat from './sanctuary/SanctuaryChat';
+import SanctuaryCampaignBanner from './sanctuary/SanctuaryCampaignBanner';
 
 // ── Tier color palettes ────────────────────────────────────────────────────────
 const TIER_PRESETS = [
@@ -587,8 +593,10 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   const [tiers, setTiers] = useState<SanctuaryTier[]>([]);
   const [myMembership, setMyMembership] = useState<SanctuaryMembership | null>(null);
   const [exclusiveContent, setExclusiveContent] = useState<SanctuaryExclusiveContent[]>([]);
+  const [sanctuary, setSanctuary] = useState<Sanctuary | null>(null);
+  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [isLoadingJoin, setIsLoadingJoin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'TIERS' | 'CONTENT' | 'COMMUNITY'>('TIERS');
+  const [activeTab, setActiveTab] = useState<'TIERS' | 'FEED' | 'CONTENT' | 'LOUNGE'>('FEED');
   const [joinError, setJoinError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -607,7 +615,33 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   useEffect(() => {
     if (!auth.currentUser) return;
     checkMembership(creatorId).then(setMyMembership).catch(err => console.warn('[sanctuary] check membership:', err.message));
+    fetchMyPurchases(creatorId)
+      .then(ps => setPurchasedIds(new Set(ps.map(p => p.itemId))))
+      .catch(() => {});
   }, [creatorId]);
+
+  // Sanctuary identity doc (name / banner / campaign). Auto-provision for the owner
+  // so every account has a real, distinct Sanctuary the first time they open it.
+  useEffect(() => {
+    const unsub = listenToSanctuary(creatorId, s => {
+      setSanctuary(s);
+      if (!s && isOwnProfile && auth.currentUser?.uid === creatorId) {
+        createOrUpdateSanctuary({
+          ownerId: creatorId,
+          ownerName: creatorProfile?.displayName || auth.currentUser.displayName || 'Creator',
+          ownerPhoto: creatorProfile?.photoURL,
+        }).catch(() => {});
+      }
+    });
+    return unsub;
+  }, [creatorId, isOwnProfile, creatorProfile]);
+
+  const contribute = async (amount: number) => {
+    await contributeToCampaign(creatorId, amount);
+  };
+  const saveSanctuary = async (patch: Partial<Sanctuary>) => {
+    await createOrUpdateSanctuary({ ownerId: creatorId, ...patch });
+  };
 
   const handleJoin = async (tier: SanctuaryTier) => {
     if (!auth.currentUser) { setJoinError('Sign in to join'); return; }
@@ -632,147 +666,174 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
     setMyMembership(null);
   };
 
-  const isContentUnlocked = (content: SanctuaryExclusiveContent) => {
-    if (isOwnProfile) return true;
-    if (!myMembership) return content.isPublicPreview;
-    return content.requiredTierIds.includes(myMembership.tierId);
-  };
+  const isContentUnlocked = (content: SanctuaryExclusiveContent) =>
+    hasAccess(
+      { accessType: content.accessType, requiredTierIds: content.requiredTierIds, isPublicPreview: content.isPublicPreview },
+      content.id,
+      { isOwner: isOwnProfile, membership: myMembership, purchasedItemIds: purchasedIds },
+    );
+
+  const canChat = !!isOwnProfile || !!myMembership;
+
+  const memberCount = sanctuary?.memberCount || tiers.reduce((s, t) => s + t.memberCount, 0);
+  const sanctuaryName = sanctuary?.name || `${creatorProfile?.displayName || 'Creator'} Sanctuary`;
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide bg-black/40">
-      {/* Hero */}
+    <div className="h-full overflow-y-auto scrollbar-hide" style={{ background: SANCTUARY_THEME.obsidian }}>
+      {/* Hero — obsidian + gold vault (deliberately unlike a Club) */}
       <div className="relative">
-        {/* Cover */}
-        <div className="h-48 md:h-64 bg-gradient-to-br from-purple-900/60 via-black to-amber-900/40 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(139,92,246,0.3),transparent_70%)]" />
+        <div className="h-48 md:h-60 relative overflow-hidden" style={{ background: SANCTUARY_THEME.heroGradient }}>
+          {sanctuary?.bannerUrl && (
+            <img src={sanctuary.bannerUrl} className="absolute inset-0 w-full h-full object-cover opacity-35" alt="" />
+          )}
+          <div className="absolute inset-0" style={{ background: SANCTUARY_THEME.goldSheen }} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Shield size={64} className="text-white/5" />
+            <Gem size={72} style={{ color: 'rgba(201,165,92,0.10)' }} />
+          </div>
+          <div className="absolute top-4 left-6 flex items-center gap-3">
+            {onBack && (
+              <button onClick={onBack} className="flex items-center gap-1.5 text-white/50 hover:text-white transition-colors text-[11px] font-bold uppercase tracking-widest">
+                <ChevronLeft size={16} /> Back
+              </button>
+            )}
+          </div>
+          <div className="absolute top-4 right-6">
+            <SanctuaryBadge />
           </div>
         </div>
 
-        {/* Back + Creator info */}
         <div className="px-6 pb-6 pt-4">
-          {onBack && (
-            <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-4">
-              <ChevronLeft size={18} /> Back
-            </button>
-          )}
-
           <div className="flex items-end gap-4 -mt-12 mb-4">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-black shadow-xl shrink-0">
-              <img src={creatorProfile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorId}`}
-                className="w-full h-full object-cover" />
+            <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 shadow-xl" style={{ border: `3px solid ${SANCTUARY_THEME.gold}` }}>
+              <img src={sanctuary?.avatarUrl || creatorProfile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorId}`}
+                className="w-full h-full object-cover" alt="" />
             </div>
-            <div>
-              <h1 className="text-2xl font-black uppercase tracking-tighter">{creatorProfile?.displayName || 'Creator'} Sanctuary</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-black tracking-tight truncate" style={{ color: SANCTUARY_THEME.goldSoft }}>{sanctuaryName}</h1>
               <div className="flex items-center gap-3 mt-1">
-                <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase"><Users size={9} /> {tiers.reduce((s, t) => s + t.memberCount, 0)} members</span>
-                <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase"><Crown size={9} /> {tiers.length} tier{tiers.length !== 1 ? 's' : ''}</span>
+                <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Users size={9} /> {memberCount} members</span>
+                <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Crown size={9} /> {tiers.length} tier{tiers.length !== 1 ? 's' : ''}</span>
+                {sanctuary?.visibility === 'PRIVATE' && <span className="flex items-center gap-1 text-[9px] font-bold text-white/35 uppercase tracking-widest"><Lock size={9} /> Private</span>}
               </div>
             </div>
           </div>
 
-          {/* Member status badge */}
+          {sanctuary?.tagline && <p className="text-[13px] text-white/55 leading-relaxed max-w-2xl mb-4">{sanctuary.tagline}</p>}
+
           {myMembership && (
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest mb-4"
-              style={{ color: myMembership.tierColor, borderColor: `${myMembership.tierColor}40`, background: `${myMembership.tierColor}10` }}
-            >
-              <Shield size={12} />
-              {myMembership.tierName} Member · Renews {new Date(myMembership.renewsAt).toLocaleDateString()}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest mb-4"
+              style={{ color: myMembership.tierColor, borderColor: `${myMembership.tierColor}40`, background: `${myMembership.tierColor}10` }}>
+              <Shield size={12} /> {myMembership.tierName} Member · Renews {new Date(myMembership.renewsAt).toLocaleDateString()}
             </div>
           )}
 
           {joinError && <p className="text-red-400 text-[11px] mb-4">{joinError}</p>}
-
           <AnimatePresence>
             {showSuccess && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-2 px-4 py-3 bg-green-500/20 border border-green-500/30 rounded-2xl text-green-400 text-[11px] font-bold mb-4">
-                <Check size={14} /> Welcome to the Sanctuary! You now have access to exclusive content.
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[11px] font-bold mb-4"
+                style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
+                <Check size={14} /> Welcome to the Sanctuary — your access is unlocked.
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Creator setup or fan tabs */}
-          {isOwnProfile ? (
-            <>
-              {onCreatePitchDeck && (
-                <button
-                  onClick={() => {
-                    const profile = creatorProfile ?? { uid: creatorId, displayName: 'Creator', photoURL: '', email: '', followerCount: 0, followingCount: 0, storageLimit: 0, storageUsage: { total: 0, audio: 0, video: 0, photos: 0 } } as UserProfile;
-                    onCreatePitchDeck(generateSanctuaryDeck(profile, tiers));
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-2xl bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs font-bold hover:bg-orange-500/20 transition-colors"
-                >
-                  <Presentation size={14} /> Create Pitch Deck
+          {/* Crowdfunding campaign — shared across owner + members */}
+          {sanctuary && (sanctuary.campaign?.isActive || isOwnProfile) && (
+            <div className="mb-6">
+              <SanctuaryCampaignBanner sanctuary={sanctuary} isOwner={isOwnProfile} onContribute={contribute} onSave={saveSanctuary} />
+            </div>
+          )}
+
+          {onCreatePitchDeck && isOwnProfile && (
+            <button
+              onClick={() => {
+                const profile = creatorProfile ?? { uid: creatorId, displayName: 'Creator', photoURL: '', email: '', followerCount: 0, followingCount: 0, storageLimit: 0, storageUsage: { total: 0, audio: 0, video: 0, photos: 0 } } as UserProfile;
+                onCreatePitchDeck(generateSanctuaryDeck(profile, tiers));
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 mb-6 rounded-2xl text-xs font-bold transition-colors"
+              style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}
+            >
+              <Presentation size={14} /> Create Pitch Deck
+            </button>
+          )}
+
+          {/* Tabs — feed, exclusives, join, lounge (+ manage for owner) */}
+          <div className="flex items-center gap-2 p-1 rounded-2xl mb-6" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
+            {([
+              { id: 'FEED', label: 'Feed', icon: Gem },
+              { id: 'CONTENT', label: 'Exclusives', icon: Sparkles },
+              { id: 'TIERS', label: isOwnProfile ? 'Manage' : 'Join', icon: Crown },
+              { id: 'LOUNGE', label: 'Lounge', icon: MessageSquare },
+            ] as const).map(({ id, label, icon: Icon }) => {
+              const active = activeTab === id;
+              return (
+                <button key={id} onClick={() => setActiveTab(id)}
+                  className="flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all"
+                  style={active ? { color: '#000', background: SANCTUARY_THEME.gold } : { color: 'rgba(255,255,255,0.4)' }}>
+                  <Icon size={12} /> {label}
                 </button>
-              )}
+              );
+            })}
+          </div>
+
+          {activeTab === 'FEED' && (
+            <SanctuaryFeed
+              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
+              tiers={tiers} purchasedIds={purchasedIds}
+              onPurchased={id => setPurchasedIds(prev => new Set(prev).add(id))}
+            />
+          )}
+
+          {activeTab === 'TIERS' && (
+            isOwnProfile ? (
               <CreatorSetupPanel creatorId={creatorId} />
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 p-1 bg-black/30 rounded-2xl mb-6">
-                {([
-                  { id: 'TIERS', label: 'Join', icon: Crown },
-                  { id: 'CONTENT', label: 'Exclusives', icon: Sparkles },
-                  { id: 'COMMUNITY', label: 'Community', icon: Users },
-                ] as const).map(({ id, label, icon: Icon }) => (
-                  <button key={id} onClick={() => setActiveTab(id)}
-                    className={`flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === id ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
-                    <Icon size={12} /> {label}
-                  </button>
+            ) : (
+              <div className="space-y-4">
+                {tiers.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <Gem size={32} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.3)' }} />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No membership tiers yet</p>
+                  </div>
+                ) : tiers.map(tier => (
+                  <TierCard key={tier.id} tier={tier} membership={myMembership?.tierId === tier.id ? myMembership : null}
+                    onJoin={handleJoin} onCancel={handleCancel} isLoading={isLoadingJoin} />
                 ))}
               </div>
+            )
+          )}
 
-              {activeTab === 'TIERS' && (
-                <div className="space-y-4">
-                  {tiers.length === 0 ? (
-                    <div className="py-16 text-center">
-                      <Shield size={32} className="text-white/10 mx-auto mb-3" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No membership tiers yet</p>
-                    </div>
-                  ) : tiers.map(tier => (
-                    <TierCard key={tier.id} tier={tier} membership={myMembership?.tierId === tier.id ? myMembership : null}
-                      onJoin={handleJoin} onCancel={handleCancel} isLoading={isLoadingJoin} />
+          {activeTab === 'CONTENT' && (
+            <div>
+              {!myMembership && !isOwnProfile && (
+                <div className="p-4 rounded-2xl flex items-start gap-3 mb-4" style={{ background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
+                  <Lock size={16} className="shrink-0 mt-0.5" style={{ color: SANCTUARY_THEME.gold }} />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>Exclusive vault</p>
+                    <p className="text-[9px] text-white/40">Join a tier — or buy a single item à la carte — to unlock.</p>
+                  </div>
+                </div>
+              )}
+              {exclusiveContent.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Sparkles size={28} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.25)' }} />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No exclusive content yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {exclusiveContent.map(content => (
+                    <ContentCard key={content.id} content={content} isUnlocked={isContentUnlocked(content)} />
                   ))}
                 </div>
               )}
+            </div>
+          )}
 
-              {activeTab === 'CONTENT' && (
-                <div>
-                  {!myMembership && (
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 mb-4">
-                      <Lock size={16} className="text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">Members only content</p>
-                        <p className="text-[9px] text-white/30">Join a tier to unlock exclusive videos, audio, posts, and more.</p>
-                      </div>
-                    </div>
-                  )}
-                  {exclusiveContent.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <Sparkles size={28} className="text-white/10 mx-auto mb-3" />
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20">No exclusive content yet</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      {exclusiveContent.map(content => (
-                        <ContentCard key={content.id} content={content} isUnlocked={isContentUnlocked(content)} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'COMMUNITY' && (
-                <div className="py-12 text-center">
-                  <MessageSquare size={32} className="text-white/10 mx-auto mb-3" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Member chat coming soon</p>
-                  <p className="text-[9px] text-white/15 mt-2">Join a tier with private chat access</p>
-                </div>
-              )}
-            </>
+          {activeTab === 'LOUNGE' && (
+            <SanctuaryChat
+              sanctuaryId={creatorId} canChat={canChat}
+              lockReason={tiers.length ? 'Join a tier to enter the lounge' : 'Members-only lounge'}
+            />
           )}
         </div>
       </div>

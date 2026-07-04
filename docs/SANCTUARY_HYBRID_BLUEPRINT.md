@@ -74,10 +74,24 @@ top.
   (`SANCTUARY_THEME`, `SanctuaryBadge`, `SanctuaryLockChip`, `SanctuaryPriceTag`).
 - Firestore rules for all sanctuary collections (previously unruled → denied in prod).
 
-### Phase 2 — the Sanctuary shell (next)
-Distinct gold/obsidian Sanctuary page reusing club patterns: gated feed, member
-chat (incl. à-la-carte paid chat), gallery, events, tiers rail, campaign banner,
-members. `SanctuaryBadge` on every entry point. Redesigned discovery hub.
+### Phase 2 — the Sanctuary shell ✅ (2026-07-04)
+Reskinned `SanctuaryView` into the distinct obsidian + gold vault (no more club
+violet), with `SanctuaryBadge` in the hero and on hub cards. New tabs:
+- **Feed** — `SanctuaryFeed`: gated `sanctuaryPosts` with an owner composer that
+  sets per-post access (Everyone / Members / Paid + price), like, delete, and an
+  inline **à la carte unlock** button that records a purchase.
+- **Exclusives** — content grid now gated by `hasAccess` (tier *or* purchase).
+- **Manage / Join** — owner sees `CreatorSetupPanel`; fans see tiers.
+- **Lounge** — `SanctuaryChat`: real member chat (new `sanctuaryChat` collection),
+  locked for non-members with a clear reason.
+- **Campaign banner** — `SanctuaryCampaignBanner`: owner launches a Kickstarter/
+  GoFundMe campaign (goal, story, all-or-nothing); members back it ($5/$25/$100);
+  live progress via `listenToSanctuary` + `contributeToCampaign`.
+- Sanctuary identity doc auto-provisions for the owner on first open.
+- Discovery hub (`SanctuaryHubView`) reskinned gold with `SanctuaryBadge`.
+
+Still thin (Phase 2.1): gallery + events tabs (reuse club patterns), tier-scoped
+chat channels, richer post attachments/media in the feed.
 
 ### Phase 3 — money (Stripe)
 Real payment for tier subscriptions, à la carte unlocks and campaign pledges;
