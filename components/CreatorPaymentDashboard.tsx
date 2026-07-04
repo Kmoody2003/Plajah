@@ -435,8 +435,8 @@ const CreatorPaymentDashboard: React.FC<Props> = ({ currentUser }) => {
       <div className="px-6 pt-8 pb-6 max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Creator Payments</p>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Earnings Dashboard</h1>
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Manage your money &amp; payouts</p>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Revenue &amp; Money</h1>
             {connectStatus.payoutsEnabled && (
               <div className="flex items-center gap-1.5 mt-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />

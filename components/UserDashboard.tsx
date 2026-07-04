@@ -18,7 +18,7 @@ const CAP_LABELS: Record<Capability, string> = {
   MANAGE_FAMILY: 'Manage family accounts', ATHLETE_PROFILE: 'Athlete profile', PARTNER_INTEGRATIONS: 'Partner integrations',
 };
 import StoreManager from './StoreManager';
-import RevenueDashboard from './RevenueDashboard';
+import CreatorPaymentDashboard from './CreatorPaymentDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
 import {
@@ -247,7 +247,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'ASSETS', label: 'My Assets', icon: Database },
             { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon },
             { id: 'BROADCAST', label: 'Broadcast Studio', icon: Tv, cap: 'LIVE_STREAM' as Capability },
-            { id: 'PAYMENTS', label: 'Payments & Revenue', icon: CreditCard },
             { id: 'MAILING_LIST', label: 'Mailing List', icon: Mail },
             { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio, cap: 'RUN_RADIO' as Capability },
             { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
@@ -1246,16 +1245,9 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </motion.div>
           )}
 
-          {activeTab === 'REVENUE' && hasCapability(profile, 'MONETIZE') && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
-              <header>
-                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Revenue & Money</h1>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Track your earnings and manage payout methods</p>
-              </header>
-              <RevenueDashboard 
-                profile={profile} 
-                onUpdate={setProfile}
-              />
+          {activeTab === 'REVENUE' && profile && hasCapability(profile, 'MONETIZE') && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <CreatorPaymentDashboard currentUser={profile} />
             </motion.div>
           )}
 
@@ -1708,42 +1700,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             </motion.div>
           )}
 
-          {activeTab === 'PAYMENTS' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
-              <header>
-                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Payments & Revenue</h1>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Monitor your earnings and manage payout methods</p>
-              </header>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                  { label: 'Total Revenue', value: '$1,240.50', color: 'text-green-500' },
-                  { label: 'Active Subscriptions', value: '42', color: 'text-blue-500' },
-                  { label: 'Pending Payout', value: '$340.00', color: 'text-small-orange' },
-                ].map(stat => (
-                  <div key={stat.label} className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{stat.label}</p>
-                    <p className={`text-3xl font-display font-black tracking-tight ${stat.color}`}>{stat.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-10 bg-white/5 border border-white/5 rounded-[3rem] space-y-8">
-                <h3 className="text-xl font-black uppercase tracking-widest text-white">Payout Method</h3>
-                <div className="flex items-center gap-6 p-6 bg-black/40 rounded-3xl border border-white/10">
-                  <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center">
-                    <CreditCard size={28} className="text-white/40" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-black uppercase tracking-tight text-white">Stripe Connect</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Linked Account: **** 4242</p>
-                  </div>
-                  <button className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white transition-all">Manage</button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {activeTab === 'SIDEBAR' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
               <header>
@@ -1861,19 +1817,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 settings={profile?.storeSettings}
                 onUpdate={setUserMerch}
                 onSettingsUpdate={(s) => setProfile(prev => prev ? { ...prev, storeSettings: s } : null)}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'REVENUE' && profile && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
-              <header>
-                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Revenue Dashboard</h1>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Track your earnings across all channels</p>
-              </header>
-              <RevenueDashboard 
-                profile={profile} 
-                onUpdate={setProfile}
               />
             </motion.div>
           )}
