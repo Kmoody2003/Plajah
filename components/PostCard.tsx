@@ -56,6 +56,54 @@ const RenderTextWithMentions: React.FC<{ text: string; onVisitUser?: (uid: strin
   );
 };
 
+// Inline embedded 3D-scan viewer for academic/artifact posts. Shows a poster with
+// a "View in 3D" affordance; the interactive iframe loads only on click so a feed
+// full of posts never spins up dozens of WebGL contexts at once.
+const Model3DEmbed: React.FC<{ url: string; title?: string; poster?: string }> = ({ url, title, poster }) => {
+  const [loaded, setLoaded] = useState(false);
+  if (!url) return null;
+  return (
+    <div className="rounded-3xl overflow-hidden border border-white/10 bg-black aspect-video relative group media-lift">
+      {loaded ? (
+        <iframe
+          src={url}
+          title={title || '3D scan'}
+          className="w-full h-full"
+          allow="autoplay; fullscreen; xr-spatial-tracking; accelerometer; magnetometer; gyroscope"
+          allowFullScreen
+          loading="lazy"
+        />
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); setLoaded(true); }}
+          className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-3 cursor-pointer"
+          style={poster ? { backgroundImage: `url(${poster})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        >
+          <div className="absolute inset-0 bg-black/45 group-hover:bg-black/30 transition-colors" />
+          <div className="relative w-14 h-14 rounded-full bg-white/10 border border-white/25 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+            <span className="text-2xl">◈</span>
+          </div>
+          <div className="relative flex flex-col items-center gap-1">
+            <span className="text-[11px] font-black uppercase tracking-widest text-white">View in 3D</span>
+            {title && <span className="text-[9px] font-bold uppercase tracking-widest text-white/50 max-w-[80%] truncate">{title}</span>}
+          </div>
+          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/60 text-[8px] font-black uppercase tracking-widest text-small-orange">3D Scan</span>
+        </button>
+      )}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/60 text-[8px] font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors"
+        title="Open the source viewer"
+      >
+        <ExternalLink size={10} /> Source
+      </a>
+    </div>
+  );
+};
+
 const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   let domain = '';
   try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
@@ -319,6 +367,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                 <div key={idx} className="rounded-3xl overflow-hidden border border-white/10 bg-black aspect-video relative group media-lift cursor-pointer">
                   <video src={item.url || undefined} preload="metadata" playsInline className="w-full h-full object-contain" controls />
                 </div>
+              );
+            case 'MODEL3D':
+              return (
+                <Model3DEmbed key={idx} url={item.url || ''} title={item.title} poster={item.thumbnail} />
               );
             case 'AUDIO':
               return (

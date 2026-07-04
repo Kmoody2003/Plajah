@@ -17,9 +17,35 @@ export interface AcademicAsset {
   subtitle?: string;       // role/era/culture line
   description?: string;
   imageUrl?: string;
+  model3dUrl?: string;     // interactive 3D scan (embeds as a live viewer in the post)
   sourceUrl?: string;      // canonical external page (museum / Wikipedia)
   discipline?: string;     // 'Archaeology' | 'World History' | 'Architecture' | 'Cinema' | 'Music' …
   interests?: string[];    // extra interest topics; defaults derive from discipline + title
+}
+
+// Prefilled, editable post body for the Universal Post Composer share flow.
+export function academicPrefillText(asset: AcademicAsset): string {
+  const tagline = asset.discipline ? `#${asset.discipline.replace(/\s+/g, '')}` : '';
+  return [
+    asset.subtitle ? `${asset.title} — ${asset.subtitle}` : asset.title,
+    asset.description || '',
+    asset.sourceUrl || '',
+    tagline,
+  ].filter(Boolean).join('\n\n');
+}
+
+// Media the composer embeds: the interactive 3D viewer when a scan exists,
+// otherwise the artifact image. Empty when the asset has neither.
+export function academicPrefillAttachments(
+  asset: AcademicAsset
+): Array<{ type: 'MODEL3D' | 'PHOTO'; url: string; title?: string; thumbnail?: string }> {
+  if (asset.model3dUrl) {
+    return [{ type: 'MODEL3D', url: asset.model3dUrl, title: asset.title, thumbnail: asset.imageUrl }];
+  }
+  if (asset.imageUrl) {
+    return [{ type: 'PHOTO', url: asset.imageUrl, title: asset.title }];
+  }
+  return [];
 }
 
 function shortId(): string {

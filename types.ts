@@ -1493,7 +1493,7 @@ export interface Post {
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
   media?: {
-    type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'ALBUM' | 'LINK' | 'GIF' | 'STICKER';
+    type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'ALBUM' | 'LINK' | 'GIF' | 'STICKER' | 'MODEL3D';
     url?: string;
     id?: string; // For on-platform IDs
     title?: string;

@@ -15,9 +15,10 @@ import ContentLabelPicker from './safety/ContentLabelPicker';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ComposerAttachment {
-  type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF';
+  type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF' | 'MODEL3D';
   url: string;
   title?: string;
+  thumbnail?: string;   // poster for MODEL3D embeds
   file?: File;
 }
 
@@ -123,6 +124,16 @@ interface UniversalPostComposerProps {
   userWorlds?: IPWorld[];
   compact?: boolean;
   avatarUrl?: string;
+  /** Prefill the editable body (e.g. sharing an academic artifact). */
+  initialText?: string;
+  /** Prefill media (e.g. an embedded 3D scan or artifact image). */
+  initialAttachments?: ComposerAttachment[];
+  /** Start expanded — used when the composer opens inside a share modal. */
+  autoExpand?: boolean;
+  /** Destination picker (discipline vs social feed, clubs) injected by the share flow. */
+  destinationSlot?: React.ReactNode;
+  /** Override the primary action label (default "Post"). */
+  postLabel?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -138,10 +149,15 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   userWorlds = [],
   compact = false,
   avatarUrl,
+  initialText,
+  initialAttachments,
+  autoExpand = false,
+  destinationSlot,
+  postLabel,
 }) => {
-  const [expanded, setExpanded]     = useState(false);
-  const [text, setText]             = useState('');
-  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [expanded, setExpanded]     = useState(autoExpand);
+  const [text, setText]             = useState(initialText ?? '');
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
   const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(undefined);
   const [theme, setTheme]           = useState<ComposerPostData['theme']>('STANDARD');
   const [poll, setPoll]             = useState<ComposerPoll | null>(null);
@@ -545,6 +561,9 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* Destination picker (share flow) */}
+      {destinationSlot}
+
       {/* Avatar + textarea */}
       <div className={`flex items-start gap-3 ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}>
         <img
@@ -650,6 +669,13 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
                 <div className="w-36 h-12 flex items-center gap-2 px-3">
                   <Mic size={12} className="text-small-orange shrink-0" />
                   <audio src={att.url} controls className="w-full h-8" style={{ minWidth: 0 }} />
+                </div>
+              ) : att.type === 'MODEL3D' ? (
+                <div className="w-28 h-20 relative bg-black/40">
+                  {att.thumbnail
+                    ? <img src={att.thumbnail} className="w-full h-full object-cover opacity-70" alt="" loading="lazy" />
+                    : <div className="w-full h-full flex items-center justify-center text-white/30 text-lg">◈</div>}
+                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-black/70 text-[8px] font-black uppercase tracking-widest text-small-orange">3D Scan</span>
                 </div>
               ) : (
                 <div className="w-24 h-20 flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-white/40 p-2 text-center">
@@ -1175,7 +1201,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           disabled={!canPost || posting}
           className="px-6 py-2 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-small-orange/90 transition-all"
         >
-          {posting ? '...' : 'Post'}
+          {posting ? '...' : (postLabel || 'Post')}
         </button>
       </div>
     </div>

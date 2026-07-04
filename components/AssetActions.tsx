@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NotebookPen, Star, Send, Share2, Check, Link2, X } from 'lucide-react';
 import {
-  saveToNotebook, addToInterests, shareToPlajah,
+  saveToNotebook, addToInterests,
   externalShareTargets, openExternalShare, nativeShareOrCopy,
   type AcademicAsset,
 } from '../services/academicSocial';
+import { auth } from '../services/firebase';
+import ShareToPlajahComposer from './ShareToPlajahComposer';
 
 // Reusable "social layer" action bar for any academic item — figures, artifacts,
 // styles, sites, civilizations. Drop it into any detail modal with a normalized
@@ -17,6 +19,7 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
   const [toast, setToast] = useState<string>('');
   const [busy, setBusy] = useState<string>('');
   const [shareOpen, setShareOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
   const timer = useRef<any>(null);
   const flash = (msg: string) => { setToast(msg); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(''), 2200); };
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -28,11 +31,9 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
     setBusy('');
     flash(r === 'added' ? 'Added to your interests' : r === 'signin' ? 'Sign in to add interests' : 'Could not add');
   };
-  const onPlajah = async () => {
-    setBusy('plajah');
-    const r = await shareToPlajah(asset);
-    setBusy('');
-    flash(r === 'posted' ? 'Shared to your timeline' : r === 'signin' ? 'Sign in to share' : 'Could not share');
+  const onPlajah = () => {
+    if (!auth.currentUser) { flash('Sign in to share'); return; }
+    setComposerOpen(true);
   };
   const onNative = async () => {
     const r = await nativeShareOrCopy(asset);
@@ -47,7 +48,7 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
       <div className="flex flex-wrap items-center gap-1.5">
         <button onClick={onNotebook} className={btn} title="Save to your research notebook"><NotebookPen size={12} /> Notebook</button>
         <button onClick={onInterest} disabled={busy === 'interest'} className={btn} title="Add to your interests"><Star size={12} style={{ color: accent }} /> Interest</button>
-        <button onClick={onPlajah} disabled={busy === 'plajah'} className={btn} title="Share to your Plajah timeline"><Send size={12} /> {busy === 'plajah' ? 'Posting…' : 'Post'}</button>
+        <button onClick={onPlajah} className={btn} title="Compose a post to Plajah"><Send size={12} /> Post</button>
         <button onClick={() => setShareOpen(o => !o)} className={btn} title="Share to X, Facebook and more"><Share2 size={12} /> Share</button>
       </div>
 
@@ -81,6 +82,17 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
             className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-bold" style={{ color: accent }}>
             <Check size={12} /> {toast}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {composerOpen && (
+          <ShareToPlajahComposer
+            asset={asset}
+            accent={accent}
+            onClose={() => setComposerOpen(false)}
+            onPosted={() => flash('Shared to Plajah')}
+          />
         )}
       </AnimatePresence>
     </div>
