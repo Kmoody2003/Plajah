@@ -11,6 +11,7 @@ import SocialEmbedCard from './SocialEmbedCard';
 import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
 import { searchUsers } from '../services/backendService';
 import ContentLabelPicker from './safety/ContentLabelPicker';
+import { SanctuaryGatePicker } from './sanctuary/SanctuaryGate';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ export interface ComposerPostData {
   postMode?: 'thread' | 'booklet';
   /** Pre-split chunks used when postMode === 'thread' or 'booklet' */
   threadChunks?: string[];
+  /** When set, the post's media is locked behind the author's Sanctuary. */
+  sanctuaryGate?: import('../types').SanctuaryGate;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -134,6 +137,9 @@ interface UniversalPostComposerProps {
   destinationSlot?: React.ReactNode;
   /** Override the primary action label (default "Post"). */
   postLabel?: string;
+  /** When provided, offers a "gate this post behind your Sanctuary" control. */
+  userSanctuaryId?: string;
+  userSanctuaryTiers?: import('../types').SanctuaryTier[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -154,11 +160,14 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   autoExpand = false,
   destinationSlot,
   postLabel,
+  userSanctuaryId,
+  userSanctuaryTiers,
 }) => {
   const [expanded, setExpanded]     = useState(autoExpand);
   const [text, setText]             = useState(initialText ?? '');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
   const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(undefined);
+  const [sanctuaryGate, setSanctuaryGate] = useState<import('../types').SanctuaryGate | undefined>(undefined);
   const [theme, setTheme]           = useState<ComposerPostData['theme']>('STANDARD');
   const [poll, setPoll]             = useState<ComposerPoll | null>(null);
   const [dataViz, setDataViz]       = useState<ComposerDataViz | null>(null);
@@ -493,11 +502,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         : undefined;
       const isLong = text.length > CHUNK_SIZE;
       const threadChunks = isLong ? splitIntoChunks(text) : undefined;
-      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}) });
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}), ...(sanctuaryGate ? { sanctuaryGate } : {}) });
       if (crossPost && hasFediverse && text.trim()) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
-      setText(''); setAttachments([]); setAssetEmbed(undefined); setTheme('STANDARD');
+      setText(''); setAttachments([]); setAssetEmbed(undefined); setSanctuaryGate(undefined); setTheme('STANDARD');
       setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
       setExclusive(null); setShowExclusive(false); setContentLabels([]);
       setPostMode('thread');
@@ -563,6 +572,13 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Destination picker (share flow) */}
       {destinationSlot}
+
+      {/* Sanctuary gate (opt-in — only when the author has a sanctuary) */}
+      {userSanctuaryId && (attachments.length > 0 || !!assetEmbed) && (
+        <div className="pl-12">
+          <SanctuaryGatePicker sanctuaryId={userSanctuaryId} tiers={userSanctuaryTiers} value={sanctuaryGate} onChange={setSanctuaryGate} />
+        </div>
+      )}
 
       {/* Avatar + textarea */}
       <div className={`flex items-start gap-3 ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}>

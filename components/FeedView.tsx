@@ -2598,6 +2598,7 @@ const toggleFavoriteTeam = async (team: string) => {
             placeholder="What's happening in the studio? Design a gorgeous post..."
             avatarUrl={currentUser.photoURL || undefined}
             userAlbums={userAlbums}
+            userSanctuaryId={currentUser.uid}
             onPost={async (data) => {
               const resolvedMedia = (await Promise.all(
                 data.attachments.map(async (att) => {
@@ -2618,6 +2619,7 @@ const toggleFavoriteTeam = async (team: string) => {
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                 ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
+                ...(data.sanctuaryGate ? { sanctuaryGate: data.sanctuaryGate } : {}),
                 ...embedFields,
                 ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
               } as any);

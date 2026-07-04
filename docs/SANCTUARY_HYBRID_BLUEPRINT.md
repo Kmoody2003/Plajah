@@ -124,9 +124,20 @@ Real payment for tier subscriptions, à la carte unlocks and campaign pledges;
 revenue split (~90% creator); receipts wired to `sanctuaryPurchases` /
 `CreatorEarning` (`earningCategory: 'sanctuary'`).
 
-### Phase 4 — gate everywhere (next)
-A "Put behind Sanctuary" control in every publisher (album, film, book, playlist,
-podcast, live) that attaches a `SanctuaryGate`; players honor `hasSanctuaryAccess`
-and show the gold lock + preview + unlock CTA. Org-owned sanctuaries
-(`saveSanctuaryTier` still hardcodes the current uid as `creatorId`). Richer feed
-attachments (media in `sanctuaryPosts`, currently text-only).
+### Phase 4 — gate everywhere ✅ (2026-07-04)
+The portable gate mechanism, wired end-to-end through the platform's most central
+content surface, plus reusable primitives publishers drop in:
+- **Primitives** (`components/sanctuary/SanctuaryGate.tsx`): `useGateAccess` hook,
+  `SanctuaryGateLock` (gold lock + preview + unlock/enter CTA), `SanctuaryGatePicker`
+  (attach FREE/Members/Paid + price/tier). `resolveGateAccess` in the service.
+- **Posts**: `Post.sanctuaryGate`; `PostCard` shows the lock over media when gated
+  and the viewer lacks access (strictly additive — existing posts have no gate);
+  `UniversalPostComposer` offers the gate control (opt-in via `userSanctuaryId`,
+  zero impact on its other 11 callers); the main FeedView composer wires it through.
+- **Org-owned sanctuaries**: `saveSanctuaryTier` now honors an explicit `creatorId`.
+- **Richer feed**: `SanctuaryFeed` composer attaches image/video (via `uploadFile`)
+  and posts render attachments.
+
+Follow-on rollout (uses these exact primitives): drop `SanctuaryGatePicker` into the
+album / film / book / playlist / podcast / live publishers and `SanctuaryGateLock`
+into their players. Wire the remaining composers' `onPost` to forward `sanctuaryGate`.

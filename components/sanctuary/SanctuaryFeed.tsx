@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Heart, Lock, Send, Trash2, Globe, Gem, DollarSign } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Heart, Lock, Send, Trash2, Globe, Gem, DollarSign, ImagePlus, X } from 'lucide-react';
 import { SanctuaryPost, SanctuaryMembership, SanctuaryTier, SanctuaryAccessType } from '../../types';
 import {
   listenToSanctuaryPosts, createSanctuaryPost, likeSanctuaryPost, deleteSanctuaryPost,
   hasAccess,
 } from '../../services/sanctuaryService';
 import { purchaseSanctuaryUnlock } from '../../services/stripeService';
+import { uploadFile } from '../../services/backendService';
 import { auth } from '../../services/firebase';
 import { SANCTUARY_THEME, SanctuaryLockChip, SanctuaryPriceTag } from './SanctuaryIdentity';
 
@@ -27,22 +28,36 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
   const [price, setPrice] = useState(3);
   const [posting, setPosting] = useState(false);
   const [unlocking, setUnlocking] = useState('');
+  const [media, setMedia] = useState<{ url: string; type: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => listenToSanctuaryPosts(sanctuaryId, setPosts), [sanctuaryId]);
 
   const ctx = useMemo(() => ({ isOwner, membership, purchasedItemIds: purchasedIds }), [isOwner, membership, purchasedIds]);
 
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadFile(`sanctuaries/${sanctuaryId}/posts/${Date.now()}_${file.name}`, file);
+      setMedia({ url, type: file.type.startsWith('video') ? 'VIDEO' : 'PHOTO' });
+    } finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
   const submit = async () => {
-    if (!text.trim() || posting) return;
+    if ((!text.trim() && !media) || posting) return;
     setPosting(true);
     try {
       await createSanctuaryPost({
         sanctuaryId, content: text.trim(), accessType: access,
+        ...(media ? { attachments: [{ type: media.type, url: media.url }] } : {}),
         ...(access === 'TIER' ? { requiredTierIds: [] } : {}),
         ...(access === 'ONE_TIME' ? { oneTimePrice: price } : {}),
       });
-      setText('');
+      setText(''); setMedia(null);
     } finally { setPosting(false); }
   };
 
@@ -64,8 +79,21 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
             rows={3}
             className="w-full bg-transparent text-sm outline-none resize-none placeholder:text-white/25"
           />
+          {media && (
+            <div className="relative inline-block mt-1 rounded-xl overflow-hidden border border-white/10">
+              {media.type === 'VIDEO'
+                ? <video src={media.url} className="h-24 w-auto object-cover" muted />
+                : <img src={media.url} className="h-24 w-auto object-cover" alt="" />}
+              <button onClick={() => setMedia(null)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"><X size={10} /></button>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/8 mt-2">
             <div className="flex items-center gap-1.5">
+              <input ref={fileRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/45 hover:text-white border border-white/10 disabled:opacity-50" title="Attach media">
+                <ImagePlus size={13} />
+              </button>
               {(['FREE', 'TIER', 'ONE_TIME'] as SanctuaryAccessType[]).map(a => (
                 <button key={a} onClick={() => setAccess(a)}
                   className="px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1"
@@ -84,7 +112,7 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
                 </div>
               )}
             </div>
-            <button onClick={submit} disabled={!text.trim() || posting}
+            <button onClick={submit} disabled={(!text.trim() && !media) || posting}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-30"
               style={{ background: SANCTUARY_THEME.gold }}>
               <Send size={11} /> Post
@@ -119,7 +147,16 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
             </div>
 
             {unlocked ? (
-              <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{p.content}</p>
+              <>
+                {p.content && <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{p.content}</p>}
+                {p.attachments?.map((a, i) => (
+                  <div key={i} className="mt-2 rounded-xl overflow-hidden border border-white/10">
+                    {a.type === 'VIDEO'
+                      ? <video src={a.url} controls playsInline className="w-full max-h-[420px] object-contain bg-black" />
+                      : <img src={a.url} className="w-full max-h-[420px] object-cover" alt={a.title || ''} loading="lazy" />}
+                  </div>
+                ))}
+              </>
             ) : (
               <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(0,0,0,0.4)', border: `1px dashed ${SANCTUARY_THEME.line}` }}>
                 <Lock size={20} className="mx-auto mb-2" style={{ color: SANCTUARY_THEME.gold }} />

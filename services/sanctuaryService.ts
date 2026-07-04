@@ -20,7 +20,8 @@ export const saveSanctuaryTier = async (tier: Omit<SanctuaryTier, 'id' | 'member
   const full: SanctuaryTier = {
     ...tier,
     id: ref.id,
-    creatorId: auth.currentUser.uid,
+    // Honor an explicit creatorId (org-owned sanctuaries) — falls back to the user.
+    creatorId: tier.creatorId || auth.currentUser.uid,
     memberCount: 0,
     createdAt: now,
   };
@@ -510,3 +511,21 @@ export const hasAccess = (
 /** Convenience for a portable SanctuaryGate carried by any platform asset. */
 export const hasSanctuaryAccess = (gate: SanctuaryGate, itemId: string, ctx: AccessCtx = {}): boolean =>
   hasAccess({ accessType: gate.accessType, requiredTierIds: gate.requiredTierIds }, itemId, ctx);
+
+/** Resolve a gate for the current viewer by fetching their membership + purchases
+ *  in the gate's sanctuary. Use for gated content that lives anywhere on the
+ *  platform (a track, a film, a post) — not just inside the sanctuary view. */
+export const resolveGateAccess = async (gate: SanctuaryGate, itemId: string): Promise<boolean> => {
+  if (gate.accessType === 'FREE') return true;
+  const uid = auth.currentUser?.uid;
+  if (!uid) return false;
+  if (uid === gate.sanctuaryId) return true; // the owner
+  const [membership, purchases] = await Promise.all([
+    checkMembership(gate.sanctuaryId).catch(() => null),
+    fetchMyPurchases(gate.sanctuaryId).catch(() => []),
+  ]);
+  return hasSanctuaryAccess(gate, itemId, {
+    membership,
+    purchasedItemIds: new Set(purchases.map(p => p.itemId)),
+  });
+};

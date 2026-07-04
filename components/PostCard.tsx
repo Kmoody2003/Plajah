@@ -20,6 +20,7 @@ import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
 import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
+import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 
 interface PostCardProps {
@@ -219,6 +220,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   }));
 
   const isAuthor = auth.currentUser?.uid === post.authorId;
+  // Sanctuary gate — only engages when a post carries one (existing posts do not).
+  const gateAccess = useGateAccess(post.sanctuaryGate, post.id);
+  const gated = !!post.sanctuaryGate && !gateAccess.allowed && !isAuthor;
 
   const handleGift = async () => {
     if (!auth.currentUser || isGifting) return;
@@ -339,6 +343,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const displayText = useMemo(() => (post.text ? stripUrlsFromText(post.text) : ''), [post.text]);
 
   const renderMedia = () => {
+    // Locked behind a Sanctuary → show the gold lock instead of the media.
+    if (gated && post.sanctuaryGate) {
+      return (
+        <div className="mt-4">
+          <SanctuaryGateLock gate={post.sanctuaryGate} itemId={post.id} itemTitle={post.media?.[0]?.title || undefined} />
+        </div>
+      );
+    }
     if (!post.media || post.media.length === 0) return null;
 
     return (

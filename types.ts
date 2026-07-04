@@ -1518,6 +1518,8 @@ export interface Post {
   targetUserName?: string;
   tags?: string[];
   theme?: string;
+  /** When set, this post's media/body is locked behind a Sanctuary (members or à la carte). */
+  sanctuaryGate?: SanctuaryGate;
   /** Auto-created when the author goes live; cleared to a replay when it ends. */
   liveStreamId?: string;
   isLiveNow?: boolean;
