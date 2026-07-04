@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight, Wand2 } from 'lucide-react';
 import { fetchPublicOrganizations, createDemoChurch } from '../services/organizationService';
 import { Organization, OrgType } from '../types';
@@ -99,6 +99,17 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
   };
 
   useEffect(() => { let cancelled = false; (async () => { if (!cancelled) await load(); })(); return () => { cancelled = true; }; }, []);
+
+  // Turn the demo church on automatically for admins — seeds Grace Chapel once if
+  // the directory has no demo church yet (createDemoChurch is idempotent).
+  const autoSeededRef = useRef(false);
+  useEffect(() => {
+    if (!isAdmin || loading || autoSeededRef.current) return;
+    const churches = orgsByType['spiritual'] || [];
+    if (churches.some(o => o.isDemo)) return;
+    autoSeededRef.current = true;
+    createDemoChurch().then(org => { if (org) load(); }).catch(() => {});
+  }, [isAdmin, loading, orgsByType]);
 
   const handleSeedChurch = async () => {
     setSeeding(true);

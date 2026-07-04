@@ -204,8 +204,15 @@ export async function fetchUnmigratedBrands(): Promise<Array<{ id: string; name?
 // ── Church vertical helpers (Part 3) ────────────────────────────────────────
 const rid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
 
-/** Stand up a fully-structured demo church to showcase the vertical. */
+/** Stand up a fully-structured demo church to showcase the vertical.
+ *  Idempotent — if a demo church already exists it's returned instead of
+ *  creating a duplicate, so "turn on the demo church" is safe to call repeatedly. */
 export async function createDemoChurch(): Promise<Organization | null> {
+  try {
+    const existing = await fetchPublicOrganizations('CHURCH');
+    const demo = existing.find(o => o.isDemo && (o.name || '').startsWith('Grace Chapel'));
+    if (demo) return demo;
+  } catch { /* fall through to create */ }
   const ministries: Ministry[] = [
     { id: rid('min'), name: 'Youth Ministry',   description: 'Middle & high school students.', meetingTime: 'Wednesdays 7:00 PM', iconEmoji: '🔥' },
     { id: rid('min'), name: 'Worship',          description: 'Music & production team.',       meetingTime: 'Thursdays 6:30 PM', iconEmoji: '🎵' },
