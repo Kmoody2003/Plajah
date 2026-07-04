@@ -3,8 +3,9 @@ import { Heart, Lock, Send, Trash2, Globe, Gem, DollarSign } from 'lucide-react'
 import { SanctuaryPost, SanctuaryMembership, SanctuaryTier, SanctuaryAccessType } from '../../types';
 import {
   listenToSanctuaryPosts, createSanctuaryPost, likeSanctuaryPost, deleteSanctuaryPost,
-  unlockContent, hasAccess,
+  hasAccess,
 } from '../../services/sanctuaryService';
+import { purchaseSanctuaryUnlock } from '../../services/stripeService';
 import { auth } from '../../services/firebase';
 import { SANCTUARY_THEME, SanctuaryLockChip, SanctuaryPriceTag } from './SanctuaryIdentity';
 
@@ -48,9 +49,9 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
   const unlock = async (p: SanctuaryPost) => {
     setUnlocking(p.id);
     try {
-      await unlockContent(sanctuaryId, p.id, p.oneTimePrice || 0, 'POST');
-      onPurchased(p.id);
-    } finally { setUnlocking(''); }
+      // Stripe Checkout; the webhook records the purchase and access unlocks on return.
+      await purchaseSanctuaryUnlock({ creatorId: sanctuaryId, itemId: p.id, itemType: 'POST', itemTitle: 'Sanctuary post', price: p.oneTimePrice || 0 });
+    } catch { setUnlocking(''); }
   };
 
   return (

@@ -5,28 +5,51 @@ import { listenToSanctuaryChat, sendSanctuaryChat } from '../../services/sanctua
 import { auth } from '../../services/firebase';
 import { SANCTUARY_THEME } from './SanctuaryIdentity';
 
-// Members lounge. When the viewer lacks access (not a member / hasn't bought in),
-// the composer is locked with a clear reason instead of the message list.
-const SanctuaryChat: React.FC<{ sanctuaryId: string; canChat: boolean; lockReason?: string }> = ({
-  sanctuaryId, canChat, lockReason = 'Join a tier to enter the lounge',
-}) => {
+export interface SanctuaryChatChannel { id?: string; label: string; canAccess: boolean; }
+
+// Members lounge with optional tier-scoped channels. When the viewer lacks access
+// to the active channel, the composer is locked with a clear reason.
+const SanctuaryChat: React.FC<{
+  sanctuaryId: string;
+  canChat: boolean;               // access to the default lounge
+  lockReason?: string;
+  channels?: SanctuaryChatChannel[];
+}> = ({ sanctuaryId, canChat, lockReason = 'Join a tier to enter the lounge', channels }) => {
   const [msgs, setMsgs] = useState<SanctuaryChatMessage[]>([]);
   const [text, setText] = useState('');
+  const [channelId, setChannelId] = useState<string | undefined>(undefined);
   const endRef = useRef<HTMLDivElement>(null);
   const uid = auth.currentUser?.uid;
 
-  useEffect(() => listenToSanctuaryChat(sanctuaryId, setMsgs), [sanctuaryId]);
+  useEffect(() => listenToSanctuaryChat(sanctuaryId, setMsgs, channelId), [sanctuaryId, channelId]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs.length]);
+
+  const activeChannel = channels?.find(c => c.id === channelId);
+  const canPost = channels ? !!activeChannel?.canAccess : canChat;
 
   const send = async () => {
     if (!text.trim()) return;
     const body = text.trim();
     setText('');
-    await sendSanctuaryChat(sanctuaryId, body);
+    await sendSanctuaryChat(sanctuaryId, body, channelId);
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: SANCTUARY_THEME.panel, border: `1px solid ${SANCTUARY_THEME.line}`, height: 440 }}>
+    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: SANCTUARY_THEME.panel, border: `1px solid ${SANCTUARY_THEME.line}`, height: 460 }}>
+      {channels && channels.length > 1 && (
+        <div className="flex items-center gap-1 p-2 border-b border-white/8 overflow-x-auto scrollbar-hide">
+          {channels.map(ch => {
+            const active = ch.id === channelId;
+            return (
+              <button key={ch.id ?? 'lounge'} onClick={() => setChannelId(ch.id)}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                style={active ? { color: '#000', background: SANCTUARY_THEME.gold } : { color: 'rgba(255,255,255,0.45)' }}>
+                {!ch.canAccess && <Lock size={9} />} {ch.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
         {msgs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-2">
@@ -53,11 +76,11 @@ const SanctuaryChat: React.FC<{ sanctuaryId: string; canChat: boolean; lockReaso
         <div ref={endRef} />
       </div>
 
-      {canChat ? (
+      {canPost ? (
         <div className="flex items-center gap-2 p-3 border-t border-white/8">
           <input
             value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send(); }}
-            placeholder="Message the lounge…"
+            placeholder={activeChannel ? `Message ${activeChannel.label}…` : 'Message the lounge…'}
             className="flex-1 bg-black/40 border border-white/10 rounded-full px-4 py-2 text-sm outline-none focus:border-white/25"
           />
           <button onClick={send} disabled={!text.trim()}
@@ -67,7 +90,7 @@ const SanctuaryChat: React.FC<{ sanctuaryId: string; canChat: boolean; lockReaso
         </div>
       ) : (
         <div className="flex items-center justify-center gap-2 p-4 border-t border-white/8 text-[10px] font-black uppercase tracking-widest" style={{ color: SANCTUARY_THEME.goldSoft }}>
-          <Lock size={13} style={{ color: SANCTUARY_THEME.gold }} /> {lockReason}
+          <Lock size={13} style={{ color: SANCTUARY_THEME.gold }} /> {activeChannel && !activeChannel.canAccess ? `${activeChannel.label} is tier-locked` : lockReason}
         </div>
       )}
     </div>

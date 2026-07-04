@@ -755,6 +755,59 @@ async function startServer() {
             });
           }
 
+          // ── Sanctuary: recurring tier membership ──────────────────────────────
+          if (mode === 'subscription' && meta.type === 'sanctuary_membership') {
+            const subId = (session.subscription as string) || '';
+            let renewsAt = now + (meta.billingCycle === 'ANNUAL' ? 365 : 30) * 86_400_000;
+            try {
+              const sub = subId ? await getStripe().subscriptions.retrieve(subId) : null;
+              if (sub?.current_period_end) renewsAt = sub.current_period_end * 1000;
+            } catch {}
+            // Deterministic id (one active membership per creator↔member) so a
+            // renewal/upgrade overwrites rather than duplicates.
+            await firestoreWrite('sanctuaryMemberships', `${meta.creatorId}_${meta.uid}`, {
+              id: `${meta.creatorId}_${meta.uid}`,
+              tierId: meta.tierId || '',
+              tierName: meta.tierName || '',
+              tierColor: meta.tierColor || '#C9A55C',
+              creatorId: meta.creatorId || '',
+              memberId: meta.uid || '',
+              memberName: '',
+              billingCycle: meta.billingCycle || 'MONTHLY',
+              status: 'ACTIVE',
+              startedAt: now,
+              renewsAt,
+              stripeSubscriptionId: subId,
+            });
+          }
+
+          // ── Sanctuary: one-time à la carte unlock ─────────────────────────────
+          if (mode === 'payment' && meta.type === 'sanctuary_unlock') {
+            await firestoreCreate('sanctuaryPurchases', {
+              sanctuaryId: meta.creatorId || '',
+              buyerId: meta.uid || '',
+              itemId: meta.itemId || '',
+              itemType: meta.itemType || 'CONTENT',
+              amount: parseFloat(meta.price || '0'),
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              purchasedAt: now,
+            });
+          }
+
+          // ── Sanctuary: one-time campaign pledge ───────────────────────────────
+          // Recorded as its own doc; the campaign's raised/backer totals are summed
+          // from these client-side (firestoreWrite can't safely mutate the nested
+          // campaign map without clobbering the sanctuary identity doc).
+          if (mode === 'payment' && meta.type === 'sanctuary_pledge') {
+            await firestoreCreate('sanctuaryPledges', {
+              sanctuaryId: meta.sanctuaryId || '',
+              backerId: meta.uid || '',
+              amount: parseFloat(meta.amount || '0'),
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              createdAt: now,
+            });
+          }
+
           // ── Church giving (one-time or recurring) ─────────────────────────────
           if (meta.type === 'church_donation') {
             await firestoreCreate('donations', {
@@ -814,6 +867,8 @@ async function startServer() {
             live_tip: 'tip',
             digital_sale: 'digital_sale',
             sanctuary_membership: 'sanctuary',
+            sanctuary_unlock: 'sanctuary',
+            sanctuary_pledge: 'sanctuary',
             plajahplus: 'plajahplus',
             store_order: 'store_order',
             club_membership: 'club',
@@ -4077,6 +4132,112 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('[Stripe] club-membership checkout error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Sanctuary: recurring tier subscription (Patreon) ──────────────────────────
+  app.post('/api/stripe/sanctuary-tier', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { tierId, creatorId, tierName, tierColor, monthlyPrice, annualPrice, billingCycle } = req.body;
+      if (!tierId || !creatorId || !tierName || typeof monthlyPrice !== 'number' || monthlyPrice <= 0) {
+        return res.status(400).json({ error: 'tierId, creatorId, tierName and a positive monthlyPrice are required' });
+      }
+      const annual = billingCycle === 'ANNUAL';
+      const amount = annual ? Math.round((annualPrice || monthlyPrice * 12 * 0.9) * 100) : Math.round(monthlyPrice * 100);
+      const stripe = getStripe();
+      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            recurring: { interval: annual ? 'year' : 'month' },
+            product_data: { name: `${tierName} — Sanctuary Membership` },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?sanctuary_join=${creatorId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?sanctuary=${creatorId}`,
+        metadata: {
+          type: 'sanctuary_membership', uid: req.uid, creatorUid: creatorId, creatorId,
+          tierId, tierName, tierColor: tierColor || '#C9A55C', billingCycle: annual ? 'ANNUAL' : 'MONTHLY',
+        },
+        client_reference_id: req.uid,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] sanctuary-tier error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Sanctuary: one-time à la carte unlock ─────────────────────────────────────
+  app.post('/api/stripe/sanctuary-unlock', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { creatorId, itemId, itemType, itemTitle, price } = req.body;
+      if (!creatorId || !itemId || typeof price !== 'number' || price <= 0) {
+        return res.status(400).json({ error: 'creatorId, itemId and a positive price are required' });
+      }
+      const stripe = getStripe();
+      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `${itemTitle || 'Sanctuary content'} — Unlock` },
+            unit_amount: Math.round(price * 100),
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?sanctuary_unlock=${itemId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?sanctuary=${creatorId}`,
+        metadata: {
+          type: 'sanctuary_unlock', uid: req.uid, creatorUid: creatorId, creatorId,
+          itemId, itemType: itemType || 'CONTENT', price: String(price),
+        },
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] sanctuary-unlock error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Sanctuary: one-time campaign pledge (Kickstarter/GoFundMe) ────────────────
+  app.post('/api/stripe/sanctuary-pledge', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { sanctuaryId, creatorId, amount, campaignTitle } = req.body;
+      if (!sanctuaryId || typeof amount !== 'number' || amount < 1) {
+        return res.status(400).json({ error: 'sanctuaryId and amount (min $1) are required' });
+      }
+      const stripe = getStripe();
+      const origin = req.headers.origin ?? process.env.VITE_APP_URL ?? '';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `${campaignTitle || 'Sanctuary campaign'} — Pledge` },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?sanctuary_pledge=${sanctuaryId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?sanctuary=${sanctuaryId}`,
+        metadata: {
+          type: 'sanctuary_pledge', uid: req.uid, creatorUid: creatorId || sanctuaryId,
+          sanctuaryId, amount: String(amount),
+        },
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] sanctuary-pledge error:', err.message);
       res.status(500).json({ error: err.message || 'Failed to create checkout session' });
     }
   });

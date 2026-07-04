@@ -3578,6 +3578,47 @@ export interface SanctuaryChatMessage {
   timestamp: number;
 }
 
+// A gated media wall inside a Sanctuary (photos, clips, stems, artwork).
+export interface SanctuaryGalleryItem {
+  id: string;
+  sanctuaryId: string;
+  uploaderId: string;
+  uploaderName: string;
+  type: 'PHOTO' | 'VIDEO' | 'AUDIO';
+  url: string;
+  thumbnailUrl?: string;
+  title?: string;
+  accessType: SanctuaryAccessType;
+  requiredTierIds?: string[];
+  oneTimePrice?: number;
+  timestamp: number;
+}
+
+// A scheduled member event (livestream, AMA, watch party, listening session).
+export interface SanctuaryEvent {
+  id: string;
+  sanctuaryId: string;
+  hostId: string;
+  title: string;
+  description?: string;
+  type: 'LIVESTREAM' | 'AMA' | 'WATCH_PARTY' | 'LISTENING' | 'CALL';
+  scheduledAt: number;
+  accessType: SanctuaryAccessType;
+  requiredTierIds?: string[];
+  attendeeIds: string[];
+  isLive?: boolean;
+  timestamp: number;
+}
+
+// A one-time backing of a Sanctuary's crowdfunding campaign (Stripe-recorded).
+export interface SanctuaryPledge {
+  id: string;
+  sanctuaryId: string;
+  backerId: string;
+  amount: number;
+  createdAt: number;
+}
+
 // An à la carte unlock — a one-time purchase of a single content item or post.
 export interface SanctuaryPurchase {
   id: string;

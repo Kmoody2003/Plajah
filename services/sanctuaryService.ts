@@ -5,6 +5,7 @@ import type {
   SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent,
   SanctuaryCreatorConfig, Sanctuary, SanctuaryPost, SanctuaryPurchase,
   SanctuaryGate, SanctuaryAccessType, SanctuaryChatMessage,
+  SanctuaryGalleryItem, SanctuaryEvent, SanctuaryPledge,
 } from '../types';
 
 const stripUndefined = <T extends Record<string, any>>(o: T): T =>
@@ -337,6 +338,87 @@ export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryP
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPurchase));
 };
 
+// ── GALLERY (gated media wall) ──────────────────────────────────────────────────
+
+export const addSanctuaryGalleryItem = async (
+  item: Partial<SanctuaryGalleryItem> & { sanctuaryId: string; url: string; type: SanctuaryGalleryItem['type'] },
+): Promise<SanctuaryGalleryItem | null> => {
+  if (!auth.currentUser) return null;
+  const ref = doc(collection(db, 'sanctuaryGallery'));
+  const full: SanctuaryGalleryItem = stripUndefined({
+    id: ref.id,
+    sanctuaryId: item.sanctuaryId,
+    uploaderId: auth.currentUser.uid,
+    uploaderName: auth.currentUser.displayName || 'Creator',
+    type: item.type,
+    url: item.url,
+    thumbnailUrl: item.thumbnailUrl,
+    title: item.title,
+    accessType: item.accessType || 'TIER',
+    requiredTierIds: item.requiredTierIds,
+    oneTimePrice: item.oneTimePrice,
+    timestamp: Date.now(),
+  }) as SanctuaryGalleryItem;
+  await setDoc(ref, full);
+  return full;
+};
+
+export const listenToSanctuaryGallery = (sanctuaryId: string, callback: (items: SanctuaryGalleryItem[]) => void) => {
+  const q = query(collection(db, 'sanctuaryGallery'), where('sanctuaryId', '==', sanctuaryId), limit(100));
+  return onSnapshot(q,
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryGalleryItem)).sort((a, b) => b.timestamp - a.timestamp)),
+    err => console.warn('[sanctuary] gallery listener:', err.message),
+  );
+};
+
+export const deleteSanctuaryGalleryItem = async (itemId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'sanctuaryGallery', itemId));
+};
+
+// ── EVENTS (scheduled member sessions) ──────────────────────────────────────────
+
+export const createSanctuaryEvent = async (
+  ev: Partial<SanctuaryEvent> & { sanctuaryId: string; title: string; scheduledAt: number },
+): Promise<SanctuaryEvent | null> => {
+  if (!auth.currentUser) return null;
+  const ref = doc(collection(db, 'sanctuaryEvents'));
+  const full: SanctuaryEvent = stripUndefined({
+    id: ref.id,
+    sanctuaryId: ev.sanctuaryId,
+    hostId: auth.currentUser.uid,
+    title: ev.title,
+    description: ev.description,
+    type: ev.type || 'LIVESTREAM',
+    scheduledAt: ev.scheduledAt,
+    accessType: ev.accessType || 'TIER',
+    requiredTierIds: ev.requiredTierIds,
+    attendeeIds: [],
+    isLive: false,
+    timestamp: Date.now(),
+  }) as SanctuaryEvent;
+  await setDoc(ref, full);
+  return full;
+};
+
+export const listenToSanctuaryEvents = (sanctuaryId: string, callback: (events: SanctuaryEvent[]) => void) => {
+  const q = query(collection(db, 'sanctuaryEvents'), where('sanctuaryId', '==', sanctuaryId), limit(50));
+  return onSnapshot(q,
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryEvent)).sort((a, b) => a.scheduledAt - b.scheduledAt)),
+    err => console.warn('[sanctuary] events listener:', err.message),
+  );
+};
+
+export const rsvpSanctuaryEvent = async (eventId: string, attending: boolean): Promise<void> => {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'sanctuaryEvents', eventId), {
+    attendeeIds: attending ? arrayUnion(auth.currentUser.uid) : arrayRemove(auth.currentUser.uid),
+  });
+};
+
+export const deleteSanctuaryEvent = async (eventId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'sanctuaryEvents', eventId));
+};
+
 // ── MEMBER CHAT (open lounge or à la carte paid channel) ────────────────────────
 
 export const sendSanctuaryChat = async (
@@ -382,6 +464,16 @@ export const contributeToCampaign = async (sanctuaryId: string, amount: number):
     'campaign.backerCount': increment(1),
     updatedAt: Date.now(),
   });
+};
+
+// Real Stripe pledges are recorded server-side (webhook); the campaign's live
+// totals are summed from them so the banner reflects money actually collected.
+export const listenToSanctuaryPledges = (sanctuaryId: string, callback: (pledges: SanctuaryPledge[]) => void) => {
+  const q = query(collection(db, 'sanctuaryPledges'), where('sanctuaryId', '==', sanctuaryId), limit(500));
+  return onSnapshot(q,
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPledge))),
+    err => console.warn('[sanctuary] pledges listener:', err.message),
+  );
 };
 
 // ── ACCESS CHECK (pure; usable anywhere a gate applies) ─────────────────────────

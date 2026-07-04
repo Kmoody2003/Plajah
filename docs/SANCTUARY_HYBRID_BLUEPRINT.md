@@ -90,15 +90,43 @@ violet), with `SanctuaryBadge` in the hero and on hub cards. New tabs:
 - Sanctuary identity doc auto-provisions for the owner on first open.
 - Discovery hub (`SanctuaryHubView`) reskinned gold with `SanctuaryBadge`.
 
-Still thin (Phase 2.1): gallery + events tabs (reuse club patterns), tier-scoped
-chat channels, richer post attachments/media in the feed.
+### Phase 2.1 — depth ✅ (2026-07-04)
+- **Vault** tab (`SanctuaryGallery`): gated media wall (photo/video/audio) with
+  owner upload via `uploadFile`, per-item gating + à la carte unlock.
+- **Events** tab (`SanctuaryEvents`): scheduled sessions (livestream/AMA/watch
+  party/listening/call), owner create form, member RSVP, gating.
+- **Tier-scoped chat channels**: `SanctuaryChat` now takes `channels` — a general
+  Lounge plus one gated channel per tier that has `hasPrivateChat`; locked
+  channels show a lock and disable the composer.
+
+### Phase 3 — money (Stripe) ✅ (2026-07-04)
+Real Checkout, mirroring the existing club-membership / seedraiser patterns:
+- Server: `POST /api/stripe/sanctuary-tier` (recurring), `/sanctuary-unlock`
+  (one-time à la carte), `/sanctuary-pledge` (one-time campaign backing).
+- Webhook `checkout.session.completed` records `sanctuaryMemberships` (deterministic
+  id), `sanctuaryPurchases`, and `sanctuaryPledges`; `sanctuary_unlock` and
+  `sanctuary_pledge` added to `CREATOR_PAYMENT_TYPES → 'sanctuary'` so the existing
+  earnings flow books a `creatorEarnings` row (10% platform / ~90% creator, with
+  `creatorSplits` honored automatically).
+- Client: `stripeService.startSanctuaryTierCheckout` / `purchaseSanctuaryUnlock` /
+  `backSanctuaryCampaign` (fetch token internally, redirect to Checkout).
+- Wiring: paid tier join, à la carte unlock (feed + vault), and campaign backing
+  now go through Stripe; free tiers stay instant. Campaign totals are summed from
+  `sanctuaryPledges` (webhook can't safely mutate the nested campaign map).
+
+**Deploy config still required (not code):** set `STRIPE_WEBHOOK_SECRET` and add
+the Checkout webhook in the Stripe dashboard; the live secret key is present but
+the webhook secret is a placeholder, so payments create sessions but the recording
+webhook won't fire until configured. Untested end-to-end here (needs live Stripe).
 
 ### Phase 3 — money (Stripe)
 Real payment for tier subscriptions, à la carte unlocks and campaign pledges;
 revenue split (~90% creator); receipts wired to `sanctuaryPurchases` /
 `CreatorEarning` (`earningCategory: 'sanctuary'`).
 
-### Phase 4 — gate everywhere
+### Phase 4 — gate everywhere (next)
 A "Put behind Sanctuary" control in every publisher (album, film, book, playlist,
 podcast, live) that attaches a `SanctuaryGate`; players honor `hasSanctuaryAccess`
-and show the gold lock + preview + unlock CTA. Org-owned sanctuaries.
+and show the gold lock + preview + unlock CTA. Org-owned sanctuaries
+(`saveSanctuaryTier` still hardcodes the current uid as `creatorId`). Richer feed
+attachments (media in `sanctuaryPosts`, currently text-only).

@@ -13,9 +13,10 @@ import {
   listenToExclusiveContent, publishExclusiveContent,
   deleteExclusiveContent, fetchCreatorMembers,
   saveSanctuaryTier, updateSanctuaryTier, deleteSanctuaryTier,
-  listenToSanctuary, createOrUpdateSanctuary, contributeToCampaign,
-  fetchMyPurchases, hasAccess,
+  listenToSanctuary, createOrUpdateSanctuary,
+  fetchMyPurchases, hasAccess, listenToSanctuaryPledges,
 } from '../services/sanctuaryService';
+import { startSanctuaryTierCheckout, backSanctuaryCampaign } from '../services/stripeService';
 import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, Sanctuary, PitchDeck } from '../types';
 import { UserProfile } from '../types';
 import { generateSanctuaryDeck } from '../services/pitchDeckTemplates';
@@ -23,6 +24,8 @@ import { SANCTUARY_THEME, SanctuaryBadge } from './sanctuary/SanctuaryIdentity';
 import SanctuaryFeed from './sanctuary/SanctuaryFeed';
 import SanctuaryChat from './sanctuary/SanctuaryChat';
 import SanctuaryCampaignBanner from './sanctuary/SanctuaryCampaignBanner';
+import SanctuaryGallery from './sanctuary/SanctuaryGallery';
+import SanctuaryEvents from './sanctuary/SanctuaryEvents';
 
 // ── Tier color palettes ────────────────────────────────────────────────────────
 const TIER_PRESETS = [
@@ -595,8 +598,9 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   const [exclusiveContent, setExclusiveContent] = useState<SanctuaryExclusiveContent[]>([]);
   const [sanctuary, setSanctuary] = useState<Sanctuary | null>(null);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
+  const [pledgeStats, setPledgeStats] = useState({ raised: 0, backers: 0 });
   const [isLoadingJoin, setIsLoadingJoin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'TIERS' | 'FEED' | 'CONTENT' | 'LOUNGE'>('FEED');
+  const [activeTab, setActiveTab] = useState<'TIERS' | 'FEED' | 'CONTENT' | 'GALLERY' | 'EVENTS' | 'LOUNGE'>('FEED');
   const [joinError, setJoinError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -636,18 +640,42 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
     return unsub;
   }, [creatorId, isOwnProfile, creatorProfile]);
 
+  // Live campaign totals summed from real (Stripe-recorded) pledges.
+  useEffect(() => listenToSanctuaryPledges(creatorId, ps =>
+    setPledgeStats({ raised: ps.reduce((s, p) => s + (p.amount || 0), 0), backers: ps.length })
+  ), [creatorId]);
+
   const contribute = async (amount: number) => {
-    await contributeToCampaign(creatorId, amount);
+    await backSanctuaryCampaign({ sanctuaryId: creatorId, creatorId, amount, campaignTitle: sanctuary?.campaign?.title });
   };
   const saveSanctuary = async (patch: Partial<Sanctuary>) => {
     await createOrUpdateSanctuary({ ownerId: creatorId, ...patch });
   };
+
+  // Overlay live pledge totals onto the campaign for display.
+  const displaySanctuary = sanctuary?.campaign
+    ? { ...sanctuary, campaign: {
+        ...sanctuary.campaign,
+        raisedAmount: (sanctuary.campaign.raisedAmount || 0) + pledgeStats.raised,
+        backerCount: (sanctuary.campaign.backerCount || 0) + pledgeStats.backers,
+      } }
+    : sanctuary;
 
   const handleJoin = async (tier: SanctuaryTier) => {
     if (!auth.currentUser) { setJoinError('Sign in to join'); return; }
     setIsLoadingJoin(true);
     setJoinError('');
     try {
+      if (tier.price > 0) {
+        // Paid tier → Stripe Checkout. On return the webhook records the
+        // membership; this call redirects the browser away.
+        await startSanctuaryTierCheckout({
+          tierId: tier.id, creatorId, tierName: tier.name, tierColor: tier.color,
+          monthlyPrice: tier.price, annualPrice: tier.annualPrice, billingCycle: 'MONTHLY',
+        });
+        return;
+      }
+      // Free tier → instant join.
       await joinSanctuaryTier(tier);
       const updated = await checkMembership(creatorId);
       setMyMembership(updated);
@@ -739,9 +767,9 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
           </AnimatePresence>
 
           {/* Crowdfunding campaign — shared across owner + members */}
-          {sanctuary && (sanctuary.campaign?.isActive || isOwnProfile) && (
+          {displaySanctuary && (displaySanctuary.campaign?.isActive || isOwnProfile) && (
             <div className="mb-6">
-              <SanctuaryCampaignBanner sanctuary={sanctuary} isOwner={isOwnProfile} onContribute={contribute} onSave={saveSanctuary} />
+              <SanctuaryCampaignBanner sanctuary={displaySanctuary} isOwner={isOwnProfile} onContribute={contribute} onSave={saveSanctuary} />
             </div>
           )}
 
@@ -759,17 +787,19 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
           )}
 
           {/* Tabs — feed, exclusives, join, lounge (+ manage for owner) */}
-          <div className="flex items-center gap-2 p-1 rounded-2xl mb-6" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl mb-6 overflow-x-auto scrollbar-hide" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
             {([
               { id: 'FEED', label: 'Feed', icon: Gem },
               { id: 'CONTENT', label: 'Exclusives', icon: Sparkles },
+              { id: 'GALLERY', label: 'Vault', icon: Eye },
+              { id: 'EVENTS', label: 'Events', icon: Calendar },
               { id: 'TIERS', label: isOwnProfile ? 'Manage' : 'Join', icon: Crown },
               { id: 'LOUNGE', label: 'Lounge', icon: MessageSquare },
             ] as const).map(({ id, label, icon: Icon }) => {
               const active = activeTab === id;
               return (
                 <button key={id} onClick={() => setActiveTab(id)}
-                  className="flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all"
+                  className="flex-1 min-w-[62px] py-2 rounded-xl flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all"
                   style={active ? { color: '#000', background: SANCTUARY_THEME.gold } : { color: 'rgba(255,255,255,0.4)' }}>
                   <Icon size={12} /> {label}
                 </button>
@@ -829,10 +859,31 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
             </div>
           )}
 
+          {activeTab === 'GALLERY' && (
+            <SanctuaryGallery
+              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership}
+              purchasedIds={purchasedIds}
+              onPurchased={id => setPurchasedIds(prev => new Set(prev).add(id))}
+            />
+          )}
+
+          {activeTab === 'EVENTS' && (
+            <SanctuaryEvents
+              sanctuaryId={creatorId} isOwner={isOwnProfile} membership={myMembership} purchasedIds={purchasedIds}
+            />
+          )}
+
           {activeTab === 'LOUNGE' && (
             <SanctuaryChat
               sanctuaryId={creatorId} canChat={canChat}
               lockReason={tiers.length ? 'Join a tier to enter the lounge' : 'Members-only lounge'}
+              channels={[
+                { id: undefined, label: 'Lounge', canAccess: canChat },
+                ...tiers.filter(t => t.hasPrivateChat).map(t => ({
+                  id: t.id, label: t.name,
+                  canAccess: !!isOwnProfile || myMembership?.tierId === t.id,
+                })),
+              ]}
             />
           )}
         </div>

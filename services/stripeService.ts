@@ -1,4 +1,24 @@
 import { loadStripe } from '@stripe/stripe-js';
+import { auth } from './firebase';
+
+// Redirect the browser to a Stripe Checkout session created by one of our
+// server endpoints. Fetches the caller's ID token so components don't have to.
+async function redirectToCheckout(path: string, body: Record<string, any>): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in to continue');
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'Payment could not be started' }));
+    throw new Error(error || 'Payment could not be started');
+  }
+  const { url } = await res.json();
+  if (!url) throw new Error('No checkout URL returned');
+  window.location.href = url;
+}
 
 // ── Singleton stripe.js instance ─────────────────────────────────────────────
 
@@ -239,6 +259,31 @@ export async function checkoutBusinessOrder(opts: {
 
   const { url } = await res.json();
   if (url) window.location.href = url;
+}
+
+// ── Sanctuary (memberships · à la carte unlocks · campaign backing) ─────────────
+// All three route the customer to Stripe Checkout; the webhook records the
+// membership / purchase / pledge and the creator earning (10% platform, ~90%
+// creator) on success. Callers should redirect away — completion happens on return.
+
+export async function startSanctuaryTierCheckout(opts: {
+  tierId: string; creatorId: string; tierName: string; tierColor?: string;
+  monthlyPrice: number; annualPrice?: number; billingCycle?: 'MONTHLY' | 'ANNUAL';
+}): Promise<void> {
+  await redirectToCheckout('/api/stripe/sanctuary-tier', opts);
+}
+
+export async function purchaseSanctuaryUnlock(opts: {
+  creatorId: string; itemId: string; itemType: 'CONTENT' | 'POST' | 'CHAT';
+  itemTitle?: string; price: number;
+}): Promise<void> {
+  await redirectToCheckout('/api/stripe/sanctuary-unlock', opts);
+}
+
+export async function backSanctuaryCampaign(opts: {
+  sanctuaryId: string; creatorId: string; amount: number; campaignTitle?: string;
+}): Promise<void> {
+  await redirectToCheckout('/api/stripe/sanctuary-pledge', opts);
 }
 
 // ── Tier Metadata ─────────────────────────────────────────────────────────────
