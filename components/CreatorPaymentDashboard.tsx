@@ -122,11 +122,12 @@ const OnboardingPanel: React.FC<{ status: ConnectStatus; onRefresh: () => void }
     setLoading(true);
     try {
       const { url } = await startCreatorConnectOnboarding();
-      window.open(url, '_blank', 'noopener');
-      setTimeout(onRefresh, 3000);
+      if (!url) throw new Error('Stripe did not return an onboarding link. Check that Connect is enabled and your API key has Connect permissions.');
+      // Redirect in the same tab — window.open() after an await is silently
+      // popup-blocked. Stripe brings the user back via the return_url.
+      window.location.href = url;
     } catch (e: any) {
-      alert(e.message);
-    } finally {
+      alert(e?.message || 'Could not start Stripe onboarding.');
       setLoading(false);
     }
   };

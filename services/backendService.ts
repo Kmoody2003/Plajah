@@ -7658,7 +7658,8 @@ export const openStripeDashboard = async (): Promise<void> => {
   });
   if (!res.ok) throw new Error('Failed to get dashboard link');
   const { url } = await res.json();
-  window.open(url, '_blank', 'noopener');
+  // Same-tab redirect — window.open() after an await is silently popup-blocked.
+  if (url) window.location.href = url;
 };
 
 export const fetchCreatorEarnings = async (period: '7d' | '30d' | '90d' | '1y' = '30d') => {
