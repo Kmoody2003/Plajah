@@ -2278,11 +2278,20 @@ Rules:
             type: Type.ARRAY,
             items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
           },
+          // A full song's time-coded JSON is long — without a high cap the model
+          // truncates and the lyrics stop half-way. 2.5-flash allows up to 65536.
+          maxOutputTokens: 65536,
           thinkingConfig: { thinkingBudget: 0 },
         },
       });
+      const raw = (response as any).text || '[]';
       let captions: any[] = [];
-      try { captions = JSON.parse((response as any).text || '[]'); } catch { captions = []; }
+      try { captions = JSON.parse(raw); }
+      catch {
+        // Salvage a truncated array by closing it at the last complete object.
+        const cut = raw.lastIndexOf('}');
+        if (cut > 0) { try { captions = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { captions = []; } }
+      }
       captions = Array.isArray(captions) ? captions.filter(c => typeof c?.time === 'number' && typeof c?.text === 'string') : [];
       res.json({ captions });
     } catch (err: any) {
