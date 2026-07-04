@@ -1,7 +1,36 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+// In the browser we do NOT use a client-side API key (it isn't in the production
+// bundle, and shouldn't be). Instead every generateContent() call is routed
+// through the server proxy /api/ai/gemini, which runs Gemini with the server-side
+// key. On the server (Node), the SDK is used directly with process.env. Callers
+// are unchanged — the shim returns { text } just like the SDK response.
+function browserGeminiProxy(): any {
+  return {
+    models: {
+      generateContent: async (params: any) => {
+        try {
+          const { auth } = await import('./firebase');
+          const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+          const res = await fetch('/api/ai/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify(params),
+          });
+          if (!res.ok) return { text: '' };
+          const data = await res.json().catch(() => ({}));
+          return { text: (data as any).text || '' };
+        } catch {
+          return { text: '' };
+        }
+      },
+    },
+  };
+}
+
+const getAI = (): any => {
+  if (typeof window !== 'undefined') return browserGeminiProxy();
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) {
     console.warn("GEMINI_API_KEY is not set. Using fallback metadata.");
     return null;

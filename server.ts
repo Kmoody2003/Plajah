@@ -961,7 +961,7 @@ async function startServer() {
   // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
   // so they can parse with their own limit instead of being 413'd here first.
   const tightJson = express.json({ limit: '10kb' });
-  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic']);
+  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -2288,6 +2288,35 @@ Rules:
     } catch (err: any) {
       console.error('[AI] captions failed:', err?.message || err);
       res.status(502).json({ error: 'caption generation failed' });
+    }
+  });
+
+  // ── Generic Gemini proxy ─────────────────────────────────────────────────────
+  // Server-side runner for all client-side Gemini features (services/geminiService
+  // routes here in the browser). Keeps GOOGLE_AI_API_KEY off the client bundle so
+  // album metadata/liner notes, lyric gen, sermon transcription, module insights,
+  // content-safety, etc. work in production. Body is the SDK's generateContent
+  // params ({ model, contents, config }); returns { text }. Logged-in + limited.
+  app.post('/api/ai/gemini', apiLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
+    if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
+    const { model, contents, config } = (req.body || {}) as { model?: string; contents?: any; config?: any };
+    if (!contents) return res.status(400).json({ error: 'contents required' });
+    // Normalise to a known-good model (the client default alias can be unreliable).
+    let safeModel = typeof model === 'string' && /^gemini-2\.[05]/.test(model) ? model : 'gemini-2.5-flash';
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const genai = new GoogleGenAI({ apiKey: geminiKey });
+      const response = await genai.models.generateContent({
+        model: safeModel,
+        contents,
+        // Disable "thinking" by default (it can yield empty replies) unless the caller set it.
+        config: { ...(config || {}), thinkingConfig: (config && config.thinkingConfig) || { thinkingBudget: 0 } },
+      });
+      res.json({ text: (response as any).text || '' });
+    } catch (err: any) {
+      console.error('[AI] Gemini proxy failed:', err?.message || err);
+      res.status(502).json({ error: 'Gemini request failed' });
     }
   });
 
