@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Music, Sword, Calendar, Users, ShirtIcon, ChevronRight } from 'lucide-react';
 import { WC26Team, getMatchesForTeam, getTeam, ROUND_LABELS } from '../data/worldCup2026';
 import { WC26Player, WC26Position, getPlayersByTeam, getPositionColor, getPositionLabel } from '../data/worldCupPlayers';
 import { fetchSquadByName, SquadPlayer, fetchGroupStandings, StandingRow } from '../services/worldCupDepth';
@@ -32,22 +32,36 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
   useEffect(() => { let a = true; fetchGroupStandings().then(m => { if (a) setGroupTable((m && m[team.group]) || []); }).catch(() => {}); return () => { a = false; }; }, [team.group]);
   const nn = (x: string) => (x || '').toLowerCase().replace(/[^a-z]/g, '');
   const myRow = groupTable.find(r => nn(r.team) === nn(team.name) || (nn(r.team).length > 3 && (nn(r.team).includes(nn(team.name)) || nn(team.name).includes(nn(r.team)))));
-  // Live squad (real headshots/positions/ages from ESPN) merged over the projected roster.
+  // The LIVE ESPN squad (same source as the FIFA tab) is the source of truth — accurate
+  // to the day. Each live player is enriched with static bio/flags (captain, key player,
+  // wikiSlug) when a name matches. The projected roster is only a fallback when ESPN is
+  // unavailable, so the World Cup roster always matches the up-to-date FIFA roster.
   const players = useMemo<RosterPlayer[]>(() => {
     const base = getPlayersByTeam(team.id);
-    const byName = new Map(squad.map(s => [normName(s.name), s] as const));
-    const used = new Set(base.map(p => normName(p.name)));
-    const merged: RosterPlayer[] = base.map(p => {
-      const s = byName.get(normName(p.name));
-      return { ...p, number: s?.jersey ? (parseInt(String(s.jersey), 10) || p.number) : p.number, photo: s?.headshot, live: s };
+    if (!squad.length) return base as RosterPlayer[];
+    const baseByName = new Map(base.map(p => [normName(p.name), p] as const));
+    return squad.map(s => {
+      const b = baseByName.get(normName(s.name));
+      const num = s.jersey ? (parseInt(String(s.jersey), 10) || b?.number || 0) : (b?.number || 0);
+      return {
+        id: b?.id || ('live_' + s.id),
+        teamId: team.id,
+        name: s.name,
+        number: num,
+        position: (s.group as WC26Position) ?? b?.position ?? 'MID',
+        age: s.age ?? b?.age ?? 0,
+        club: b?.club || s.club || s.citizenship || '',
+        caps: b?.caps ?? 0,
+        goals: b?.goals ?? 0,
+        assists: b?.assists ?? 0,
+        bio: b?.bio || `${s.name} is part of ${team.name}'s squad at the FIFA World Cup 2026.`,
+        wikiSlug: b?.wikiSlug,
+        isCaptain: b?.isCaptain,
+        isKeyPlayer: b?.isKeyPlayer,
+        photo: s.headshot,
+        live: s,
+      } as RosterPlayer;
     });
-    const extra: RosterPlayer[] = squad.filter(s => !used.has(normName(s.name))).map(s => ({
-      id: 'live_' + s.id, teamId: team.id, name: s.name, number: s.jersey ? (parseInt(String(s.jersey), 10) || 0) : 0,
-      position: s.group as WC26Position, age: s.age || 0, club: s.citizenship || '', caps: 0, goals: 0, assists: 0,
-      bio: `${s.name} is part of ${team.name}'s squad at the FIFA World Cup 2026.`, photo: s.headshot, live: s,
-    } as RosterPlayer));
-    const all = [...merged, ...extra];
-    return all.length ? all : (base as RosterPlayer[]);
   }, [team.id, team.name, squad]);
   const isLiveSquad = squad.length > 0;
   const [posts, setPosts] = useState<Post[]>([]);
@@ -222,51 +236,55 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
                     {getPositionLabel(pos)}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {group.map(player => (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  {group.map(player => {
+                    const st = player.live?.stats;
+                    const hasStats = !!st && (st.goals !== undefined || st.appearances !== undefined || st.assists !== undefined);
+                    return (
                     <motion.button
                       key={player.id}
-                      whileHover={{ scale: 1.015 }}
+                      whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedPlayer(player)}
-                      className="flex items-center gap-3 p-3 rounded-2xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15 transition-all text-left group"
+                      className="flex items-center gap-4 px-4 py-3 rounded-2xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-[#FF8C00]/20 transition-all text-left group w-full"
                     >
-                      {/* Player headshot (live) or jersey number */}
-                      {player.photo ? (
-                        <div className="relative w-10 h-10 shrink-0">
-                          <img src={player.photo} alt="" loading="lazy" className="w-10 h-10 rounded-xl object-cover object-top bg-white/10" onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
-                          {!!player.number && <span className="absolute -bottom-1 -right-1 text-[8px] font-black px-1 rounded" style={{ background: team.primaryColor, color: '#000' }}>{player.number}</span>}
-                        </div>
-                      ) : (
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-sm" style={{ background: `${team.primaryColor}22`, color: team.primaryColor }}>
-                          {player.number}
-                        </div>
-                      )}
+                      {/* Player headshot — FIFA-card style */}
+                      <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-white/10 border border-white/10">
+                        {player.photo ? (
+                          <img src={player.photo} alt="" loading="lazy" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform" onError={e => { const t = e.currentTarget as HTMLImageElement; t.style.display = 'none'; }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center font-black text-sm" style={{ color: team.primaryColor }}>{player.number || '–'}</div>
+                        )}
+                        {player.live?.injured && <span title="Injured" className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border border-black" />}
+                      </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-black text-white truncate">{player.name}</p>
+                          <p className="text-sm font-black uppercase tracking-tight text-white truncate group-hover:text-[#FF8C00] transition-colors">{player.name}</p>
                           {player.isCaptain && <span className="text-[7px] px-1 rounded bg-white/10 text-white/50 shrink-0">C</span>}
                           {player.isKeyPlayer && <span style={{ color: team.primaryColor }} className="text-[10px] shrink-0">★</span>}
                         </div>
-                        <p className="text-[8px] text-white/35 truncate mt-0.5">{player.live?.posName || player.club}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-[8px] font-bold text-white/40 uppercase">{player.live?.posName || getPositionLabel(player.position)}</span>
+                          {!!player.number && <span className="text-[8px] font-bold text-white/25">#{player.number}</span>}
+                          {!!(player.live?.age ?? player.age) && <span className="text-[8px] font-bold text-white/20">{player.live?.age ?? player.age} yrs</span>}
+                        </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        {player.live ? (
-                          <>
-                            <p className="text-xs font-black text-white">{player.live.age ?? '–'}</p>
-                            <p className="text-[7px] text-white/25">years</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-xs font-black text-white">{player.goals}</p>
-                            <p className="text-[7px] text-white/25">goals</p>
-                          </>
-                        )}
-                      </div>
+                      {/* Live tournament stats (goals / assists) — WC is richer than the base FIFA row */}
+                      {hasStats ? (
+                        <div className="hidden sm:flex items-center gap-3.5 shrink-0 pr-0.5">
+                          <div className="text-center"><p className="text-sm font-black leading-none" style={{ color: '#FF8C00' }}>{st!.goals ?? 0}</p><p className="text-[6px] font-black uppercase tracking-wider text-white/25 mt-0.5">Goals</p></div>
+                          <div className="text-center"><p className="text-sm font-black leading-none text-[#10B981]">{st!.assists ?? 0}</p><p className="text-[6px] font-black uppercase tracking-wider text-white/25 mt-0.5">Asst</p></div>
+                          <div className="text-center"><p className="text-sm font-black leading-none text-white">{st!.appearances ?? 0}</p><p className="text-[6px] font-black uppercase tracking-wider text-white/25 mt-0.5">Apps</p></div>
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 border border-white/10" style={{ background: `${team.primaryColor}30` }}>{player.number || '–'}</div>
+                      )}
+                      <ChevronRight size={13} className="text-white/15 group-hover:text-[#FF8C00]/50 transition-colors shrink-0" />
                     </motion.button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -280,7 +298,9 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
           )}
 
           <p className="text-[7px] text-white/15 text-center pt-2">
-            Squads are projected. Official FIFA squads announced 10 days before tournament.
+            {isLiveSquad
+              ? 'Live squad · headshots, positions & tournament stats from ESPN, updated daily. Tap a player for full stats & history.'
+              : 'Projected squad. Official FIFA squads are announced 10 days before the tournament.'}
           </p>
         </div>
       )}
