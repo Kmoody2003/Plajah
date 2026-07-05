@@ -6,9 +6,12 @@
       "indexes": "firestore.indexes.json"
     }
   ],
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "storage": [
+    {
+      "bucket": "gen-lang-client-0665118474.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ],
   "hosting": {
     "public": "dist",
     "ignore": [
