@@ -1035,16 +1035,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
         seedDemoWorlds();
 
-        if (p && !p.hasCompletedOnboarding) {
+        // One-time-per-browser guard. The Firestore flags below don't persist
+        // reliably (a failed/raced write re-showed onboarding AND re-awarded the
+        // welcome points on every refresh). This makes each fire at most once per
+        // account on this device, regardless of whether the profile write lands.
+        // (A backend/admin reset can clear these keys to re-trigger onboarding.)
+        const firstTime = (name: string) => {
+          try {
+            const k = `plj_once_${name}_${u.uid}`;
+            if (localStorage.getItem(k)) return false;
+            localStorage.setItem(k, '1');
+            return true;
+          } catch { return true; }
+        };
+
+        if (p && !p.hasCompletedOnboarding && firstTime('onboard')) {
           setShowExperiencePicker(true);
         }
 
-        if (p && !p.welcomeAchievementShown) {
+        if (p && !p.welcomeAchievementShown && firstTime('welcome_achievement')) {
           setShowWelcomeAchievement(true);
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasSeenWelcomePackage) {
+        if (p && !p.hasSeenWelcomePackage && firstTime('welcome_package')) {
           // Show on next login — slight delay so the UI is settled
           setTimeout(() => setShowWelcomePackage(true), 1200);
         }
