@@ -14,6 +14,7 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
+import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
 
@@ -373,12 +374,13 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 
 // ── Stripe helpers (shared by all Stripe routes) ─────────────────────────────
 
-function getStripe() {
+function getStripe(): any {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key || key.startsWith('sk_live_YOUR')) throw new Error('Stripe secret key not configured');
-  // Dynamic import so Stripe isn't loaded until first use
-  const Stripe = require('stripe');
-  return new Stripe(key, { apiVersion: '2024-12-18.acacia' });
+  // ESM server: use the static import (the old require('stripe') threw
+  // "require is not defined"). Kept untyped so the many Stripe call sites,
+  // written against an `any`, don't need re-typing.
+  return new (Stripe as any)(key, { apiVersion: '2024-12-18.acacia' });
 }
 
 // Verify a Firebase ID token using Firebase Auth REST API
