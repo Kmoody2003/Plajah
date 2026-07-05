@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { AddToPlaylistModal } from './VideoPlaylistKit';
 import CommentSection from './CommentSection';
 import PlajahPlusButton from './PlajahPlusButton';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -404,6 +405,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const [comments, setComments]     = useState<VideoComment[]>([]);
   const [videoError, setVideoError] = useState(false);
   const [isLiked, setIsLiked]       = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [isMuted, setIsMuted]       = useState(false);
   const [isFullscreen, setIsFullscreen]     = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -974,7 +976,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
               >
                 <Share2 size={15} /> Share
               </button>
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all">
+              <button
+                onClick={() => auth.currentUser ? setShowSaveModal(true) : alert('Sign in to save videos to a playlist.')}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
+              >
                 <Bookmark size={15} /> Save
               </button>
               <button className="p-2.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
@@ -1062,6 +1067,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           />
         )}
       </AnimatePresence>
+
+      {/* Save to playlist */}
+      {showSaveModal && <AddToPlaylistModal video={video} onClose={() => setShowSaveModal(false)} />}
     </div>
   );
 };

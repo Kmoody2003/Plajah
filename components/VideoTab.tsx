@@ -14,8 +14,9 @@ import {
   Play, Heart, MessageCircle, Share2, Plus, Search, Upload, X, Check, Users,
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
-  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX
+  BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus
 } from 'lucide-react';
+import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -36,6 +37,9 @@ interface VideoTabProps {
   mode?: 'VIDEOS' | 'MOVIES_TV';
   currentUser?: UserProfile | null;
   onVisitUser?: (uid: string) => void;
+  /** Open a specific playlist on mount (from a shared /share?type=videoPlaylist link). */
+  initialPlaylistId?: string;
+  onPlaylistOpened?: () => void;
 }
 
 const CATEGORIES = [
@@ -69,7 +73,8 @@ const VideoCard: React.FC<{
   currentUser?: UserProfile | null;
   onAssignWorld?: () => void;
   onShareToClub?: () => void;
-}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld, onShareToClub }) => {
+  onSave?: () => void;
+}> = ({ video, onPlay, size = 'default', showChannel = true, currentUser, onAssignWorld, onShareToClub, onSave }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const muxId = (video as any).muxPlaybackId as string | undefined;
   const thumb = muxId
@@ -196,6 +201,15 @@ const VideoCard: React.FC<{
             title="Share to Club"
           >
             <Users size={13} />
+          </button>
+        )}
+        {onSave && (
+          <button
+            onClick={e => { e.stopPropagation(); onSave(); }}
+            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            title="Save to playlist"
+          >
+            <ListPlus size={14} />
           </button>
         )}
       </div>
@@ -413,9 +427,13 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed
 };
 
 // â"€â"€ Main Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser }) => {
+const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
+
+  // Playlist UI state
+  const [saveVideo, setSaveVideo] = useState<Video | null>(null);
+  const [openPlaylistId, setOpenPlaylistId] = useState<string | null>(null);
 
   const [videos, setVideos] = useState<Video[]>([]);
   const [movies, setMovies] = useState<any[]>([]);
@@ -434,6 +452,14 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts'>('discover');
+  // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
+  useEffect(() => {
+    if (initialPlaylistId) {
+      setActiveView('playlists');
+      setOpenPlaylistId(initialPlaylistId);
+      onPlaylistOpened?.();
+    }
+  }, [initialPlaylistId, onPlaylistOpened]);
   const [shortsIndex, setShortsIndex] = useState(0);
   const [shortsMuted, setShortsMuted] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -977,7 +1003,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   {filteredVideos.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                       {filteredVideos.map(v => (
-                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} />
+                        <VideoCard key={v.id} video={v} onPlay={() => handlePlay(v)} showChannel currentUser={currentUser} onShareToClub={auth.currentUser ? () => setShareToClubVideo(v) : undefined} onSave={auth.currentUser ? () => setSaveVideo(v as Video) : undefined} />
                       ))}
                     </div>
                   ) : (
@@ -1273,6 +1299,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       currentUser={currentUser}
                       onAssignWorld={isOwner ? () => setAssigningVideo(video) : undefined}
                       onShareToClub={auth.currentUser ? () => setShareToClubVideo(video) : undefined}
+                      onSave={auth.currentUser ? () => setSaveVideo(video as Video) : undefined}
                     />
                   ))}
                 </div>
@@ -1367,7 +1394,15 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* â"€â"€ PLAYLISTS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
           {activeView === 'playlists' && (
-            <VideoRow title="My Playlists" icon={List} videos={playlists} onSelect={handlePlay} emptyMessage="No playlists found." />
+            openPlaylistId ? (
+              <VideoPlaylistDetailView
+                playlistId={openPlaylistId}
+                onBack={() => setOpenPlaylistId(null)}
+                onPlayVideo={(v) => handlePlay(v)}
+              />
+            ) : (
+              <VideoPlaylistSection onOpenPlaylist={(id) => setOpenPlaylistId(id)} />
+            )
           )}
 
           {/* â"€â"€ CHANNELS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
@@ -1929,6 +1964,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
         )}
       </AnimatePresence>
+
+      {/* ── Save to Playlist Modal ──────────────────────────────────────── */}
+      {saveVideo && <AddToPlaylistModal video={saveVideo} onClose={() => setSaveVideo(null)} />}
 
       {/* ── Share to Club Modal ─────────────────────────────────────────── */}
       <AnimatePresence>

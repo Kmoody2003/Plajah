@@ -875,6 +875,8 @@ export interface VideoComment {
 export interface VideoPlaylist {
   id: string;
   ownerId: string;
+  ownerName?: string;
+  ownerPhoto?: string;
   title: string;
   description?: string;
   videoIds: string[];
@@ -883,6 +885,11 @@ export interface VideoPlaylist {
   isPrivate?: boolean;
   isDraft?: boolean;
   isPublic: boolean;
+  /** YouTube-style "Unlisted": readable by link but hidden from public browse. */
+  unlisted?: boolean;
+  /** Auto-managed system playlists (Watch Later). Not user-deletable. */
+  system?: 'WATCH_LATER';
+  updatedAt?: number;
   timestamp: number;
 }
 

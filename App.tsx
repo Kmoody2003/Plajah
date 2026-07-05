@@ -563,6 +563,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
   const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean } | null>(null);
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
+  const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
@@ -1199,6 +1200,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                }
             } catch(e) {}
           });
+          setIsLoading(false);
+          return;
+        } else if (shareType === 'videoPlaylist') {
+          // A shared video playlist — open Reello (VIDEOS) and jump straight to it.
+          setVideoPlaylistInitialId(projectId);
+          setIsPublicView(true);
+          setView('VIDEOS');
+          document.title = 'Playlist | Plajah';
           setIsLoading(false);
           return;
         } else if (shareType === 'feed') {
@@ -3645,7 +3654,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               </div>
             )}
-            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} />}
+            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} />}
             {view === 'ADMIN_AD_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminAdDashboard onBack={() => setView('DASHBOARD')} />
             )}

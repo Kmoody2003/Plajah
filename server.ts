@@ -262,6 +262,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const collectionFor: Record<string, string> = {
      video: 'videos', album: 'albums', track: 'albums', book: 'albums',
      article: 'articles', game: 'games', feed: 'global_posts', post: 'global_posts',
+     videoPlaylist: 'video_playlists',
    };
    const collection = collectionFor[String(type)] || '';
    if (!collection) return html;
@@ -293,11 +294,16 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
        title = trackObj?.mapValue?.fields?.title?.stringValue || pick(['title', 'name']) || 'Track';
      } else {
-       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : 'Album';
+       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
      image = pick(IMG);
-     desc = `Experience "${title}" now on Plajah`;
+     if (type === 'videoPlaylist') {
+       const count = f?.videoIds?.arrayValue?.values?.length || 0;
+       desc = `Playlist · ${count} video${count === 1 ? '' : 's'} on Plajah`;
+     } else {
+       desc = `Experience "${title}" now on Plajah`;
+     }
      // Only audio/video get an inline player card; the rest use a large-image card.
      if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
    }

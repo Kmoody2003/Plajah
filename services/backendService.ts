@@ -6373,17 +6373,22 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
   if (!auth.currentUser) return;
   const id = `vpl_${Date.now()}`;
   const path = `video_playlists/${id}`;
-  const newPlaylist: VideoPlaylist = {
+  const newPlaylist: VideoPlaylist = removeUndefined({
     id,
     ownerId: auth.currentUser.uid,
+    ownerName: auth.currentUser.displayName || 'Creator',
+    ownerPhoto: auth.currentUser.photoURL || '',
     title: playlist.title || 'New Playlist',
     description: playlist.description || '',
     videoIds: playlist.videoIds || [],
     thumbnailUrl: playlist.thumbnailUrl || '',
     isPrivate: playlist.isPrivate || false,
     isPublic: playlist.isPublic ?? true,
+    unlisted: playlist.unlisted || false,
+    system: playlist.system,
+    updatedAt: Date.now(),
     timestamp: Date.now()
-  };
+  }) as VideoPlaylist;
   try {
     await setDoc(doc(db, 'video_playlists', id), newPlaylist);
     return newPlaylist;
@@ -6407,6 +6412,101 @@ export const fetchVideoPlaylists = async (uid?: string): Promise<VideoPlaylist[]
     return playlists.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
+    return [];
+  }
+};
+
+/** Fetch a single video playlist by id (for the detail view + shared links). */
+export const fetchVideoPlaylistById = async (playlistId: string): Promise<VideoPlaylist | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'video_playlists', playlistId));
+    return snap.exists() ? (snap.data() as VideoPlaylist) : null;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.GET, `video_playlists/${playlistId}`);
+    return null;
+  }
+};
+
+/** Add a video to a playlist (YouTube "Save to…"). Sets the cover to the first video's thumb. */
+export const addVideoToPlaylist = async (playlistId: string, video: Video | string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const videoId = typeof video === 'string' ? video : video.id;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    const ref = doc(db, 'video_playlists', playlistId);
+    const snap = await getDoc(ref);
+    const cur = snap.data() as VideoPlaylist | undefined;
+    const patch: any = { videoIds: arrayUnion(videoId), updatedAt: Date.now() };
+    // First video becomes the cover if none set yet.
+    if (cur && (!cur.videoIds || cur.videoIds.length === 0) && !cur.thumbnailUrl && typeof video !== 'string') {
+      const thumb = (video as any).muxPlaybackId
+        ? `https://image.mux.com/${(video as any).muxPlaybackId}/thumbnail.png?width=640&height=360&time=5`
+        : video.thumbnailUrl || video.coverImageUrl || '';
+      if (thumb) patch.thumbnailUrl = thumb;
+    }
+    await updateDoc(ref, patch);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Remove a video from a playlist. */
+export const removeVideoFromPlaylist = async (playlistId: string, videoId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await updateDoc(doc(db, 'video_playlists', playlistId), { videoIds: arrayRemove(videoId), updatedAt: Date.now() });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Patch a playlist's editable fields (title, description, privacy). */
+export const updateVideoPlaylist = async (playlistId: string, patch: Partial<VideoPlaylist>): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await updateDoc(doc(db, 'video_playlists', playlistId), removeUndefined({ ...patch, updatedAt: Date.now() }) as any);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+  }
+};
+
+/** Delete a playlist (system playlists like Watch Later are protected in the UI). */
+export const deleteVideoPlaylist = async (playlistId: string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const path = `video_playlists/${playlistId}`;
+  try {
+    await deleteDoc(doc(db, 'video_playlists', playlistId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+/** Find-or-create the caller's "Watch Later" system playlist, then add the video. */
+export const addToWatchLater = async (video: Video | string): Promise<void> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  try {
+    const existing = (await fetchUserVideoPlaylists(uid)).find(p => p.system === 'WATCH_LATER');
+    let plId = existing?.id;
+    if (!plId) {
+      const created = await createVideoPlaylist({ title: 'Watch Later', system: 'WATCH_LATER', isPublic: false, isPrivate: true } as any);
+      plId = created?.id;
+    }
+    if (plId) await addVideoToPlaylist(plId, video);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, 'video_playlists/watch_later');
+  }
+};
+
+/** Hydrate a playlist's videoIds into full Video objects, preserving order. */
+export const fetchPlaylistVideos = async (videoIds: string[]): Promise<Video[]> => {
+  if (!videoIds?.length) return [];
+  try {
+    const results = await Promise.all(videoIds.map(id => fetchVideoById(id).catch(() => null)));
+    return results.filter(Boolean) as Video[];
+  } catch {
     return [];
   }
 };
