@@ -10,7 +10,7 @@ import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
   Lock, Check, Upload, Eye, EyeOff, ChevronDown, ChevronUp,
-  UserPlus, MoreVertical, Bookmark, Flag,
+  UserPlus, MoreVertical, Bookmark, Flag, SkipForward,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
@@ -34,10 +34,11 @@ interface MuxHlsVideoProps {
   onPlay: () => void;
   onPause: () => void;
   onError: () => void;
+  onEnded?: () => void;
 }
 
 const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoProps>(
-  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError }, _ref) => {
+  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError, onEnded }, _ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef   = useRef<any>(null);
 
@@ -102,6 +103,7 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
         onPlay={onPlay}
         onPause={onPause}
         onError={onError}
+        onEnded={onEnded}
       />
     );
   }
@@ -111,6 +113,10 @@ interface VideoPlayerProps {
   video: Video;
   onBack: () => void;
   currentUser: any;
+  /** Ordered playlist queue this video belongs to — enables autoplay-next. */
+  queue?: Video[];
+  /** Play a different video (advance the queue). */
+  onPlayQueued?: (v: Video) => void;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -394,7 +400,7 @@ const VideoEditModal: React.FC<EditModalProps> = ({ video, onClose, onSaved }) =
 };
 
 // ── Main VideoPlayer ──────────────────────────────────────────────────────────
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser, queue, onPlayQueued }) => {
   const {
     isPlaying, pause, resume, setVideoElement, setYtPlayer,
     playVideo, currentVideo, clearMedia, volume, activateVideoSource,
@@ -407,6 +413,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const [isLiked, setIsLiked]       = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isMuted, setIsMuted]       = useState(false);
+  const [autoplayNext, setAutoplayNext] = useState(true);
+  const [upNextIn, setUpNextIn]     = useState<number | null>(null);  // countdown seconds
   const [isFullscreen, setIsFullscreen]     = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [descExpanded, setDescExpanded]       = useState(false);
@@ -638,6 +646,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   // Reset resume guard when the video changes.
   useEffect(() => { resumeAppliedRef.current = false; setResumeHint(null); }, [video?.id]);
 
+  // ── Autoplay-next (playlist queue) ────────────────────────────────────────
+  const nextInQueue = (() => {
+    if (!queue || queue.length < 2) return null;
+    const idx = queue.findIndex(v => v.id === video.id);
+    return idx >= 0 && idx + 1 < queue.length ? queue[idx + 1] : null;
+  })();
+
+  const playNext = useCallback(() => {
+    if (nextInQueue && onPlayQueued) { setUpNextIn(null); onPlayQueued(nextInQueue); }
+  }, [nextInQueue, onPlayQueued]);
+
+  const handleVideoEnded = useCallback(() => {
+    doRecord();
+    if (autoplayNext && nextInQueue && onPlayQueued) setUpNextIn(5);
+  }, [doRecord, autoplayNext, nextInQueue, onPlayQueued]);
+
+  // Countdown tick for the "Up next" card.
+  useEffect(() => {
+    if (upNextIn === null) return;
+    if (upNextIn <= 0) { playNext(); return; }
+    const t = setTimeout(() => setUpNextIn(n => (n === null ? null : n - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [upNextIn, playNext]);
+
+  // Cancel any pending up-next when the video changes.
+  useEffect(() => { setUpNextIn(null); }, [video?.id]);
+
   const togglePlay = useCallback(() => {
     const el = localVideoRef.current;
     if (el) {
@@ -725,6 +760,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           onPlay={() => resume()}
           onPause={() => pause()}
           onError={() => setVideoError(true)}
+          onEnded={handleVideoEnded}
         />
       );
     }
@@ -753,6 +789,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           onPlay={() => resume()}
           onPause={() => pause()}
           onError={() => setVideoError(true)}
+          onEnded={handleVideoEnded}
         />
       );
     }
@@ -884,6 +921,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
                   <div className="flex-1" />
 
+                  {nextInQueue && (
+                    <>
+                      <button onClick={playNext} title="Next video" className="p-2 text-white hover:text-white/80 transition-colors">
+                        <SkipForward size={18} />
+                      </button>
+                      <button onClick={() => setAutoplayNext(a => !a)} title="Toggle autoplay" className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-colors ${autoplayNext ? 'bg-[#FF8C00]/20 text-[#FF8C00]' : 'text-white/40 hover:text-white/70'}`}>
+                        Auto
+                      </button>
+                    </>
+                  )}
+
                   <button onClick={() => setIsMuted(m => !m)} className="p-2 text-white hover:text-white/80 transition-colors">
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </button>
@@ -907,6 +955,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                 <span className="text-[9px] font-black uppercase tracking-widest">Resumed from {fmt(resumeHint)}</span>
               </motion.div>
             )}
+          </AnimatePresence>
+
+          {/* Up-next card (playlist autoplay) */}
+          <AnimatePresence>
+            {upNextIn !== null && nextInQueue && (() => {
+              const nq = nextInQueue as any;
+              const nthumb = nq.muxPlaybackId ? `https://image.mux.com/${nq.muxPlaybackId}/thumbnail.png?width=320&height=180&time=5` : (nq.thumbnailUrl || nq.coverImageUrl || '');
+              return (
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+                  className="absolute bottom-20 right-4 z-30 w-64 p-3 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-2">Up next in {upNextIn}s</p>
+                  <div className="flex gap-2.5 items-start">
+                    <div className="w-20 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">
+                      {nthumb ? <img src={nthumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Play size={14} className="text-white/30" /></div>}
+                    </div>
+                    <p className="text-xs font-bold text-white line-clamp-2 flex-1">{nextInQueue.title}</p>
+                  </div>
+                  <div className="flex gap-2 mt-2.5">
+                    <button onClick={playNext} className="flex-1 py-1.5 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-[#FF8C00] hover:text-white transition-all">Play now</button>
+                    <button onClick={() => setUpNextIn(null)} className="px-3 py-1.5 rounded-full bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/20">Cancel</button>
+                  </div>
+                </motion.div>
+              );
+            })()}
           </AnimatePresence>
 
           {/* Fullscreen exit on small move */}

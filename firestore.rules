@@ -717,6 +717,12 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Mirror of the videos the owner has liked (for the "Liked videos" surface).
+      // Written alongside the videos/{id}/likes doc; owner-private.
+      match /likedVideos/{videoId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Research notebook (services/notebookService) — synced across devices.
       // Private to the owner; localStorage is the offline cache.
       match /notebook/{entryId} {

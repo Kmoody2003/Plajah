@@ -462,6 +462,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [pitchDeckInitialDeck, setPitchDeckInitialDeck] = useState<PitchDeck | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [videoQueue, setVideoQueue] = useState<any[]>([]);  // playlist autoplay queue
   const [countdownAlbumId, setCountdownAlbumId] = useState<string | null>(null);
   const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
   const [selectedMovieItem, setSelectedMovieItem] = useState<any | null>(null);
@@ -3654,7 +3655,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               </div>
             )}
-            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} />}
+            {view === 'VIDEOS' && <VideoTab profile={userProfile} isOwner={false} onSelectVideo={handleSelectItem} currentUser={userProfile} onVisitUser={handleVisitUser} initialPlaylistId={videoPlaylistInitialId} onPlaylistOpened={() => setVideoPlaylistInitialId(undefined)} onSetQueue={setVideoQueue} />}
             {view === 'ADMIN_AD_DASHBOARD' && (userProfile?.role === 'admin' || userProfile?.role === 'staff') && (
               <AdminAdDashboard onBack={() => setView('DASHBOARD')} />
             )}
@@ -4086,13 +4087,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {view === 'PLAYER' && selectedVideo && (
-              <VideoPlayer 
-                video={selectedVideo} 
+              <VideoPlayer
+                video={selectedVideo}
                 onBack={() => {
                   setSelectedVideo(null);
+                  setVideoQueue([]);
                   setView('VIDEOS');
-                }} 
-                currentUser={user} 
+                }}
+                currentUser={user}
+                queue={videoQueue}
+                onPlayQueued={(v) => setSelectedVideo(v)}
               />
             )}
             {/* ── Internal pitch documents ── not linked in nav ────────────── */}

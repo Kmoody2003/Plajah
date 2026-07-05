@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Plus, X, Check, Play, Share2, Trash2, Lock, Globe, Link2, Clock,
-  ListVideo, Pencil, Loader2, ListPlus, ChevronLeft,
+  ListVideo, Pencil, Loader2, ListPlus, ChevronLeft, GripVertical,
 } from 'lucide-react';
 import { Video, VideoPlaylist } from '../types';
 import {
@@ -259,7 +259,7 @@ export const VideoPlaylistSection: React.FC<{ onOpenPlaylist: (id: string) => vo
 export const VideoPlaylistDetailView: React.FC<{
   playlistId: string;
   onBack: () => void;
-  onPlayVideo: (video: Video) => void;
+  onPlayVideo: (video: Video, queue?: Video[]) => void;
 }> = ({ playlistId, onBack, onPlayVideo }) => {
   const [pl, setPl] = useState<VideoPlaylist | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -267,7 +267,21 @@ export const VideoPlaylistDetailView: React.FC<{
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<{ title: string; description: string; isPrivate: boolean; unlisted: boolean }>({ title: '', description: '', isPrivate: false, unlisted: false });
   const [shareFlash, setShareFlash] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const uid = auth.currentUser?.uid;
+
+  // Persist a reordered video list (drag & drop, owner only).
+  const commitReorder = async (from: number, to: number) => {
+    if (from === to) return;
+    setVideos(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      updateVideoPlaylist(playlistId, { videoIds: next.map(v => v.id) }).catch(() => {});
+      return next;
+    });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -357,7 +371,7 @@ export const VideoPlaylistDetailView: React.FC<{
               <div className="flex items-center gap-3 mt-2"><PrivacyBadge p={pl} /><span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{pl.ownerName || 'Creator'} · {videos.length} video{videos.length === 1 ? '' : 's'}</span></div>
               {pl.description && <p className="text-sm text-white/60 mt-3 leading-relaxed">{pl.description}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-5">
-                <button onClick={() => videos[0] && onPlayVideo(videos[0])} disabled={!videos.length} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all disabled:opacity-30"><Play size={14} fill="currentColor" /> Play all</button>
+                <button onClick={() => videos[0] && onPlayVideo(videos[0], videos)} disabled={!videos.length} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all disabled:opacity-30"><Play size={14} fill="currentColor" /> Play all</button>
                 <button onClick={share} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white text-[9px] font-black uppercase tracking-widest"><Share2 size={14} /> {shareFlash || 'Share'}</button>
                 {isOwner && pl.system !== 'WATCH_LATER' && <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white text-[9px] font-black uppercase tracking-widest"><Pencil size={14} /> Edit</button>}
                 {isOwner && pl.system !== 'WATCH_LATER' && <button onClick={del} className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:text-rose-400 text-[9px] font-black uppercase tracking-widest"><Trash2 size={14} /></button>}
@@ -372,14 +386,32 @@ export const VideoPlaylistDetailView: React.FC<{
         <p className="text-[11px] text-white/30 uppercase tracking-widest py-10 text-center">This playlist is empty. Add videos with the Save button on any video.</p>
       ) : (
         <div className="space-y-2">
+          {isOwner && <p className="text-[9px] font-black uppercase tracking-widest text-white/25 pb-1">Drag to reorder</p>}
           {videos.map((v, i) => (
-            <div key={v.id} className="group flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.04] transition-colors">
-              <span className="w-6 text-center text-[10px] font-black text-white/30 shrink-0">{i + 1}</span>
-              <button onClick={() => onPlayVideo(v)} className="relative w-32 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
+            <div
+              key={v.id}
+              onDragOver={isOwner ? (e) => { e.preventDefault(); setOverIndex(i); } : undefined}
+              onDrop={isOwner ? (e) => { e.preventDefault(); if (dragIndex !== null) commitReorder(dragIndex, i); setDragIndex(null); setOverIndex(null); } : undefined}
+              className={`group flex items-center gap-3 p-2 rounded-xl transition-colors ${overIndex === i && dragIndex !== null ? 'bg-small-orange/10 ring-1 ring-small-orange/30' : 'hover:bg-white/[0.04]'} ${dragIndex === i ? 'opacity-40' : ''}`}
+            >
+              {isOwner ? (
+                <span
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+                  title="Drag to reorder"
+                  className="w-6 flex items-center justify-center text-white/20 hover:text-white/60 cursor-grab active:cursor-grabbing shrink-0"
+                >
+                  <GripVertical size={14} />
+                </span>
+              ) : (
+                <span className="w-6 text-center text-[10px] font-black text-white/30 shrink-0">{i + 1}</span>
+              )}
+              <button onClick={() => onPlayVideo(v, videos)} className="relative w-32 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
                 {thumbFor(v) ? <img src={thumbFor(v)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Play size={16} className="text-white/30" /></div>}
                 <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity"><Play size={18} className="text-white" fill="currentColor" /></span>
               </button>
-              <button onClick={() => onPlayVideo(v)} className="flex-1 min-w-0 text-left">
+              <button onClick={() => onPlayVideo(v, videos)} className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-bold text-white truncate">{v.title}</p>
                 <p className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">{v.artist || (v as any).ownerName || ''}</p>
               </button>

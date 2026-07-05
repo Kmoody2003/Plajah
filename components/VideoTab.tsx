@@ -17,6 +17,7 @@ import {
   BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus
 } from 'lucide-react';
 import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
+import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -40,6 +41,8 @@ interface VideoTabProps {
   /** Open a specific playlist on mount (from a shared /share?type=videoPlaylist link). */
   initialPlaylistId?: string;
   onPlaylistOpened?: () => void;
+  /** Set the autoplay queue when playing from a playlist. */
+  onSetQueue?: (videos: Video[]) => void;
 }
 
 const CATEGORIES = [
@@ -427,7 +430,7 @@ const LiveFeedCard: React.FC<{ feed: LiveFeed; onSelect: () => void }> = ({ feed
 };
 
 // â"€â"€ Main Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened }) => {
+const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mode = 'VIDEOS', currentUser, onVisitUser, initialPlaylistId, onPlaylistOpened, onSetQueue }) => {
   const { playVideo } = useGlobalPlayerState();
   const { uploadFile } = useUpload();
 
@@ -451,7 +454,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [heroVideo, setHeroVideo] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts'>('discover');
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked'>('discover');
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
     if (initialPlaylistId) {
@@ -889,10 +892,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         <div className="hidden lg:flex flex-col gap-1 w-44 shrink-0 sticky top-32 h-fit pt-8 px-6">
           {[
             { id: 'discover', label: 'Discover', icon: Sparkles },
+            { id: 'subscriptions', label: 'Subscriptions', icon: Users },
             { id: 'shorts', label: 'Shorts', icon: Smartphone },
             { id: 'uploads', label: 'My Videos', icon: Film },
             { id: 'live', label: 'Live', icon: Radio },
             { id: 'playlists', label: 'Playlists', icon: List },
+            { id: 'liked', label: 'Liked', icon: Heart },
+            { id: 'history', label: 'History', icon: Clock },
             { id: 'channel', label: 'Channel', icon: Layers },
           ].map(item => (
             <button
@@ -910,7 +916,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* Mobile view tabs */}
           <div className="flex gap-2 lg:hidden mb-6 overflow-x-auto no-scrollbar">
-            {(['discover', 'shorts', 'uploads', 'live', 'playlists', 'channel'] as const).map(v => (
+            {(['discover', 'subscriptions', 'shorts', 'uploads', 'live', 'playlists', 'liked', 'history', 'channel'] as const).map(v => (
               <button key={v} onClick={() => setActiveView(v)} className={`px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shrink-0 transition-all ${activeView === v ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{v}</button>
             ))}
           </div>
@@ -1398,11 +1404,26 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               <VideoPlaylistDetailView
                 playlistId={openPlaylistId}
                 onBack={() => setOpenPlaylistId(null)}
-                onPlayVideo={(v) => handlePlay(v)}
+                onPlayVideo={(v, q) => { if (q && q.length) onSetQueue?.(q); handlePlay(v); }}
               />
             ) : (
               <VideoPlaylistSection onOpenPlaylist={(id) => setOpenPlaylistId(id)} />
             )
+          )}
+
+          {/* ── SUBSCRIPTIONS ── */}
+          {activeView === 'subscriptions' && (
+            <SubscriptionsSection onPlay={(v) => handlePlay(v)} onVisitUser={onVisitUser} />
+          )}
+
+          {/* ── LIKED ── */}
+          {activeView === 'liked' && (
+            <LikedVideosSection onPlay={(v) => handlePlay(v)} />
+          )}
+
+          {/* ── HISTORY ── */}
+          {activeView === 'history' && (
+            <HistorySection onPlay={(v) => handlePlay(v)} />
           )}
 
           {/* â"€â"€ CHANNELS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}

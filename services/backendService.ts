@@ -6292,16 +6292,19 @@ export const fetchUserVideoPlaylists = async (uid: string) => {
 
 export const likeVideo = async (videoId: string) => {
   if (!auth.currentUser) return;
-  const likeId = `${auth.currentUser.uid}_${videoId}`;
+  const uid = auth.currentUser.uid;
+  const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
     await setDoc(doc(db, 'videos', videoId, 'likes', likeId), {
       id: likeId,
       videoId,
-      userId: auth.currentUser.uid,
+      userId: uid,
       timestamp: Date.now()
     });
     await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(1) });
+    // Mirror into the owner's liked-videos list (powers the "Liked videos" surface).
+    await setDoc(doc(db, 'users', uid, 'likedVideos', videoId), { videoId, timestamp: Date.now() }).catch(() => {});
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, path);
   }
@@ -6309,13 +6312,29 @@ export const likeVideo = async (videoId: string) => {
 
 export const unlikeVideo = async (videoId: string) => {
   if (!auth.currentUser) return;
-  const likeId = `${auth.currentUser.uid}_${videoId}`;
+  const uid = auth.currentUser.uid;
+  const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
     await deleteDoc(doc(db, 'videos', videoId, 'likes', likeId));
     await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(-1) });
+    await deleteDoc(doc(db, 'users', uid, 'likedVideos', videoId)).catch(() => {});
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
+  }
+};
+
+/** All videos the current user has liked, newest first (from the mirrored list). */
+export const getLikedVideos = async (uid?: string): Promise<Video[]> => {
+  const userId = uid || auth.currentUser?.uid;
+  if (!userId) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'users', userId, 'likedVideos'), orderBy('timestamp', 'desc'), limit(60)));
+    const ids = snap.docs.map(d => (d.data() as any).videoId).filter(Boolean);
+    return fetchPlaylistVideos(ids);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, `users/${userId}/likedVideos`);
+    return [];
   }
 };
 
