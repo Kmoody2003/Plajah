@@ -54,19 +54,64 @@ jobs:
           projectId: gen-lang-client-0665118474
           channelId: live
 
-      # Firestore + Storage rules — non-blocking; firebase-tools auth (GOOGLE_APPLICATION_CREDENTIALS)
-      # is unreliable on current versions, so rules are also deployable manually with
-      # `firebase deploy --only firestore,storage`. Kept here best-effort.
-      # NOTE: storage MUST be included — uploads (UploadContext → uploads/<type>s/…) are denied
-      # by the default fallback unless storage.rules is deployed.
+      # Firestore + Storage rules are deployed by the dedicated `deploy_rules` job
+      # below — a HARD-FAILING, verified step. (This used to be a best-effort
+      # continue-on-error step here; a silent failure once left production on
+      # months-old Storage rules and denied every upload. Never again.)
+
+  # ── Firestore + Storage rules → Firebase ──────────────────────────────────────
+  # Its own job so it can NEVER ship silently: reliable SA auth (the same path the
+  # Cloud Run job uses — unlike the old hand-written GOOGLE_APPLICATION_CREDENTIALS
+  # file that firebase-tools mishandled), no continue-on-error, and a post-deploy
+  # verification that reads the live rules back. A failed or no-op rules deploy now
+  # turns the build red.
+  deploy_rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      # firebase-tools authenticates via the ADC the auth step exported
+      # (GOOGLE_APPLICATION_CREDENTIALS). storage MUST be included — uploads
+      # (UploadContext → uploads/<type>s/…) are denied by the default fallback
+      # unless storage.rules is live.
       - name: Deploy Firestore + Storage rules
-        continue-on-error: true
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
-          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+        run: npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force
+
+      # Read the live Storage ruleset back and assert the uploads/** rule is present.
+      # This is the guard the old setup lacked: it proves the deploy actually landed,
+      # so the exact stale-rules regression that broke uploads can't recur unnoticed.
+      - name: Verify live Storage rules are current
         run: |
-          printf '%s' "$FIREBASE_SA" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force
+          set -euo pipefail
+          PROJECT=gen-lang-client-0665118474
+          TOKEN=$(gcloud auth print-access-token)
+          RULESET=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" \
+            "https://firebaserules.googleapis.com/v1/projects/$PROJECT/releases" \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(r['rulesetName'] for r in d['releases'] if 'firebase.storage' in r['name']))")
+          CONTENT=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" \
+            "https://firebaserules.googleapis.com/v1/$RULESET" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['source']['files'][0]['content'])")
+          if ! echo "$CONTENT" | grep -q "match /uploads/"; then
+            echo "::error::Live Storage rules are MISSING the uploads/** rule — the deploy did not land. Uploads would be denied."
+            exit 1
+          fi
+          echo "Live Storage rules verified: uploads/** rule is present."
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   deploy_api:
