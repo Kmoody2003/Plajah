@@ -233,6 +233,101 @@ export const DEMO_SANCTUARY_POSTS: SanctuaryPost[] = [
 export const DEMO_STORE_ID = 'demo-store';
 export const DEMO_STORE_OWNER = 'Nova Vaughn';
 
+// ── Rich store products (high-end shopping experience) ──────────────────────────
+export interface DemoProductReview { id: string; author: string; photo: string; rating: number; date: string; title: string; text: string; verified?: boolean; helpful: number; }
+export interface DemoProduct {
+  id: string; title: string; brand: string; category: string; price: number; compareAt?: number;
+  images: string[];
+  colors?: { name: string; hex: string }[];
+  sizes?: string[];
+  isClothing: boolean;
+  rating: number; reviewCount: number;
+  ratingBreakdown: [number, number, number, number, number]; // 5★→1★ counts
+  aiSummary: string;
+  description: string;
+  features: string[];
+  specs: { label: string; value: string }[];
+  reviews: DemoProductReview[];
+}
+
+const rv = (id: string, author: string, photo: string, rating: number, date: string, title: string, text: string, helpful: number, verified = true): DemoProductReview =>
+  ({ id, author, photo, rating, date, title, text, helpful, verified });
+
+export const DEMO_STORE_PRODUCTS: DemoProduct[] = [
+  {
+    id: 'm-tee', title: 'Tour Tee — "Golden Hour"', brand: 'Nova Vaughn', category: 'APPAREL', price: 32, compareAt: 40,
+    images: [U('photo-1521572163474-6864f9cf17ab', 800, 800), U('photo-1583743814966-8936f5b7be1a', 800, 800), U('photo-1618354691373-d851c5c3a990', 800, 800)],
+    colors: [{ name: 'Vintage Black', hex: '#1a1a1a' }, { name: 'Bone', hex: '#e8e2d5' }, { name: 'Gold', hex: '#c9a55c' }],
+    sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'], isClothing: true,
+    rating: 4.8, reviewCount: 214, ratingBreakdown: [176, 28, 6, 2, 2],
+    aiSummary: 'Fans overwhelmingly love the heavyweight, true-to-size fit and the soft hand-feel of the print. Most reviewers say it holds up well after multiple washes with no cracking. A few note the black runs slightly warm. Best-in-class for a tour tee at this price.',
+    description: 'Heavyweight 100% ring-spun cotton with a soft-hand front-and-back print of the Golden Hour tour art. Unisex fit.',
+    features: ['Heavyweight 6.5 oz ring-spun cotton', 'Soft-hand water-based print (no cracking)', 'Double-needle stitched collar & hems', 'Unisex fit — size up for oversized', 'Ethically printed in limited runs'],
+    specs: [{ label: 'Material', value: '100% ring-spun cotton' }, { label: 'Weight', value: '6.5 oz / 220 gsm' }, { label: 'Fit', value: 'Unisex, regular' }, { label: 'Care', value: 'Machine wash cold, tumble low' }, { label: 'Origin', value: 'Printed in USA' }],
+    reviews: [
+      rv('r1', 'Jordan M.', AV('photo-1500648767791-00dcc994a43e'), 5, 'Jun 28, 2026', 'Best tee I own', 'Thick, soft, and the print is gorgeous in person. Washed it 5 times, still looks new. Sizing is spot on for a regular fit.', 41),
+      rv('r2', 'Priya S.', AV('photo-1544005313-94ddf0286df2'), 5, 'Jun 20, 2026', 'Worth every penny', 'The gold colorway is stunning. Got compliments at the show. Runs true to size.', 22),
+      rv('r3', 'Alex R.', AV('photo-1506794778202-cad84cf45f1d'), 4, 'Jun 12, 2026', 'Great, runs a touch warm', 'Love the weight and print. The black is heavy so it can get warm — I sized down and it is perfect.', 9),
+    ],
+  },
+  {
+    id: 'm-vinyl', title: 'Debut Album — Vinyl (Gold)', brand: 'Nova Vaughn', category: 'MUSIC', price: 34,
+    images: [U('photo-1603048588665-791ca8aea617', 800, 800), U('photo-1544947950-fa07a98d237f', 800, 800), U('photo-1461360370896-922624d12aa1', 800, 800)],
+    isClothing: false,
+    rating: 5.0, reviewCount: 88, ratingBreakdown: [86, 2, 0, 0, 0],
+    aiSummary: 'A near-perfect 5.0 — collectors rave about the gold pressing quality, the gatefold artwork, and quiet, warm playback. The signed inserts on early orders were a highlight. No meaningful complaints reported.',
+    description: 'Limited gold-colored 180g pressing in a gatefold sleeve. The first 100 orders include a signed insert.',
+    features: ['Limited gold 180g vinyl', 'Gatefold sleeve with lyric booklet', 'Signed insert (first 100 only)', 'Mastered specifically for vinyl', 'Digital download code included'],
+    specs: [{ label: 'Format', value: '180g gold vinyl, 12"' }, { label: 'Discs', value: '2 (gatefold)' }, { label: 'Runtime', value: '48 min' }, { label: 'Includes', value: 'Download code' }, { label: 'Pressing', value: 'Limited to 500' }],
+    reviews: [
+      rv('rv1', 'Chris D.', AV('photo-1519085360753-af0119f7cbe7'), 5, 'Jun 25, 2026', 'Stunning pressing', 'The gold looks incredible and it plays dead quiet. Gatefold art is museum-worthy. Got the signed insert too!', 33),
+      rv('rv2', 'Mia T.', AV('photo-1534528741775-53994a69daeb'), 5, 'Jun 18, 2026', 'Collector heaven', 'Warm, full sound. Packaging was flawless. Instant favorite in my collection.', 18),
+    ],
+  },
+  {
+    id: 'm-hoodie', title: 'Embroidered Logo Hoodie', brand: 'Nova Vaughn', category: 'APPAREL', price: 68,
+    images: [U('photo-1556821840-3a63f95609a7', 800, 800), U('photo-1620799140408-edc6dcb6d633', 800, 800), U('photo-1578681994506-b8f463449011', 800, 800)],
+    colors: [{ name: 'Charcoal', hex: '#36363b' }, { name: 'Cream', hex: '#eee7d8' }],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'], isClothing: true,
+    rating: 4.7, reviewCount: 132, ratingBreakdown: [98, 24, 6, 3, 1],
+    aiSummary: 'Reviewers call it premium and cozy, with clean tonal embroidery and a heavyweight midweight fleece. Most say it is true to size; a handful wanted a longer drawstring. Great everyday hoodie.',
+    description: 'Midweight brushed fleece with tonal embroidered logo. Relaxed fit with a double-lined hood.',
+    features: ['380 gsm brushed fleece', 'Tonal embroidered chest logo', 'Double-lined hood, metal-tipped drawstrings', 'Ribbed cuffs & hem', 'Relaxed unisex fit'],
+    specs: [{ label: 'Material', value: '80% cotton / 20% poly fleece' }, { label: 'Weight', value: '380 gsm' }, { label: 'Fit', value: 'Relaxed unisex' }, { label: 'Care', value: 'Wash cold, dry low' }],
+    reviews: [
+      rv('rh1', 'Sam W.', AV('photo-1507003211169-0a1dd7228f2d'), 5, 'Jun 22, 2026', 'So soft & warm', 'Feels like a $150 hoodie. Embroidery is subtle and premium. Charcoal is a perfect neutral.', 27),
+      rv('rh2', 'Tanya O.', AV('photo-1580489944761-15a19d654956'), 4, 'Jun 14, 2026', 'Love it, minor nitpick', 'Amazing quality. Only wish the drawstrings were a bit longer. Still a 4.5 for me.', 11),
+    ],
+  },
+  {
+    id: 'm-poster', title: 'Tour Poster (18×24)', brand: 'Nova Vaughn', category: 'COLLECTIBLES', price: 18,
+    images: [U('photo-1513519245088-0e12902e35ca', 800, 800), U('photo-1547891654-e66ed7ebb968', 800, 800)],
+    isClothing: false,
+    rating: 4.9, reviewCount: 41, ratingBreakdown: [38, 3, 0, 0, 0],
+    aiSummary: 'A hit with fans — the numbered screen print, thick matte stock, and vivid gold ink get consistent praise. Ships well-protected in a rigid tube. A must for collectors.',
+    description: 'A numbered, limited screen print of the Golden Hour tour art on heavyweight matte stock.',
+    features: ['Numbered limited edition (of 300)', 'Hand-pulled screen print', 'Heavyweight 100 lb matte stock', 'Metallic gold ink accents', 'Ships in a rigid tube'],
+    specs: [{ label: 'Dimensions', value: '18" × 24"' }, { label: 'Stock', value: '100 lb matte' }, { label: 'Edition', value: 'Numbered / 300' }, { label: 'Shipping', value: 'Rigid tube' }],
+    reviews: [
+      rv('rp1', 'Devon K.', AV('photo-1500648767791-00dcc994a43e'), 5, 'Jun 19, 2026', 'Frame-worthy', 'The gold ink pops and the paper is thick. Arrived perfectly in a tube. Already framed on my wall.', 14),
+    ],
+  },
+  {
+    id: 'm-digital', title: 'Deluxe Album (Digital + Stems)', brand: 'Nova Vaughn', category: 'DIGITAL', price: 12,
+    images: [U('photo-1571330735066-03aaa9429d89', 800, 800), U('photo-1493225457124-a3eb161ffa5f', 800, 800)],
+    isClothing: false,
+    rating: 4.9, reviewCount: 173, ratingBreakdown: [160, 10, 2, 1, 0],
+    aiSummary: 'Producers and superfans love the lossless files and the included stems for remixing. Instant delivery and generous licensing get repeated praise. Exceptional value.',
+    description: 'The full deluxe album in lossless audio plus producer stems for every track — perfect for remixing.',
+    features: ['Lossless WAV + high-bitrate MP3', 'Producer stems for all 12 tracks', 'Two bonus tracks', 'Instant download', 'Personal remix license included'],
+    specs: [{ label: 'Format', value: 'WAV (lossless) + MP3 320' }, { label: 'Tracks', value: '12 + 2 bonus' }, { label: 'Stems', value: 'Yes — all tracks' }, { label: 'Delivery', value: 'Instant download' }],
+    reviews: [
+      rv('rd1', 'Andre C.', AV('photo-1506794778202-cad84cf45f1d'), 5, 'Jun 24, 2026', 'Stems are a gift', 'Being able to remix these is incredible. Lossless quality, instant download. Best $12 I have spent.', 22),
+      rv('rd2', 'Grace L.', AV('photo-1534528741775-53994a69daeb'), 5, 'Jun 16, 2026', 'Superfan approved', 'The bonus tracks alone are worth it. Love supporting the artist directly.', 13),
+    ],
+  },
+];
+
 export const DEMO_MERCH: MerchItem[] = [
   { id: 'm-tee',    ownerId: DEMO_STORE_ID, title: 'Tour Tee — "Golden Hour"', description: 'Heavyweight cotton, front + back print. Unisex.', price: 32, salePrice: 26, imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=600&fit=crop', category: 'APPAREL',     stock: 120, timestamp: now, rating: 4.8, reviewCount: 214 },
   { id: 'm-vinyl',  ownerId: DEMO_STORE_ID, title: 'Debut Album — Vinyl (Gold)', description: 'Limited gold pressing. Signed inserts on the first 100.', price: 34, imageUrl: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=600&h=600&fit=crop', category: 'MUSIC',       stock: 90,  timestamp: now, rating: 5.0, reviewCount: 88 },

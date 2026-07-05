@@ -104,7 +104,7 @@ import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
 import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
 import StoreDemoView from './components/StoreDemoView';
-import { DEMO_SANCTUARY_ID, DEMO_STORE_ID } from './data/demoShowcase';
+import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
 import PlajahAgent from './components/PlajahAgent';
 import { resolveAgentTier } from './services/agentService';
 
@@ -222,13 +222,15 @@ type AdSlot =
   | { kind: 'plus' }
   | { kind: 'profile'; profile: import('./types').UserProfile }
   | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
-  | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile };
+  | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
+  | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct };
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
   plus:      25000,
   profile:   15000,
   album:     45000,
   custom_ad: 30000,
+  product:   20000,
 };
 
 // ~14-frame crossfade at 60 fps ≈ 233 ms
@@ -1709,6 +1711,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const adMap   = new Map(adEntries.filter(([, a]) => !!a)   as [string, import('./types').UserAd][]);
 
       const slots: AdSlot[] = [{ kind: 'plus' }];
+      // A demo product ad in the rotation — shows what advertising your store looks like.
+      if (DEMO_STORE_PRODUCTS[0]) slots.push({ kind: 'product', product: DEMO_STORE_PRODUCTS[0] });
       for (const profile of shuffled) {
         const customAd = adMap.get(profile.uid);
         if (customAd) {
@@ -1940,6 +1944,31 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         dotIdx={dotActive}
                       />
                     </Suspense>
+                  );
+                } else if (currentSlot.kind === 'product') {
+                  const pr = currentSlot.product;
+                  slotContent = (
+                    <button
+                      key="demo-product-ad"
+                      onClick={() => { setViewedUserId(DEMO_STORE_ID); setView('STORE'); }}
+                      className="group relative block w-full h-full text-left overflow-hidden cursor-pointer"
+                    >
+                      <img src={pr.images[0]} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1200ms]" alt="" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-black uppercase tracking-widest text-small-orange border border-small-orange/30">Demo · Sponsored</span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-small-orange mb-1">In the store</p>
+                        <p className="text-white font-black text-lg leading-tight line-clamp-2 mb-1.5">{pr.title}</p>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <span className="text-white font-black text-base tabular-nums">${pr.price.toFixed(2)}</span>
+                          {pr.compareAt && <span className="text-white/40 line-through text-xs tabular-nums">${pr.compareAt.toFixed(2)}</span>}
+                          <span className="text-[9px] text-white/50">★ {pr.rating.toFixed(1)} ({pr.reviewCount})</span>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest group-hover:scale-105 transition-transform">Shop now →</span>
+                      </div>
+                    </button>
                   );
                 } else if (currentSlot.kind !== 'profile') {
                   /* ── Plajah+ subscription tiers billboard ── */
