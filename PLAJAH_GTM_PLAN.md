@@ -1730,3 +1730,55 @@ Consistent with the platform's cost profile: the Knowledge front is **near-zero 
 ---
 
 *Updated July 3, 2026. Reflects the Knowledge & Cultural Heritage front (Plajah Academia + History/Architecture/Archaeology studios), the reusable Museum engine across Taleo/Chora/Art, the open-access Artifact Browser + on-platform 3D viewer, the academic social layer + account-synced notebook, Chora's Conservatory / ancient-language translation / lyric-sync fixes, and the stack hardening (server-side Anthropic + Gemini proxies, content-safety restoration, platform-wide thumbnail performance). All prior sections remain intact for history.*
+
+---
+
+## 26. Plajah Elevate + the Ministry Content Synergy Engine — July 5, 2026
+
+This section adds the **faith / culture / nonprofit vertical (Plajah Elevate)** to the GTM and introduces the platform's sharpest wedge for that segment: a **Content Synergy Engine** that turns one Sunday service into a week of publishable content automatically. Both extend — not replace — the creator strategy above; they run on the *same* reusable engines (Reello video, Chora audio, Lorea books, Fabula NLE, Photos, ARIA AI, Sanctuary monetization), so their marginal build cost is low and their differentiation is high.
+
+### 26.1 The Elevate vertical (what shipped)
+
+Churches, cultural institutions, and nonprofits are a **high-retention, high-trust, underserved** segment. Incumbents (Planning Center, Servant Keeper, Subsplash, Tithe.ly) are administrative silos — giving, check-in, a website, a sermon archive — that **do not create or repurpose content** and have **no creator-grade media stack**. Plajah Elevate specializes the same `Organization` primitive (`orgType: 'CHURCH'` / `CULTURAL`) and already ships:
+
+- **Ministry platform** — per-org feed, staff directory + DM, **functional prayer wall** (`churchPrayers`), **announcements** (posted as the org identity, also hit the global feed), giving funds, service times, ministries, Photos gallery, curated Lorea library + Sacred Library, sermon notebook, roles/permissions, livestream archive (Reello), and CRM import (Servant Keeper migration path).
+- **Members are real Plajah accounts** — clicking a staff/member card opens their profile/feed (demo users clearly denoted), so the congregation *is* a social graph, not a spreadsheet.
+- **Always-on demos** (not auto-seeded) — a demo church, demo Sanctuary, and demo merch store any user can tour and "play with," each nudging them to build their own.
+- **Sanctuary hybrid** monetization (Patreon/Kickstarter/GoFundMe in one) + ticketing/live-events + social-media management folded into every org.
+- **Clergy** added to account types.
+
+**GTM framing:** Elevate is sold as *"the only church platform that also produces your content."* Admin tools get you in the door (giving, check-in, directory); the Content Synergy Engine is why they never leave.
+
+### 26.2 The Content Synergy Engine — the wedge
+
+> **One service in → a week of content out.** A ministry streams once; Plajah turns that single stream into an article, a podcast episode, a book chapter, social clips, and a photo-illustrated recap — with **ARIA** (Plajah's AI) doing the editorial work and a human just approving drafts.
+
+The pipeline (detailed spec: `docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md`):
+
+1. **Capture** — a Reello stream or a Switcher/TV-Studio live broadcast. On stream end, it **auto-creates a Fabula edit project**, auto-populated from the stream's timeline events with a **clean feed** (no burned-in lower-thirds/graphics — overlays stay as separate, editable layers), so the raw service is immediately editable, not a flattened export.
+2. **Transcribe** — the stream audio is transcribed with timecodes (existing `audioTranscription`), producing a searchable, quotable transcript.
+3. **ARIA editorial pass** — ARIA drafts an **article** (headline, sections, pull-quotes), a **podcast** cut (audio + show notes + chapters), and a **book/eBook chapter** (for Lorea). When ARIA detects a **fact or a Bible passage**, it offers **supplemental material** inline: the scripture text + cross-references, a source citation, a definition, or related media.
+4. **Illustrate automatically** — pull **stills matched to the transcript timecode** for each quote, or photos from the **ministry's Event Photo Pool** (which auto-opens when a service time hits). Everything lands as **article drafts** for review.
+5. **Publish across the stack** — approved output flows to Reello (clips), Chora/Podcast Studio (audio), Lorea (book), the org feed + global feed (article), and out to social via the built-in social-media manager.
+
+**Ambient inputs that feed the pool:** members can (optionally) set their profile to **auto check-in via geo-tag + location fences** — when a service time is set, the event photo pool triggers, and opted-in members within the fence contribute photos hands-free. Privacy-first and fully optional.
+
+### 26.3 Why this wins (moat + value)
+
+- **No competitor spans capture → edit → transcribe → author → publish.** Church-media tools stop at "archive the video." Creator repurposing tools (Descript, Opus, Riverside) do *one* hop and don't own distribution or the org/CRM layer. Plajah owns the **whole loop** because it already built each engine for other verticals.
+- **Marginal cost is near-zero.** The only new recurring cost is server-side AI inference (already budgeted for ARIA/captions); every engine is reused — consistent with the "~$100/mo idle, differentiates like a media company" story in §24.9.
+- **Time-to-value is a single service.** The demo is literally: *upload last Sunday → watch it become an article, a podcast, and a chapter in minutes.*
+- **It compounds retention.** A church that publishes weekly from Plajah has its content, congregation, giving, and archive all here; switching cost becomes their entire content history.
+
+### 26.4 Monetization (routes through existing rails)
+
+No new paywall primitive — value routes through **Plajah+ / Sanctuary / Elevate org tiers**: an **Elevate Pro** per-org subscription (unlimited ARIA repurposing, priority transcription, book export, social scheduling); **Sanctuary gating** of produced assets (paid devotionals, member-only chapters, premium podcast feed); **à la carte** produced eBooks/courses; **ticketed live events**; and **giving uplift** (better content → more reach → more giving, on the Stripe rails already live).
+
+### 26.5 GTM motion for Elevate
+
+- **Beachhead:** small-to-mid churches and cultural nonprofits already livestreaming to YouTube/Facebook but **doing nothing with the recording afterward** — the single most wasted asset in the segment.
+- **Wedge offer:** "Free migration from Servant Keeper/Planning Center + we'll turn your last 4 sermons into articles, podcasts, and an eBook — free — to prove it."
+- **Distribution:** denominational networks, worship-tech conferences, and the public demo church as a shareable showcase.
+- **Expansion:** the identical engine serves museums, universities, and nonprofits (lectures → articles/books), so Elevate's build doubles as the Cultural-org GTM.
+
+*Added July 5, 2026. Reflects the shipped Church Elevate functional layer (prayer wall, announcements, demos, Clergy account type, Sanctuary hybrid) and introduces the Ministry Content Synergy Engine (stream → Fabula clean-feed project + transcript → ARIA-authored article/podcast/book drafts with scripture & fact supplements, timecoded stills, and geo-triggered event photo pools). Technical spec in `docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md`. Prior sections intact.*

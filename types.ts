@@ -1769,6 +1769,72 @@ export interface ChurchPrayer {
   timestamp: number;
 }
 
+// ── Ministry Content Synergy Engine ─────────────────────────────────────────────
+// Turn one captured service/stream into publishable content (article/podcast/book)
+// via ARIA. See docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md.
+
+/** ARIA-surfaced supplemental context anchored to a moment in the source. */
+export interface RepurposeSupplement {
+  type: 'SCRIPTURE' | 'FACT' | 'CITATION' | 'DEFINITION' | 'MEDIA';
+  label: string;
+  detail: string;
+  reference?: string;        // e.g. "John 3:16"
+  source?: string;
+  anchorTimecode?: number;   // seconds into the source
+}
+
+/** A still/photo tied to a quote's timecode, from a video frame or the event photo pool. */
+export interface RepurposeStill {
+  timecode: number;
+  imageUrl?: string;
+  quote: string;
+  source: 'FRAME' | 'PHOTO_POOL';
+}
+
+export interface RepurposePullQuote {
+  quote: string;
+  timecode?: number;
+}
+
+/** One produced asset from a repurpose job (article/podcast/book chapter/clip). */
+export interface RepurposeOutput {
+  id: string;
+  kind: 'ARTICLE' | 'PODCAST' | 'BOOK_CHAPTER' | 'CLIP';
+  status: 'DRAFT' | 'APPROVED' | 'PUBLISHED';
+  title: string;
+  dek?: string;
+  sections?: { heading: string; body: string }[];
+  body?: string;
+  pullQuotes?: RepurposePullQuote[];
+  supplements?: RepurposeSupplement[];
+  stills?: RepurposeStill[];
+  audioUrl?: string;
+  chapterId?: string;
+  publishedRef?: string;     // id in its home collection once published
+}
+
+/** The spine: a capture → transcribe → ARIA → publish job for an org. */
+export interface ContentRepurposeJob {
+  id: string;
+  orgId: string;
+  createdBy: string;
+  sourceType: 'REELLO' | 'LIVE' | 'UPLOAD';
+  sourceId: string;
+  sourceTitle?: string;
+  faithContext?: boolean;    // church → detect scripture references
+  status: 'CAPTURED' | 'TRANSCRIBING' | 'DRAFTING' | 'READY' | 'PUBLISHED' | 'ERROR';
+  transcriptId?: string;
+  outputs: RepurposeOutput[];
+  createdAt: number;
+  updatedAt?: number;
+}
+
+/** Optional, off-by-default geo auto check-in that feeds event photo pools. */
+export interface CheckInPreferences {
+  autoCheckIn: boolean;
+  fences: { orgId: string; lat: number; lng: number; radiusM: number; label?: string }[];
+}
+
 // Multi-site: a church can have several campuses; each can publish a live program
 // feed that a master-control location pulls as a switcher source.
 export interface Campus {
