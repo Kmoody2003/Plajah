@@ -927,6 +927,13 @@ export interface MerchItem {
   isDigitalAsset?: boolean;
   linkedAssetId?: string; // ID of Track or Video if it's a media asset
   worldId?: string; // ID of the specific World this item belongs to
+  // ── Rich product-page fields (managed in Store Manager) ──
+  images?: string[];                                // gallery beyond imageUrl
+  features?: string[];                              // bullet highlights
+  specs?: { label: string; value: string }[];       // details / dimensions / material
+  colorOptions?: { name: string; hex: string }[];   // swatch selector
+  sizeOptions?: string[];                            // size selector
+  isClothing?: boolean;                             // enables AI try-on
   // Printful fulfillment fields
   printfulSyncProductId?: number;
   printfulVariantId?: number;
@@ -3675,6 +3682,12 @@ export interface StoreProduct {
   isDigital: boolean;
   digitalFileUrl?: string;
   tags?: string[];
+  // ── Rich product-page fields (high-end shopping experience) ──
+  features?: string[];                              // bullet highlights
+  specs?: { label: string; value: string }[];       // details / dimensions / material
+  colorOptions?: { name: string; hex: string }[];   // swatch selector
+  sizeOptions?: string[];                            // size selector
+  isClothing?: boolean;                              // enables AI try-on
   rating?: number;
   reviewCount?: number;
   soldCount?: number;
