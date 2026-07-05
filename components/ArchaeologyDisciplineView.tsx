@@ -18,10 +18,12 @@ import {
 import { searchArxiv, type ArxivPaper } from '../services/labsApiService';
 import { listenToGlobalPosts, createPost, auth, uploadFile } from '../services/backendService';
 import { Post } from '../types';
+import { useLoreaFreeBooks } from '../services/freeEpub';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
 
 const ModelViewer = lazy(() => import('./architecture/ModelViewer'));
+const BookReader = lazy(() => import('./BookReader'));
 
 const ACCENT = '#D4A017';
 const ACCENT_2 = '#9C7314';
@@ -117,6 +119,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
   const [papers, setPapers] = useState<ArxivPaper[]>([]);
   const [papersLoading, setPapersLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const freeBooks = useLoreaFreeBooks(ARCH_BOOKS);
 
   // Papers (arXiv physics.hist-ph) — lazy on first Library open
   useEffect(() => {
@@ -138,6 +141,15 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
     for (const t of ARCH_TOOLS) (m[t.category] ||= []).push(t);
     return m;
   }, []);
+
+  // Free public-domain classics open in the native Lorea reader.
+  if (freeBooks.readerBook) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30">Opening reader…</div>}>
+        <BookReader book={freeBooks.readerBook} onBack={freeBooks.closeReader} currentUser={currentUser} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="min-h-screen text-white">
@@ -346,16 +358,25 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Books &amp; Foundational Texts</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {ARCH_BOOKS.map(b => (
-                  <a key={b.id} href={b.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-black text-white leading-tight">{b.title}</p>
-                      {b.free && <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400 shrink-0">Free</span>}
-                    </div>
-                    <p className="text-[10px] text-white/40 mt-0.5">{b.authors.join(', ')}{b.year ? ` · ${b.year}` : ''}</p>
-                    <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{b.desc}</p>
-                  </a>
-                ))}
+                {ARCH_BOOKS.map(b => {
+                  const epub = freeBooks.canRead(b);
+                  const inner = (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[13px] font-black text-white leading-tight">{b.title}</p>
+                        {b.free && <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400 shrink-0">Free</span>}
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-0.5">{b.authors.join(', ')}{b.year ? ` · ${b.year}` : ''}</p>
+                      <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{b.desc}</p>
+                      {epub && <span className="inline-flex items-center gap-1 mt-2 text-[8px] font-black uppercase tracking-widest" style={{ color: ACCENT }}><BookOpen size={10} /> Read in Lorea</span>}
+                    </>
+                  );
+                  return epub ? (
+                    <button key={b.id} onClick={() => freeBooks.open(b)} className="text-left rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block w-full">{inner}</button>
+                  ) : (
+                    <a key={b.id} href={b.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">{inner}</a>
+                  );
+                })}
               </div>
             </div>
             <div>

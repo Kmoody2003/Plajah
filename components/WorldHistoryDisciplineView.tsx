@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Globe, Landmark, MessageSquare, Compass,
-  ExternalLink, FileText, ChevronRight, Boxes, ScrollText, Clock, Users, Library,
+  ExternalLink, FileText, ChevronRight, Boxes, ScrollText, Clock, Users, Library, BookOpen,
 } from 'lucide-react';
 import MuseumHall, { fetchWiki } from './MuseumHall';
 import ArtifactBrowser from './ArtifactBrowser';
@@ -12,11 +12,13 @@ import {
   CIVILIZATIONS, HISTORY_ERAS, PRIMARY_SOURCES, ARTIFACT_COLLECTIONS,
   type Civilization,
 } from '../data/worldHistoryData';
-import { searchArxiv, OPENSTAX_BOOKS, type ArxivPaper } from '../services/labsApiService';
+import { searchArxiv, OPENSTAX_BOOKS, textbookToAlbum, type ArxivPaper } from '../services/labsApiService';
 import { listenToGlobalPosts, createPost, auth, uploadFile } from '../services/backendService';
-import { Post } from '../types';
+import { Post, Album } from '../types';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
+
+const BookReader = lazy(() => import('./BookReader'));
 
 const ACCENT = '#E8590C';
 const ACCENT_2 = '#B24608';
@@ -113,6 +115,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
   const [papers, setPapers] = useState<ArxivPaper[]>([]);
   const [papersLoading, setPapersLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [readerBook, setReaderBook] = useState<Album | null>(null);
 
   // Papers (arXiv physics.hist-ph — history of physics/science) — lazy on Library open
   useEffect(() => {
@@ -128,6 +131,15 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
     return listenToGlobalPosts(setPosts);
   }, [tab]);
   const historyPosts = useMemo(() => posts.filter(p => p.tags?.includes('history')), [posts]);
+
+  // Free OpenStax textbooks open in the native Lorea reader.
+  if (readerBook) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/30">Opening reader…</div>}>
+        <BookReader book={readerBook} onBack={() => setReaderBook(null)} currentUser={currentUser} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="min-h-screen text-white">
@@ -281,7 +293,12 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
                     </div>
                     {b.description && <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{b.description}</p>}
                     <div className="flex flex-wrap gap-2 mt-3">
-                      <a href={b.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest" style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}44`, color: ACCENT }}>
+                      {b.epubUrl && (
+                        <button onClick={() => setReaderBook(textbookToAlbum(b))} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest" style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}44`, color: ACCENT }}>
+                          Read in Lorea <BookOpen size={10} />
+                        </button>
+                      )}
+                      <a href={b.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/8 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
                         Read online <ExternalLink size={10} />
                       </a>
                       {b.pdfLink && (
