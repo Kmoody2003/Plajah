@@ -473,7 +473,12 @@ async function authMiddleware(req: any, res: any, next: any) {
 async function firestoreWrite(collection: string, id: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
   const dbId = 'plajah-prod';
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
+  // updateMask makes this a MERGE (upsert): only the provided fields are written,
+  // every other field on the doc is preserved. Without it, a PATCH replaces the
+  // whole document — which was silently wiping user profiles (and deleting
+  // stripeConnectAccountId on the connect-status sync, losing the connection).
+  const mask = Object.keys(data).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}?${mask}`;
   // Build Firestore field map
   const fields: any = {};
   for (const [k, v] of Object.entries(data)) {
