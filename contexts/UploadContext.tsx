@@ -99,17 +99,31 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
         },
         (error: any) => {
-          // A mid-upload hot-switch changes the active account under the SDK — the
-          // token no longer matches, producing STORAGE/UNAUTHORIZED. Say so plainly.
+          // Storage returns `storage/unauthorized` for ANY rules/attestation
+          // rejection — not just expired auth. Classify it so the message names
+          // the actual cause instead of always blaming sign-in.
+          const code = error?.code || '';
+          const msg = error?.message || '';
           const switched = auth.currentUser?.uid && auth.currentUser.uid !== ownerUid;
-          const isAuthErr = error?.code === 'storage/unauthorized' || /unauthorized|permission/i.test(error?.message || '');
-          const friendly = isAuthErr
-            ? (switched
-                ? 'Upload interrupted by an account switch — switch back to the account that started this upload and retry.'
-                : 'Upload was not authorized. Your sign-in may have expired — re-select your account and try again.')
-            : error?.message;
+          const isAuthErr = code === 'storage/unauthorized' || /unauthorized|permission/i.test(msg);
+          // App Check failures surface as unauthorized but mention app-check / attestation.
+          const isAppCheck = /app-?check|attestation|app attest|appcheck/i.test(msg) || code === 'storage/app-check-token-is-invalid';
+          const isQuotaOrSize = code === 'storage/quota-exceeded' || /exceeded|too large|payload/i.test(msg);
+          let friendly: string;
+          if (isAppCheck) {
+            friendly = 'Upload blocked by app verification (App Check). Reload the page; if it persists, App Check enforcement may be on for a build that has no verification token.';
+          } else if (isQuotaOrSize) {
+            friendly = 'This file is too large to upload.';
+          } else if (isAuthErr && switched) {
+            friendly = 'Upload interrupted by an account switch — switch back to the account that started this upload and retry.';
+          } else if (isAuthErr) {
+            friendly = 'Upload was not authorized. Re-select your account and try again. (If this keeps happening, your account may not have upload access yet.)';
+          } else {
+            friendly = msg || 'Upload failed';
+          }
           setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'ERROR', error: friendly } : t));
-          reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType} · owner=${ownerUid} · active=${auth.currentUser?.uid || 'none'} · switched=${!!switched}` });
+          console.error('[upload] failed', { code, msg, owner: ownerUid, active: auth.currentUser?.uid || 'none', switched: !!switched });
+          reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType} · code=${code} · owner=${ownerUid} · active=${auth.currentUser?.uid || 'none'} · switched=${!!switched}` });
           reject(new Error(friendly || 'Upload failed'));
         },
         async () => {
