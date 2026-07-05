@@ -13,6 +13,7 @@ import { SANCTUARY_THEME, SanctuaryBadge } from './sanctuary/SanctuaryIdentity';
 interface SanctuaryHubViewProps {
   onBack?: () => void;
   onVisitProfile: (userId: string) => void;
+  onOpenDemo?: () => void;
   currentUserId?: string;
   currentUserProfile?: UserProfile;
 }
@@ -143,6 +144,7 @@ const HOW_IT_WORKS = [
 const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
   onBack,
   onVisitProfile,
+  onOpenDemo,
   currentUserId,
 }) => {
   const [creators, setCreators] = useState<CreatorCardData[]>([]);
@@ -288,6 +290,24 @@ const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {onOpenDemo && (
+              <button onClick={onOpenDemo}
+                className="relative flex flex-col text-left rounded-[2rem] overflow-hidden group transition-all hover:brightness-110"
+                style={{ background: SANCTUARY_THEME.heroGradient, border: `1px solid ${SANCTUARY_THEME.line}` }}>
+                <div className="h-28 relative overflow-hidden">
+                  <div className="absolute inset-0" style={{ background: SANCTUARY_THEME.goldSheen }} />
+                  <div className="absolute top-3 left-3"><SanctuaryBadge size="sm" label="Demo" /></div>
+                </div>
+                <div className="px-4 pb-4 -mt-8 relative">
+                  <div className="w-14 h-14 rounded-xl border-2 border-black overflow-hidden shadow-xl" style={{ background: SANCTUARY_THEME.panel }}>
+                    <div className="w-full h-full flex items-center justify-center text-2xl">◈</div>
+                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-tight mt-2 mb-0.5" style={{ color: SANCTUARY_THEME.goldSoft }}>See a Sanctuary in action</h3>
+                  <p className="text-[9px] text-white/40 leading-relaxed mb-3">Tour tiers, gated posts, a live campaign &amp; more — then build your own.</p>
+                  <span className="inline-block w-full text-center py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-black" style={{ background: SANCTUARY_THEME.gold }}>Explore demo →</span>
+                </div>
+              </button>
+            )}
             <AnimatePresence>
               {displayCreators.map((data, i) => (
                 <motion.div

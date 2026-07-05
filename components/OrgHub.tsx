@@ -22,6 +22,8 @@ import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
 import ChurchConsole from './ChurchConsole';
+import DemoRibbon from './DemoRibbon';
+import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -70,16 +72,26 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
     setImporting(false);
   };
   useEffect(() => {
-    if (initialOrgId) {
-      import('../services/organizationService').then(m => m.fetchOrganization(initialOrgId)).then(o => { if (o) { setActive(o); setMode('view'); } });
-    }
+    if (!initialOrgId) return;
+    // Always-on demo church — static, no Firestore, shows for everyone incl. guests.
+    if (initialOrgId === DEMO_CHURCH_ID) { setActive(DEMO_CHURCH); setMode('view'); return; }
+    import('../services/organizationService').then(m => m.fetchOrganization(initialOrgId)).then(o => { if (o) { setActive(o); setMode('view'); } });
   }, [initialOrgId]);
 
   if (mode === 'create') {
     return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
+    const profileEl = <OrgProfile org={active} isOwner={!active.isDemo && (active.creatorId === user?.uid || !!active.admins?.includes(user?.uid))} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
+    if (active.isDemo) {
+      return (
+        <div className="min-h-full">
+          <DemoRibbon label="church" accent="#8B5CF6" onCreate={() => { setActive(null); setMode('create'); }} />
+          {profileEl}
+        </div>
+      );
+    }
+    return profileEl;
   }
 
   // ── List ────────────────────────────────────────────────────────────────

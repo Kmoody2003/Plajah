@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { MerchItem, UserProfile } from '../types';
 import { fetchMerchItems, searchUsers } from '../services/backendService';
+import { DEMO_STORE_ID } from '../data/demoShowcase';
 
 interface StoreHubViewProps {
   onBack?: () => void;
@@ -361,6 +362,14 @@ const StoreHubView: React.FC<StoreHubViewProps> = ({ onBack, onVisitStore, curre
             className="px-4 py-2 bg-orange-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-400 transition-all flex-shrink-0"
           >
             Search
+          </button>
+
+          <button
+            onClick={() => onVisitStore(DEMO_STORE_ID)}
+            title="Browse a sample store"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500/15 border border-orange-500/30 text-orange-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/25 transition-all flex-shrink-0"
+          >
+            <Sparkles size={13} /> Demo Store
           </button>
 
           {currentUserId && (

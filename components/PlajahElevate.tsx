@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight, Wand2 } from 'lucide-react';
-import { fetchPublicOrganizations, createDemoChurch } from '../services/organizationService';
+import { fetchPublicOrganizations } from '../services/organizationService';
+import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 import { Organization, OrgType } from '../types';
 
 interface PlajahElevateProps {
@@ -94,23 +95,14 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
     const results = await Promise.all(SECTIONS.map(s => fetchPublicOrganizations(s.orgType).catch(() => [] as Organization[])));
     const map: Record<string, Organization[]> = {};
     SECTIONS.forEach((s, i) => { map[s.key] = results[i]; });
+    // Grace Chapel is an always-on static demo — pinned first in Spiritual for
+    // everyone (incl. guests), no seeding required.
+    map['spiritual'] = [DEMO_CHURCH, ...(map['spiritual'] || []).filter(o => o.id !== DEMO_CHURCH_ID)];
     setOrgsByType(map);
     setLoading(false);
   };
 
   useEffect(() => { let cancelled = false; (async () => { if (!cancelled) await load(); })(); return () => { cancelled = true; }; }, []);
-
-  const handleSeedChurch = async () => {
-    setSeeding(true);
-    try {
-      const org = await createDemoChurch();
-      await load();
-      if (org) onOpenOrg(org.id);
-      else alert('Could not create the demo church — make sure you are signed in.');
-    } catch (e: any) {
-      alert(e?.message || 'Could not create the demo church.');
-    } finally { setSeeding(false); }
-  };
 
   const visibleSections = activeSection === 'all' ? SECTIONS : SECTIONS.filter(s => s.key === activeSection);
 
@@ -164,16 +156,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
             >
               <Plus size={14} /> {isSignedIn ? 'List your institution' : 'Sign in to list'}
             </button>
-            {isAdmin && (
-              <button
-                onClick={handleSeedChurch}
-                disabled={seeding}
-                title="Create the Grace Chapel (Demo) church"
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 hover:text-white font-black text-[11px] uppercase tracking-widest transition-all shrink-0 disabled:opacity-50"
-              >
-                <Wand2 size={14} /> {seeding ? 'Seeding…' : 'Seed demo church'}
-              </button>
-            )}
           </div>
 
           {/* Section pills */}

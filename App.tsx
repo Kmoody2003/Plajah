@@ -102,6 +102,9 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
+import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
+import StoreDemoView from './components/StoreDemoView';
+import { DEMO_SANCTUARY_ID, DEMO_STORE_ID } from './data/demoShowcase';
 import PlajahAgent from './components/PlajahAgent';
 import { resolveAgentTier } from './services/agentService';
 
@@ -3345,13 +3348,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SanctuaryHubView
                   onBack={() => setView('DASHBOARD')}
                   onVisitProfile={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }}
+                  onOpenDemo={() => { setViewedUserId(DEMO_SANCTUARY_ID); setView('SANCTUARY'); }}
                   currentUserId={user?.uid}
                   currentUserProfile={userProfile ?? undefined}
                 />
               </Suspense>
             )}
 
-            {view === 'SANCTUARY' && (
+            {view === 'SANCTUARY' && viewedUserId === DEMO_SANCTUARY_ID && (
+              <SanctuaryDemoView
+                onBack={() => setView('SANCTUARY_HUB')}
+                onCreate={() => { setViewedUserId(null); setView('SANCTUARY'); }}
+              />
+            )}
+            {view === 'SANCTUARY' && viewedUserId !== DEMO_SANCTUARY_ID && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <SanctuaryView
                   creatorId={viewedUserId || user?.uid || ''}
@@ -3373,7 +3383,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {view === 'STORE' && (
+            {view === 'STORE' && viewedUserId === DEMO_STORE_ID && (
+              <StoreDemoView
+                onBack={() => setView('STORE_HUB')}
+                onCreate={() => { if (user) { setViewedUserId(user.uid); setView('STORE'); } else loginWithGoogle(); }}
+              />
+            )}
+            {view === 'STORE' && viewedUserId !== DEMO_STORE_ID && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <StorePageView
                   onBack={() => setView('STORE_HUB')}
