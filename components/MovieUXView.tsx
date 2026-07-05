@@ -6,6 +6,7 @@ import {
   X, Users, Maximize2, Minimize2, Check,
   Bookmark, Sparkles, RefreshCw, Calendar,
   Pause, Volume2, VolumeX, Award, ChevronRight,
+  RotateCcw, RotateCw, Gauge, PictureInPicture2,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
@@ -14,6 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { getDoc, doc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
+import { recordProgress, getResumePosition } from '../services/watchHistoryService';
 import {
   db, auth,
   fetchWorldCharacters,
@@ -81,7 +83,10 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const [isPaused, setIsPaused] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [whatIfActive, setWhatIfActive] = useState<WhatIfBranchPoint | null>(null);
+  const lastRecordRef = useRef(0);
+  const resumeAppliedRef = useRef(false);
 
   const onVideoRefLatest = useRef(onVideoRef);
   onVideoRefLatest.current = onVideoRef;
@@ -184,9 +189,28 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     if (!videoEl) return;
     const branches = liveVideo.whatIfBranchPoints || [];
 
+    // Save Continue-Watching progress (throttled ~5s) — Taleo now resumes like Netflix.
+    const record = () => {
+      if (!liveVideo.id || !(videoEl.duration > 0) || isNaN(videoEl.duration)) return;
+      if (!(videoEl.currentTime > 0)) return;
+      recordProgress({
+        id: liveVideo.id,
+        kind: 'TALEO',
+        title: liveVideo.title,
+        thumbnailUrl: poster || liveVideo.thumbnailUrl || liveVideo.coverImageUrl || undefined,
+        ownerName: liveVideo.artist || undefined,
+        positionSec: videoEl.currentTime,
+        durationSec: videoEl.duration,
+        seriesId: (liveVideo as any).tvMetadata?.seriesTitle || undefined,
+        worldId: liveVideo.worldId,
+      }).catch(() => {});
+    };
+
     const onTime = () => {
       setCurrentTime(videoEl.currentTime);
       if (isFinite(videoEl.duration)) setDuration(videoEl.duration);
+      const now = Date.now();
+      if (now - lastRecordRef.current >= 5000) { lastRecordRef.current = now; record(); }
       for (const b of branches) {
         if (!triggeredBranchesRef.current.has(b.id) && videoEl.currentTime >= b.timestamp - 0.35) {
           videoEl.pause();
@@ -196,27 +220,65 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         }
       }
     };
-    const onPause = () => setIsPaused(true);
+    const onPause = () => { setIsPaused(true); record(); };
     const onPlay  = () => { setIsPaused(false); scheduleControlHide(); };
-    const onMeta  = () => { if (isFinite(videoEl.duration)) setDuration(videoEl.duration); };
+    const onMeta  = () => {
+      if (isFinite(videoEl.duration)) setDuration(videoEl.duration);
+      // Resume from last position (skip if near the end), once per video.
+      if (!resumeAppliedRef.current && liveVideo.id) {
+        resumeAppliedRef.current = true;
+        const pos = getResumePosition(liveVideo.id);
+        if (pos > 5 && isFinite(videoEl.duration) && pos < videoEl.duration - 15) {
+          try { videoEl.currentTime = pos; } catch {}
+        }
+      }
+    };
 
     videoEl.addEventListener('timeupdate', onTime);
     videoEl.addEventListener('pause', onPause);
     videoEl.addEventListener('play', onPlay);
     videoEl.addEventListener('loadedmetadata', onMeta);
     return () => {
+      record();
       videoEl.removeEventListener('timeupdate', onTime);
       videoEl.removeEventListener('pause', onPause);
       videoEl.removeEventListener('play', onPlay);
       videoEl.removeEventListener('loadedmetadata', onMeta);
     };
-  }, [videoEl, liveVideo.whatIfBranchPoints, scheduleControlHide]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [videoEl, liveVideo.whatIfBranchPoints, liveVideo.id, poster, scheduleControlHide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const togglePlay = () => {
     if (!videoElRef.current) return;
     if (videoElRef.current.paused) videoElRef.current.play().catch(() => {});
     else videoElRef.current.pause();
     revealControls();
+  };
+
+  const skip = (secs: number) => {
+    const el = videoElRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, Math.min(el.duration || Infinity, el.currentTime + secs));
+    revealControls();
+  };
+
+  const SPEEDS = [1, 1.25, 1.5, 2, 0.5];
+  const cycleSpeed = () => {
+    const el = videoElRef.current;
+    setPlaybackRate(prev => {
+      const next = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length];
+      if (el) el.playbackRate = next;
+      return next;
+    });
+    revealControls();
+  };
+
+  const togglePiP = async () => {
+    const el = videoElRef.current as any;
+    if (!el) return;
+    try {
+      if ((document as any).pictureInPictureElement) await (document as any).exitPictureInPicture();
+      else await el.requestPictureInPicture?.();
+    } catch { /* PiP unsupported for this source */ }
   };
 
   const toggleMute = () => {
@@ -427,6 +489,10 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
           {/* Controls row */}
           <div className="flex items-center gap-3">
+            <button onClick={() => skip(-10)} title="Back 10s" className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all shrink-0">
+              <RotateCcw size={15} className="text-white/60" />
+            </button>
+
             <button
               onClick={togglePlay}
               className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all shrink-0"
@@ -437,11 +503,24 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
               }
             </button>
 
+            <button onClick={() => skip(10)} title="Forward 10s" className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all shrink-0">
+              <RotateCw size={15} className="text-white/60" />
+            </button>
+
             <span className="text-[11px] font-black text-white/55 tabular-nums shrink-0">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
 
             <div className="flex-1" />
+
+            <button onClick={cycleSpeed} title="Playback speed" className="h-9 px-2.5 rounded-full bg-white/10 hover:bg-white/20 flex items-center gap-1 transition-all shrink-0">
+              <Gauge size={14} className="text-white/55" />
+              <span className="text-[10px] font-black text-white/60 tabular-nums">{playbackRate}x</span>
+            </button>
+
+            <button onClick={togglePiP} title="Picture-in-picture" className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all shrink-0">
+              <PictureInPicture2 size={15} className="text-white/55" />
+            </button>
 
             <button
               onClick={toggleMute}
@@ -743,6 +822,23 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     }
   };
 
+  // Leave the player and return to the title's detail page (also exits fullscreen).
+  const exitPlayer = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    setIsUIVisible(true);
+    setActiveVideo(null);
+  }, []);
+
+  // Esc closes the player once out of fullscreen (browser handles the fullscreen exit first).
+  useEffect(() => {
+    if (!activeVideo) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.fullscreenElement) { e.preventDefault(); exitPlayer(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeVideo, exitPlayer]);
+
   const worldVideos = (worldContent?.videos || []).filter(v => v.id !== item.id).slice(0, 6);
   const worldAlbums = (worldContent?.albums || []).filter(a => a.id !== item.id).slice(0, 4);
   const hasWorldContent = worldVideos.length > 0 || worldAlbums.length > 0;
@@ -795,13 +891,14 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             </div>
           )}
 
-          {/* Info button — return to detail */}
+          {/* Back — clear exit from the player to the title's detail page (always visible, works in fullscreen) */}
           <button
-            onClick={() => { if (isFullscreen) document.exitFullscreen?.(); setIsUIVisible(true); setActiveVideo(null); }}
-            className="absolute top-4 left-4 z-10 p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10"
-            title="Back to details"
+            onClick={exitPlayer}
+            className="absolute top-4 left-4 z-20 flex items-center gap-2 pl-3 pr-4 py-2.5 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition-all border border-white/10 max-w-[70vw]"
+            title="Back to details (Esc)"
           >
-            <Info size={18} />
+            <ArrowLeft size={16} className="shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-widest truncate">{activeVideo.title || 'Back'}</span>
           </button>
         </div>
       )}
