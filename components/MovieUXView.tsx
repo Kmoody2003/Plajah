@@ -6,14 +6,15 @@ import {
   X, Users, Maximize2, Minimize2, Check,
   Bookmark, Sparkles, RefreshCw, Calendar,
   Pause, Volume2, VolumeX, Award, ChevronRight,
-  RotateCcw, RotateCw, Gauge, PictureInPicture2,
+  RotateCcw, RotateCw, Gauge, PictureInPicture2, Captions, SkipForward,
+  ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import WorldBadge from './WorldBadge';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
 import {
@@ -54,6 +55,7 @@ interface CinemaPlayerProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onWhatIfParticipation?: (branchId: string, choiceId: string) => void;
+  onEnded?: () => void;
 }
 
 type CinemaStrategy = 'mux' | 'hls' | 'direct' | 'embed' | 'processing' | 'error';
@@ -65,6 +67,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   isFullscreen,
   onToggleFullscreen,
   onWhatIfParticipation,
+  onEnded,
 }) => {
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -84,9 +87,13 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [ccOn, setCcOn] = useState(false);
+  const [ccMenu, setCcMenu] = useState(false);
+  const [activeCcLang, setActiveCcLang] = useState<string | null>(null);
   const [whatIfActive, setWhatIfActive] = useState<WhatIfBranchPoint | null>(null);
   const lastRecordRef = useRef(0);
   const resumeAppliedRef = useRef(false);
+  const subtitles = liveVideo.subtitles || [];
 
   const onVideoRefLatest = useRef(onVideoRef);
   onVideoRefLatest.current = onVideoRef;
@@ -234,18 +241,22 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       }
     };
 
+    const onEndedEvt = () => { record(); onEnded?.(); };
+
     videoEl.addEventListener('timeupdate', onTime);
     videoEl.addEventListener('pause', onPause);
     videoEl.addEventListener('play', onPlay);
     videoEl.addEventListener('loadedmetadata', onMeta);
+    videoEl.addEventListener('ended', onEndedEvt);
     return () => {
       record();
       videoEl.removeEventListener('timeupdate', onTime);
       videoEl.removeEventListener('pause', onPause);
       videoEl.removeEventListener('play', onPlay);
       videoEl.removeEventListener('loadedmetadata', onMeta);
+      videoEl.removeEventListener('ended', onEndedEvt);
     };
-  }, [videoEl, liveVideo.whatIfBranchPoints, liveVideo.id, poster, scheduleControlHide]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [videoEl, liveVideo.whatIfBranchPoints, liveVideo.id, poster, scheduleControlHide, onEnded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const togglePlay = () => {
     if (!videoElRef.current) return;
@@ -280,6 +291,21 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       else await el.requestPictureInPicture?.();
     } catch { /* PiP unsupported for this source */ }
   };
+
+  // Sync native text tracks with the CC toggle / chosen language.
+  useEffect(() => {
+    const el = videoElRef.current;
+    if (!el || !el.textTracks) return;
+    for (let i = 0; i < el.textTracks.length; i++) {
+      const tt = el.textTracks[i];
+      tt.mode = (ccOn && (activeCcLang ? tt.language === activeCcLang : i === 0)) ? 'showing' : 'disabled';
+    }
+  }, [ccOn, activeCcLang, videoEl, subtitles.length]);
+
+  // Skip-intro / skip-recap surfacing.
+  const inIntro = liveVideo.skipIntro && currentTime >= liveVideo.skipIntro.start && currentTime < liveVideo.skipIntro.end;
+  const inRecap = liveVideo.skipRecap && currentTime >= liveVideo.skipRecap.start && currentTime < liveVideo.skipRecap.end;
+  const skipTo = (end: number) => { const el = videoElRef.current; if (el) el.currentTime = end + 0.1; revealControls(); };
 
   const toggleMute = () => {
     if (!videoElRef.current) return;
@@ -368,11 +394,16 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         ref={setRef}
         poster={poster}
         playsInline
+        crossOrigin="anonymous"
         className="w-full h-full object-contain"
         src={strategy === 'direct' ? rawUrl : undefined}
         autoPlay={strategy === 'direct'}
         onError={() => { if (strategy === 'direct') setDirectFailed(true); }}
-      />
+      >
+        {subtitles.map(st => (
+          <track key={st.srclang} kind="subtitles" src={st.url} srcLang={st.srclang} label={st.label} default={st.default} />
+        ))}
+      </video>
 
       {/* ── What If overlay ────────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -518,6 +549,22 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
               <span className="text-[10px] font-black text-white/60 tabular-nums">{playbackRate}x</span>
             </button>
 
+            <div className="relative shrink-0">
+              <button onClick={() => subtitles.length ? setCcMenu(m => !m) : setCcOn(o => !o)} title="Subtitles / CC" className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${ccOn ? 'bg-white/25 text-white' : 'bg-white/10 hover:bg-white/20 text-white/55'}`}>
+                <Captions size={15} />
+              </button>
+              {ccMenu && (
+                <div className="absolute bottom-11 right-0 w-44 p-1.5 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 z-30" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => { setCcOn(false); setCcMenu(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${!ccOn ? 'text-[#D0BCFF]' : 'text-white/50 hover:bg-white/5'}`}>Off</button>
+                  {subtitles.length === 0 ? (
+                    <p className="px-3 py-2 text-[9px] text-white/25 uppercase tracking-widest">No captions available</p>
+                  ) : subtitles.map(st => (
+                    <button key={st.srclang} onClick={() => { setCcOn(true); setActiveCcLang(st.srclang); setCcMenu(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${ccOn && activeCcLang === st.srclang ? 'text-[#D0BCFF]' : 'text-white/50 hover:bg-white/5'}`}>{st.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button onClick={togglePiP} title="Picture-in-picture" className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all shrink-0">
               <PictureInPicture2 size={15} className="text-white/55" />
             </button>
@@ -546,6 +593,16 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* Skip Intro / Recap (Netflix-style) */}
+      {(inIntro || inRecap) && (
+        <button
+          onClick={(e) => { e.stopPropagation(); skipTo(inIntro ? liveVideo.skipIntro!.end : liveVideo.skipRecap!.end); }}
+          className="absolute bottom-24 right-6 z-20 flex items-center gap-2 px-5 py-2.5 bg-white/90 text-black rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-xl"
+        >
+          <SkipForward size={14} /> Skip {inIntro ? 'Intro' : 'Recap'}
+        </button>
+      )}
     </div>
   );
 };
@@ -839,6 +896,49 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     return () => window.removeEventListener('keydown', onKey);
   }, [activeVideo, exitPlayer]);
 
+  // ── Next-episode autoplay (TV series) ─────────────────────────────────────
+  const [autoplayNextEp, setAutoplayNextEp] = useState(true);
+  const [upNextEpIn, setUpNextEpIn] = useState<number | null>(null);
+  const allEpisodes: Video[] = ((item as Album).seasons || []).flatMap(s => s.episodes || []);
+  const nextEpisode = (() => {
+    if (!activeVideo || allEpisodes.length < 2) return null;
+    const idx = allEpisodes.findIndex(e => e.id === activeVideo.id);
+    return idx >= 0 && idx + 1 < allEpisodes.length ? allEpisodes[idx + 1] : null;
+  })();
+
+  const playNextEpisode = useCallback(() => {
+    if (nextEpisode) { setUpNextEpIn(null); setActiveVideo(nextEpisode); }
+  }, [nextEpisode]);
+
+  const handleEpisodeEnded = useCallback(() => {
+    if (autoplayNextEp && nextEpisode) setUpNextEpIn(8);
+  }, [autoplayNextEp, nextEpisode]);
+
+  useEffect(() => {
+    if (upNextEpIn === null) return;
+    if (upNextEpIn <= 0) { playNextEpisode(); return; }
+    const t = setTimeout(() => setUpNextEpIn(n => (n === null ? null : n - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [upNextEpIn, playNextEpisode]);
+  useEffect(() => { setUpNextEpIn(null); }, [activeVideo?.id]);
+
+  // ── Detail page: maturity rating (from data), match %, thumbs rating ──────
+  const maturity = (item as any).contentRating || (item as any).filmDistribution?.contentRating || (item as any).movieMetadata?.maturityRating || 'NR';
+  const matchPct = 68 + (Array.from(String(item.id || (item as any).title || '')).reduce((a, c) => a + c.charCodeAt(0), 0) % 31);
+  const [myRating, setMyRating] = useState<'UP' | 'DOWN' | null>(null);
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setMyRating(null); return; }
+    return onSnapshot(doc(db, 'users', uid, 'titleRatings', item.id), snap => setMyRating(snap.exists() ? (snap.data() as any).rating : null));
+  }, [item.id]);
+  const rate = async (r: 'UP' | 'DOWN') => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const ref = doc(db, 'users', uid, 'titleRatings', item.id);
+    if (myRating === r) await deleteDoc(ref).catch(() => {});
+    else await setDoc(ref, { rating: r, titleId: item.id, title: (item as any).title || '', at: Date.now() }).catch(() => {});
+  };
+
   const worldVideos = (worldContent?.videos || []).filter(v => v.id !== item.id).slice(0, 6);
   const worldAlbums = (worldContent?.albums || []).filter(a => a.id !== item.id).slice(0, 4);
   const hasWorldContent = worldVideos.length > 0 || worldAlbums.length > 0;
@@ -877,7 +977,33 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
             onWhatIfParticipation={handleWhatIfParticipation}
+            onEnded={handleEpisodeEnded}
           />
+
+          {/* Up next episode (autoplay) */}
+          <AnimatePresence>
+            {upNextEpIn !== null && nextEpisode && (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
+                className="absolute bottom-6 right-6 z-30 w-72 p-4 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-2">Next episode in {upNextEpIn}s</p>
+                <div className="flex gap-3 items-start">
+                  <div className="w-24 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">
+                    {(nextEpisode.thumbnailUrl || nextEpisode.coverImageUrl)
+                      ? <img src={nextEpisode.thumbnailUrl || nextEpisode.coverImageUrl} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><Play size={14} className="text-white/30" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {(nextEpisode.seasonNumber || nextEpisode.episodeNumber) && <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF]">S{nextEpisode.seasonNumber || 1} · E{nextEpisode.episodeNumber || ''}</p>}
+                    <p className="text-xs font-bold text-white line-clamp-2 mt-0.5">{nextEpisode.title}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={playNextEpisode} className="flex-1 py-2 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-[#D0BCFF] transition-all">Play now</button>
+                  <button onClick={() => { setUpNextEpIn(null); setAutoplayNextEp(false); }} className="px-3 py-2 rounded-full bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/20">Cancel</button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Alternate-cut switcher — only when the film has extra versions */}
           {((item as Album).alternateVersions?.length ?? 0) > 0 && (
@@ -988,14 +1114,20 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
                   {/* Meta */}
                   <div className="flex items-center gap-4 text-[10px] font-black tracking-[0.15em] uppercase text-white/40 flex-wrap">
+                    <span className="text-[#3FBE85]">{matchPct}% Match</span>
                     <span className="flex items-center gap-1.5 text-[#D0BCFF]">
                       <Star fill="currentColor" size={12} /> 9.8
                     </span>
                     {releaseYear && <span className="text-white/40">{releaseYear}</span>}
-                    <span className="border border-white/12 px-2 py-0.5 rounded text-white/35">PG-13</span>
+                    <span className="border border-white/12 px-2 py-0.5 rounded text-white/35">{maturity}</span>
                     {artist && (
                       <span>Directed by <span className="text-white/55">{artist}</span></span>
                     )}
+                    {/* Thumbs rating */}
+                    <span className="flex items-center gap-1.5">
+                      <button onClick={() => rate('UP')} title="Rate up" className={`p-1.5 rounded-full transition-all ${myRating === 'UP' ? 'bg-[#3FBE85]/20 text-[#3FBE85]' : 'text-white/30 hover:text-white/70'}`}><ThumbsUp size={13} fill={myRating === 'UP' ? 'currentColor' : 'none'} /></button>
+                      <button onClick={() => rate('DOWN')} title="Rate down" className={`p-1.5 rounded-full transition-all ${myRating === 'DOWN' ? 'bg-rose-500/20 text-rose-400' : 'text-white/30 hover:text-white/70'}`}><ThumbsDown size={13} fill={myRating === 'DOWN' ? 'currentColor' : 'none'} /></button>
+                    </span>
                   </div>
 
                   {/* Description */}

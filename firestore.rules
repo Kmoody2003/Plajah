@@ -723,6 +723,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Taleo thumbs up/down ratings on films/series — owner-private.
+      match /titleRatings/{titleId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Research notebook (services/notebookService) — synced across devices.
       // Private to the owner; localStorage is the offline cache.
       match /notebook/{entryId} {

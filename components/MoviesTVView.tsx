@@ -23,7 +23,9 @@ import { MoviesSpecificView } from './MoviesSpecificView';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ScrollableTabRow from './ScrollableTabRow';
 import PlajahPlusBanner from './PlajahPlusBanner';
-import { fetchPublicClubs } from '../services/backendService';
+import { fetchPublicClubs, fetchVideoById } from '../services/backendService';
+import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
+import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
 import { Landmark } from 'lucide-react';
@@ -122,7 +124,27 @@ const PosterCard: React.FC<{
   onPlay: () => void;
   width?: string;
   accentBorder?: boolean;
-}> = ({ title, subtitle, image, genre, onPlay, width = 'w-36 flex-shrink-0', accentBorder }) => (
+  /** When provided, hovering the poster plays a short muted trailer/preview. */
+  previewItem?: any;
+}> = ({ title, subtitle, image, genre, onPlay, width = 'w-36 flex-shrink-0', accentBorder, previewItem }) => {
+  const preview = previewItem ? previewSourceFor(previewItem) : null;
+  if (preview) {
+    return (
+      <div className={width}>
+        <HoverPreviewThumb
+          poster={image || undefined}
+          title={title}
+          subtitle={subtitle}
+          preview={preview}
+          accent={accentBorder ? '#D0BCFF' : '#FFB68D'}
+          aspectClass="aspect-[2/3]"
+          onClick={onPlay}
+          fallbackIcon={<Film size={28} className="text-white/10" />}
+        />
+      </div>
+    );
+  }
+  return (
   <motion.div whileHover={{ y: -5 }} onClick={onPlay} className={`group cursor-pointer ${width}`}>
     <div className={`aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border transition-all duration-300 ${accentBorder ? 'border-[#D0BCFF]/20 group-hover:border-[#D0BCFF]/50' : 'border-white/8 group-hover:border-white/20'}`}>
       {image ? (
@@ -146,7 +168,8 @@ const PosterCard: React.FC<{
     <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{title}</h4>
     {subtitle && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>}
   </motion.div>
-);
+  );
+};
 
 // ── HomeView ───────────────────────────────────────────────────────────────────
 const HomeView: React.FC<{
@@ -220,6 +243,14 @@ const HomeView: React.FC<{
   // Section slices
   const newToTaleo      = platformVideos.slice(0, 12);
   const creatorFilms    = platformVideos;
+
+  // Continue Watching (resume) — Taleo watch progress.
+  const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
+  useEffect(() => { getContinueWatching('TALEO').then(setContinueWatching).catch(() => {}); }, []);
+  const resumeItem = async (entry: WatchEntry) => {
+    const v = await fetchVideoById(entry.id).catch(() => null);
+    if (v) onSelectMovie(v);
+  };
   const trendingContent = [...platformVideos.slice(0, 8), ...movies.slice(0, 6)];
   const acclaimed       = movies.slice(0, 12);
   const belovedByUsers  = platformVideos.slice(0, 10);
@@ -394,6 +425,33 @@ const HomeView: React.FC<{
           </section>
         )}
 
+        {/* Continue Watching (resume) */}
+        {continueWatching.length > 0 && (
+          <section>
+            <SectionHeader label="Jump Back In" title="Continue Watching" accent="#3FBE85" />
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+              {continueWatching.map(e => {
+                const pct = e.durationSec > 0 ? Math.min(100, (e.positionSec / e.durationSec) * 100) : 0;
+                return (
+                  <motion.div key={e.id} whileHover={{ y: -5 }} onClick={() => resumeItem(e)} className="w-56 flex-shrink-0 group cursor-pointer">
+                    <div className="aspect-video rounded-xl overflow-hidden bg-white/5 relative border border-white/8 group-hover:border-[#3FBE85]/40 transition-all">
+                      {e.thumbnailUrl
+                        ? <img src={e.thumbnailUrl} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all" alt={e.title || ''} />
+                        : <div className="w-full h-full flex items-center justify-center"><Film size={26} className="text-white/10" /></div>}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm"><Play fill="white" size={17} className="ml-0.5" /></div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40"><div className="h-full bg-[#3FBE85]" style={{ width: `${pct}%` }} /></div>
+                    </div>
+                    <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{e.title || 'Untitled'}</h4>
+                    <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">{e.completed ? 'Watched' : `${Math.round(pct)}% · Resume`}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* New to Taleo */}
         {newToTaleo.length > 0 && (
           <section>
@@ -406,6 +464,7 @@ const HomeView: React.FC<{
                   subtitle={(v as any)._original?.ownerName || (v as any).ownerName}
                   image={v.thumbnailUrl || v.coverImage}
                   genre={v.genre}
+                  previewItem={(v as any)._original || v}
                   onPlay={() => onSelectMovie((v as any)._original || v)}
                   accentBorder
                 />
@@ -619,6 +678,7 @@ const HomeView: React.FC<{
                   subtitle={(v as any).genre || 'Platform'}
                   image={v.thumbnailUrl || v.coverImage}
                   genre={v.genre}
+                  previewItem={(v as any)._original || v}
                   onPlay={() => onSelectMovie((v as any)._original || v)}
                 />
               ))}

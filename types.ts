@@ -852,6 +852,12 @@ export interface Video {
   characterTimestamps?: CharacterTimestamp[];   // creator-tagged character appearances on timeline
   whatIfBranchPoints?: WhatIfBranchPoint[];     // interactive branch points
   isRello?: boolean;
+  contentRating?: string;                       // G / PG / PG-13 / R / TV-MA … (maturity)
+  /** Streaming subtitle/caption tracks (WebVTT). */
+  subtitles?: { label: string; srclang: string; url: string; default?: boolean }[];
+  /** Skip-intro / skip-recap timeline markers (seconds). */
+  skipIntro?: { start: number; end: number };
+  skipRecap?: { start: number; end: number };
 }
 
 export interface VideoLike {
