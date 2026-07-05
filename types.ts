@@ -1741,6 +1741,21 @@ export interface GivingFund {
   raised?: number;        // amount given so far ($)
 }
 
+// A community prayer request on a church/org page.
+export interface ChurchPrayer {
+  id: string;
+  orgId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  request: string;
+  isPrivate?: boolean;        // visible to staff only
+  prayingIds: string[];       // members who tapped "I'm praying"
+  answered?: boolean;
+  answeredNote?: string;
+  timestamp: number;
+}
+
 // Multi-site: a church can have several campuses; each can publish a live program
 // feed that a master-control location pulls as a switcher source.
 export interface Campus {

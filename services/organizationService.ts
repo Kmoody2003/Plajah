@@ -8,8 +8,11 @@
 
 import {
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, limit,
+  arrayUnion, arrayRemove,
 } from 'firebase/firestore';
+import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
+import type { ChurchPrayer } from '../types';
 import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime, GivingFund } from '../types';
 
 /** Firestore rejects `undefined` field values — strip them before every write. */
@@ -183,6 +186,47 @@ export function sumDonationsByFund(donations: Array<{ fund?: string; amount: num
   const out: Record<string, number> = {};
   for (const d of donations) { const f = d.fund || 'General'; out[f] = (out[f] || 0) + d.amount; }
   return out;
+}
+
+// ── Prayer wall (church/org community feature) ──────────────────────────────────
+export async function submitChurchPrayer(orgId: string, request: string, isPrivate = false): Promise<string | null> {
+  if (!auth.currentUser || !request.trim()) return null;
+  const ref = doc(collection(db, 'churchPrayers'));
+  const prayer: ChurchPrayer = {
+    id: ref.id, orgId,
+    authorId: auth.currentUser.uid,
+    authorName: auth.currentUser.displayName || 'Member',
+    authorPhoto: auth.currentUser.photoURL || '',
+    request: request.trim(),
+    isPrivate,
+    prayingIds: [],
+    timestamp: Date.now(),
+  };
+  await setDoc(ref, prayer);
+  return ref.id;
+}
+
+export function listenToChurchPrayers(orgId: string, callback: (prayers: ChurchPrayer[]) => void) {
+  const q = query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), limit(100));
+  return onSnapshot(q,
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChurchPrayer)).sort((a, b) => b.timestamp - a.timestamp)),
+    err => console.warn('[church] prayers listener:', err.message),
+  );
+}
+
+export async function toggleChurchPraying(prayerId: string, praying: boolean): Promise<void> {
+  if (!auth.currentUser) return;
+  await updateDoc(doc(db, 'churchPrayers', prayerId), {
+    prayingIds: praying ? arrayUnion(auth.currentUser.uid) : arrayRemove(auth.currentUser.uid),
+  });
+}
+
+export async function markChurchPrayerAnswered(prayerId: string, answered: boolean, answeredNote?: string): Promise<void> {
+  await updateDoc(doc(db, 'churchPrayers', prayerId), { answered, ...(answeredNote ? { answeredNote } : {}) });
+}
+
+export async function deleteChurchPrayer(prayerId: string): Promise<void> {
+  await deleteDoc(doc(db, 'churchPrayers', prayerId));
 }
 
 // ── Legacy brand migration (slice 5) ────────────────────────────────────────

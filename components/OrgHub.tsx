@@ -23,6 +23,7 @@ import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
 import ChurchConsole from './ChurchConsole';
 import ChurchDemoView from './ChurchDemoView';
+import ChurchPrayerWall from './ChurchPrayerWall';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
@@ -386,6 +387,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                 </div>
               </section>
             )}
+
+            <ChurchPrayerWall orgId={org.id} isOwner={isOwner} />
           </>
         )}
 
