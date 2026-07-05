@@ -24,6 +24,7 @@ import ChurchMasterControl from './ChurchMasterControl';
 import ChurchConsole from './ChurchConsole';
 import ChurchDemoView from './ChurchDemoView';
 import ChurchPrayerWall from './ChurchPrayerWall';
+import ChurchAnnouncements from './ChurchAnnouncements';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
@@ -332,6 +333,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                 </button>
               )}
             </div>
+
+            <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} />
 
             {org.givingFunds && org.givingFunds.length > 0 && (
               <section className="mt-10">
