@@ -22,7 +22,7 @@ import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
 import ChurchConsole from './ChurchConsole';
-import DemoRibbon from './DemoRibbon';
+import ChurchDemoView from './ChurchDemoView';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
@@ -82,16 +82,11 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
     return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
-    const profileEl = <OrgProfile org={active} isOwner={!active.isDemo && (active.creatorId === user?.uid || !!active.admins?.includes(user?.uid))} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
+    // The demo church opens the full populated ministry-platform tour.
     if (active.isDemo) {
-      return (
-        <div className="min-h-full">
-          <DemoRibbon label="church" accent="#8B5CF6" onCreate={() => { setActive(null); setMode('create'); }} />
-          {profileEl}
-        </div>
-      );
+      return <ChurchDemoView onBack={() => { setActive(null); setMode('list'); }} onCreate={() => { setActive(null); setMode('create'); }} />;
     }
-    return profileEl;
+    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────

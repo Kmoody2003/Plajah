@@ -63,6 +63,84 @@ export const DEMO_CHURCH: Organization = {
   updatedAt: now,
 };
 
+// ── Demo Church — rich ministry-space content (populates ChurchDemoView) ────────
+const U = (id: string, w = 600, h = 600) => `https://images.unsplash.com/${id}?w=${w}&h=${h}&fit=crop`;
+const AV = (id: string) => U(id, 200, 200);
+
+export interface DemoStaff { id: string; name: string; role: string; photo: string; bio?: string; email?: string; }
+export interface DemoPost { id: string; author: string; authorPhoto: string; text: string; when: string; likes: number; comments: number; image?: string; }
+export interface DemoEvent { id: string; title: string; date: string; time: string; location: string; price: number | 'FREE'; image: string; blurb: string; }
+export interface DemoVideo { id: string; title: string; series: string; date: string; duration: string; thumb: string; }
+export interface DemoAlbum { id: string; title: string; cover: string; photos: string[]; }
+export interface DemoMerchLite { id: string; title: string; price: number; image: string; }
+export interface DemoMinistryDetail {
+  leaders: DemoStaff[];
+  albums: DemoAlbum[];
+  posts: DemoPost[];
+  events: DemoEvent[];
+  merch: DemoMerchLite[];
+}
+
+// Church-level leadership.
+export const DEMO_CHURCH_STAFF: DemoStaff[] = [
+  { id: 'st-lead',   name: 'Pastor Daniel Reyes', role: 'Lead Pastor',          photo: AV('photo-1507003211169-0a1dd7228f2d'), bio: 'Planted Grace Chapel in 2009. Teaching through the Gospel of John this season.' },
+  { id: 'st-exec',   name: 'Angela Brooks',       role: 'Executive Pastor',     photo: AV('photo-1573496359142-b8d87734a5a2'), bio: 'Operations, staff & campuses.' },
+  { id: 'st-worship',name: 'Marcus Bell',         role: 'Worship Pastor',       photo: AV('photo-1519085360753-af0119f7cbe7'), bio: 'Leads the worship & production teams.' },
+  { id: 'st-youth',  name: 'Priya Nair',          role: 'Youth Director',       photo: AV('photo-1544005313-94ddf0286df2'), bio: 'Middle & high school ministry.' },
+  { id: 'st-kids',   name: 'Tanya Okafor',        role: "Kids' Director",       photo: AV('photo-1580489944761-15a19d654956'), bio: 'Nursery through 5th grade.' },
+  { id: 'st-care',   name: 'Sam Whitfield',       role: 'Pastoral Care',        photo: AV('photo-1500648767791-00dcc994a43e'), bio: 'Prayer, counseling & visitation.' },
+];
+
+export const DEMO_CHURCH_ALBUMS: DemoAlbum[] = [
+  { id: 'al-sunday', title: 'Sunday Gatherings', cover: U('photo-1438032005730-c779502df39b'), photos: [U('photo-1438032005730-c779502df39b'), U('photo-1507692049790-de58290a4334'), U('photo-1524230572899-a752b3835840'), U('photo-1543968996-ee822b8176ba'), U('photo-1477281765962-ef34e8bb0967'), U('photo-1516450360452-9312f5e86fc7')] },
+  { id: 'al-missions', title: 'Missions & Outreach', cover: U('photo-1469571486292-0ba58a3f068b'), photos: [U('photo-1469571486292-0ba58a3f068b'), U('photo-1488521787991-ed7bbaae773c'), U('photo-1509099836639-18ba1795216d'), U('photo-1593113630400-ea4288922497')] },
+  { id: 'al-baptism', title: 'Baptism Sunday', cover: U('photo-1490730141103-6cac27aaab94'), photos: [U('photo-1490730141103-6cac27aaab94'), U('photo-1519834785169-98be25ec3f84'), U('photo-1533928298208-27ff66555d8d')] },
+];
+
+export const DEMO_CHURCH_EVENTS: DemoEvent[] = [
+  { id: 'ev-conf',   title: 'Grace Conference 2026', date: 'Sat, Sep 12', time: '9:00 AM', location: 'Downtown Campus', price: 25, image: U('photo-1511578314322-379afb476865', 800, 450), blurb: 'A full day of worship, teaching & workshops with guest speakers.' },
+  { id: 'ev-concert',title: 'Worship Night',         date: 'Fri, Jul 25', time: '7:00 PM', location: 'Main Auditorium', price: 'FREE', image: U('photo-1501386761578-eac5c94b800a', 800, 450), blurb: 'An evening of live worship — free, all welcome.' },
+  { id: 'ev-gala',   title: 'Missions Benefit Gala', date: 'Sat, Oct 4',  time: '6:30 PM', location: 'North Campus', price: 75, image: U('photo-1519671482749-fd09be7ccebf', 800, 450), blurb: 'Dinner & fundraising to support our global outreach partners.' },
+];
+
+export const DEMO_CHURCH_VIDEOS: DemoVideo[] = [
+  { id: 'vd-1', title: 'The Light of the World — John 8', series: 'Gospel of John', date: 'Jul 6, 2026',  duration: '38:12', thumb: U('photo-1485162872809-a4f3d1b06d95', 480, 270) },
+  { id: 'vd-2', title: 'Living Water — John 4',           series: 'Gospel of John', date: 'Jun 29, 2026', duration: '41:05', thumb: U('photo-1507692049790-de58290a4334', 480, 270) },
+  { id: 'vd-3', title: 'Worship Night — Full Set',        series: 'Worship',        date: 'Jun 27, 2026', duration: '1:12:44', thumb: U('photo-1501386761578-eac5c94b800a', 480, 270) },
+  { id: 'vd-4', title: 'Baptism Sunday Highlights',       series: 'Church Life',    date: 'Jun 22, 2026', duration: '6:31',  thumb: U('photo-1490730141103-6cac27aaab94', 480, 270) },
+];
+
+export const DEMO_CHURCH_FEED: DemoPost[] = [
+  { id: 'cp-1', author: 'Pastor Daniel Reyes', authorPhoto: AV('photo-1507003211169-0a1dd7228f2d'), text: 'What a Sunday 🙌 Thank you to everyone who served and worshiped with us. This week we continue in John 8 — read ahead and come ready.', when: '2d', likes: 214, comments: 37, image: U('photo-1524230572899-a752b3835840', 800, 500) },
+  { id: 'cp-2', author: 'Grace Chapel', authorPhoto: 'https://images.unsplash.com/photo-1438032005730-c779502df39b?w=200&h=200&fit=crop', text: 'Grace Conference 2026 tickets are live — early-bird pricing through August. Bring a friend!', when: '4d', likes: 98, comments: 12 },
+  { id: 'cp-3', author: 'Marcus Bell', authorPhoto: AV('photo-1519085360753-af0119f7cbe7'), text: 'Setlist for this weekend is up in the Worship team space. Rehearsal Thursday 6:30.', when: '5d', likes: 46, comments: 8 },
+];
+
+// A few featured ministries, fully populated.
+export const DEMO_MINISTRY_DETAIL: Record<string, DemoMinistryDetail> = {
+  'min-worship': {
+    leaders: [DEMO_CHURCH_STAFF[2], { id: 'w2', name: 'Grace Lin', role: 'Vocalist / Team Lead', photo: AV('photo-1534528741775-53994a69daeb') }, { id: 'w3', name: 'Andre Cole', role: 'Production', photo: AV('photo-1506794778202-cad84cf45f1d') }],
+    albums: [{ id: 'wa1', title: 'On Stage', cover: U('photo-1501386761578-eac5c94b800a'), photos: [U('photo-1501386761578-eac5c94b800a'), U('photo-1470019693664-1d202d2c0907'), U('photo-1516280440614-37939bbacd81')] }],
+    posts: [{ id: 'wp1', author: 'Marcus Bell', authorPhoto: AV('photo-1519085360753-af0119f7cbe7'), text: 'New song this week — "Ever Faithful." Charts + rehearsal track in the library.', when: '1d', likes: 33, comments: 5 }],
+    events: [{ id: 'we1', title: 'Worship Night', date: 'Fri, Jul 25', time: '7:00 PM', location: 'Main Auditorium', price: 'FREE', image: U('photo-1501386761578-eac5c94b800a', 800, 450), blurb: 'Open worship night — all welcome.' }],
+    merch: [{ id: 'wm1', title: 'Worship Night Tee', price: 24, image: U('photo-1521572163474-6864f9cf17ab') }, { id: 'wm2', title: 'Live Worship (Digital)', price: 9, image: U('photo-1493225457124-a3eb161ffa5f') }],
+  },
+  'min-youth': {
+    leaders: [DEMO_CHURCH_STAFF[3], { id: 'y2', name: 'Josh Adeyemi', role: 'Youth Leader', photo: AV('photo-1500648767791-00dcc994a43e') }],
+    albums: [{ id: 'ya1', title: 'Summer Camp', cover: U('photo-1488521787991-ed7bbaae773c'), photos: [U('photo-1488521787991-ed7bbaae773c'), U('photo-1533174072545-7a4b6ad7a6c3'), U('photo-1526976668912-1a811878dd37')] }],
+    posts: [{ id: 'yp1', author: 'Priya Nair', authorPhoto: AV('photo-1544005313-94ddf0286df2'), text: 'Wednesday night was 🔥 — 60+ students. Bring a friend next week for pizza night!', when: '3d', likes: 51, comments: 9, image: U('photo-1526976668912-1a811878dd37', 800, 500) }],
+    events: [{ id: 'ye1', title: 'Fall Youth Retreat', date: 'Oct 17–19', time: 'All weekend', location: 'Pine Ridge Camp', price: 120, image: U('photo-1533174072545-7a4b6ad7a6c3', 800, 450), blurb: 'A weekend away — worship, teaching, games & s\'mores.' }],
+    merch: [{ id: 'ym1', title: 'Youth Hoodie', price: 38, image: U('photo-1556821840-3a63f95609a7') }],
+  },
+  'min-kids': {
+    leaders: [DEMO_CHURCH_STAFF[4]],
+    albums: [{ id: 'ka1', title: 'VBS Week', cover: U('photo-1587654780291-39c9404d746b'), photos: [U('photo-1587654780291-39c9404d746b'), U('photo-1503454537195-1dcabb73ffb9')] }],
+    posts: [{ id: 'kp1', author: 'Tanya Okafor', authorPhoto: AV('photo-1580489944761-15a19d654956'), text: 'VBS registration is open! Space is limited — sign your kids up early.', when: '6d', likes: 40, comments: 6 }],
+    events: [{ id: 'ke1', title: 'Vacation Bible School', date: 'Aug 4–8', time: '9:00 AM', location: 'Kids Wing', price: 15, image: U('photo-1587654780291-39c9404d746b', 800, 450), blurb: 'A week of songs, stories, crafts & fun for K–5th.' }],
+    merch: [],
+  },
+};
+
 // ── Demo Sanctuary (self-contained demo view) ───────────────────────────────────
 export const DEMO_SANCTUARY_ID = 'demo-sanctuary';
 
