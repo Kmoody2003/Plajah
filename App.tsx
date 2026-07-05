@@ -3030,7 +3030,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   className={`brand-shimmer text-center text-[9px] font-bold uppercase tracking-[0.14em] leading-tight select-none ${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')}`}
                   title="Plajah is a Lighthouse Enterprises LLC brand"
                 >
-                  Plajah is a Lighthouse Enterprises LLC Brand
+                  A Lighthouse Enterprises LLC Brand
                 </p>
               </div>
             </aside>
