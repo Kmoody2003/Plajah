@@ -38,9 +38,9 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean }
+interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean; onVisitUser?: (uid: string) => void }
 
-const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive }) => {
+const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive, onVisitUser }) => {
   const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : 'list');
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +84,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
   if (mode === 'view' && active) {
     // The demo church opens the full populated ministry-platform tour.
     if (active.isDemo) {
-      return <ChurchDemoView onBack={() => { setActive(null); setMode('list'); }} onCreate={() => { setActive(null); setMode('create'); }} />;
+      return <ChurchDemoView onBack={() => { setActive(null); setMode('list'); }} onCreate={() => { setActive(null); setMode('create'); }} onVisitUser={onVisitUser} />;
     }
     return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
   }

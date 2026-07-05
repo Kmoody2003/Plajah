@@ -1019,7 +1019,7 @@ export interface SidebarItemConfig {
  */
 export type AccountType =
   | 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER'
-  | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD';
+  | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD' | 'CLERGY';
 
 export interface UserProfile {
   uid: string;

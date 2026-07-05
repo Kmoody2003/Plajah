@@ -56,22 +56,34 @@ const EventCard: React.FC<{ e: DemoEvent }> = ({ e }) => (
   </div>
 );
 
-const StaffCard: React.FC<{ s: DemoStaff }> = ({ s }) => (
+// A church member/leader is a real Plajah user account — tapping opens their
+// profile & feed. In the demo these are sample accounts, clearly badged.
+const demoUserNudge = () => alert('Church members are real Plajah user accounts — tapping one opens their profile & feed. These are demo accounts, so this is just a preview.');
+
+const StaffCard: React.FC<{ s: DemoStaff; onVisit: () => void }> = ({ s, onVisit }) => (
   <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 flex items-center gap-3">
-    <img src={s.photo} className="w-14 h-14 rounded-2xl object-cover border border-white/10 shrink-0" alt="" loading="lazy" />
-    <div className="min-w-0 flex-1">
-      <p className="text-sm font-black text-white truncate">{s.name}</p>
-      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: VS }}>{s.role}</p>
-      {s.bio && <p className="text-[11px] text-white/45 leading-snug line-clamp-2">{s.bio}</p>}
-    </div>
+    <button onClick={onVisit} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
+      <img src={s.photo} className="w-14 h-14 rounded-2xl object-cover border border-white/10 shrink-0 group-hover:opacity-90" alt="" loading="lazy" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-black text-white truncate group-hover:text-violet-200">{s.name}</p>
+          <span className="shrink-0 text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color: VS, background: 'rgba(139,92,246,0.14)' }}>Demo user</span>
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: VS }}>{s.role}</p>
+        {s.bio && <p className="text-[11px] text-white/45 leading-snug line-clamp-2">{s.bio}</p>}
+      </div>
+    </button>
     <button onClick={demoAction} title="Message" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: V }}><MessageCircle size={15} /></button>
   </div>
 );
 
-const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = ({ onBack, onCreate }) => {
+const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVisitUser?: (uid: string) => void }> = ({ onBack, onCreate, onVisitUser }) => {
   const [tab, setTab] = useState<Tab>('HOME');
   const [ministryId, setMinistryId] = useState<string | null>(null);
   const c = DEMO_CHURCH;
+  // Members are real Plajah accounts → open their profile/feed. Demo accounts
+  // have no real uid, so they show a preview nudge instead.
+  const visitStaff = (s: DemoStaff) => (s.uid && onVisitUser ? onVisitUser(s.uid) : demoUserNudge());
 
   const TABS: { k: Tab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { k: 'HOME', label: 'Home', icon: Home }, { k: 'MINISTRIES', label: 'Ministries', icon: Users },
@@ -142,7 +154,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = 
               <>
                 {/* Leaders */}
                 <Section title="Leaders">
-                  <div className="grid sm:grid-cols-2 gap-3">{md.leaders.map(l => <StaffCard key={l.id} s={l} />)}</div>
+                  <div className="grid sm:grid-cols-2 gap-3">{md.leaders.map(l => <StaffCard key={l.id} s={l} onVisit={() => visitStaff(l)} />)}</div>
                 </Section>
                 {/* Feed */}
                 {md.posts.length > 0 && <Section title="Feed"><div className="space-y-3">{md.posts.map(p => <PostCard key={p.id} p={p} />)}</div></Section>}
@@ -314,7 +326,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = 
             )}
 
             {/* ── STAFF ── */}
-            {tab === 'STAFF' && <div className="grid sm:grid-cols-2 gap-3">{DEMO_CHURCH_STAFF.map(s => <StaffCard key={s.id} s={s} />)}</div>}
+            {tab === 'STAFF' && <div className="grid sm:grid-cols-2 gap-3">{DEMO_CHURCH_STAFF.map(s => <StaffCard key={s.id} s={s} onVisit={() => visitStaff(s)} />)}</div>}
 
             {/* ── GIVE ── */}
             {tab === 'GIVE' && (

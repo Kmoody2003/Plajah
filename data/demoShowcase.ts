@@ -67,7 +67,7 @@ export const DEMO_CHURCH: Organization = {
 const U = (id: string, w = 600, h = 600) => `https://images.unsplash.com/${id}?w=${w}&h=${h}&fit=crop`;
 const AV = (id: string) => U(id, 200, 200);
 
-export interface DemoStaff { id: string; name: string; role: string; photo: string; bio?: string; email?: string; }
+export interface DemoStaff { id: string; name: string; role: string; photo: string; bio?: string; email?: string; uid?: string; }
 export interface DemoPost { id: string; author: string; authorPhoto: string; text: string; when: string; likes: number; comments: number; image?: string; }
 export interface DemoEvent { id: string; title: string; date: string; time: string; location: string; price: number | 'FREE'; image: string; blurb: string; }
 export interface DemoVideo { id: string; title: string; series: string; date: string; duration: string; thumb: string; }

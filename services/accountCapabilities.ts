@@ -16,7 +16,7 @@ export type { AccountType };
 
 export const ACCOUNT_TYPES: AccountType[] = [
   'FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER',
-  'PARTNER', 'ORGANIZATION', 'ATHLETE', 'PARENT', 'CHILD',
+  'PARTNER', 'ORGANIZATION', 'CLERGY', 'ATHLETE', 'PARENT', 'CHILD',
 ];
 
 export interface AccountTypeMeta {
@@ -34,6 +34,7 @@ export const ACCOUNT_TYPE_META: Record<AccountType, AccountTypeMeta> = {
   TEACHER:      { type: 'TEACHER',      label: 'Teacher',      blurb: 'Create classrooms and provision learners.' },
   PARTNER:      { type: 'PARTNER',      label: 'Partner',      blurb: 'Storage / service integrations.' },
   ORGANIZATION: { type: 'ORGANIZATION', label: 'Organization', blurb: 'An org page with sub-groups, staff, and giving.' },
+  CLERGY:       { type: 'CLERGY',       label: 'Clergy',       blurb: 'A pastor, minister, imam, rabbi or faith leader — run ministries, sermons, prayer and giving.' },
   ATHLETE:      { type: 'ATHLETE',      label: 'Athlete',      blurb: 'A verified sports profile and achievements.' },
   PARENT:       { type: 'PARENT',       label: 'Parent',       blurb: 'Manage child accounts and controls.' },
   CHILD:        { type: 'CHILD',        label: 'Child',        blurb: 'A guardian-managed, safety-first account.' },
@@ -58,6 +59,7 @@ export const CAPABILITIES_BY_TYPE: Record<AccountType, Capability[]> = {
   WRITER:       ['CREATE_ARTICLE', 'CREATE_BOOK', 'SELL_MERCH', 'MONETIZE', 'LIVE_STREAM'],
   BRAND:        [...CREATOR_CAPS, 'MANAGE_BRAND', 'MANAGE_ORG'],
   ORGANIZATION: [...CREATOR_CAPS, 'MANAGE_ORG'],
+  CLERGY:       [...CREATOR_CAPS, 'MANAGE_ORG'],
   TEACHER:      ['TEACH', 'PROVISION_LEARNERS', 'CREATE_ARTICLE', 'CREATE_VIDEO', 'LIVE_STREAM'],
   STUDENT:      ['ENROLL', 'CREATE_ARTICLE', 'CREATE_PHOTO'],
   PARENT:       ['MANAGE_FAMILY', 'CREATE_ARTICLE', 'CREATE_PHOTO'],

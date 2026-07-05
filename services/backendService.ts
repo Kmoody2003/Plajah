@@ -2444,10 +2444,16 @@ export const syncUserProfile = async (user: User) => {
       
       await setDoc(userRef, profile);
     } else {
+      const d = docSnap.data();
+      // Backfill the fields isValidUserProfile REQUIRES (uid/displayName/photoURL/
+      // email). A profile clobbered by the old full-replace firestoreWrite loses
+      // these, and then every owner update fails the rule → nothing persists.
+      // Including uid + guaranteed non-null strings here self-heals it on login.
       const updates: Partial<UserProfile> = {
-        displayName: user.displayName || docSnap.data().displayName,
-        photoURL: user.photoURL || docSnap.data().photoURL,
-        email: user.email || docSnap.data().email,
+        uid: user.uid,
+        displayName: user.displayName || d.displayName || 'Anonymous Artist',
+        photoURL: (user.photoURL ?? d.photoURL ?? '') as string,
+        email: user.email || d.email || '',
         ...(isAdminEmail ? { role: 'admin' } : {})
       };
       await updateDoc(userRef, updates);
@@ -4537,6 +4543,16 @@ export const listenToUserProfile = (uid: string, callback: (profile: UserProfile
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const d = await getDoc(doc(db, 'users', uid));
   if (d.exists()) {
+    const data = d.data();
+    // Self-heal a profile clobbered by the old full-replace bug: if it's missing
+    // the fields isValidUserProfile requires, owner updates silently fail and
+    // "nothing persists." Re-sync (only for the signed-in owner) to backfill them.
+    if (auth.currentUser?.uid === uid &&
+        (!data.uid || !data.displayName || data.photoURL === undefined || data.email === undefined)) {
+      await syncUserProfile(auth.currentUser).catch(() => {});
+      const dh = await getDoc(doc(db, 'users', uid));
+      if (dh.exists()) return { uid: dh.id, ...dh.data() } as UserProfile;
+    }
     return { uid: d.id, ...d.data() } as UserProfile;
   }
   if (auth.currentUser && auth.currentUser.uid === uid) {

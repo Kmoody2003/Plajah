@@ -3298,7 +3298,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ORG_HUB' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} />
+                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} />
               </Suspense>
             )}
 
