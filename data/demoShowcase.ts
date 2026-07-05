@@ -116,6 +116,23 @@ export const DEMO_CHURCH_FEED: DemoPost[] = [
   { id: 'cp-3', author: 'Marcus Bell', authorPhoto: AV('photo-1519085360753-af0119f7cbe7'), text: 'Setlist for this weekend is up in the Worship team space. Rehearsal Thursday 6:30.', when: '5d', likes: 46, comments: 8 },
 ];
 
+export interface DemoPrayer { id: string; name: string; request: string; when: string; praying: number; answered?: boolean; }
+export const DEMO_CHURCH_PRAYERS: DemoPrayer[] = [
+  { id: 'pr-1', name: 'The Alvarez family', request: 'Please pray for my father\'s surgery on Thursday — for the surgeons and for peace over our family.', when: '5h', praying: 47 },
+  { id: 'pr-2', name: 'Marcus B.', request: 'Praying over a big career decision this month. Wisdom & open doors.', when: '1d', praying: 22 },
+  { id: 'pr-3', name: 'Anonymous', request: 'For my marriage — that God would soften both our hearts.', when: '2d', praying: 68 },
+  { id: 'pr-4', name: 'Grace youth group', request: 'Thank you for praying — camp went incredibly and 12 students gave their lives to Christ! 🙌', when: '3d', praying: 133, answered: true },
+];
+
+export interface DemoBook { id: string; title: string; author: string; cover: string; note?: string; }
+export const DEMO_CHURCH_LIBRARY: DemoBook[] = [
+  { id: 'bk-1', title: 'The Gospel of John — Study Guide', author: 'Grace Chapel Teaching Team', cover: U('photo-1544716278-ca5e3f4abd8c', 300, 420), note: 'Companion to the current series' },
+  { id: 'bk-2', title: 'Mere Christianity', author: 'C. S. Lewis', cover: U('photo-1541963463532-d68292c34b19', 300, 420) },
+  { id: 'bk-3', title: 'Prayer: Experiencing Awe & Intimacy', author: 'Timothy Keller', cover: U('photo-1512820790803-83ca734da794', 300, 420) },
+  { id: 'bk-4', title: 'Celebration of Discipline', author: 'Richard Foster', cover: U('photo-1589998059171-988d887df646', 300, 420) },
+  { id: 'bk-5', title: 'The Ragamuffin Gospel', author: 'Brennan Manning', cover: U('photo-1543002588-bfa74002ed7e', 300, 420) },
+];
+
 // A few featured ministries, fully populated.
 export const DEMO_MINISTRY_DETAIL: Record<string, DemoMinistryDetail> = {
   'min-worship': {

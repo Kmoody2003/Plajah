@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   ChevronLeft, Users, Image as ImageIcon, Calendar, Play, Heart, MessageSquare,
   MapPin, Clock, Ticket, ShoppingBag, ArrowRight, Home, HandHeart, Church, MessageCircle,
+  BookOpen, Gift, Check, ExternalLink,
 } from 'lucide-react';
 import DemoRibbon from './DemoRibbon';
 import {
   DEMO_CHURCH, DEMO_CHURCH_STAFF, DEMO_CHURCH_ALBUMS, DEMO_CHURCH_EVENTS,
   DEMO_CHURCH_VIDEOS, DEMO_CHURCH_FEED, DEMO_MINISTRY_DETAIL,
+  DEMO_CHURCH_PRAYERS, DEMO_CHURCH_LIBRARY,
   type DemoPost, type DemoEvent, type DemoStaff,
 } from '../data/demoShowcase';
 
@@ -20,7 +22,7 @@ const VS = '#B79BF5';
 const sheen = 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(0,0,0,0.4))';
 const demoAction = () => alert('This is a live demo. Create your own church space to make this real — tickets, giving, messaging and merch all run for you.');
 
-type Tab = 'HOME' | 'MINISTRIES' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'STAFF' | 'GIVE';
+type Tab = 'HOME' | 'MINISTRIES' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE';
 
 const PostCard: React.FC<{ p: DemoPost }> = ({ p }) => (
   <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
@@ -74,8 +76,9 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = 
   const TABS: { k: Tab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { k: 'HOME', label: 'Home', icon: Home }, { k: 'MINISTRIES', label: 'Ministries', icon: Users },
     { k: 'PHOTOS', label: 'Photos', icon: ImageIcon }, { k: 'EVENTS', label: 'Events', icon: Calendar },
-    { k: 'WATCH', label: 'Watch', icon: Play }, { k: 'STAFF', label: 'Staff', icon: Users },
-    { k: 'GIVE', label: 'Give', icon: HandHeart },
+    { k: 'WATCH', label: 'Watch', icon: Play }, { k: 'PRAYER', label: 'Prayer', icon: HandHeart },
+    { k: 'LIBRARY', label: 'Library', icon: BookOpen }, { k: 'STAFF', label: 'Staff', icon: Users },
+    { k: 'GIVE', label: 'Give', icon: Gift },
   ];
 
   const ministry = ministryId ? (c.ministries || []).find(m => m.id === ministryId) : null;
@@ -263,6 +266,50 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = 
                     <p className="text-[10px] text-white/35">{v.date}</p>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* ── PRAYER ── */}
+            {tab === 'PRAYER' && (
+              <div className="space-y-4 max-w-2xl">
+                <button onClick={demoAction} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white" style={{ background: V }}>
+                  <HandHeart size={14} /> Submit a prayer request
+                </button>
+                {DEMO_CHURCH_PRAYERS.map(pr => (
+                  <div key={pr.id} className="rounded-2xl p-4 border" style={{ background: pr.answered ? 'rgba(63,190,133,0.06)' : 'rgba(255,255,255,0.03)', borderColor: pr.answered ? 'rgba(63,190,133,0.25)' : 'rgba(255,255,255,0.1)' }}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[12px] font-black text-white">{pr.name} <span className="text-white/30 font-bold">· {pr.when} ago</span></p>
+                      {pr.answered && <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400"><Check size={10} /> Answered</span>}
+                    </div>
+                    <p className="text-sm text-white/75 leading-relaxed mb-3">{pr.request}</p>
+                    <button onClick={demoAction} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white" style={{ background: pr.answered ? 'rgba(63,190,133,0.15)' : 'rgba(139,92,246,0.15)', border: `1px solid ${pr.answered ? 'rgba(63,190,133,0.3)' : 'rgba(139,92,246,0.3)'}` }}>
+                      <HandHeart size={11} style={{ color: pr.answered ? '#3FBE85' : VS }} /> {pr.praying} praying
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── LIBRARY ── */}
+            {tab === 'LIBRARY' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[13px] text-white/55 max-w-md">A reading list curated by our teaching team, powered by Lorea.</p>
+                  <button onClick={demoAction} className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-white" style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                    <BookOpen size={12} style={{ color: VS }} /> Sacred Library <ExternalLink size={11} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {DEMO_CHURCH_LIBRARY.map(b => (
+                    <button key={b.id} onClick={demoAction} className="text-left group">
+                      <div className="rounded-xl overflow-hidden border border-white/10 aspect-[3/4] shadow-lg">
+                        <img src={b.cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" />
+                      </div>
+                      <p className="text-[12px] font-bold text-white leading-tight mt-2 line-clamp-2">{b.title}</p>
+                      <p className="text-[10px] text-white/40">{b.author}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
