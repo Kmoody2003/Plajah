@@ -20,6 +20,8 @@ needs — so this is mostly assembly, not invention.
 | Livestream + video archive | **Reello + Live / TV Studio** |
 | Curated library + Sacred Library link | **Lorea + Sacred Library** |
 | Sermon / staff notebook | **account-synced notebookService** |
+| Ticketing & live events (conferences, concerts, VBS, galas, retreats, PPV services) | **EventCreationWizard · EventProductionStudio · TicketDesigner · TicketScanner · EventLandingPage · PPV · Live/TV Studio** |
+| Social media management (post once → broadcast to the church's channels; schedule; TikTok/Reels pipeline) | **Fediverse cross-post + UniversalPostComposer + TikTokCreatorHub** |
 | Giving funds (designated, recurring, statements) | **Stripe rails (built today)** |
 | Prayer request wall | *new* — light layer on the feed model |
 | Roles & volunteer permissions | **Org roles** + new granular scopes |
@@ -41,11 +43,16 @@ sub-ministry hierarchy + per-ministry content scoping.
 ## Roadmap
 **P0 — assemble the ministry space (mostly wiring):** ministry hierarchy + photo
 albums; staff roster + DM; per-ministry feed; ministry merch; video archive from
-Reello. Ship first on the always-on demo church (Grace Chapel) as the sales tour.
+Reello; **ticketing & live events** (create event → design ticket → sell on Stripe
+→ scan at the door; livestream/PPV special services) — the events/ticketing engine
+already exists, so this is wiring it to a church/ministry as host. Ship first on
+the always-on demo church (Grace Chapel) as the sales tour.
 
 **P1 — switch-unlockers (new, high value):** Servant Keeper/CSV importer; roles &
 granular permissions (staff/leader/volunteer); prayer wall; sermon notebook;
-curated Lorea library + Sacred Library link.
+curated Lorea library + Sacred Library link; **social media management** (post
+once → broadcast + schedule to the church's channels via the Fediverse cross-post
+/ TikTok pipeline).
 
 **P2 — operations depth (become the ChMS):** giving funds + year-end statements;
 volunteer scheduling (Planning Center "Services" moat); check-ins/attendance;
