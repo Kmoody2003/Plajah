@@ -891,6 +891,33 @@ body.has-custom-background::after {
   100% { text-shadow: 0 0 20px rgba(34, 211, 238, 0.4); }
 }
 
+/* Lighthouse brand line — a subtle warm glow sweeps elegantly across the text */
+.brand-shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.34) 38%,
+    rgba(255, 214, 140, 0.55) 46%,
+    rgba(255, 233, 190, 0.98) 50%,
+    rgba(255, 214, 140, 0.55) 54%,
+    rgba(255, 255, 255, 0.34) 62%,
+    rgba(255, 255, 255, 0.34) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: brand-shimmer 6s ease-in-out infinite;
+}
+@keyframes brand-shimmer {
+  0%   { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-shimmer { animation: none; background-position: 50% 0; }
+}
+
 /* Responsive adjustments */
 @media (min-width: 1024px) and (max-width: 1440px) {
   html {
