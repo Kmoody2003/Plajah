@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import SmartLightingPanel from './SmartLightingPanel';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { fetchPersonalTracks } from '../services/backendService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -419,6 +420,8 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
   const [eqB, setEqB] = useState({ low: 0, mid: 0, high: 0 });
   const [libraryTracks, setLibraryTracks] = useState<Track[]>(album.tracks);
   const [libSearch, setLibSearch] = useState('');
+  const [lockerLoaded, setLockerLoaded] = useState(false);
+  const [loadingLocker, setLoadingLocker] = useState(false);
   const [midiStatus, setMidiStatus] = useState<'idle' | 'ok' | 'denied'>('idle');
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [loadingDeck, setLoadingDeck] = useState<'A' | 'B' | null>(null);
@@ -1185,6 +1188,21 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
   // ─── Library ─────────────────────────────────────────────────────────────────
 
+  // Load the user's private music locker into the crate (personal_tracks).
+  // Personal use only — DJ with your own collection from any instance.
+  const loadLocker = useCallback(async () => {
+    if (lockerLoaded || loadingLocker) return;
+    setLoadingLocker(true);
+    try {
+      const personal = await fetchPersonalTracks();
+      setLibraryTracks(prev => {
+        const seen = new Set(prev.map(t => t.id));
+        return [...prev, ...(personal || []).filter(t => t.url && !seen.has(t.id))];
+      });
+      setLockerLoaded(true);
+    } finally { setLoadingLocker(false); }
+  }, [lockerLoaded, loadingLocker]);
+
   const filtered = libraryTracks.filter(t =>
     !libSearch || t.title.toLowerCase().includes(libSearch.toLowerCase()) || t.artist.toLowerCase().includes(libSearch.toLowerCase())
   );
@@ -1347,6 +1365,11 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
             placeholder="Search tracks…"
             className="flex-1 bg-transparent text-[9px] text-white/60 placeholder-white/20 outline-none font-black uppercase tracking-widest"
           />
+          <button onClick={loadLocker} disabled={loadingLocker || lockerLoaded}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/8 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+            title="Load your private music locker">
+            <Folder size={10} /> {lockerLoaded ? 'Locker Loaded' : loadingLocker ? 'Loading…' : 'My Locker'}
+          </button>
           <label className="flex items-center gap-1.5 cursor-pointer px-3 py-1 rounded-full bg-white/[0.04] border border-white/8 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
             <Upload size={10} /> Import
             <input type="file" accept="audio/*" className="hidden" multiple

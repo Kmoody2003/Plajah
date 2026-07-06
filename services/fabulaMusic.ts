@@ -5,20 +5,31 @@
 // track carries its license/price/rightsOwner so "used in an edit" becomes billable.
 
 import { auth } from './firebase';
-import { fetchUserAlbums } from './backendService';
+import { fetchUserAlbums, fetchPersonalTracks } from './backendService';
 
 export interface MusicBinTrack {
   id: string; title: string; artist: string; url?: string; duration?: number;
   timeCodedLyrics?: { time: number; text: string }[];
   license?: string; price?: number; rightsOwnerId?: string; albumTitle?: string;
+  /** From the user's private music locker — usable in THEIR edit, but never
+   *  licensable/shareable (personal-use only; excluded from sync-licensing). */
+  isPersonal?: boolean;
 }
 
-/** The signed-in user's released MUSIC tracks (flattened from their albums). */
+/**
+ * The signed-in user's music available to edit with: released MUSIC tracks
+ * (flattened from their albums) PLUS their private locker (personal_tracks).
+ * Locker tracks are flagged `isPersonal` — usable in the user's own edit but
+ * NEVER offered for sync-licensing or sharing.
+ */
 export async function getMyMusicTracks(): Promise<MusicBinTrack[]> {
   const uid = auth.currentUser?.uid;
   if (!uid) return [];
   try {
-    const albums = await fetchUserAlbums(uid);
+    const [albums, personal] = await Promise.all([
+      fetchUserAlbums(uid).catch(() => []),
+      fetchPersonalTracks().catch(() => []),
+    ]);
     const out: MusicBinTrack[] = [];
     for (const al of albums || []) {
       if (al.type && al.type !== 'MUSIC') continue;
@@ -30,6 +41,14 @@ export async function getMyMusicTracks(): Promise<MusicBinTrack[]> {
           rightsOwnerId: t.rightsOwnerId || al.ownerId, albumTitle: al.title,
         });
       }
+    }
+    // Private locker — the user's own collection, playable in their edit only.
+    for (const t of (personal || [])) {
+      if (!t.url) continue;
+      out.push({
+        id: t.id, title: t.title, artist: t.artist || 'My Collection', url: t.url, duration: t.duration,
+        albumTitle: t.albumTitle, rightsOwnerId: uid, isPersonal: true,
+      });
     }
     return out;
   } catch (e) { console.warn('[fabulaMusic] fetch failed', e); return []; }
