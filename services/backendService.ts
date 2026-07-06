@@ -5522,6 +5522,56 @@ export const deletePersonalTrack = async (trackId: string) => {
   }
 };
 
+// ── Personal VIDEO locker (Plex-style: movies/TV the user owns → Taleo) ──────────
+// Private to the owner (personal_videos, owner-only rules). Never shared.
+export const uploadPersonalVideo = async (video: Partial<Video>, file: File): Promise<Video | undefined> => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const path = `personal/${uid}/videos/${Date.now()}_${file.name}`;
+  const url = await uploadFile(path, file);
+  const id = `pvid_${Math.random().toString(36).substr(2, 9)}`;
+  const newVideo: Video = removeUndefined({
+    id,
+    ownerId: uid,
+    title: video.title || file.name.replace(/\.[^/.]+$/, ''),
+    category: video.category || 'MOVIE',
+    isPersonalMedia: true,
+    isPrivate: true,
+    rightsOwnerId: uid,
+    timestamp: Date.now(),
+    ...video,
+    url,               // uploaded URL wins over anything in `video`
+  }) as Video;
+  try {
+    await setDoc(doc(db, 'personal_videos', id), removeUndefined({ ...newVideo, ownerId: uid }));
+    return newVideo;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.CREATE, `personal_videos/${id}`);
+  }
+};
+
+/** The owner's private movie/TV locker, newest first (no composite index needed). */
+export const fetchPersonalVideos = async (): Promise<Video[]> => {
+  if (!auth.currentUser) return [];
+  try {
+    const q = query(collection(db, 'personal_videos'), where('ownerId', '==', auth.currentUser.uid));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Video).sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'personal_videos');
+    return [];
+  }
+};
+
+export const deletePersonalVideo = async (videoId: string) => {
+  if (!auth.currentUser) return;
+  try {
+    await deleteDoc(doc(db, 'personal_videos', videoId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_videos/${videoId}`);
+  }
+};
+
 export const fetchUserLibraryTracks = async (trackIds: string[]) => {
   if (!trackIds || !trackIds.length) return [];
   const albums = await fetchAllPublicAlbums();

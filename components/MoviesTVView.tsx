@@ -26,6 +26,7 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { fetchPublicClubs, fetchVideoById } from '../services/backendService';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
+import PersonalVideoLocker from './PersonalVideoLocker';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
 import { Landmark } from 'lucide-react';
@@ -856,11 +857,17 @@ const LibraryView: React.FC<{
         My <span className="text-[#D0BCFF]">Library</span>
       </h2>
       <p className="mt-4 text-white/40 max-w-lg text-sm leading-relaxed">
-        Content you own, purchased, or added to your account.
+        Your private movie & TV locker, plus content you own or purchased on your account.
       </p>
     </div>
 
-    {localContent.filter(c => c.type === 'VIDEO').length > 0 ? (
+    {/* Plex-style private locker — upload & stream your own movie/TV collection */}
+    <PersonalVideoLocker onPlay={onSelectMovie} />
+
+    {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mt-12 mb-4">On your account</p>
+    )}
+    {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
         {localContent.filter(c => c.type === 'VIDEO').map(video => (
           <motion.div
@@ -877,12 +884,6 @@ const LibraryView: React.FC<{
             </div>
           </motion.div>
         ))}
-      </div>
-    ) : (
-      <div className="py-32 flex flex-col items-center justify-center bg-white/3 rounded-3xl border border-dashed border-white/10">
-        <Library className="text-white/15 mb-6" size={56} />
-        <p className="text-white/30 font-black text-xl uppercase tracking-widest mb-2">Your library is empty</p>
-        <p className="text-white/20 text-xs uppercase tracking-widest">Content you add or purchase will appear here</p>
       </div>
     )}
   </div>
