@@ -24,7 +24,8 @@ import {
   ListMusic,
   Settings,
   X,
-  Send
+  Send,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album, Playlist, FeedItem } from '../types';
@@ -40,9 +41,12 @@ import {
   updatePlaylist,
   deletePlaylist,
   createPersonalAlbum,
+  deletePersonalTrack,
+  uploadFile,
   postToFeed,
   auth
 } from '../services/backendService';
+import { readAudioTags, isAudioFile, titleFromFilename } from '../services/musicLocker';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface MyLibraryViewProps {
@@ -60,6 +64,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'SAVED' | 'PERSONAL' | 'PLAYLISTS' | 'SYNC'>(initialTab);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('LIST');
   const [sortBy, setSortBy] = useState<'title' | 'artist' | 'album' | 'date'>('date');
@@ -292,47 +297,77 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     }
   };
 
+  // Music-locker folder upload: read ID3 tags, organise into albums by
+  // Artist/Album, upload embedded artwork once per album, and store each track
+  // privately (personal_tracks). Plays from any instance; never shared.
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const audio = Array.from(files).filter(isAudioFile);
+    if (audio.length === 0) { alert('No supported audio files found in that selection.'); return; }
 
     setIsUploading(true);
+    setUploadProgress({ done: 0, total: audio.length });
     try {
-      // Check if it's a folder upload (webkitRelativePath)
-      const folderMap = new Map<string, File[]>();
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i] as any;
-        const path = file.webkitRelativePath || '';
-        const folderName = path.split('/')[0] || 'Unsorted';
-        if (!folderMap.has(folderName)) folderMap.set(folderName, []);
-        folderMap.get(folderName)!.push(file);
+      // Read embedded tags first (fast, local) to organise the collection.
+      const tagged = await Promise.all(audio.map(async (file) => {
+        const rel = ((file as any).webkitRelativePath || '') as string;
+        const parts = rel.split('/');
+        const folder = parts.length > 1 ? parts[parts.length - 2] : '';
+        return { file, tags: await readAudioTags(file), folder };
+      }));
+
+      // Group into albums by album tag (fallback: parent folder). Loose singles → "Singles".
+      const groups = new Map<string, typeof tagged>();
+      for (const item of tagged) {
+        const key = item.tags.album || item.folder || 'Singles';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
       }
 
-      for (const [folderName, folderFiles] of folderMap.entries()) {
+      let done = 0;
+      for (const [albumName, items] of groups.entries()) {
+        items.sort((a, b) => (a.tags.trackNo || 999) - (b.tags.trackNo || 999));
+        const albumArtist = items.find(i => i.tags.artist)?.tags.artist || 'My Collection';
+
+        // Upload embedded album art once, reuse as cover for the album + its tracks.
+        let coverUrl = '';
+        const art = items.find(i => i.tags.pictureBlob)?.tags.pictureBlob;
+        if (art && auth.currentUser) {
+          try { coverUrl = await uploadFile(`personal/${auth.currentUser.uid}/covers/${Date.now()}_${albumName.replace(/[^a-z0-9]/gi, '_')}.jpg`, art); } catch { /* art optional */ }
+        }
+
         let albumId: string | undefined;
-        if (folderName !== 'Unsorted' && folderFiles.length > 1) {
-          const album = await createPersonalAlbum({ title: folderName });
+        if (albumName !== 'Singles') {
+          const album = await createPersonalAlbum({ title: albumName, artist: albumArtist, coverImage: coverUrl || undefined });
           albumId = album?.id;
+          if (album) setPersonalAlbums(prev => [album, ...prev]);
         }
 
-        for (const file of folderFiles) {
-          const track = await uploadPersonalTrack({ 
-            title: file.name.replace(/\.[^/.]+$/, ""),
+        for (const { file, tags } of items) {
+          const track = await uploadPersonalTrack({
+            title: tags.title || titleFromFilename(file.name),
+            artist: tags.artist || albumArtist,
             albumId,
-            albumTitle: folderName !== 'Unsorted' ? folderName : undefined
-          }, file);
+            albumTitle: albumName !== 'Singles' ? albumName : undefined,
+            albumCover: coverUrl || undefined,
+          } as any, file);
           if (track) setPersonalTracks(prev => [track, ...prev]);
+          done++;
+          setUploadProgress({ done, total: audio.length });
         }
       }
-      
-      // Refresh albums if needed
-      const updatedAlbums = await fetchPersonalAlbums();
-      setPersonalAlbums(updatedAlbums);
     } catch (error) {
-      console.error("Upload failed:", error);
+      console.error("Locker upload failed:", error);
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
+  };
+
+  const handleDeletePersonal = async (trackId: string) => {
+    await deletePersonalTrack(trackId);
+    setPersonalTracks(prev => prev.filter(t => t.id !== trackId));
   };
 
   const handleCreatePlaylist = async () => {
@@ -461,7 +496,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
       <div className="flex flex-wrap items-center gap-2 p-1 bg-white/5 rounded-full self-start">
         {[
           { id: 'SAVED', label: 'Saved Music', icon: Music },
-          { id: 'PERSONAL', label: 'Personal Collection', icon: FileMusic },
+          { id: 'PERSONAL', label: 'Music Locker', icon: Lock },
           { id: 'PLAYLISTS', label: 'Playlists', icon: ListMusic },
           { id: 'SYNC', label: 'Local Sync', icon: FolderSync }
         ].map(tab => (
@@ -578,6 +613,15 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
 
         {activeSubTab === 'PERSONAL' && (
           <div className="flex flex-col gap-6">
+            {/* Private music locker — legal privacy notice */}
+            <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+              <Lock size={16} className="text-small-orange mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-white">Your private music locker</p>
+                <p className="text-[10px] text-white/40 mt-1 leading-relaxed">Bring your own collection — upload a folder and play it in Chora from any device you sign in on. These tracks are <span className="text-white/70 font-bold">private to you and are never shared, posted, or discoverable</span>. Every Chora feature works on them — just for you.</p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Private Vault</h4>
@@ -616,9 +660,16 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </div>
 
             {isUploading && (
-              <div className="p-8 bg-white/5 border border-white/10 border-dashed rounded-[2rem] flex flex-col items-center gap-4 animate-pulse">
+              <div className="p-8 bg-white/5 border border-white/10 border-dashed rounded-[2rem] flex flex-col items-center gap-4">
                 <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Uploading to Private Vault...</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                  {uploadProgress ? `Uploading to your locker — ${uploadProgress.done} of ${uploadProgress.total}` : 'Reading your collection…'}
+                </p>
+                {uploadProgress && uploadProgress.total > 0 && (
+                  <div className="w-full max-w-sm h-1 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-small-orange transition-all" style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }} />
+                  </div>
+                )}
               </div>
             )}
 
@@ -637,13 +688,6 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                           <div className="flex flex-col gap-2">
                             <button onClick={() => playTrackFromList(track, filteredPersonal, 'Personal Collection')} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black">
                               <Play size={24} fill="black" />
-                            </button>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handlePostToFeed(track); }}
-                              className="w-12 h-12 bg-small-orange rounded-full flex items-center justify-center text-white"
-                              title="Post to Feed"
-                            >
-                              <Send size={20} />
                             </button>
                           </div>
                         </div>
@@ -672,21 +716,15 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                           {track.albumTitle || 'Single'}
                         </div>
                         <div className="flex justify-end pr-4 gap-2">
-                          <button 
-                            onClick={() => handlePostToFeed(track)}
-                            className="p-2 text-white/20 hover:text-small-orange transition-colors"
-                            title="Post to Feed"
-                          >
-                            <Send size={16} />
-                          </button>
-                          <button 
+                          <button
                             onClick={() => setEditingPodcastTrack(track)}
                             className="p-2 text-white/20 hover:text-white transition-colors"
+                            title="Edit details"
                           >
                             <Settings size={16} />
                           </button>
-                          <button className="p-2 text-white/20 hover:text-white transition-colors">
-                            <PlusCircle size={16} />
+                          <button onClick={() => handleDeletePersonal(track.id)} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker">
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </div>

@@ -5507,17 +5507,23 @@ export const uploadPersonalTrack = async (track: Partial<Track>, file: File, alb
       ...newTrack,
       ownerId: auth.currentUser.uid
     }));
-    
-    // Also add to user's personalTracks array for backward compatibility if needed, 
-    // but we should prefer fetching from collection
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    await updateDoc(userRef, {
-      personalTracks: arrayUnion(newTrack)
-    });
-    
+    // NOTE: the `personal_tracks` collection is the source of truth (fetchPersonalTracks).
+    // We deliberately do NOT append to a `personalTracks` array on the user doc — a music
+    // locker can hold thousands of tracks and that array would blow the 1MB doc limit
+    // (and would leak private locker tracks into artist-mode displays).
     return newTrack;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, trackPath);
+  }
+};
+
+/** Delete a track from the private music locker (personal_tracks). Owner-only. */
+export const deletePersonalTrack = async (trackId: string) => {
+  if (!auth.currentUser) return;
+  try {
+    await deleteDoc(doc(db, 'personal_tracks', trackId));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_tracks/${trackId}`);
   }
 };
 

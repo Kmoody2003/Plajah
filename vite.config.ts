@@ -117,6 +117,10 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          // jsmediatags' package.json `browser` field points to dist/jsmediatags.js
+          // which doesn't exist (only dist/jsmediatags.min.js ships) — alias the bare
+          // import to the real file so Vite can resolve it in the browser.
+          'jsmediatags': path.resolve(__dirname, 'node_modules/jsmediatags/dist/jsmediatags.min.js'),
         },
         // Force a single @firebase/app instance. Without this, Vite can
         // pre-bundle firebase/app-check into a separate chunk carrying its own
