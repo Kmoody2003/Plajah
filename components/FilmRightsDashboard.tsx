@@ -3,10 +3,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Upload, Check, AlertTriangle, X, ChevronDown,
   ChevronUp, FileText, Music2, Captions, Star, Clock,
-  Lock, Globe, Plus, Trash2,
+  Lock, Globe, Plus, Trash2, ExternalLink,
 } from 'lucide-react';
 import { fetchUserAlbums, auth } from '../services/backendService';
 import type { Album } from '../types';
+
+// ── Film & TV insurance provider directory ──────────────────────────────────────
+// Real entertainment E&O / production insurers filmmakers can go get covered with.
+// Logos via Google's favicon service (reliable, no CSP issues; shield glyph fallback).
+interface Insurer { name: string; domain: string; url: string; desc: string; tags: string; }
+const FILM_INSURERS: Insurer[] = [
+  { name: 'Front Row Insurance', domain: 'frontrowinsurance.com', url: 'https://www.frontrowinsurance.com/', desc: 'Entertainment specialists — E&O, full production packages, and short-shoot (DICE) coverage built for indie film & TV.', tags: 'E&O · Production · DICE' },
+  { name: 'Athos Insurance', domain: 'athosinsurance.com', url: 'https://www.athosinsurance.com/', desc: 'Fast online E&O quotes and same-day binding for independent films, documentaries, and shorts.', tags: 'E&O · Instant quote' },
+  { name: 'FilmEmporium', domain: 'filmemporium.com', url: 'https://www.filmemporium.com/', desc: 'Production + E&O insurance made for independent filmmakers, with instant certificates of insurance.', tags: 'E&O · Production · COIs' },
+  { name: 'HUB Entertainment', domain: 'hubinternational.com', url: 'https://www.hubinternational.com/industries/entertainment-insurance/', desc: 'Global broker with a dedicated entertainment practice covering E&O, cast, and full production risk.', tags: 'E&O · Cast · Global' },
+  { name: 'Truman Van Dyke', domain: 'tvdco.com', url: 'https://www.tvdco.com/', desc: 'Long-standing entertainment insurance brokerage serving film, TV, and streaming productions.', tags: 'E&O · Production' },
+];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -197,6 +209,47 @@ export default function FilmRightsDashboard() {
         <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">Rights &<br />Documents</h1>
         <p className="text-white/30 text-sm font-bold uppercase tracking-widest mt-2">Distribution readiness tracker per title</p>
       </div>
+
+      {/* ── Insurance providers directory ── */}
+      <section className="rounded-[2rem] border border-white/8 bg-white/[0.02] p-6 sm:p-7">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Shield size={14} className="text-[#FF8C00]" />
+          <h2 className="text-xs font-black uppercase tracking-[0.3em] text-white/70">Get Insured — E&O & Production Insurance</h2>
+        </div>
+        <p className="text-[11px] text-white/35 leading-relaxed max-w-2xl mb-5">
+          Most distributors and platforms require <span className="text-white/55 font-bold">Errors &amp; Omissions (E&amp;O)</span> insurance before they'll carry a title. These vetted entertainment insurers cover film &amp; TV — get a quote, then mark your policy complete above.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {FILM_INSURERS.map(ins => (
+            <a key={ins.domain} href={ins.url} target="_blank" rel="noopener noreferrer"
+              className="group flex flex-col gap-2 p-4 rounded-2xl border border-white/8 bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#FF8C00]/25 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={`https://www.google.com/s2/favicons?domain=${ins.domain}&sz=64`}
+                    alt={ins.name}
+                    className="w-full h-full object-contain p-1.5"
+                    loading="lazy"
+                    onError={e => {
+                      const el = e.currentTarget as HTMLImageElement;
+                      el.style.display = 'none';
+                      (el.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
+                    }}
+                  />
+                  <div style={{ display: 'none' }} className="w-full h-full items-center justify-center"><Shield size={18} className="text-[#1a1a1a]" /></div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-black text-white truncate group-hover:text-[#FF8C00] transition-colors">{ins.name}</p>
+                  <p className="text-[7px] font-black uppercase tracking-widest text-white/25">{ins.tags}</p>
+                </div>
+                <ExternalLink size={12} className="text-white/20 group-hover:text-[#FF8C00]/60 transition-colors shrink-0" />
+              </div>
+              <p className="text-[10px] text-white/40 leading-relaxed">{ins.desc}</p>
+            </a>
+          ))}
+        </div>
+        <p className="text-[8px] text-white/15 mt-4 uppercase tracking-widest">Directory for convenience — Plajah is not affiliated with and does not endorse these providers. Compare coverage before you buy.</p>
+      </section>
 
       {filmAlbums.length === 0 && (
         <div className="py-16 flex flex-col items-center gap-4 border-2 border-dashed border-white/5 rounded-[2.5rem] text-center">
