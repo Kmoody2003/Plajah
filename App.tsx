@@ -182,6 +182,7 @@ const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsig
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
+const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -679,6 +680,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenTeleprompter = () => setView('TELEPROMPTER');
     window.addEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
 
+    const handleOpenSpatialMixer = () => setView('SPATIAL_MIXER' as AppView);
+    window.addEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
+
     // Open Fabula (e.g. after a Pixels → Fabula export; Fabula reads the idb handoff on boot).
     const handleOpenFabula = () => setView('FABULA' as AppView);
     window.addEventListener('OPEN_FABULA', handleOpenFabula);
@@ -692,6 +696,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
+      window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
   }, [user]);
@@ -3922,6 +3927,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TELEPROMPTER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <TeleprompterApp onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'SPATIAL_MIXER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <SpatialMixer onClose={() => setView('APPS')} />
               </Suspense>
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
