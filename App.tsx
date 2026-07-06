@@ -1203,6 +1203,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           });
           setIsLoading(false);
           return;
+        } else if (shareType === 'movie') {
+          // A shared Taleo film/TV title — always lands on the Taleo movie page
+          // (MOVIE_UX). Reconstruct it from wherever it lives: creator film (album),
+          // a movie-category video, or an archive title.
+          import('./services/backendService').then(async (m) => {
+            try {
+              let it: any = await fetchProjectFromCloud(projectId).catch(() => null);
+              if (!it) it = await m.fetchVideoById(projectId).catch(() => null);
+              if (!it) { try { const arch = await import('./services/archiveContentService'); it = await arch.fetchArchiveVideoById(projectId); } catch {} }
+              if (it) {
+                setSelectedMovieItem(it);
+                setIsPublicView(true);
+                setView('MOVIE_UX');
+                document.title = `${it.title} | Plajah`;
+              }
+            } catch {}
+          });
+          setIsLoading(false);
+          return;
         } else if (shareType === 'videoPlaylist') {
           // A shared video playlist — open Reello (VIDEOS) and jump straight to it.
           setVideoPlaylistInitialId(projectId);

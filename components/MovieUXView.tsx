@@ -1193,7 +1193,8 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                       onClick={() => {
                         const archiveId = (item as any).identifier;
                         if (archiveId) shareAsset('archive', archiveId, { title: item.title, text: `${item.title} on Plajah` });
-                        else if (item.id) shareAsset('video', item.id, { title: item.title, text: `${item.title} on Plajah` });
+                        // A Taleo film opens on its Taleo movie page (MOVIE_UX), not the Reello player.
+                        else if (item.id) shareAsset('movie', item.id, { title: item.title, text: `${item.title} on Plajah` });
                       }}
                       title="Share"
                       className="h-12 w-12 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] rounded-full flex items-center justify-center text-white/45 hover:text-white transition-all">

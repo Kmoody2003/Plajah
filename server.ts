@@ -261,6 +261,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
    const collectionFor: Record<string, string> = {
      video: 'videos', album: 'albums', track: 'albums', book: 'albums',
+     movie: 'albums',
      article: 'articles', game: 'games', feed: 'global_posts', post: 'global_posts',
      videoPlaylist: 'video_playlists',
    };
@@ -294,7 +295,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const trackObj = tracksArray.find((t: any) => t.mapValue?.fields?.id?.stringValue === track);
        title = trackObj?.mapValue?.fields?.title?.stringValue || pick(['title', 'name']) || 'Track';
      } else {
-       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : 'Album';
+       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
      image = pick(IMG);
