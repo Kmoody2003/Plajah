@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Lock, FolderUp, Film, Play, Trash2, Loader2, Clapperboard } from 'lucide-react';
 import { Video } from '../types';
-import { fetchPersonalVideos, uploadPersonalVideo, deletePersonalVideo, auth } from '../services/backendService';
+import { fetchPersonalVideos, uploadPersonalVideo, deletePersonalVideo, uploadFile, auth } from '../services/backendService';
+import { captureVideoPoster } from '../services/videoPoster';
 
 const VIDEO_RE = /\.(mp4|m4v|mov|mkv|webm|avi|wmv|flv|mpg|mpeg|ts|ogv)$/i;
 const isVideoFile = (f: File): boolean => (f.type && f.type.startsWith('video/')) || VIDEO_RE.test(f.name);
@@ -48,11 +49,21 @@ const PersonalVideoLocker: React.FC<{ onPlay: (video: Video) => void }> = ({ onP
       let done = 0;
       for (const file of vids) {
         const parsed = parseVideoName(file.name);
+        // Grab a poster frame locally, upload it, and use it as the thumbnail.
+        let thumbnailUrl: string | undefined;
+        try {
+          const poster = await captureVideoPoster(file);
+          if (poster && auth.currentUser) {
+            thumbnailUrl = await uploadFile(`personal/${auth.currentUser.uid}/posters/${Date.now()}_${file.name.replace(/[^a-z0-9]/gi, '_')}.jpg`, poster);
+          }
+        } catch { /* poster optional */ }
         const uploaded = await uploadPersonalVideo({
           // category MOVIE routes it to the Taleo player (MovieUXView); series
           // details are preserved in tvMetadata for display/organisation.
           title: parsed.title,
           category: 'MOVIE',
+          thumbnailUrl,
+          coverImageUrl: thumbnailUrl,
           tvMetadata: parsed.series ? { seriesTitle: parsed.series, seasonNumber: parsed.season, episodeNumber: parsed.episode } : undefined,
         } as any, file);
         if (uploaded) setVideos(prev => [uploaded, ...prev]);
