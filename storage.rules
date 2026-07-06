@@ -94,6 +94,15 @@ service firebase.storage {
       allow write: if isAuth() && request.resource.size < 25 * 1024 * 1024 * 1024;
     }
 
+    // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
+    // personal/<uid>/… — owner-only read+write. Kept private (the user may not
+    // hold distribution rights); playback works via tokenized download URLs.
+    // 25 GB cap so full movies fit.
+    match /personal/{uid}/{allPaths=**} {
+      allow read:  if isAuth() && request.auth.uid == uid;
+      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024 * 1024;
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;

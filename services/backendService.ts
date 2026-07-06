@@ -5293,13 +5293,12 @@ export const fetchPersonalTracks = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_tracks';
   try {
-    const q = query(
-      collection(db, 'personal_tracks'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('timestamp', 'desc')
-    );
+    // No orderBy — that would require a composite index (ownerId+timestamp) which,
+    // if absent, makes the whole query fail silently and the locker looks empty.
+    // Single-field where() is auto-indexed; sort newest-first in JS.
+    const q = query(collection(db, 'personal_tracks'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Track);
+    return snap.docs.map(d => d.data() as Track).sort((a, b) => ((b as any).timestamp || 0) - ((a as any).timestamp || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5310,13 +5309,9 @@ export const fetchPersonalAlbums = async () => {
   if (!auth.currentUser) return [];
   const path = 'personal_albums';
   try {
-    const q = query(
-      collection(db, 'personal_albums'), 
-      where('ownerId', '==', auth.currentUser.uid),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, 'personal_albums'), where('ownerId', '==', auth.currentUser.uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Album);
+    return snap.docs.map(d => d.data() as Album).sort((a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
