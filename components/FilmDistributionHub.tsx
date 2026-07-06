@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  Film, Radio, ShoppingBag, Ticket, Globe, ChevronRight,
+  Film, Radio, ShoppingBag, Ticket, Globe, ChevronRight, Pencil,
   Zap, Users, Star, TrendingUp, Play, Check, ArrowRight,
   BarChart2, Tag, FileText, GitBranch, DollarSign, Shield,
   Download, Sparkles, ScrollText,
@@ -20,6 +20,8 @@ import FilmAIAssistant from './FilmAIAssistant';
 interface Props {
   user: UserProfile;
   onDistributeFilm: () => void;
+  /** Open the authoring tool to edit an existing film's details. */
+  onEditFilm?: (film: Album) => void;
 }
 
 type HubTab =
@@ -95,7 +97,7 @@ const NAV_GROUPS: { label: string; items: { id: HubTab; label: string; icon: Rea
   },
 ];
 
-export default function FilmDistributionHub({ user, onDistributeFilm }: Props) {
+export default function FilmDistributionHub({ user, onDistributeFilm, onEditFilm }: Props) {
   const [tab, setTab] = useState<HubTab>('OVERVIEW');
   const [filmAlbums, setFilmAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,17 +246,21 @@ export default function FilmDistributionHub({ user, onDistributeFilm }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {filmAlbums.slice(0, 4).map(film => (
               <div key={film.id}
-                className="bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-hidden hover:bg-white/[0.04] transition-all group cursor-pointer"
+                onClick={() => onEditFilm?.(film)}
+                className="bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-hidden hover:bg-white/[0.04] hover:border-[#FF8C00]/25 transition-all group cursor-pointer"
               >
-                {film.coverImage ? (
-                  <div className="aspect-video overflow-hidden">
+                <div className="relative aspect-video overflow-hidden bg-white/5">
+                  {film.coverImage ? (
                     <img src={film.coverImage} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </div>
-                ) : (
-                  <div className="aspect-video bg-white/5 flex items-center justify-center">
-                    <Film size={24} className="text-white/15" />
-                  </div>
-                )}
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Film size={24} className="text-white/15" /></div>
+                  )}
+                  {onEditFilm && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest"><Pencil size={11} /> Edit Details</span>
+                    </div>
+                  )}
+                </div>
                 <div className="p-4">
                   <p className="text-xs font-black uppercase tracking-tight text-white truncate">{film.title}</p>
                   <div className="flex items-center gap-2 mt-1.5">

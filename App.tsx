@@ -3985,6 +3985,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onVisitUser={handleVisitUser}
                   onNavigateToWorld={(worldId, characterId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                   onOpenItem={(it) => { setSelectedMovieItem(it); try { window.scrollTo({ top: 0 }); } catch {} }}
+                  onEditFilm={(it) => { setEditingAlbum(it as Album); setCreatorInitialType(undefined); setShowCreator(true); }}
                   currentUser={user}
                 />
               </ErrorBlock>
@@ -4140,6 +4141,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 setShowCreator(false);
                 setIsCreatorMinimized(false);
                 setCreatorInitialType(undefined);
+                // If we were editing the film that's open in the detail page, refresh it.
+                if (editingAlbum && alb && (alb as any).id === editingAlbum.id) {
+                  setSelectedMovieItem((prev: any) => (prev && prev.id === (alb as any).id ? { ...prev, ...alb } : prev));
+                }
+                setEditingAlbum(null);
               }}
               onCancel={() => {
                 setShowCreator(false);

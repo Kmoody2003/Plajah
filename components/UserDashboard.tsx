@@ -1948,6 +1948,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             <FilmDistributionHub
               user={profile}
               onDistributeFilm={() => setShowCreator({ active: true, type: 'VIDEO' })}
+              onEditFilm={(album) => setShowCreator({ active: true, album })}
             />
           )}
 

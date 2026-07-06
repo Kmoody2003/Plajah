@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Video, Album, Character, IPWorld, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
 import {
-  Play, Plus, Share2, ArrowLeft, Star,
+  Play, Plus, Share2, ArrowLeft, Star, Pencil,
   Info, Film, Globe, MessageCircle,
   X, Users, Maximize2, Minimize2, Check,
   Bookmark, Sparkles, RefreshCw, Calendar,
@@ -35,6 +35,8 @@ interface MovieUXViewProps {
   onVisitUser: (uid: string) => void;
   onNavigateToWorld?: (worldId: string, characterId?: string) => void;
   onOpenItem?: (item: Video | Album) => void;
+  /** Owner-only: open the authoring tool to edit this film's details. */
+  onEditFilm?: (item: Video | Album) => void;
   currentUser: any;
 }
 
@@ -608,7 +610,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 };
 
 // ─── MovieUXView ───────────────────────────────────────────────────────────────
-const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, currentUser }) => {
+const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, onEditFilm, currentUser }) => {
   const {
     activateVideoSource,
     setVideoElement,
@@ -1156,6 +1158,17 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     >
                       <Play fill="currentColor" size={18} /> Watch Now
                     </motion.button>
+                    {isOwner && onEditFilm && (
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => onEditFilm(item)}
+                        className="h-12 px-6 bg-[#FF8C00]/15 hover:bg-[#FF8C00]/25 border border-[#FF8C00]/40 text-[#FF8C00] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all"
+                        title="Edit this film's details"
+                      >
+                        <Pencil size={16} /> Edit Film
+                      </motion.button>
+                    )}
                     <button
                       onClick={handleWatchlistToggle}
                       disabled={watchlistLoading}
