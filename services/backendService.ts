@@ -2841,6 +2841,37 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     }
   }
 
+  // ── SAFEGUARD: persist a resumable DRAFT the moment the heavy files are uploaded ──
+  // The big cost (multi-hundred-MB film/track uploads) is done by here. The steps that
+  // follow — Mux uploads, season episodes, AI metadata, the final write — are slower and
+  // can fail or be interrupted (tab close, network drop). Write the album doc NOW as a
+  // draft so the uploaded video is never orphaned: the creator just reopens the draft and
+  // finishes. The final write below upgrades this same doc to its true published state.
+  try {
+    if (auth.currentUser && finalTracks.some(t => t.url)) {
+      const draftDoc = removeUndefined({
+        ...album,
+        ownerId: auth.currentUser.uid,
+        coverImage: finalCover || album.coverImage || '',
+        artistImage: finalArtistImg || finalCover || album.artistImage,
+        tracks: finalTracks.map(t => { const { file, ...rest } = t; return { ...rest, rightsOwnerId: auth.currentUser?.uid }; }),
+        slideshow: finalSlideshow,
+        isDraft: true,
+        createdAt: album.createdAt || Date.now(),
+        // Strip File-bearing / not-yet-uploaded fields — the final write adds these.
+        musicVideos: undefined,
+        seasons: undefined,
+        coverFile: undefined,
+        artistFile: undefined,
+        slideshowFiles: undefined,
+      });
+      await setDoc(doc(db, 'albums', album.id), draftDoc, { merge: true });
+      onProgress?.('Draft saved — your upload is safe', Math.round(80));
+    }
+  } catch (e) {
+    console.warn('[publishToCloud] draft safeguard write failed (non-fatal):', e);
+  }
+
   // 5. Upload Music Videos
   const finalVideos: Video[] = [];
   const pendingMuxUploads: Array<{ videoId: string; uploadId: string }> = [];
