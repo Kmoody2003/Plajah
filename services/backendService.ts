@@ -2960,6 +2960,9 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   try {
     await setDoc(doc(db, "albums", album.id), cloudAlbum);
 
+    // Canonical cross-service index record (media-library API Phase 1). Best-effort.
+    import('./mediaAssets').then(m => m.upsertMediaAssetFromAlbum(cloudAlbum as any)).catch(() => {});
+
     // Trigger Cora beat analysis for MUSIC albums (fire-and-forget — never blocks publish)
     if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length) {
       (async () => {

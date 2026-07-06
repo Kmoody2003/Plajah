@@ -1395,6 +1395,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
               <ContentAssetManager
                 uid={user.uid}
                 onEditAlbum={(album) => setShowCreator({ active: true, album })}
+                onManageStore={() => setActiveTab('STORE_MANAGEMENT')}
+                onManageSanctuary={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SANCTUARY' } }))}
                 onOpenProject={(kind) => {
                   const target = kind === 'Fabula' ? 'FABULA' : kind === 'Pixels' ? 'PIXELS' : kind === 'Teleprompter' ? 'TELEPROMPTER' : '';
                   if (target) window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));

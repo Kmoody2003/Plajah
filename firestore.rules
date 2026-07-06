@@ -1109,6 +1109,16 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.ownerId) || isAdmin();
     }
 
+    // Canonical cross-service media index (media-library API). Public-read catalog;
+    // owner-write; artistId is immutable (per PlayGround.api security_spec).
+    match /mediaAssets/{assetId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.artistId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.artistId == request.auth.uid
+                       && request.resource.data.artistId == resource.data.artistId;
+      allow delete: if isAuthenticated() && resource.data.artistId == request.auth.uid || isAdmin();
+    }
+
     // Private movie/TV locker (Plex-style, surfaced in Taleo). Owner-only, never shared.
     match /personal_videos/{videoId} {
       allow read: if isOwner(resource.data.ownerId) || isAdmin();

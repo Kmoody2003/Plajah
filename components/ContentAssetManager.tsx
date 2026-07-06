@@ -3,13 +3,13 @@ import { motion } from 'motion/react';
 import {
   Search, LayoutGrid, List, Music2, Clapperboard, BookOpen, Film, FolderKanban,
   Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download,
-  Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X,
+  Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown,
 } from 'lucide-react';
-import { Album, Video } from '../types';
-import { fetchUserAlbums, fetchUserVideos, updateAlbum } from '../services/backendService';
+import { Album, Video, MerchItem } from '../types';
+import { fetchUserAlbums, fetchUserVideos, fetchMerchItems, updateAlbum } from '../services/backendService';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
-type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'OTHER';
+type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'STORE' | 'OTHER';
 type AssetStatus = 'PUBLIC' | 'DRAFT' | 'PRIVATE' | 'SCHEDULED';
 
 interface Asset {
@@ -21,9 +21,12 @@ interface Asset {
   status: AssetStatus;
   plays: number;
   updatedAt: number;
-  editable: boolean;      // opens the existing edit workflow (AlbumCreator)
+  editable: boolean;      // opens the existing edit workflow (AlbumCreator / StoreManager)
+  gated?: boolean;        // locked behind a Sanctuary (members / exclusive)
+  price?: number;         // for store products
   album?: Album;          // source (albums-backed)
   video?: Video;          // source (Reello video docs)
+  merch?: MerchItem;      // source (merch product)
 }
 
 const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; accent: string }[] = [
@@ -32,6 +35,7 @@ const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: Rea
   { key: 'TALEO',    label: 'Taleo',    icon: Clapperboard, accent: '#D0BCFF' },
   { key: 'LOREA',    label: 'Lorea',    icon: BookOpen,     accent: '#F0A868' },
   { key: 'REELLO',   label: 'Reello',   icon: Film,         accent: '#FF6B9D' },
+  { key: 'STORE',    label: 'Store',    icon: ShoppingBag,  accent: '#FFB000' },
   { key: 'PROJECTS', label: 'Projects', icon: FolderKanban, accent: '#7CA9FF' },
 ];
 
@@ -95,9 +99,14 @@ const ContentAssetManager: React.FC<{
   uid: string;
   onEditAlbum: (album: Album) => void;
   onOpenProject?: (kind: string) => void;
-}> = ({ uid, onEditAlbum, onOpenProject }) => {
+  /** Open the Store Manager (merch product editing lives there). */
+  onManageStore?: () => void;
+  /** Open Sanctuary management (gating / tiers). */
+  onManageSanctuary?: () => void;
+}> = ({ uid, onEditAlbum, onOpenProject, onManageStore, onManageSanctuary }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [merch, setMerch] = useState<MerchItem[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ServiceKey | 'ALL' | 'PROJECTS'>('ALL');
@@ -111,9 +120,14 @@ const ContentAssetManager: React.FC<{
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [al, vi] = await Promise.all([fetchUserAlbums(uid).catch(() => []), fetchUserVideos(uid).catch(() => [])]);
+    const [al, vi, me] = await Promise.all([
+      fetchUserAlbums(uid).catch(() => []),
+      fetchUserVideos(uid).catch(() => []),
+      fetchMerchItems(uid).catch(() => []),
+    ]);
     setAlbums(al || []);
     setVideos(vi || []);
+    setMerch(me || []);
     setProjects(loadProjects());
     setLoading(false);
   }, [uid]);
@@ -127,7 +141,8 @@ const ContentAssetManager: React.FC<{
       out.push({
         id: al.id, service, typeLabel, title: al.title || 'Untitled',
         cover: coverOf(al), status: statusOf(al), plays: (al as any).playCount || 0,
-        updatedAt: (al as any).modifiedAt || al.createdAt || 0, editable: true, album: al,
+        updatedAt: (al as any).modifiedAt || al.createdAt || 0, editable: true,
+        gated: !!(al as any).isExclusive || !!(al as any).sanctuaryOnly, album: al,
       });
     }
     // Reello video docs that aren't already albums.
@@ -137,11 +152,19 @@ const ContentAssetManager: React.FC<{
       out.push({
         id: v.id, service: 'REELLO', typeLabel: videoTypeLabel(v), title: v.title || 'Untitled',
         cover: coverOf(v), status: statusOf(v), plays: (v as any).playsCount || v.likesCount || 0,
-        updatedAt: v.timestamp || 0, editable: false, video: v,
+        updatedAt: v.timestamp || 0, editable: false, gated: !!(v as any).isExclusive, video: v,
+      });
+    }
+    // Merch products — the store's product assets live in the manager too.
+    for (const m of merch) {
+      out.push({
+        id: m.id, service: 'STORE', typeLabel: (m.category || 'Product').replace(/^\w/, c => c.toUpperCase()).toLowerCase().replace(/^\w/, c => c.toUpperCase()),
+        title: m.title || 'Product', cover: m.imageUrl || m.images?.[0], status: (m.stock ?? 0) > 0 ? 'PUBLIC' : 'DRAFT',
+        plays: m.reviewCount || 0, updatedAt: m.timestamp || 0, editable: true, price: m.price, merch: m,
       });
     }
     return out;
-  }, [albums, videos]);
+  }, [albums, videos, merch]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: assets.length, PROJECTS: projects.length };
@@ -174,7 +197,15 @@ const ContentAssetManager: React.FC<{
     } finally { setBusy(false); }
   };
 
-  const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); };
+  const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.merch) onManageStore?.(); };
+
+  // Gate/ungate an asset behind the creator's Sanctuary (members-only exclusive).
+  const toggleGate = async (a: Asset) => {
+    if (!a.album) return;
+    setBusy(true);
+    try { await updateAlbum(a.id, { isExclusive: !a.gated } as any); await load(); }
+    finally { setBusy(false); }
+  };
 
   return (
     <div className="space-y-6">
@@ -268,7 +299,16 @@ const ContentAssetManager: React.FC<{
       )}
 
       {/* Detail / metadata panel (DAM) */}
-      {detail && <AssetDetail asset={detail} onClose={() => setDetail(null)} onEdit={() => { setDetail(null); edit(detail); }} />}
+      {detail && (
+        <AssetDetail
+          asset={detail}
+          busy={busy}
+          onClose={() => setDetail(null)}
+          onEdit={() => { setDetail(null); edit(detail); }}
+          onToggleGate={detail.album ? () => toggleGate(detail) : undefined}
+          onManageSanctuary={onManageSanctuary}
+        />
+      )}
     </div>
   );
 };
@@ -282,7 +322,10 @@ const AssetCard: React.FC<{ asset: Asset; selected: boolean; onToggle: () => voi
       {asset.cover ? <img src={asset.cover} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={26} className="text-white/15" /></div>}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
       <button onClick={onToggle} className="absolute top-2 left-2 text-white/70 hover:text-white">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
-      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{asset.typeLabel}</span>
+      <div className="absolute top-2 right-2 flex items-center gap-1">
+        {asset.gated && <span title="Sanctuary members-only" className="w-5 h-5 rounded bg-[#6B0099] flex items-center justify-center"><Crown size={11} className="text-white" /></span>}
+        <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{asset.typeLabel}</span>
+      </div>
       <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
         {asset.editable && <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest"><Pencil size={11} /> Edit</button>}
         <button onClick={onOpen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-black text-[9px] font-black uppercase tracking-widest"><Layers size={11} /> Details</button>
@@ -311,7 +354,7 @@ const AssetRow: React.FC<{ asset: Asset; selected: boolean; onToggle: () => void
   </div>
 );
 
-const AssetDetail: React.FC<{ asset: Asset; onClose: () => void; onEdit: () => void }> = ({ asset, onClose, onEdit }) => (
+const AssetDetail: React.FC<{ asset: Asset; busy?: boolean; onClose: () => void; onEdit: () => void; onToggleGate?: () => void; onManageSanctuary?: () => void }> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary }) => (
   <div className="fixed inset-0 z-[130] flex items-center justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
     <div className="w-full max-w-md h-full bg-[#0c0c11] border-l border-white/10 overflow-y-auto p-6 space-y-5" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between">
@@ -327,9 +370,9 @@ const AssetDetail: React.FC<{ asset: Asset; onClose: () => void; onEdit: () => v
           ['Status', STATUS_STYLE[asset.status].label],
           ['Service', SERVICES.find(s => s.key === asset.service)?.label || ''],
           ['Type', asset.typeLabel],
-          ['Plays', asset.plays.toLocaleString()],
+          [asset.merch ? 'Price' : 'Plays', asset.merch ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
           ['Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
-          ['Asset ID', asset.id.slice(0, 14)],
+          ['Access', asset.gated ? 'Sanctuary' : 'Open'],
         ].map(([k, v]) => (
           <div key={k} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
             <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mb-1">{k}</p>
@@ -337,8 +380,26 @@ const AssetDetail: React.FC<{ asset: Asset; onClose: () => void; onEdit: () => v
           </div>
         ))}
       </div>
+
+      {/* Sanctuary gating — deep link between the asset manager and Sanctuary */}
+      {(onToggleGate || asset.merch) && (
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#6B0099]/15 to-transparent border border-[#6B0099]/25 space-y-3">
+          <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Sanctuary</p></div>
+          {onToggleGate && (
+            <button onClick={onToggleGate} disabled={busy} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${asset.gated ? 'bg-[#6B0099] text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+              {busy ? <Loader2 size={13} className="animate-spin" /> : (asset.gated ? <Lock size={12} /> : <Globe size={12} />)}
+              {asset.gated ? 'Members-only — tap to unlock' : 'Gate to Sanctuary (members-only)'}
+            </button>
+          )}
+          {onManageSanctuary && (
+            <button onClick={onManageSanctuary} className="w-full py-2 rounded-full bg-white/5 text-white/50 text-[9px] font-black uppercase tracking-widest hover:text-white">Manage tiers & à-la-carte in Sanctuary →</button>
+          )}
+          <p className="text-[8px] text-white/25 leading-relaxed">Gated assets are locked to your Sanctuary members (or à-la-carte buyers). Set tiers and pricing in Sanctuary.</p>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Pencil size={13} /> Edit in studio</button>}
+        {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Pencil size={13} /> {asset.merch ? 'Edit in Store Manager' : 'Edit in studio'}</button>}
         {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
           <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
         )}

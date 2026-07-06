@@ -213,6 +213,34 @@ const fetchFirebaseDoc = async (collection: string, id: string) => {
   } catch(e) { return null; }
 };
 
+// Decode a Firestore REST document's typed `fields` into plain JSON.
+const decodeFirestoreFields = (f: any = {}): any => {
+  const out: any = {};
+  for (const k in f) {
+    const v = f[k] || {};
+    out[k] = v.stringValue ?? (v.integerValue !== undefined ? Number(v.integerValue) : (v.doubleValue ?? (v.booleanValue !== undefined ? v.booleanValue : undefined)));
+  }
+  return out;
+};
+
+// Structured runQuery over a collection (service-account auth). Used by the public
+// media-federation API (media-library API Phase 1).
+const queryFirebase = async (collectionId: string, filters: Array<{ field: string; value: any }>, limitN = 100) => {
+  const projectId = 'gen-lang-client-0665118474';
+  const dbId = 'plajah-prod';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
+  const toVal = (v: any) => typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
+  const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: 'EQUAL', value: toVal(f.value) } }));
+  const where = fieldFilters.length === 1 ? fieldFilters[0] : { compositeFilter: { op: 'AND', filters: fieldFilters } };
+  const body = { structuredQuery: { from: [{ collectionId }], where, limit: limitN } };
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).filter((r: any) => r.document).map((r: any) => decodeFirestoreFields(r.document.fields));
+  } catch { return []; }
+};
+
 // The public-facing host. Firebase Hosting proxies to Cloud Run with the internal
 // run.app Host header, so prefer X-Forwarded-Host (the real plajah.com) and never leak
 // the run.app domain into og:url / twitter:player (a domain mismatch breaks previews).
@@ -1360,6 +1388,25 @@ async function startServer() {
       });
       res.json({ id: eventId });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ── Media federation API (media-library API Phase 1) ────────────────────────
+  // Public, standardized catalog of a creator's PUBLIC works across every Plajah
+  // service — the "federate to external platforms via API" promise. Each record
+  // carries an originUrl back to the canonical asset (Creator-Passport addressable).
+  app.get('/api/artists/:id/media', apiLimiter, async (req: any, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId || artistId.length > 128) return res.status(400).json({ error: 'valid artist id required' });
+    try {
+      const assets = await queryFirebase('mediaAssets', [
+        { field: 'artistId', value: artistId },
+        { field: 'status', value: 'PUBLIC' },
+      ], 200);
+      res.set('Cache-Control', 'public, max-age=120');
+      res.json({ artistId, count: assets.length, assets });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'query failed' });
+    }
   });
 
   // Get event by ID (public)
