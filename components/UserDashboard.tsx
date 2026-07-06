@@ -33,6 +33,7 @@ import FediverseHub from './FediverseHub';
 import { motion } from 'motion/react';
 
 import AlbumCreator from './AlbumCreator';
+import ContentAssetManager from './ContentAssetManager';
 import InterestsNotebook from './InterestsNotebook';
 import MailingListManager from './MailingListManager';
 import FileUploader from './FileUploader';
@@ -63,6 +64,7 @@ interface UserDashboardProps {
   onSetTheme?: (t: ThemeType) => void;
   onOpenTVStudio?: () => void;
   onOpenScriptStudio?: (format?: string) => void;
+  initialTab?: string;
 }
 
 const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
@@ -75,7 +77,7 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
   { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
 ];
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio, initialTab }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
@@ -85,7 +87,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
     'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY'
-  >('ACCOUNT');
+  >((initialTab as any) || 'ACCOUNT');
   const [showFilmWizard, setShowFilmWizard]   = useState(false);
   const [showBookWizard, setShowBookWizard]   = useState(false);
   const [showBookClubCreator, setShowBookClubCreator] = useState(false);
@@ -1389,46 +1391,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </div>
               </section>
 
-              {/* Asset List */}
-              {userAlbums.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20">
-                      {userAlbums.length} {userAlbums.length === 1 ? 'Asset' : 'Assets'} Deployed
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {userAlbums.map(album => (
-                      <div key={album.id} className="group flex items-center gap-6 p-6 bg-white/5 border border-white/5 rounded-[2rem] hover:bg-white/10 transition-all">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0">
-                          <img src={album.coverImage || null} alt={album.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">{album.title}</h3>
-                          <div className="flex items-center gap-4 mt-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-small-orange bg-small-orange/10 px-2 py-1 rounded-md">{album.type}</span>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-white/20">{album.genre}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => setShowCreator({ active: true, album })}
-                            className="p-4 bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
-                          >
-                            <Settings size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteAlbum(album.id)}
-                            className="p-4 bg-white/5 rounded-xl text-white/40 hover:text-red-500 transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* True content Asset Manager — every asset categorized across the platform */}
+              <ContentAssetManager
+                uid={user.uid}
+                onEditAlbum={(album) => setShowCreator({ active: true, album })}
+                onOpenProject={(kind) => {
+                  const target = kind === 'Fabula' ? 'FABULA' : kind === 'Pixels' ? 'PIXELS' : kind === 'Teleprompter' ? 'TELEPROMPTER' : '';
+                  if (target) window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
+                }}
+              />
             </motion.div>
           )}
 

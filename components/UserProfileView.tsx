@@ -789,16 +789,28 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               <h3 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black uppercase tracking-tighter mb-1`}>Share Your Creations</h3>
               <p className="text-white/80 text-xs lg:text-sm font-medium">Upload new albums, videos, or articles to your profile.</p>
             </div>
-            <button 
-              onClick={() => {
-                const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
-                window.dispatchEvent(event);
-              }}
-              className="w-full md:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <Plus size={16} />
-              Upload Content
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <button
+                onClick={() => {
+                  const event = new CustomEvent('NAVIGATE', { detail: { target: 'CREATOR' } });
+                  window.dispatchEvent(event);
+                }}
+                className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Plus size={16} />
+                Upload Content
+              </button>
+              <button
+                onClick={() => {
+                  const event = new CustomEvent('NAVIGATE', { detail: { target: 'CONTENT_MANAGER' } });
+                  window.dispatchEvent(event);
+                }}
+                className="w-full sm:w-auto px-8 py-4 bg-black/25 hover:bg-black/40 text-white border border-white/25 rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <LayoutGrid size={16} />
+                Manage My Content
+              </button>
+            </div>
           </div>
         )}
 

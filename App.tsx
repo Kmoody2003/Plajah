@@ -479,6 +479,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
+  const [dashboardInitialTab, setDashboardInitialTab] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
@@ -887,6 +888,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setCreatorInitialType(params.creatorInitialType);
       }
       setShowCreator(true);
+    } else if (target === 'CONTENT_MANAGER') {
+      // Open the account dashboard directly on the content Asset Manager tab.
+      if (!user) { loginWithGoogle(); return; }
+      setDashboardInitialTab('ASSETS');
+      setView('CREATOR');
     } else if (target === 'SANCTUARY_HUB') {
       setView('SANCTUARY_HUB');
     } else if (target === 'SANCTUARY') {
@@ -3884,7 +3890,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </Suspense>
               </ErrorBoundary>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {(view === 'SEARCH' || view === 'PEOPLE') && <SearchView onBack={() => setView('DASHBOARD')} onVisitUser={handleVisitUser} currentUser={user} initialQuery={searchQuery} initialFilter={view === 'PEOPLE' ? 'PEOPLE' : undefined} />}
             {view === 'FEED' && (
               <FeedView
