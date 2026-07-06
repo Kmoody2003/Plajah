@@ -5,6 +5,7 @@
 //
 // Spec: docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md · GTM §26.
 import { callGemini } from './geminiService';
+import { auth } from './firebase';
 import type { ContentRepurposeJob, RepurposeOutput } from '../types';
 
 export interface RepurposeInput {
@@ -84,6 +85,75 @@ export async function generateArticleDraft(input: RepurposeInput): Promise<Repur
     supplements,
     stills: [],
   };
+}
+
+// ── Speech-to-text (the transcription source) ───────────────────────────────────
+export interface TranscriptSegment { time: number; text: string; }
+export interface StreamTranscript { text: string; segments: TranscriptSegment[]; }
+
+/**
+ * Transcribe a stream/sermon audio (or video) URL into timecoded text via the
+ * server (`/api/ai/captions` → Gemini fetches the URL server-side; the API key
+ * stays off the client). The timecodes power quote → still matching downstream.
+ * Returns empty on failure — callers degrade gracefully.
+ */
+export async function transcribeAudioUrl(audioUrl: string, title = '', speaker = ''): Promise<StreamTranscript> {
+  if (!audioUrl) return { text: '', segments: [] };
+  try {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+    const res = await fetch('/api/ai/captions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ audioUrl, title, artist: speaker, kind: 'speech' }),
+    });
+    if (!res.ok) return { text: '', segments: [] };
+    const data = await res.json().catch(() => ({}));
+    const caps: any[] = Array.isArray(data?.captions) ? data.captions : [];
+    const segments: TranscriptSegment[] = caps
+      .filter(c => c && typeof c.text === 'string')
+      .map(c => ({ time: Number(c.time) || 0, text: String(c.text) }));
+    const text = segments.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
+    return { text, segments };
+  } catch {
+    return { text: '', segments: [] };
+  }
+}
+
+/**
+ * End-to-end: transcribe a stream's audio, then have ARIA produce an ARTICLE
+ * draft (with scripture/fact supplements + pull-quotes). Pull-quotes are matched
+ * back to the transcript timecode so drafts can be illustrated by frame/photo.
+ */
+export async function repurposeStreamToArticle(input: {
+  audioUrl: string;
+  orgName: string;
+  sourceTitle?: string;
+  faithContext?: boolean;
+}): Promise<{ transcript: StreamTranscript; output: RepurposeOutput | null }> {
+  const transcript = await transcribeAudioUrl(input.audioUrl, input.sourceTitle, input.orgName);
+  if (!transcript.text || transcript.text.length < 40) return { transcript, output: null };
+
+  const output = await generateArticleDraft({
+    orgName: input.orgName,
+    transcript: transcript.text,
+    sourceTitle: input.sourceTitle,
+    faithContext: input.faithContext,
+  });
+
+  // Anchor each pull-quote to the transcript timecode (fuzzy prefix match).
+  if (output?.pullQuotes?.length && transcript.segments.length) {
+    output.pullQuotes = output.pullQuotes.map(pq => {
+      const key = (pq.quote || '').slice(0, 24).toLowerCase();
+      if (!key) return pq;
+      const seg = transcript.segments.find(s => {
+        const st = (s.text || '').toLowerCase();
+        return st.includes(key) || (st.length > 12 && key.includes(st.slice(0, 18)));
+      });
+      return seg ? { ...pq, timecode: seg.time } : pq;
+    });
+  }
+
+  return { transcript, output };
 }
 
 /**

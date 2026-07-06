@@ -2314,7 +2314,7 @@ async function startServer() {
   app.post('/api/ai/captions', apiLimiter, authMiddleware, async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
-    const { audioUrl, title, artist } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string };
+    const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
     if (!audioUrl || !/^https?:\/\//.test(audioUrl)) return res.status(400).json({ error: 'audioUrl required' });
     try {
       const aRes = await fetch(audioUrl, { signal: AbortSignal.timeout(25000) });
@@ -2326,11 +2326,16 @@ async function startServer() {
 
       const { GoogleGenAI, Type } = await import('@google/genai');
       const genai = new GoogleGenAI({ apiKey: geminiKey });
-      const response = await genai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          { inlineData: { data: audioBase64, mimeType } },
-          { text: `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
+      // Spoken-word (sermons, talks, podcasts) vs sung lyrics use different prompts.
+      const speechPrompt = `You are a precise speech transcription engine. Transcribe the spoken audio titled "${(title || '').slice(0, 200)}"${artist ? ` by "${(artist || '').slice(0, 200)}"` : ''} into time-coded captions covering the ENTIRE duration from first word to last.
+
+Rules:
+- Timestamps precise to 0.1 seconds; each marks the exact moment that phrase BEGINS.
+- Transcribe every spoken word accurately; do NOT invent, summarise, or skip content.
+- Preserve any Bible passages / scripture references exactly as spoken (e.g. "John 3:16").
+- Each "text" entry is one natural spoken phrase or sentence clause (~6-15 words).
+- Sort by ascending time; the final entry must be near the true end — do not stop early.`;
+      const lyricPrompt = `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
 
 Rules:
 - Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
@@ -2339,7 +2344,12 @@ Rules:
 - Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
 - Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
 - Sort all entries by ascending time.
-- The last entry must be close to the actual end of the audio — do not stop early.` },
+- The last entry must be close to the actual end of the audio — do not stop early.`;
+      const response = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { inlineData: { data: audioBase64, mimeType } },
+          { text: kind === 'speech' ? speechPrompt : lyricPrompt },
         ],
         config: {
           responseMimeType: 'application/json',
