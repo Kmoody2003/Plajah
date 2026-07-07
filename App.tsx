@@ -933,6 +933,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setShowBrandActivation(true);
     } else if (target === 'COMIC_MUSEUM') {
       setView('COMIC_MUSEUM');
+    } else if (target === 'BOOK_STUDIO' || target === 'COMIC_STUDIO') {
+      setView('BOOK_STUDIO');
     } else if (target === 'SANCTUARY_HUB') {
       setView('SANCTUARY_HUB');
     } else if (target === 'SANCTUARY') {

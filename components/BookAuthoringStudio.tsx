@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
+import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
 import { auth, storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -867,6 +868,22 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
     setShowAddMenu(false);
   };
 
+  // Send a text page's words to the comic composer as a script (Lorea → Comic).
+  const sendTextToComic = (page: StudioPage) => {
+    const script = (page.richText || '').replace(/<\/(p|div|h\d|li|br)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    setComicHandoff({ source: 'LOREA', title: book.title, script });
+    addPage(book.format === 'MANGA' ? 'MANGA' : 'COMIC'); // ComicPanelBuilder consumes the handoff on mount
+  };
+
+  // A pending handoff (from Fabula "Send to Comic" or Lorea) → open a comic page so
+  // ComicPanelBuilder mounts and picks it up.
+  useEffect(() => {
+    if (!peekComicHandoff()) return;
+    const existing = book.pages.find(p => p.type === 'COMIC' || p.type === 'MANGA');
+    if (existing) setActivePageId(existing.id);
+    else addPage('COMIC');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const deletePage = (id: string) => {
     if (book.pages.length <= 1) return;
     setBook(b => {
@@ -1084,6 +1101,13 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                     ))}
                   </div>
                 </div>
+                {/* Lorea → Comic: script this text page into panels */}
+                {activePage.type === 'TEXT' && (activePage.richText || '').trim() && (
+                  <button onClick={() => sendTextToComic(activePage)}
+                    className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors">
+                    <Layers size={12} /> Comic from this text
+                  </button>
+                )}
                 {/* Manga RTL */}
                 {activePage.type === 'MANGA' && (
                   <label className="flex items-center gap-2 cursor-pointer">

@@ -23,6 +23,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
+import { setComicHandoff } from "../../services/comicHandoff";
 
 /* ════════════════════════════════════════════════════════════
    FABULA — holistic storytelling studio. The whole story, then the telling.
@@ -1237,6 +1238,26 @@ export default function Fabula() {
     setClips(next); commitClips(next);
   };
 
+  // ── Send scene → Lorea comic composer (script + world cast + assets follow) ──
+  const sendSceneToComic = () => {
+    if (!scene) { ping("Open a scene first."); return; }
+    const parts = [];
+    if (scene.slugline || scene.title) parts.push(scene.slugline || scene.title);
+    if ((scene.script || "").trim()) parts.push(scene.script.trim());
+    else if (scene.shots?.length) scene.shots.forEach((s, i) => { parts.push(`PANEL ${i + 1}`); if ((s.lines || "").trim()) parts.push(s.lines.trim()); });
+    const castImage = (c) => {
+      const m = (c.media || []).find((x) => x?.url && (x.type === "image" || !x.type));
+      if (m?.url) return m.url;
+      const pool = (prod.mediaPool || []).find((p) => p.worldCat === "__cast" && (p.name || "").toLowerCase().includes((c.name || "").toLowerCase()));
+      return pool?.url;
+    };
+    const characters = (prod.cast || []).filter((c) => (c.name || "").trim()).map((c) => ({ name: c.name.trim(), imageUrl: castImage(c) }));
+    const assets = (prod.mediaPool || []).filter((m) => m.type === "image" && m.url).map((m) => ({ name: m.name, url: m.url }));
+    setComicHandoff({ source: "FABULA", title: scene.slugline || scene.title || prod.title, script: parts.join("\n"), characters, assets });
+    ping("Sent to the comic composer — opening Lorea…");
+    window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "BOOK_STUDIO" } }));
+  };
+
   // ── Spatialize audio — open a timeline audio clip in the Spatial Mixer, bake back ──
   const [spatialFor, setSpatialFor] = useState(null); // the audio clip being spatialized
   const spatializeClip = (clip) => {
@@ -2344,6 +2365,7 @@ export default function Fabula() {
               </select>
             )}
             {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
+            {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ COMIC</button>}
           </div>
         )}
         <div className="hdr-right">
