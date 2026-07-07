@@ -5,7 +5,7 @@ import {
   Check, CheckCheck, User, Download, StopCircle, Reply, Pin,
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
-  Flame, Timer, Camera, Radio, Heart, Palette,
+  Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
@@ -24,7 +24,8 @@ import { callItOff } from '../services/intimateGating';
 import {
   doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
 } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, storage } from '../services/firebase';
+import { ref as storageRef, deleteObject } from 'firebase/storage';
 
 // ── Extended ChatMessage with reactions + reply ───────────────────────────────
 type ExtendedMessage = ChatMessage & {
@@ -38,6 +39,11 @@ type ExtendedMessage = ChatMessage & {
   burnAfter?: number;      // epoch ms set by markMessageAsSeen when recipient views
   videoNoteUrl?: string;
   gifUrl?: string;         // GIF (Giphy) attached to the message
+  // Intimate "gift" media — wrapped until the recipient opens it, then permanently
+  // deletes (doc + Storage object) 60s after opening.
+  giftMedia?: boolean;
+  giftOpenedAt?: number;
+  storagePath?: string;    // so the burn effect can delete the Storage object too
 };
 
 // ── Intimate ("couples") mode — shared, per-room romantic theming ──────────────
@@ -193,6 +199,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [userMedia, setUserMedia] = useState<Album[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const giftNextRef = useRef(false);            // next image send is a wrapped gift
+  const [screenGuard, setScreenGuard] = useState(false); // blur the intimate convo when unfocused
 
   // New UX state
   const [replyTo, setReplyTo] = useState<ExtendedMessage | null>(null);
@@ -404,6 +412,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setVideoRecording(false);
   };
 
+  // ── Capture deterrence (intimate) ─────────────────────────────────────────────
+  // Browsers can't block screenshots, but we blur/black-out the whole conversation the
+  // moment the tab loses focus or is backgrounded — defeating casual "switch away and
+  // capture" and many screen-recorders (which trigger a visibility change). Paired with
+  // the per-image identity watermark, leaks are deterred + traceable.
+  useEffect(() => {
+    if (!isIntimate) { setScreenGuard(false); return; }
+    const onVis = () => setScreenGuard(document.hidden);
+    const onBlur = () => setScreenGuard(true);
+    const onFocus = () => setScreenGuard(document.hidden);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isIntimate]);
+
+  // Permanently remove a burned/gift message — the Firestore doc AND any Storage object.
+  const burnMessage = (m: ExtendedMessage) => {
+    deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id)).catch(() => {});
+    if (m.storagePath) { try { deleteObject(storageRef(storage, m.storagePath)); } catch { /* gone */ } }
+  };
+
   // ── Auto-delete burned messages ───────────────────────────────────────────────
   useEffect(() => {
     const now = Date.now();
@@ -412,20 +446,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     decryptedMessages.forEach(m => {
       if (!m.burnAfter) return;
       const msLeft = m.burnAfter - now;
-      if (msLeft <= 0) {
-        // Already expired — delete immediately
-        deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id)).catch(() => {});
-      } else {
-        // Schedule deletion when the countdown reaches zero
-        const t = setTimeout(() => {
-          deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id)).catch(() => {});
-        }, msLeft);
-        timers.push(t);
-      }
+      if (msLeft <= 0) burnMessage(m);                                  // already expired
+      else timers.push(setTimeout(() => burnMessage(m), msLeft));       // when countdown hits zero
     });
 
     return () => timers.forEach(clearTimeout);
-  }, [decryptedMessages, room.id]);
+  }, [decryptedMessages, room.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSendVoice = async (blob: Blob) => {
     const reader = new FileReader();
@@ -444,6 +470,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const isGift = giftNextRef.current; giftNextRef.current = false;
     if (!file) return;
     setUploadingImage(true);
     try {
@@ -456,13 +483,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           senderPhoto: auth.currentUser?.photoURL || '',
           imageUrl: url,
           type: 'IMAGE',
-        });
+          // Gift media (intimate): wrapped until opened, then vanishes 60s after opening.
+          ...(isGift ? { giftMedia: true, storagePath: path } : {}),
+        } as any);
       }
     } finally {
       setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
+
+  // Recipient opens a gift → reveal it and arm the 60s permadelete (doc + Storage object).
+  const openGift = (m: ExtendedMessage) => {
+    if (m.giftOpenedAt) return;
+    updateDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id), {
+      giftOpenedAt: Date.now(),
+      burnAfter: Date.now() + 60_000,
+    }).catch(() => {});
+  };
+  const sendGift = () => { giftNextRef.current = true; imageInputRef.current?.click(); };
 
   const handleReact = async (msgId: string, emoji: string) => {
     const uid = auth.currentUser?.uid;
@@ -568,6 +607,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     <div className="relative flex flex-col h-full overflow-hidden bg-black/10">
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
       <input ref={intimateBgInputRef} type="file" accept="image/*" className="hidden" onChange={handleIntimateBgFile} />
+
+      {/* ── Capture guard — blacks out the intimate conversation when unfocused/backgrounded ── */}
+      {isIntimate && screenGuard && (
+        <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-2 text-center px-8"
+          style={{ background: 'rgba(6,2,4,0.98)', backdropFilter: 'blur(24px)' }}>
+          <EyeOff size={26} style={{ color: intimateTheme.accent }} />
+          <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: intimateTheme.accent }}>Hidden while you're away</p>
+          <p className="text-[10px] text-white/40 max-w-xs">This intimate conversation is concealed when the window loses focus. Return to it to keep reading.</p>
+        </div>
+      )}
 
       {/* ── Intimate backdrop — photo or theme gradient + scrim + ambient hearts ── */}
       {isIntimate && (
@@ -1002,13 +1051,43 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   ) : (msg as any).gifUrl ? (
                     <img src={(msg as any).gifUrl} alt="GIF" className="rounded-xl max-w-[220px] max-h-[300px] object-contain" loading="lazy" />
                   ) : msg.type === 'IMAGE' && msg.imageUrl ? (
-                    <div className="space-y-2">
-                      <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[260px] max-h-[340px] object-cover" loading="lazy" />
-                      <a href={msg.imageUrl} download target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">
-                        <Download size={9} /> Download
-                      </a>
-                    </div>
+                    (msg.giftMedia && !isMe && !msg.giftOpenedAt) ? (
+                      // Wrapped gift — recipient must open it; then it vanishes 60s later.
+                      <button
+                        onClick={() => openGift(msg)}
+                        className="flex flex-col items-center gap-1.5 px-6 py-6 rounded-2xl border transition-all hover:scale-[1.02]"
+                        style={{ background: `${intimateTheme.accent}14`, borderColor: `${intimateTheme.accent}44` }}
+                      >
+                        <span className="text-2xl">🎁</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: intimateTheme.accent }}>A gift for you — tap to open</span>
+                        <span className="text-[8px] text-white/40 uppercase tracking-widest">Vanishes 60s after opening</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[260px] max-h-[340px] object-cover" loading="lazy" />
+                          {isIntimate && (
+                            // Faint identity watermark — makes any leaked capture traceable.
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden rounded-xl">
+                              <span className="text-[10px] font-black uppercase tracking-[0.3em] rotate-[-24deg] whitespace-nowrap"
+                                style={{ color: 'rgba(255,255,255,0.16)', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                                {(currentUserProfile?.displayName || auth.currentUser?.displayName || 'private')} · private
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {(msg.giftMedia && msg.giftOpenedAt) ? (
+                          <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest text-rose-300">
+                            <Flame size={9} /> Vanishing — gift disappears 60s after opening
+                          </span>
+                        ) : (
+                          <a href={msg.imageUrl} download target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">
+                            <Download size={9} /> Download
+                          </a>
+                        )}
+                      </div>
+                    )
                   ) : msg.type === 'MEDIA' ? (
                     <div className="flex items-center gap-3 min-w-[180px]">
                       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
@@ -1243,6 +1322,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 >
                   <Flame size={17} />
                 </button>
+                {/* Send a gift — intimate-only ephemeral photo (opens like a gift, vanishes 60s after) */}
+                {isIntimate && (
+                  <button type="button" onClick={sendGift} disabled={uploadingImage}
+                    title="Send a gift photo (vanishes 60s after opening)"
+                    className="p-2 rounded-xl transition-all disabled:opacity-30"
+                    style={{ color: intimateTheme.accent }}>
+                    <Gift size={17} />
+                  </button>
+                )}
               </div>
 
               {/* Text input */}

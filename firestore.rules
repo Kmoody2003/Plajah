@@ -1002,10 +1002,21 @@ service cloud.firestore {
         );
         allow create: if isAuthenticated() && isValidChatMessage(request.resource.data);
         allow update: if isAuthenticated() && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
-          request.auth.uid in request.resource.data.seenBy
+          // Seen receipts (any reader).
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) &&
+           request.auth.uid in request.resource.data.seenBy) ||
+          // Arm the ephemeral countdown (burn-after-read + intimate "gift" open) — a room participant.
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy', 'burnAfter', 'giftOpenedAt']) &&
+           exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
+           request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants)
         );
-        allow delete: if isAdmin() || (isAuthenticated() && resource.data.senderId == request.auth.uid);
+        allow delete: if isAdmin()
+          || (isAuthenticated() && resource.data.senderId == request.auth.uid)
+          // Ephemeral (burning / gift) messages self-destruct — any room participant may reap them.
+          || (isAuthenticated()
+              && (resource.data.get('burnAfter', null) != null || resource.data.get('burnAfterSeen', false) == true || resource.data.get('giftMedia', false) == true)
+              && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+              && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants);
       }
     }
 

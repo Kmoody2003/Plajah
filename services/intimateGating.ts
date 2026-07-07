@@ -9,23 +9,11 @@ import { deleteDiary } from './couplesDiary';
 // 1:1 private DMs only (never org/group), one active partner at a time, and
 // "call it off" which permanently deletes the thread + diary for both.
 //
-// Profile fields live on the users doc (written via updateUserProfile). They
-// are declared here as an augmentation so this ships without editing the
-// shared types.ts (fold into UserProfile later):
-//   intimateEnrolled?: boolean; intimateEnrolledAt?: number;
-//   dateOfBirth?: number (unix ms); intimatePartnerUid?: string | null.
+// Profile fields (intimateEnrolled/intimateEnrolledAt/dateOfBirth/
+// intimatePartnerUid) now live on UserProfile in types.ts.
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface IntimateProfileFields {
-  intimateEnrolled?: boolean;
-  intimateEnrolledAt?: number;
-  dateOfBirth?: number;          // unix ms
-  intimatePartnerUid?: string | null;
-  // read-only signals already present on UserProfile used for the child block:
-  isChild?: boolean;
-  accountType?: string;
-}
-export type IntimateProfile = UserProfile & IntimateProfileFields;
+export type IntimateProfile = UserProfile;
 
 export const MIN_AGE = 18;
 const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
@@ -79,12 +67,12 @@ export async function enrollIntimate(uid: string, dobMs: number): Promise<void> 
     dateOfBirth: dobMs,
     intimateEnrolled: true,
     intimateEnrolledAt: Date.now(),
-  } as any);
+  });
 }
 
 /** Leave the program (keeps DOB; just clears the opt-in). */
 export async function unenrollIntimate(uid: string): Promise<void> {
-  await updateUserProfile(uid, { intimateEnrolled: false } as any);
+  await updateUserProfile(uid, { intimateEnrolled: false });
 }
 
 export interface BeginResult { ok: boolean; reason?: string }
@@ -113,7 +101,7 @@ export async function beginIntimate(
   if (current && current !== otherUid) {
     return { ok: false, reason: 'You can only have one intimate connection at a time. End the current one first.' };
   }
-  await updateUserProfile(me.uid, { intimatePartnerUid: otherUid } as any);
+  await updateUserProfile(me.uid, { intimatePartnerUid: otherUid });
   await updateRoomIntimate(room.id, { isIntimate: true });
   return { ok: true };
 }
@@ -129,7 +117,7 @@ export async function pauseIntimate(roomId: string): Promise<void> {
  * The other user's stale partner link self-heals on their next load.
  */
 export async function callItOff(roomId: string, myUid: string): Promise<void> {
-  await updateUserProfile(myUid, { intimatePartnerUid: null } as any);
+  await updateUserProfile(myUid, { intimatePartnerUid: null });
   await deleteDiary(roomId).catch(() => {});
   await deleteChatRoom(roomId).catch(() => {});
 }
@@ -144,6 +132,6 @@ export async function reconcileStalePartner(me: IntimateProfile, rooms: ChatRoom
   if (!partner) return;
   const live = rooms.some(r => isPrivateDM(r) && r.isIntimate && r.participants.includes(partner));
   if (!live) {
-    await updateUserProfile(me.uid, { intimatePartnerUid: null } as any).catch(() => {});
+    await updateUserProfile(me.uid, { intimatePartnerUid: null }).catch(() => {});
   }
 }

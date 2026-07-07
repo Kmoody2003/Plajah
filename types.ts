@@ -1245,6 +1245,11 @@ export interface UserProfile {
   adCampaigns?: ArtistAdCampaign[];
   // Right Now — real-time presence sharing (opt-in)
   presenceEnabled?: boolean;
+  // Intimate Mode (couples chat) — opt-in, 18+; accounts ship NOT enrolled
+  intimateEnrolled?: boolean;
+  intimateEnrolledAt?: number;
+  dateOfBirth?: number;            // unix ms — captured at intimate enrollment (18+ gate)
+  intimatePartnerUid?: string | null; // single active intimate partner at a time
   // Smart Guide — contextual feature discovery assistant
   hasSeenSmartGuide?: boolean;
   smartGuideEnabled?: boolean;
