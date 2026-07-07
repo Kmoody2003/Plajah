@@ -1771,7 +1771,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
                     <Car size={10} /> Manufacturer Standings
                   </h4>
                   {constructors.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {constructors.slice(0, 3).map((c, i) => {
                         const mColor = MFR_COLOR[c.name] ?? c.color;
                         return (
@@ -1816,7 +1816,7 @@ const RacingCenterView: React.FC<{ tab: string }> = ({ tab }) => {
 
               {isIndycar && (
                 <>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     {[
                       { name: 'Honda', color: '#E40521', note: 'Engine Supplier' },
                       { name: 'Chevrolet', color: '#FFD700', note: 'Engine Supplier' },

@@ -807,7 +807,7 @@ const WorldCupHub: React.FC<Props> = ({ currentUser, initialTab }) => {
               <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-4">
                 48 Nations · Tap to open fan hub
               </p>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-2">
                 {WC26_TEAMS.map(team => (
                   <CountryCard
                     key={team.id}

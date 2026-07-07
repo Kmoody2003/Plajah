@@ -117,7 +117,7 @@ const WorldCupMatchDetail: React.FC<Props> = ({ eventId, title, onClose, onOpenF
             <div className="flex items-center justify-center py-16 text-white/40"><Loader2 size={22} className="animate-spin" /></div>
           ) : tab === 'lineups' ? (
             hasLineups ? (
-              <div className="flex gap-6">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <LineupColumn team={data?.home} accent="#39B54A" />
                 <div className="w-px bg-white/8" />
                 <LineupColumn team={data?.away} accent="#00B4D8" />

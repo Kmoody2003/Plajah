@@ -170,7 +170,7 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
         <div className="relative px-7 py-8">
 
           <div className="flex items-center gap-5">
-            <span className="text-6xl leading-none">{team.flag}</span>
+            <span className="text-4xl sm:text-6xl leading-none">{team.flag}</span>
             <div>
               <p className="text-[8px] font-black uppercase tracking-[0.5em] text-white/40 mb-1">Group {team.group} · {team.confederation}</p>
               <h2 className="text-3xl font-black uppercase tracking-tight text-white">{team.name}</h2>
@@ -339,7 +339,7 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
           {/* Popular artists */}
           <div>
             <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">Popular Artists from {team.name}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {team.popularArtists.map(artist => (
                 <div
                   key={artist}
@@ -407,7 +407,7 @@ const WorldCupCountryHub: React.FC<Props> = ({ team, currentUser, onBack }) => {
         <div className="space-y-3">
           {/* Live group standing */}
           {groupTable.length > 0 && (
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-y-hidden overflow-x-auto">
               <div className="px-4 py-2.5 border-b border-white/8 flex items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Group {team.group}</span>
                 {myRow && <span className="ml-auto text-[9px] font-black" style={{ color: (myRow.rank || 9) <= 2 ? '#39B54A' : 'rgba(255,255,255,0.5)' }}>{myRow.rank ? `#${myRow.rank}` : ''} · {myRow.pts} pts{(myRow.rank || 9) <= 2 ? ' · Advancing' : ''}</span>}
