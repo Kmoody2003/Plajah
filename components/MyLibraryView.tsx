@@ -42,11 +42,13 @@ import {
   deletePlaylist,
   createPersonalAlbum,
   deletePersonalTrack,
+  updatePersonalTrack,
   uploadFile,
   postToFeed,
   auth
 } from '../services/backendService';
-import { readAudioTags, isAudioFile, titleFromFilename } from '../services/musicLocker';
+import { readAudioTags, isAudioFile, titleFromFilename, isPlaylistFile, isImageFile, coverScore, baseNoExt, parsePlaylistOrder } from '../services/musicLocker';
+import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 
 interface MyLibraryViewProps {
@@ -67,6 +69,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('LIST');
+  const [lockerAlbumId, setLockerAlbumId] = useState<string | null>(null); // drilled-into locker album
   const [sortBy, setSortBy] = useState<'title' | 'artist' | 'album' | 'date'>('date');
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [editingPodcastTrack, setEditingPodcastTrack] = useState<Track | null>(null);
@@ -303,65 +306,139 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const audio = Array.from(files).filter(isAudioFile);
+    const all = Array.from(files);
+    const audio = all.filter(isAudioFile);
     if (audio.length === 0) { alert('No supported audio files found in that selection.'); return; }
+    const imageFiles = all.filter(isImageFile);
+    const playlistFiles = all.filter(isPlaylistFile);
+
+    const folderOf = (f: File): string => {
+      const parts = (((f as any).webkitRelativePath || '') as string).split('/').filter(Boolean);
+      return parts.length > 1 ? parts[parts.length - 2] : '';
+    };
 
     setIsUploading(true);
     setUploadProgress({ done: 0, total: audio.length });
     try {
-      // Read embedded tags first (fast, local) to organise the collection.
+      // Tag each file + capture its folder path (preserve the folder structure).
       const tagged = await Promise.all(audio.map(async (file) => {
-        const rel = ((file as any).webkitRelativePath || '') as string;
-        const parts = rel.split('/');
+        const parts = (((file as any).webkitRelativePath || '') as string).split('/').filter(Boolean);
         const folder = parts.length > 1 ? parts[parts.length - 2] : '';
-        return { file, tags: await readAudioTags(file), folder };
+        const folderPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+        return { file, tags: await readAudioTags(file), folder, folderPath, base: baseNoExt(file.name) };
       }));
 
-      // Group into albums by album tag (fallback: parent folder). Loose singles → "Singles".
+      // Group into albums: prefer the containing FOLDER (folder = album), else the
+      // album tag, else loose "Singles". This makes a folder import surface as an album.
       const groups = new Map<string, typeof tagged>();
       for (const item of tagged) {
-        const key = item.tags.album || item.folder || 'Singles';
+        const key = item.folder || item.tags.album || 'Singles';
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(item);
       }
 
-      let done = 0;
-      for (const [albumName, items] of groups.entries()) {
-        items.sort((a, b) => (a.tags.trackNo || 999) - (b.tags.trackNo || 999));
-        const albumArtist = items.find(i => i.tags.artist)?.tags.artist || 'My Collection';
+      // Playlist sidecar files (.m3u/.pls/.xml) → ordered basenames, keyed by folder.
+      const playlistByFolder = new Map<string, { order: string[]; name: string }>();
+      for (const pf of playlistFiles) {
+        try {
+          const order = parsePlaylistOrder(await pf.text(), pf.name);
+          if (order.length) playlistByFolder.set(folderOf(pf) || pf.name, { order, name: pf.name });
+        } catch { /* ignore unreadable playlist */ }
+      }
+      // Best cover-image file per folder (cover.jpg / folder.png / …).
+      const coverByFolder = new Map<string, File>();
+      for (const img of imageFiles) {
+        const k = folderOf(img);
+        const cur = coverByFolder.get(k);
+        if (!cur || coverScore(img.name) > coverScore(cur.name)) coverByFolder.set(k, img);
+      }
 
-        // Upload embedded album art once, reuse as cover for the album + its tracks.
+      let done = 0;
+      const enrichQueue: { id: string; artist: string; title: string; album?: string; durationSec?: number }[] = [];
+
+      for (const [groupKey, items] of groups.entries()) {
+        const albumArtist = items.find(i => i.tags.artist)?.tags.artist || 'My Collection';
+        const displayAlbum = items.find(i => i.tags.album)?.tags.album || groupKey;
+        const isSingles = groupKey === 'Singles';
+
+        // Order: a playlist file for this folder wins; else track number; else name.
+        const pl = playlistByFolder.get(groupKey);
+        if (pl) {
+          const idx = new Map(pl.order.map((b, i) => [b, i] as [string, number]));
+          items.sort((a, b) => (idx.has(a.base) ? idx.get(a.base)! : 999) - (idx.has(b.base) ? idx.get(b.base)! : 999));
+        } else {
+          items.sort((a, b) => (a.tags.trackNo || 999) - (b.tags.trackNo || 999));
+        }
+
+        // Cover: embedded art → a folder cover image file → open Cover Art Archive.
         let coverUrl = '';
-        const art = items.find(i => i.tags.pictureBlob)?.tags.pictureBlob;
-        if (art && auth.currentUser) {
-          try { coverUrl = await uploadFile(`personal/${auth.currentUser.uid}/covers/${Date.now()}_${albumName.replace(/[^a-z0-9]/gi, '_')}.jpg`, art); } catch { /* art optional */ }
+        const embedded = items.find(i => i.tags.pictureBlob)?.tags.pictureBlob;
+        const folderImg = coverByFolder.get(groupKey) || coverByFolder.get('');
+        let coverBlob: Blob | null = embedded || folderImg || null;
+        if (!coverBlob && !isSingles) coverBlob = await fetchCoverArtBlob(albumArtist, displayAlbum);
+        if (coverBlob && auth.currentUser) {
+          try { coverUrl = await uploadFile(`personal/${auth.currentUser.uid}/covers/${Date.now()}_${(displayAlbum || 'album').replace(/[^a-z0-9]/gi, '_')}.jpg`, coverBlob); } catch { /* art optional */ }
         }
 
         let albumId: string | undefined;
-        if (albumName !== 'Singles') {
-          const album = await createPersonalAlbum({ title: albumName, artist: albumArtist, coverImage: coverUrl || undefined });
+        if (!isSingles) {
+          const album = await createPersonalAlbum({ title: displayAlbum, artist: albumArtist, coverImage: coverUrl || undefined });
           albumId = album?.id;
           if (album) setPersonalAlbums(prev => [album, ...prev]);
         }
 
-        for (const { file, tags } of items) {
+        const albumTrackIds: string[] = [];
+        for (const { file, tags, folderPath } of items) {
+          const title = tags.title || titleFromFilename(file.name);
           const track = await uploadPersonalTrack({
-            title: tags.title || titleFromFilename(file.name),
+            title,
             artist: tags.artist || albumArtist,
             albumId,
-            albumTitle: albumName !== 'Singles' ? albumName : undefined,
+            albumTitle: isSingles ? undefined : displayAlbum,
             albumCover: coverUrl || undefined,
+            genre: tags.genre,
+            folderPath: folderPath || undefined,
+            trackNo: tags.trackNo,
           } as any, file);
-          if (track) setPersonalTracks(prev => [track, ...prev]);
+          if (track) {
+            setPersonalTracks(prev => [track, ...prev]);
+            albumTrackIds.push(track.id);
+            enrichQueue.push({ id: track.id, artist: tags.artist || albumArtist, title, album: isSingles ? undefined : displayAlbum, durationSec: (track as any).duration });
+          }
           done++;
           setUploadProgress({ done, total: audio.length });
         }
+
+        // Persist the folder's playlist as a Chora playlist too.
+        if (pl && albumTrackIds.length) {
+          try { await createPlaylist({ title: pl.name.replace(/\.[^/.]+$/, ''), trackIds: albumTrackIds, coverUrl: coverUrl || undefined } as any); } catch { /* optional */ }
+        }
       }
+
+      // Enrich lyrics in the background (lrclib) — don't block the upload UI.
+      enrichLyricsFor(enrichQueue);
     } catch (error) {
       console.error("Locker upload failed:", error);
     } finally {
       setIsUploading(false);
       setUploadProgress(null);
+    }
+  };
+
+  // Best-effort open-source lyrics for freshly uploaded locker tracks.
+  const enrichLyricsFor = async (items: { id: string; artist: string; title: string; album?: string; durationSec?: number }[]) => {
+    for (const it of items) {
+      try {
+        const ly = await fetchLyrics({ artist: it.artist, title: it.title, album: it.album, durationSec: it.durationSec });
+        if (!ly) continue;
+        const updates: Partial<Track> = {};
+        if (ly.plain) updates.lyrics = ly.plain;
+        if (ly.synced && ly.synced.length) updates.timeCodedLyrics = ly.synced;
+        if (Object.keys(updates).length) {
+          await updatePersonalTrack(it.id, updates);
+          setPersonalTracks(prev => prev.map(t => t.id === it.id ? { ...t, ...updates } : t));
+        }
+      } catch { /* best-effort */ }
     }
   };
 
@@ -433,10 +510,54 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
            t.artist.toLowerCase().includes(searchQuery.toLowerCase());
   }));
 
-  const filteredPersonal = sortTracks(personalTracks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredPersonal = sortTracks(personalTracks.filter(t =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.artist.toLowerCase().includes(searchQuery.toLowerCase())
   ));
+
+  // Group the locker into albums (from the tracks) so folder imports surface as
+  // albums; tracks with no album stay as loose singles.
+  const lockerAlbums = (() => {
+    const map = new Map<string, { key: string; title: string; artist: string; cover?: string; tracks: Track[] }>();
+    const singles: Track[] = [];
+    for (const t of filteredPersonal) {
+      const key = t.albumId || (t.albumTitle ? `title:${t.albumTitle}` : '');
+      if (!key) { singles.push(t); continue; }
+      if (!map.has(key)) map.set(key, { key, title: t.albumTitle || 'Album', artist: t.artist, cover: t.albumCover, tracks: [] });
+      const a = map.get(key)!;
+      a.tracks.push(t);
+      if (!a.cover && t.albumCover) a.cover = t.albumCover;
+    }
+    const albums = Array.from(map.values());
+    for (const a of albums) a.tracks.sort((x, y) => ((x as any).trackNo || 999) - ((y as any).trackNo || 999));
+    return { albums, singles };
+  })();
+
+  const renderLockerRow = (track: Track, list: Track[]) => (
+    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all">
+      <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+        {track.albumCover ? (
+          <img src={track.albumCover || undefined} className="w-full h-full object-cover rounded-xl" alt={track.title} />
+        ) : (
+          <FileMusic size={20} className="text-white/20" />
+        )}
+        <button onClick={() => playTrackFromList(track, list, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+          <Play size={16} fill="white" />
+        </button>
+      </div>
+      <div className="flex-1 grid grid-cols-3 gap-4 items-center">
+        <div className="min-w-0">
+          <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
+          <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
+        </div>
+        <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">{track.albumTitle || 'Single'}</div>
+        <div className="flex justify-end pr-4 gap-2">
+          <button onClick={() => setEditingPodcastTrack(track)} className="p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
+          <button onClick={() => handleDeletePersonal(track.id)} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -673,71 +794,59 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               </div>
             )}
 
-            <div className={viewMode === 'GRID' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6' : 'flex flex-col gap-2'}>
-              {filteredPersonal.length > 0 ? (
-                filteredPersonal.map((track) => (
-                  viewMode === 'GRID' ? (
-                    <div key={`pers-grid-${track.id}`} className="group cursor-pointer">
-                      <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
-                        {track.albumCover ? (
-                          <img src={track.albumCover || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={track.title} />
-                        ) : (
-                          <FileMusic size={48} className="text-white/10 group-hover:scale-110 transition-transform" />
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <div className="flex flex-col gap-2">
-                            <button onClick={() => playTrackFromList(track, filteredPersonal, 'Personal Collection')} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black">
-                              <Play size={24} fill="black" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="text-xs font-black uppercase tracking-widest truncate">{track.title || 'Untitled Track'}</h4>
-                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
+            {lockerAlbumId ? (() => {
+              const album = lockerAlbums.albums.find(a => a.key === lockerAlbumId);
+              const tracks = album ? album.tracks : [];
+              return (
+                <div className="flex flex-col gap-4">
+                  <button onClick={() => setLockerAlbumId(null)} className="self-start text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">← All albums</button>
+                  <div className="flex items-center gap-5">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
+                      {album?.cover ? <img src={album.cover} className="w-full h-full object-cover" alt={album.title} /> : <Disc size={36} className="text-white/10" />}
                     </div>
-                  ) : (
-                    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all">
-                      <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
-                        {track.albumCover ? (
-                          <img src={track.albumCover || null} className="w-full h-full object-cover" alt={track.title} />
-                        ) : (
-                          <FileMusic size={20} className="text-white/20" />
-                        )}
-                        <button onClick={() => playTrackFromList(track, filteredPersonal, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Play size={16} fill="white" />
-                        </button>
-                      </div>
-                      <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
-                          <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
-                        </div>
-                        <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">
-                          {track.albumTitle || 'Single'}
-                        </div>
-                        <div className="flex justify-end pr-4 gap-2">
-                          <button
-                            onClick={() => setEditingPodcastTrack(track)}
-                            className="p-2 text-white/20 hover:text-white transition-colors"
-                            title="Edit details"
-                          >
-                            <Settings size={16} />
-                          </button>
-                          <button onClick={() => handleDeletePersonal(track.id)} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
+                    <div className="min-w-0">
+                      <h3 className="text-2xl font-black uppercase tracking-tight truncate">{album?.title || 'Album'}</h3>
+                      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{album?.artist} · {tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
+                      <button onClick={() => tracks[0] && playTrackFromList(tracks[0], tracks, album?.title || 'Album')} className="mt-3 flex items-center gap-2 px-5 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                        <Play size={12} fill="black" /> Play album
+                      </button>
                     </div>
-                  )
-                ))
-              ) : (
-                <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                  <FileMusic size={48} className="text-white/5 mx-auto mb-4" />
-                  <p className="text-white/20 uppercase font-black tracking-[0.5em]">Your vault is empty.</p>
+                  </div>
+                  <div className="flex flex-col gap-2">{tracks.map(t => renderLockerRow(t, tracks))}</div>
                 </div>
-              )}
-            </div>
+              );
+            })() : (filteredPersonal.length === 0 ? (
+              <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                <FileMusic size={48} className="text-white/5 mx-auto mb-4" />
+                <p className="text-white/20 uppercase font-black tracking-[0.5em]">Your vault is empty.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-8">
+                {lockerAlbums.albums.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Albums</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                      {lockerAlbums.albums.map(a => (
+                        <button key={a.key} onClick={() => setLockerAlbumId(a.key)} className="group text-left">
+                          <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
+                            {a.cover ? <img src={a.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={a.title} /> : <Disc size={48} className="text-white/10 group-hover:scale-110 transition-transform" />}
+                            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-black text-white/80">{a.tracks.length}</div>
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{a.title}</h4>
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{a.artist}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {lockerAlbums.singles.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Singles</h4>
+                    <div className="flex flex-col gap-2">{lockerAlbums.singles.map(t => renderLockerRow(t, lockerAlbums.singles))}</div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

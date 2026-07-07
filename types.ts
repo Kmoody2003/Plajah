@@ -119,6 +119,8 @@ export interface Track {
   price?: number; // Price for individual purchase, 0 or undefined means free
   isPaywalled?: boolean; // If true, requires purchase to play/view
   license?: string; // Content license id (licensingService); defaults to All Rights Reserved
+  syncLicenseFee?: number; // USD flat fee to license this track for sync (film/video) use; undefined/0 = not offered
+  syncLicenseTerms?: string; // human-readable sync-license terms shown to the licensee
   genre?: string;
   isRadioEligible?: boolean; // Artist can opt-in
   isSlideshowEligible?: boolean; // Artist can opt-in
@@ -126,6 +128,8 @@ export interface Track {
   isExclusive?: boolean; // Members only content
   albumId?: string; // For personal collection grouping
   albumTitle?: string;
+  folderPath?: string; // Locker: original folder path of the uploaded file (preserves structure)
+  trackNo?: number; // Track number within its album (for correct album ordering)
   albumCover?: string;
   videoId?: string; // Linked music video ID
   playCount?: number;
@@ -1283,6 +1287,7 @@ export type EarningCategory =
   | 'store_order'    // merch / physical store orders
   | 'club'           // club membership fees
   | 'seedraiser'     // crowdfunding pledge
+  | 'sync_license'   // music sync-license fee (track used in a film/video)
   | 'other';
 
 export interface EarningSplit {
@@ -1308,6 +1313,24 @@ export interface CreatorEarning {
   stripeTransferId?: string;
   status: 'pending' | 'transferred' | 'paid_out';
   timestamp: number;
+}
+
+// ── Music sync-license grant (per-project) ────────────────────────────────────
+// Created server-side (Stripe webhook) when a filmmaker licenses a track for a
+// specific Fabula edit. Clears that track for that project.
+export interface SyncLicenseGrant {
+  id: string;
+  buyerUid: string;        // the filmmaker who licensed the track
+  editId: string;          // Fabula production/edit id (studio:prod:{id})
+  editTitle?: string;
+  trackId: string;
+  albumId: string;
+  trackTitle?: string;
+  rightsOwnerUid: string;  // the musician paid
+  feeCents: number;
+  stripePaymentIntentId?: string;
+  status: 'granted';
+  createdAt: number;
 }
 
 // ── Split Configuration ───────────────────────────────────────────────────────

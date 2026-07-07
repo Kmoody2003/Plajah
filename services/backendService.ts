@@ -5353,6 +5353,16 @@ export const fetchPersonalAlbums = async () => {
   }
 };
 
+/** Merge-update a locker track (e.g. enriched lyrics/art). Owner-gated by rules. */
+export const updatePersonalTrack = async (id: string, updates: Partial<Track>) => {
+  if (!auth.currentUser || !id) return;
+  try {
+    await setDoc(doc(db, 'personal_tracks', id), removeUndefined(updates as any), { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_tracks/${id}`);
+  }
+};
+
 export const createPlaylist = async (playlist: Partial<Playlist>) => {
   if (!auth.currentUser) return;
   const id = `playlist_${Date.now()}`;
