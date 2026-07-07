@@ -1048,7 +1048,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 type="text"
                 value={inputText}
                 onChange={handleInputChange}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); }}
+                /* Enter submits via the form's onSubmit — no manual send here, or it fires twice (duplicate messages). */
                 placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
                 className={`flex-1 bg-white/[0.06] border rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:bg-white/[0.08] transition-all outline-none min-w-0 ${
                   burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'
