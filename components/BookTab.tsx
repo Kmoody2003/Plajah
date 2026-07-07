@@ -327,6 +327,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             <BookOpen size={14} /> Create a Book
           </button>
         )}
+        {/* Comics & Manga Museum — public-domain comics + manga history + global library */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_MUSEUM' } }))}
+          className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-violet-500 transition-colors shadow-lg shadow-violet-500/20"
+        >
+          <span>🏛️</span> Comics & Manga Museum
+        </button>
         {/* Import a digital comic (CBZ / PDF) → opens in the comic reader */}
         <label className={`flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest rounded-full cursor-pointer transition-colors ${comicImporting ? 'opacity-60 pointer-events-none' : ''}`}>
           {comicImporting ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}

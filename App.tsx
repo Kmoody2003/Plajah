@@ -185,6 +185,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
+const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
@@ -930,6 +931,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'BRAND_ACTIVATION') {
       if (!user) { loginWithGoogle(); return; }
       setShowBrandActivation(true);
+    } else if (target === 'COMIC_MUSEUM') {
+      setView('COMIC_MUSEUM');
     } else if (target === 'SANCTUARY_HUB') {
       setView('SANCTUARY_HUB');
     } else if (target === 'SANCTUARY') {
@@ -3851,6 +3854,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'BOOK_STUDIO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading studio…</div>}>
                 <BookAuthoringStudio onBack={() => setView('BOOKS')} />
+              </Suspense>
+            )}
+            {view === 'COMIC_MUSEUM' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading museum…</div>}>
+                <ComicMangaMuseum
+                  onBack={() => setView('BOOKS')}
+                  onSelectBook={(b) => { setSelectedBook(b); setView('BOOK_READER'); }}
+                />
               </Suspense>
             )}
 
