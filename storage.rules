@@ -103,6 +103,12 @@ service firebase.storage {
       allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024 * 1024;
     }
 
+    // ── Fabula project JSON — owner-only (durable cloud copy of the editor project) ──
+    match /fabula/{uid}/{allPaths=**} {
+      allow read:  if isAuth() && request.auth.uid == uid;
+      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 50 * 1024 * 1024;
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if true;

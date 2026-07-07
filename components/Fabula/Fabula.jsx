@@ -20,6 +20,7 @@ import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
@@ -518,7 +519,7 @@ export default function Fabula() {
 
   /* editor state */
   const [clips, setClips] = useState([]);
-  const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
+  const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved' | 'error'
   const clipsSaveTimer = useRef(null);
   const skipClipsSaveRef = useRef(false);
   const [editSel, setEditSel] = useState(null);     // standalone edit id (timelines independent of scenes)
@@ -558,8 +559,29 @@ export default function Fabula() {
 
   /* ----- boot ----- */
   useEffect(() => { (async () => {
-    try { const idx = await stGet("studio:index"); setIndex(idx?.list || []); setStorageReady(true); }
+    let localList = [];
+    try { const idx = await stGet("studio:index"); localList = idx?.list || []; setIndex(localList); setStorageReady(true); }
     catch { setStorageReady(false); }
+    // Cloud sync: projects durably live on the platform (Storage + Firestore), not just
+    // this browser's IndexedDB. Merge the cloud list in (newest `updated` wins) so projects
+    // survive local eviction / other devices, then back up any local-only projects to the cloud.
+    try {
+      const cloud = await listProjectsCloud();
+      if (cloud.length || localList.length) {
+        const byId = new Map();
+        for (const e of localList) byId.set(e.id, e);
+        for (const e of cloud) { const ex = byId.get(e.id); if (!ex || (e.updated || 0) > (ex.updated || 0)) byId.set(e.id, e); }
+        const merged = [...byId.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+        setIndex(merged);
+        stSet("studio:index", { list: merged });
+        // Back up local-only projects to the cloud (best-effort) — rescues the current project.
+        const cloudIds = new Set(cloud.map((e) => e.id));
+        for (const e of localList) if (!cloudIds.has(e.id)) {
+          const full = await stGet("studio:prod:" + e.id);
+          if (full) saveProjectCloud(full).catch(() => {});
+        }
+      }
+    } catch { /* offline — local cache still works */ }
     // Pixels → Fabula handoff: if a session was just exported, open that production
     // straight into its edit (the standalone timeline). Consumed once.
     try {
@@ -614,7 +636,10 @@ export default function Fabula() {
         stSet("studio:index", { list: next });
         return next;
       });
-      setSaveState("saved");
+      // Durable cloud save. saveState reflects the CLOUD result so a failure to persist
+      // to the platform is visible (local IndexedDB still holds a backup either way).
+      const res = await saveProjectCloud(prod);
+      setSaveState(res.ok ? "saved" : "error");
     }, 700);
     return () => clearTimeout(saveTimer.current);
   }, [prod]);
@@ -701,16 +726,23 @@ export default function Fabula() {
       createdAt: Date.now(), updatedAt: Date.now(),
     });
     await stSet("studio:prod:" + p.id, p);
+    saveProjectCloud(p).catch(() => {}); // durable platform copy (debounced save also covers edits)
     setProd(p); setNewTitle(""); setSceneSel(null); setProdTab("structure");
   };
   const openProduction = async (id) => {
-    const p = await stGet("studio:prod:" + id);
+    // Local-first (instant), cloud-fallback if IndexedDB lost it (the disappearing-project case).
+    let p = await stGet("studio:prod:" + id);
+    if (!p) {
+      p = await loadProjectCloud(id);
+      if (p) stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
+    }
     if (!p) { setError("Couldn't load that production."); return; }
     setProd(migrate(p)); setSceneSel(null); setProdTab("structure");
   };
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
     await stDel("studio:prod:" + id);
+    deleteProjectCloud(id).catch(() => {}); // remove the cloud copy too
     setIndex((cur) => { const n = cur.filter((x) => x.id !== id); stSet("studio:index", { list: n }); return n; });
     if (prod?.id === id) { setProd(null); setSceneSel(null); }
   };
@@ -1483,6 +1515,7 @@ export default function Fabula() {
     const ed = { id: uid(), title: "EDIT 1", timeline: { clips: [], trackSettings: {} }, updatedAt: Date.now() };
     p.edits.push(ed);
     await stSet("studio:prod:" + p.id, p);
+    saveProjectCloud(p).catch(() => {}); // durable platform copy immediately (guards the debounce race)
     setProd(p); setSceneSel(null); setEditSel(ed.id); setEditWs("edit");
     ping("Quick project ready — cut first, story layer whenever you want it");
   };
@@ -3110,8 +3143,8 @@ export default function Fabula() {
       {/* autosave indicator — every edit persists as you go */}
       {prod && saveState !== "idle" && (
         <div style={{ position: "fixed", bottom: 84, right: 14, zIndex: 60, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", pointerEvents: "none" }}>
-          <span className={saveState === "saving" ? "blink" : ""} style={{ width: 7, height: 7, borderRadius: 999, background: saveState === "saving" ? "#FF8C00" : "#3FBE85" }} />
-          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>{saveState === "saving" ? "Saving" : "Saved"}</span>
+          <span className={saveState === "saving" ? "blink" : ""} style={{ width: 7, height: 7, borderRadius: 999, background: saveState === "saving" ? "#FF8C00" : saveState === "error" ? "#F04770" : "#3FBE85" }} />
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: saveState === "error" ? "#F98BA6" : "rgba(255,255,255,0.6)" }}>{saveState === "saving" ? "Saving" : saveState === "error" ? "Cloud save failed — backed up locally" : "Saved to platform"}</span>
         </div>
       )}
       {spatialFor && (
