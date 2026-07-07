@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
 import ComicReader from './ComicReader';
 import { buildShareUrl } from '../services/deepLinkService';
@@ -942,11 +943,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     fontFamily === 'serif' ? 'font-serif' :
     fontFamily === 'mono'  ? 'font-mono'  : 'font-sans';
 
-  return (
+  // Portal to <body> so `fixed inset-0` is viewport-relative — the app's SpatialUIRoot
+  // wrapper is transformed, which would otherwise confine this fixed reader to a small
+  // box instead of filling the whole screen.
+  return createPortal(
     <>
     {/* Reader always mounted so content loads in background during opening scene */}
     <div
-      className={`fixed inset-0 ${s.bg} z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 transition-colors duration-500`}
+      className={`fixed inset-0 ${s.bg} z-[120] flex flex-col overflow-hidden select-none pb-24 lg:pb-28 transition-colors duration-500`}
       style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease' }}
     >
       {currentChapter?.audioUrl && (
@@ -2075,7 +2079,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         resuming={savedPos.chapter > 0 || savedPos.page > 0}
       />
     )}
-    </>
+    </>,
+    document.body
   );
 };
 
