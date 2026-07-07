@@ -13,6 +13,8 @@ import { StudioPage, StudioPanel, SpeechBubble } from '../types';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../services/firebase';
 import { layoutsFor, type ComicLayout, type LayoutPanelSpec } from '../data/comicLayouts';
+import { parseScript, applyScriptToPage, charactersInScript, type ScriptCharacter } from '../services/comicScript';
+import { takeComicHandoff } from '../services/comicHandoff';
 
 // Build fresh panels from a preset layout, carrying existing art/bubbles across by index
 // so re-templating a page keeps the work already placed.
@@ -160,6 +162,9 @@ function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutt
 
           return (
             <Group key={b.id} x={bx} y={by}>
+              {b.character && !isSfx && !isNarr && (
+                <Text text={b.character.toUpperCase()} y={-11} fontSize={8} fontStyle="bold" fill={isBW ? '#000' : '#ff8c00'} />
+              )}
               {!isSfx && (
                 <Rect
                   width={bw}
@@ -403,6 +408,30 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
   const [showLayouts, setShowLayouts] = useState(panels.length === 0);
   const [uploading, setUploading] = useState(false);
 
+  // Script → panels (character-tagged; may arrive from Fabula/Lorea via a handoff).
+  const [showScript, setShowScript] = useState(false);
+  const [scriptText, setScriptText] = useState('');
+  const [handoffChars, setHandoffChars] = useState<ScriptCharacter[]>([]);
+  const [handoffSource, setHandoffSource] = useState<string | null>(null);
+  useEffect(() => {
+    const h = takeComicHandoff();
+    if (h) {
+      if (h.script) setScriptText(h.script);
+      if (h.characters?.length) setHandoffChars(h.characters);
+      setHandoffSource(h.source);
+      setShowScript(true);
+    }
+  }, []);
+  const scriptBeats = scriptText.trim() ? parseScript(scriptText) : [];
+  const scriptCast = charactersInScript(scriptBeats);
+
+  const applyScript = () => {
+    if (!scriptBeats.length) return;
+    onChange(applyScriptToPage(page, scriptBeats, { isManga, characters: handoffChars }));
+    setShowScript(false);
+    setSelectedPanelId(null);
+  };
+
   // Apply a preset layout to the page (keeps existing art by index).
   const applyLayout = (layout: ComicLayout) => {
     onChange({ ...page, panels: panelsFromLayout(layout.panels, panels, isBW) });
@@ -464,6 +493,9 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
         <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
           <button onClick={() => setShowLayouts(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showLayouts ? 'bg-orange-500 text-black' : 'bg-white/5 border border-white/10 text-white/60 hover:text-white'}`}>
             <LayoutGrid size={12} /> Layouts
+          </button>
+          <button onClick={() => setShowScript(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
+            <Type size={12} /> Script
           </button>
           <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold cursor-pointer transition-colors">
             {uploading ? <Loader2 size={12} className="animate-spin" /> : <Images size={12} />} Auto-fill images
@@ -624,6 +656,45 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
           </div>
         )}
       </div>
+
+      {/* Script → panels */}
+      {showScript && (
+        <div className="fixed inset-0 z-[400] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowScript(false)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-xl max-h-[88vh] overflow-y-auto rounded-3xl bg-[#0b0b0d] border border-white/10">
+            <div className="sticky top-0 flex items-center gap-2 px-5 py-4 border-b border-white/8 bg-[#0b0b0d]">
+              <Type size={16} className="text-orange-400" />
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white">Script → panels</p>
+              {handoffSource && <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">From {handoffSource}</span>}
+              <button onClick={() => setShowScript(false)} className="ml-auto text-white/40 hover:text-white"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-[11px] text-white/40 leading-relaxed">Paste a script — use <span className="text-white/70 font-bold">NAME: dialogue</span> for tagged speech, <span className="text-white/70 font-bold">CAPTION:</span> / <span className="text-white/70 font-bold">SFX:</span> lines, and <span className="text-white/70 font-bold">PANEL</span> to start a new panel. It auto-flows into this page's panels in reading order.</p>
+              <textarea value={scriptText} onChange={e => setScriptText(e.target.value)} rows={10}
+                placeholder={'PANEL 1\nNARRATOR: The city never slept.\nALICE: We need to move — now.\nSFX: BOOM\n\nPANEL 2\nBORIS: Too late for that.'}
+                className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50 resize-none font-mono" />
+              <div className="flex items-center justify-between text-[10px] text-white/40">
+                <span>{scriptBeats.length} beats · {panels.length} panels on page</span>
+                {scriptCast.length > 0 && <span className="truncate max-w-[60%]">Cast: <span className="text-orange-400/80">{scriptCast.join(', ')}</span></span>}
+              </div>
+              {handoffChars.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {handoffChars.map(c => (
+                    <span key={c.name} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-bold text-white/60">
+                      {c.imageUrl && <img src={c.imageUrl} className="w-4 h-4 rounded-full object-cover" alt="" />}{c.name}
+                    </span>
+                  ))}
+                  <span className="text-[9px] text-white/25 self-center">— world cast; images auto-fill empty panels</span>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={applyScript} disabled={!scriptBeats.length || !panels.length} className="flex-1 py-3 rounded-full bg-orange-500 text-black font-black text-xs uppercase tracking-widest hover:bg-orange-400 disabled:opacity-40">Flow into panels</button>
+                <button onClick={() => setShowScript(false)} className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/70 font-black text-xs uppercase tracking-widest">Cancel</button>
+              </div>
+              {!panels.length && <p className="text-[10px] text-orange-400/70">Pick a layout first so there are panels to flow into.</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

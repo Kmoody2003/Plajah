@@ -301,6 +301,7 @@ export interface SpeechBubble {
   width: number;           // percent of panel
   tailDir?: 'bl' | 'br' | 'tl' | 'tr';
   fontSize?: number;
+  character?: string;      // speaker tag (from script auto-flow / character tags)
 }
 
 export interface StudioPanel {
