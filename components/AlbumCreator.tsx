@@ -1391,6 +1391,19 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   </select>
                 </div>
               </div>
+              {licensingEnabled && type === 'MUSIC' && (
+                <div className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Sync license fee ($)</label>
+                    <input type="number" step="1" min="0" value={track.syncLicenseFee || 0} onChange={(e) => updateTrack(track.id, { syncLicenseFee: parseFloat(e.target.value) || 0 })} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none" placeholder="0 = not offered" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Sync license terms</label>
+                    <input type="text" value={track.syncLicenseTerms || ''} onChange={(e) => updateTrack(track.id, { syncLicenseTerms: e.target.value })} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none" placeholder="e.g. Worldwide, perpetual, non-exclusive — one film per license" />
+                  </div>
+                  <div className="md:col-span-3 text-[8px] text-white/25 leading-relaxed">Filmmakers can license this track for a project in Fabula at this flat fee — it routes to you (minus a 10% platform fee) via your connected Stripe account. Leave $0 to keep it unavailable for sync.</div>
+                </div>
+              )}
               {type === 'MUSIC' && (
                 <>
                   {/* ── Lyrics ── */}

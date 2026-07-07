@@ -42,6 +42,7 @@ const CATEGORIES: { key: EarningCategory; label: string; icon: React.ElementType
   { key: 'store_order',  label: 'Store Orders',          icon: ShoppingBag,color: '#34d399', desc: 'Merch and physical store sales' },
   { key: 'club',         label: 'Club Memberships',      icon: Users,      color: '#60a5fa', desc: 'Fan club membership fees' },
   { key: 'seedraiser',   label: 'SeedRaiser',            icon: Ticket,     color: '#fb923c', desc: 'Crowdfunding pledge contributions' },
+  { key: 'sync_license', label: 'Sync Licensing',        icon: Music2,     color: '#22d3ee', desc: 'Your music licensed for films & videos' },
 ];
 
 const APPLY_OPTIONS: { key: EarningCategory; label: string }[] = [

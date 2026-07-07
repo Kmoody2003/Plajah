@@ -12,6 +12,7 @@ import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips, syncLicenseInfo } from "../../services/fabulaMusic";
 import { isFeatureEnabled } from "../../services/featureFlagService";
 import { getLicense } from "../../services/licensingService";
+import { purchaseSyncLicense, listMyGrants, grantSet, grantKey } from "../../services/syncLicensing";
 import { getMyVideos } from "../../services/fabulaVideos";
 import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
@@ -82,6 +83,18 @@ const FOLDER_MAP = [
 const licensingEnabled = () => {
   const u = auth.currentUser;
   return isFeatureEnabled("CONTENT_LICENSING", u?.uid || "", u?.email === "kmoody2003@gmail.com");
+};
+
+// Per-project clearance for a music track: freely usable (open license), owned by
+// the editor, or licensed via a paid grant for THIS edit. Else it needs a license.
+const trackClearance = (meta, grants, editId, uid) => {
+  const li = syncLicenseInfo(meta);
+  const owned = !!(meta?.rightsOwnerId && uid && meta.rightsOwnerId === uid);
+  if (li.usable || owned) return { cleared: true, needsLicense: false, fee: 0, li, granted: false };
+  const granted = !!(editId && grants && grants.has(grantKey(meta?.id, editId)));
+  if (granted) return { cleared: true, needsLicense: false, fee: 0, li, granted: true };
+  const fee = Number(meta?.syncLicenseFee || 0);
+  return { cleared: false, needsLicense: fee > 0, fee, li, granted: false };
 };
 
 const EXT_TYPE = (name) => {
@@ -489,6 +502,7 @@ export default function Fabula() {
   const [page, setPage] = useState("productions"); // productions | slate | edit
   const [index, setIndex] = useState([]);
   const [prod, setProd] = useState(null);
+  const [syncGrants, setSyncGrants] = useState(() => new Set()); // "trackId::editId" keys the buyer holds
   const [sceneSel, setSceneSel] = useState(null); // {actId, sceneId}
   const [prodTab, setProdTab] = useState("structure"); // structure | cast | world
   const [connectWorldOpen, setConnectWorldOpen] = useState(false); // Plajah World link modal
@@ -1315,10 +1329,33 @@ export default function Fabula() {
     setClips(nc);
     ping(subClips.length ? `Added song + ${subClips.length} subtitle lines.` : "Added song to A1.");
     if (licensingEnabled() && item.musicMeta) {
-      const li = syncLicenseInfo(item.musicMeta);
-      if (!li.usable) ping(`Heads up — "${item.name}": ${li.reason}`);
-      else if (li.attribution) ping(`"${item.name}" is cleared for sync — credit ${item.musicMeta.artist || "the artist"}.`);
+      const cl = trackClearance(item.musicMeta, syncGrants, prod?.id, auth.currentUser?.uid);
+      if (!cl.cleared) ping(cl.needsLicense ? `"${item.name}" needs a $${cl.fee} sync license for this project — license it from the clip inspector.` : `Heads up — "${item.name}": ${cl.li.reason}`);
+      else if (cl.li.attribution && !cl.granted) ping(`"${item.name}" is cleared for sync — credit ${item.musicMeta.artist || "the artist"}.`);
     }
+  };
+
+  // Load the buyer's sync-license grants (clears licensed tracks per project).
+  const reloadSyncGrants = () => {
+    if (!licensingEnabled()) return;
+    const u = auth.currentUser;
+    if (!u) { setSyncGrants(new Set()); return; }
+    listMyGrants(u.uid).then((gs) => setSyncGrants(grantSet(gs))).catch(() => {});
+  };
+  useEffect(() => { reloadSyncGrants(); }, [prod?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("license_success")) {
+      reloadSyncGrants();
+      ping("License purchased — the track is cleared for this project.");
+      sp.delete("license_success");
+      const q = sp.toString();
+      window.history.replaceState({}, "", window.location.pathname + (q ? "?" + q : ""));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const licenseTrack = async (meta) => {
+    try { await purchaseSyncLicense({ track: meta, editId: prod?.id, editTitle: prod?.title }); }
+    catch (e) { ping(e?.message || "Could not start license checkout."); }
   };
 
   const [importFps, setImportFps] = useState(24);
@@ -1822,8 +1859,10 @@ export default function Fabula() {
                               onClick={(e) => { e.stopPropagation(); convertAssetToBrowserFriendly(a.id); }}>CONVERT</span>
                           )}
                           {licensingEnabled() && a.musicMeta && (() => {
-                            const li = syncLicenseInfo(a.musicMeta);
-                            return <span className="chip" style={{ fontSize: 7, background: li.usable ? "rgba(61,220,132,0.16)" : "rgba(255,140,0,0.18)", color: li.usable ? "#7ee2a8" : "#ffb057" }} title={li.usable ? `Cleared for sync${li.attribution ? " — credit required" : ""}` : li.reason}>{li.usable ? (li.attribution ? "CREDIT" : "CLEARED") : "LICENSE"}</span>;
+                            const cl = trackClearance(a.musicMeta, syncGrants, prod?.id, auth.currentUser?.uid);
+                            if (cl.cleared) return <span className="chip" style={{ fontSize: 7, background: "rgba(61,220,132,0.16)", color: "#7ee2a8" }} title={cl.granted ? "Licensed for this project" : (cl.li.attribution ? "Cleared for sync — credit required" : "Cleared for sync")}>{cl.granted ? "LICENSED" : (cl.li.attribution ? "CREDIT" : "CLEARED")}</span>;
+                            if (cl.needsLicense) return <span className="chip" style={{ fontSize: 7, cursor: "pointer", background: "rgba(255,140,0,0.18)", color: "#ffb057" }} title={`License for this project — $${cl.fee}`} onClick={(e) => { e.stopPropagation(); licenseTrack(a.musicMeta); }}>LICENSE ${cl.fee}</span>;
+                            return <span className="chip" style={{ fontSize: 7, background: "rgba(255,140,0,0.18)", color: "#ffb057" }} title={cl.li.reason}>LICENSE</span>;
                           })()}
                         </div>
                       ))}
@@ -2089,18 +2128,21 @@ export default function Fabula() {
                         {licensingEnabled() && (() => {
                           const a = prod?.mediaPool.find((x) => x.id === selClip.assetId);
                           if (!a?.musicMeta) return null;
-                          const li = syncLicenseInfo(a.musicMeta);
-                          const def = getLicense(li.licenseId);
+                          const cl = trackClearance(a.musicMeta, syncGrants, prod?.id, auth.currentUser?.uid);
+                          const def = getLicense(cl.li.licenseId);
+                          const statusText = cl.granted ? "Licensed for this project" : cl.cleared ? (cl.li.attribution ? "Cleared — credit required" : "Cleared for sync") : "Sync license required";
                           return (
                             <>
                               <div className="insp-div" />
                               <div className="lbl">LICENSE</div>
                               <div className="dim small" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                                <span style={{ padding: "1px 6px", borderRadius: 4, fontWeight: 800, fontSize: 9, background: li.usable ? "rgba(61,220,132,0.16)" : "rgba(255,140,0,0.18)", color: li.usable ? "#7ee2a8" : "#ffb057" }}>{li.label}</span>
-                                <span>{li.usable ? (li.attribution ? "Cleared — credit required" : "Cleared for sync") : "Sync license required"}</span>
+                                <span style={{ padding: "1px 6px", borderRadius: 4, fontWeight: 800, fontSize: 9, background: cl.cleared ? "rgba(61,220,132,0.16)" : "rgba(255,140,0,0.18)", color: cl.cleared ? "#7ee2a8" : "#ffb057" }}>{cl.granted ? "LICENSED" : cl.li.label}</span>
+                                <span>{statusText}</span>
                               </div>
-                              <div className="dim small" style={{ marginTop: 4 }}>{li.reason || li.human}</div>
-                              {def.url && <a className="dim small" style={{ color: "#7ee2a8", textDecoration: "underline" }} href={def.url} target="_blank" rel="noreferrer">View license deed</a>}
+                              <div className="dim small" style={{ marginTop: 4 }}>{cl.cleared ? cl.li.human : cl.li.reason}</div>
+                              {a.musicMeta.syncLicenseTerms && <div className="dim small" style={{ marginTop: 4, fontStyle: "italic" }}>{a.musicMeta.syncLicenseTerms}</div>}
+                              {cl.needsLicense && <button className="minibtn blue full" style={{ marginTop: 6 }} onClick={() => licenseTrack(a.musicMeta)}>LICENSE FOR THIS PROJECT — ${cl.fee}</button>}
+                              {def.url && cl.cleared && !cl.granted && <a className="dim small" style={{ color: "#7ee2a8", textDecoration: "underline" }} href={def.url} target="_blank" rel="noreferrer">View license deed</a>}
                             </>
                           );
                         })()}

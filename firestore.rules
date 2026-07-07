@@ -1499,6 +1499,17 @@ service cloud.firestore {
       allow delete: if cxScopeOk(resource.data);
     }
 
+    // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──
+    // The buyer and the rights owner can READ their grants; clients never write.
+    match /syncLicenseGrants/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.rightsOwnerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if false;
+    }
+
     // Church/org prayer wall.
     match /churchPrayers/{prayerId} {
       allow read: if isAuthenticated();

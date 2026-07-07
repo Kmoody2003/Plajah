@@ -977,6 +977,47 @@ async function startServer() {
             } catch {}
           }
 
+          // ── Music sync-license grant (per-project) ────────────────────────────
+          // Destination charge already routed the fee to the musician; here we
+          // record the GRANT (clears the track for that edit) + one earning for the
+          // dashboard. Not in CREATOR_PAYMENT_TYPES, so the generic split path skips
+          // it (no double transfer).
+          if (mode === 'payment' && meta.type === 'sync_license') {
+            const feeCents = parseInt(meta.feeCents || String(session.amount_total || 0), 10) || 0;
+            const platformFeeCents = Math.round(feeCents * 0.10);
+            const grantId = `syncgrant_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+            await firestoreWrite('syncLicenseGrants', grantId, {
+              id: grantId,
+              buyerUid: meta.buyerUid || meta.uid || '',
+              editId: meta.editId || '',
+              editTitle: meta.editTitle || '',
+              trackId: meta.trackId || '',
+              albumId: meta.albumId || '',
+              trackTitle: meta.trackTitle || '',
+              rightsOwnerUid: meta.rightsOwnerUid || '',
+              feeCents,
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              status: 'granted',
+              createdAt: now,
+            });
+            if (meta.rightsOwnerUid && feeCents > 0) {
+              await firestoreCreate('creatorEarnings', {
+                creatorUid: meta.rightsOwnerUid,
+                payerUid: meta.buyerUid || meta.uid || '',
+                category: 'sync_license',
+                grossCents: feeCents,
+                platformFeeCents,
+                netCents: feeCents - platformFeeCents,
+                creatorNetCents: feeCents - platformFeeCents,
+                splits: '[]',
+                title: `Sync license: ${meta.trackTitle || 'track'}${meta.editTitle ? ` — ${meta.editTitle}` : ''}`,
+                stripePaymentIntentId: (session.payment_intent as string) || '',
+                status: 'transferred',
+                timestamp: now,
+              });
+            }
+          }
+
           // ── Record earnings + process splits for all creator-facing payments ──
           const CREATOR_PAYMENT_TYPES: Record<string, string> = {
             live_tip: 'tip',
@@ -4352,6 +4393,78 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('/api/stripe/live-tip', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Music sync license — one-time per-project license, pays the musician ─────
+  app.post('/api/stripe/purchase-sync-license', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { trackId, albumId, editId, editTitle } = req.body || {};
+      const buyerUid = req.uid;
+      if (!trackId || !albumId || !editId) return res.status(400).json({ error: 'Missing trackId, albumId, or editId.' });
+
+      // Verify the fee + rights owner from the album server-side (never trust the client).
+      const albumDoc = await fetchFirebaseDoc('albums', albumId);
+      if (!albumDoc?.fields) return res.status(404).json({ error: 'Album not found.' });
+      const albumOwner = albumDoc.fields.ownerId?.stringValue || '';
+      // `tracks` may be a native Firestore array (arrayValue) OR a JSON string.
+      let found: { syncLicenseFee: number; title: string; rightsOwnerId: string } | null = null;
+      const trackVals = albumDoc.fields.tracks?.arrayValue?.values;
+      if (trackVals) {
+        for (const tv of trackVals) {
+          const tf = tv.mapValue?.fields || {};
+          if (tf.id?.stringValue === trackId) {
+            found = {
+              syncLicenseFee: Number(tf.syncLicenseFee?.doubleValue ?? tf.syncLicenseFee?.integerValue ?? 0),
+              title: tf.title?.stringValue || '',
+              rightsOwnerId: tf.rightsOwnerId?.stringValue || '',
+            };
+            break;
+          }
+        }
+      } else if (albumDoc.fields.tracks?.stringValue) {
+        try {
+          const arr = JSON.parse(albumDoc.fields.tracks.stringValue);
+          const t = (arr || []).find((x: any) => x.id === trackId);
+          if (t) found = { syncLicenseFee: Number(t.syncLicenseFee || 0), title: t.title || '', rightsOwnerId: t.rightsOwnerId || '' };
+        } catch { /* fall through */ }
+      }
+      if (!found) return res.status(404).json({ error: 'Track not found on that album.' });
+      const feeUsd = found.syncLicenseFee;
+      const trackTitle = found.title;
+      const rightsOwnerUid = found.rightsOwnerId || albumOwner;
+      if (!(feeUsd > 0)) return res.status(400).json({ error: 'This track is not offered for sync licensing.' });
+      if (!rightsOwnerUid) return res.status(400).json({ error: 'This track has no rights owner on file.' });
+      if (rightsOwnerUid === buyerUid) return res.status(400).json({ error: 'You already own this track — no license needed.' });
+
+      // The musician must be able to receive payouts.
+      const ownerUser = await firestoreRead('users', rightsOwnerUid);
+      const acct = ownerUser?.stripeConnectAccountId as string | undefined;
+      if (!acct) return res.status(400).json({ error: 'The rights holder has not set up payouts yet.' });
+      const stripe = getStripe();
+      try {
+        const acctInfo = await stripe.accounts.retrieve(acct);
+        if (!acctInfo.payouts_enabled) return res.status(400).json({ error: 'The rights holder cannot receive payouts yet.' });
+      } catch { return res.status(400).json({ error: 'Could not verify the rights holder’s payout account.' }); }
+
+      const feeCents = Math.round(feeUsd * 100);
+      if (feeCents < 100) return res.status(400).json({ error: 'Sync fee must be at least $1.00.' });
+      const platformFee = Math.round(feeCents * 0.10);
+      const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
+      const meta = { type: 'sync_license', trackId, albumId, rightsOwnerUid, buyerUid, editId, editTitle: editTitle || '', feeCents: String(feeCents), trackTitle };
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price_data: { currency: 'usd', product_data: { name: `Sync license — ${trackTitle || 'track'}` }, unit_amount: feeCents }, quantity: 1 }],
+        payment_intent_data: { application_fee_amount: platformFee, transfer_data: { destination: acct }, metadata: meta },
+        metadata: meta,
+        success_url: `${appUrl}?license_success=${encodeURIComponent(trackId)}`,
+        cancel_url: `${appUrl}?license_cancel=1`,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('/api/stripe/purchase-sync-license', err.message);
       res.status(500).json({ error: err.message });
     }
   });

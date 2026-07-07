@@ -12,6 +12,7 @@ export interface MusicBinTrack {
   id: string; title: string; artist: string; url?: string; duration?: number;
   timeCodedLyrics?: { time: number; text: string }[];
   license?: string; price?: number; rightsOwnerId?: string; albumTitle?: string;
+  albumId?: string; syncLicenseFee?: number; syncLicenseTerms?: string;
   /** From the user's private music locker — usable in THEIR edit, but never
    *  licensable/shareable (personal-use only; excluded from sync-licensing). */
   isPersonal?: boolean;
@@ -40,6 +41,7 @@ export async function getMyMusicTracks(): Promise<MusicBinTrack[]> {
           id: t.id, title: t.title, artist: t.artist || al.artist, url: t.url, duration: t.duration,
           timeCodedLyrics: t.timeCodedLyrics, license: t.license, price: t.price,
           rightsOwnerId: t.rightsOwnerId || al.ownerId, albumTitle: al.title,
+          albumId: al.id, syncLicenseFee: t.syncLicenseFee, syncLicenseTerms: t.syncLicenseTerms,
         });
       }
     }
