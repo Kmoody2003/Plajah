@@ -13,7 +13,7 @@ import {
   sendMessage, listenToMessages, auth,
   createCollabProject, fetchCollabProjects, fetchUserContent,
   updateTypingStatus, markMessageAsSeen, fetchUserProfiles,
-  uploadFile, updateRoomIntimate,
+  uploadFile, updateRoomIntimate, updateUserProfile,
 } from '../services/backendService';
 import { encryptText, decryptText } from '../services/cryptoService';
 import GifStickerPicker from './GifStickerPicker';
@@ -21,6 +21,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
 import CouplesDiaryView from './CouplesDiaryView';
 import GameMagic8Ball from './GameMagic8Ball';
+import NibblesTutorial from './NibblesTutorial';
 import { callItOff } from '../services/intimateGating';
 import { playSendChime, playGiftChime, playHeartPop } from '../services/intimateSoundFX';
 import {
@@ -246,6 +247,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [intimateBgBusy, setIntimateBgBusy] = useState(false);
   const intimateBgInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { setPetNameDraft(room.intimatePetName || ''); }, [room.id, room.intimatePetName]);
+
+  // First-run walkthrough — fires the first time you enter a Nibbles room.
+  const [showNibblesTutorial, setShowNibblesTutorial] = useState(false);
+  const myUid = auth.currentUser?.uid;
+  const tutKey = myUid ? `nibbles_tut_${myUid}` : 'nibbles_tut';
+  useEffect(() => {
+    if (!isIntimate) return;
+    const seen = currentUserProfile?.nibblesTutorialSeen || (typeof localStorage !== 'undefined' && localStorage.getItem(tutKey) === '1');
+    if (!seen) setShowNibblesTutorial(true);
+  }, [isIntimate, currentUserProfile?.nibblesTutorialSeen, tutKey]);
+  const dismissTutorial = () => {
+    setShowNibblesTutorial(false);
+    try { localStorage.setItem(tutKey, '1'); } catch { /* private mode */ }
+    if (myUid) updateUserProfile(myUid, { nibblesTutorialSeen: true }).catch(() => {});
+  };
 
   const handleIntimateBgFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -882,6 +898,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* ── MAGIC 8-BALL (hidden inputs) ─────────────────────────────── */}
       {isIntimate && show8Ball && (
         <GameMagic8Ball roomId={room.id} accent={intimateTheme.accent} onClose={() => setShow8Ball(false)} />
+      )}
+
+      {isIntimate && showNibblesTutorial && (
+        <NibblesTutorial accent={intimateTheme.accent} onClose={dismissTutorial} />
       )}
 
       {/* ── TWO-WAY (WALKIE-TALKIE) ─────────────────────────────────── */}

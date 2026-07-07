@@ -1263,6 +1263,7 @@ export interface UserProfile {
   relationshipPartnerName?: string;        // cached display name for the partner
   relationshipPublic?: boolean;            // show the relationship on the public profile
   relationshipSince?: number;              // unix ms — when the link was confirmed
+  nibblesTutorialSeen?: boolean;           // first-run Nibbles walkthrough shown
   // Smart Guide — contextual feature discovery assistant
   hasSeenSmartGuide?: boolean;
   smartGuideEnabled?: boolean;
