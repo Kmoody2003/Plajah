@@ -5,7 +5,7 @@
 // track carries its license/price/rightsOwner so "used in an edit" becomes billable.
 
 import { auth } from './firebase';
-import { fetchUserAlbums, fetchPersonalTracks } from './backendService';
+import { fetchUserAlbums, fetchPersonalTracks, fetchAllPublicAlbums } from './backendService';
 import { getLicense, type ContentLicenseId } from './licensingService';
 
 export interface MusicBinTrack {
@@ -13,6 +13,7 @@ export interface MusicBinTrack {
   timeCodedLyrics?: { time: number; text: string }[];
   license?: string; price?: number; rightsOwnerId?: string; albumTitle?: string;
   albumId?: string; syncLicenseFee?: number; syncLicenseTerms?: string;
+  cover?: string; genre?: string;
   /** From the user's private music locker — usable in THEIR edit, but never
    *  licensable/shareable (personal-use only; excluded from sync-licensing). */
   isPersonal?: boolean;
@@ -55,6 +56,34 @@ export async function getMyMusicTracks(): Promise<MusicBinTrack[]> {
     }
     return out;
   } catch (e) { console.warn('[fabulaMusic] fetch failed', e); return []; }
+}
+
+/**
+ * The music sync-licensing STORE: every OTHER artist's released track that carries a
+ * sync-license fee (syncLicenseFee > 0). A filmmaker browses, previews, and licenses
+ * these for their Fabula edit. Excludes the user's own tracks (nothing to buy).
+ */
+export async function getLicensableTracks(limitN = 80): Promise<MusicBinTrack[]> {
+  const uid = auth.currentUser?.uid;
+  try {
+    const albums = await fetchAllPublicAlbums().catch(() => []);
+    const out: MusicBinTrack[] = [];
+    for (const al of albums || []) {
+      if (al.type && al.type !== 'MUSIC') continue;
+      if (al.ownerId && al.ownerId === uid) continue; // your own tracks aren't a purchase
+      for (const t of (al.tracks || [])) {
+        const fee = Number((t as any).syncLicenseFee || 0);
+        if (!t.url || fee <= 0) continue;
+        out.push({
+          id: t.id, title: t.title, artist: t.artist || al.artist, url: t.url, duration: t.duration,
+          license: t.license, rightsOwnerId: t.rightsOwnerId || al.ownerId, albumTitle: al.title, albumId: al.id,
+          syncLicenseFee: fee, syncLicenseTerms: (t as any).syncLicenseTerms, cover: al.coverImage, genre: (t as any).genre || al.genre,
+        });
+        if (out.length >= limitN) return out;
+      }
+    }
+    return out;
+  } catch (e) { console.warn('[fabulaMusic] licensable fetch failed', e); return []; }
 }
 
 export interface SyncLicenseInfo {

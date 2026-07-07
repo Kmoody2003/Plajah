@@ -25,6 +25,7 @@ import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
+import MusicLicensingStore from "../MusicLicensingStore";
 
 /* ════════════════════════════════════════════════════════════
    FABULA — holistic storytelling studio. The whole story, then the telling.
@@ -1371,6 +1372,17 @@ export default function Fabula() {
     } catch (e) { console.warn("[Fabula music]", e); ping("Couldn't load your music."); }
     setMusicLoading(false);
   };
+
+  // Music sync-licensing STORE — browse/preview/license other artists' tracks.
+  const [showLicenseStore, setShowLicenseStore] = useState(false);
+  const licenseEditId = editSel || (sceneSel ? `scene:${sceneSel.sceneId}` : (prod?.id || "project"));
+  const addLicensedTrackToPool = (t) => {
+    updateProd((p) => {
+      if (p.mediaPool.some((m) => m.musicTrackId === t.id)) return;
+      p.mediaPool.push({ id: uid(), musicTrackId: t.id, name: `${t.title} — ${t.artist}`, type: "audio", url: t.url, duration: t.duration || 0, bin: "Licensed Music", tags: ["music", "licensed"], musicMeta: { ...t, licensedEditId: licenseEditId } });
+    });
+    ping(`"${t.title}" added to the Licensed Music bin.`);
+  };
   // Add a song to A1 and lay its synced lyrics out as animated captions on V2.
   const addMusicWithCaptions = (item) => {
     const start = playhead;
@@ -1891,6 +1903,9 @@ export default function Fabula() {
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) importTimeline(f); e.target.value = ""; }} />
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyMusic} disabled={musicLoading} title="Load your released tracks; double-click a Music item to add it with synced-lyric captions">
                       <Music size={12} /> {musicLoading ? "LOADING…" : "MY MUSIC (ON-PLATFORM)"}
+                    </button>
+                    <button className="minibtn blue full" style={{ marginTop: 6 }} onClick={() => setShowLicenseStore(true)} title="Browse, preview & license music from other artists for this edit">
+                      <Music size={12} /> LICENSE MUSIC — STORE
                     </button>
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyVideos} disabled={videoLoading} title="Load your on-platform videos + Live-stream recordings">
                       <MonitorPlay size={12} /> {videoLoading ? "LOADING…" : "MY VIDEOS + LIVE"}
@@ -3157,6 +3172,15 @@ export default function Fabula() {
             volume: spatialFor.fx?.vol ?? 1,
           }}
           onBake={(result) => bakeSpatialMix(spatialFor, result)}
+        />
+      )}
+      {showLicenseStore && (
+        <MusicLicensingStore
+          editId={licenseEditId}
+          editTitle={activeEdit?.title || scene?.title || prod?.title}
+          licensedKeys={syncGrants}
+          onAddToProject={addLicensedTrackToPool}
+          onClose={() => setShowLicenseStore(false)}
         />
       )}
       {nested && (
