@@ -6,12 +6,32 @@ import Konva from 'konva';
 import {
   MessageCircle, Zap, AlignLeft, AlignCenter, Trash2, Plus, Upload,
   Type, RotateCcw, Square, Sun, Moon, Palette, Move, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, X,
+  ZoomIn, ZoomOut, X, LayoutGrid, Images, Loader2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioPage, StudioPanel, SpeechBubble } from '../types';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../services/firebase';
+import { layoutsFor, type ComicLayout, type LayoutPanelSpec } from '../data/comicLayouts';
+
+// Build fresh panels from a preset layout, carrying existing art/bubbles across by index
+// so re-templating a page keeps the work already placed.
+function panelsFromLayout(specs: LayoutPanelSpec[], prev: StudioPanel[], isBW: boolean): StudioPanel[] {
+  return specs.map((s, i) => {
+    const carry = prev[i];
+    return {
+      id: uuidv4(),
+      x: s.x, y: s.y, width: s.width, height: s.height,
+      shape: s.shape ?? 'rect',
+      bgColor: carry?.bgColor ?? (isBW ? '#1a1a1a' : '#111'),
+      imageUrl: carry?.imageUrl,
+      bubbles: carry?.bubbles ?? [],
+      caption: carry?.caption,
+      captionPos: carry?.captionPos,
+      borderStyle: carry?.borderStyle ?? 'solid',
+    };
+  });
+}
 
 // ─── Bubble type configs ───────────────────────────────────────────────────────
 
@@ -380,6 +400,53 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
     if (selectedPanelId === id) setSelectedPanelId(null);
   };
 
+  const [showLayouts, setShowLayouts] = useState(panels.length === 0);
+  const [uploading, setUploading] = useState(false);
+
+  // Apply a preset layout to the page (keeps existing art by index).
+  const applyLayout = (layout: ComicLayout) => {
+    onChange({ ...page, panels: panelsFromLayout(layout.panels, panels, isBW) });
+    setSelectedPanelId(null);
+    setShowLayouts(false);
+  };
+
+  // Reading order (matches how the page renders / exports).
+  const readingOrder = (list: StudioPanel[]) => isManga
+    ? [...list].sort((a, b) => a.x !== b.x ? b.x - a.x : a.y - b.y)
+    : [...list].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+
+  // Drop N images and auto-format them into panels: upload all, then assign to panels in
+  // reading order. If there aren't enough panels, extend with a matching grid first.
+  const autoFillImages = async (files: FileList | null) => {
+    if (!files?.length || !auth.currentUser) return;
+    setUploading(true);
+    try {
+      const uid = auth.currentUser.uid;
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        const storageRef = ref(storage, `books/${uid}/${uuidv4()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        urls.push(await getDownloadURL(storageRef));
+      }
+      // Ensure there are at least as many panels as images.
+      let target = panels;
+      if (target.length < urls.length) {
+        const n = urls.length;
+        const cols = n <= 2 ? 1 : n <= 6 ? 2 : 3;
+        const rowsN = Math.ceil(n / cols);
+        const specs: LayoutPanelSpec[] = [];
+        for (let i = 0; i < n; i++) { const c = i % cols, r = Math.floor(i / cols); specs.push({ x: (100 / cols) * c, y: (100 / rowsN) * r, width: 100 / cols, height: 100 / rowsN }); }
+        target = panelsFromLayout(specs, target, isBW);
+      }
+      const ordered = readingOrder(target);
+      const byId: Record<string, string> = {};
+      ordered.forEach((p, i) => { if (urls[i]) byId[p.id] = urls[i]; });
+      onChange({ ...page, panels: target.map(p => byId[p.id] ? { ...p, imageUrl: byId[p.id] } : p) });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const deselect = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === stageRef.current) setSelectedPanelId(null);
   };
@@ -395,8 +462,15 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
       <div className="flex-1 flex flex-col">
         {/* Canvas toolbar */}
         <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
-          <button onClick={addPanel} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-black text-xs font-bold hover:bg-orange-400 transition-colors">
-            <Plus size={12} /> Add panel
+          <button onClick={() => setShowLayouts(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showLayouts ? 'bg-orange-500 text-black' : 'bg-white/5 border border-white/10 text-white/60 hover:text-white'}`}>
+            <LayoutGrid size={12} /> Layouts
+          </button>
+          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold cursor-pointer transition-colors">
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Images size={12} />} Auto-fill images
+            <input type="file" accept="image/*" multiple className="hidden" onChange={e => autoFillImages(e.target.files)} />
+          </label>
+          <button onClick={addPanel} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
+            <Plus size={12} /> Panel
           </button>
           <button onClick={() => { if (selectedPanelId) deletePanel(selectedPanelId); }}
             disabled={!selectedPanelId}
@@ -428,6 +502,27 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
             <button onClick={() => setScale(s => Math.min(1.5, s + 0.1))} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors"><ZoomIn size={13} /></button>
           </div>
         </div>
+
+        {/* Layout template strip */}
+        {showLayouts && (
+          <div className="shrink-0 border-b border-white/5 bg-black/40 px-4 py-3 overflow-x-auto">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-2">{isManga ? 'Manga & comic layouts' : 'Comic & manga layouts'} — pick a page template</p>
+            <div className="flex gap-2">
+              {layoutsFor(isManga).map(layout => (
+                <button key={layout.id} onClick={() => applyLayout(layout)} title={layout.name}
+                  className="shrink-0 group flex flex-col items-center gap-1">
+                  <div className="relative w-14 h-[76px] rounded-md bg-white/[0.06] border border-white/10 group-hover:border-orange-500/60 overflow-hidden transition-colors">
+                    {layout.panels.map((p, i) => (
+                      <div key={i} className="absolute bg-white/20 group-hover:bg-orange-400/40 border border-black/40 transition-colors"
+                        style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.width}%`, height: `${p.height}%` }} />
+                    ))}
+                  </div>
+                  <span className="text-[8px] font-bold text-white/35 group-hover:text-white/70 max-w-[56px] truncate">{layout.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Konva canvas */}
         <div ref={containerRef} className="flex-1 overflow-auto flex items-start justify-center p-6"
