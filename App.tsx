@@ -185,6 +185,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
+const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -481,6 +482,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showCreator, setShowCreator] = useState(false);
+  const [showBrandActivation, setShowBrandActivation] = useState(false);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
@@ -692,6 +694,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
 
+    const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
+    window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
+
     // Open the Album Creator seeded with a prebuilt release (e.g. a Spatial Mixer → Chora publish).
     const handleOpenAlbumCreator = (e: Event) => {
       const seed = (e as CustomEvent).detail?.album;
@@ -715,6 +720,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+      window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
@@ -917,6 +923,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (!user) { loginWithGoogle(); return; }
       setDashboardInitialTab('ASSETS');
       setView('CREATOR');
+    } else if (target === 'BRAND_ACTIVATION') {
+      if (!user) { loginWithGoogle(); return; }
+      setShowBrandActivation(true);
     } else if (target === 'SANCTUARY_HUB') {
       setView('SANCTUARY_HUB');
     } else if (target === 'SANCTUARY') {
@@ -4227,6 +4236,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             />
           )}
           
+          {showBrandActivation && (
+            <Suspense fallback={null}>
+              <BrandActivationPanel
+                onClose={() => setShowBrandActivation(false)}
+                onDone={() => { setDashboardInitialTab('STORE_MANAGEMENT'); }}
+              />
+            </Suspense>
+          )}
+
           {showWelcomeAchievement && (
             <WelcomeAchievement onDone={() => setShowWelcomeAchievement(false)} />
           )}

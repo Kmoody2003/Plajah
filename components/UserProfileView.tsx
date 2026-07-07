@@ -4,6 +4,7 @@ import {
   Tv,
   Radio,
   LayoutGrid,
+  Rocket,
   Gamepad2,
   Image as ImageIcon,
   Library,
@@ -809,6 +810,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               >
                 <LayoutGrid size={16} />
                 Manage My Content
+              </button>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'BRAND_ACTIVATION' } }))}
+                className="w-full sm:w-auto px-8 py-4 bg-black/25 hover:bg-black/40 text-white border border-white/25 rounded-full font-black uppercase tracking-widest text-[10px] lg:text-xs hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Rocket size={16} />
+                Activate a Brand
               </button>
             </div>
           </div>
