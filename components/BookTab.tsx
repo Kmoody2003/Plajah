@@ -4,6 +4,7 @@ import PageHeader from './PageHeader';
 import { fetchClassicBooks, fetchArchiveBooks, fetchLibraryOfCongressBooks, fetchResearchPapers, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
+import { importComic } from '../services/comicImport';
 import { CLASSIC_BOOKS } from '../data/classicBooks';
 import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download, Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe } from 'lucide-react';
 import PlajahPlusBanner from './PlajahPlusBanner';
@@ -68,6 +69,8 @@ const pickArchiveReadableFile = (files: any[]) => {
 
 const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBook, onCreateScript }) => {
   const [activeTab, setActiveTab] = useState<'MARKETPLACE' | 'CLASSICS' | 'GLOBAL'>('CLASSICS');
+  const [comicImporting, setComicImporting] = useState(false);
+  const [comicImportMsg, setComicImportMsg] = useState('');
   const [archiveBooks, setArchiveBooks] = useState<ArchiveBook[]>(CLASSIC_BOOKS);
   const [marketplaceBooks, setMarketplaceBooks] = useState<Album[]>([]);
   const [googleBooks, setGoogleBooks] = useState<GoogleBook[]>([]);
@@ -324,6 +327,23 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             <BookOpen size={14} /> Create a Book
           </button>
         )}
+        {/* Import a digital comic (CBZ / PDF) → opens in the comic reader */}
+        <label className={`flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest rounded-full cursor-pointer transition-colors ${comicImporting ? 'opacity-60 pointer-events-none' : ''}`}>
+          {comicImporting ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
+          {comicImporting ? (comicImportMsg || 'Importing…') : 'Import Comic'}
+          <input type="file" accept=".cbz,.zip,.pdf,application/zip,application/pdf" className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0]; e.currentTarget.value = '';
+              if (!f) return;
+              setComicImporting(true); setComicImportMsg('Reading…');
+              try {
+                const album = await importComic(f, (p) => setComicImportMsg(p.phase === 'uploading' ? `Uploading ${p.done}/${p.total}` : p.phase === 'reading' ? 'Reading…' : 'Done'));
+                onSelectBook(album);
+              } catch (err: any) {
+                alert(err?.message || 'Import failed');
+              } finally { setComicImporting(false); setComicImportMsg(''); }
+            }} />
+        </label>
         <PlajahPlusBanner variant="PILL" />
         <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
           <button
