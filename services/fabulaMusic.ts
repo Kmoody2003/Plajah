@@ -6,6 +6,7 @@
 
 import { auth } from './firebase';
 import { fetchUserAlbums, fetchPersonalTracks } from './backendService';
+import { getLicense, type ContentLicenseId } from './licensingService';
 
 export interface MusicBinTrack {
   id: string; title: string; artist: string; url?: string; duration?: number;
@@ -52,6 +53,39 @@ export async function getMyMusicTracks(): Promise<MusicBinTrack[]> {
     }
     return out;
   } catch (e) { console.warn('[fabulaMusic] fetch failed', e); return []; }
+}
+
+export interface SyncLicenseInfo {
+  licenseId: ContentLicenseId;
+  label: string;       // short license code, e.g. "CC BY-NC"
+  human: string;       // plain-language description
+  usable: boolean;     // freely usable for sync (music-in-video) as-is
+  attribution: boolean; // credit required when used
+  personal: boolean;   // private-locker track — never licensable for distribution
+  reason: string;      // why it's restricted (empty when usable)
+}
+
+/**
+ * Whether a music-bin track can be dropped into a film/video freely, or needs a
+ * sync license. `allowsCommercial` is the gate: CC-BY / CC-BY-SA / CC-BY-ND / CC0
+ * clear sync use (with credit where required); All-Rights-Reserved and every
+ * NonCommercial variant need a license from the rights holder. Personal-locker
+ * tracks are never distributable. (Slice 1: surfacing only — the actual
+ * license-grant/marketplace is Slice 2.)
+ */
+export function syncLicenseInfo(meta?: Partial<MusicBinTrack> | null): SyncLicenseInfo {
+  const licenseId = ((meta?.license as ContentLicenseId) || 'ALL_RIGHTS_RESERVED');
+  const def = getLicense(licenseId);
+  const personal = !!meta?.isPersonal;
+  const usable = !personal && def.allowsCommercial;
+  let reason = '';
+  if (personal) reason = 'Personal locker track — for your own use only; not cleared for distribution.';
+  else if (!def.allowsCommercial) {
+    reason = licenseId === 'ALL_RIGHTS_RESERVED'
+      ? 'All Rights Reserved — a sync license from the rights holder is required to use this in a film.'
+      : 'NonCommercial license — film/commercial use needs a sync license from the rights holder.';
+  }
+  return { licenseId, label: def.label, human: def.human, usable, attribution: !!def.requiresAttribution, personal, reason };
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);

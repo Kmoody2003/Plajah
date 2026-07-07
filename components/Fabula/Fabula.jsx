@@ -9,7 +9,9 @@ import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "id
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
-import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
+import { getMyMusicTracks, buildSubtitleClips, syncLicenseInfo } from "../../services/fabulaMusic";
+import { isFeatureEnabled } from "../../services/featureFlagService";
+import { getLicense } from "../../services/licensingService";
 import { getMyVideos } from "../../services/fabulaVideos";
 import { useFabulaShortcuts } from "./useFabulaShortcuts";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
@@ -75,6 +77,13 @@ const FOLDER_MAP = [
   [/\bset\b|sets\b|stage|interior|exterior|build/i, "sets"],
   [/character|cast|people|hero|villain/i, "__cast"],
 ];
+// Content licensing surfaces (badges / warnings / terms) only show when the
+// CONTENT_LICENSING flag is on (off by default) — matches the Chora picker gate.
+const licensingEnabled = () => {
+  const u = auth.currentUser;
+  return isFeatureEnabled("CONTENT_LICENSING", u?.uid || "", u?.email === "kmoody2003@gmail.com");
+};
+
 const EXT_TYPE = (name) => {
   const e = (name.split(".").pop() || "").toLowerCase();
   if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff"].includes(e)) return "image";
@@ -1305,6 +1314,11 @@ export default function Fabula() {
     updateProd((p) => { if (subClips.length) ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
     setClips(nc);
     ping(subClips.length ? `Added song + ${subClips.length} subtitle lines.` : "Added song to A1.");
+    if (licensingEnabled() && item.musicMeta) {
+      const li = syncLicenseInfo(item.musicMeta);
+      if (!li.usable) ping(`Heads up — "${item.name}": ${li.reason}`);
+      else if (li.attribution) ping(`"${item.name}" is cleared for sync — credit ${item.musicMeta.artist || "the artist"}.`);
+    }
   };
 
   const [importFps, setImportFps] = useState(24);
@@ -1807,6 +1821,10 @@ export default function Fabula() {
                               title="Transcode to a browser-friendly format via Crossover"
                               onClick={(e) => { e.stopPropagation(); convertAssetToBrowserFriendly(a.id); }}>CONVERT</span>
                           )}
+                          {licensingEnabled() && a.musicMeta && (() => {
+                            const li = syncLicenseInfo(a.musicMeta);
+                            return <span className="chip" style={{ fontSize: 7, background: li.usable ? "rgba(61,220,132,0.16)" : "rgba(255,140,0,0.18)", color: li.usable ? "#7ee2a8" : "#ffb057" }} title={li.usable ? `Cleared for sync${li.attribution ? " — credit required" : ""}` : li.reason}>{li.usable ? (li.attribution ? "CREDIT" : "CLEARED") : "LICENSE"}</span>;
+                          })()}
                         </div>
                       ))}
                       {mcSel.length >= 2 && (
@@ -2067,6 +2085,24 @@ export default function Fabula() {
                               <div className="dim small">Place this clip in 3D space (Eclipsa/IAMF) and bake an immersive mix back onto the timeline.</div>
                             </>
                           ) : null;
+                        })()}
+                        {licensingEnabled() && (() => {
+                          const a = prod?.mediaPool.find((x) => x.id === selClip.assetId);
+                          if (!a?.musicMeta) return null;
+                          const li = syncLicenseInfo(a.musicMeta);
+                          const def = getLicense(li.licenseId);
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              <div className="lbl">LICENSE</div>
+                              <div className="dim small" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                                <span style={{ padding: "1px 6px", borderRadius: 4, fontWeight: 800, fontSize: 9, background: li.usable ? "rgba(61,220,132,0.16)" : "rgba(255,140,0,0.18)", color: li.usable ? "#7ee2a8" : "#ffb057" }}>{li.label}</span>
+                                <span>{li.usable ? (li.attribution ? "Cleared — credit required" : "Cleared for sync") : "Sync license required"}</span>
+                              </div>
+                              <div className="dim small" style={{ marginTop: 4 }}>{li.reason || li.human}</div>
+                              {def.url && <a className="dim small" style={{ color: "#7ee2a8", textDecoration: "underline" }} href={def.url} target="_blank" rel="noreferrer">View license deed</a>}
+                            </>
+                          );
                         })()}
                         <div className="insp-div" />
                         <button className="ghost danger full" onClick={() => { const n = clips.filter((c) => c.id !== selClip.id); setClips(n); commitClips(n); setSelClipId(null); }}><Trash2 size={12} /> REMOVE CLIP</button>
