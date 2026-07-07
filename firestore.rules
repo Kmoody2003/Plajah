@@ -1001,6 +1001,15 @@ service cloud.firestore {
       }
     }
 
+    // Shared Couples Diary — private to the two DM participants. Entry text is also
+    // safeword-encrypted client-side; these rules are the hard access boundary.
+    match /couplesDiaries/{roomId} {
+      allow read, update, delete: if isAuthenticated() && request.auth.uid in resource.data.participantUids;
+      allow create: if isAuthenticated()
+                    && request.auth.uid in request.resource.data.participantUids
+                    && request.resource.data.participantUids.size() == 2;
+    }
+
     match /collab_projects/{projectId} {
       allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(resource.data.chatRoomId)).data.participants);
       allow create: if isAuthenticated();

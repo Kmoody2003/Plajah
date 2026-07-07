@@ -19,6 +19,7 @@ import { encryptText, decryptText } from '../services/cryptoService';
 import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
+import CouplesDiaryView from './CouplesDiaryView';
 import {
   doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
 } from 'firebase/firestore';
@@ -228,6 +229,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const intimateBg = room.intimateBackgroundUrl || undefined;
   const petName = room.intimatePetName || undefined;
   const [showIntimatePanel, setShowIntimatePanel] = useState(false);
+  const [showDiary, setShowDiary] = useState(false);
   const [petNameDraft, setPetNameDraft] = useState('');
   const [intimateBgBusy, setIntimateBgBusy] = useState(false);
   const intimateBgInputRef = useRef<HTMLInputElement | null>(null);
@@ -709,6 +711,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <button onClick={() => setShowIntimatePanel(false)} className="ml-auto p-1 text-white/30 hover:text-white"><X size={13} /></button>
             </div>
 
+            {/* Shared Diary */}
+            <button
+              onClick={() => { setShowDiary(true); setShowIntimatePanel(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 mb-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              style={{ background: `${intimateTheme.accent}1e`, color: intimateTheme.accent }}
+            >
+              <Heart size={13} fill="currentColor" /> Open Shared Diary
+            </button>
+
             {/* Background */}
             <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Background</p>
             <div className="flex gap-2 mb-3">
@@ -763,6 +774,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── SHARED COUPLES DIARY ────────────────────────────────────── */}
+      {isIntimate && showDiary && (
+        <CouplesDiaryView
+          roomId={room.id}
+          participantUids={room.participants}
+          accent={intimateTheme.accent}
+          onClose={() => setShowDiary(false)}
+        />
+      )}
 
       {/* ── TWO-WAY (WALKIE-TALKIE) ─────────────────────────────────── */}
       {showWalkie && walkiePeerUid && uid && (

@@ -2700,6 +2700,34 @@ export interface ChatRoom {
   intimatePetName?: string | null; // nickname shown in the header
 }
 
+/**
+ * Shared Couples Diary — a private notebook bound to an intimate DM pair.
+ * Firestore doc id === the DM room id. Read/write gated to participantUids by rules;
+ * entry `text` is additionally encrypted with a key derived from a shared safeword.
+ */
+export interface CouplesDiary {
+  roomId: string;
+  participantUids: string[];      // exactly the two DM participants
+  safewordHash?: string;          // hashSecret(safeword) — absent until first set
+  createdAt: number;
+  entries: DiaryEntry[];
+}
+
+export interface DiaryEntry {
+  id: string;
+  authorUid: string;
+  kind: 'NOTE' | 'PLAYLIST' | 'LINK';
+  text?: string;                  // NOTE: ciphertext (encryptWith safeword-derived key)
+  albumId?: string;               // PLAYLIST: album reference (not encrypted)
+  trackId?: string;               // PLAYLIST: optional track reference
+  mediaTitle?: string;            // PLAYLIST: cached title for display
+  mediaCover?: string;            // PLAYLIST: cached cover for display
+  url?: string;                   // LINK
+  title?: string;                 // LINK: label
+  mood?: 'LOVED' | 'HAPPY' | 'PLAYFUL' | 'INTIMATE';
+  createdAt: number;
+}
+
 export interface CollabProject {
   id: string;
   name: string;

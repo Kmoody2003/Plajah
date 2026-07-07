@@ -13,6 +13,7 @@ import {
   fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
   updateRoomIntimate,
 } from '../services/backendService';
+import { deleteDiary } from '../services/couplesDiary';
 import { useCall } from '../contexts/CallContext';
 import { buildShareUrl, shareOrigin } from '../services/deepLinkService';
 import ChatWindow from './ChatWindow';
@@ -742,6 +743,10 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const toggleIntimate = (roomId: string) => {
     const room = rooms.find(r => r.id === roomId) || (activeRoom?.id === roomId ? activeRoom : null);
     const next = !room?.isIntimate;
+    // Turning intimate OFF — offer to also erase the shared diary for both partners.
+    if (!next && confirm('Turn off Intimate Mode. Also permanently delete your Shared Diary for both of you?')) {
+      deleteDiary(roomId).catch(() => {});
+    }
     // Optimistic — the room-list listener will also reflect the persisted change.
     setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, isIntimate: next } : r)));
     setActiveRoom(prev => (prev && prev.id === roomId ? { ...prev, isIntimate: next } : prev));

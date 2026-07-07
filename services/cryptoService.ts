@@ -89,3 +89,27 @@ export async function decryptText(encrypted: string, roomId: string): Promise<st
 
 /** Returns true if a string is an encrypted blob produced by encryptText. */
 export const isEncrypted = (s: string) => s.startsWith('enc:');
+
+// ── Safeword-scoped encryption (Couples Diary) ──────────────────────────────────
+// The key is derived from arbitrary secret material (deriveRoomKey treats its arg
+// as key material), so passing `${roomId}::${safeword}` yields a key that requires
+// BOTH the room and the shared safeword. Same AES-GCM/PBKDF2 pipeline as messages.
+
+/** Encrypt with an arbitrary secret (e.g. `roomId::safeword`). Returns a base64 blob. */
+export async function encryptWith(plaintext: string, secret: string): Promise<string> {
+  return encryptText(plaintext, secret);
+}
+
+/** Decrypt a blob produced by encryptWith using the same secret. */
+export async function decryptWith(encrypted: string, secret: string): Promise<string> {
+  return decryptText(encrypted, secret);
+}
+
+/**
+ * One-way hash of a secret (SHA-256 → base64), salted with the app salt.
+ * Used to VERIFY a safeword without ever storing it in plaintext.
+ */
+export async function hashSecret(secret: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${APP_SALT}:${secret}`));
+  return toBase64(buf);
+}
