@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
+import ComicReader from './ComicReader';
 import { buildShareUrl } from '../services/deepLinkService';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
@@ -1335,31 +1336,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 )}
               </div>
             ) : pages.length > 0 ? (
-              <div className={`flex gap-6 w-full h-full items-center justify-center ${viewMode === 'DOUBLE' ? 'max-w-7xl' : 'max-w-4xl'}`}>
-                <AnimatePresence mode="wait">
-                  <motion.div 
-                    key={`${currentChapterIndex}-${currentPageIndex}`}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex gap-4 items-center justify-center h-full w-full"
-                  >
-                    <img 
-                      src={pages[currentPageIndex].url} 
-                      alt={`Page ${currentPageIndex + 1}`}
-                      className={`h-full max-h-[85vh] object-contain rounded-lg shadow-2xl ring-1 ring-white/10 ${viewMode === 'DOUBLE' ? 'w-1/2' : 'w-auto'}`}
-                      referrerPolicy="no-referrer"
-                    />
-                    {viewMode === 'DOUBLE' && currentPageIndex + 1 < pages.length && (
-                      <img 
-                        src={pages[currentPageIndex + 1].url} 
-                        alt={`Page ${currentPageIndex + 2}`}
-                        className="h-full max-h-[85vh] w-1/2 object-contain rounded-lg shadow-2xl ring-1 ring-white/10"
-                        referrerPolicy="no-referrer"
-                      />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+              <div className="w-full h-full max-w-7xl">
+                <ComicReader
+                  pages={pages}
+                  index={currentPageIndex}
+                  onIndexChange={setCurrentPageIndex}
+                  readingDir={(book as any).readingDir === 'rtl' ? 'rtl' : 'ltr'}
+                  title={book.title}
+                />
               </div>
             ) : isLoadingContent ? (
               <div className="flex flex-col items-center gap-6">
