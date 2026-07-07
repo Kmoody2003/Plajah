@@ -1119,6 +1119,15 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.artistId == request.auth.uid || isAdmin();
     }
 
+    // Saved Spatial Mixer projects (arrangement + IAMF metadata + private-locker stem URLs).
+    // Owner-only, never shared.
+    match /spatial_mixes/{mixId} {
+      allow read: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
     // Private movie/TV locker (Plex-style, surfaced in Taleo). Owner-only, never shared.
     match /personal_videos/{videoId} {
       allow read: if isOwner(resource.data.ownerId) || isAdmin();

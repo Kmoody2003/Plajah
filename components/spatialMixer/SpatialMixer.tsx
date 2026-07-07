@@ -1,10 +1,13 @@
-import React, { useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Play, Pause, Plus, Download, Upload, Volume2, VolumeX, Trash2, Boxes, Radio, Music2, Globe,
+  UploadCloud, Save, FolderOpen, Loader2, Clock,
 } from 'lucide-react';
 import { useSpatialAudioEngine } from './useSpatialAudioEngine';
-import type { AudioTrack } from './types';
+import type { AudioTrack, SpatialMixProject } from './types';
+import { saveSpatialMix, fetchSpatialMixes, deleteSpatialMix } from '../../services/spatialMix';
+import { auth } from '../../services/firebase';
 
 const FIELD = 5; // spatial field half-extent (metres) mapped onto the stage pad
 
@@ -65,26 +68,135 @@ const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const eng = useSpatialAudioEngine();
   const [active, setActive] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const activeTrack = eng.tracks.find(t => t.id === active) || null;
+  const [mixName, setMixName] = useState('Spatial Mix');
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  const [busy, setBusy] = useState<null | 'saving' | 'publishing' | 'loading'>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [showProjects, setShowProjects] = useState(false);
+  const [projects, setProjects] = useState<SpatialMixProject[]>([]);
+
+  const flash = (m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2600); };
+
+  useEffect(() => { if (toast === null) return; }, [toast]);
 
   const onFiles = async (files: FileList | null) => {
     if (!files) return;
     for (const f of Array.from(files)) await eng.addTrack(f);
   };
 
+  // Render the binaural WAV master, seed an Eclipsa-flagged release, and open the Album
+  // Creator to publish it to Chora (the existing isEclipsa upload path).
+  const publishToChora = async () => {
+    if (eng.tracks.length === 0) { flash('Add at least one stem first'); return; }
+    if (!auth.currentUser) { flash('Sign in to publish'); return; }
+    setBusy('publishing');
+    try {
+      const blob = await eng.renderMixToBlob();
+      if (!blob) { flash('Nothing to render'); setBusy(null); return; }
+      const safe = (mixName || 'Spatial Mix').replace(/[^a-zA-Z0-9._ -]/g, '').trim() || 'Spatial Mix';
+      const file = new File([blob], `${safe}.wav`, { type: 'audio/wav' });
+      const iamf = eng.buildIAMFProject();
+      const artist = auth.currentUser.displayName || '';
+      const seed = {
+        id: `album_${Math.random().toString(36).slice(2, 11)}`,
+        title: mixName || 'Spatial Mix',
+        artist,
+        type: 'MUSIC',
+        subType: 'SINGLE',
+        genre: 'Spatial Audio',
+        coverImage: '',
+        description: 'Immersive spatial audio mix authored in the Plajah Spatial Mixer (Eclipsa / IAMF).',
+        createdAt: Date.now(),
+        tracks: [{
+          id: `t_${Math.random().toString(36).slice(2, 9)}`,
+          title: mixName || 'Spatial Mix',
+          artist,
+          file,
+          url: URL.createObjectURL(blob),
+          price: 0,
+          isPaywalled: false,
+          genre: 'Spatial Audio',
+          mediaKind: 'AUDIO',
+          isEclipsa: true,
+          eclipsaProjectJson: JSON.stringify(iamf),
+        }],
+      };
+      window.dispatchEvent(new CustomEvent('OPEN_ALBUM_CREATOR', { detail: { album: seed } }));
+      flash('Opening publisher — finish in the Album Creator');
+    } catch {
+      flash('Render failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveProject = async () => {
+    if (eng.tracks.length === 0) { flash('Add stems before saving'); return; }
+    if (!auth.currentUser) { flash('Sign in to save'); return; }
+    setBusy('saving');
+    try {
+      const saved = await saveSpatialMix(
+        { id: projectId, name: mixName, masterVolume: eng.masterVolume, iamf: eng.buildIAMFProject() },
+        eng.getTracks(),
+        eng.serializeTracks(),
+      );
+      if (saved) { setProjectId(saved.id); flash('Mix saved to your projects'); }
+      else flash('Save failed');
+    } catch {
+      flash('Save failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openProjects = async () => {
+    setShowProjects(true);
+    setProjects(await fetchSpatialMixes());
+  };
+
+  const loadProject = async (p: SpatialMixProject) => {
+    setBusy('loading');
+    setShowProjects(false);
+    try {
+      eng.clearTracks();
+      let ok = 0;
+      for (const t of p.tracks) { if (await eng.addTrackFromSource(t)) ok++; }
+      eng.setMasterVolume(p.masterVolume ?? 0.8);
+      setMixName(p.name);
+      setProjectId(p.id);
+      flash(ok === p.tracks.length ? `Loaded "${p.name}"` : `Loaded ${ok}/${p.tracks.length} stems`);
+    } catch {
+      flash('Load failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeProject = async (id: string) => {
+    await deleteSpatialMix(id);
+    setProjects(prev => prev.filter(p => p.id !== id));
+    if (projectId === id) setProjectId(undefined);
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-[#050507] flex flex-col" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-white/8 shrink-0">
-        <Boxes size={18} className="text-[#22D3AA]" />
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white">Spatial Mixer</p>
-          <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30">Eclipsa · IAMF immersive audio</p>
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-white/8 shrink-0 flex-wrap">
+        <Boxes size={18} className="text-[#22D3AA] shrink-0" />
+        <div className="shrink-0">
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white leading-none">Spatial Mixer</p>
+          <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mt-1">Eclipsa · IAMF immersive audio</p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <input value={mixName} onChange={e => setMixName(e.target.value)} placeholder="Mix name"
+          className="ml-2 min-w-[120px] max-w-[220px] px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-black text-white placeholder:text-white/25 focus:outline-none focus:border-[#22D3AA]/40" />
+        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
           <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><Plus size={12} /> Add stem</button>
+          <button onClick={saveProject} disabled={busy !== null} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white disabled:opacity-40">{busy === 'saving' ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save</button>
+          <button onClick={openProjects} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><FolderOpen size={12} /> Open</button>
+          <span className="w-px h-5 bg-white/10" />
           <button onClick={eng.exportMix} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><Download size={12} /> WAV</button>
-          <button onClick={eng.exportIAMF} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#22D3AA]/15 border border-[#22D3AA]/30 text-[9px] font-black uppercase tracking-widest text-[#22D3AA]"><Globe size={12} /> IAMF</button>
+          <button onClick={eng.exportIAMF} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><Globe size={12} /> IAMF</button>
+          <button onClick={publishToChora} disabled={busy !== null} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#22D3AA] border border-[#22D3AA] text-[9px] font-black uppercase tracking-widest text-black hover:bg-[#22D3AA]/90 disabled:opacity-50">{busy === 'publishing' ? <Loader2 size={12} className="animate-spin" /> : <UploadCloud size={12} />} Publish to Chora</button>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white"><X size={15} /></button>
         </div>
         <input ref={fileRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => onFiles(e.target.files)} />
@@ -153,6 +265,47 @@ const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </label>
         </div>
       </div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[310] px-4 py-2.5 rounded-full bg-[#22D3AA] text-black text-[10px] font-black uppercase tracking-widest shadow-2xl">
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Saved projects */}
+      <AnimatePresence>
+        {showProjects && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[320] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowProjects(false)}>
+            <motion.div initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg max-h-[70vh] flex flex-col rounded-3xl bg-[#0b0b0f] border border-white/10 overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-white/8">
+                <FolderOpen size={16} className="text-[#22D3AA]" />
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white">My Spatial Mixes</p>
+                <button onClick={() => setShowProjects(false)} className="ml-auto text-white/40 hover:text-white"><X size={16} /></button>
+              </div>
+              <div className="overflow-y-auto p-3 space-y-2">
+                {projects.length === 0 ? (
+                  <div className="py-14 text-center"><Boxes size={28} className="mx-auto text-white/12 mb-3" /><p className="text-[10px] font-black uppercase tracking-widest text-white/25">No saved mixes yet</p></div>
+                ) : projects.map(p => (
+                  <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3 hover:border-[#22D3AA]/30">
+                    <button onClick={() => loadProject(p)} className="flex-1 text-left">
+                      <p className="text-sm font-black text-white truncate">{p.name}</p>
+                      <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-white/30 mt-0.5"><Clock size={10} /> {p.tracks?.length ?? 0} stems</p>
+                    </button>
+                    <button onClick={() => removeProject(p.id)} className="text-white/25 hover:text-rose-400"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

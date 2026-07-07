@@ -683,6 +683,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenSpatialMixer = () => setView('SPATIAL_MIXER' as AppView);
     window.addEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
 
+    // Open the Album Creator seeded with a prebuilt release (e.g. a Spatial Mixer → Chora publish).
+    const handleOpenAlbumCreator = (e: Event) => {
+      const seed = (e as CustomEvent).detail?.album;
+      if (seed) setEditingAlbum(seed);
+      setShowCreator(true);
+    };
+    window.addEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
+
     // Open Fabula (e.g. after a Pixels → Fabula export; Fabula reads the idb handoff on boot).
     const handleOpenFabula = () => setView('FABULA' as AppView);
     window.addEventListener('OPEN_FABULA', handleOpenFabula);
@@ -697,6 +705,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
+      window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
   }, [user]);

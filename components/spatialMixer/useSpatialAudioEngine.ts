@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AudioTrack, AudioClip, IAMFMetadata } from './types';
+import { AudioTrack, AudioClip, IAMFMetadata, SerializedTrack } from './types';
+
+// Settings applied to a track when rebuilt from a saved project.
+interface TrackSeed {
+  name: string;
+  position?: [number, number, number];
+  volume?: number;
+  muted?: boolean;
+  eq?: { low: number; mid: number; high: number };
+  iamf?: IAMFMetadata;
+  sourceUrl?: string;
+}
 
 // Minimal WAV encoder (replaces the audiobuffer-to-wav dep; interleaves + PCM16).
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
@@ -59,33 +70,56 @@ export function useSpatialAudioEngine() {
 
   const setMasterVolume = (v: number) => { setMasterVolumeState(v); if (masterGainRef.current) masterGainRef.current.gain.value = v; };
 
+  // Build a fully-wired track from a decoded buffer + optional saved settings.
+  const buildTrack = (ctx: BaseAudioContext, master: AudioNode, buffer: AudioBuffer | null, seed: TrackSeed, file?: File | null): AudioTrack => {
+    const pos = seed.position ?? [0, 0, 2];
+    const vol = seed.volume ?? 0.8;
+    const muted = seed.muted ?? false;
+    const gainNode = (ctx as AudioContext).createGain();
+    const panner = (ctx as AudioContext).createPanner();
+    const analyser = (ctx as AudioContext).createAnalyser(); analyser.fftSize = 256;
+    const low = (ctx as AudioContext).createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 200;
+    const mid = (ctx as AudioContext).createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 1;
+    const high = (ctx as AudioContext).createBiquadFilter(); high.type = 'highshelf'; high.frequency.value = 5000;
+    const compressor = (ctx as AudioContext).createDynamicsCompressor();
+    compressor.threshold.value = -24; compressor.knee.value = 30; compressor.ratio.value = 12; compressor.attack.value = 0.003; compressor.release.value = 0.25;
+
+    panner.connect(low); low.connect(mid); mid.connect(high); high.connect(compressor); compressor.connect(gainNode); gainNode.connect(analyser); analyser.connect(master);
+    panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.refDistance = 1; panner.maxDistance = 10000; panner.rolloffFactor = 1;
+    panner.positionX.value = pos[0]; panner.positionY.value = pos[1]; panner.positionZ.value = pos[2];
+    if (seed.eq) { low.gain.value = seed.eq.low; mid.gain.value = seed.eq.mid; high.gain.value = seed.eq.high; }
+    gainNode.gain.value = muted ? 0 : vol;
+
+    const clips: AudioClip[] = buffer ? [{ id: uuidv4(), name: seed.name, buffer, startTime: 0, duration: buffer.duration, offset: 0 }] : [];
+    return {
+      id: uuidv4(), name: seed.name, url: '', file: file ?? null, sourceUrl: seed.sourceUrl, buffer, clips,
+      position: pos, volume: vol, muted,
+      panner, gainNode, sourceNodes: [], plugins: [], analyser, eq: { low, mid, high }, dynamics: { compressor },
+      automation: [{ parameter: 'volume', keyframes: [] }, { parameter: 'positionX', keyframes: [] }, { parameter: 'positionY', keyframes: [] }, { parameter: 'positionZ', keyframes: [] }],
+      iamf: seed.iamf ?? { id: uuidv4(), groupType: 'object', priority: 1 },
+    };
+  };
+
   const addTrack = async (file?: File) => {
     const ctx = audioContextRef.current; if (!ctx || !masterGainRef.current) return;
     let buffer: AudioBuffer | null = null; let name = 'New Track';
     if (file) { buffer = await ctx.decodeAudioData(await file.arrayBuffer()); name = file.name.replace(/\.[^/.]+$/, ''); }
-
-    const gainNode = ctx.createGain();
-    const panner = ctx.createPanner();
-    const analyser = ctx.createAnalyser(); analyser.fftSize = 256;
-    const low = ctx.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 200;
-    const mid = ctx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 1;
-    const high = ctx.createBiquadFilter(); high.type = 'highshelf'; high.frequency.value = 5000;
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -24; compressor.knee.value = 30; compressor.ratio.value = 12; compressor.attack.value = 0.003; compressor.release.value = 0.25;
-
-    panner.connect(low); low.connect(mid); mid.connect(high); high.connect(compressor); compressor.connect(gainNode); gainNode.connect(analyser); analyser.connect(masterGainRef.current);
-    panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.refDistance = 1; panner.maxDistance = 10000; panner.rolloffFactor = 1;
-    panner.positionX.value = 0; panner.positionY.value = 0; panner.positionZ.value = 2;
-    gainNode.gain.value = 0.8;
-
-    const clips: AudioClip[] = buffer ? [{ id: uuidv4(), name, buffer, startTime: 0, duration: buffer.duration, offset: 0 }] : [];
-    const newTrack: AudioTrack = {
-      id: uuidv4(), name, url: '', buffer, clips, position: [0, 0, 2], volume: 0.8, muted: false,
-      panner, gainNode, sourceNodes: [], plugins: [], analyser, eq: { low, mid, high }, dynamics: { compressor },
-      automation: [{ parameter: 'volume', keyframes: [] }, { parameter: 'positionX', keyframes: [] }, { parameter: 'positionY', keyframes: [] }, { parameter: 'positionZ', keyframes: [] }],
-      iamf: { id: uuidv4(), groupType: 'object', priority: 1 },
-    };
+    const newTrack = buildTrack(ctx, masterGainRef.current, buffer, { name }, file);
     setTracks(prev => [...prev, newTrack]);
+  };
+
+  // Rebuild a track from a saved project: fetch the stem, decode, restore settings.
+  const addTrackFromSource = async (seed: SerializedTrack): Promise<boolean> => {
+    const ctx = audioContextRef.current; if (!ctx || !masterGainRef.current || !seed.sourceUrl) return false;
+    try {
+      const res = await fetch(seed.sourceUrl);
+      const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+      const t = buildTrack(ctx, masterGainRef.current, buffer, {
+        name: seed.name, position: seed.position, volume: seed.volume, muted: seed.muted, eq: seed.eq, iamf: seed.iamf, sourceUrl: seed.sourceUrl,
+      });
+      setTracks(prev => [...prev, t]);
+      return true;
+    } catch { return false; }
   };
 
   const updateTrackPosition = (id: string, position: [number, number, number]) =>
@@ -146,8 +180,10 @@ export function useSpatialAudioEngine() {
     setCurrentTime(Math.max(0, time)); if (was) togglePlayback(Math.max(0, time));
   };
 
-  const exportMix = async () => {
-    if (!audioContextRef.current || tracks.length === 0) return;
+  // Render the full spatial mix (HRTF binaural fold-down) to a WAV Blob. This is a real,
+  // universally-playable master — the audio Chora hosts/plays today.
+  const renderMixToBlob = async (): Promise<Blob | null> => {
+    if (!audioContextRef.current || tracks.length === 0) return null;
     const duration = Math.max(...tracks.map(t => t.buffer?.duration || 0)) || 1;
     const offline = new OfflineAudioContext(2, Math.ceil(44100 * duration), 44100);
     for (const track of tracks) {
@@ -160,27 +196,53 @@ export function useSpatialAudioEngine() {
     }
     const rendered = await offline.startRendering();
     const wav = audioBufferToWav(rendered);
-    const blob = new Blob([new Uint8Array(wav)], { type: 'audio/wav' });
+    return new Blob([new Uint8Array(wav)], { type: 'audio/wav' });
+  };
+
+  // IAMF/Eclipsa authoring descriptor (scene/object groups + spatial mix config).
+  // Note: this is the authoring metadata, not a compiled .iamf bitstream (that needs a
+  // native/WASM IAMF encoder — deferred). It rides alongside the WAV master so a true
+  // IAMF encode can happen later without re-authoring.
+  const buildIAMFProject = () => ({
+    common: { version: '1.0', audio_element_count: tracks.length },
+    audio_elements: tracks.map(t => ({
+      element_id: t.iamf?.id, name: t.name,
+      element_type: t.iamf?.groupType === 'scene' ? 0 : 1, // 0=Scene, 1=Object
+      priority: t.iamf?.priority ?? 1,
+      mix_config: { gain: t.volume, pan: { x: t.position[0], y: t.position[1], z: t.position[2] } },
+    })),
+  });
+
+  const exportMix = async () => {
+    const blob = await renderMixToBlob(); if (!blob) return;
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'spatial_mix.wav'; a.click();
   };
 
-  // IAMF/Eclipsa project descriptor (scene/object groups + spatial mix config).
   const exportIAMF = async () => {
-    const project = {
-      common: { version: '1.0', audio_element_count: tracks.length },
-      audio_elements: tracks.map(t => ({
-        element_id: t.iamf?.id, name: t.name,
-        element_type: t.iamf?.groupType === 'scene' ? 0 : 1, // 0=Scene, 1=Object
-        priority: t.iamf?.priority ?? 1,
-        mix_config: { gain: t.volume, pan: { x: t.position[0], y: t.position[1], z: t.position[2] } },
-      })),
-    };
-    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/iamf+json' });
+    const blob = new Blob([JSON.stringify(buildIAMFProject(), null, 2)], { type: 'application/iamf+json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'spatial_mix.iamf.json'; a.click();
   };
 
+  // Firestore-safe arrangement of the current tracks (no AudioNodes / buffers). `sourceUrl`
+  // is filled in by the persistence layer after each stem is uploaded to the locker.
+  const serializeTracks = (): SerializedTrack[] => tracks.map(t => ({
+    id: t.id, name: t.name, sourceUrl: t.sourceUrl || '',
+    position: t.position, volume: t.volume, muted: t.muted,
+    eq: { low: t.eq?.low.gain.value ?? 0, mid: t.eq?.mid.gain.value ?? 0, high: t.eq?.high.gain.value ?? 0 },
+    iamf: t.iamf,
+  }));
+
+  // The live tracks (with their source File) — the persistence layer needs the File to upload.
+  const getTracks = () => tracks;
+
+  const clearTracks = () => setTracks(prev => {
+    prev.forEach(t => t.sourceNodes.forEach(s => { try { s.stop(); } catch { /* */ } }));
+    return [];
+  });
+
   return {
-    tracks, addTrack, removeTrack, updateTrackPosition, updateTrackVolume, toggleMute, updateTrackEQ, updateIAMFMetadata,
-    togglePlayback, isPlaying, currentTime, seek, masterVolume, setMasterVolume, exportMix, exportIAMF,
+    tracks, addTrack, addTrackFromSource, removeTrack, updateTrackPosition, updateTrackVolume, toggleMute, updateTrackEQ, updateIAMFMetadata,
+    togglePlayback, isPlaying, currentTime, seek, masterVolume, setMasterVolume,
+    exportMix, exportIAMF, renderMixToBlob, buildIAMFProject, serializeTracks, getTracks, clearTracks,
   };
 }

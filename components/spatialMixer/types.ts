@@ -31,6 +31,8 @@ export interface AudioTrack {
   id: string;
   name: string;
   url: string;
+  file?: File | null;      // original source (kept for locker upload on Save)
+  sourceUrl?: string;      // remote locker URL once a saved project has uploaded the stem
   buffer: AudioBuffer | null;
   clips: AudioClip[];
   position: [number, number, number]; // x, y, z
@@ -52,4 +54,28 @@ export interface SpatialMix {
   name: string;
   tracks: AudioTrack[];
   masterPlugins: AudioPlugin[];
+}
+
+// Serialized, Firestore-safe form of one track (no AudioNodes / AudioBuffer).
+export interface SerializedTrack {
+  id: string;
+  name: string;
+  sourceUrl: string;                 // locker URL to re-fetch the stem
+  position: [number, number, number];
+  volume: number;
+  muted: boolean;
+  eq: { low: number; mid: number; high: number };
+  iamf?: IAMFMetadata;
+}
+
+// A saved spatial-mix project (owner-only, collection `spatial_mixes`).
+export interface SpatialMixProject {
+  id: string;
+  ownerId: string;
+  name: string;
+  masterVolume: number;
+  tracks: SerializedTrack[];
+  iamf: any;                         // full IAMF authoring descriptor
+  createdAt: number;
+  updatedAt: number;
 }

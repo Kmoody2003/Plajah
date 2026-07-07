@@ -141,6 +141,7 @@ export interface Track {
   hnsSlot1?: { url: string; title: string; uploadedAt: number };
   hnsSlot2?: { url: string; title: string; uploadedAt: number };
   isEclipsa?: boolean;
+  eclipsaProjectJson?: string;  // IAMF authoring descriptor (from the Spatial Mixer) preserved with the release
   isAtmos?: boolean;    // Dolby Atmos / EC-3 JOC source — enables passthrough badge
   characterIds?: string[];                      // Characters featured in this song
   trackCharacterImages?: Record<string, string>; // Per-song image override (characterId → imageUrl)
