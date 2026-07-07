@@ -1017,6 +1017,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
               onBack={() => { setActiveRoom(null); setActiveCollabId(null); }}
               onOpenCollab={id => setActiveCollabId(id)}
               onStartVideo={() => activeRoom && placeCall(activeRoom, 'VIDEO')}
+              onStartAudio={() => activeRoom && placeCall(activeRoom, 'AUDIO')}
             />
           </div>
         ) : (

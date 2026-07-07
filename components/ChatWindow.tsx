@@ -93,6 +93,7 @@ interface ChatWindowProps {
   onBack?: () => void;
   onOpenCollab: (projectId: string) => void;
   onStartVideo?: () => void;
+  onStartAudio?: () => void;
 }
 
 const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '🔥', '👏', '💯', '🎯'];
@@ -187,7 +188,7 @@ const ReactionBadge: React.FC<{
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 const ChatWindow: React.FC<ChatWindowProps> = ({
-  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo,
+  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio,
 }) => {
   const [messages, setMessages] = useState<ExtendedMessage[]>([]);
   const [decryptedMessages, setDecryptedMsgs] = useState<ExtendedMessage[]>([]);
@@ -729,10 +730,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button onClick={() => { setSearchMode(p => !p); }} className={`p-2 rounded-xl transition-all ${searchMode ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
             <Search size={17} />
           </button>
-          <button className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+          <button onClick={onStartAudio} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all" title="Voice call">
             <Phone size={17} />
           </button>
-          <button onClick={onStartVideo} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+          <button onClick={onStartVideo} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all" title="Video call">
             <Video size={17} />
           </button>
           {walkiePeerUid && uid && (

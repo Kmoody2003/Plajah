@@ -551,7 +551,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
   return (
     <div
-      className={`relative rounded-3xl p-5 space-y-3 transition-all ${
+      className={`relative rounded-3xl p-3 sm:p-5 space-y-3 transition-all ${
         isDragging
           ? 'bg-orange-500/8 border-2 border-dashed border-orange-400/50 shadow-[0_0_40px_rgba(255,140,0,0.15)]'
           : 'bg-white/[0.03] border border-white/10'
@@ -575,16 +575,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Sanctuary gate (opt-in — only when the author has a sanctuary) */}
       {userSanctuaryId && (attachments.length > 0 || !!assetEmbed) && (
-        <div className="pl-12">
+        <div className="pl-0 sm:pl-12">
           <SanctuaryGatePicker sanctuaryId={userSanctuaryId} tiers={userSanctuaryTiers} value={sanctuaryGate} onChange={setSanctuaryGate} />
         </div>
       )}
 
-      {/* Avatar + textarea */}
+      {/* Avatar + textarea — avatar hidden on phone so the text box gets full width */}
       <div className={`flex items-start gap-3 ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}>
         <img
           src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.uid || 'anon'}`}
-          className="w-9 h-9 rounded-full border border-white/10 shrink-0 mt-1"
+          className="hidden sm:block w-9 h-9 rounded-full border border-white/10 shrink-0 mt-1"
           alt=""
         />
         <div className="flex-1 relative min-w-0">
@@ -594,8 +594,8 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             onChange={handleTextChange}
             onKeyDown={handleMentionKeyDown}
             placeholder={placeholder}
-            rows={3}
-            className="w-full bg-transparent text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[80px] leading-relaxed"
+            rows={4}
+            className="w-full bg-transparent text-base sm:text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[104px] sm:min-h-[80px] leading-relaxed"
             autoFocus
           />
 
@@ -648,7 +648,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       </div>
 
       {/* Theme chips */}
-      <div className="flex flex-wrap gap-2 pl-12">
+      <div className="flex flex-wrap gap-2 pl-0 sm:pl-12">
         {THEMES.map(t => (
           <button
             key={t.id}
@@ -663,7 +663,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       </div>
 
       {/* Content labels + community guidelines */}
-      <div className="pl-12">
+      <div className="pl-0 sm:pl-12">
         <ContentLabelPicker selected={contentLabels} onChange={setContentLabels} />
         {safetyBlock && (
           <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
@@ -674,7 +674,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Attachment preview strip */}
       {attachments.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pl-12 pb-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pl-0 sm:pl-12 pb-1 scrollbar-hide">
           {attachments.map((att, i) => (
             <div key={i} className="relative shrink-0 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
               {att.type === 'PHOTO' || att.type === 'GIF' ? (
@@ -711,7 +711,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Video action sheet */}
       {videoAttachments.length > 0 && (
-        <div className="flex gap-2 flex-wrap pl-12">
+        <div className="flex gap-2 flex-wrap pl-0 sm:pl-12">
           {videoAttachments.map((att, i) => (
             <div key={i} className="flex gap-2">
               {onSendToRello && (
@@ -739,7 +739,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Social embed live preview */}
       {detectedEmbeds.length > 0 && (
-        <div className="pl-12 space-y-2">
+        <div className="pl-0 sm:pl-12 space-y-2">
           <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25">Embed preview</p>
           {detectedEmbeds.map((embed, i) => (
             <SocialEmbedCard key={i} embed={embed} />
@@ -749,7 +749,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Asset embed preview */}
       {assetEmbed && (
-        <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 ml-12">
+        <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 ml-0 sm:ml-12">
           {assetEmbed.imageUrl && <img src={assetEmbed.imageUrl} className="w-12 h-12 rounded-xl object-cover shrink-0" alt="" />}
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-black uppercase tracking-widest text-small-orange mb-0.5">{assetEmbed.type}</p>
@@ -762,7 +762,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* ── Poll builder ── */}
       {showPoll && (
-        <div className="ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+        <div className="ml-0 sm:ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Poll</p>
             <button onClick={removePoll} className="p-1 rounded-full text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-all"><Trash2 size={12} /></button>
@@ -817,7 +817,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* ── DataViz picker ── */}
       {showViz && !dataViz && (
-        <div className="ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+        <div className="ml-0 sm:ml-12 bg-white/[0.03] border border-white/10 rounded-2xl p-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Embed Live Data</p>
           <div className="grid grid-cols-2 gap-2">
             {VIZ_PRESETS.map(preset => (
@@ -839,7 +839,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* DataViz embed badge */}
       {dataViz && (
-        <div className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3 ml-12">
+        <div className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3 ml-0 sm:ml-12">
           <FlaskConical size={16} className="text-cyan-400 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-black uppercase tracking-widest text-cyan-400/70 mb-0.5">Live Data Viz</p>
@@ -852,7 +852,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* ── Exclusive post panel ── */}
       {showExclusive && (
-        <div className="ml-12 rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,80,0,0.06)', border: '1px solid rgba(255,120,0,0.2)' }}>
+        <div className="ml-0 sm:ml-12 rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,80,0,0.06)', border: '1px solid rgba(255,120,0,0.2)' }}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#ff8c00' }}>🔥 Exclusive Post</p>
             <button onClick={() => { setShowExclusive(false); setExclusive(null); }} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"><X size={10} /></button>
@@ -928,7 +928,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       {/* Active exclusive badge */}
       {exclusive && !showExclusive && (
         <div
-          className="flex items-center justify-between ml-12 rounded-2xl px-3 py-2"
+          className="flex items-center justify-between ml-0 sm:ml-12 rounded-2xl px-3 py-2"
           style={{ background: 'rgba(255,80,0,0.08)', border: '1px solid rgba(255,120,0,0.22)' }}
         >
           <div className="flex items-center gap-2">
@@ -949,7 +949,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Emoji picker */}
       {showEmoji && (
-        <div className="pl-12 flex flex-wrap gap-1.5 bg-white/5 rounded-2xl p-3 border border-white/10">
+        <div className="pl-0 sm:pl-12 flex flex-wrap gap-1.5 bg-white/5 rounded-2xl p-3 border border-white/10">
           {COMMON_EMOJIS.map(emoji => (
             <button key={emoji} onClick={() => insertEmoji(emoji)} className="text-lg hover:scale-125 transition-transform">{emoji}</button>
           ))}
@@ -958,7 +958,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* GIF picker */}
       {showGif && (
-        <div className="pl-12 space-y-2">
+        <div className="pl-0 sm:pl-12 space-y-2">
           <input
             value={gifQuery}
             onChange={e => { setGifQuery(e.target.value); searchGifs(e.target.value); }}
@@ -984,7 +984,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Asset picker */}
       {showAssetPicker && (
-        <div className="ml-12 bg-black/80 border border-white/10 rounded-2xl p-4 space-y-3">
+        <div className="ml-0 sm:ml-12 bg-black/80 border border-white/10 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               {(['Albums', 'Worlds', 'More'] as AssetTab[]).map(tab => (
@@ -1042,7 +1042,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Camera panel */}
       {videoCapturing && (
-        <div className="pl-12 space-y-2">
+        <div className="pl-0 sm:pl-12 space-y-2">
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-h-40">
             <video ref={videoPreviewRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
             {videoCamRecorder.current?.state === 'recording' && (
@@ -1079,7 +1079,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
       {/* Voice recorder */}
       {showVoiceRecorder && (
-        <div className="pl-12">
+        <div className="pl-0 sm:pl-12">
           <VoiceRecorder
             onSend={(blob) => {
               const url = URL.createObjectURL(blob);
@@ -1092,7 +1092,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       )}
 
       {/* ── Toolbar ── */}
-      <div className="flex items-center gap-1 pl-12 flex-wrap">
+      <div className="flex items-center gap-1 pl-0 sm:pl-12 flex-wrap">
         <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileChange} />
 
         <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/8 transition-all" title="Photo / Video">

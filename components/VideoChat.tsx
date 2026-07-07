@@ -133,7 +133,8 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const tiles = total + (hasScreen ? 1 : 0);
   const anyConnecting = [...rtc.peerStates.values()].some(s => s === 'connecting' || s === 'new');
   const allConnected = remotes.length > 0 && [...rtc.peerStates.values()].every(s => s === 'connected');
-  const cols = tiles <= 1 ? 'grid-cols-1' : tiles <= 2 ? 'grid-cols-2' : tiles <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+  // Mobile-first: a 1:1 call (2 tiles) stacks on phones instead of two tiny side-by-side tiles.
+  const cols = tiles <= 1 ? 'grid-cols-1' : tiles <= 2 ? 'grid-cols-1 sm:grid-cols-2' : tiles <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
 
   const nameFor = (peerId: string) => rtc.participants.find(p => p.id === peerId)?.name || 'Participant';
 
@@ -165,37 +166,37 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       {/* Romance FX — falling rose petals + hearts on intimate calls */}
       {room?.isIntimate && romanceFx && <RomanceFXOverlay />}
       {/* Top bar */}
-      <div className="p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-red-500/20 rounded-2xl"><Video className="text-red-500" size={24} /></div>
-          <div>
-            <h2 className="text-xl font-black uppercase tracking-tightest leading-none">{room.name || 'Call'}</h2>
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">Live Video Session • {total} in call</p>
+      <div className="p-3 sm:p-6 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="p-2 sm:p-3 bg-red-500/20 rounded-2xl shrink-0"><Video className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" /></div>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-black uppercase tracking-tightest leading-none truncate">{room.name || 'Call'}</h2>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1 truncate">{callType === 'AUDIO' ? 'Voice' : 'Live Video'} Session • {total} in call</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {room?.isIntimate && (
             <button onClick={() => setRomanceFx(v => !v)} title="Romance FX"
-              className={`p-4 rounded-2xl transition-all ${romanceFx ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+              className={`p-2.5 sm:p-4 rounded-2xl transition-all ${romanceFx ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
               <Heart size={20} fill={romanceFx ? 'currentColor' : 'none'} />
             </button>
           )}
           <button onClick={() => setShowChat(s => !s)} title="Chat"
-            className={`p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+            className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <MessageSquare size={20} />
           </button>
           <button onClick={() => { setShowAdd(s => !s); setShowSettings(false); }} title="Add people"
-            className={`p-4 rounded-2xl transition-all ${showAdd ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+            className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showAdd ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <UserPlus size={20} />
           </button>
           <button onClick={toggleFullscreen} title={isFull ? 'Exit fullscreen' : 'Fullscreen'}
-            className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white">
+            className="hidden sm:flex p-2.5 sm:p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white">
             {isFull ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
           </button>
           <button
             onClick={() => { rtc.refreshDevices(); setShowSettings(s => !s); setShowAdd(false); }}
             title="Camera & microphone settings"
-            className={`p-4 rounded-2xl transition-all ${showSettings ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+            className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showSettings ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <Settings size={20} />
           </button>
         </div>
@@ -299,8 +300,8 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       )}
 
       {/* Grid */}
-      <div className="flex-1 p-6 lg:p-12 overflow-y-auto">
-        <div className={`grid gap-6 h-full ${cols}`}>
+      <div className="flex-1 p-3 sm:p-6 lg:p-12 overflow-y-auto">
+        <div className={`grid gap-3 sm:gap-6 h-full ${cols}`}>
           {/* Local tile — always mounted so the self-preview stays attached */}
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
             className="relative aspect-video bg-black border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
@@ -367,15 +368,15 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       </div>
 
       {/* Controls */}
-      <div className="p-8 pt-2 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-4">
+      <div className="p-3 sm:p-8 pt-2 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-2 sm:gap-4 flex-wrap" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         {/* Mic + source dropdown */}
         <div className="relative flex items-center">
           <button onClick={rtc.toggleAudio}
-            className={`p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.audioEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+            className={`p-4 sm:p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.audioEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
             {!rtc.audioEnabled ? <MicOff size={24} /> : <Mic size={24} />}
           </button>
           <button onClick={() => { setSrcMenu(m => m === 'mic' ? null : 'mic'); rtc.refreshDevices(); }}
-            className="px-1.5 py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
+            className="px-1.5 py-4 sm:py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
           <AnimatePresence>
             {srcMenu === 'mic' && (
               <>
@@ -407,11 +408,11 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         {/* Camera + source dropdown */}
         <div className="relative flex items-center">
           <button onClick={rtc.toggleVideo}
-            className={`p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.videoEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+            className={`p-4 sm:p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.videoEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
             {!rtc.videoEnabled ? <VideoOff size={24} /> : <Video size={24} />}
           </button>
           <button onClick={() => { setSrcMenu(m => m === 'cam' ? null : 'cam'); rtc.refreshDevices(); }}
-            className="px-1.5 py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
+            className="px-1.5 py-4 sm:py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
           <AnimatePresence>
             {srcMenu === 'cam' && (
               <>
@@ -441,15 +442,15 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         </div>
 
         <button onClick={rtc.toggleScreenShare}
-          className={`p-6 rounded-full transition-all hover:scale-110 ${rtc.sharingScreen ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+          className={`hidden sm:flex p-4 sm:p-6 rounded-full transition-all hover:scale-110 ${rtc.sharingScreen ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
           <Monitor size={24} />
         </button>
         <button onClick={toggleRecord} title={rtc.isRecording ? 'Stop recording' : 'Record'}
-          className={`p-6 rounded-full transition-all hover:scale-110 ${rtc.isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+          className={`hidden sm:flex p-4 sm:p-6 rounded-full transition-all hover:scale-110 ${rtc.isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
           <Circle size={24} fill={rtc.isRecording ? 'currentColor' : 'none'} />
         </button>
         <button onClick={end}
-          className="p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-[0_0_50px_rgba(220,38,38,0.4)]">
+          className="p-4 sm:p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-[0_0_50px_rgba(220,38,38,0.4)]">
           <PhoneOff size={24} />
         </button>
       </div>
@@ -460,7 +461,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         {showChat && (
           <motion.div initial={{ x: 360, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 360, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-            className="w-[360px] max-w-[85vw] shrink-0 border-l border-white/10 bg-[#0a0a0d] flex flex-col">
+            className="absolute inset-0 z-40 w-full sm:relative sm:inset-auto sm:z-auto sm:w-[360px] sm:max-w-[85vw] shrink-0 border-l border-white/10 bg-[#0a0a0d] flex flex-col">
             <div className="p-5 flex items-center gap-2 border-b border-white/10">
               <MessageSquare size={15} className="text-small-orange" />
               <h3 className="text-[11px] font-black uppercase tracking-widest text-white flex-1">In-call chat</h3>

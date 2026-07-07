@@ -27,6 +27,8 @@ interface ActiveCall {
   peer?: CallPeer;
   /** call docs this side created (caller), so we can cancel them on hang-up. */
   callIds: string[];
+  /** 'AUDIO' or 'VIDEO' — so the call UI opens in the right mode. */
+  type?: CallSession['type'];
 }
 
 /** A call the caller placed that went unanswered — offer to leave a voice message. */
@@ -216,7 +218,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const peer: CallPeer = { uid: receivers[0], name: first?.displayName || room.name || 'them', photo: first?.photoURL };
     hungUpRef.current = false;
     setMissed(null);
-    setActive({ room, isCaller: true, ringingName: receivers.length === 1 ? (first?.displayName || 'them') : undefined, peer, callIds });
+    setActive({ room, isCaller: true, ringingName: receivers.length === 1 ? (first?.displayName || 'them') : undefined, peer, callIds, type });
   }, [contacts]);
 
   // Caller side: detect a no-answer (declined or 30s timeout with nobody connected)
@@ -261,7 +263,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       type: 'PRIVATE',
       participants: [incoming.callerId, auth.currentUser?.uid || ''].filter(Boolean),
     } as any;
-    setActive({ room, isCaller: false, callIds: [incoming.id] });
+    setActive({ room, isCaller: false, callIds: [incoming.id], type: (incoming as any).type || 'VIDEO' });
     setIncoming(null);
   }, [incoming]);
 
@@ -323,7 +325,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             key={active.room.id}
             room={active.room}
             user={auth.currentUser}
-            callType={'VIDEO'}
+            callType={active.type || 'VIDEO'}
             ringingName={active.isCaller ? active.ringingName : undefined}
             contacts={contacts}
             onInvite={(userId) => inviteToCall(active.room, userId)}
