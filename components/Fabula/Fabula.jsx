@@ -494,6 +494,9 @@ export default function Fabula() {
 
   /* editor state */
   const [clips, setClips] = useState([]);
+  const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
+  const clipsSaveTimer = useRef(null);
+  const skipClipsSaveRef = useRef(false);
   const [editSel, setEditSel] = useState(null);     // standalone edit id (timelines independent of scenes)
   const [rendering, setRendering] = useState(false); // Pixels-powered MP4 render in progress
   const [renderPct, setRenderPct] = useState(0);
@@ -577,6 +580,7 @@ export default function Fabula() {
   useEffect(() => {
     if (!prod) return;
     clearTimeout(saveTimer.current);
+    setSaveState("saving");
     saveTimer.current = setTimeout(async () => {
       await stSet("studio:prod:" + prod.id, prod);
       const sceneCount = prod.acts.reduce((n, a) => n + a.scenes.length, 0);
@@ -586,6 +590,7 @@ export default function Fabula() {
         stSet("studio:index", { list: next });
         return next;
       });
+      setSaveState("saved");
     }, 700);
     return () => clearTimeout(saveTimer.current);
   }, [prod]);
@@ -610,6 +615,7 @@ export default function Fabula() {
   /* sync editor local clips <-> scene */
   useEffect(() => {
     const tl = editSel ? prod?.edits?.find((e) => e.id === editSel)?.timeline : scene?.timeline;
+    skipClipsSaveRef.current = true; // this setClips is a LOAD, not an edit — don't re-commit it
     setClips(tl?.clips ? JSON.parse(JSON.stringify(tl.clips)) : []);
     setSelClipId(null); setPlayhead(0); setPlaying(false);
   }, [sceneSel?.sceneId, editSel, prod?.id]);
@@ -618,6 +624,19 @@ export default function Fabula() {
     if (editSel) updateProd((p) => { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: v }; });
     else updateScene((sc) => { sc.timeline = { ...(sc.timeline || {}), clips: v }; });
   };
+
+  /* ----- continuous timeline autosave -----
+     Any live edit to `clips` (drag, trim, blade, keyframe, inspector tweak) is
+     debounced straight into the production so nothing lingers uncommitted — the
+     full-production save above then persists it to storage. Skips the load-sync
+     above so opening a scene doesn't count as an edit. */
+  useEffect(() => {
+    if (skipClipsSaveRef.current) { skipClipsSaveRef.current = false; return; }
+    if (!prod || (!sceneSel && !editSel)) return;
+    clearTimeout(clipsSaveTimer.current);
+    clipsSaveTimer.current = setTimeout(() => commitClips(clips), 450);
+    return () => clearTimeout(clipsSaveTimer.current);
+  }, [clips]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* playback (rate-aware for JKL shuttle) */
   useEffect(() => {
@@ -2987,6 +3006,14 @@ export default function Fabula() {
       {/* busy bar */}
       {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}
       {notice && <div className="toast">{notice}</div>}
+
+      {/* autosave indicator — every edit persists as you go */}
+      {prod && saveState !== "idle" && (
+        <div style={{ position: "fixed", bottom: 84, right: 14, zIndex: 60, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", pointerEvents: "none" }}>
+          <span className={saveState === "saving" ? "blink" : ""} style={{ width: 7, height: 7, borderRadius: 999, background: saveState === "saving" ? "#FF8C00" : "#3FBE85" }} />
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>{saveState === "saving" ? "Saving" : "Saved"}</span>
+        </div>
+      )}
       {spatialFor && (
         <SpatialMixer
           onClose={() => setSpatialFor(null)}
