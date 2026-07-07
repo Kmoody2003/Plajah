@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Repeat2, MessageCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { useFediverse } from '../contexts/FediverseContext';
 import type { FediversePost, FediverseProtocol } from '../services/fediverse/types';
+import { TYPE } from '../src/lib/designSystem';
 
 // ─── Protocol palette ─────────────────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
             {/* Name + handle + time */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-black text-white truncate">
+                <span className="type-title-md text-white truncate">
                   {post.authorDisplayName || post.authorHandle}
                 </span>
                 {/* Protocol badge */}
@@ -230,7 +231,7 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
 
             {/* Open original */}
             <a href={post.url} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 p-1.5 rounded-lg transition-colors text-white/20 hover:text-white/60">
+              className="tap shrink-0 rounded-lg transition-colors text-white/20 hover:text-white/60">
               <ExternalLink size={13} />
             </a>
           </div>
@@ -238,10 +239,10 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
           {/* Content */}
           {text && (
             <div className="mb-3">
-              <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap break-words">{displayText}</p>
+              <p className="type-body-md text-white/85 leading-relaxed whitespace-pre-wrap break-words">{displayText}</p>
               {needsTruncation && (
                 <button onClick={() => setExpanded(e => !e)}
-                  className="flex items-center gap-1 text-[10px] font-black mt-1 transition-colors"
+                  className={`tap flex items-center gap-1 ${TYPE.labelSm} mt-1 transition-colors`}
                   style={{ color: proto.accent }}>
                   {expanded ? <><ChevronUp size={11} /> Show less</> : <><ChevronDown size={11} /> Show more</>}
                 </button>
@@ -277,7 +278,7 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
             <button
               onClick={handleLike}
               disabled={isActing === 'like' || post.protocol === 'threads'}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 hover:bg-white/5"
+              className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 hover:bg-white/5"
               style={{ color: post.isLiked ? '#f43f5e' : 'rgba(255,255,255,0.4)' }}
             >
               {isActing === 'like'
@@ -291,7 +292,7 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
             <button
               onClick={handleRepost}
               disabled={isActing === 'repost' || post.protocol === 'threads'}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 hover:bg-white/5"
+              className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50 hover:bg-white/5"
               style={{ color: post.isReposted ? proto.accent : 'rgba(255,255,255,0.4)' }}
             >
               {isActing === 'repost'
@@ -304,7 +305,7 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
             {/* Reply */}
             <button
               onClick={() => setReplying(r => !r)}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-white/5"
+              className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-white/5"
               style={{ color: replying ? proto.accent : 'rgba(255,255,255,0.4)' }}
             >
               <MessageCircle size={14} />

@@ -22,6 +22,7 @@ import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromT
 import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
+import { TYPE } from '../src/lib/designSystem';
 
 interface PostCardProps {
   post: Post;
@@ -486,7 +487,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
               <button
                 onClick={() => onVisitUser?.(post.authorId)}
-                className="text-[14px] font-bold text-white hover:text-small-orange transition-colors leading-tight"
+                className={`${TYPE.titleMd} text-white hover:text-small-orange transition-colors leading-tight`}
               >
                 {post.authorName}
               </button>
@@ -645,7 +646,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             <MutedContentGate text={post.text}>
             <SensitiveContentGate labels={post.contentLabels as any}>
             {displayText && (
-              <p className="text-[14px] leading-normal text-white/80 whitespace-pre-wrap">
+              <p className={`${TYPE.bodyMd} leading-normal text-white/80 whitespace-pre-wrap`}>
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
             )}
@@ -740,7 +741,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={() => setShowComments(!showComments)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
+              className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
                 ${showComments
                   ? 'text-sky-400 bg-sky-400/10'
                   : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}
@@ -757,7 +758,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                 whileTap={{ scale: 0.85 }}
                 onClick={() => setShowWaterfall(true)}
                 title="View Media Waterfall"
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-violet-400 hover:bg-violet-400/10"
+                className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-violet-400 hover:bg-violet-400/10"
               >
                 <Layers size={15} strokeWidth={1.5} />
                 {waterfallItems.length > 1 && <span className="text-[11px]">{waterfallItems.length}</span>}
@@ -768,7 +769,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={handleLike}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
+              className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
                 ${isLiked
                   ? 'text-red-400 bg-red-400/10'
                   : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}
@@ -792,7 +793,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                   if (!auth.currentUser) { setSignInAction('send a gift'); return; }
                   setShowGift(!showGift);
                 }}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
+                className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all
                   ${showGift
                     ? 'text-yellow-400 bg-yellow-400/10'
                     : 'text-white/40 hover:text-yellow-400 hover:bg-yellow-400/10'}`}
@@ -806,7 +807,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
               whileTap={{ scale: 0.85 }}
               onClick={handleOpenSendToClub}
               title="Send to a Club"
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10"
+              className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10"
             >
               <Users size={15} strokeWidth={1.5} />
             </motion.button>
@@ -820,7 +821,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
                   setShowDebateModal(true);
                 }}
                 title="Challenge this post to a structured debate"
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-orange-400 hover:bg-orange-400/10"
+                className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-orange-400 hover:bg-orange-400/10"
               >
                 <Swords size={15} strokeWidth={1.5} />
               </motion.button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
@@ -147,7 +148,7 @@ const LiveTalkDiscovery: React.FC<{
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="2rem">
         {filteredTalks.map(talk => (
           <motion.div 
             key={talk.id}
@@ -166,7 +167,7 @@ const LiveTalkDiscovery: React.FC<{
                          </div>
                       </div>
                       <div>
-                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Hosted by</h4>
+                         <h4 className={`${TYPE.labelSm} font-black uppercase tracking-[0.2em] text-white/40`}>Hosted by</h4>
                          <p className="text-xs font-bold text-white uppercase">{talk.hostName}</p>
                       </div>
                    </div>
@@ -211,12 +212,12 @@ const LiveTalkDiscovery: React.FC<{
              </div>
           </div>
         )}
-      </div>
+      </AdaptiveGrid>
     </div>
   );
 };
 
-const UserHoverCard: React.FC<{ 
+const UserHoverCard: React.FC<{
   userId: string; 
   userName: string; 
   userPhoto: string;
@@ -727,7 +728,7 @@ const NewspaperPost: React.FC<{ articleIds: string[]; content: string; imageUrl?
         </div>
 
         {!background && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <AdaptiveGrid phone={1} tablet={2} gap="2rem">
             <div className="space-y-4">
               <h3 className="text-2xl font-black leading-tight hover:underline cursor-pointer">Breaking: New Creative Era Begins on Platform</h3>
               <p className="text-sm leading-relaxed opacity-80 line-clamp-6">{content}</p>
@@ -744,7 +745,7 @@ const NewspaperPost: React.FC<{ articleIds: string[]; content: string; imageUrl?
                 ))}
               </div>
             </div>
-          </div>
+          </AdaptiveGrid>
         )}
       </div>
     </div>
@@ -974,7 +975,8 @@ const FeedItemComponent: React.FC<{
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                    <h3
-                    className="font-display font-black text-3xl sm:text-4xl md:text-7xl uppercase tracking-tighter text-white cursor-pointer hover:text-small-orange transition-all leading-none italic break-words min-w-0"
+                    className="font-display font-black uppercase tracking-tighter text-white cursor-pointer hover:text-small-orange transition-all leading-none italic break-words min-w-0"
+                    style={{ fontSize: 'clamp(1.5rem, 6vw, 4rem)' }}
                     onClick={() => item.authorId !== 'system' && onVisitUser(item.authorId)}
                   >
                     {item.authorName}
@@ -1003,7 +1005,7 @@ const FeedItemComponent: React.FC<{
               </div>
             </div>
 
-            <p className="text-xl sm:text-2xl md:text-5xl font-black text-white leading-[1.1] mb-8 md:mb-14 whitespace-pre-wrap break-words tracking-tighter selection:bg-small-orange selection:text-black italic">
+            <p className="font-black text-white leading-[1.1] mb-8 md:mb-14 whitespace-pre-wrap break-words tracking-tighter selection:bg-small-orange selection:text-black italic" style={{ fontSize: 'clamp(1.1rem, 4vw, 2.75rem)' }}>
                <RenderTextWithMentions text={item.content} onVisitUser={onVisitUser} />
             </p>
 
@@ -1165,7 +1167,7 @@ const FeedItemComponent: React.FC<{
             initial={{ height: 0, opacity: 0, y: -20 }}
             animate={{ height: '70vh', opacity: 1, y: -40 }}
             exit={{ height: 0, opacity: 0, y: -20 }}
-            className="w-full backdrop-blur-[80px] bg-black/40 border-x border-b border-white/20 rounded-b-[4rem] flex flex-col z-0 overflow-hidden shadow-2xl"
+            className="w-full backdrop-blur-[80px] bg-black/40 border-x border-b border-white/20 rounded-b-[4rem] flex flex-col z-0 overflow-hidden max-h-[85dvh] overflow-y-auto shadow-2xl"
           >
             <div className="flex-1 overflow-hidden p-2 md:p-6">
               <CommentSection
@@ -1197,7 +1199,7 @@ const FeedItemComponent: React.FC<{
       )}
 
       {activeDebateId && (
-        <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <DebateView
             debateId={activeDebateId}
             onBack={() => setActiveDebateId(null)}
@@ -2359,7 +2361,7 @@ const toggleFavoriteTeam = async (team: string) => {
                    <div className="w-1.5 h-1.5 bg-[#00DAF3] rounded-full animate-pulse shadow-[0_0_8px_#00DAF3]" />
                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 italic">Live Frequency: Market Oscillations</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="2rem">
                    {marketPrices.map((asset) => (
                      <div key={asset.id} className="bg-white/5 border border-white/10 rounded-[3rem] p-10 hover:bg-white/10 transition-all cursor-pointer group overflow-hidden relative">
                         <div className="absolute -right-8 -bottom-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -2409,7 +2411,7 @@ const toggleFavoriteTeam = async (team: string) => {
                         </div>
                      </div>
                    ))}
-                </div>
+                </AdaptiveGrid>
              </div>
            )}
 
@@ -2427,7 +2429,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.8] italic">Interstellar <br/> Finance <br/> <span className="text-small-orange">Primer</span></h2>
                       <p className="text-xl text-white/60 font-medium italic leading-relaxed">Decrypting the complex frequencies of global trade and digital assets for the modern voyager.</p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
+                      <AdaptiveGrid phone={1} tablet={2} gap="2rem" className="pt-8">
                          {[
                             { title: 'Blockchain Fundamentals', duration: '12 min search', color: 'blue' },
                             { title: 'Technical Analysis 101', duration: '18 min search', color: 'orange' },
@@ -2439,7 +2441,7 @@ const toggleFavoriteTeam = async (team: string) => {
                                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic">{topic.duration}</p>
                             </div>
                          ))}
-                      </div>
+                      </AdaptiveGrid>
                    </div>
                 </div>
              </div>
@@ -3368,7 +3370,7 @@ const toggleFavoriteTeam = async (team: string) => {
        onClick={() => setFeedLightboxUrl(null)}
      >
        <div
-         className="relative max-w-5xl max-h-[90vh] w-full flex items-center justify-center"
+         className="relative max-w-5xl max-h-[85dvh] w-full flex items-center justify-center"
          onClick={e => e.stopPropagation()}
        >
          <img

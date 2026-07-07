@@ -24,6 +24,7 @@ import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import SignInPrompt from './SignInPrompt';
 import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer';
+import { TYPE } from '../src/lib/designSystem';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
             <div className="flex items-baseline gap-2 flex-wrap mb-1">
               <button
                 onClick={() => onVisitUser?.(comment.authorId)}
-                className="text-[10px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors"
+                className={`${TYPE.labelMd} text-small-orange hover:text-white transition-colors`}
               >
                 {comment.authorName}
               </button>
@@ -159,7 +160,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
               )}
             </div>
             {comment.text && (
-              <div className={`text-sm leading-relaxed font-medium whitespace-pre-wrap break-words ${isDark ? 'text-white/85' : 'text-black/85'}`}>
+              <div className={`type-body-md leading-relaxed font-medium whitespace-pre-wrap break-words ${isDark ? 'text-white/85' : 'text-black/85'}`}>
                 {renderMentions(comment.text, onVisitUser)}
               </div>
             )}
@@ -187,7 +188,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
 
           {/* Action strip */}
           <div className="flex items-center gap-4 mt-1.5 px-1.5">
-            <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-white/20' : 'text-black/20'}`}>
+            <span className={`${TYPE.labelSm} ${isDark ? 'text-white/20' : 'text-black/20'}`}>
               {formatDistanceToNow(comment.timestamp, { addSuffix: false })} ago
             </span>
 
@@ -195,7 +196,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
             <button
               onClick={() => onLikeToggle(comment.id)}
               disabled={comment.isPending}
-              className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-all active:scale-90 disabled:opacity-30
+              className={`tap flex items-center gap-1 ${TYPE.labelSm} transition-all active:scale-90 disabled:opacity-30
                 ${isLiked ? 'text-red-400' : isDark ? 'text-white/30 hover:text-white' : 'text-black/30 hover:text-black'}`}
             >
               <Heart size={10} fill={isLiked ? 'currentColor' : 'none'} />
@@ -207,7 +208,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
               <button
                 onClick={() => onReply(comment.id, comment.authorName)}
                 disabled={comment.isPending}
-                className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-30
+                className={`tap flex items-center gap-1 ${TYPE.labelSm} transition-all disabled:opacity-30
                   ${isDark ? 'text-white/30 hover:text-white' : 'text-black/30 hover:text-black'}`}
               >
                 <Reply size={10} /> Reply
@@ -218,7 +219,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowEmoji(v => !v)}
-                className={`text-[9px] transition-all ${isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
+                className={`tap transition-all ${isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
               >
                 <Smile size={11} />
               </button>
@@ -231,12 +232,12 @@ const CommentBubble: React.FC<BubbleProps> = ({
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.82, y: 8 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className="absolute bottom-full left-0 mb-2 p-2 bg-black/95 backdrop-blur-2xl border border-white/10 rounded-2xl flex flex-wrap gap-1 shadow-2xl z-50 w-[200px]"
+                      className="absolute bottom-full left-0 mb-2 p-2 bg-black/95 backdrop-blur-2xl border border-white/10 rounded-2xl flex flex-wrap gap-1 shadow-2xl z-50 min-w-[160px] max-w-[calc(100vw-1rem)]"
                     >
                       {QUICK_EMOJIS.map(e => (
                         <button
                           key={e}
-                          className="w-8 h-8 text-base flex items-center justify-center hover:bg-white/10 rounded-xl transition-all hover:scale-125"
+                          className="w-10 h-10 text-base flex items-center justify-center hover:bg-white/10 rounded-xl transition-all hover:scale-125"
                           onClick={() => setShowEmoji(false)}
                         >
                           {e}
@@ -268,7 +269,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
             {isOwn && !comment.isPending && (
               <button
                 onClick={() => onDelete(comment.id)}
-                className={`opacity-0 group-hover/bubble:opacity-100 text-[9px] transition-all hover:text-red-500
+                className={`tap opacity-0 group-hover/bubble:opacity-100 transition-all hover:text-red-500
                   ${isDark ? 'text-white/20' : 'text-black/20'}`}
               >
                 <Trash2 size={10} />
