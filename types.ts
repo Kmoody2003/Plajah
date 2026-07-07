@@ -1339,6 +1339,28 @@ export interface SyncLicenseGrant {
   createdAt: number;
 }
 
+// A filmmaker's request to license a track the artist hasn't priced yet. The owner
+// responds: APPROVED (they set a price → the track becomes licensable) or DENIED.
+export interface SyncLicenseRequest {
+  id: string;
+  requesterUid: string;
+  requesterName?: string;
+  ownerUid: string;         // the track's rights holder who responds
+  trackId: string;
+  albumId: string;
+  trackTitle?: string;
+  artist?: string;
+  cover?: string;
+  editId?: string;
+  editTitle?: string;
+  description: string;      // what the filmmaker wants to use it for
+  status: 'PENDING' | 'APPROVED' | 'DENIED';
+  priceUsd?: number;        // set by the owner on approval
+  ownerNote?: string;
+  createdAt: number;
+  respondedAt?: number;
+}
+
 // ── Split Configuration ───────────────────────────────────────────────────────
 
 export interface SplitRecipient {
@@ -2250,6 +2272,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'PITCH_MUSIC' | 'PITCH_FILM' | 'PITCH_WRITER'
   // Book Authoring Studio
   | 'BOOK_STUDIO'
+  // Music sync-license request inbox (track owners respond to Fabula filmmakers)
+  | 'LICENSE_REQUESTS'
   // Pitch Deck Studio
   | 'PITCH_DECK_STUDIO'
   // History Moments — Chora (music) and Taleo (film/TV)

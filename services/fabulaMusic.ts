@@ -86,6 +86,35 @@ export async function getLicensableTracks(limitN = 80): Promise<MusicBinTrack[]>
   } catch (e) { console.warn('[fabulaMusic] licensable fetch failed', e); return []; }
 }
 
+/**
+ * The ENTIRE Chora music catalog for the licensing store: every public MUSIC track
+ * (not the user's own). Tracks with syncLicenseFee > 0 are licensable now; the rest
+ * (fee 0/undefined) can be REQUESTED — the store lets a filmmaker ask the owner to set
+ * a price. Excludes the user's own tracks.
+ */
+export async function getChoraMusicCatalog(limitN = 200): Promise<MusicBinTrack[]> {
+  const uid = auth.currentUser?.uid;
+  try {
+    const albums = await fetchAllPublicAlbums().catch(() => []);
+    const out: MusicBinTrack[] = [];
+    for (const al of albums || []) {
+      if (al.type && al.type !== 'MUSIC') continue;
+      if (al.ownerId && al.ownerId === uid) continue;
+      for (const t of (al.tracks || [])) {
+        if (!t.url) continue;
+        out.push({
+          id: t.id, title: t.title, artist: t.artist || al.artist, url: t.url, duration: t.duration,
+          license: t.license, rightsOwnerId: t.rightsOwnerId || al.ownerId, albumTitle: al.title, albumId: al.id,
+          syncLicenseFee: Number((t as any).syncLicenseFee || 0), syncLicenseTerms: (t as any).syncLicenseTerms,
+          cover: al.coverImage, genre: (t as any).genre || al.genre,
+        });
+        if (out.length >= limitN) return out;
+      }
+    }
+    return out;
+  } catch (e) { console.warn('[fabulaMusic] catalog fetch failed', e); return []; }
+}
+
 export interface SyncLicenseInfo {
   licenseId: ContentLicenseId;
   label: string;       // short license code, e.g. "CC BY-NC"

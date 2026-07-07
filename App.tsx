@@ -188,6 +188,7 @@ const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const ComicMangaMuseum = retryLazy(() => import('./components/ComicMangaMuseum'));
 const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage'));
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
+const LicenseRequestsInbox = retryLazy(() => import('./components/LicenseRequestsInbox'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -944,6 +945,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setShowBrandActivation(true);
     } else if (target === 'COMIC_MUSEUM') {
       setView('COMIC_MUSEUM');
+    } else if (target === 'LICENSE_REQUESTS') {
+      if (!user) { loginWithGoogle(); return; }
+      setView('LICENSE_REQUESTS');
     } else if (target === 'BOOK_STUDIO' || target === 'COMIC_STUDIO') {
       setView('BOOK_STUDIO');
     } else if (target === 'SANCTUARY_HUB') {
@@ -3883,6 +3887,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => setView('BOOKS')}
                   onSelectBook={(b) => { setSelectedBook(b); setView('BOOK_READER'); }}
                 />
+              </Suspense>
+            )}
+            {view === 'LICENSE_REQUESTS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading requests…</div>}>
+                <LicenseRequestsInbox onBack={() => setView('CREATOR')} />
               </Suspense>
             )}
             {view === 'AUDIUS_ARTIST' && audiusArtist && (

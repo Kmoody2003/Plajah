@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves, Film
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, fetchPersonalTracks, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
@@ -1017,6 +1017,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 <Music2 size={12} />
                 {audiusLoading ? 'Loading…' : 'Audius'}
               </button>
+              {userProfile && onNavigate && (
+                <button
+                  onClick={() => onNavigate('LICENSE_REQUESTS')}
+                  title="Filmmakers requesting to license your tracks"
+                  className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                >
+                  <Film size={12} />
+                  <span className="hidden sm:inline">Sync Requests</span>
+                  <span className="sm:hidden">Sync</span>
+                </button>
+              )}
               {onUploadMusic && (
                 <button
                   onClick={onUploadMusic}
