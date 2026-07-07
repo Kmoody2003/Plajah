@@ -488,8 +488,9 @@ function GuideOverlay({ entry, onClose, onDismissFirst, isFirstTime }: {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-4 py-[max(1.5rem,env(safe-area-inset-top))]"
       style={{ backdropFilter: "blur(10px)", background: "rgba(0,0,0,0.68)" }}
+      onClick={onClose}
     >
       <CornerArrows />
       <motion.div
@@ -497,8 +498,9 @@ function GuideOverlay({ entry, onClose, onDismissFirst, isFirstTime }: {
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.93, opacity: 0 }}
         transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-lg rounded-[2rem] border border-white/10 p-8 flex flex-col gap-5"
-        style={{ background: "rgba(8,6,14,0.88)", backdropFilter: "blur(40px)", boxShadow: "0 32px 80px rgba(0,0,0,0.75)" }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg my-auto rounded-[2rem] border border-white/10 p-6 sm:p-8 flex flex-col gap-5 max-h-[calc(100dvh-3rem)] overflow-y-auto custom-scrollbar"
+        style={{ background: "rgba(8,6,14,0.88)", backdropFilter: "blur(40px)", boxShadow: "0 32px 80px rgba(0,0,0,0.75)", paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
         <button onClick={onClose} className="absolute right-5 top-5 w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white transition-colors">
           <X size={14} />

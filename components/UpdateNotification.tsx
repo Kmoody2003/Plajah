@@ -47,10 +47,10 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
           initial={{ y: 40, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 20, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
           onClick={e => e.stopPropagation()}
-          className="w-full max-w-2xl bg-[#0c0c0e] border border-white/12 rounded-3xl overflow-hidden shadow-2xl"
+          className="w-full max-w-2xl bg-[#0c0c0e] border border-white/12 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90dvh]"
         >
           {/* Header */}
-          <div className="relative px-6 pt-6 pb-5 border-b border-white/8">
+          <div className="relative px-6 pt-6 pb-5 border-b border-white/8 shrink-0">
             <div className="absolute inset-0 opacity-50" style={{ background: 'radial-gradient(120% 100% at 0% 0%, rgba(139,92,246,0.25), transparent 60%)' }} />
             <div className="relative flex items-start justify-between">
               <div>
@@ -67,7 +67,7 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
           </div>
 
           {/* Two columns: Major / Minor */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/8 max-h-[50vh] overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/8 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <div className="p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Rocket size={13} className="text-[#8B5CF6]" />
@@ -107,7 +107,7 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-white/8 flex items-center justify-between gap-3">
+          <div className="px-6 py-4 border-t border-white/8 flex items-center justify-between gap-3 shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             <button onClick={() => { dismiss(); onOpenChangelog(); }} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors">
               Full history <ArrowRight size={12} />
             </button>
