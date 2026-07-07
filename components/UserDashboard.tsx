@@ -17,7 +17,7 @@ const CAP_LABELS: Record<Capability, string> = {
   TEACH: 'Create classrooms', ENROLL: 'Enroll in classes', PROVISION_LEARNERS: 'Provision learners',
   MANAGE_FAMILY: 'Manage family accounts', ATHLETE_PROFILE: 'Athlete profile', PARTNER_INTEGRATIONS: 'Partner integrations',
 };
-import StoreManager from './StoreManager';
+import StoreProductManager from './StoreProductManager';
 import CreatorPaymentDashboard from './CreatorPaymentDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
@@ -1238,11 +1238,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Store Management</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your merchandise and digital content sales</p>
               </header>
-              <StoreManager 
-                artistId={user.uid} 
-                initialMerch={userMerch} 
+              <StoreProductManager
+                ownerId={user.uid}
+                sellerName={user.displayName || profile?.displayName || ''}
                 settings={profile.storeSettings}
-                onUpdate={setUserMerch} 
                 onSettingsUpdate={(settings) => setProfile(prev => prev ? { ...prev, storeSettings: settings } : null)}
               />
             </motion.div>
@@ -1796,11 +1795,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Store Manager</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your merchandise and digital assets</p>
               </header>
-              <StoreManager 
-                artistId={user.uid} 
-                initialMerch={userMerch} 
+              <StoreProductManager
+                ownerId={user.uid}
+                sellerName={user.displayName || profile?.displayName || ''}
                 settings={profile?.storeSettings}
-                onUpdate={setUserMerch}
                 onSettingsUpdate={(s) => setProfile(prev => prev ? { ...prev, storeSettings: s } : null)}
               />
             </motion.div>
