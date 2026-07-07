@@ -3,6 +3,7 @@ import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
 import { buildShareUrl } from '../services/deepLinkService';
 import { getActiveCaption } from '../src/lib/captions';
 import WorldBadge from './WorldBadge';
+import ImmersiveBadge from './ImmersiveBadge';
 import Visualizer from './Visualizer';
 import AnimatedSlideshow from './AnimatedSlideshow';
 import ScrollingWaveform from './ScrollingWaveform';
@@ -1253,6 +1254,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           {isActive && isCurrentTrackGlobal
                             ? <CaptionTicker caption={getCurrentCaption()} />
                             : <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{t.artist || album.artist}</p>}
+                          {(t.isEclipsa || t.isAtmos) && <ImmersiveBadge isEclipsa={t.isEclipsa} isAtmos={t.isAtmos} size="sm" className="mt-1" />}
                         </div>
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
@@ -2604,6 +2606,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 </div>
                 <h1 className={`font-display font-black tracking-tightest leading-[0.9] ${isVisualizerLayout ? 'text-xl lg:text-2xl' : 'text-4xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
                 {!isVisualizerLayout && <p className="text-xl lg:text-2xl font-medium text-primary/40 italic">{album.artist}</p>}
+                {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
              </div>
           </div>
 
