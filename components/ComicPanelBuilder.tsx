@@ -6,7 +6,7 @@ import Konva from 'konva';
 import {
   MessageCircle, Zap, AlignLeft, AlignCenter, Trash2, Plus, Upload,
   Type, RotateCcw, Square, Sun, Moon, Palette, Move, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, X, LayoutGrid, Images, Loader2,
+  ZoomIn, ZoomOut, X, LayoutGrid, Images, Loader2, Brush,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioPage, StudioPanel, SpeechBubble } from '../types';
@@ -15,6 +15,7 @@ import { auth, storage } from '../services/firebase';
 import { layoutsFor, type ComicLayout, type LayoutPanelSpec } from '../data/comicLayouts';
 import { parseScript, applyScriptToPage, charactersInScript, type ScriptCharacter } from '../services/comicScript';
 import { takeComicHandoff } from '../services/comicHandoff';
+import ComicDrawCanvas from './ComicDrawCanvas';
 
 // Build fresh panels from a preset layout, carrying existing art/bubbles across by index
 // so re-templating a page keeps the work already placed.
@@ -232,7 +233,7 @@ function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutt
 
 // ─── Bubble editor sidebar ────────────────────────────────────────────────────
 
-function BubbleSidebar({ panel, onChange }: { panel: StudioPanel; onChange: (p: StudioPanel) => void }) {
+function BubbleSidebar({ panel, onChange, onDraw }: { panel: StudioPanel; onChange: (p: StudioPanel) => void; onDraw: () => void }) {
   const addBubble = (type: SpeechBubble['type']) => {
     const bubble: SpeechBubble = {
       id: uuidv4(),
@@ -317,17 +318,22 @@ function BubbleSidebar({ panel, onChange }: { panel: StudioPanel; onChange: (p: 
       {/* Panel image */}
       <div className="pt-2 border-t border-white/5">
         <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Panel image</p>
-        <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white text-xs transition-colors">
-          <Upload size={11} /> Upload image
-          <input type="file" accept="image/*" className="hidden" onChange={async e => {
-            const file = e.target.files?.[0];
-            if (!file || !auth.currentUser) return;
-            const storageRef = ref(storage, `books/${auth.currentUser.uid}/${uuidv4()}_${file.name}`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
-            onChange({ ...panel, imageUrl: url });
-          }} />
-        </label>
+        <div className="grid grid-cols-2 gap-1.5">
+          <label className="flex items-center justify-center gap-1.5 cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white text-xs transition-colors">
+            <Upload size={11} /> Upload
+            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+              const file = e.target.files?.[0];
+              if (!file || !auth.currentUser) return;
+              const storageRef = ref(storage, `books/${auth.currentUser.uid}/${uuidv4()}_${file.name}`);
+              await uploadBytes(storageRef, file);
+              const url = await getDownloadURL(storageRef);
+              onChange({ ...panel, imageUrl: url });
+            }} />
+          </label>
+          <button onClick={onDraw} className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 text-xs transition-colors">
+            <Brush size={11} /> Draw
+          </button>
+        </div>
         {panel.imageUrl && (
           <button onClick={() => onChange({ ...panel, imageUrl: undefined })} className="mt-1 text-[10px] text-red-400/60 hover:text-red-400 flex items-center gap-1">
             <Trash2 size={10} /> Remove image
@@ -430,6 +436,18 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
     onChange(applyScriptToPage(page, scriptBeats, { isManga, characters: handoffChars }));
     setShowScript(false);
     setSelectedPanelId(null);
+  };
+
+  // Draw the selected panel's art on the paint canvas → upload → set as its image.
+  const [drawingPanelId, setDrawingPanelId] = useState<string | null>(null);
+  const drawingPanel = panels.find(p => p.id === drawingPanelId) || null;
+  const saveDrawing = async (blob: Blob) => {
+    if (!drawingPanel || !auth.currentUser) return;
+    const storageRef = ref(storage, `books/${auth.currentUser.uid}/${uuidv4()}_panel.png`);
+    await uploadBytes(storageRef, blob);
+    const url = await getDownloadURL(storageRef);
+    updatePanel({ ...drawingPanel, imageUrl: url });
+    setDrawingPanelId(null);
   };
 
   // Apply a preset layout to the page (keeps existing art by index).
@@ -646,7 +664,7 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
                 <X size={12} />
               </button>
             </div>
-            <BubbleSidebar panel={selectedPanel} onChange={updatePanel} />
+            <BubbleSidebar panel={selectedPanel} onChange={updatePanel} onDraw={() => setDrawingPanelId(selectedPanel.id)} />
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center gap-3 text-white/20">
@@ -694,6 +712,17 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Drawing canvas */}
+      {drawingPanel && (
+        <ComicDrawCanvas
+          width={Math.max(600, Math.round((drawingPanel.width / 100) * CANVAS_W * 2))}
+          height={Math.max(600, Math.round((drawingPanel.height / 100) * CANVAS_H * 2))}
+          initialImageUrl={drawingPanel.imageUrl}
+          onSave={saveDrawing}
+          onClose={() => setDrawingPanelId(null)}
+        />
       )}
     </div>
   );
