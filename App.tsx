@@ -183,6 +183,7 @@ const AppsView = retryLazy(() => import('./components/AppsView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
+const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -683,6 +684,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenSpatialMixer = () => setView('SPATIAL_MIXER' as AppView);
     window.addEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
 
+    const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
+    window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
+
     // Open the Album Creator seeded with a prebuilt release (e.g. a Spatial Mixer → Chora publish).
     const handleOpenAlbumCreator = (e: Event) => {
       const seed = (e as CustomEvent).detail?.album;
@@ -705,6 +709,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
+      window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
     };
@@ -3941,6 +3946,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'SPATIAL_MIXER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <SpatialMixer onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'MEDIA_CONVERTER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <MediaConverter onClose={() => setView('APPS')} />
               </Suspense>
             )}
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} />}
