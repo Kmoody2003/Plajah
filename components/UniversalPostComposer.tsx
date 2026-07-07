@@ -219,6 +219,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     return () => clearTimeout(t);
   }, [text]);
 
+  // Auto-grow the textarea to hug its content — starts short (no giant empty
+  // black box on phones) and expands as the user types, capped so it never
+  // pushes the toolbar/post button off-screen (scrolls internally past the cap).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+  }, [text, expanded]);
+
   // ── @mention autocomplete ─────────────────────────────────────────────────
   const [mentionQuery, setMentionQuery]       = useState<string | null>(null);
   const [mentionResults, setMentionResults]   = useState<UserProfile[]>([]);
@@ -594,8 +604,8 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             onChange={handleTextChange}
             onKeyDown={handleMentionKeyDown}
             placeholder={placeholder}
-            rows={4}
-            className="w-full bg-transparent text-base sm:text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[104px] sm:min-h-[80px] leading-relaxed"
+            rows={2}
+            className="w-full bg-transparent text-base sm:text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[56px] max-h-[320px] overflow-y-auto leading-relaxed"
             autoFocus
           />
 

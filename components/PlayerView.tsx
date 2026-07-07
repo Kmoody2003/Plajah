@@ -2800,7 +2800,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       <button
                                         onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                                         title="The Breakdown — analyze key, tempo, chords & sheet music"
-                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                                        className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
                                       >
                                         <Waves size={11} />
                                         <span className="hidden lg:inline">Breakdown</span>
@@ -2808,7 +2808,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       <button
                                         onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
                                         title="Plajah Pixels — send this song into the visualizer"
-                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                                        className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
                                       >
                                         <Sparkles size={11} />
                                         <span>PP</span>
@@ -2817,30 +2817,65 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                         <button
                                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LICENSE_FOR_FILM', { detail: { track: t, album } })); }}
                                           title="License this song for a film in Fabula"
-                                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300/70 hover:text-emerald-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                                          className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300/70 hover:text-emerald-200 transition-all text-[9px] font-black uppercase tracking-widest"
                                         >
                                           <Film size={11} />
                                           <span className="hidden lg:inline">Use in film</span>
                                         </button>
                                       )}
-                                      {isOwner && (
-                                        <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
-                                          <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                        </button>
-                                      )}
+                                      <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More" className={`${isOwner ? '' : 'sm:hidden'} p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}>
+                                        <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                      </button>
                                     </div>
                                   </div>
 
-                                  {/* HnS Slot Drawer */}
-                                  {isOwner && isExpanded && (
-                                    <div className="bg-black/50 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-2">
-                                      <div className="flex items-center gap-2 mb-3">
-                                        {hnsOn ? <Eye size={11} className="text-small-orange" /> : <EyeOff size={11} className="text-white/30" />}
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-white/30">
-                                          Hide &amp; Seek Alternates — {hnsOn ? 'Feature active' : 'Hidden from public when feature is off'}
-                                        </span>
-                                      </div>
-                                      {([1, 2] as const).map(slot => {
+                                  {/* Expandable drawer — smooth height animation; on phones it also
+                                      holds the Breakdown / Pixels / film actions so the bar stays clean */}
+                                  <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                      <motion.div
+                                        key="drawer"
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="bg-black/50 backdrop-blur-xl rounded-b-2xl border-t border-white/5 p-4 space-y-3">
+                                          {/* Phone quick actions (hidden on sm+, where they live inline) */}
+                                          <div className="flex sm:hidden flex-wrap gap-2">
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
+                                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF8C00]/12 text-[#FF8C00] transition-all text-[10px] font-black uppercase tracking-widest"
+                                            >
+                                              <Waves size={13} /> Breakdown
+                                            </button>
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
+                                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/12 text-purple-200 transition-all text-[10px] font-black uppercase tracking-widest"
+                                            >
+                                              <Sparkles size={13} /> Plajah Pixels
+                                            </button>
+                                            {!t.isPersonalMedia && t.url && (
+                                              <button
+                                                onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LICENSE_FOR_FILM', { detail: { track: t, album } })); }}
+                                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/12 text-emerald-200 transition-all text-[10px] font-black uppercase tracking-widest"
+                                              >
+                                                <Film size={13} /> Use in film
+                                              </button>
+                                            )}
+                                          </div>
+
+                                          {/* Owner: Hide & Seek alternates + comments */}
+                                          {isOwner && (
+                                            <div className="space-y-2">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                {hnsOn ? <Eye size={11} className="text-small-orange" /> : <EyeOff size={11} className="text-white/30" />}
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">
+                                                  Hide &amp; Seek Alternates — {hnsOn ? 'Feature active' : 'Hidden from public when feature is off'}
+                                                </span>
+                                              </div>
+                                              {([1, 2] as const).map(slot => {
                                         const slotKey = `hnsSlot${slot}` as 'hnsSlot1' | 'hnsSlot2';
                                         const existing = t[slotKey];
                                         const key = `${t.id}_slot${slot}`;
@@ -2868,13 +2903,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                           </label>
                                         );
                                       })}
-                                      {isActive && (
-                                        <div className="pt-2 border-t border-white/5">
-                                          <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
+                                              {isActive && (
+                                                <div className="pt-2 border-t border-white/5">
+                                                  <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
-                                  )}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                   {!isExpanded && isActive && (
                                     <div className="px-4 pb-2">
                                       <HUDCommentModule album={album} trackId={t.id} isPublic={true} themeColor={album.themeColor} user={user} minimal onVisitUser={onVisitUser} onUpdate={onUpdate} />
