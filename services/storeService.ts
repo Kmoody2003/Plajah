@@ -79,6 +79,75 @@ export const listenToProducts = (
   });
 };
 
+// ── LEGACY MERCH BRIDGE (non-destructive consolidation) ────────────────────────
+// StoreProduct/storeService is the ONE canonical store system. The legacy MerchItem
+// / `merch` collection is folded in read-only and migrated per-product on next edit
+// (see migrateMerchItem). Nothing is deleted; the old model retires gradually.
+
+const MERCH_CAT_MAP: Record<string, StoreProductCategory> = {
+  APPAREL: 'APPAREL', MUSIC: 'MUSIC', ACCESSORY: 'ACCESSORIES',
+  DIGITAL: 'DIGITAL', COLLECTIBLES: 'COLLECTIBLES', MEDIA: 'OTHER',
+};
+
+/** Map a legacy MerchItem onto the canonical StoreProduct shape (read-model). */
+export const merchToStoreProduct = (m: any, sellerName = ''): StoreProduct => ({
+  id: m.id,
+  sellerId: m.ownerId || m.artistId || '',
+  sellerName: m.sellerName || sellerName,
+  title: m.title || 'Untitled',
+  description: m.description || '',
+  category: MERCH_CAT_MAP[m.category] || 'OTHER',
+  price: m.price ?? 0,
+  compareAtPrice: m.salePrice && m.salePrice < m.price ? m.price : undefined,
+  images: (m.images?.length ? m.images : (m.imageUrl ? [m.imageUrl] : [])),
+  variants: undefined,
+  stock: m.stock ?? 0,
+  isDigital: !!m.isDigitalAsset,
+  digitalFileUrl: undefined,
+  features: m.features, specs: m.specs, colorOptions: m.colorOptions, sizeOptions: m.sizeOptions,
+  isClothing: m.isClothing, rating: m.rating, reviewCount: m.reviewCount,
+  isActive: (m.stock ?? 0) > 0,
+  createdAt: m.timestamp || 0, updatedAt: m.timestamp || 0,
+  worldId: m.worldId,
+  videoUrl: m.videoUrl, linkedAssetId: m.linkedAssetId,
+  fulfillmentSource: m.fulfillmentSource, printfulSyncProductId: m.printfulSyncProductId,
+  printfulVariantId: m.printfulVariantId, externalStoreUrl: m.externalStoreUrl,
+  legacyMerchId: m.id,          // marks this as a not-yet-migrated legacy item
+});
+
+/**
+ * One unified product list for a store owner (user OR org): the canonical
+ * storeProducts plus any legacy merch that hasn't been migrated yet, deduped so a
+ * migrated item never appears twice.
+ */
+export const fetchUnifiedSellerProducts = async (ownerId: string, sellerName = ''): Promise<StoreProduct[]> => {
+  const canonical = await fetchProductsBySeller(ownerId).catch(() => [] as StoreProduct[]);
+  const migratedIds = new Set(canonical.map(p => p.legacyMerchId).filter(Boolean) as string[]);
+  let legacy: StoreProduct[] = [];
+  try {
+    const { fetchMerchItems } = await import('./backendService'); // dynamic → avoid circular import
+    const merch = await fetchMerchItems(ownerId);
+    legacy = merch.filter(m => !migratedIds.has(m.id)).map(m => merchToStoreProduct(m, sellerName));
+  } catch { /* legacy fetch is best-effort */ }
+  return [...canonical, ...legacy].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+};
+
+/**
+ * Promote a legacy MerchItem into the canonical storeProducts collection (called when
+ * the owner edits it). Idempotent-ish: writes a storeProducts doc carrying legacyMerchId
+ * so fetchUnifiedSellerProducts stops double-counting the old merch doc.
+ */
+export const migrateMerchItem = async (m: any, sellerName = ''): Promise<string> => {
+  const mapped = merchToStoreProduct(m, sellerName);
+  const ref = doc(collection(db, 'storeProducts'));
+  const now = Date.now();
+  const { id, ...rest } = mapped;
+  // strip undefined (Firestore rejects undefined field writes)
+  const clean = JSON.parse(JSON.stringify({ ...rest, id: ref.id, isActive: true, createdAt: now, updatedAt: now }));
+  await setDoc(ref, clean);
+  return ref.id;
+};
+
 // ── REVIEWS ───────────────────────────────────────────────────────────────────
 
 export const addProductReview = async (review: Omit<StoreReview, 'id' | 'timestamp' | 'helpfulCount'>): Promise<void> => {

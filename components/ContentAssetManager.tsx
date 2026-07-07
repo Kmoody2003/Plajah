@@ -5,8 +5,9 @@ import {
   Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download,
   Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown,
 } from 'lucide-react';
-import { Album, Video, MerchItem } from '../types';
-import { fetchUserAlbums, fetchUserVideos, fetchMerchItems, updateAlbum } from '../services/backendService';
+import { Album, Video, StoreProduct } from '../types';
+import { fetchUserAlbums, fetchUserVideos, updateAlbum } from '../services/backendService';
+import { fetchUnifiedSellerProducts } from '../services/storeService';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
 type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'STORE' | 'OTHER';
@@ -26,7 +27,7 @@ interface Asset {
   price?: number;         // for store products
   album?: Album;          // source (albums-backed)
   video?: Video;          // source (Reello video docs)
-  merch?: MerchItem;      // source (merch product)
+  product?: StoreProduct; // source (unified store product — canonical + folded-in legacy merch)
 }
 
 const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; accent: string }[] = [
@@ -106,7 +107,7 @@ const ContentAssetManager: React.FC<{
 }> = ({ uid, onEditAlbum, onOpenProject, onManageStore, onManageSanctuary }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
-  const [merch, setMerch] = useState<MerchItem[]>([]);
+  const [products, setProducts] = useState<StoreProduct[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ServiceKey | 'ALL' | 'PROJECTS'>('ALL');
@@ -120,14 +121,14 @@ const ContentAssetManager: React.FC<{
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [al, vi, me] = await Promise.all([
+    const [al, vi, pr] = await Promise.all([
       fetchUserAlbums(uid).catch(() => []),
       fetchUserVideos(uid).catch(() => []),
-      fetchMerchItems(uid).catch(() => []),
+      fetchUnifiedSellerProducts(uid).catch(() => []),
     ]);
     setAlbums(al || []);
     setVideos(vi || []);
-    setMerch(me || []);
+    setProducts(pr || []);
     setProjects(loadProjects());
     setLoading(false);
   }, [uid]);
@@ -155,16 +156,18 @@ const ContentAssetManager: React.FC<{
         updatedAt: v.timestamp || 0, editable: false, gated: !!(v as any).isExclusive, video: v,
       });
     }
-    // Merch products — the store's product assets live in the manager too.
-    for (const m of merch) {
+    // Store products — the store's product assets live in the manager too (canonical
+    // storeProducts + any folded-in legacy merch, unified upstream).
+    for (const p of products) {
+      const cat = (p.category || 'Product').toString();
       out.push({
-        id: m.id, service: 'STORE', typeLabel: (m.category || 'Product').replace(/^\w/, c => c.toUpperCase()).toLowerCase().replace(/^\w/, c => c.toUpperCase()),
-        title: m.title || 'Product', cover: m.imageUrl || m.images?.[0], status: (m.stock ?? 0) > 0 ? 'PUBLIC' : 'DRAFT',
-        plays: m.reviewCount || 0, updatedAt: m.timestamp || 0, editable: true, price: m.price, merch: m,
+        id: p.id, service: 'STORE', typeLabel: cat.charAt(0) + cat.slice(1).toLowerCase(),
+        title: p.title || 'Product', cover: p.images?.[0], status: p.isActive && (p.stock ?? 0) > 0 ? 'PUBLIC' : 'DRAFT',
+        plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: true, price: p.price, product: p,
       });
     }
     return out;
-  }, [albums, videos, merch]);
+  }, [albums, videos, products]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: assets.length, PROJECTS: projects.length };
@@ -197,7 +200,7 @@ const ContentAssetManager: React.FC<{
     } finally { setBusy(false); }
   };
 
-  const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.merch) onManageStore?.(); };
+  const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.product) onManageStore?.(); };
 
   // Gate/ungate an asset behind the creator's Sanctuary (members-only exclusive).
   const toggleGate = async (a: Asset) => {
@@ -370,7 +373,7 @@ const AssetDetail: React.FC<{ asset: Asset; busy?: boolean; onClose: () => void;
           ['Status', STATUS_STYLE[asset.status].label],
           ['Service', SERVICES.find(s => s.key === asset.service)?.label || ''],
           ['Type', asset.typeLabel],
-          [asset.merch ? 'Price' : 'Plays', asset.merch ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
+          [asset.product ? 'Price' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
           ['Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
           ['Access', asset.gated ? 'Sanctuary' : 'Open'],
         ].map(([k, v]) => (
@@ -382,7 +385,7 @@ const AssetDetail: React.FC<{ asset: Asset; busy?: boolean; onClose: () => void;
       </div>
 
       {/* Sanctuary gating — deep link between the asset manager and Sanctuary */}
-      {(onToggleGate || asset.merch) && (
+      {(onToggleGate || asset.product) && (
         <div className="p-4 rounded-2xl bg-gradient-to-br from-[#6B0099]/15 to-transparent border border-[#6B0099]/25 space-y-3">
           <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Sanctuary</p></div>
           {onToggleGate && (
@@ -399,7 +402,7 @@ const AssetDetail: React.FC<{ asset: Asset; busy?: boolean; onClose: () => void;
       )}
 
       <div className="flex gap-2">
-        {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Pencil size={13} /> {asset.merch ? 'Edit in Store Manager' : 'Edit in studio'}</button>}
+        {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Edit in studio'}</button>}
         {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
           <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
         )}
