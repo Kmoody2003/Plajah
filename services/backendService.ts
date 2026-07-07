@@ -1150,6 +1150,7 @@ export const fetchSystemSettingsConfig = async (): Promise<SystemSettingsConfig>
       blueskyEnabled: false,
       threadsEnabled: false
     },
+    crossoverEnabled: true,
     updatedAt: Date.now()
   };
   try {
@@ -6291,6 +6292,12 @@ const getRequiredIdToken = async (): Promise<string> => {
   const idToken = await auth.currentUser?.getIdToken();
   if (!idToken) throw new Error('Sign in required.');
   return idToken;
+};
+
+/** Firebase ID token if the user is signed in, else null. Used by callers that
+ *  can attach auth opportunistically (e.g. the Crossover cloud converter). */
+export const getOptionalIdToken = async (): Promise<string | null> => {
+  try { return (await auth.currentUser?.getIdToken()) || null; } catch { return null; }
 };
 
 export const createMuxLiveStream = async (): Promise<{

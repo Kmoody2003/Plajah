@@ -17,6 +17,9 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { learnerAuthRouter } from './routes/learnerAuth';
+import { buildFfmpegArgs } from './services/crossover/engine';
+import { extFor } from './services/crossover/formats';
+import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -143,6 +146,76 @@ function runFfmpeg(args: string[], timeoutMs = 45000): Promise<{ ok: boolean; er
     ff.on('error', (e: any) => { clearTimeout(killer); resolve({ ok: false, err: `${stderr}\nerror: ${e?.message || e}`.slice(-2000) }); });
     ff.on('close', (code) => { clearTimeout(killer); resolve({ ok: code === 0, err: code === 0 ? '' : `${stderr}\n[exit ${code}]`.slice(-2000) }); });
   });
+}
+
+/** Run ffprobe and return the parsed JSON (streams + format) plus stderr. */
+function runFfprobe(input: string, timeoutMs = 30000): Promise<{ ok: boolean; json: any; err: string }> {
+  return new Promise((resolve) => {
+    let out = ''; let err = '';
+    let ff: ReturnType<typeof spawn>;
+    try {
+      ff = spawn('ffprobe', ['-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', input], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e: any) { return resolve({ ok: false, json: null, err: `spawn failed: ${e?.message || e}` }); }
+    ff.stdout?.on('data', (d) => { out += d.toString(); });
+    ff.stderr?.on('data', (d) => { err += d.toString(); if (err.length > 4000) err = err.slice(-4000); });
+    const killer = setTimeout(() => { try { ff.kill('SIGKILL'); } catch { /* */ } }, timeoutMs);
+    ff.on('error', (e: any) => { clearTimeout(killer); resolve({ ok: false, json: null, err: `${err}\n${e?.message || e}` }); });
+    ff.on('close', (code) => {
+      clearTimeout(killer);
+      let json: any = null;
+      try { json = JSON.parse(out); } catch { /* */ }
+      resolve({ ok: code === 0 && !!json, json, err });
+    });
+  });
+}
+
+/** Shape an ffprobe JSON result into a Crossover MediaProbe. */
+function ffprobeToProbe(json: any, stderr: string): CxProbe {
+  const warnings: string[] = [];
+  const streams: any[] = json?.streams || [];
+  const v = streams.find((s) => s.codec_type === 'video');
+  const a = streams.find((s) => s.codec_type === 'audio');
+  const fmt = json?.format || {};
+  let fps: number | undefined;
+  if (v?.r_frame_rate && /\d+\/\d+/.test(v.r_frame_rate)) {
+    const [n, d] = v.r_frame_rate.split('/').map(Number);
+    if (d) fps = Math.round((n / d) * 100) / 100;
+  }
+  const probe: CxProbe = {
+    container: (fmt.format_name || '').split(',')[0] || '',
+    durationSec: fmt.duration ? Number(fmt.duration) : undefined,
+    bitrate: fmt.bit_rate ? Number(fmt.bit_rate) : undefined,
+    width: v?.width,
+    height: v?.height,
+    fps,
+    videoCodec: v?.codec_name,
+    audioCodec: a?.codec_name,
+    sampleRate: a?.sample_rate ? Number(a.sample_rate) : undefined,
+    channels: a?.channels,
+    warnings,
+  };
+  if (/moov atom not found/i.test(stderr)) { probe.needsFinalize = true; warnings.push('Container index/moov atom missing — needs finalizing.'); }
+  if (stderr && !probe.needsFinalize && /(invalid data|error|corrupt)/i.test(stderr)) { probe.corrupt = true; warnings.push(stderr.split('\n')[0].slice(0, 160)); }
+  return probe;
+}
+
+const CX_MIME: Record<string, string> = {
+  mp4: 'video/mp4', mov: 'video/quicktime', mkv: 'video/x-matroska', webm: 'video/webm',
+  ts: 'video/mp2t', mpg: 'video/mpeg', avi: 'video/x-msvideo', gif: 'image/gif',
+  wav: 'audio/wav', mp3: 'audio/mpeg', m4a: 'audio/mp4', flac: 'audio/flac', ogg: 'audio/ogg',
+  opus: 'audio/opus', aiff: 'audio/aiff', caf: 'audio/x-caf',
+  png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', avif: 'image/avif', tiff: 'image/tiff',
+};
+const cxRand = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+// Free-tier conversion cap (admins/staff unlimited). Plajah+ unlimited is a
+// future step — add the plan check here AND in services/crossoverUsage.ts together.
+const CX_FREE_LIMIT = 3;
+async function cxUsage(uid: string): Promise<{ isAdmin: boolean; used: number }> {
+  const u = await firestoreRead('users', uid);
+  const role = u?.role;
+  const isAdmin = role === 'admin' || role === 'staff';
+  return { isAdmin, used: Number(u?.crossoverConversions || 0) };
 }
 
 /** Cover image + up to 45s of audio → a small square MP4. TWO passes so a huge album cover
@@ -3817,6 +3890,113 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       </body>
       </html>
     `);
+  });
+
+  // ── Crossover — media conversion / probe / finalize (real ffmpeg) ────────
+  // The input arrives as the RAW request body (recipe/name/kind in headers), or
+  // an X-Crossover-Url the server fetches; the result streams straight back.
+  // Gated by apiLimiter (abuse) + authMiddleware (signed-in users only) — the
+  // browser attaches its Firebase ID token via serverEngine. Results stream back;
+  // nothing is stored server-side.
+  const cxRaw = express.raw({ type: () => true, limit: '3gb' });
+
+  const cxMaterializeInput = async (req: any, fallbackExt: string): Promise<string | { error: string }> => {
+    const name = decodeURIComponent(req.header('X-Crossover-Name') || `input.${fallbackExt}`);
+    const inExt = (name.split('.').pop() || fallbackExt).toLowerCase();
+    const inPath = path.join(os.tmpdir(), `cx_in_${cxRand()}.${inExt}`);
+    const url = req.header('X-Crossover-Url');
+    if (url) {
+      const tmp = await fetchToTmp(url, 'cx');
+      if (!tmp) return { error: 'input url fetch failed' };
+      try { await fs.rename(tmp, inPath); } catch { await fs.copyFile(tmp, inPath); fs.unlink(tmp).catch(() => {}); }
+      return inPath;
+    }
+    const body = req.body as Buffer;
+    if (!body || !body.length) return { error: 'empty request body' };
+    await fs.writeFile(inPath, body);
+    return inPath;
+  };
+
+  app.post('/api/crossover/probe', apiLimiter, authMiddleware, cxRaw, async (req: any, res) => {
+    let inPath: string | null = null;
+    try {
+      const mat = await cxMaterializeInput(req, 'bin');
+      if (typeof mat !== 'string') return res.status(400).json({ error: mat.error });
+      inPath = mat;
+      const { json, err } = await runFfprobe(inPath);
+      const probe = ffprobeToProbe(json, err);
+      res.json(probe);
+    } catch (e: any) {
+      res.status(500).json({ error: String(e?.message || e) });
+    } finally {
+      if (inPath) fs.unlink(inPath).catch(() => {});
+    }
+  });
+
+  app.post('/api/crossover/convert', apiLimiter, authMiddleware, cxRaw, async (req: any, res) => {
+    const kind = (req.header('X-Crossover-Kind') || 'video') as CxKind;
+    const name = decodeURIComponent(req.header('X-Crossover-Name') || 'input');
+    let recipe: CxRecipe;
+    try { recipe = JSON.parse(decodeURIComponent(req.header('X-Crossover-Recipe') || '')); }
+    catch { return res.status(400).send('bad or missing X-Crossover-Recipe'); }
+
+    // Free-tier gate: block once the cap is hit (admins/staff bypass).
+    const cxUid = req.uid as string;
+    const cxUse = await cxUsage(cxUid);
+    if (!cxUse.isAdmin && cxUse.used >= CX_FREE_LIMIT) {
+      return res.status(429).json({ error: 'Free conversion limit reached', limit: CX_FREE_LIMIT, used: cxUse.used });
+    }
+
+    const outExt = extFor(recipe, kind);
+    const base = (name.replace(/\.[^.]+$/, '') || 'output').replace(/[^\w.\-]+/g, '_');
+    const outPath = path.join(os.tmpdir(), `cx_out_${cxRand()}.${outExt}`);
+    let inPath: string | null = null;
+    const cleanup = () => { for (const p of [inPath, outPath]) if (p) fs.unlink(p).catch(() => {}); };
+    try {
+      const mat = await cxMaterializeInput(req, 'bin');
+      if (typeof mat !== 'string') { cleanup(); return res.status(400).send(mat.error); }
+      inPath = mat;
+      const args = buildFfmpegArgs(inPath, recipe, outPath, kind);
+      const r = await runFfmpeg(args, 5 * 60 * 1000);
+      if (!r.ok) { cleanup(); return res.status(422).send(`ffmpeg failed: ${r.err.slice(-600)}`); }
+      const outBuf = await fs.readFile(outPath);
+      // Count this conversion toward the user's free tier (fire-and-forget).
+      if (!cxUse.isAdmin) firestoreWrite('users', cxUid, { crossoverConversions: cxUse.used + 1 }).catch(() => {});
+      res.setHeader('Content-Type', CX_MIME[outExt] || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${base}.${outExt}"`);
+      res.setHeader('X-Crossover-Backend', 'server');
+      res.send(outBuf);
+    } catch (e: any) {
+      res.status(500).send(String(e?.message || e));
+    } finally {
+      cleanup();
+    }
+  });
+
+  // Finalize/repair — remux an unfinalized (crashed OBS/livestream) recording:
+  // stream-copy + faststart + regenerated timestamps. (Deep moov-atom recovery,
+  // e.g. untrunc, is a later upgrade.)
+  app.post('/api/crossover/finalize', apiLimiter, authMiddleware, cxRaw, async (req: any, res) => {
+    const name = decodeURIComponent(req.header('X-Crossover-Name') || 'input.mp4');
+    const base = (name.replace(/\.[^.]+$/, '') || 'output').replace(/[^\w.\-]+/g, '_');
+    const outPath = path.join(os.tmpdir(), `cx_fin_${cxRand()}.mp4`);
+    let inPath: string | null = null;
+    const cleanup = () => { for (const p of [inPath, outPath]) if (p) fs.unlink(p).catch(() => {}); };
+    try {
+      const mat = await cxMaterializeInput(req, 'mp4');
+      if (typeof mat !== 'string') { cleanup(); return res.status(400).send(mat.error); }
+      inPath = mat;
+      const r = await runFfmpeg(['-y', '-fflags', '+genpts', '-i', inPath, '-c', 'copy', '-movflags', '+faststart', outPath], 3 * 60 * 1000);
+      if (!r.ok) { cleanup(); return res.status(422).send(`finalize failed: ${r.err.slice(-600)}`); }
+      const outBuf = await fs.readFile(outPath);
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Content-Disposition', `attachment; filename="${base}_finalized.mp4"`);
+      res.send(outBuf);
+    } catch (e: any) {
+      res.status(500).send(String(e?.message || e));
+    } finally {
+      cleanup();
+    }
   });
 
   // Social video — a cover+audio MP4 for a shared album/track, so music plays INLINE on

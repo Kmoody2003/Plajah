@@ -7,6 +7,7 @@ import {
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
+import { crossover } from "../../services/crossover";
 import SceneView from "../plajahPixels/components/SceneView";
 import { getMyMusicTracks, buildSubtitleClips } from "../../services/fabulaMusic";
 import { getMyVideos } from "../../services/fabulaVideos";
@@ -1130,14 +1131,59 @@ export default function Fabula() {
   };
 
   const addAssetToPool = (asset) => updateProd((p) => { p.mediaPool.push(asset); });
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach((f) => {
+    const added = files.map((f) => {
       const type = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
-      addAssetToPool({ id: uid(), name: f.name, type, url: URL.createObjectURL(f), duration: 5, session: true, bin: "imports" });
+      const id = uid();
+      addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports" });
+      return { id, f, type };
     });
-    if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""} (session-only URLs)`);
+    if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""}`);
     e.target.value = "";
+    // Crossover: probe real duration + browser-compatibility (client-side, instant),
+    // replacing the old hardcoded 5s guess and flagging formats that won't decode.
+    for (const { id, f, type } of added) {
+      try {
+        const probe = await crossover.probe({ id, name: f.name, kind: type, sizeBytes: f.size, file: f });
+        const dur = probe.durationSec && isFinite(probe.durationSec) ? probe.durationSec : undefined;
+        const incompatible = type !== "image" && (probe.corrupt || !dur);
+        updateProd((p) => {
+          const a = p.mediaPool.find((x) => x.id === id);
+          if (!a) return;
+          if (dur) a.duration = dur;
+          if (probe.width) a.width = probe.width;
+          if (probe.height) a.height = probe.height;
+          if (incompatible) a.needsConversion = true;
+        });
+        if (incompatible) ping(`"${f.name}" may not play/render in-browser — hit CONVERT on it to transcode via Crossover.`);
+      } catch { /* probe is best-effort */ }
+    }
+  };
+
+  // Crossover: transcode a media-pool asset to a browser-friendly format in place.
+  // Audio converts instantly in-browser; video routes to the Crossover cloud.
+  const convertAssetToBrowserFriendly = async (assetId) => {
+    const a = (prod?.mediaPool || []).find((x) => x.id === assetId);
+    if (!a?.url) { ping("This asset is offline — relink it first."); return; }
+    ping(`Converting "${a.name}" via Crossover…`);
+    try {
+      const blob = await (await fetch(a.url)).blob();
+      const kind = a.type === "audio" ? "audio" : a.type === "image" ? "image" : "video";
+      const file = new File([blob], a.name, { type: blob.type || "application/octet-stream" });
+      const recipe =
+        kind === "audio" ? { containerId: "wav", audioCodecId: "pcm_s16le", hwAccel: "auto", qualityMode: "lossless", fixTimestamps: true }
+        : kind === "image" ? { containerId: "png", imageFormatId: "png", hwAccel: "auto", qualityMode: "crf" }
+        : { containerId: "mp4", videoCodecId: "h264", audioCodecId: "aac", hwAccel: "auto", qualityMode: "crf", crf: 20, audioBitrate: "256k", fixTimestamps: true };
+      const result = await crossover.convert({ id: a.id, name: a.name, kind, sizeBytes: blob.size, file }, recipe, () => {});
+      updateProd((p) => {
+        const x = p.mediaPool.find((y) => y.id === assetId);
+        if (x) { x.url = result.outputUrl; x.name = result.outputName; x.needsConversion = false; x.converted = true; }
+      });
+      ping(`Converted "${a.name}" (${result.backend === "client" ? "in browser" : "on Plajah cloud"}).`);
+    } catch (err) {
+      ping(`Convert failed: ${err?.message || err}. Video/pro formats need the Crossover cloud (deploy pending).`);
+    }
   };
   const insertAssetClip = (asset) => {
     const isMc = asset.type === "multicam";
@@ -1378,6 +1424,9 @@ export default function Fabula() {
   const doRenderMP4 = async () => {
     if (rendering) { renderAbortRef.current?.abort(); return; }
     if (!clips.length) { ping("Nothing on the timeline to render."); return; }
+    // Crossover pre-render validation: warn about timeline sources that may not decode in-browser.
+    const badFormats = (prod.mediaPool || []).filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled));
+    if (badFormats.length) ping(`Heads up: ${badFormats.length} clip source${badFormats.length > 1 ? "s" : ""} may not decode in-browser — hit CONVERT in the pool. Rendering anyway.`);
     setRendering(true); setRenderPct(0); setRenderStage("Preparing");
     renderAbortRef.current = new AbortController();
     try {
@@ -1734,6 +1783,11 @@ export default function Fabula() {
                           <span className="poolname">{a.name}</span>
                           {a.offline && !a.url && <span className="chip red" style={{ fontSize: 7 }}>OFFLINE</span>}
                           {a.generated && <Sparkles size={10} className="genstar" />}
+                          {a.needsConversion && !a.converted && (
+                            <span className="chip" style={{ fontSize: 7, cursor: "pointer", background: "rgba(255,140,0,0.18)", color: "#ffb057" }}
+                              title="Transcode to a browser-friendly format via Crossover"
+                              onClick={(e) => { e.stopPropagation(); convertAssetToBrowserFriendly(a.id); }}>CONVERT</span>
+                          )}
                         </div>
                       ))}
                       {mcSel.length >= 2 && (

@@ -1195,6 +1195,7 @@ export interface UserProfile {
   };
   isPartner?: boolean;
   isAdFree?: boolean;
+  crossoverConversions?: number; // lifetime Crossover conversions used (free tier is capped)
   isFeatured?: boolean;
   featuredArtistPhoto?: string;
   masterEmail?: string;
@@ -2934,6 +2935,7 @@ export interface SystemSettingsConfig {
     blueskyEnabled: boolean;
     threadsEnabled: boolean;
   };
+  crossoverEnabled?: boolean; // admin on/off for the standalone Crossover converter app
   updatedAt: number;
 }
 

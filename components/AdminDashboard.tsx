@@ -1706,9 +1706,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                     ))}
                   </div>
                 </div>
+
+                <div className="p-8 bg-white/5 border border-white/5 rounded-[3rem] space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tight">Apps &amp; Tools</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-2xl">
+                      <div>
+                        <span className="font-bold text-sm tracking-wide">Crossover Converter</span>
+                        <p className="text-white/40 text-xs mt-1 normal-case tracking-normal font-normal">Standalone media converter on the app page</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!systemSettings) return;
+                          const updated = { ...systemSettings, crossoverEnabled: !(systemSettings.crossoverEnabled !== false) };
+                          await updateSystemSettingsConfig(updated);
+                          setSystemSettings(updated);
+                        }}
+                        className={`w-14 h-8 rounded-full transition-all ${systemSettings?.crossoverEnabled !== false ? 'bg-green-500' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform ${systemSettings?.crossoverEnabled !== false ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
-            
+
             {activeTab === 'MAINTENANCE' && (
               <motion.div 
                 key="maintenance"

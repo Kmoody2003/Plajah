@@ -180,6 +180,7 @@ const CloseFriendsView = retryLazy(() => import('./components/CloseFriendsView')
 const PollResultsArchive = retryLazy(() => import('./components/PollResultsArchive'));
 const SocialInsightsDashboard = retryLazy(() => import('./components/SocialInsightsDashboard'));
 const AppsView = retryLazy(() => import('./components/AppsView'));
+const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
@@ -280,7 +281,7 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd } from './services/backendService';
+import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig } from './services/backendService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -359,6 +360,7 @@ const App: React.FC = () => {
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
     // research manifesto — admin only (kmoody2003@gmail.com or role=admin)
     pitchParam === 'research'     ? 'RESEARCH_MANIFESTO' :
+    pitchParam === 'crossover'    ? 'CROSSOVER'          :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -370,6 +372,9 @@ const App: React.FC = () => {
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
+  const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
+  useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | undefined>(roomParam || undefined);
@@ -2313,6 +2318,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'PLAJAH_LABS', order: 6.5, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
+                    { id: 'CROSSOVER', order: 8.6, isVisible: crossoverSystemEnabled },
                     { id: 'GAMES', order: 4.5, isVisible: true },
                     { id: 'CLUBS', order: 0.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
@@ -2370,6 +2376,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         RADIO: { label: 'Radio', icon: Radio },
                         LIVE_TV: { label: 'Live TV', icon: Tv },
                         APPS: { label: 'Apps', icon: AppWindow },
+                        CROSSOVER: { label: 'Crossover', icon: Repeat },
                         GAMES: { label: 'Games', icon: Gamepad2 },
                         CLUBS: { label: 'Clubs', icon: Users },
                         CHARITY: { label: 'Charity', icon: Heart },
@@ -2414,6 +2421,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         RADIO: "Tune into live artist stations and curated broadcasts.",
                         LIVE_TV: "Watch continuous video streams and live FAST channels.",
                         APPS: "Install and run community web applications and tools.",
+                        CROSSOVER: "Convert video, audio, and images into almost any format - hardware-accelerated, no paid encoders.",
                         GAMES: "Play interactive web games directly in your browser.",
                         CLUBS: "Join free community groups based on shared interests.",
                         CHARITY: "Support non-profits and explore fundraising campaigns.",
@@ -2522,7 +2530,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
-                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
+                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
                       STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
@@ -2552,7 +2560,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     };
                     const groups = [
                       { id: 'discover', label: 'Discover', ids: ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH'] },
-                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS'] },
+                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverSystemEnabled ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
@@ -2609,7 +2617,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, PLAJAH_LABS: { label: 'Plajah Labs', icon: FlaskConical },
-                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow },
+                      RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
                       STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
@@ -3936,6 +3944,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MOVIES_TV' && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
+            {view === 'CROSSOVER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <CrossoverView onBack={() => setView('DASHBOARD')} userProfile={userProfile} onNavigate={(v) => setView(v as any)} enabled={crossoverSystemEnabled} />
+              </Suspense>
+            )}
             {view === 'PLAJAH_PIXELS' && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
 
             {view === 'TELEPROMPTER' && (
