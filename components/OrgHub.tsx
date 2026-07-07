@@ -11,6 +11,7 @@ import {
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
@@ -94,7 +95,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
 
   // ── List ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full p-6 lg:p-12 max-w-5xl mx-auto">
+    <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-10">
         <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14} /> Back</button>
         <div className="flex items-center gap-2">
@@ -110,7 +111,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
         <div className="p-3 bg-small-orange/15 rounded-2xl"><Building2 className="text-small-orange" size={24} /></div>
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tight text-white leading-none">Your organizations</h1>
-          <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mt-1">Brands, businesses, ministries — pages you run</p>
+          <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mt-1`}>Brands, businesses, ministries — pages you run</p>
         </div>
       </div>
 
@@ -129,7 +130,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
           </div>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
+        <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
           {orgs.map(o => (
             <button key={o.id} onClick={() => { setActive(o); setMode('view'); }} className={`${card} p-5 text-left hover:bg-white/[0.06] transition-all flex items-center gap-4`}>
               <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0 grid place-items-center">
@@ -140,13 +141,13 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
                   <p className="font-black text-white truncate">{o.name}</p>
                   {o.isVerified && <Check size={13} className="text-small-orange shrink-0" />}
                 </div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 mt-0.5">{o.orgType}</p>
-                <p className="text-[11px] text-white/40 truncate mt-0.5">{o.tagline || o.about || '—'}</p>
+                <p className={`${TYPE.labelSm} font-black uppercase tracking-widest text-small-orange/70 mt-0.5`}>{o.orgType}</p>
+                <p className="type-body-sm text-white/40 truncate mt-0.5">{o.tagline || o.about || '—'}</p>
               </div>
-              <span className="text-[9px] font-bold text-white/30 flex items-center gap-1 shrink-0"><Users size={11} /> {o.memberCount ?? 1}</span>
+              <span className={`${TYPE.labelSm} font-bold text-white/30 flex items-center gap-1 shrink-0`}><Users size={11} /> {o.memberCount ?? 1}</span>
             </button>
           ))}
-        </div>
+        </AdaptiveGrid>
       )}
     </div>
   );
@@ -183,23 +184,23 @@ const OrgCreator: React.FC<{ onCancel: () => void; onCreated: (o: Organization) 
   };
 
   return (
-    <div className="min-h-full p-6 lg:p-12 max-w-2xl mx-auto">
-      <button onClick={onCancel} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest mb-8"><ArrowLeft size={14} /> Cancel</button>
+    <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-2xl mx-auto">
+      <button onClick={onCancel} className={`flex items-center gap-2 text-white/40 hover:text-white ${TYPE.labelMd} font-black uppercase tracking-widest mb-8`}><ArrowLeft size={14} /> Cancel</button>
       <h1 className="text-3xl font-black uppercase tracking-tight text-white mb-2">New organization</h1>
-      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-8">A parallel account — its own profile, staff & community</p>
+      <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mb-8`}>A parallel account — its own profile, staff & community</p>
 
       <div className="space-y-6">
         <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 block">Type</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <label className={`${TYPE.labelSm} font-black uppercase tracking-widest text-white/40 mb-2 block`}>Type</label>
+          <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="0.5rem">
             {ORG_TYPES.map(t => (
               <button key={t.type} onClick={() => setOrgType(t.type)} title={t.blurb}
                 className={`p-3 rounded-2xl border text-left transition-all ${orgType === t.type ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
-                <span className="text-[11px] font-black uppercase tracking-widest">{t.label}</span>
+                <span className={`${TYPE.labelMd} font-black uppercase tracking-widest`}>{t.label}</span>
               </button>
             ))}
-          </div>
-          <p className="text-[10px] text-white/30 mt-2">{ORG_TYPES.find(t => t.type === orgType)?.blurb}</p>
+          </AdaptiveGrid>
+          <p className={`${TYPE.labelMd} text-white/30 mt-2`}>{ORG_TYPES.find(t => t.type === orgType)?.blurb}</p>
         </div>
 
         <div className="flex gap-4">

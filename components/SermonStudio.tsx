@@ -11,6 +11,7 @@ import {
   type SermonDraft, type SermonArticle,
 } from '../services/sermonService';
 import { transcribeSpeech } from '../services/geminiService';
+import { TYPE } from '../src/lib/designSystem';
 
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
@@ -78,20 +79,20 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
   };
 
   return (
-    <div className="min-h-full p-6 lg:p-12 max-w-2xl mx-auto">
-      <button onClick={onClose} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest mb-8"><ArrowLeft size={14} /> Back</button>
+    <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-2xl mx-auto">
+      <button onClick={onClose} className={`tap flex items-center gap-2 text-white/40 hover:text-white ${TYPE.labelMd} font-black uppercase tracking-widest mb-8`}><ArrowLeft size={14} /> Back</button>
 
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-small-orange/15 rounded-2xl"><Sparkles className="text-small-orange" size={24} /></div>
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tight text-white leading-none">Sermon Studio</h1>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">Aria turns sermons into articles & books</p>
+          <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mt-1`}>Aria turns sermons into articles & books</p>
         </div>
       </div>
 
       <div className="flex gap-1 p-1 bg-white/5 rounded-2xl self-start mb-8 w-fit">
         {(['create', 'book'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
+          <button key={t} onClick={() => setTab(t)} className={`tap px-5 py-2 rounded-xl ${TYPE.labelMd} font-black uppercase tracking-widest transition-all ${tab === t ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
             {t === 'create' ? 'Sermon → Article' : 'Compile a Book'}
           </button>
         ))}
@@ -99,14 +100,14 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
 
       {tab === 'create' ? (
         <div className="space-y-5">
-          {saved && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 text-[11px] font-black uppercase tracking-widest"><Check size={14} /> Saved to the church library</div>}
+          {saved && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 type-body-sm font-black uppercase tracking-widest"><Check size={14} /> Saved to the church library</div>}
           <input value={hint} onChange={e => setHint(e.target.value)} placeholder="Sermon title (optional)" className={field} />
           <div className="flex items-center gap-2">
-            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${transcribing ? 'opacity-50' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
+            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 ${TYPE.labelMd} font-black uppercase tracking-widest cursor-pointer transition-all ${transcribing ? 'opacity-50' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
               {transcribing ? <Loader2 size={13} className="animate-spin" /> : <Mic size={13} className="text-small-orange" />} {transcribing ? 'Transcribing…' : 'Transcribe audio'}
               <input type="file" accept="audio/*,video/*" className="hidden" disabled={transcribing} onChange={e => { const f = e.target.files?.[0]; if (f) transcribeAudio(f); e.target.value = ''; }} />
             </label>
-            <span className="text-[9px] text-white/25">Aria transcribes the recording, or paste below</span>
+            <span className={`${TYPE.labelMd} text-white/25`}>Aria transcribes the recording, or paste below</span>
           </div>
           <textarea value={transcript} onChange={e => setTranscript(e.target.value)} rows={7} placeholder="Paste the sermon transcript or notes…" className={`${field} resize-none`} />
           <button onClick={generate} disabled={generating || !transcript.trim()} className="w-full py-3.5 bg-small-orange text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
@@ -115,10 +116,10 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
 
           {draft && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-4 border-t border-white/10">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2"><FileText size={12} className="text-small-orange" /> Draft — edit before saving</p>
+              <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40 flex items-center gap-2`}><FileText size={12} className="text-small-orange" /> Draft — edit before saving</p>
               <input value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="Title" className={`${field} text-lg font-black`} />
               <input value={draft.subtitle} onChange={e => setDraft({ ...draft, subtitle: e.target.value })} placeholder="Subtitle" className={field} />
-              <textarea value={draft.body} onChange={e => setDraft({ ...draft, body: e.target.value })} rows={14} className={`${field} resize-none font-mono text-[13px] leading-relaxed`} />
+              <textarea value={draft.body} onChange={e => setDraft({ ...draft, body: e.target.value })} rows={14} className={`${field} resize-none font-mono type-title-sm leading-relaxed max-h-[60vh]`} />
               <button onClick={save} disabled={saving} className="w-full py-3.5 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-90 disabled:opacity-30 flex items-center justify-center gap-2">
                 {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save to library</>}
               </button>
@@ -127,12 +128,12 @@ const SermonStudio: React.FC<{ church: Organization; onClose: () => void }> = ({
         </div>
       ) : (
         <div className="space-y-5">
-          {bookDone && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 text-[11px] font-black uppercase tracking-widest"><Check size={14} /> Book published to the library</div>}
+          {bookDone && <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-500/10 border border-green-500/25 text-green-400 type-body-sm font-black uppercase tracking-widest"><Check size={14} /> Book published to the library</div>}
           {articles.length === 0 ? (
-            <p className="text-[11px] text-white/40 py-8 text-center">No sermon articles yet — create some in the first tab, then compile them into a book here.</p>
+            <p className="type-body-sm text-white/40 py-8 text-center">No sermon articles yet — create some in the first tab, then compile them into a book here.</p>
           ) : (
             <>
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Select sermons ({selected.size} chosen)</p>
+              <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40`}>Select sermons ({selected.size} chosen)</p>
               <div className="space-y-2">
                 {articles.map(a => {
                   const on = selected.has(a.id);

@@ -3,6 +3,7 @@ import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck,
 import { fetchPublicOrganizations } from '../services/organizationService';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 import { Organization, OrgType } from '../types';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 interface PlajahElevateProps {
   /** Open an institution's public hub. */
@@ -60,23 +61,23 @@ const OrgCard: React.FC<{ org: Organization; accent: string; onOpen: () => void 
             : <span className="text-lg font-black text-white/70">{org.name?.[0]?.toUpperCase() || '?'}</span>}
         </div>
         <div className="mt-2.5 flex items-center gap-1.5">
-          <p className="text-[13px] font-black text-white leading-tight line-clamp-1">{org.name}</p>
+          <p className={`${TYPE.titleSm} text-white leading-tight line-clamp-1`}>{org.name}</p>
           {org.isVerified && <BadgeCheck size={13} className="shrink-0" style={{ color: accent }} />}
         </div>
         {org.tagline && <p className="text-[10px] text-white/45 leading-snug line-clamp-2 mt-0.5">{org.tagline}</p>}
         <div className="mt-2.5 flex items-center gap-3 text-white/35">
           {city && (
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
+            <span className={`flex items-center gap-1 ${TYPE.labelSm}`}>
               <MapPin size={10} /> {city}
             </span>
           )}
           {typeof org.followerCount === 'number' && org.followerCount > 0 && (
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
+            <span className={`flex items-center gap-1 ${TYPE.labelSm}`}>
               <Users size={10} /> {org.followerCount.toLocaleString()}
             </span>
           )}
           {org.denomination && (
-            <span className="text-[9px] font-bold uppercase tracking-wider truncate">{org.denomination}</span>
+            <span className={`${TYPE.labelSm} truncate`}>{org.denomination}</span>
           )}
         </div>
       </div>
@@ -129,9 +130,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
             <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">
               <Landmark size={18} className="text-white" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50">Plajah Elevate</span>
+            <span className={`${TYPE.labelLg} text-white/50`}>Plajah Elevate</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight max-w-2xl">
+          <h1 className="font-black tracking-tight leading-tight max-w-2xl" style={{ fontSize: 'clamp(1.75rem,6vw,2.5rem)' }}>
             The home for faith, culture &amp; community on Plajah.
           </h1>
           <p className="text-white/50 text-sm mt-3 max-w-xl leading-relaxed">
@@ -162,7 +163,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
           <div className="mt-6 flex flex-wrap gap-2">
             <button
               onClick={() => setActiveSection('all')}
-              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSection === 'all' ? 'bg-white text-black' : 'bg-white/[0.06] text-white/50 hover:text-white border border-white/10'}`}
+              className={`px-4 py-2 rounded-full ${TYPE.labelMd} transition-all ${activeSection === 'all' ? 'bg-white text-black' : 'bg-white/[0.06] text-white/50 hover:text-white border border-white/10'}`}
             >
               All ({totalCount})
             </button>
@@ -170,7 +171,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
               <button
                 key={s.key}
                 onClick={() => setActiveSection(s.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSection === s.key ? 'bg-white text-black' : 'bg-white/[0.06] text-white/50 hover:text-white border border-white/10'}`}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full ${TYPE.labelMd} transition-all ${activeSection === s.key ? 'bg-white text-black' : 'bg-white/[0.06] text-white/50 hover:text-white border border-white/10'}`}
               >
                 <s.icon size={12} /> {s.title.split(' ')[0]} ({(orgsByType[s.key] || []).length})
               </button>
@@ -184,7 +185,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
         {loading ? (
           <div className="flex flex-col items-center gap-4 text-white/40 py-24">
             <div className="w-9 h-9 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <p className="text-[9px] font-black uppercase tracking-widest">Gathering institutions…</p>
+            <p className={TYPE.labelSm}>Gathering institutions…</p>
           </div>
         ) : (
           visibleSections.map(section => {
@@ -197,28 +198,28 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
                   </div>
                   <div>
                     <h2 className="text-base font-black text-white leading-tight">{section.title}</h2>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{section.blurb}</p>
+                    <p className={`${TYPE.labelMd} text-white/40`}>{section.blurb}</p>
                   </div>
                 </div>
 
                 {list.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/12 px-6 py-10 flex flex-col items-center gap-3 text-center">
                     <Sparkles size={18} className="text-white/25" />
-                    <p className="text-[11px] text-white/40 max-w-sm leading-relaxed">
+                    <p className="type-body-sm text-white/40 max-w-sm leading-relaxed">
                       {query ? 'No matches here yet — try another search.' : `No ${section.title.toLowerCase()} listed yet. Be the first to join Plajah Elevate.`}
                     </p>
                     {!query && (
-                      <button onClick={onCreate} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white transition-colors">
+                      <button onClick={onCreate} className={`flex items-center gap-1.5 ${TYPE.labelMd} text-white/70 hover:text-white transition-colors`}>
                         List one <ArrowRight size={12} />
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="1rem">
                     {list.map(org => (
                       <OrgCard key={org.id} org={org} accent={section.accent} onOpen={() => onOpenOrg(org.id)} />
                     ))}
-                  </div>
+                  </AdaptiveGrid>
                 )}
               </section>
             );

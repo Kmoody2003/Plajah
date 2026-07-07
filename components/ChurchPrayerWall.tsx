@@ -6,6 +6,7 @@ import {
   markChurchPrayerAnswered, deleteChurchPrayer,
 } from '../services/organizationService';
 import { auth } from '../services/firebase';
+import { TYPE } from '../src/lib/designSystem';
 
 // A real, persistent prayer wall for a church/org page. Members submit requests
 // (public or private-to-staff), tap "I'm praying," and staff mark answered.
@@ -31,7 +32,7 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
 
   return (
     <section className="mt-10">
-      <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><HandHeart size={12} className="text-small-orange" /> Prayer wall</h2>
+      <h2 className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2`}><HandHeart size={12} className="text-small-orange" /> Prayer wall</h2>
 
       <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 mb-4">
         <textarea
@@ -53,7 +54,7 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-[11px] text-white/30 uppercase tracking-widest text-center py-6">Be the first to share a prayer request</p>
+        <p className="type-body-sm text-white/30 uppercase tracking-widest text-center py-6">Be the first to share a prayer request</p>
       ) : (
         <div className="space-y-3">
           {visible.map(p => {
@@ -63,25 +64,25 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
               <div key={p.id} className="rounded-2xl p-4 border" style={{ background: p.answered ? 'rgba(63,190,133,0.06)' : 'rgba(255,255,255,0.03)', borderColor: p.answered ? 'rgba(63,190,133,0.25)' : 'rgba(255,255,255,0.1)' }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <img src={p.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.authorId}`} className="w-6 h-6 rounded-full border border-white/10" alt="" />
-                    <p className="text-[11px] font-black text-white">{p.authorName}<span className="text-white/30 font-bold"> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
-                    {p.isPrivate && <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest text-white/40"><Lock size={9} /> Private</span>}
+                    <img src={p.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.authorId}`} className="w-8 h-8 rounded-full border border-white/10" alt="" />
+                    <p className="type-body-md font-black text-white">{p.authorName}<span className={`text-white/30 font-bold ${TYPE.labelSm}`}> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
+                    {p.isPrivate && <span className={`flex items-center gap-0.5 ${TYPE.labelSm} font-black uppercase tracking-widest text-white/40`}><Lock size={9} /> Private</span>}
                   </div>
-                  {p.answered && <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400"><Check size={10} /> Answered</span>}
+                  {p.answered && <span className={`flex items-center gap-1 ${TYPE.labelSm} font-black uppercase tracking-widest text-emerald-400`}><Check size={10} /> Answered</span>}
                 </div>
                 <p className="text-sm text-white/80 leading-relaxed mb-3">{p.request}</p>
-                {p.answered && p.answeredNote && <p className="text-[11px] text-emerald-300/70 italic mb-2">— {p.answeredNote}</p>}
+                {p.answered && p.answeredNote && <p className="type-body-sm text-emerald-300/70 italic mb-2">— {p.answeredNote}</p>}
                 <div className="flex items-center gap-3">
                   <button onClick={() => uid ? toggleChurchPraying(p.id, !praying) : alert('Sign in to pray.')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                    className={`tap flex items-center gap-1.5 px-3 py-1.5 rounded-full ${TYPE.labelMd} font-black uppercase tracking-widest transition-all`}
                     style={praying ? { background: '#FF8C00', color: '#000' } : { color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
                     <HandHeart size={11} /> {p.prayingIds?.length || 0} praying
                   </button>
                   {isOwner && !p.answered && (
-                    <button onClick={() => markChurchPrayerAnswered(p.id, true)} className="text-[10px] font-black uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400">Mark answered</button>
+                    <button onClick={() => markChurchPrayerAnswered(p.id, true)} className={`tap ${TYPE.labelMd} font-black uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400`}>Mark answered</button>
                   )}
                   {canManage && (
-                    <button onClick={() => window.confirm('Delete this prayer request?') && deleteChurchPrayer(p.id)} className="ml-auto text-white/25 hover:text-rose-400"><Trash2 size={13} /></button>
+                    <button onClick={() => window.confirm('Delete this prayer request?') && deleteChurchPrayer(p.id)} className="tap ml-auto text-white/25 hover:text-rose-400 flex items-center justify-center"><Trash2 size={13} /></button>
                   )}
                 </div>
               </div>
