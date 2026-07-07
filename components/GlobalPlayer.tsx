@@ -55,6 +55,13 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   const vp = useViewport(); // live breakpoint — reacts to resize/rotate/fold (unlike the static isMobile prop)
   const isBigScreen = theme === 'BIG_SCREEN';
   const isPhoneMode = theme === 'PHONE' || isMobile || vp.isPhone;
+  // On phones the persistent music transport is a distraction on text-centered
+  // surfaces (feed, Lorea, chat, profiles, etc.) — only surface it on the music
+  // views. Playback keeps running; the bar is display:none'd, not unmounted, so
+  // audio/video isn't interrupted and it reappears on Chora/Radio/Player.
+  const MUSIC_TRANSPORT_VIEWS = ['MUSIC', 'PLAYER', 'RADIO'];
+  const isPhoneSized = theme === 'PHONE' || vp.isPhone; // phones only — tablets keep the bar
+  const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '');
   const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
   const { 
     currentTrack, 
@@ -760,7 +767,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   return (
     <div
-      className={`fixed left-0 right-0 z-[100] flex flex-col transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed left-0 right-0 z-[100] flex-col transition-opacity duration-1000 ${hideTransportOnPhone ? 'hidden' : 'flex'} ${isUserActive ? 'opacity-100' : 'opacity-0'}`}
       style={{ bottom: topOffset ? 'auto' : bottomOffset, top: topOffset || 'auto' }}
     >
 
