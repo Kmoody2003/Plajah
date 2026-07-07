@@ -320,7 +320,22 @@ export const fetchBidHistory = async (itemId: string): Promise<GarageSaleBid[]> 
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as GarageSaleBid));
 };
 
-export const buyItNow = async (itemId: string): Promise<{ success: boolean; message: string }> => {
+// Route a settled auction's proceeds to its linked Sanctuary fundraiser (best-effort,
+// post-commit). percentToRaise of the final price is contributed to the campaign.
+const routeAuctionToFundraiser = async (item: GarageSaleItem, finalPrice: number, itemId: string): Promise<number> => {
+  const link = item.sanctuaryFundraiserLink;
+  if (!link?.sanctuaryId || !link.percentToRaise || finalPrice <= 0) return 0;
+  const amount = Math.round(finalPrice * (link.percentToRaise / 100) * 100) / 100;
+  if (amount <= 0) return 0;
+  try {
+    const { contributeToCampaign } = await import('./sanctuaryService'); // dynamic → avoid circular
+    await contributeToCampaign(link.sanctuaryId, amount);
+    await updateDoc(doc(db, 'garageSale', itemId), { 'sanctuaryFundraiserLink.raisedViaAuction': increment(amount) });
+  } catch { /* fundraiser contribution is best-effort */ }
+  return amount;
+};
+
+export const buyItNow = async (itemId: string): Promise<{ success: boolean; message: string; raisedForCampaign?: number }> => {
   if (!auth.currentUser) return { success: false, message: 'Must be signed in' };
   try {
     const result = await runTransaction(db, async (tx) => {
@@ -336,11 +351,39 @@ export const buyItNow = async (itemId: string): Promise<{ success: boolean; mess
         winnerName: auth.currentUser!.displayName || 'Anonymous',
         finalPrice: item.buyItNowPrice,
       });
-      return { success: true, message: `Purchased for $${item.buyItNowPrice.toFixed(2)}!` };
+      return { item, price: item.buyItNowPrice };
     });
-    return result;
+    const raised = await routeAuctionToFundraiser(result.item, result.price, itemId);
+    return { success: true, message: `Purchased for $${result.price.toFixed(2)}!`, raisedForCampaign: raised || undefined };
   } catch (err: any) {
     return { success: false, message: err.message || 'Purchase failed' };
+  }
+};
+
+// Settle a timed auction once its clock runs out — the current high bidder wins.
+// Seller (or admin) triggers this; proceeds route to any linked fundraiser.
+export const settleAuction = async (itemId: string): Promise<{ success: boolean; message: string; raisedForCampaign?: number }> => {
+  if (!auth.currentUser) return { success: false, message: 'Must be signed in' };
+  try {
+    const outcome = await runTransaction(db, async (tx) => {
+      const itemRef = doc(db, 'garageSale', itemId);
+      const itemSnap = await tx.get(itemRef);
+      if (!itemSnap.exists()) throw new Error('Item not found');
+      const item = itemSnap.data() as GarageSaleItem;
+      if (item.sellerId !== auth.currentUser!.uid) throw new Error('Only the seller can settle this auction');
+      if (item.status !== 'ACTIVE') throw new Error('Auction is not active');
+      if (item.endTime > Date.now()) throw new Error('Auction has not ended yet');
+      const hasWinner = !!item.currentBidderId && (item.currentBid ?? 0) >= (item.reservePrice ?? 0);
+      tx.update(itemRef, hasWinner
+        ? { status: 'SOLD', winnerId: item.currentBidderId, winnerName: item.currentBidderName || 'Winner', finalPrice: item.currentBid }
+        : { status: 'ENDED' });
+      return { item, hasWinner, price: item.currentBid ?? 0 };
+    });
+    if (!outcome.hasWinner) return { success: true, message: 'Auction ended — no winning bid.' };
+    const raised = await routeAuctionToFundraiser(outcome.item, outcome.price, itemId);
+    return { success: true, message: `Sold for $${outcome.price.toFixed(2)}!`, raisedForCampaign: raised || undefined };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Could not settle' };
   }
 };
 

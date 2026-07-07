@@ -3901,6 +3901,14 @@ export interface GarageSaleItem {
   isLocalPickup?: boolean;
   tags?: string[];
   createdAt: number;
+  // ── Optional: route a share of proceeds to a Sanctuary fundraiser/campaign ──
+  sanctuaryFundraiserLink?: {
+    sanctuaryId: string;        // the owning Sanctuary (campaign lives on sanctuaries/{id})
+    campaignTitle?: string;     // denormalized for display
+    percentToRaise: number;     // 0–100 of the final sale price
+    message?: string;           // "Proceeds support our album fund drive"
+    raisedViaAuction?: number;  // running total contributed by this auction (server-updated)
+  };
 }
 
 export interface GarageSaleBid {
