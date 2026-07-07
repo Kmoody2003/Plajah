@@ -4,6 +4,7 @@ import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles } from 'lucide-re
 import MuseumHall from './MuseumHall';
 import { CONSERVATORY_HALLS, CONSERVATORY_FIGURES } from '../data/musicFigures';
 import { MUSIC_HISTORY_ERAS } from '../data/musicHistory';
+import { TYPE } from '../src/lib/designSystem';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ChoraConservatory — the humanities half of Plajah Chora.
@@ -31,18 +32,18 @@ const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: num
   >
     <div className="flex items-start gap-3">
       <div
-        className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-black"
+        className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center type-body-sm font-black"
         style={{ background: `${ACCENT}1f`, border: `1px solid ${ACCENT}44`, color: ACCENT }}
       >
         {String(index + 1).padStart(2, '0')}
       </div>
       <div className="min-w-0">
-        <p className="text-[8px] font-black uppercase tracking-[0.35em]" style={{ color: ACCENT }}>{era.span}</p>
-        <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight leading-tight mt-0.5">{era.title}</h3>
+        <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.35em]`} style={{ color: ACCENT }}>{era.span}</p>
+        <h3 className="type-title-lg font-black uppercase tracking-tight leading-tight mt-0.5">{era.title}</h3>
       </div>
     </div>
 
-    <p className="text-[13px] sm:text-sm text-white/55 leading-relaxed mt-4">{era.essay}</p>
+    <p className="type-body-md text-white/55 leading-relaxed mt-4">{era.essay}</p>
 
     <div className="mt-5 grid sm:grid-cols-2 gap-5">
       <div>
@@ -52,7 +53,7 @@ const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: num
         </div>
         <ul className="space-y-1.5">
           {era.developments.map(d => (
-            <li key={d} className="text-[12px] text-white/60 leading-relaxed flex gap-2">
+            <li key={d} className="type-body-sm text-white/60 leading-relaxed flex gap-2">
               <span style={{ color: ACCENT }}>—</span><span>{d}</span>
             </li>
           ))}
@@ -67,7 +68,7 @@ const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: num
           {era.listenFor.map(l => (
             <li
               key={l}
-              className="text-[12px] text-white/60 leading-relaxed rounded-xl px-3 py-2"
+              className="type-body-sm text-white/60 leading-relaxed rounded-xl px-3 py-2"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               {l}

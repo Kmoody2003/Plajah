@@ -55,6 +55,7 @@ import {
   listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
   type OfflineCacheEntry,
 } from '../services/offlineStorageService';
+import { AdaptiveGrid } from '../src/lib/designSystem';
 
 interface MyLibraryViewProps {
   profile: UserProfile;
@@ -582,8 +583,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
             />
           )}
-          <button onClick={() => setEditingPodcastTrack(track)} className="p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
-          <button onClick={() => handleDeletePersonal(track.id)} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
+          <button onClick={() => setEditingPodcastTrack(track)} className="tap p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
+          <button onClick={() => handleDeletePersonal(track.id)} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
         </div>
       </div>
     </div>
@@ -607,7 +608,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             <Library className="text-white" size={24} />
           </div>
           <div>
-            <h3 className="text-2xl font-black uppercase tracking-tightest">My Music Vault</h3>
+            <h3 className="type-headline-md font-black uppercase tracking-tightest">My Music Vault</h3>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
               Private Media Library • {libraryTracks.length + personalTracks.length} Assets
             </p>
@@ -855,7 +856,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                 {lockerAlbums.albums.length > 0 && (
                   <div>
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Albums</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="1.5rem">
                       {lockerAlbums.albums.map(a => (
                         <button key={a.key} onClick={() => setLockerAlbumId(a.key)} className="group text-left">
                           <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
@@ -866,7 +867,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                           <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{a.artist}</p>
                         </button>
                       ))}
-                    </div>
+                    </AdaptiveGrid>
                   </div>
                 )}
                 {lockerAlbums.singles.length > 0 && (
@@ -893,7 +894,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+            <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="2rem">
               {playlists.map(playlist => (
                 <div key={playlist.id} className="group cursor-pointer">
                   <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-4 bg-white/5 shadow-2xl">
@@ -914,7 +915,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                   <p className="text-white/20 uppercase font-black tracking-[0.5em]">No playlists created yet.</p>
                 </div>
               )}
-            </div>
+            </AdaptiveGrid>
           </div>
         )}
         {activeSubTab === 'SYNC' && (
@@ -948,7 +949,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                         <h4 className="text-sm font-bold uppercase tracking-wider truncate">{item.title}</h4>
                         <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{item.artist || item.type} · {formatBytes(item.size || 0)}</p>
                       </div>
-                      <button onClick={async () => { await removeCachedMedia(item.url); loadOffline(); }} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove download"><Trash2 size={16} /></button>
+                      <button onClick={async () => { await removeCachedMedia(item.url); loadOffline(); }} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove download"><Trash2 size={16} /></button>
                     </div>
                   ))}
                 </div>
@@ -1054,11 +1055,11 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-theme-card border border-white/10 rounded-[3rem] p-10 shadow-3xl relative"
+              className="w-full max-w-md max-h-[85dvh] overflow-y-auto bg-theme-card border border-white/10 rounded-[3rem] p-10 shadow-3xl relative"
             >
-              <button 
+              <button
                 onClick={() => setIsCreatePlaylistOpen(false)}
-                className="absolute top-8 right-8 text-white/20 hover:text-white transition-all"
+                className="tap absolute top-8 right-8 text-white/20 hover:text-white transition-all"
               >
                 <X size={24} />
               </button>

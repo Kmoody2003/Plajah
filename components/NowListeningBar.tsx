@@ -16,6 +16,7 @@ import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
 import { NowListeningPresence } from '../types';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { TYPE } from '../src/lib/designSystem';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -124,14 +125,14 @@ const NowListeningBar: React.FC<NowListeningBarProps> = ({
             key={p.uid}
             onClick={() => onJoinSession?.(p)}
             title={`${p.displayName} — ${p.trackTitle}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shrink-0"
+            className="tap flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shrink-0"
           >
             <div className="relative">
               <img src={p.photoURL} className="w-5 h-5 rounded-full object-cover" alt="" />
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full border border-black" />
             </div>
             <Music2 size={10} className="text-green-400 animate-pulse" />
-            <span className="text-[9px] font-black text-white/60 max-w-[80px] truncate">{p.trackTitle}</span>
+            <span className={`${TYPE.labelSm} font-black text-white/60 max-w-[80px] truncate`}>{p.trackTitle}</span>
           </button>
         ))}
       </div>
@@ -175,7 +176,7 @@ const NowListeningBar: React.FC<NowListeningBarProps> = ({
               <p className="text-[11px] font-black text-white/80 truncate">{p.displayName}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Music2 size={9} className="text-green-400 shrink-0" />
-                <p className="text-[10px] text-white/45 truncate">
+                <p className={`${TYPE.labelMd} text-white/45 truncate`}>
                   <span className="text-white/70">{p.trackTitle}</span>
                   {p.artist && <span className="text-white/30"> · {p.artist}</span>}
                 </p>
@@ -187,7 +188,7 @@ const NowListeningBar: React.FC<NowListeningBarProps> = ({
               {onJoinSession && (
                 <button
                   onClick={() => onJoinSession(p)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-500/15 border border-green-500/25 text-green-400 text-[9px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500/25"
+                  className="tap flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-500/15 border border-green-500/25 text-green-400 text-[9px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500/25"
                 >
                   <Play size={9} fill="currentColor" />
                   Join

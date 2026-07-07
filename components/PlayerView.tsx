@@ -38,6 +38,7 @@ import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import PlajahPlusButton from './PlajahPlusButton';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 type RepeatMode = 'NONE' | 'ONE' | 'ALL';
 
@@ -1041,11 +1042,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
                 className="absolute top-4 right-4 z-20 w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/70 hover:border-white/40 transition-all"
+                style={{top:'max(1rem, env(safe-area-inset-top))', right:'max(1rem, env(safe-area-inset-right))'}}
               >
                 <Share2 size={16} />
               </button>
               {/* Floating Track Info on Cover */}
-              <div className="absolute bottom-6 left-6 right-6">
+              <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
                 <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
                 <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md">{album.artist}</p>
               </div>
@@ -1265,7 +1267,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
                           title="Add this song to a playlist"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <ListPlus size={12} />
                           <span className="hidden sm:inline">Add</span>
@@ -1273,7 +1275,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track: t, album } })); }}
                           title="The Breakdown — analyze key, tempo, chords & sheet music"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FF8C00]/10 hover:bg-[#FF8C00]/25 text-[#FF8C00]/60 hover:text-[#FF8C00] transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Waves size={11} />
                           <span className="hidden sm:inline">Breakdown</span>
@@ -1282,7 +1284,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: t, album } })); }}
                           title="Plajah Pixels — send this song into the visualizer"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
+                          className="tap flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/25 text-purple-300/70 hover:text-purple-200 transition-all text-[9px] font-black uppercase tracking-widest"
                         >
                           <Sparkles size={11} />
                           <span>PP</span>
@@ -1348,12 +1350,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               {/* Pick from album tracks */}
                               <button type="button"
                                 onClick={() => setHnsTrackPicker({ trackId: t.id, slot })}
-                                className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
+                                className="tap shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
                                 style={{ background: 'rgba(255,140,0,0.12)', color: 'rgba(255,140,0,0.8)', border: '1px solid rgba(255,140,0,0.25)' }}>
                                 <Music2 size={9} /> Pick
                               </button>
                               {/* Upload new file */}
-                              <label className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
+                              <label className="tap shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all hover:bg-white/10"
                                 style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <Upload size={9} />
                                 <input type="file" accept="audio/*,video/*" className="hidden" disabled={uploading}
@@ -1426,9 +1428,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      ) : (
                        <>
                          {renderLyricTranslate()}
-                         <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
+                         <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="tap w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
                          <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
-                         <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
+                         <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="tap w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
                          {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
                          {isOwner && <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>}
                        </>
@@ -1467,7 +1469,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
           {activeHUD === 'MEDIA' && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-2 gap-4">
+              <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                 {album.musicVideos?.map(video => (
                   <button 
                     key={video.id} 
@@ -1480,7 +1482,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     </div>
                   </button>
                 ))}
-              </div>
+              </AdaptiveGrid>
             </div>
           )}
 
@@ -1661,9 +1663,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </header>
 
           {/* MAIN TV BODY */}
-          <main className="flex-1 flex gap-12 overflow-hidden">
+          <main className="flex-1 flex flex-col lg:flex-row gap-12 overflow-hidden">
             {/* LEFT: DOMINANT MEDIA (ART/SLIDESHOW/VIDEO) */}
-            <section className="w-[58%] flex flex-col gap-6">
+            <section className="w-full lg:w-[58%] flex flex-col gap-6">
               <div className="flex-1 relative rounded-[4rem] overflow-hidden border border-white/5 bg-black shadow-[0_0_100px_rgba(0,0,0,0.8)] group">
                 {activeVideoId ? (
                    <div className="w-full h-full">
@@ -1739,7 +1741,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </section>
 
             {/* RIGHT: COMPACT CONTENT GRID (42%) */}
-            <section className="w-[42%] flex flex-col gap-10 overflow-hidden">
+            <section className="w-full lg:w-[42%] flex flex-col gap-10 overflow-hidden">
               {/* COMPACT TRACKLIST */}
               <div className={`transition-all duration-700 overflow-hidden bg-gradient-to-br from-[#6B0099]/20 via-[#D40055]/10 to-[#FF8C00]/20 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-10 flex flex-col shadow-[0_0_50px_rgba(107,0,153,0.15)] ${activeHUD === 'TRACKS' ? 'flex-1' : 'h-48 shrink-0'}`}>
                 <div className="flex items-center justify-between mb-6">
@@ -2686,9 +2688,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               ) : (
                                 <>
                                   {renderLyricTranslate()}
-                                  <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
+                                  <button onClick={() => setLyricsOffset(o => o - 0.5)} title="Shift lyrics earlier" className="tap w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">−</button>
                                   <span className="text-[8px] font-black text-white/30 w-11 text-center tabular-nums">{lyricsOffset === 0 ? '±0.0s' : `${lyricsOffset > 0 ? '+' : ''}${lyricsOffset.toFixed(1)}s`}</span>
-                                  <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
+                                  <button onClick={() => setLyricsOffset(o => o + 0.5)} title="Shift lyrics later" className="tap w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-[11px] font-black text-white/40 hover:text-white/70 transition-all">+</button>
                                   {lyricsOffset !== 0 && <button onClick={() => setLyricsOffset(0)} title="Reset offset" className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/50 transition-all"><RotateCcw size={10} /></button>}
                                   {isOwner && <button onClick={() => setIsResyncMode(true)} className="ml-1 text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-small-orange transition-all px-2 py-1 bg-white/5 hover:bg-small-orange/10 rounded">Resync</button>}
                                 </>
