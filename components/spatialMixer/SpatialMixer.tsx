@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Play, Pause, Plus, Download, Upload, Volume2, VolumeX, Trash2, Boxes, Radio, Music2, Globe,
-  UploadCloud, Save, FolderOpen, Loader2, Clock,
+  UploadCloud, Save, FolderOpen, Loader2, Clock, Film,
 } from 'lucide-react';
 import { useSpatialAudioEngine } from './useSpatialAudioEngine';
 import type { AudioTrack, SpatialMixProject } from './types';
@@ -64,11 +64,29 @@ const Knob: React.FC<{ label: string; value: number; min: number; max: number; s
   </div>
 );
 
-const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+// When launched from Fabula, the mixer opens seeded with a timeline audio clip and, instead
+// of publishing, bakes the rendered immersive mix straight back onto the Fabula timeline.
+export interface FabulaClipSeed {
+  label: string;
+  mediaUrl: string;
+  duration: number;
+  volume?: number;
+}
+export interface FabulaBakeResult {
+  blobUrl: string;
+  duration: number;
+  iamfJson: string;
+}
+
+const SpatialMixer: React.FC<{
+  onClose: () => void;
+  fabulaClip?: FabulaClipSeed | null;
+  onBake?: (r: FabulaBakeResult) => void;
+}> = ({ onClose, fabulaClip, onBake }) => {
   const eng = useSpatialAudioEngine();
   const [active, setActive] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mixName, setMixName] = useState('Spatial Mix');
+  const [mixName, setMixName] = useState(fabulaClip ? `${fabulaClip.label} — Spatial` : 'Spatial Mix');
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState<null | 'saving' | 'publishing' | 'loading'>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -77,11 +95,44 @@ const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const flash = (m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2600); };
 
-  useEffect(() => { if (toast === null) return; }, [toast]);
-
   const onFiles = async (files: FileList | null) => {
     if (!files) return;
     for (const f of Array.from(files)) await eng.addTrack(f);
+  };
+
+  // Seed from a Fabula audio clip: fetch + decode the clip's media as the first stem.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!fabulaClip || seededRef.current) return;
+    seededRef.current = true;
+    (async () => {
+      setBusy('loading');
+      const ok = await eng.addTrackFromSource({
+        id: `fab_${Math.random().toString(36).slice(2, 9)}`,
+        name: fabulaClip.label || 'Clip',
+        sourceUrl: fabulaClip.mediaUrl,
+        position: [0, 0, 2], volume: fabulaClip.volume ?? 0.8, muted: false,
+        eq: { low: 0, mid: 0, high: 0 },
+      });
+      setBusy(null);
+      flash(ok ? 'Clip loaded — place it in space, then Send to Fabula' : "Couldn't load the clip's audio");
+    })();
+  }, [fabulaClip]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Render the immersive mix and hand it back to Fabula to drop onto the timeline.
+  const sendToFabula = async () => {
+    if (eng.tracks.length === 0) { flash('Add at least one stem first'); return; }
+    setBusy('publishing');
+    try {
+      const blob = await eng.renderMixToBlob();
+      if (!blob) { flash('Nothing to render'); setBusy(null); return; }
+      const dur = Math.max(...eng.tracks.map(t => t.buffer?.duration || 0)) || fabulaClip?.duration || 0;
+      onBake?.({ blobUrl: URL.createObjectURL(blob), duration: dur, iamfJson: JSON.stringify(eng.buildIAMFProject()) });
+    } catch {
+      flash('Render failed');
+    } finally {
+      setBusy(null);
+    }
   };
 
   // Render the binaural WAV master, seed an Eclipsa-flagged release, and open the Album
@@ -185,7 +236,7 @@ const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <Boxes size={18} className="text-[#22D3AA] shrink-0" />
         <div className="shrink-0">
           <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white leading-none">Spatial Mixer</p>
-          <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mt-1">Eclipsa · IAMF immersive audio</p>
+          <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mt-1">{onBake ? 'Fabula · spatialize timeline audio' : 'Eclipsa · IAMF immersive audio'}</p>
         </div>
         <input value={mixName} onChange={e => setMixName(e.target.value)} placeholder="Mix name"
           className="ml-2 min-w-[120px] max-w-[220px] px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-black text-white placeholder:text-white/25 focus:outline-none focus:border-[#22D3AA]/40" />
@@ -196,7 +247,11 @@ const SpatialMixer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <span className="w-px h-5 bg-white/10" />
           <button onClick={eng.exportMix} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><Download size={12} /> WAV</button>
           <button onClick={eng.exportIAMF} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"><Globe size={12} /> IAMF</button>
-          <button onClick={publishToChora} disabled={busy !== null} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#22D3AA] border border-[#22D3AA] text-[9px] font-black uppercase tracking-widest text-black hover:bg-[#22D3AA]/90 disabled:opacity-50">{busy === 'publishing' ? <Loader2 size={12} className="animate-spin" /> : <UploadCloud size={12} />} Publish to Chora</button>
+          {onBake ? (
+            <button onClick={sendToFabula} disabled={busy !== null} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FF8C00] border border-[#FF8C00] text-[9px] font-black uppercase tracking-widest text-black hover:bg-[#FF8C00]/90 disabled:opacity-50">{busy === 'publishing' ? <Loader2 size={12} className="animate-spin" /> : <Film size={12} />} Send to Fabula</button>
+          ) : (
+            <button onClick={publishToChora} disabled={busy !== null} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#22D3AA] border border-[#22D3AA] text-[9px] font-black uppercase tracking-widest text-black hover:bg-[#22D3AA]/90 disabled:opacity-50">{busy === 'publishing' ? <Loader2 size={12} className="animate-spin" /> : <UploadCloud size={12} />} Publish to Chora</button>
+          )}
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white"><X size={15} /></button>
         </div>
         <input ref={fileRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => onFiles(e.target.files)} />

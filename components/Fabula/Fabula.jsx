@@ -18,6 +18,7 @@ import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
+import SpatialMixer from "../spatialMixer/SpatialMixer";
 
 /* ════════════════════════════════════════════════════════════
    FABULA — holistic storytelling studio. The whole story, then the telling.
@@ -1148,6 +1149,34 @@ export default function Fabula() {
     setClips(next); commitClips(next);
   };
 
+  // ── Spatialize audio — open a timeline audio clip in the Spatial Mixer, bake back ──
+  const [spatialFor, setSpatialFor] = useState(null); // the audio clip being spatialized
+  const spatializeClip = (clip) => {
+    const a = prod?.mediaPool?.find((x) => x.id === clip.assetId);
+    if (!a?.url) { ping("This clip's media is offline — relink it first."); return; }
+    setSpatialFor({ ...clip, _mediaUrl: a.url, _assetName: a.name });
+  };
+  // Fabula receives the rendered immersive mix and drops it onto the same track, muting
+  // the original so the spatial version plays in its place (non-destructive).
+  const bakeSpatialMix = (clip, result) => {
+    const label = `${clip.label || clip._assetName || "Audio"} (spatial)`;
+    const asset = {
+      id: uid(), name: label, type: "audio", url: result.blobUrl,
+      duration: result.duration || clip.duration || 5, bin: "Spatial Mixes",
+      tags: ["spatial", "iamf"], spatial: true, session: true, eclipsaProjectJson: result.iamfJson,
+    };
+    const newClip = {
+      id: uid(), trackId: clip.trackId || "a2", start: clip.start || 0,
+      duration: result.duration || clip.duration || 5, kind: "media", assetId: asset.id, label, srcIn: 0,
+    };
+    addAssetToPool(asset);
+    const nc = [...clips.map((c) => (c.id === clip.id ? { ...c, disabled: true } : c)), newClip];
+    setClips(nc); commitClips(nc);
+    setSelClipId(newClip.id);
+    setSpatialFor(null);
+    ping(`Spatial mix baked onto ${(clip.trackId || "a2").toUpperCase()} — original muted.`);
+  };
+
   // ── Nested clips — a Pixels scene opens into its layer-rows as video tracks ──
   const [nested, setNested] = useState(null); // { clipLabel, snapshot } | null
   const layerLabel = (layer) => {
@@ -1953,6 +1982,18 @@ export default function Fabula() {
                               <button className="ghost full" style={{ marginTop: 6 }} onClick={() => updateFx(selClip.id, { ...FX_DEFAULTS })}>RESET EFFECTS</button>
                             </>
                           );
+                        })()}
+                        {selClip.kind === "media" && String(selClip.trackId).startsWith("a") && (() => {
+                          const a = prod?.mediaPool.find((x) => x.id === selClip.assetId);
+                          return a?.url ? (
+                            <>
+                              <div className="insp-div" />
+                              <button className="minibtn blue full" onClick={() => spatializeClip(selClip)}>
+                                <Box size={12} /> SPATIALIZE AUDIO
+                              </button>
+                              <div className="dim small">Place this clip in 3D space (Eclipsa/IAMF) and bake an immersive mix back onto the timeline.</div>
+                            </>
+                          ) : null;
                         })()}
                         <div className="insp-div" />
                         <button className="ghost danger full" onClick={() => { const n = clips.filter((c) => c.id !== selClip.id); setClips(n); commitClips(n); setSelClipId(null); }}><Trash2 size={12} /> REMOVE CLIP</button>
@@ -2892,6 +2933,18 @@ export default function Fabula() {
       {/* busy bar */}
       {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}
       {notice && <div className="toast">{notice}</div>}
+      {spatialFor && (
+        <SpatialMixer
+          onClose={() => setSpatialFor(null)}
+          fabulaClip={{
+            label: spatialFor.label || spatialFor._assetName || "Audio",
+            mediaUrl: spatialFor._mediaUrl,
+            duration: spatialFor.duration || 0,
+            volume: spatialFor.fx?.vol ?? 1,
+          }}
+          onBake={(result) => bakeSpatialMix(spatialFor, result)}
+        />
+      )}
       {nested && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(6,6,10,0.94)", zIndex: 300, display: "flex", flexDirection: "column", padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
