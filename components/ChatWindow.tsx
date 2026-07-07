@@ -20,6 +20,7 @@ import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
 import CouplesDiaryView from './CouplesDiaryView';
+import { callItOff } from '../services/intimateGating';
 import {
   doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
 } from 'firebase/firestore';
@@ -770,6 +771,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 outline-none focus:border-white/30"
               />
               <button onClick={savePetName} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest text-black" style={{ background: intimateTheme.accent }}>Save</button>
+            </div>
+
+            {/* Call it off — permanently end the connection (deletes thread + diary for both) */}
+            <div className="mt-4 pt-3 border-t border-white/5">
+              <button
+                onClick={async () => {
+                  if (!uid) return;
+                  if (!confirm('Call it off? This permanently deletes your entire conversation AND your shared diary for BOTH of you. This cannot be undone.')) return;
+                  await callItOff(room.id, uid);
+                  setShowIntimatePanel(false);
+                  onBack?.();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all"
+              >
+                <Flame size={12} /> Call it off — End connection
+              </button>
+              <p className="text-[8px] text-white/25 text-center mt-1.5 normal-case tracking-normal">Erases the whole thread + diary for both of you.</p>
             </div>
           </motion.div>
         )}

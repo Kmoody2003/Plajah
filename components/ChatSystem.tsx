@@ -13,7 +13,11 @@ import {
   fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
   updateRoomIntimate,
 } from '../services/backendService';
-import { deleteDiary } from '../services/couplesDiary';
+import {
+  isPrivateDM, isBlockedMinor, isIntimateEligible, ineligibilityReason,
+  beginIntimate, pauseIntimate, reconcileStalePartner, type IntimateProfile,
+} from '../services/intimateGating';
+import IntimateEnrollmentModal from './IntimateEnrollmentModal';
 import { useCall } from '../contexts/CallContext';
 import { buildShareUrl, shareOrigin } from '../services/deepLinkService';
 import ChatWindow from './ChatWindow';
@@ -740,18 +744,55 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     setFoundUsers([]);
   };
 
+  const [enrollForRoomId, setEnrollForRoomId] = useState<string | null>(null);
+
+  const me = currentUserProfile as IntimateProfile | null;
+
+  // Optimistically flip the shared room flag on in local state.
+  const markRoomIntimateOn = (roomId: string) => {
+    setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, isIntimate: true } : r)));
+    setActiveRoom(prev => (prev && prev.id === roomId ? { ...prev, isIntimate: true } : prev));
+  };
+
+  // Enable intimate mode for a room after all gates pass (or right after enrollment).
+  const enableIntimate = async (roomId: string, skipEligibility = false) => {
+    const room = rooms.find(r => r.id === roomId) || (activeRoom?.id === roomId ? activeRoom : null);
+    if (!room) return;
+    const otherUid = room.participants.find(id => id !== auth.currentUser?.uid);
+    if (!otherUid) return;
+    const partner = (profiles[otherUid] as IntimateProfile) || null;
+    const res = await beginIntimate(room, me as IntimateProfile, partner, otherUid, skipEligibility);
+    if (!res.ok) { if (res.reason) alert(res.reason); return; }
+    markRoomIntimateOn(roomId);
+  };
+
   const toggleIntimate = (roomId: string) => {
     const room = rooms.find(r => r.id === roomId) || (activeRoom?.id === roomId ? activeRoom : null);
-    const next = !room?.isIntimate;
-    // Turning intimate OFF — offer to also erase the shared diary for both partners.
-    if (!next && confirm('Turn off Intimate Mode. Also permanently delete your Shared Diary for both of you?')) {
-      deleteDiary(roomId).catch(() => {});
+    if (!room) return;
+    // Hard guard: intimate mode is 1:1 private DMs only (never org/group/live).
+    if (!isPrivateDM(room)) { alert('Intimate Mode only works in a one-on-one direct message.'); return; }
+
+    const turningOn = !room.isIntimate;
+    if (!turningOn) {
+      // Toggle OFF just pauses (keeps the thread + diary). "Call it off" fully ends it.
+      setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, isIntimate: false } : r)));
+      setActiveRoom(prev => (prev && prev.id === roomId ? { ...prev, isIntimate: false } : prev));
+      pauseIntimate(roomId).catch(() => {});
+      return;
     }
-    // Optimistic — the room-list listener will also reflect the persisted change.
-    setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, isIntimate: next } : r)));
-    setActiveRoom(prev => (prev && prev.id === roomId ? { ...prev, isIntimate: next } : prev));
-    updateRoomIntimate(roomId, { isIntimate: next }).catch(() => {});
+
+    // Turning ON — enforce the adult + enrollment gate.
+    if (isBlockedMinor(me)) { alert('Intimate Mode is for adult accounts only.'); return; }
+    if (!isIntimateEligible(me)) { setEnrollForRoomId(roomId); return; } // opt-in / DOB flow
+    const reason = ineligibilityReason(me);
+    if (reason) { alert(reason); return; }
+    enableIntimate(roomId);
   };
+
+  // Free up a stale single-active partner link if that connection is gone.
+  useEffect(() => {
+    if (me?.uid && rooms.length) reconcileStalePartner(me, rooms).catch(() => {});
+  }, [me?.uid, rooms.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentRoomIsIntimate = activeRoom ? !!activeRoom.isIntimate : false;
 
@@ -1011,6 +1052,16 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
       </div>
 
       {/* Video calls + incoming rings are handled globally by CallProvider. */}
+
+      {/* ── INTIMATE ENROLLMENT (opt-in, 18+) ────────────────────────────── */}
+      {enrollForRoomId && me?.uid && (
+        <IntimateEnrollmentModal
+          uid={me.uid}
+          accent={INTIMATE_STYLE.accentLight}
+          onClose={() => setEnrollForRoomId(null)}
+          onEnrolled={() => { const rid = enrollForRoomId; setEnrollForRoomId(null); if (rid) enableIntimate(rid, true); }}
+        />
+      )}
 
       {/* ── NEW ROOM MODAL ───────────────────────────────────────────────── */}
       <AnimatePresence>
