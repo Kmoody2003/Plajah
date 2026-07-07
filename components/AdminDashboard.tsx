@@ -1745,7 +1745,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                           const next = !contentLicensingOn;
                           setContentLicensingOn(next);
                           try { await updateFlag('CONTENT_LICENSING', { enabled: next, adminOnly: false, rolloutPercentage: 100 }, currentUser?.uid || ''); }
-                          catch { setContentLicensingOn(!next); }
+                          catch (e) { setContentLicensingOn(!next); console.error('[AdminDashboard] CONTENT_LICENSING toggle failed to persist:', e); alert('Could not save the licensing flag — check you have admin access and the feature-flag rule is deployed.'); }
                         }}
                         className={`w-14 h-8 rounded-full transition-all ${contentLicensingOn ? 'bg-green-500' : 'bg-white/10'}`}
                       >
