@@ -14,18 +14,25 @@ interface GifStickerPickerProps {
   onClose: () => void;
   defaultTab?: GifMediaType;
   anchorClass?: string;
+  /** Intimate (couples) mode — romantic quick-chips + Giphy's highest content rating. */
+  intimate?: boolean;
 }
+
+// Romantic quick searches surfaced only in intimate chats.
+const ROMANTIC_CHIPS = ['kiss', 'love you', 'cuddle', 'hug', 'flirty', 'miss you', 'date night', 'blush'];
 
 const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
   onSelect,
   onClose,
   defaultTab = 'GIF',
   anchorClass = 'bottom-full mb-2 left-0',
+  intimate = false,
 }) => {
   const [tab, setTab] = useState<GifMediaType>(defaultTab);
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [query, setQuery] = useState(intimate ? 'love' : '');
+  const [debouncedQuery, setDebouncedQuery] = useState(intimate ? 'love' : '');
   const [key, setKey] = useState(0); // forces Grid remount on tab/query change
+  const rating = intimate ? 'r' : 'g'; // 'r' is Giphy's ceiling — romantic, never explicit
 
   // Debounce the search query
   useEffect(() => {
@@ -44,14 +51,14 @@ const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
       const isSticker = tab === 'STICKER';
       if (debouncedQuery.trim()) {
         return isSticker
-          ? gf.search(debouncedQuery, { offset, limit: 20, type: 'stickers', rating: 'g' })
-          : gf.search(debouncedQuery, { offset, limit: 20, rating: 'g' });
+          ? gf.search(debouncedQuery, { offset, limit: 20, type: 'stickers', rating })
+          : gf.search(debouncedQuery, { offset, limit: 20, rating });
       }
       return isSticker
-        ? gf.trending({ offset, limit: 20, type: 'stickers', rating: 'g' })
-        : gf.trending({ offset, limit: 20, rating: 'g' });
+        ? gf.trending({ offset, limit: 20, type: 'stickers', rating })
+        : gf.trending({ offset, limit: 20, rating });
     },
-    [tab, debouncedQuery]
+    [tab, debouncedQuery, rating]
   );
 
   const handleGifClick = (gif: IGif, e: React.SyntheticEvent<HTMLElement, Event>) => {
@@ -106,6 +113,18 @@ const GifStickerPicker: React.FC<GifStickerPickerProps> = ({
             autoFocus
           />
         </div>
+        {intimate && (
+          <div className="flex gap-1.5 mt-2 overflow-x-auto no-scrollbar">
+            {ROMANTIC_CHIPS.map(c => (
+              <button key={c} onClick={() => setQuery(c)}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${
+                  query === c ? 'bg-rose-500/30 text-rose-200' : 'bg-white/5 text-white/40 hover:text-white'
+                }`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* GIPHY Grid */}

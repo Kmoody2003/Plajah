@@ -21,6 +21,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
 import CouplesDiaryView from './CouplesDiaryView';
 import { callItOff } from '../services/intimateGating';
+import { playSendChime, playGiftChime, playHeartPop } from '../services/intimateSoundFX';
 import {
   doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, collection,
 } from 'firebase/firestore';
@@ -340,6 +341,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     await sendMessage(room.id, msgData);
+    if (isIntimate) playSendChime();
     setInputText('');
     setReplyTo(null);
   };
@@ -496,12 +498,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Recipient opens a gift → reveal it and arm the 60s permadelete (doc + Storage object).
   const openGift = (m: ExtendedMessage) => {
     if (m.giftOpenedAt) return;
+    playGiftChime();
     updateDoc(doc(db, 'chat_rooms', room.id, 'messages', m.id), {
       giftOpenedAt: Date.now(),
       burnAfter: Date.now() + 60_000,
     }).catch(() => {});
   };
   const sendGift = () => { giftNextRef.current = true; imageInputRef.current?.click(); };
+
+  // Intimate emotes — tap to send a big romantic emote (rendered large for lone emoji).
+  const INTIMATE_EMOTES = ['💗', '😘', '🥰', '😍', '💋', '🌹', '🔥', '💞', '💌', '🫶'];
+  const sendEmote = async (emote: string) => {
+    playHeartPop();
+    await sendMessage(room.id, {
+      senderId: auth.currentUser?.uid || '',
+      senderName: auth.currentUser?.displayName || 'Anonymous',
+      senderPhoto: auth.currentUser?.photoURL || '',
+      text: emote,
+      type: 'TEXT',
+    });
+  };
 
   const handleReact = async (msgId: string, emoji: string) => {
     const uid = auth.currentUser?.uid;
@@ -1099,7 +1115,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
+                    <p className={`leading-relaxed break-words whitespace-pre-wrap ${
+                      msg.text && msg.text.trim().length <= 6 && !/[a-z0-9]/i.test(msg.text) && /\p{Extended_Pictographic}/u.test(msg.text)
+                        ? 'text-4xl leading-none' : 'text-sm'
+                    }`}>{msg.text}</p>
                   )}
                 </div>
 
@@ -1277,11 +1296,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div className="fixed inset-0 z-30" onClick={() => setShowGif(false)} />
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                   className="absolute bottom-full left-3 mb-2 z-40 w-[320px] max-w-[88vw]">
-                  <GifStickerPicker onSelect={(url) => sendGif(url)} onClose={() => setShowGif(false)} />
+                  <GifStickerPicker onSelect={(url) => sendGif(url)} onClose={() => setShowGif(false)} intimate={isIntimate} />
                 </motion.div>
               </>
             )}
           </AnimatePresence>
+          {/* Intimate emote bar — tap to send a romantic emote */}
+          {isIntimate && !showVoiceRecorder && (
+            <div className="flex items-center gap-1 mb-2 overflow-x-auto no-scrollbar">
+              {INTIMATE_EMOTES.map(e => (
+                <button key={e} type="button" onClick={() => sendEmote(e)}
+                  className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-lg hover:bg-white/10 hover:scale-110 transition-all">
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
           {showVoiceRecorder ? (
             <VoiceRecorder onSend={handleSendVoice} onCancel={() => setShowVoiceRecorder(false)} />
           ) : (
