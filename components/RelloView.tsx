@@ -246,7 +246,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-10" />
 
           {/* Nav: up/down */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+          <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
             <button
               onClick={goPrev}
               disabled={currentIndex === 0}
@@ -264,7 +264,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           </div>
 
           {/* Right action bar */}
-          <div className="absolute right-4 bottom-32 z-20 flex flex-col gap-5 items-center">
+          <div className="absolute right-3 sm:right-4 bottom-32 z-20 flex flex-col gap-5 items-center">
             <button className="flex flex-col items-center gap-1 text-white group">
               <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center group-hover:bg-white/20 transition-all">
                 <Heart size={18} />

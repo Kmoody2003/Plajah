@@ -911,7 +911,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
                 {/* Controls row */}
                 <div className="flex items-center gap-3 px-4 pb-3 pointer-events-auto" onClick={e => e.stopPropagation()}>
-                  <button onClick={togglePlay} className="p-2 text-white hover:text-white/80 transition-colors">
+                  <button onClick={togglePlay} className="p-2.5 text-white hover:text-white/80 transition-colors">
                     {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" />}
                   </button>
 
@@ -923,7 +923,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
                   {nextInQueue && (
                     <>
-                      <button onClick={playNext} title="Next video" className="p-2 text-white hover:text-white/80 transition-colors">
+                      <button onClick={playNext} title="Next video" className="p-2.5 text-white hover:text-white/80 transition-colors">
                         <SkipForward size={18} />
                       </button>
                       <button onClick={() => setAutoplayNext(a => !a)} title="Toggle autoplay" className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-colors ${autoplayNext ? 'bg-[#FF8C00]/20 text-[#FF8C00]' : 'text-white/40 hover:text-white/70'}`}>
@@ -932,10 +932,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                     </>
                   )}
 
-                  <button onClick={() => setIsMuted(m => !m)} className="p-2 text-white hover:text-white/80 transition-colors">
+                  <button onClick={() => setIsMuted(m => !m)} className="p-2.5 text-white hover:text-white/80 transition-colors">
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </button>
-                  <button onClick={toggleFullscreen} className="p-2 text-white hover:text-white/80 transition-colors">
+                  <button onClick={toggleFullscreen} className="p-2.5 text-white hover:text-white/80 transition-colors">
                     {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                   </button>
                 </div>
@@ -964,7 +964,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
               const nthumb = nq.muxPlaybackId ? `https://image.mux.com/${nq.muxPlaybackId}/thumbnail.png?width=320&height=180&time=5` : (nq.thumbnailUrl || nq.coverImageUrl || '');
               return (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-                  className="absolute bottom-20 right-4 z-30 w-64 p-3 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                  className="absolute bottom-20 right-4 z-30 w-[min(16rem,90vw)] p-3 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto" onClick={e => e.stopPropagation()}>
                   <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-2">Up next in {upNextIn}s</p>
                   <div className="flex gap-2.5 items-start">
                     <div className="w-20 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">

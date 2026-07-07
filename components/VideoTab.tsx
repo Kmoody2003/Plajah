@@ -191,7 +191,7 @@ const VideoCard: React.FC<{
         {onAssignWorld && (
           <button
             onClick={e => { e.stopPropagation(); onAssignWorld(); }}
-            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            className="p-2 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
             title="Assign to World"
           >
             <MoreVertical size={14} />
@@ -200,7 +200,7 @@ const VideoCard: React.FC<{
         {onShareToClub && (
           <button
             onClick={e => { e.stopPropagation(); onShareToClub(); }}
-            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            className="p-2 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
             title="Share to Club"
           >
             <Users size={13} />
@@ -209,7 +209,7 @@ const VideoCard: React.FC<{
         {onSave && (
           <button
             onClick={e => { e.stopPropagation(); onSave(); }}
-            className="p-1 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            className="p-2 text-white/20 hover:text-small-orange transition-colors opacity-0 group-hover:opacity-100 shrink-0"
             title="Save to playlist"
           >
             <ListPlus size={14} />
