@@ -191,7 +191,7 @@ const RoomRow: React.FC<{
                     >
                       <Heart size={13} fill={intimateMode ? 'currentColor' : 'none'} className={intimateMode ? 'text-rose-400' : 'text-white/40'} />
                       <span className="text-[10px] font-black uppercase tracking-widest">
-                        {intimateMode ? 'Intimate On' : 'Intimate Mode'}
+                        {intimateMode ? 'Nibbles On' : 'Nibbles'}
                       </span>
                     </button>
                   )}
@@ -770,7 +770,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     const room = rooms.find(r => r.id === roomId) || (activeRoom?.id === roomId ? activeRoom : null);
     if (!room) return;
     // Hard guard: intimate mode is 1:1 private DMs only (never org/group/live).
-    if (!isPrivateDM(room)) { alert('Intimate Mode only works in a one-on-one direct message.'); return; }
+    if (!isPrivateDM(room)) { alert('Nibbles only works in a one-on-one direct message.'); return; }
 
     const turningOn = !room.isIntimate;
     if (!turningOn) {
@@ -782,7 +782,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     }
 
     // Turning ON — enforce the adult + enrollment gate.
-    if (isBlockedMinor(me)) { alert('Intimate Mode is for adult accounts only.'); return; }
+    if (isBlockedMinor(me)) { alert('Nibbles is for adult accounts only.'); return; }
     if (!isIntimateEligible(me)) { setEnrollForRoomId(roomId); return; } // opt-in / DOB flow
     const reason = ineligibilityReason(me);
     if (reason) { alert(reason); return; }
@@ -1006,7 +1006,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                   }`}
                 >
                   <Heart size={11} fill={currentRoomIsIntimate ? 'currentColor' : 'none'} />
-                  {currentRoomIsIntimate ? 'Intimate On' : 'Intimate Mode'}
+                  {currentRoomIsIntimate ? 'Nibbles On' : 'Nibbles'}
                 </button>
               </div>
             )}

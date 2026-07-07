@@ -27,7 +27,7 @@ const IntimateEnrollmentModal: React.FC<Props> = ({ uid, accent = '#ff6b6b', onC
   const submit = async () => {
     setError('');
     if (!Number.isFinite(dobMs)) { setError('Enter your date of birth.'); return; }
-    if ((age ?? 0) < MIN_AGE) { setError(`Intimate Mode is ${MIN_AGE}+ only.`); return; }
+    if ((age ?? 0) < MIN_AGE) { setError(`Nibbles is ${MIN_AGE}+ only.`); return; }
     if (!consent) { setError('Please confirm to continue.'); return; }
     setBusy(true);
     try {
@@ -50,14 +50,14 @@ const IntimateEnrollmentModal: React.FC<Props> = ({ uid, accent = '#ff6b6b', onC
       >
         <div className="flex items-center gap-2 px-5 py-4 border-b" style={{ borderColor: `${accent}22` }}>
           <Heart size={18} fill={accent} stroke="none" />
-          <span className="text-sm font-black uppercase tracking-widest">Enroll in Intimate Mode</span>
+          <span className="text-sm font-black uppercase tracking-widest">Join Nibbles</span>
           <button onClick={onClose} className="ml-auto p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10"><X size={16} /></button>
         </div>
 
         <div className="p-5 space-y-4">
           <div className="flex items-start gap-2 text-[11px] text-white/50 leading-relaxed">
             <ShieldCheck size={16} style={{ color: accent }} className="shrink-0 mt-0.5" />
-            <p>Intimate Mode is a private, adults-only space for couples ({MIN_AGE}+). It stays off until you opt in, and only works in a one-on-one direct message.</p>
+            <p>Nibbles is a private, adults-only space for couples ({MIN_AGE}+). It stays off until you opt in, needs a linked partner on your profile, and only works in a one-on-one direct message.</p>
           </div>
 
           <div>
@@ -89,7 +89,7 @@ const IntimateEnrollmentModal: React.FC<Props> = ({ uid, accent = '#ff6b6b', onC
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest text-black disabled:opacity-30"
             style={{ background: accent }}
           >
-            <Heart size={14} fill="currentColor" /> {busy ? 'Enrolling…' : 'Enroll & Continue'}
+            <Heart size={14} fill="currentColor" /> {busy ? 'Joining…' : 'Join & Continue'}
           </button>
           <p className="text-[9px] text-white/25 text-center leading-relaxed">You can leave the program anytime in settings.</p>
         </div>

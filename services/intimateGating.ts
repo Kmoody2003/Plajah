@@ -1,6 +1,7 @@
 import type { UserProfile, ChatRoom } from '../types';
 import { updateUserProfile, deleteChatRoom, updateRoomIntimate } from './backendService';
 import { deleteDiary } from './couplesDiary';
+import { isPartneredStatus } from './relationships';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Intimate Mode — gating & enrollment (Phase 2)
@@ -40,13 +41,33 @@ export function isIntimateEligible(p?: IntimateProfile | null): boolean {
   return !!p.intimateEnrolled;
 }
 
-/** A human-readable reason a user can't enable intimate mode (or null if they can). */
+/** A human-readable reason a user can't enable Nibbles (or null if they can). */
 export function ineligibilityReason(p?: IntimateProfile | null): string | null {
-  if (!p) return 'Sign in to use Intimate Mode.';
-  if (p.isChild || p.accountType === 'CHILD') return 'Intimate Mode is for adult accounts only.';
-  if (typeof p.dateOfBirth !== 'number') return 'Confirm your age to use Intimate Mode.';
-  if (ageFromDob(p.dateOfBirth) < MIN_AGE) return 'Intimate Mode is 18+ only.';
-  if (!p.intimateEnrolled) return 'Enroll in Intimate Mode to turn it on.';
+  if (!p) return 'Sign in to use Nibbles.';
+  if (p.isChild || p.accountType === 'CHILD') return 'Nibbles is for adult accounts only.';
+  if (typeof p.dateOfBirth !== 'number') return 'Confirm your age to use Nibbles.';
+  if (ageFromDob(p.dateOfBirth) < MIN_AGE) return 'Nibbles is 18+ only.';
+  if (!p.intimateEnrolled) return 'Join Nibbles to turn it on.';
+  return null;
+}
+
+/**
+ * The relationship gate: I must have a partnered relationship status with THIS person
+ * linked as my spouse/partner. If their profile is available and they're linked to
+ * someone else, block it. Returns a reason or null if the link is good.
+ */
+export function relationshipReason(
+  me?: IntimateProfile | null,
+  partner?: IntimateProfile | null,
+  otherUid?: string,
+): string | null {
+  if (!me) return 'Sign in to use Nibbles.';
+  if (!isPartneredStatus(me.relationshipStatus)) return 'Set your relationship status on your profile to use Nibbles.';
+  if (!me.relationshipPartnerUid) return 'Link your spouse or partner on your profile to use Nibbles.';
+  if (otherUid && me.relationshipPartnerUid !== otherUid) return 'Nibbles only works with the partner linked on your profile.';
+  if (partner && partner.relationshipPartnerUid && otherUid && partner.relationshipPartnerUid !== me.uid) {
+    return 'This person is linked with someone else.';
+  }
   return null;
 }
 
@@ -95,11 +116,14 @@ export async function beginIntimate(
     const reason = ineligibilityReason(me);
     if (reason) return { ok: false, reason };
   }
-  if (!isPrivateDM(room)) return { ok: false, reason: 'Intimate Mode only works in a 1:1 direct message.' };
-  if (partner && isBlockedMinor(partner)) return { ok: false, reason: 'This person cannot use Intimate Mode.' };
+  if (!isPrivateDM(room)) return { ok: false, reason: 'Nibbles only works in a 1:1 direct message.' };
+  if (partner && isBlockedMinor(partner)) return { ok: false, reason: 'This person cannot use Nibbles.' };
+  // Relationship gate — must have this person linked as your partner on your profile.
+  const relReason = relationshipReason(me, partner, otherUid);
+  if (relReason) return { ok: false, reason: relReason };
   const current = activePartnerUid(me);
   if (current && current !== otherUid) {
-    return { ok: false, reason: 'You can only have one intimate connection at a time. End the current one first.' };
+    return { ok: false, reason: 'You can only have one Nibbles connection at a time. End the current one first.' };
   }
   await updateUserProfile(me.uid, { intimatePartnerUid: otherUid });
   await updateRoomIntimate(room.id, { isIntimate: true });

@@ -1048,6 +1048,11 @@ export type AccountType =
   | 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER'
   | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD' | 'CLERGY';
 
+// Relationship status shown on a profile. Only the "partnered" statuses (everything
+// except SINGLE) can gate Nibbles, and only with a linked partner.
+export type RelationshipStatus =
+  | 'SINGLE' | 'DATING' | 'ENGAGED' | 'MARRIED' | 'PARTNERED' | 'COMPLICATED';
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -1251,6 +1256,13 @@ export interface UserProfile {
   intimateEnrolledAt?: number;
   dateOfBirth?: number;            // unix ms — captured at intimate enrollment (18+ gate)
   intimatePartnerUid?: string | null; // single active intimate partner at a time
+  // Relationship status — public profile signal + the gate for Nibbles (couples chat).
+  // A user must set a partnered status AND link their spouse/partner before Nibbles unlocks.
+  relationshipStatus?: RelationshipStatus;
+  relationshipPartnerUid?: string | null; // the linked spouse/partner
+  relationshipPartnerName?: string;        // cached display name for the partner
+  relationshipPublic?: boolean;            // show the relationship on the public profile
+  relationshipSince?: number;              // unix ms — when the link was confirmed
   // Smart Guide — contextual feature discovery assistant
   hasSeenSmartGuide?: boolean;
   smartGuideEnabled?: boolean;

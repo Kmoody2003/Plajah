@@ -2198,8 +2198,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20"><Heart size={18} className="text-rose-400" /></div>
               <div>
-                <h4 className="text-xs font-black uppercase tracking-widest">Intimate Only</h4>
-                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{isIntimateOnly ? 'Couples chats only' : 'Shareable anywhere'}</p>
+                <h4 className="text-xs font-black uppercase tracking-widest">Nibbles Only</h4>
+                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{isIntimateOnly ? 'Nibbles chats only' : 'Shareable anywhere'}</p>
               </div>
             </div>
             <button type="button" onClick={() => setIsIntimateOnly(!isIntimateOnly)} className={`w-12 h-7 rounded-full transition-all relative shrink-0 ${isIntimateOnly ? 'bg-rose-500' : 'bg-white/10'}`}>

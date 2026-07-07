@@ -703,7 +703,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {isIntimate && (
             <button
               onClick={() => setShowIntimatePanel(p => !p)}
-              title="Intimate settings"
+              title="Nibbles settings"
               className="p-2 rounded-xl transition-all"
               style={{ color: showIntimatePanel ? intimateTheme.accent : undefined, background: showIntimatePanel ? `${intimateTheme.accent}22` : undefined }}
             >
@@ -775,7 +775,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           >
             <div className="flex items-center gap-2 mb-3">
               <Heart size={13} fill={intimateTheme.accent} stroke="none" />
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: intimateTheme.accent }}>Intimate Space</span>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: intimateTheme.accent }}>Nibbles</span>
               <button onClick={() => setShowIntimatePanel(false)} className="ml-auto p-1 text-white/30 hover:text-white"><X size={13} /></button>
             </div>
 

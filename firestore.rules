@@ -1036,6 +1036,18 @@ service cloud.firestore {
                     && request.resource.data.participantUids.size() == 2;
     }
 
+    // Nibble invites — shareable partner-invite tokens. The code is an unguessable
+    // token shared privately, so any signed-in user may read one they were given.
+    // Only the inviter creates; the accepter (not the inviter) marks it ACCEPTED.
+    match /nibbleInvites/{code} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.inviterUid == request.auth.uid;
+      allow update: if isAuthenticated()
+                    && request.auth.uid != resource.data.inviterUid
+                    && request.resource.data.inviterUid == resource.data.inviterUid;
+      allow delete: if isAuthenticated() && (resource.data.inviterUid == request.auth.uid || isAdmin());
+    }
+
     // Fabula projects — owner-only index docs. Full project JSON lives in Storage
     // (fabula/{uid}/...); this doc backs listing + ownership.
     match /fabula_projects/{projectId} {

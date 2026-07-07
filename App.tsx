@@ -190,6 +190,7 @@ const AudiusArtistPage = retryLazy(() => import('./components/AudiusArtistPage')
 const BrandActivationPanel = retryLazy(() => import('./components/BrandActivationPanel'));
 const LicenseRequestsInbox = retryLazy(() => import('./components/LicenseRequestsInbox'));
 const LicenseForFilmModal = retryLazy(() => import('./components/LicenseForFilmModal'));
+import { acceptNibbleInvite, pendingNibbleCode } from './services/nibbleInvites';
 const BibleExperience = retryLazy(() => import('./components/BibleExperience'));
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
@@ -754,6 +755,27 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
     };
   }, [user]);
+
+  // Nibble invite links (?nibble=<code>): once signed in, link the invitee to the
+  // inviter as partner. If not signed in yet, stash the code for after login.
+  const nibbleHandledRef = useRef(false);
+  useEffect(() => {
+    const code = pendingNibbleCode() || (typeof localStorage !== 'undefined' ? localStorage.getItem('pending_nibble') : null);
+    if (!code || nibbleHandledRef.current) return;
+    if (!user) { try { localStorage.setItem('pending_nibble', code); } catch { /* private mode */ } return; }
+    nibbleHandledRef.current = true;
+    (async () => {
+      try {
+        const prof = userProfile || await fetchUserProfile(user.uid);
+        if (!prof) { nibbleHandledRef.current = false; return; }
+        const res = await acceptNibbleInvite(code, prof);
+        try { localStorage.removeItem('pending_nibble'); } catch { /* ignore */ }
+        try { const u = new URL(window.location.href); u.searchParams.delete('nibble'); window.history.replaceState({}, '', u.toString()); } catch { /* ignore */ }
+        if (res.ok) { alert(`You're linked with ${res.inviterName} on Plajah 💞 Open your profile to confirm and start Nibbles together.`); setView('CREATOR'); }
+        else if (res.reason) { alert(res.reason); }
+      } catch { nibbleHandledRef.current = false; }
+    })();
+  }, [user, userProfile]);
 
   useEffect(() => {
     const checkDevice = () => {
@@ -1708,6 +1730,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       case 'PROFILE':
         if (targetId) handleVisitUser(targetId);
         else if (notif.senderId) handleVisitUser(notif.senderId);
+        break;
+
+      case 'PROFILE_SETTINGS':
+        // Relationship request/confirm → open my account settings (relationship section).
+        setDashboardInitialTab('ACCOUNT');
+        setView('CREATOR');
         break;
 
       default:

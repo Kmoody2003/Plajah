@@ -18,6 +18,7 @@ const CAP_LABELS: Record<Capability, string> = {
   MANAGE_FAMILY: 'Manage family accounts', ATHLETE_PROFILE: 'Athlete profile', PARTNER_INTEGRATIONS: 'Partner integrations',
 };
 import StoreProductManager from './StoreProductManager';
+import RelationshipSettings from './RelationshipSettings';
 import CreatorPaymentDashboard from './CreatorPaymentDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
@@ -814,6 +815,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     placeholder="Tell the world about your creative vision..."
                   />
                 </div>
+
+                <RelationshipSettings me={{ ...profile, uid: user.uid } as UserProfile} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>

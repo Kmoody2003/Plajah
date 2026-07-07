@@ -89,6 +89,7 @@ import {
   fetchAllUsers
 } from '../services/backendService';
 import { getSocialLinks } from '../services/socialLinks';
+import { isPartneredStatus, statusLabel } from '../services/relationships';
 import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
 import FastChannelManager from './FastChannelManager';
@@ -1098,6 +1099,19 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {profile.bio || <span className="italic text-white/25">No bio yet.</span>}
               </p>
             </div>
+
+            {/* Relationship status (public) */}
+            {profile.relationshipPublic && isPartneredStatus(profile.relationshipStatus) && (
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-rose-300/80">
+                <Heart size={12} fill="currentColor" />
+                <span>
+                  {statusLabel(profile.relationshipStatus)}
+                  {profile.relationshipPartnerUid ? (
+                    <> with <button onClick={() => onVisitUser(profile.relationshipPartnerUid!)} className="underline hover:text-rose-200">{profile.relationshipPartnerName || 'their partner'}</button></>
+                  ) : profile.relationshipPartnerName ? ` with ${profile.relationshipPartnerName}` : ''}
+                </span>
+              </div>
+            )}
 
             {/* RSS feed viewer — hidden by default, expands under the bio */}
             {profile.podcastRss?.externalFeedUrl && (
