@@ -5,6 +5,7 @@ import { db } from '../services/backendService';
 import { diagnoseAudioUrl, createDecodeAudioPlayer, type DecodedAudioPlayer } from '../services/audioFormatService';
 import { detectDolbySupport, isLikelyAtmosUrl } from '../services/dolbyDetection';
 import { saveProgress } from '../services/episodeProgressService';
+import { getCachedMedia } from '../services/offlineStorageService';
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
@@ -130,6 +131,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Fallback decode player for formats the <audio> element can't handle (24-bit WAV, AIFF, etc.)
   const decodedPlayerRef = useRef<DecodedAudioPlayer | null>(null);
   const usingDecodeFallbackRef = useRef(false);
+  // Blob: URL currently assigned to the audio element from the offline cache (revoked on track change).
+  const playbackBlobRef = useRef<string | null>(null);
+  const revokePlaybackBlob = () => {
+    if (playbackBlobRef.current) {
+      try { URL.revokeObjectURL(playbackBlobRef.current); } catch { /* */ }
+      playbackBlobRef.current = null;
+    }
+  };
   const pannerRef = useRef<PannerNode | null>(null);
   const bypassGainRef = useRef<GainNode | null>(null);
   const pannerInputGainRef = useRef<GainNode | null>(null);
@@ -333,7 +342,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audio.volume = startVolume;
   }, []);
 
-  const playTrack = React.useCallback((track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => {
+  const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number) => {
     let audio = audioRef.current;
     const isNewTrack = stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
@@ -376,8 +385,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           audio.removeAttribute('crossorigin');
         }
         try {
-          if (audio.src !== track.url) {
-            audio.src = track.url;
+          // Offline playback: when the device is offline, prefer a cached blob so
+          // downloaded tracks play with no network. The onLine check keeps the ONLINE
+          // path fully synchronous (no await) so the first play stays inside the user
+          // gesture — autoplay policies won't block it. onerror below is the safety net
+          // for the "falsely online" case (navigator.onLine true but fetch fails).
+          revokePlaybackBlob();
+          let playbackUrl = track.url;
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            try {
+              const cached = await getCachedMedia(track.url);
+              if (cached) { playbackBlobRef.current = cached; playbackUrl = cached; }
+            } catch { /* fall back to network URL */ }
+          }
+          if (audio.src !== playbackUrl) {
+            audio.src = playbackUrl;
             // DO NOT call audio.load() — breaks iOS background sequential playback
           }
         } catch (e) {
@@ -399,6 +421,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const tryDecodeFallback = async (url: string) => {
         const ctx = audioContextRef.current;
         if (!ctx) return;
+        // Prefer an already-resolved offline blob so decode-fallback formats play offline too.
+        if (playbackBlobRef.current) url = playbackBlobRef.current;
+        else {
+          try { const cached = await getCachedMedia(track.url); if (cached) { playbackBlobRef.current = cached; url = cached; } } catch { /* */ }
+        }
         console.warn(`[Plajah Audio] Attempting AudioContext.decodeAudioData() fallback for "${track.title}"`);
         try {
           const destination = analyserRef.current ?? ctx.destination;
@@ -476,6 +503,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (!track.url) return;
         const err = audio.error;
         console.error(`[Plajah Audio] HTMLAudioElement error for "${track.title}": code=${err?.code} msg=${err?.message}`);
+        // Offline safety net: if the network URL failed but we have a cached copy, swap it in.
+        // Covers the "falsely online" case (navigator.onLine true but the fetch actually failed).
+        if (!playbackBlobRef.current) {
+          try {
+            const cached = await getCachedMedia(track.url);
+            if (cached && audio.src !== cached) {
+              playbackBlobRef.current = cached;
+              audio.src = cached;
+              audio.play().catch(() => {});
+              return;
+            }
+          } catch { /* */ }
+        }
         diagnoseAudioUrl(track.url).catch(() => {});
         // Attempt decode fallback on load error too
         if (!usingDecodeFallbackRef.current) {

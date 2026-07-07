@@ -50,6 +50,11 @@ import {
 import { readAudioTags, isAudioFile, titleFromFilename, isPlaylistFile, isImageFile, coverScore, baseNoExt, parsePlaylistOrder } from '../services/musicLocker';
 import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import OfflineDownloadButton from './OfflineDownloadButton';
+import {
+  listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
+  type OfflineCacheEntry,
+} from '../services/offlineStorageService';
 
 interface MyLibraryViewProps {
   profile: UserProfile;
@@ -77,6 +82,24 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [localTracks, setLocalTracks] = useState<Track[]>([]);
   const [savedDirectories, setSavedDirectories] = useState<{id: string, name: string, needsAuth: boolean, handle: any}[]>([]);
   const localFolderInputRef = useRef<HTMLInputElement>(null);
+  const [offlineItems, setOfflineItems] = useState<OfflineCacheEntry[]>([]);
+  const [offlineBytes, setOfflineBytes] = useState(0);
+
+  const loadOffline = async () => {
+    try {
+      const [items, bytes] = await Promise.all([listCachedItems(), getOfflineStorageUsed()]);
+      setOfflineItems(items.sort((a, b) => (b.cachedAt || 0) - (a.cachedAt || 0)));
+      setOfflineBytes(bytes);
+    } catch { /* Cache API / IndexedDB unavailable */ }
+  };
+  useEffect(() => { if (activeSubTab === 'SYNC') loadOffline(); }, [activeSubTab]);
+
+  const formatBytes = (b: number): string => {
+    const u = ['B', 'KB', 'MB', 'GB'];
+    let i = 0; let n = b;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
+  };
 
   const scanDirectoryHandle = async (dirHandle: any, currentPath: string = ''): Promise<{file: File, path: string}[]> => {
     let files: {file: File, path: string}[] = [];
@@ -551,7 +574,14 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
         </div>
         <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">{track.albumTitle || 'Single'}</div>
-        <div className="flex justify-end pr-4 gap-2">
+        <div className="flex justify-end pr-4 gap-2 items-center">
+          {track.url && (
+            <OfflineDownloadButton
+              url={track.url}
+              size="sm"
+              meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
+            />
+          )}
           <button onClick={() => setEditingPodcastTrack(track)} className="p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
           <button onClick={() => handleDeletePersonal(track.id)} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
         </div>
@@ -889,6 +919,44 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         )}
         {activeSubTab === 'SYNC' && (
           <div className="flex flex-col gap-8">
+            {/* Offline Downloads — tracks saved for playback with no network (Cache API + IndexedDB) */}
+            <div className="flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Offline Downloads</h4>
+                  <p className="text-[10px] text-white/20 uppercase tracking-widest mt-1">
+                    {offlineItems.length} {offlineItems.length === 1 ? 'track' : 'tracks'} · {formatBytes(offlineBytes)} · plays with no network
+                  </p>
+                </div>
+                {offlineItems.length > 0 && (
+                  <button
+                    onClick={async () => { if (confirm('Remove ALL offline downloads?')) { await clearAllOfflineMedia(); loadOffline(); } }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/50 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <Trash2 size={12} /> Clear All
+                  </button>
+                )}
+              </div>
+              {offlineItems.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {offlineItems.map((item) => (
+                    <div key={item.url} className="flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {item.cover ? <img src={item.cover} className="w-full h-full object-cover" alt={item.title} /> : <FileMusic size={16} className="text-white/20" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold uppercase tracking-wider truncate">{item.title}</h4>
+                        <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{item.artist || item.type} · {formatBytes(item.size || 0)}</p>
+                      </div>
+                      <button onClick={async () => { await removeCachedMedia(item.url); loadOffline(); }} className="p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove download"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-white/20 uppercase tracking-widest py-4 text-center">Tap the download icon on any track to save it for offline listening.</p>
+              )}
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Local Device Sync</h4>

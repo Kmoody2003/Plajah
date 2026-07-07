@@ -11,6 +11,7 @@ import PaintPoolVisualizer from './PaintPoolVisualizer';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
+import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -2573,12 +2574,23 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
 
+                   {/* Save the current track for offline playback */}
+                   {currentTrack?.url && (
+                     <div className="ml-auto">
+                       <OfflineDownloadButton
+                         url={currentTrack.url}
+                         size="sm"
+                         meta={{ title: currentTrack.title || album.title, type: 'MUSIC', artist: album.artist, cover: album.coverImage, albumId: album.id, trackId: currentTrack.id }}
+                       />
+                     </div>
+                   )}
+
                    {/* Add the current song to a playlist — obvious + always visible */}
                    {currentTrack && (
                      <button
                        onClick={() => setPlaylistPickerTrack(currentTrack)}
                        title="Add this song to a playlist"
-                       className="ml-auto flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all"
+                       className={`${currentTrack?.url ? '' : 'ml-auto'} flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all`}
                      >
                        <ListPlus size={13} /> Add to Playlist
                      </button>

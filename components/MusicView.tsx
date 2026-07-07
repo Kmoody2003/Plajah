@@ -12,7 +12,7 @@ import {
   Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
+import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, fetchPersonalTracks, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -209,6 +209,15 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'NEW');
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'RECENT' | 'ALPHA'>('RECENT');
+  // 3-way source filter for the Artists/Albums browse:
+  //   ALL   = platform + Audius + your personal locker
+  //   CHORA = platform + Audius only (the Chora catalog)
+  //   OWNED = only your personal-library / owned content
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'CHORA' | 'OWNED'>(() => {
+    const saved = localStorage.getItem('chora_sourceFilter');
+    return saved === 'CHORA' || saved === 'OWNED' ? saved : 'ALL';
+  });
+  const [personalTracks, setPersonalTracks] = useState<Track[]>([]);
   const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
   const [vaultCategory, setVaultCategory] = useState<'ALL' | 'JAZZ' | 'CLASSICAL' | 'AUDIOBOOKS' | 'PODCASTS' | 'TRENDING'>('ALL');
   const [album3D, setAlbum3D] = useState<Album | null>(null);
@@ -416,6 +425,82 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     };
     loadData();
   }, []);
+
+  // Personal music-locker content (owner-only) — powers the "Owned" filter + the "All" superset.
+  useEffect(() => {
+    if (!userProfile?.uid) { setPersonalTracks([]); return; }
+    fetchPersonalTracks().then(setPersonalTracks).catch(() => setPersonalTracks([]));
+  }, [userProfile?.uid]);
+
+  useEffect(() => { localStorage.setItem('chora_sourceFilter', sourceFilter); }, [sourceFilter]);
+
+  // Group locker tracks into playable Album objects (by albumId/title; loose tracks → per-artist Singles).
+  const ownedAlbums = useMemo<Album[]>(() => {
+    const map = new Map<string, Album>();
+    for (const t of personalTracks) {
+      const key = t.albumId || (t.albumTitle ? `title:${t.albumTitle}` : `singles:${t.artist || 'Unknown'}`);
+      if (!map.has(key)) {
+        map.set(key, {
+          id: t.albumId || key,
+          ownerId: (t as any).ownerId || userProfile?.uid,
+          title: t.albumTitle || (key.startsWith('singles:') ? 'Singles' : (t.title || 'Album')),
+          artist: t.artist || 'Unknown Artist',
+          coverImage: t.albumCover || '',
+          tracks: [],
+          isPrivate: true,
+        } as Album);
+      }
+      const a = map.get(key)!;
+      a.tracks.push(t);
+      if (!a.coverImage && t.albumCover) a.coverImage = t.albumCover;
+    }
+    const albums = Array.from(map.values());
+    for (const a of albums) a.tracks.sort((x, y) => (((x as any).trackNo || 999) - ((y as any).trackNo || 999)));
+    return albums;
+  }, [personalTracks, userProfile?.uid]);
+
+  // Synthetic artist cards derived from locker tracks (no real profile → local routing only).
+  const ownedArtists = useMemo<UserProfile[]>(() => {
+    const map = new Map<string, { name: string; cover?: string; count: number }>();
+    for (const t of personalTracks) {
+      const name = t.artist || 'Unknown Artist';
+      if (!map.has(name)) map.set(name, { name, cover: t.albumCover, count: 0 });
+      const a = map.get(name)!;
+      a.count++;
+      if (!a.cover && t.albumCover) a.cover = t.albumCover;
+    }
+    return Array.from(map.values()).map((a) => ({
+      uid: `personal:${a.name}`,
+      displayName: a.name,
+      photoURL: a.cover || '',
+      followerCount: a.count,
+      isArtist: true,
+    } as unknown as UserProfile));
+  }, [personalTracks]);
+
+  const visibleAlbums = () => {
+    if (sourceFilter === 'OWNED') return ownedAlbums;
+    if (sourceFilter === 'ALL') return [...getSortedAlbums(), ...ownedAlbums];
+    return getSortedAlbums(); // CHORA
+  };
+  const visibleArtists = () => {
+    if (sourceFilter === 'OWNED') return ownedArtists;
+    if (sourceFilter === 'ALL') return [...getSortedArtists(), ...ownedArtists];
+    return getSortedArtists(); // CHORA
+  };
+
+  // Clicking a synthetic personal artist card opens their locker album (or plays their first track).
+  const handleArtistCardClick = (artist: UserProfile) => {
+    if (typeof artist.uid === 'string' && artist.uid.startsWith('personal:')) {
+      const name = artist.displayName;
+      const albs = ownedAlbums.filter(a => a.artist === name);
+      if (albs.length) { onSelectAlbum(albs[0]); return; }
+      const trk = personalTracks.find(t => (t.artist || 'Unknown Artist') === name);
+      if (trk) playTrack(trk, null, 'LIBRARY');
+      return;
+    }
+    onVisitUser(artist.uid, 'CONTENT');
+  };
 
   const genres = ['Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Rock', 'Pop', 'Lo-Fi', 'Ambient', 'Classical', 'Folk', 'World'];
 
@@ -897,6 +982,21 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             </div>
             {/* Row 2: action buttons — below tabs on mobile, inline on md+ */}
             <div className="flex items-center gap-2 pt-2 md:pt-0 md:absolute md:right-12 md:top-1/2 md:-translate-y-1/2">
+              {(activeTab === 'ARTISTS' || activeTab === 'ALBUMS') && (
+                <div className="flex items-center bg-white/5 rounded-full p-0.5 border border-white/10">
+                  {([['ALL', 'All'], ['CHORA', 'Chora Only'], ['OWNED', 'Owned']] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => setSourceFilter(id)}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                        sourceFilter === id ? 'bg-small-orange text-black shadow-[0_0_12px_rgba(255,140,0,0.4)]' : 'text-white/40 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={toggleAudiusEnabled}
                 className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
@@ -1685,6 +1785,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     </div>
 
                     {/* Trending Artists chart */}
+                    {sourceFilter !== 'OWNED' && (
                     <div>
                       <div className="flex items-center gap-3 mb-6">
                         <Flame size={16} className="text-small-orange" />
@@ -1705,12 +1806,17 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                       </div>
                     </div>
 
+                    )}
+
                     {/* Full grid */}
                     <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Artists</h2>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">{sourceFilter === 'OWNED' ? 'Your Artists' : 'All Artists'}</h2>
+                      {sourceFilter === 'OWNED' && visibleArtists().length === 0 && (
+                        <p className="text-[10px] text-white/30 uppercase tracking-widest py-8">No artists in your library yet. Upload music to your Locker to see them here.</p>
+                      )}
                       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-6 lg:gap-8">
-                        {getSortedArtists().map(artist => (
-                          <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="group cursor-pointer text-center">
+                        {visibleArtists().map(artist => (
+                          <div key={artist.uid} onClick={() => handleArtistCardClick(artist)} className="group cursor-pointer text-center">
                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
                               <img src={thumb(artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1725,7 +1831,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     </div>
 
                     {/* ── Audius Artists ── */}
-                    {audiusEnabled && audiusCuration && audiusCuration.artists.length > 0 && (
+                    {sourceFilter !== 'OWNED' && audiusEnabled && audiusCuration && audiusCuration.artists.length > 0 && (
                       <div>
                         <div className="flex items-center gap-3 mb-6 mt-4 pt-8 border-t border-purple-900/30">
                           <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><User size={10} className="text-purple-200" /></div>
@@ -1769,7 +1875,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     </div>
 
                     {/* ── Coming Soon ── */}
-                    {upcomingAlbums.length > 0 && (
+                    {sourceFilter !== 'OWNED' && upcomingAlbums.length > 0 && (
                       <div>
                         <div className="flex items-center gap-3 mb-6">
                           <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-small-orange to-[#D40055] shrink-0" />
@@ -1801,7 +1907,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     )}
 
                     {/* Top Charts */}
-                    {trendingAlbums.length > 0 && (
+                    {sourceFilter !== 'OWNED' && trendingAlbums.length > 0 && (
                       <div>
                         <div className="flex items-center gap-3 mb-6">
                           <BarChart2 size={16} className="text-small-orange" />
@@ -1828,9 +1934,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                     {/* All albums grid */}
                     <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">All Albums</h2>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">{sourceFilter === 'OWNED' ? 'Your Albums' : 'All Albums'}</h2>
+                      {sourceFilter === 'OWNED' && visibleAlbums().length === 0 && (
+                        <p className="text-[10px] text-white/30 uppercase tracking-widest py-8">Nothing in your library yet. Upload music to your Locker to see it here.</p>
+                      )}
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 lg:gap-8">
-                        {getSortedAlbums().map(album => (
+                        {visibleAlbums().map(album => (
                           <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                             <div className="aspect-square rounded-3xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
                               <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -1847,7 +1956,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     </div>
 
                     {/* ── Audius Playlists in ALBUMS tab ── */}
-                    {audiusEnabled && audiusCuration && audiusCuration.playlists.length > 0 && (
+                    {sourceFilter !== 'OWNED' && audiusEnabled && audiusCuration && audiusCuration.playlists.length > 0 && (
                       <div>
                         <div className="flex items-center gap-3 mb-6 pt-8 border-t border-purple-900/30">
                           <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><ListMusic size={10} className="text-purple-200" /></div>
