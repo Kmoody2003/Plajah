@@ -21,6 +21,7 @@ import { Post } from '../types';
 import { useLoreaFreeBooks } from '../services/freeEpub';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
+import { TYPE } from '../src/lib/designSystem';
 
 const ModelViewer = lazy(() => import('./architecture/ModelViewer'));
 const BookReader = lazy(() => import('./BookReader'));
@@ -56,7 +57,7 @@ const SiteCard: React.FC<{ site: ArchSite; onOpen: () => void }> = ({ site, onOp
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
         <div className="absolute bottom-2.5 left-3 right-3">
           <p className="text-[13px] font-black uppercase tracking-tight text-white leading-none">{site.name}</p>
-          <p className="text-[8px] font-bold uppercase tracking-widest mt-1" style={{ color: ACCENT }}>{site.region} · {site.period}</p>
+          <p className={`${TYPE.labelSm} font-bold uppercase tracking-widest mt-1`} style={{ color: ACCENT }}>{site.region} · {site.period}</p>
         </div>
       </div>
     </button>
@@ -71,7 +72,7 @@ const SiteModal: React.FC<{ site: ArchSite; onClose: () => void }> = ({ site, on
       className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()}
         className="relative w-full max-w-lg rounded-3xl overflow-hidden border border-white/12 bg-[#0d0d12] max-h-[88vh] overflow-y-auto scrollbar-hide">
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70"><X size={14} /></button>
+        <button onClick={onClose} className="absolute right-3 z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70 tap" style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}><X size={14} /></button>
         <div className="aspect-[16/10] bg-white/5 relative">
           {d.thumb && <img src={d.thumb} alt={site.name} className="w-full h-full object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d12] via-transparent to-transparent" />
@@ -79,19 +80,19 @@ const SiteModal: React.FC<{ site: ArchSite; onClose: () => void }> = ({ site, on
         <div className="p-5 -mt-10 relative">
           <h2 className="text-2xl font-black uppercase tracking-tight">{site.name}</h2>
           <div className="flex flex-wrap gap-2 mt-2">
-            <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase" style={{ background: `${ACCENT}26`, border: `1px solid ${ACCENT}4d`, color: ACCENT }}>{site.region}</span>
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{site.period}</span>
+            <span className={`px-2.5 py-1 rounded-full ${TYPE.labelSm} font-black uppercase`} style={{ background: `${ACCENT}26`, border: `1px solid ${ACCENT}4d`, color: ACCENT }}>{site.region}</span>
+            <span className={`px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black uppercase text-white/50`}>{site.period}</span>
           </div>
           <p className="mt-3 text-sm text-white/60 leading-relaxed">{site.blurb}</p>
           {d.extract && <p className="mt-3 text-sm text-white/45 leading-relaxed">{d.extract}</p>}
           <div className="mt-4">
-            <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-2">Highlights</p>
+            <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/35 mb-2`}>Highlights</p>
             <div className="flex flex-wrap gap-1.5">
-              {site.highlights.map(h => <span key={h} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 text-[11px] text-white/70">{h}</span>)}
+              {site.highlights.map(h => <span key={h} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 type-body-sm text-white/70">{h}</span>)}
             </div>
           </div>
           <a href={`https://en.wikipedia.org/wiki/${site.wikiSlug}`} target="_blank" rel="noreferrer"
-            className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
+            className={`mt-4 inline-flex items-center gap-1.5 ${TYPE.labelSm} font-black uppercase tracking-widest text-white/40 hover:text-white`}>
             Read more <ExternalLink size={11} />
           </a>
           <div className="mt-4 pt-4 border-t border-white/8">
@@ -163,8 +164,8 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
           <button onClick={onBack} className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-5">
             <ArrowLeft size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
           </button>
-          <p className="text-[9px] font-black uppercase tracking-[0.4em]" style={{ color: ACCENT }}>Plajah Academia · Archaeology</p>
-          <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter mt-1 flex items-center gap-3">
+          <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.4em]`} style={{ color: ACCENT }}>Plajah Academia · Archaeology</p>
+          <h1 className="font-black uppercase tracking-tighter mt-1 flex items-center gap-3" style={{ fontSize: 'clamp(2.25rem,7vw,3.5rem)' }}>
             <Shovel size={40} style={{ color: ACCENT }} /> Archaeology
           </h1>
           <p className="text-sm text-white/45 mt-2 max-w-2xl">The field studio for the human past — the pioneers who invented the discipline, the world’s great sites, tens of thousands of artifacts live from open-access collections, the science of dating and digging, and the open tools, data and books that power modern practice.</p>
@@ -178,7 +179,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
             const Icon = t.icon; const active = tab === t.id;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className="shrink-0 flex items-center gap-2 px-4 py-3.5 text-[9px] font-black uppercase tracking-widest transition-all border-b-2"
+                className={`shrink-0 flex items-center gap-2 px-4 py-3.5 ${TYPE.labelSm} font-black uppercase tracking-widest transition-all border-b-2`}
                 style={active ? { color: ACCENT, borderColor: ACCENT } : { color: 'rgba(255,255,255,0.4)', borderColor: 'transparent' }}>
                 <Icon size={13} /> {t.label}
               </button>
@@ -201,7 +202,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                 <button key={s.label} onClick={() => setTab(s.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left hover:bg-white/[0.06] transition-all">
                   <s.icon size={18} style={{ color: ACCENT }} />
                   <p className="text-2xl font-black mt-2 tabular-nums">{s.value}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">{s.label}</p>
+                  <p className={`${TYPE.labelSm} font-black uppercase tracking-widest text-white/40`}>{s.label}</p>
                 </button>
               ))}
             </div>
@@ -217,7 +218,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                 <button key={c.t} onClick={() => setTab(c.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 text-left hover:bg-white/[0.06] transition-all group">
                   <c.icon size={22} style={{ color: ACCENT }} />
                   <p className="text-[15px] font-black mt-3 flex items-center gap-1.5">{c.t} <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" /></p>
-                  <p className="text-[12px] text-white/45 leading-relaxed mt-1">{c.d}</p>
+                  <p className="type-body-sm text-white/45 leading-relaxed mt-1">{c.d}</p>
                 </button>
               ))}
             </div>
@@ -253,25 +254,25 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
         {tab === 'methods' && (
           <div className="space-y-6">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Dating Methods</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Dating Methods</p>
               <div className="rounded-2xl border border-white/8 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-white/[0.04]">
-                        <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Method</th>
-                        <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Range</th>
-                        <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Basis</th>
-                        <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Used for</th>
+                        <th className={`px-4 py-3 ${TYPE.labelSm} font-black uppercase tracking-[0.2em] text-white/40`}>Method</th>
+                        <th className={`px-4 py-3 ${TYPE.labelSm} font-black uppercase tracking-[0.2em] text-white/40`}>Range</th>
+                        <th className={`px-4 py-3 ${TYPE.labelSm} font-black uppercase tracking-[0.2em] text-white/40`}>Basis</th>
+                        <th className={`px-4 py-3 ${TYPE.labelSm} font-black uppercase tracking-[0.2em] text-white/40`}>Used for</th>
                       </tr>
                     </thead>
                     <tbody>
                       {DATING_METHODS.map(m => (
                         <tr key={m.id} className="border-t border-white/6 hover:bg-white/[0.02]">
                           <td className="px-4 py-3 align-top"><span className="text-[13px] font-black text-white">{m.name}</span></td>
-                          <td className="px-4 py-3 align-top"><span className="text-[11px] font-bold whitespace-nowrap" style={{ color: ACCENT }}>{m.range}</span></td>
-                          <td className="px-4 py-3 align-top"><span className="text-[11px] text-white/50 leading-relaxed">{m.basis}</span></td>
-                          <td className="px-4 py-3 align-top"><span className="text-[11px] text-white/55 leading-relaxed">{m.useFor}</span></td>
+                          <td className="px-4 py-3 align-top"><span className="type-body-sm font-bold whitespace-nowrap" style={{ color: ACCENT }}>{m.range}</span></td>
+                          <td className="px-4 py-3 align-top"><span className="type-body-sm text-white/50 leading-relaxed">{m.basis}</span></td>
+                          <td className="px-4 py-3 align-top"><span className="type-body-sm text-white/55 leading-relaxed">{m.useFor}</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -280,7 +281,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
               </div>
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Field Methods</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Field Methods</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {FIELD_METHODS.map((f, i) => (
                   <motion.div key={f.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
@@ -289,7 +290,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                       <Layers size={14} style={{ color: ACCENT }} />
                       <p className="text-[13px] font-black text-white">{f.name}</p>
                     </div>
-                    <p className="text-[11px] text-white/50 mt-1.5 leading-relaxed">{f.desc}</p>
+                    <p className="type-body-sm text-white/50 mt-1.5 leading-relaxed">{f.desc}</p>
                   </motion.div>
                 ))}
               </div>
@@ -301,13 +302,13 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
         {tab === 'tools' && (
           <div className="space-y-6">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">3D Artifact Inspector</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>3D Artifact Inspector</p>
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
                 <Suspense fallback={<div className="py-24 text-center"><div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: `${ACCENT}33`, borderTopColor: ACCENT }} /><p className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-3">Loading the inspector…</p></div>}>
                   <ModelViewer accent={ACCENT} />
                 </Suspense>
               </div>
-              <p className="text-[11px] text-white/40 mt-2 leading-relaxed">
+              <p className="type-body-sm text-white/40 mt-2 leading-relaxed">
                 Upload a .glb / .gltf / .obj / .stl scan of an artifact to inspect it in 3D. Thousands of ready-made scans are freely
                 downloadable from{' '}
                 <a href="https://sketchfab.com/3d-models/categories/cultural-heritage-history" target="_blank" rel="noreferrer" className="underline hover:text-white" style={{ color: ACCENT }}>Sketchfab Cultural Heritage</a>{' '}
@@ -316,10 +317,10 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
               </p>
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Tools of the Trade</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Tools of the Trade</p>
               {Object.entries(toolsByCat).map(([cat, list]) => (
                 <div key={cat} className="mb-4">
-                  <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2" style={{ color: ACCENT }}>{cat}</p>
+                  <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] mb-2`} style={{ color: ACCENT }}>{cat}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {list.map(t => (
                       <a key={t.name} href={t.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
@@ -328,7 +329,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                           <p className="text-[13px] font-black text-white">{t.name}</p>
                           {t.oss && <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400">OSS</span>}
                         </div>
-                        <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{t.desc}</p>
+                        <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed">{t.desc}</p>
                       </a>
                     ))}
                   </div>
@@ -336,7 +337,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
               ))}
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Open Data &amp; APIs</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Open Data &amp; APIs</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {ARCH_DATA_APIS.map(a => (
                   <a key={a.name} href={a.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
@@ -344,7 +345,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                       <div className="flex items-center gap-2"><Globe size={14} style={{ color: ACCENT }} /><p className="text-[13px] font-black text-white">{a.name}</p></div>
                       <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[7px] font-black uppercase tracking-widest text-white/45 shrink-0">{a.auth}</span>
                     </div>
-                    <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{a.desc}</p>
+                    <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed">{a.desc}</p>
                   </a>
                 ))}
               </div>
@@ -356,7 +357,7 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
         {tab === 'library' && (
           <div className="space-y-6">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Books &amp; Foundational Texts</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Books &amp; Foundational Texts</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {ARCH_BOOKS.map(b => {
                   const epub = freeBooks.canRead(b);
@@ -366,8 +367,8 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
                         <p className="text-[13px] font-black text-white leading-tight">{b.title}</p>
                         {b.free && <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400 shrink-0">Free</span>}
                       </div>
-                      <p className="text-[10px] text-white/40 mt-0.5">{b.authors.join(', ')}{b.year ? ` · ${b.year}` : ''}</p>
-                      <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{b.desc}</p>
+                      <p className="type-title-sm text-white/40 mt-0.5">{b.authors.join(', ')}{b.year ? ` · ${b.year}` : ''}</p>
+                      <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed">{b.desc}</p>
                       {epub && <span className="inline-flex items-center gap-1 mt-2 text-[8px] font-black uppercase tracking-widest" style={{ color: ACCENT }}><BookOpen size={10} /> Read in Lorea</span>}
                     </>
                   );
@@ -380,15 +381,15 @@ const ArchaeologyDisciplineView: React.FC<Props> = ({ onBack, currentUser }) => 
               </div>
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Latest Research · arXiv</p>
+              <p className={`${TYPE.labelSm} font-black uppercase tracking-[0.3em] text-white/40 mb-3`}>Latest Research · arXiv</p>
               {papersLoading && <div className="py-10 text-center text-white/30 text-sm">Fetching preprints…</div>}
               {!papersLoading && papers.length === 0 && <p className="text-white/25 text-[12px]">No papers loaded — arXiv may be unavailable.</p>}
               <div className="space-y-2.5">
                 {papers.map(p => (
                   <a key={p.id} href={p.pdfLink || p.link} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
                     <p className="text-[13px] font-bold text-white leading-snug">{p.title}</p>
-                    <p className="text-[10px] text-white/40 mt-1">{p.authors.slice(0, 4).join(', ')}{p.authors.length > 4 ? ' et al.' : ''} · {p.published}</p>
-                    <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed line-clamp-3">{p.abstract}</p>
+                    <p className="type-title-sm text-white/40 mt-1">{p.authors.slice(0, 4).join(', ')}{p.authors.length > 4 ? ' et al.' : ''} · {p.published}</p>
+                    <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed line-clamp-3">{p.abstract}</p>
                   </a>
                 ))}
               </div>

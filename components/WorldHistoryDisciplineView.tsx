@@ -17,6 +17,7 @@ import { listenToGlobalPosts, createPost, auth, uploadFile } from '../services/b
 import { Post, Album } from '../types';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 const BookReader = lazy(() => import('./BookReader'));
 
@@ -52,8 +53,8 @@ const CivCard: React.FC<{ civ: Civilization; onOpen: () => void }> = ({ civ, onO
           : <div className="w-full h-full flex items-center justify-center"><Landmark size={28} className="text-white/10" /></div>}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
         <div className="absolute bottom-2.5 left-3 right-3">
-          <p className="text-[13px] font-black uppercase tracking-tight text-white leading-none line-clamp-1">{civ.name}</p>
-          <p className="text-[8px] font-bold uppercase tracking-widest mt-1" style={{ color: ACCENT }}>{civ.span}</p>
+          <p className="type-body-md font-black uppercase tracking-tight text-white leading-none line-clamp-1">{civ.name}</p>
+          <p className={`${TYPE.labelSm} font-bold mt-1`} style={{ color: ACCENT }}>{civ.span}</p>
         </div>
       </div>
     </button>
@@ -68,7 +69,7 @@ const CivModal: React.FC<{ civ: Civilization; onClose: () => void }> = ({ civ, o
       className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()}
         className="relative w-full max-w-lg rounded-3xl overflow-hidden border border-white/12 bg-[#0d0d12] max-h-[88vh] overflow-y-auto scrollbar-hide">
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70"><span className="text-lg leading-none">×</span></button>
+        <button onClick={onClose} className="tap absolute z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70" style={{ top: 'max(0.75rem, env(safe-area-inset-top))', right: 'max(0.75rem, env(safe-area-inset-right))' }}><span className="text-lg leading-none">×</span></button>
         <div className="aspect-[16/10] bg-white/5 relative">
           {d.thumb && <img src={d.thumb} alt={civ.name} className="w-full h-full object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d12] via-transparent to-transparent" />
@@ -76,19 +77,19 @@ const CivModal: React.FC<{ civ: Civilization; onClose: () => void }> = ({ civ, o
         <div className="p-5 -mt-10 relative">
           <h2 className="text-2xl font-black uppercase tracking-tight">{civ.name}</h2>
           <div className="flex flex-wrap gap-2 mt-2">
-            <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase" style={{ background: `${ACCENT}26`, border: `1px solid ${ACCENT}4d`, color: ACCENT }}>{civ.span}</span>
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{civ.region}</span>
+            <span className={`px-2.5 py-1 rounded-full ${TYPE.labelSm} font-black`} style={{ background: `${ACCENT}26`, border: `1px solid ${ACCENT}4d`, color: ACCENT }}>{civ.span}</span>
+            <span className={`px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black text-white/50`}>{civ.region}</span>
           </div>
           <p className="mt-3 text-sm text-white/60 leading-relaxed">{civ.blurb}</p>
           {d.extract && <p className="mt-3 text-sm text-white/45 leading-relaxed">{d.extract}</p>}
           <div className="mt-4">
-            <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-2">Hallmarks</p>
+            <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/35 mb-2`}>Hallmarks</p>
             <div className="flex flex-wrap gap-1.5">
-              {civ.hallmarks.map(h => <span key={h} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 text-[11px] text-white/70">{h}</span>)}
+              {civ.hallmarks.map(h => <span key={h} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 type-body-sm text-white/70">{h}</span>)}
             </div>
           </div>
           <a href={`https://en.wikipedia.org/wiki/${civ.wikiSlug}`} target="_blank" rel="noreferrer"
-            className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">
+            className={`mt-4 inline-flex items-center gap-1.5 ${TYPE.labelSm} font-black text-white/40 hover:text-white`}>
             Read more <ExternalLink size={11} />
           </a>
           <div className="mt-4 pt-4 border-t border-white/8">
@@ -153,8 +154,8 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
           <button onClick={onBack} className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-5">
             <ArrowLeft size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
           </button>
-          <p className="text-[9px] font-black uppercase tracking-[0.4em]" style={{ color: ACCENT }}>Plajah Academia · World History</p>
-          <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter mt-1 flex items-center gap-3">
+          <p className={`${TYPE.labelSm} font-black tracking-[0.4em]`} style={{ color: ACCENT }}>Plajah Academia · World History</p>
+          <h1 className="font-black uppercase tracking-tighter mt-1 flex items-center gap-3" style={{ fontSize: 'clamp(2.25rem, 8vw, 3rem)' }}>
             <Globe size={40} style={{ color: ACCENT }} /> World History
           </h1>
           <p className="text-sm text-white/45 mt-2 max-w-2xl">The best place to learn world history online — the people who shaped it, the civilisations that rose and fell, the eras that connect them, the artifacts they left behind, and the open archives where the primary record still lives.</p>
@@ -168,7 +169,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
             const Icon = t.icon; const active = tab === t.id;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className="shrink-0 flex items-center gap-2 px-4 py-3.5 text-[9px] font-black uppercase tracking-widest transition-all border-b-2"
+                className={`shrink-0 flex items-center gap-2 px-4 py-3.5 ${TYPE.labelSm} font-black transition-all border-b-2`}
                 style={active ? { color: ACCENT, borderColor: ACCENT } : { color: 'rgba(255,255,255,0.4)', borderColor: 'transparent' }}>
                 <Icon size={13} /> {t.label}
               </button>
@@ -191,7 +192,7 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
                 <button key={s.label} onClick={() => setTab(s.to)} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left hover:bg-white/[0.06] transition-all">
                   <s.icon size={18} style={{ color: ACCENT }} />
                   <p className="text-2xl font-black mt-2 tabular-nums">{s.value}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">{s.label}</p>
+                  <p className={`${TYPE.labelSm} font-black text-white/40`}>{s.label}</p>
                 </button>
               ))}
             </div>
@@ -223,9 +224,9 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
 
         {/* CIVILIZATIONS */}
         {tab === 'civilizations' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="0.75rem">
             {CIVILIZATIONS.map(c => <CivCard key={c.id} civ={c} onOpen={() => setOpenCiv(c)} />)}
-          </div>
+          </AdaptiveGrid>
         )}
 
         {/* TIMELINE */}
@@ -235,10 +236,10 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
               <motion.div key={era.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
                 <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <h3 className="text-xl font-black uppercase tracking-tight">{era.title}</h3>
+                  <h3 className="type-title-lg font-black uppercase tracking-tight">{era.title}</h3>
                   <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: ACCENT }}>{era.span}</span>
                 </div>
-                <p className="text-[13px] text-white/55 leading-relaxed mt-2">{era.essay}</p>
+                <p className="type-body-md text-white/55 leading-relaxed mt-2">{era.essay}</p>
                 <div className="grid sm:grid-cols-2 gap-4 mt-3">
                   <div>
                     <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-1.5">Developments</p>
@@ -263,16 +264,16 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
         {/* PRIMARY SOURCES */}
         {tab === 'sources' && (
           <div className="space-y-4">
-            <p className="text-[13px] text-white/50 leading-relaxed max-w-2xl">The raw record of history — digitised and open. Every archive below is free to explore, and most expose a public API you can build on.</p>
+            <p className="type-body-md text-white/50 leading-relaxed max-w-2xl">The raw record of history — digitised and open. Every archive below is free to explore, and most expose a public API you can build on.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {PRIMARY_SOURCES.map(s => (
                 <a key={s.name} href={s.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2"><ScrollText size={14} style={{ color: ACCENT }} /><p className="text-[13px] font-black text-white">{s.name}</p></div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[7px] font-black uppercase tracking-widest text-white/45 shrink-0">{s.access}</span>
+                    <div className="flex items-center gap-2"><ScrollText size={14} style={{ color: ACCENT }} /><p className="type-body-md font-black text-white">{s.name}</p></div>
+                    <span className={`px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black text-white/45 shrink-0`}>{s.access}</span>
                   </div>
                   <p className="text-[10px] text-white/35 mt-0.5">{s.org}</p>
-                  <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{s.desc}</p>
+                  <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed">{s.desc}</p>
                 </a>
               ))}
             </div>
@@ -283,15 +284,15 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
         {tab === 'library' && (
           <div className="space-y-6">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Free Textbooks · OpenStax</p>
+              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/40 mb-3`}>Free Textbooks · OpenStax</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {HISTORY_BOOKS.map(b => (
                   <div key={b.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-black text-white leading-tight">{b.title}</p>
-                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400 shrink-0">Free</span>
+                      <p className="type-body-md font-black text-white leading-tight">{b.title}</p>
+                      <span className={`px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 ${TYPE.labelSm} font-black text-emerald-400 shrink-0`}>Free</span>
                     </div>
-                    {b.description && <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{b.description}</p>}
+                    {b.description && <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed">{b.description}</p>}
                     <div className="flex flex-wrap gap-2 mt-3">
                       {b.epubUrl && (
                         <button onClick={() => setReaderBook(textbookToAlbum(b))} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest" style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}44`, color: ACCENT }}>
@@ -312,15 +313,15 @@ const WorldHistoryDisciplineView: React.FC<Props> = ({ onBack, currentUser }) =>
               </div>
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-3">Latest Research · arXiv · History &amp; Philosophy of Science</p>
+              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/40 mb-3`}>Latest Research · arXiv · History &amp; Philosophy of Science</p>
               {papersLoading && <div className="py-10 text-center text-white/30 text-sm">Fetching preprints…</div>}
               {!papersLoading && papers.length === 0 && <p className="text-white/25 text-[12px]">No papers loaded — arXiv may be unavailable.</p>}
               <div className="space-y-2.5">
                 {papers.map(p => (
                   <a key={p.id} href={p.pdfLink || p.link} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-all block">
-                    <p className="text-[13px] font-bold text-white leading-snug">{p.title}</p>
+                    <p className="type-body-md font-bold text-white leading-snug">{p.title}</p>
                     <p className="text-[10px] text-white/40 mt-1">{p.authors.slice(0, 4).join(', ')}{p.authors.length > 4 ? ' et al.' : ''} · {p.published}</p>
-                    <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed line-clamp-3">{p.abstract}</p>
+                    <p className="type-body-sm text-white/45 mt-1.5 leading-relaxed line-clamp-3">{p.abstract}</p>
                   </a>
                 ))}
               </div>

@@ -41,6 +41,7 @@ import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
 import ErrorBoundary from './ErrorBoundary';
 import TeacherStudentsPanel from './TeacherStudentsPanel';
+import { TYPE } from '../src/lib/designSystem';
 import { lazy } from 'react';
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
@@ -240,19 +241,19 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Class Title *</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Class Title *</label>
                   <input value={form.title} onChange={e => setF('title', e.target.value)} placeholder="e.g. Music Production 101"
                     className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Description</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Description</label>
                   <textarea value={form.description} onChange={e => setF('description', e.target.value)} rows={3}
                     placeholder="What will students learn? Who is it for?"
                     className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all resize-none text-sm" />
                 </div>
                 <div className={academic ? '' : 'grid grid-cols-2 gap-4'}>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">{academic ? 'Subject' : 'Category'}</label>
+                    <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">{academic ? 'Subject' : 'Category'}</label>
                     <select value={form.category} onChange={e => setF('category', e.target.value)}
                       className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm">
                       {CATEGORIES.map(c => <option key={c}>{c}</option>)}
@@ -260,7 +261,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
                   </div>
                   {!academic && (
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Price (0 = Free)</label>
+                      <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Price (0 = Free)</label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-primary)]/40 font-bold">$</span>
                         <input type="number" min={0} step={1} value={form.price} onChange={e => setF('price', +e.target.value)}
@@ -270,7 +271,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
                   )}
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Thumbnail URL</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Thumbnail URL</label>
                   <input value={form.thumbnailUrl} onChange={e => setF('thumbnailUrl', e.target.value)}
                     placeholder="https://images.unsplash.com/..."
                     className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all text-sm" />
@@ -279,7 +280,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
                   )}
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Syllabus / Course Outline</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Syllabus / Course Outline</label>
                   <textarea value={form.syllabus} onChange={e => setF('syllabus', e.target.value)} rows={5}
                     placeholder="Week 1 — Introduction&#10;Week 2 — Core Concepts&#10;..."
                     className="w-full bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-4 text-[var(--text-primary)] focus:outline-none focus:border-small-orange transition-all resize-none text-sm font-mono" />
@@ -351,12 +352,12 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
                       className="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] focus:outline-none focus:border-small-orange text-sm resize-none" />
                     <div className="flex gap-3">
                       <div className="flex-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]/30 block mb-1">Due in (days)</label>
+                        <label className={`${TYPE.labelSm} font-black text-[var(--text-primary)]/30 block mb-1`}>Due in (days)</label>
                         <input type="number" min={1} value={a.dueInDays} onChange={e => updateAssignment(a.id, 'dueInDays', +e.target.value)}
                           className="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] focus:outline-none focus:border-small-orange text-sm" />
                       </div>
                       <div className="flex-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]/30 block mb-1">Max Points</label>
+                        <label className={`${TYPE.labelSm} font-black text-[var(--text-primary)]/30 block mb-1`}>Max Points</label>
                         <input type="number" min={1} value={a.maxPoints} onChange={e => updateAssignment(a.id, 'maxPoints', +e.target.value)}
                           className="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] focus:outline-none focus:border-small-orange text-sm" />
                       </div>
@@ -1141,7 +1142,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
               
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Module Name</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Module Name</label>
                   <input 
                     type="text" 
                     value={newModule.name}
@@ -1151,7 +1152,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Experience Route/ID (Internal)</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Experience Route/ID (Internal)</label>
                   <input 
                     type="text" 
                     value={newModule.url}
@@ -1161,7 +1162,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Description</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Description</label>
                   <textarea 
                     value={newModule.description}
                     onChange={(e) => setNewModule({...newModule, description: e.target.value})}
@@ -1171,7 +1172,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]/40 block mb-2">Cover Art URL</label>
+                  <label className="type-label-md text-[var(--text-primary)]/40 block mb-2">Cover Art URL</label>
                   <input 
                     type="text" 
                     value={newModule.coverArt}

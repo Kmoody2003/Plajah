@@ -155,8 +155,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/25 mb-6"
           >
             <FlaskConical size={11} className="text-[#00B4D8]" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-[#00B4D8]">Plajah Labs</span>
-            <span className="px-1.5 py-0.5 bg-[#00B4D8]/20 rounded-full text-[7px] font-black uppercase text-[#00B4D8]">Beta</span>
+            <span className={`${TYPE.labelSm} text-[#00B4D8]`}>Plajah Labs</span>
+            <span className={`px-1.5 py-0.5 bg-[#00B4D8]/20 rounded-full ${TYPE.labelSm} text-[#00B4D8]`}>Beta</span>
           </motion.div>
 
           <motion.h1
@@ -189,8 +189,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
               { label: 'Researchers',      value: '12K+'  },
             ].map(s => (
               <div key={s.label}>
-                <p className="text-2xl lg:text-3xl font-black" style={{ color: '#00B4D8' }}>{s.value}</p>
-                <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest">{s.label}</p>
+                <p className="type-headline-md font-black" style={{ color: '#00B4D8' }}>{s.value}</p>
+                <p className={`${TYPE.labelSm} text-white/25`}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -240,11 +240,11 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
       <div className="px-6 py-8 max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <Radio size={14} className="text-[#00B4D8]" />
-          <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Science Live Hub</p>
+          <p className={`${TYPE.labelSm} text-white/30`}>Science Live Hub</p>
           <div className="h-px flex-1 bg-white/5" />
           <button
             onClick={() => onNavigate('LIVE_HUB' as AppView)}
-            className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[#00B4D8] hover:opacity-70 transition-opacity"
+            className={`tap flex items-center gap-1 ${TYPE.labelSm} text-[#00B4D8] hover:opacity-70 transition-opacity`}
           >
             See all <ChevronRight size={10} />
           </button>
@@ -254,7 +254,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
         <div className="flex flex-wrap gap-2 mb-5">
           <button
             onClick={() => setActiveLivesCat('ALL')}
-            className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${activeLivesCat === 'ALL' ? 'bg-[#00B4D8] text-white' : 'bg-white/5 text-white/30 hover:text-white border border-white/8'}`}
+            className={`px-3 py-1 rounded-full ${TYPE.labelSm} transition-all ${activeLivesCat === 'ALL' ? 'bg-[#00B4D8] text-white' : 'bg-white/5 text-white/30 hover:text-white border border-white/8'}`}
           >
             All
           </button>
@@ -262,7 +262,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             <button
               key={cat.id}
               onClick={() => setActiveLivesCat(cat.id)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${activeLivesCat === cat.id ? 'text-white' : 'bg-white/5 text-white/30 hover:text-white border border-white/8'}`}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full ${TYPE.labelSm} transition-all ${activeLivesCat === cat.id ? 'text-white' : 'bg-white/5 text-white/30 hover:text-white border border-white/8'}`}
               style={activeLivesCat === cat.id ? { backgroundColor: cat.accent } : {}}
             >
               {cat.emoji} {cat.label}
@@ -296,7 +296,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                     {stream.isLive ? 'Live 24/7' : 'Event'}
                   </div>
                   {!stream.isEmbeddable && (
-                    <div className="absolute top-2 right-2 p-1 bg-black/40 rounded-full">
+                    <div className="absolute top-2 right-2 tap p-1 bg-black/40 rounded-full">
                       <ExternalLink size={10} className="text-white/50" />
                     </div>
                   )}
@@ -314,9 +314,9 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
       {/* Fullscreen stream overlay */}
       {fullScreenStream && (
         <div className="fixed inset-0 z-[500] bg-black flex flex-col">
-          <div className="flex items-center justify-between px-6 py-4 bg-black/80 backdrop-blur border-b border-white/8 shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 bg-black/80 backdrop-blur border-b border-white/8 shrink-0" style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}>
             <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-[#00B4D8]">{fullScreenStream.source}</p>
+              <p className={`${TYPE.labelSm} text-[#00B4D8]`}>{fullScreenStream.source}</p>
               <p className="text-sm font-black text-white">{fullScreenStream.title}</p>
             </div>
             <div className="flex items-center gap-3">
@@ -325,7 +325,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                 <ExternalLink size={11} /> Open Source
               </a>
               <button onClick={() => setFullScreenStream(null)}
-                className="p-2 bg-white/8 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                className="tap p-2 bg-white/8 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
                 ✕
               </button>
             </div>
@@ -343,8 +343,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Disciplines grid ─────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-4">Explore Disciplines</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Explore Disciplines</p>
+        <AdaptiveGrid phone={2} tablet={4} desktop={6} gap="0.5rem">
           {DISCIPLINES.map(disc => {
             const Icon = disc.icon;
             const isActive = activeDisc === disc.id;
@@ -360,21 +360,21 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                 }}
               >
                 <Icon size={20} className="mx-auto mb-2" style={{ color: disc.color }} />
-                <p className="text-[9px] font-black text-white uppercase tracking-wide leading-tight">{disc.label}</p>
-                <p className="text-[8px] text-white/22 mt-0.5 hidden sm:block">{disc.desc}</p>
+                <p className={`${TYPE.labelSm} text-white leading-tight`}>{disc.label}</p>
+                <p className="type-body-sm text-white/22 mt-0.5 hidden sm:block">{disc.desc}</p>
                 {mappedId && (
-                  <p className="text-[7px] text-white/15 mt-1 hidden sm:block uppercase tracking-widest">Explore →</p>
+                  <p className={`${TYPE.labelSm} text-white/15 mt-1 hidden sm:block`}>Explore →</p>
                 )}
               </button>
             );
           })}
-        </div>
+        </AdaptiveGrid>
       </div>
 
       {/* ── Labs Toolkit ─────────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-4">Labs Toolkit</p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Labs Toolkit</p>
+        <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1rem">
           {TOOLS.map((tool, i) => {
             const Icon = tool.icon;
             return (
@@ -404,7 +404,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
               </motion.div>
             );
           })}
-        </div>
+        </AdaptiveGrid>
       </div>
 
       {/* ── Research Manifesto CTA — admin only ─────────────────────────── */}
@@ -440,12 +440,12 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
       <div className="px-6 pb-16 max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <FlaskConical size={14} className="text-[#00B4D8]" />
-          <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Researcher Toolkit</p>
+          <p className={`${TYPE.labelSm} text-white/30`}>Researcher Toolkit</p>
           <div className="h-px flex-1 bg-white/5" />
-          <span className="px-2 py-0.5 bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/25 rounded-full text-[7px] font-black uppercase tracking-widest">All Live</span>
+          <span className={`px-2 py-0.5 bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/25 rounded-full ${TYPE.labelSm}`}>All Live</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="1rem">
           {[
             {
               key: 'notebook' as const,
@@ -549,10 +549,10 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
               <p className="text-[10px] text-white/35 leading-relaxed">Live earthquake maps, arXiv submission trends, NASA NEO data, and more — one per discipline. All shareable to the Plajah feed.</p>
             </div>
           </motion.button>
-        </div>
+        </AdaptiveGrid>
 
         {/* arXiv + OpenStax live call-out */}
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem" className="mt-5">
           <div className="p-4 bg-white/[0.02] border border-white/6 rounded-2xl flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-[#B31B1B]/10 border border-[#B31B1B]/20 flex items-center justify-center shrink-0 text-base">📄</div>
             <div>
@@ -569,7 +569,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             </div>
             <button onClick={() => setOpenDiscipline('biology')} className="shrink-0 flex items-center gap-1 px-3 py-2 bg-[#6D9700]/15 border border-[#6D9700]/25 rounded-xl text-[8px] font-black text-white/60 hover:text-white transition-all uppercase">Read <ChevronRight size={9} /></button>
           </div>
-        </div>
+        </AdaptiveGrid>
       </div>
     </div>
   );

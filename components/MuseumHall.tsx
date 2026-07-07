@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, X, ExternalLink, Play, Landmark } from 'lucide-react';
 import AssetActions from './AssetActions';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MuseumHall — a reusable "hall of greats" engine.
@@ -92,8 +93,8 @@ const FigureCard: React.FC<{ figure: MuseumFigure; accent: string; onOpen: () =>
           : <div className="w-full h-full flex items-center justify-center"><Star size={26} className="text-white/10" /></div>}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
         <div className="absolute bottom-2 left-2.5 right-2.5">
-          <p className="text-[11px] font-black uppercase tracking-tight text-white leading-none line-clamp-1">{figure.name}</p>
-          <p className="text-[7px] font-bold uppercase tracking-widest mt-1" style={{ color: accent }}>
+          <p className="type-body-sm font-black uppercase tracking-tight text-white leading-none line-clamp-1">{figure.name}</p>
+          <p className={`${TYPE.labelSm} font-bold mt-1`} style={{ color: accent }}>
             {[figure.role, figure.era].filter(Boolean).join(' · ')}
           </p>
         </div>
@@ -111,7 +112,7 @@ const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; shareDiscipl
       <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
         onClick={e => e.stopPropagation()}
         className="relative w-full max-w-lg rounded-3xl overflow-hidden border border-white/12 bg-[#0d0d12] max-h-[88vh] overflow-y-auto scrollbar-hide">
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70"><X size={14} /></button>
+        <button onClick={onClose} className="tap absolute z-10 w-8 h-8 rounded-full bg-black/50 border border-white/15 flex items-center justify-center hover:bg-black/70" style={{ top: 'max(0.75rem, env(safe-area-inset-top))', right: 'max(0.75rem, env(safe-area-inset-right))' }}><X size={14} /></button>
         <div className="aspect-[16/10] bg-white/5 relative">
           {thumb && <img src={thumb} alt={figure.name} className="w-full h-full object-cover object-top" />}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d12] via-transparent to-transparent" />
@@ -119,26 +120,26 @@ const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; shareDiscipl
         <div className="p-5 -mt-10 relative">
           <h2 className="text-2xl font-black uppercase tracking-tight">{figure.name}</h2>
           <div className="flex flex-wrap gap-2 mt-2">
-            {figure.role && <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase" style={{ background: `${accent}26`, border: `1px solid ${accent}4d`, color: accent }}>{figure.role}</span>}
-            {figure.era && <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{figure.era}</span>}
-            {figure.nationality && <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{figure.nationality}</span>}
-            {figure.years && <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-black uppercase text-white/50">{figure.years}</span>}
+            {figure.role && <span className={`px-2.5 py-1 rounded-full ${TYPE.labelSm} font-black`} style={{ background: `${accent}26`, border: `1px solid ${accent}4d`, color: accent }}>{figure.role}</span>}
+            {figure.era && <span className={`px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black text-white/50`}>{figure.era}</span>}
+            {figure.nationality && <span className={`px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black text-white/50`}>{figure.nationality}</span>}
+            {figure.years && <span className={`px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${TYPE.labelSm} font-black text-white/50`}>{figure.years}</span>}
           </div>
           {figure.tagline && <p className="mt-3 text-sm font-bold leading-relaxed" style={{ color: `${accent}e6` }}>{figure.tagline}</p>}
           {extract && <p className="mt-3 text-sm text-white/55 leading-relaxed">{extract}</p>}
 
           {figure.works && figure.works.length > 0 && (
             <div className="mt-4">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-2">Signature Works</p>
+              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/35 mb-2`}>Signature Works</p>
               <div className="flex flex-wrap gap-1.5">
-                {figure.works.map(w => <span key={w} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 text-[11px] text-white/70">{w}</span>)}
+                {figure.works.map(w => <span key={w} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/8 type-body-sm text-white/70">{w}</span>)}
               </div>
             </div>
           )}
 
           {figure.techniques && figure.techniques.length > 0 && (
             <div className="mt-4">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-2">Craft &amp; Contribution</p>
+              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/35 mb-2`}>Craft &amp; Contribution</p>
               <ul className="space-y-1">
                 {figure.techniques.map(t => (
                   <li key={t} className="text-[12px] text-white/60 leading-relaxed flex gap-2">
@@ -151,7 +152,7 @@ const FigureModal: React.FC<{ figure: MuseumFigure; accent: string; shareDiscipl
 
           {figure.docs && figure.docs.length > 0 && (
             <div className="mt-4">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/35 mb-2">Documentaries</p>
+              <p className={`${TYPE.labelSm} font-black tracking-[0.3em] text-white/35 mb-2`}>Documentaries</p>
               <div className="space-y-1.5">
                 {figure.docs.map(d => (
                   d.videoId
@@ -208,8 +209,8 @@ const DocModal: React.FC<{ videoId: string; title: string; onClose: () => void }
       className="fixed inset-0 z-[130] bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-4xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[11px] font-black uppercase tracking-widest text-white/70">{title}</p>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><X size={14} /></button>
+          <p className={`${TYPE.labelSm} font-black text-white/70`}>{title}</p>
+          <button onClick={onClose} className="tap w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><X size={14} /></button>
         </div>
         <div className="aspect-video rounded-2xl overflow-hidden border border-white/12 bg-black">
           <iframe title={title} className="w-full h-full" src={`https://www.youtube.com/embed/${videoId}?autoplay=1`} allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
@@ -234,8 +235,8 @@ const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, f
       {/* Museum header */}
       <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-black/60 via-[#0d0d12] to-black p-5 sm:p-6 relative overflow-hidden">
         <div className="absolute -right-8 -top-8 opacity-10"><Icon size={140} className="text-white" /></div>
-        <p className="text-[8px] font-black uppercase tracking-[0.4em]" style={{ color: accent }}>{eyebrow}</p>
-        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mt-1">{title}</h1>
+        <p className={`${TYPE.labelSm} font-black tracking-[0.4em]`} style={{ color: accent }}>{eyebrow}</p>
+        <h1 className="font-black uppercase tracking-tight mt-1" style={{ fontSize: 'clamp(1.5rem, 5vw, 1.875rem)' }}>{title}</h1>
         {intro && <p className="text-sm text-white/45 mt-1.5 max-w-2xl">{intro}</p>}
       </div>
 
@@ -245,7 +246,7 @@ const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, f
           const active = activeHall === h.id;
           return (
             <button key={h.id} onClick={() => setActiveHall(h.id)}
-              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border"
+              className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full ${TYPE.labelSm} font-black transition-all border`}
               style={active
                 ? { background: accent, color: '#000', borderColor: 'transparent' }
                 : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
@@ -258,9 +259,9 @@ const MuseumHall: React.FC<MuseumHallProps> = ({ eyebrow, title, intro, halls, f
       {hall?.blurb && <p className="text-[12px] text-white/40 leading-relaxed -mt-1">{hall.blurb}</p>}
 
       {/* Figure grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="0.75rem">
         {shown.map(f => <FigureCard key={f.id} figure={f} accent={accent} onOpen={() => setOpen(f)} />)}
-      </div>
+      </AdaptiveGrid>
       {shown.length === 0 && (
         <div className="py-24 text-center rounded-3xl border border-white/8 bg-white/[0.02]">
           <Star size={32} className="mx-auto text-white/10 mb-3" />

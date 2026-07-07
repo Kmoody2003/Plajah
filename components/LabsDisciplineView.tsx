@@ -18,6 +18,7 @@ import {
   PapersWithCodePaper, OPENSTAX_BOOKS, textbookToAlbum,
 } from '../services/labsApiService';
 import { Album, Post } from '../types';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import { listenToGlobalPosts, createPost, auth } from '../services/backendService';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
@@ -71,7 +72,7 @@ const SOURCE_META: Record<string, { label: string; color: string }> = {
 const SourceBadge: React.FC<{ source: string; className?: string }> = ({ source, className = '' }) => {
   const meta = SOURCE_META[source] ?? { label: source, color: '#94a3b8' };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${className}`}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full ${TYPE.labelSm} ${className}`}
       style={{ background: `${meta.color}18`, color: meta.color, border: `1px solid ${meta.color}30` }}>
       {meta.label}
     </span>
@@ -182,11 +183,11 @@ const PaperCard: React.FC<{
             {dateStr && <span className="text-[8px] text-white/20 font-mono">{dateStr}</span>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={copyLink} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white/30 hover:text-white">
+            <button onClick={copyLink} className="tap p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white/30 hover:text-white">
               {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
             </button>
             <a href={link} target="_blank" rel="noreferrer"
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white/30 hover:text-white">
+              className="tap p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white/30 hover:text-white">
               <ExternalLink size={10} />
             </a>
           </div>
@@ -248,7 +249,7 @@ const StatChip: React.FC<{
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     onClick={onClick}
-    className={`flex-shrink-0 p-4 bg-white/[0.04] border border-white/8 rounded-2xl min-w-[140px] ${onClick ? 'cursor-pointer hover:border-white/20 transition-all' : ''}`}
+    className={`flex-shrink-0 p-4 bg-white/[0.04] border border-white/8 rounded-2xl min-w-[120px] sm:min-w-[140px] ${onClick ? 'cursor-pointer hover:border-white/20 transition-all' : ''}`}
   >
     <div className="flex items-center gap-1.5 mb-2">
       {live && (
@@ -257,7 +258,7 @@ const StatChip: React.FC<{
           <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-400" />
         </span>
       )}
-      <p className="text-[8px] font-black uppercase tracking-widest text-white/30">{label}</p>
+      <p className={`${TYPE.labelSm} text-white/30`}>{label}</p>
     </div>
     <p className="text-2xl font-black leading-none" style={{ color, fontVariantNumeric: 'tabular-nums' }}>
       {value}{unit && <span className="text-sm ml-1 text-white/30 font-mono">{unit}</span>}
@@ -572,7 +573,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
               <Icon size={28} style={{ color: meta.color }} />
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: meta.color }}>
+              <p className={`${TYPE.labelSm} tracking-[0.3em] mb-1`} style={{ color: meta.color }}>
                 Plajah Labs · {meta.label}
               </p>
               <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-white leading-none">
@@ -587,7 +588,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
           <div className="flex flex-wrap gap-2 mb-8">
             {meta.keywords.map(k => (
               <button key={k} onClick={() => { setSearch(k); }}
-                className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all"
+                className={`tap px-3 py-1 rounded-full ${TYPE.labelSm} transition-all`}
                 style={{ background: `${meta.color}12`, color: meta.color, border: `1px solid ${meta.color}25` }}>
                 {k}
               </button>
@@ -613,7 +614,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
               <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-400" />
             </span>
-            <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Live Data</p>
+            <p className={`${TYPE.labelSm} text-white/30`}>Live Data</p>
             <span className="text-[8px] text-white/15 font-mono">Updated {new Date(data.fetchedAt).toLocaleTimeString()}</span>
           </div>
           <div ref={stripRef} className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
@@ -664,11 +665,11 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
       {/* ── LOADING ── */}
       {loading && (
         <div className="px-6 max-w-5xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <AdaptiveGrid phone={2} tablet={2} desktop={4} gap="0.75rem" className="mb-8">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-20 bg-white/[0.04] border border-white/6 rounded-2xl animate-pulse" />
             ))}
-          </div>
+          </AdaptiveGrid>
         </div>
       )}
 
@@ -692,7 +693,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             const TIcon = t.icon as any;
             return (
               <button key={t.key} onClick={() => setContentTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all shrink-0 ${contentTab === t.key ? 'text-black' : 'text-white/30 hover:text-white'}`}
+                className={`tap flex items-center gap-2 px-4 py-2.5 rounded-xl ${TYPE.labelSm} whitespace-nowrap transition-all shrink-0 ${contentTab === t.key ? 'text-black' : 'text-white/30 hover:text-white'}`}
                 style={contentTab === t.key ? { background: meta.color } : {}}>
                 <TIcon size={11} />{t.label}
                 {t.count ? <span className={`text-[8px] ${contentTab === t.key ? 'text-black/50' : 'text-white/20'}`}>{t.count}</span> : null}
@@ -744,7 +745,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
         {contentTab === 'visualize' && (
           <div>
             <div className="mb-5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Live Data Visualizations</p>
+              <p className={`${TYPE.labelSm} text-white/30 mb-1`}>Live Data Visualizations</p>
               <p className="text-[9px] text-white/20 leading-relaxed">
                 Real-time charts and maps pulled from {meta.label} data sources. All shareable to the Plajah community feed.
               </p>
@@ -769,7 +770,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <span className="relative flex w-1.5 h-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" /><span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-400" /></span>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Live Seismic Activity · USGS</p>
+                    <p className={`${TYPE.labelSm} text-white/40`}>Live Seismic Activity · USGS</p>
                   </div>
                   <a href="https://earthquake.usgs.gov/earthquakes/map/" target="_blank" rel="noreferrer"
                     className="text-[8px] text-white/20 hover:text-white/40 font-black uppercase tracking-widest flex items-center gap-1">
@@ -786,15 +787,15 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             {data?.cernRecords && data.cernRecords.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">CERN Open Data Portal</p>
+                  <p className={`${TYPE.labelSm} text-white/40`}>CERN Open Data Portal</p>
                   <a href="https://opendata.cern.ch" target="_blank" rel="noreferrer"
                     className="text-[8px] text-white/20 hover:text-white/40 font-black uppercase tracking-widest flex items-center gap-1">
                     Browse all <ExternalLink size={9} />
                   </a>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="0.75rem">
                   {data.cernRecords.map((r, i) => <CERNCard key={r.id} record={r} index={i} />)}
-                </div>
+                </AdaptiveGrid>
               </div>
             )}
 
@@ -815,7 +816,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             {data?.hfModels && data.hfModels.length > 0 ? (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                  <p className={`${TYPE.labelSm} text-white/40`}>
                     Hugging Face · {cfg.hfTasks?.[0]?.replace(/-/g, ' ') ?? 'Top Models'} · Sorted by Downloads
                   </p>
                   <a href={`https://huggingface.co/models?pipeline_tag=${cfg.hfTasks?.[0]}&sort=downloads`} target="_blank" rel="noreferrer"
@@ -843,7 +844,7 @@ const LabsDisciplineView: React.FC<LabsDisciplineViewProps> = ({ disciplineId, o
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Open Access Textbooks · OpenStax</p>
+                  <p className={`${TYPE.labelSm} text-white/40`}>Open Access Textbooks · OpenStax</p>
                   <p className="text-[8px] text-white/20 mt-0.5">Peer-reviewed · Free forever · CC licensed · Used by 223M+ students</p>
                 </div>
                 <a href="https://openstax.org/subjects" target="_blank" rel="noreferrer"
