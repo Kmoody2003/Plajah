@@ -283,6 +283,7 @@ const THEME_BG: Record<string, string> = {
   ].join(','),
 };
 import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig } from './services/backendService';
+import { initFeatureFlagListener } from './services/featureFlagService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Cctv } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -376,6 +377,9 @@ const App: React.FC = () => {
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
+  // Load platform feature flags (config/featureFlags) + live-update — without this,
+  // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
+  useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
   const [fanRoomMatchId, setFanRoomMatchId] = useState<string | undefined>(undefined);
   const [fanRoomMatch, setFanRoomMatch] = useState<any | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | undefined>(roomParam || undefined);

@@ -86,6 +86,7 @@ import {
   migratePostsToFeed
 } from '../services/backendService';
 import { analyzeThemeBackground } from '../services/geminiService';
+import { getFlag, updateFlag } from '../services/featureFlagService';
 import { fetchAllAchievements, createAchievement, updateAchievement, deactivateAchievement } from '../services/achievementService';
 import { Achievement } from '../types';
 import FileUploader from './FileUploader';
@@ -109,7 +110,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
-  
+  const [contentLicensingOn, setContentLicensingOn] = useState(false);
+  useEffect(() => {
+    const read = () => setContentLicensingOn(getFlag('CONTENT_LICENSING').enabled);
+    read();
+    const t = setTimeout(read, 1500); // give the flag listener time to load config/featureFlags
+    return () => clearTimeout(t);
+  }, []);
+
   // Curated Content State
   const [allPlaylists, setAllPlaylists] = useState<Playlist[]>([]);
   const [allVideoPlaylists, setAllVideoPlaylists] = useState<VideoPlaylist[]>([]);
@@ -1725,6 +1733,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                         className={`w-14 h-8 rounded-full transition-all ${systemSettings?.crossoverEnabled !== false ? 'bg-green-500' : 'bg-white/10'}`}
                       >
                         <div className={`w-6 h-6 bg-white rounded-full transition-transform ${systemSettings?.crossoverEnabled !== false ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-2xl">
+                      <div>
+                        <span className="font-bold text-sm tracking-wide">Content Licensing</span>
+                        <p className="text-white/40 text-xs mt-1 normal-case tracking-normal font-normal">Creative-Commons licenses + Fabula music sync-licensing marketplace. ON = live for all users.</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const next = !contentLicensingOn;
+                          setContentLicensingOn(next);
+                          try { await updateFlag('CONTENT_LICENSING', { enabled: next, adminOnly: false, rolloutPercentage: 100 }, currentUser?.uid || ''); }
+                          catch { setContentLicensingOn(!next); }
+                        }}
+                        className={`w-14 h-8 rounded-full transition-all ${contentLicensingOn ? 'bg-green-500' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform ${contentLicensingOn ? 'translate-x-7' : 'translate-x-1'}`} />
                       </button>
                     </div>
                   </div>
