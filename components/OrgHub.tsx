@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
+import ContentHQ from './ContentHQ';
 import ChurchGive from './ChurchGive';
 import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
@@ -246,6 +247,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [studio, setStudio] = useState(false);
   const [master, setMaster] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
+  const [contentHq, setContentHq] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
@@ -267,6 +269,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }
   if (showConsole && isOwner) {
     return <ChurchConsole church={org} onClose={() => setShowConsole(false)} />;
+  }
+  if (contentHq && isOwner) {
+    return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={isOwner} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
   }
 
   return (
@@ -305,6 +310,15 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-white"><Globe size={13} /> Website</a>}
           {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
         </div>
+
+        {/* Owner tools available to every org type */}
+        {isOwner && (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
+              <HardDrive size={14} className="text-small-orange" /> Content HQ
+            </button>
+          </div>
+        )}
 
         {/* Church vertical — plan your visit + ministries + give */}
         {org.orgType === 'CHURCH' && (

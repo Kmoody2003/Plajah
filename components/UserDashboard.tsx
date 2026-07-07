@@ -34,6 +34,7 @@ import { motion } from 'motion/react';
 
 import AlbumCreator from './AlbumCreator';
 import ContentAssetManager from './ContentAssetManager';
+import { HqFilesTab } from './ContentHQ';
 import InterestsNotebook from './InterestsNotebook';
 import MailingListManager from './MailingListManager';
 import FileUploader from './FileUploader';
@@ -1388,6 +1389,17 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                       </motion.button>
                     ))}
                   </div>
+                </div>
+              </section>
+
+              {/* Content HQ — a private DAM for files, brand specs, and documents (per-account) */}
+              <section className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <p className="text-base font-black uppercase tracking-tight text-white">Content HQ</p>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Private files & docs</span>
+                </div>
+                <div className="h-[520px] rounded-[1.75rem] border border-white/10 bg-white/[0.02] p-5 overflow-hidden">
+                  <HqFilesTab scope={{ kind: 'user', id: user.uid }} canEdit={true} />
                 </div>
               </section>
 

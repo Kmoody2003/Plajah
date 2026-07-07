@@ -1480,6 +1480,25 @@ service cloud.firestore {
       );
     }
 
+    // ── Content HQ — private DAM assets (files/docs/brand specs) ──────────────
+    // scopeKind 'user' → the account owner; scopeKind 'org' → the org's admins/creator.
+    match /orgAssets/{assetId} {
+      function cxScopeOk(data) {
+        return isAuthenticated() && (
+          (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
+          (data.scopeKind == 'org' && (
+            request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
+            get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid
+          )) ||
+          isAdmin()
+        );
+      }
+      allow read: if cxScopeOk(resource.data);
+      allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid;
+      allow update: if cxScopeOk(resource.data) && cxScopeOk(request.resource.data);
+      allow delete: if cxScopeOk(resource.data);
+    }
+
     // Church/org prayer wall.
     match /churchPrayers/{prayerId} {
       allow read: if isAuthenticated();
