@@ -32,9 +32,15 @@ const MAX_BPM = 200;
  *  go through Plajah's /api/proxy so decodeAudioData isn't blocked by CORS. */
 export async function decodeMono(url: string, signal?: AbortSignal): Promise<{ data: Float32Array; sampleRate: number; duration: number }> {
   const sameOrigin = url.startsWith('/') || url.startsWith(location.origin);
-  const fetchUrl = sameOrigin || !/^https?:\/\//i.test(url) ? url : `/api/proxy?url=${encodeURIComponent(url)}`;
-  const res = await fetch(fetchUrl, { signal });
-  if (!res.ok) throw new Error(`audio fetch ${res.status}`);
+  // Audius stream URLs (and other CORS-open audio) must be fetched DIRECTLY: the
+  // /api/proxy chokes on Audius's 302→streaming redirect (500), while a direct fetch
+  // decodes fine (Audius sends CORS). Proxy stays the default for CORS-restricted sources.
+  const corsOpen = /\/v1\/tracks\/[^/]+\/stream/i.test(url) || /(^|[./])audius\b/i.test(url);
+  const proxied = !sameOrigin && /^https?:\/\//i.test(url) && !corsOpen;
+  let res = await fetch(proxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url, { signal }).catch(() => null as Response | null);
+  // If the proxy failed, the source may actually be CORS-open — try it directly.
+  if ((!res || !res.ok) && proxied) res = await fetch(url, { signal }).catch(() => res);
+  if (!res || !res.ok) throw new Error(`audio fetch ${res?.status ?? 'failed'}`);
   const arrayBuf = await res.arrayBuffer();
   const Ctx: typeof OfflineAudioContext = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext;
   // Temp context just to decode (length/rate are placeholders).
