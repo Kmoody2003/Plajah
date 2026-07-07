@@ -808,7 +808,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div
-      className="h-full flex overflow-hidden relative pb-20 lg:pb-0"
+      className="h-full flex overflow-hidden relative pb-20 md:pb-0"
       style={currentRoomIsIntimate ? { background: INTIMATE_STYLE.bg } : {}}
     >
       {/* Intimate ambient glow */}
@@ -819,10 +819,10 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
         </div>
       )}
 
-      {/* ── LEFT SIDEBAR ─────────────────────────────────────────────────── */}
-      <div className={`w-full lg:w-80 xl:w-96 border-r flex flex-col z-10 ${
+      {/* ── LEFT SIDEBAR — full-width room list on phone; fixed panel at md+ ── */}
+      <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col z-10 ${
         currentRoomIsIntimate ? 'border-rose-900/30 bg-black/20 backdrop-blur-xl' : 'border-white/[0.06] bg-black/20 backdrop-blur-xl'
-      } ${activeRoom || activeCollabId || mainView !== 'CHAT_LIST' ? 'hidden lg:flex' : 'flex'}`}>
+      } ${activeRoom || activeCollabId || mainView !== 'CHAT_LIST' ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Invite Friends panel */}
         {mainView === 'INVITE_FRIENDS' && (
@@ -986,8 +986,8 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
         )}
       </div>
 
-      {/* ── MAIN CHAT AREA ───────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      {/* ── MAIN CHAT AREA — hidden on phone until a room is open (single-pane) ── */}
+      <div className={`${activeRoom || activeCollabId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 relative z-10`}>
         {activeCollabId ? (
           <CollaboBoard projectId={activeCollabId} onBack={() => setActiveCollabId(null)} />
         ) : activeRoom ? (

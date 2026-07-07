@@ -737,13 +737,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <Video size={17} />
           </button>
           {walkiePeerUid && uid && (
-            <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+            <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`hidden sm:flex p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <Radio size={17} />
             </button>
           )}
           <button
             onClick={() => setShowCollabMenu(p => !p)}
-            className={`p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+            className={`hidden sm:flex p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
           >
             <Layers size={17} />
           </button>
@@ -760,14 +760,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   className="absolute right-0 top-full mt-2 bg-[#111] border border-white/10 rounded-2xl p-2 z-50 shadow-2xl min-w-[160px]"
                 >
                   {[
-                    { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p) },
-                    { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); } },
-                    { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); } },
-                  ].map(({ icon: Icon, label, action }) => (
+                    // Walkie + Collab live in the header on tablet+, but are hidden on phone — surface them here.
+                    ...(walkiePeerUid && uid ? [{ icon: Radio, label: 'Two-Way', action: () => setShowWalkie(p => !p), phoneOnly: true }] : []),
+                    { icon: Layers, label: 'Collab Boards', action: () => setShowCollabMenu(p => !p), phoneOnly: true },
+                    { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p), phoneOnly: false },
+                    { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
+                    { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
+                  ].map(({ icon: Icon, label, action, phoneOnly }) => (
                     <button
                       key={label}
                       onClick={() => { action(); setShowMoreMenu(false); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left"
+                      className={`${phoneOnly ? 'flex sm:hidden' : 'flex'} w-full items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left`}
                     >
                       <Icon size={14} className="text-white/40" />
                       <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
@@ -1118,7 +1121,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     ) : (
                       <div className="space-y-2">
                         <div className="relative">
-                          <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[260px] max-h-[340px] object-cover" loading="lazy" />
+                          <img src={msg.imageUrl} alt="" className="rounded-xl max-w-[min(260px,72vw)] max-h-[340px] object-cover" loading="lazy" />
                           {isIntimate && (
                             // Faint identity watermark — makes any leaked capture traceable.
                             <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden rounded-xl">
