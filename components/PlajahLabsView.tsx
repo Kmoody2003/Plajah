@@ -8,6 +8,7 @@ import {
   Landmark, Building2, Amphora,
 } from 'lucide-react';
 import { UserProfile, AppView } from '../types';
+import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import { SCIENCE_STREAMS, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 import LabsDisciplineView from './LabsDisciplineView';
 const ArchitectureDisciplineView = React.lazy(() => import('./ArchitectureDisciplineView'));
@@ -162,7 +163,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.07 }}
-            className="text-5xl lg:text-[7rem] font-black uppercase tracking-tighter leading-[0.85] mb-5"
+            style={{ fontSize: 'clamp(2.75rem, 11vw, 7rem)' }}
+            className="font-black uppercase tracking-tighter leading-[0.85] mb-5"
           >
             <span className="text-white">Plajah</span>{' '}
             <span className="bg-gradient-to-r from-[#00B4D8] to-[#90E0EF] bg-clip-text text-transparent">Labs</span>
@@ -172,7 +174,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.13 }}
-            className="text-white/45 max-w-2xl text-sm lg:text-base leading-relaxed mb-8"
+            className="type-body-lg text-white/45 max-w-2xl mb-8"
           >
             A dedicated landing board for the scientific, engineering, and academic communities.
             Discover research, connect with peers, explore STEM content, and build on the shoulders of giants.
@@ -209,8 +211,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
 
       {/* ── Connected Resources ──────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-4">Connected Resources</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <p className={`${TYPE.labelSm} text-white/30 mb-4`}>Connected Resources</p>
+        <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="0.75rem">
           {PLATFORM_CONNECTIONS.map(conn => {
             const Icon = conn.icon;
             return (
@@ -225,13 +227,13 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
                 >
                   <Icon size={16} style={{ color: conn.color }} />
                 </div>
-                <p className="text-xs font-black text-white mb-0.5">{conn.label}</p>
-                <p className="text-[10px] text-white/30 leading-tight">{conn.desc}</p>
+                <p className={`${TYPE.titleSm} text-white mb-0.5`}>{conn.label}</p>
+                <p className="type-body-sm text-white/30 leading-tight">{conn.desc}</p>
                 <ChevronRight size={11} className="mt-2 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all" />
               </button>
             );
           })}
-        </div>
+        </AdaptiveGrid>
       </div>
 
       {/* ── Science Live Hub ─────────────────────────────────────────────── */}

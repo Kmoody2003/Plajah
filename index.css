@@ -586,6 +586,54 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-t
   /* M3 border */
   --m3-border: rgba(255,255,255,0.09);
   --m3-border-strong: rgba(255,255,255,0.15);
+
+  /* ── Material 3 Expressive type scale ──────────────────────────────────────
+     Fluid via clamp() so headings scale DOWN on phones automatically. Opt-in:
+     applied only through the .type-* utilities (below) / TYPE.* in designSystem,
+     so nothing that doesn't adopt them is affected. */
+  --type-display-lg: clamp(2.25rem, 7vw, 3.5rem);
+  --type-display-md: clamp(2rem, 6vw, 2.8rem);
+  --type-display-sm: clamp(1.75rem, 5vw, 2.25rem);
+  --type-headline-lg: clamp(1.6rem, 4.5vw, 2rem);
+  --type-headline-md: clamp(1.4rem, 4vw, 1.75rem);
+  --type-headline-sm: clamp(1.25rem, 3.5vw, 1.5rem);
+  --type-title-lg: 1.375rem;
+  --type-title-md: 1rem;
+  --type-title-sm: 0.875rem;
+  --type-body-lg: 1rem;
+  --type-body-md: 0.875rem;
+  --type-body-sm: 0.8125rem;
+  --type-label-lg: 0.875rem;
+  --type-label-md: 0.75rem;
+  --type-label-sm: 0.6875rem;
+}
+
+/* ─── M3 Expressive type-scale utilities + touch targets (mobile foundation) ── */
+@layer utilities {
+  .type-display-lg { font-family: var(--font-display); font-size: var(--type-display-lg); line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; }
+  .type-display-md { font-family: var(--font-display); font-size: var(--type-display-md); line-height: 1.08; font-weight: 900; letter-spacing: -0.02em; }
+  .type-display-sm { font-family: var(--font-display); font-size: var(--type-display-sm); line-height: 1.1;  font-weight: 800; letter-spacing: -0.015em; }
+  .type-headline-lg { font-family: var(--font-display); font-size: var(--type-headline-lg); line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; }
+  .type-headline-md { font-family: var(--font-display); font-size: var(--type-headline-md); line-height: 1.2;  font-weight: 800; letter-spacing: -0.01em; }
+  .type-headline-sm { font-family: var(--font-display); font-size: var(--type-headline-sm); line-height: 1.25; font-weight: 700; }
+  .type-title-lg { font-family: var(--font-label); font-size: var(--type-title-lg); line-height: 1.3; font-weight: 700; }
+  .type-title-md { font-family: var(--font-label); font-size: var(--type-title-md); line-height: 1.4; font-weight: 600; }
+  .type-title-sm { font-family: var(--font-label); font-size: var(--type-title-sm); line-height: 1.4; font-weight: 600; }
+  .type-body-lg { font-family: var(--font-body); font-size: var(--type-body-lg); line-height: 1.55; font-weight: 400; }
+  .type-body-md { font-family: var(--font-body); font-size: var(--type-body-md); line-height: 1.5;  font-weight: 400; }
+  .type-body-sm { font-family: var(--font-body); font-size: var(--type-body-sm); line-height: 1.5;  font-weight: 400; }
+  .type-label-lg { font-family: var(--font-label); font-size: var(--type-label-lg); line-height: 1.35; font-weight: 700; letter-spacing: 0.02em; }
+  .type-label-md { font-family: var(--font-label); font-size: var(--type-label-md); line-height: 1.35; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .type-label-sm { font-family: var(--font-label); font-size: var(--type-label-sm); line-height: 1.35; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* Touch targets — M3 minimum comfortable hit area. Wrap small icon buttons. */
+  .tap    { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .tap-lg { min-width: 48px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Safe-area-aware fixed anchors for floating UI (players, FABs, bottom bars). */
+  .fixed-bottom-safe { bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+  .fixed-left-safe   { left: max(1rem, env(safe-area-inset-left)); }
+  .fixed-right-safe  { right: max(1rem, env(safe-area-inset-right)); }
 }
 
 /* ─── Frosted glass utility classes ──────────────────────────────────────── */

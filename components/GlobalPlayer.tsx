@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useGoogleCast } from '../hooks/useGoogleCast';
+import { useViewport } from '../hooks/useViewport';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones } from 'lucide-react';
 import Logo from './Logo';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -51,8 +52,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   onUpdateUserProfile,
   onOpenAria,
 }) => {
+  const vp = useViewport(); // live breakpoint — reacts to resize/rotate/fold (unlike the static isMobile prop)
   const isBigScreen = theme === 'BIG_SCREEN';
-  const isPhoneMode = theme === 'PHONE' || isMobile;
+  const isPhoneMode = theme === 'PHONE' || isMobile || vp.isPhone;
   const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
   const { 
     currentTrack, 
@@ -347,7 +349,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     return (
       <>
       {/* Expand button removed — use the Controller button in the left sidebar */}
-      <div className={`fixed bottom-8 left-8 z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-30'}`} style={{ perspective: '1200px' }}>
+      <div className={`fixed fixed-bottom-safe fixed-left-safe z-[200] transition-opacity duration-1000 ${isUserActive ? 'opacity-100' : 'opacity-30'}`} style={{ perspective: '1200px' }}>
         <motion.div
           drag
           dragMomentum={true}
