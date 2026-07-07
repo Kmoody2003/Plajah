@@ -408,6 +408,7 @@ export interface Album {
   themeColor: string;
   isPublic?: boolean;
   isPrivate?: boolean; // If true, only accessible in chats/groups or to owner
+  isIntimateOnly?: boolean; // If true, only sendable inside intimate (couples) chats
   publishVideosToGallery?: boolean; // If true, album videos are mirrored to videos collection
   releaseDate?: number; // Timestamp for scheduled release
   isScheduled?: boolean; // Toggle for scheduling

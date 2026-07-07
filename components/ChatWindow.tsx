@@ -20,6 +20,7 @@ import GifStickerPicker from './GifStickerPicker';
 import VoiceRecorder from './VoiceRecorder';
 import WalkieTalkie from './WalkieTalkie';
 import CouplesDiaryView from './CouplesDiaryView';
+import GameMagic8Ball from './GameMagic8Ball';
 import { callItOff } from '../services/intimateGating';
 import { playSendChime, playGiftChime, playHeartPop } from '../services/intimateSoundFX';
 import {
@@ -240,6 +241,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const petName = room.intimatePetName || undefined;
   const [showIntimatePanel, setShowIntimatePanel] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
+  const [show8Ball, setShow8Ball] = useState(false);
   const [petNameDraft, setPetNameDraft] = useState('');
   const [intimateBgBusy, setIntimateBgBusy] = useState(false);
   const intimateBgInputRef = useRef<HTMLInputElement | null>(null);
@@ -777,14 +779,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <button onClick={() => setShowIntimatePanel(false)} className="ml-auto p-1 text-white/30 hover:text-white"><X size={13} /></button>
             </div>
 
-            {/* Shared Diary */}
-            <button
-              onClick={() => { setShowDiary(true); setShowIntimatePanel(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 mb-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              style={{ background: `${intimateTheme.accent}1e`, color: intimateTheme.accent }}
-            >
-              <Heart size={13} fill="currentColor" /> Open Shared Diary
-            </button>
+            {/* Shared Diary + game */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                onClick={() => { setShowDiary(true); setShowIntimatePanel(false); }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                style={{ background: `${intimateTheme.accent}1e`, color: intimateTheme.accent }}
+              >
+                <Heart size={13} fill="currentColor" /> Diary
+              </button>
+              <button
+                onClick={() => { setShow8Ball(true); setShowIntimatePanel(false); }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                style={{ background: `${intimateTheme.accent}1e`, color: intimateTheme.accent }}
+              >
+                <Sparkles size={13} /> 8-Ball
+              </button>
+            </div>
 
             {/* Background */}
             <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1.5">Background</p>
@@ -866,6 +877,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           accent={intimateTheme.accent}
           onClose={() => setShowDiary(false)}
         />
+      )}
+
+      {/* ── MAGIC 8-BALL (hidden inputs) ─────────────────────────────── */}
+      {isIntimate && show8Ball && (
+        <GameMagic8Ball roomId={room.id} accent={intimateTheme.accent} onClose={() => setShow8Ball(false)} />
       )}
 
       {/* ── TWO-WAY (WALKIE-TALKIE) ─────────────────────────────────── */}
@@ -1233,16 +1249,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <button onClick={() => setShowMediaSelector(false)}><X size={16} /></button>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {userMedia.map(media => (
+              {/* Intimate-only music is hidden outside intimate chats (sendable only here). */}
+              {userMedia.filter(m => isIntimate || !m.isIntimateOnly).map(media => (
                 <button key={media.id} onClick={() => handleSendMedia(media)}
                   className="aspect-square rounded-xl overflow-hidden relative group border border-white/10">
                   <img src={media.coverImage || ''} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" loading="lazy" />
+                  {media.isIntimateOnly && (
+                    <div className="absolute top-1 right-1 w-4 h-4 rounded-full grid place-items-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                      <Heart size={8} fill={intimateTheme.accent} stroke="none" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                     <span className="text-[8px] font-black uppercase tracking-widest text-white">{media.title}</span>
                   </div>
                 </button>
               ))}
-              {userMedia.length === 0 && <p className="col-span-3 text-[9px] text-white/20 text-center py-6">No media in library</p>}
+              {userMedia.filter(m => isIntimate || !m.isIntimateOnly).length === 0 && <p className="col-span-3 text-[9px] text-white/20 text-center py-6">No media in library</p>}
             </div>
           </motion.div>
         )}

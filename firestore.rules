@@ -1018,6 +1018,13 @@ service cloud.firestore {
               && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
               && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants);
       }
+
+      // Intimate in-chat games (e.g. Magic 8-Ball) — any room participant may read/write.
+      match /games/{gameId} {
+        allow read, write: if isAuthenticated()
+          && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+          && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+      }
     }
 
     // Shared Couples Diary — private to the two DM participants. Entry text is also

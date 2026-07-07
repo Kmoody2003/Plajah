@@ -10,7 +10,7 @@ import {
   Camera, Film, Tv, Info, Check, Layers, Settings, Twitter, Instagram, Youtube, Music2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minimize2, BookOpen, Gamepad2, Mic2, GripVertical,
   Eye, EyeOff, Loader2, Lock, Pencil, ExternalLink, Share2,
-  RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX,
+  RefreshCw, Play, Pause, Square, SkipBack, ShieldCheck, AlertTriangle, ShieldX, Heart,
 } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { usePublishQueue } from '../contexts/PublishQueueContext';
@@ -98,6 +98,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [liveFeedUrl, setLiveFeedUrl] = useState(initialAlbum?.liveFeedUrl || '');
   const [donationGoal, setDonationGoal] = useState<number>(initialAlbum?.donationGoal || 0);
   const [isPrivate, setIsPrivate] = useState<boolean>(initialAlbum?.isPrivate || false);
+  const [isIntimateOnly, setIsIntimateOnly] = useState<boolean>(initialAlbum?.isIntimateOnly || false);
   const [isDraft, setIsDraft] = useState<boolean>(initialAlbum?.isDraft ?? false);
   const [tags, setTags] = useState<string[]>(initialAlbum?.tags || []);
   const [tagInput, setTagInput] = useState('');
@@ -774,7 +775,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         createdAt: initialAlbum?.createdAt || Date.now(),
         license,
         isPublic: !isPrivate && !draftMode,
-        isPrivate, isDraft: draftMode, isScheduled, publishVideosToGallery, isSlideshowEnabled,
+        isPrivate, isIntimateOnly, isDraft: draftMode, isScheduled, publishVideosToGallery, isSlideshowEnabled,
         publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
         audiusPublishStatus: (type === 'MUSIC' && publishToAudius) ? 'pending' as const : initialAlbum?.audiusPublishStatus,
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
@@ -2190,6 +2191,19 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
             <button type="button" onClick={() => setIsPrivate(!isPrivate)} className={`w-12 h-7 rounded-full transition-all relative shrink-0 ${!isPrivate ? 'bg-green-500' : 'bg-white/10'}`}>
               <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${!isPrivate ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
+          {/* Intimate-only — sendable only inside intimate (couples) chats */}
+          <div className="flex items-center justify-between pt-4 border-t border-white/5">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20"><Heart size={18} className="text-rose-400" /></div>
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest">Intimate Only</h4>
+                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{isIntimateOnly ? 'Couples chats only' : 'Shareable anywhere'}</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setIsIntimateOnly(!isIntimateOnly)} className={`w-12 h-7 rounded-full transition-all relative shrink-0 ${isIntimateOnly ? 'bg-rose-500' : 'bg-white/10'}`}>
+              <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${isIntimateOnly ? 'left-5' : 'left-0.5'}`} />
             </button>
           </div>
         </div>

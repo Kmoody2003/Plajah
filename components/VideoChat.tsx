@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Video, Mic, MicOff, VideoOff, PhoneOff,
   Settings, UserPlus, LayoutGrid, Monitor, Wifi, WifiOff,
-  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search,
+  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search, Heart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Circle } from 'lucide-react';
@@ -10,6 +10,7 @@ import { ChatRoom, ChatMessage } from '../types';
 import { auth, listenToMessages, sendMessage } from '../services/backendService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { saveSessionRecording } from '../services/liveStreamService';
+import RomanceFXOverlay from './RomanceFXOverlay';
 
 export interface CallContact { uid: string; displayName: string; photoURL?: string }
 
@@ -63,6 +64,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const [showAdd, setShowAdd] = useState(false);
   const [addQuery, setAddQuery] = useState('');
   const [invited, setInvited] = useState<Set<string>>(new Set());
+  const [romanceFx, setRomanceFx] = useState<boolean>(!!room?.isIntimate); // rose-petals/hearts on intimate calls
 
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -159,7 +161,9 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   return (
     <div ref={rootRef} className="fixed inset-0 z-[500] bg-[#050505] flex overflow-hidden">
       {/* Main call column */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="relative flex-1 flex flex-col overflow-hidden min-w-0">
+      {/* Romance FX — falling rose petals + hearts on intimate calls */}
+      {room?.isIntimate && romanceFx && <RomanceFXOverlay />}
       {/* Top bar */}
       <div className="p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
@@ -170,6 +174,12 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {room?.isIntimate && (
+            <button onClick={() => setRomanceFx(v => !v)} title="Romance FX"
+              className={`p-4 rounded-2xl transition-all ${romanceFx ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+              <Heart size={20} fill={romanceFx ? 'currentColor' : 'none'} />
+            </button>
+          )}
           <button onClick={() => setShowChat(s => !s)} title="Chat"
             className={`p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <MessageSquare size={20} />
